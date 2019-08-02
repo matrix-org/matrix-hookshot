@@ -1,0 +1,29 @@
+{
+  "name": "matrix-github",
+  "version": "0.0.1",
+  "description": "A bridge that displays GitHub issues/PRs as rooms.",
+  "main": "lib/app.js",
+  "repository": "https://github.com/Half-Shot/matrix-github",
+  "author": "Half-Shot",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "start": "node lib/app.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^16.28.7",
+    "@types/express": "^4.17.0",
+    "@types/markdown-it": "^0.0.8",
+    "express": "^4.17.1",
+    "markdown-it": "^9.0.1",
+    "matrix-bot-sdk": "^0.3.9",
+    "winston": "^3.2.1",
+    "yaml": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^12.6.9",
+    "@types/yaml": "^1.0.2",
+    "typescript": "^3.5.3"
+  }
+}

@@ -1,0 +1,10 @@
+github:
+  auth: someauthtoken
+  webhook:
+    secret: webhooksecret
+    port: 7775
+bridge:
+  domain: example.com
+  url: http://localhost:8008
+  port: 9993 # Port the appservice is binding to
+  bindAddress: 127.0.0.1 # Not the port the appservice is binding to
