@@ -3,6 +3,7 @@ import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
 import { IssuesGetResponse, ReposGetResponse, IssuesGetResponseUser, IssuesGetCommentResponse } from "@octokit/rest";
 import { EventEmitter } from "events";
+import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 
 export interface IWebhookEvent {
     action: string;
@@ -14,6 +15,7 @@ export interface IWebhookEvent {
 
 export class GithubWebhooks extends EventEmitter {
     private expressApp: Application;
+    private queue: MessageQueue;
     constructor(private config: BridgeConfig) {
         super();
         this.expressApp = express();
@@ -21,6 +23,7 @@ export class GithubWebhooks extends EventEmitter {
             verify: this.verifyRequest.bind(this),
         }));
         this.expressApp.post("/", this.onPayload.bind(this));
+        this.queue = createMessageQueue(config);
     }
 
     listen() {
@@ -34,11 +37,12 @@ export class GithubWebhooks extends EventEmitter {
         const body = req.body as IWebhookEvent;
         console.log("Got", body.action);
         try {
-            console.log(body);
             if (body.action === "created" && body.comment) {
-                this.emit(`comment.created`, body);
-            } else {
-                this.emit(`${body.action}`, body);
+                this.queue.push({
+                    eventName: "comment.created",
+                    sender: "GithubWebhooks",
+                    data: body,
+                })
             }
         } catch (ex) {
             console.error("Failed to emit");

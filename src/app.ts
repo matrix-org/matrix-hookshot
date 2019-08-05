@@ -6,6 +6,7 @@ import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig, parseConfig, parseRegistrationFile } from "./Config";
 import { GithubWebhooks, IWebhookEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
+import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
 
 const md = new markdown();
 
@@ -26,8 +27,8 @@ export class GithubBridge {
     private roomIdtoBridgeState: Map<string, IBridgeRoomState[]>;
     private orgRepoIssueToRoomId: Map<string, string>;
     private matrixHandledEvents: Set<string>;
-    private webhookHandler?: GithubWebhooks;
     private commentProcessor!: CommentProcessor;
+    private queue!: MessageQueue;
 
     constructor () { 
         this.roomIdtoBridgeState = new Map();
@@ -39,6 +40,9 @@ export class GithubBridge {
         const configFile = process.argv[2] || "./config.yml";
         const registrationFile = process.argv[3] || "./registration.yml";
         this.config = await parseConfig(configFile);
+
+        this.queue = createMessageQueue(this.config);
+
         const registration = await parseRegistrationFile(registrationFile);
         this.octokit = new Octokit({
             auth: this.config.github.auth,
@@ -62,11 +66,16 @@ export class GithubBridge {
             this.onRoomEvent(roomId, event);
         });
 
-        if (this.config.github.webhook) {
-            this.webhookHandler = new GithubWebhooks(this.config);
-            this.webhookHandler.listen();
-            this.webhookHandler.on("comment.created", this.onCommentCreated.bind(this));
+        if (this.config.github.webhook && this.config.queue.monolithic) {
+            const webhookHandler = new GithubWebhooks(this.config);
+            webhookHandler.listen();
         }
+
+        this.queue.subscribe("comment.*");
+
+        this.queue.on("comment.created", (msg: MessageQueueMessage) => {
+            this.onCommentCreated(msg.data);
+        });
 
         // Fetch all room state
         const joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();

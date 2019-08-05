@@ -20,6 +20,11 @@ export interface BridgeConfig {
         port: number,
         bindAddress: string
     },
+    queue: {
+        monolithic: boolean,
+        port?: number,
+        host?: string,
+    }
 }
 
 export async function parseRegistrationFile(filename: string) {
@@ -29,5 +34,9 @@ export async function parseRegistrationFile(filename: string) {
 
 export async function parseConfig(filename: string) {
     const file = await fs.readFile(filename, "utf-8");
-    return YAML.parse(file) as BridgeConfig;
+    const config = YAML.parse(file) as BridgeConfig;
+    config.queue = config.queue || {
+        monolithic: true,
+    };
+    return config;
 }
