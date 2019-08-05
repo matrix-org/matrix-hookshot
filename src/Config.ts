@@ -13,6 +13,7 @@ export interface BridgeConfig {
         userTokens: {
             [userId: string]: string
         }
+        passFile: string,
     },
     bridge: {
         domain: string
