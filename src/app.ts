@@ -47,9 +47,11 @@ export class GithubBridge {
         const configFile = process.argv[2] || "./config.yml";
         const registrationFile = process.argv[3] || "./registration.yml";
         this.adminRooms = new Map();
-        this.config = await parseConfig(configFile);
+        this.config = await parseConfig(configFile, process.env);
 
         this.queue = createMessageQueue(this.config);
+
+        console.log(this.queue);
 
         const registration = await parseRegistrationFile(registrationFile);
         this.octokit = new Octokit({
@@ -83,6 +85,7 @@ export class GithubBridge {
         }
 
         this.queue.subscribe("comment.*");
+        this.queue.subscribe("issue.*");
 
         this.queue.on("comment.created", async (msg: MessageQueueMessage) => {
             return this.onCommentCreated(msg.data);

@@ -48,6 +48,12 @@ export class GithubWebhooks extends EventEmitter {
                     sender: "GithubWebhooks",
                     data: body,
                 });
+            } else if (body.action === "edited" && body.comment) {
+                this.queue.push({
+                    eventName: "comment.edited",
+                    sender: "GithubWebhooks",
+                    data: body,
+                });
             } else if (body.action === "edited" && body.issue) {
                 this.queue.push({
                     eventName: "issue.edited",

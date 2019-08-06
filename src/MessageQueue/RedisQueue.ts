@@ -24,8 +24,10 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redis.punsubscribe(eventGlob);
     }
 
-    public async push(data: MessageQueueMessage) {
+    public push(data: MessageQueueMessage) {
         data.ts = process.hrtime()[1];
-        await this.redis.publish(data.eventName, JSON.stringify(data));
+        this.redis.publish(data.eventName, JSON.stringify(data)).then(() => {
+            console.log(`Pushed ${data.eventName}`);
+        });
     }
 }
