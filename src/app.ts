@@ -9,6 +9,7 @@ import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
 import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
+import { FormatUtil } from "./FormatUtil";
 
 const md = new markdown();
 
@@ -84,6 +85,18 @@ export class GithubBridge {
 
         this.queue.on("comment.created", (msg: MessageQueueMessage) => {
             this.onCommentCreated(msg.data);
+        });
+
+        this.queue.on("issue.edited", (msg: MessageQueueMessage) => {
+            this.onIssueEdited(msg.data);
+        });
+
+        this.queue.on("issue.closed", (msg: MessageQueueMessage) => {
+            this.onIssueStateChange(msg.data);
+        });
+
+        this.queue.on("issue.reopened", (msg: MessageQueueMessage) => {
+            this.onIssueStateChange(msg.data);
         });
 
         // Fetch all room state
@@ -217,16 +230,14 @@ export class GithubBridge {
     }
 
     private async syncIssueState(roomId: string, repoState: IBridgeRoomState) {
+        console.log("Syncing issue state for", roomId);
         const issue = await this.octokit.issues.get({
             owner: repoState.content.org,
             repo: repoState.content.repo,
             issue_number: parseInt(repoState.content.issues[0]),
         });
-        issue.data.user
-        if (repoState.content.comments_processed === issue.data.comments) {
-            return;
-        }
         const creatorIntent = await this.getIntentForUser(issue.data.user);
+
         if (repoState.content.comments_processed === -1) {
             // We've not sent any messages into the room yet, let's do it!
             await creatorIntent.sendEvent(roomId, {
@@ -247,18 +258,21 @@ export class GithubBridge {
             }
             repoState.content.comments_processed = 0;
         }
-        const comments = (await this.octokit.issues.listComments({
-            owner: repoState.content.org,
-            repo: repoState.content.repo,
-            issue_number: parseInt(repoState.content.issues[0]),
-            // TODO: Use since to get a subset
-        })).data.slice(repoState.content.comments_processed);
-        for (const comment of comments) {
-            this.onCommentCreated({
-                comment,
-                action: "fake",
-            }, roomId, false);
-            repoState.content.comments_processed++;
+
+        if (repoState.content.comments_processed !== issue.data.comments) {
+            const comments = (await this.octokit.issues.listComments({
+                owner: repoState.content.org,
+                repo: repoState.content.repo,
+                issue_number: parseInt(repoState.content.issues[0]),
+                // TODO: Use since to get a subset
+            })).data.slice(repoState.content.comments_processed);
+            for (const comment of comments) {
+                this.onCommentCreated({
+                    comment,
+                    action: "fake",
+                }, roomId, false);
+                repoState.content.comments_processed++;
+            }
         }
 
         if (repoState.content.state !== issue.data.state) {
@@ -270,6 +284,10 @@ export class GithubBridge {
                     external_url: issue.data.closed_by.html_url,
                 });
             }
+
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.topic", "", {
+                topic: FormatUtil.formatTopic(issue.data)
+            });
             repoState.content.state = issue.data.state;
         }
 
@@ -304,8 +322,8 @@ export class GithubBridge {
 
         return {
             visibility: "public",
-            name: `${orgRepoName}#${issue.data.number}: ${issue.data.title}`,
-            topic: `${issue.data.title} | Status: ${issue.data.state} | ${issue.data.html_url}`,
+            name: FormatUtil.formatName(issue.data),
+            topic: FormatUtil.formatTopic(issue.data),
             preset: "public_chat",
             initial_state: [
                 {
@@ -343,7 +361,9 @@ export class GithubBridge {
             }
         }
         const commentIntent = await this.getIntentForUser(comment.user);
-        await commentIntent.sendEvent(roomId, this.commentProcessor.getEventBodyForComment(comment));
+        const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment);
+        console.log(matrixEvent);
+        await commentIntent.sendEvent(roomId, matrixEvent);
         if (!updateState) {
             return;
         }
@@ -355,6 +375,43 @@ export class GithubBridge {
             state.state_key,
             state.content,
         );     
+    }
+
+    private async onIssueEdited(event: IWebhookEvent) {
+        if (!event.changes) {
+            console.log("No changes given");
+            return; // No changes made.
+        }
+
+        const issueKey = `${event.repository!.owner.login}/${event.repository!.name}#${event.issue!.number}`;
+        const roomId = this.orgRepoIssueToRoomId.get(issueKey)!;
+        const roomState = await this.getRoomBridgeState(roomId, event);
+
+        if (!roomId || !roomState) {
+            console.log("No tracked room state");
+            return;
+        }
+
+        if (event.changes.title) {
+            this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.name", "", {
+                name: FormatUtil.formatName(event.issue!)
+            });
+        }
+    }
+
+    private async onIssueStateChange(event: IWebhookEvent) {
+        const issueKey = `${event.repository!.owner.login}/${event.repository!.name}#${event.issue!.number}`;
+        const roomId = this.orgRepoIssueToRoomId.get(issueKey)!;
+        const roomState = await this.getRoomBridgeState(roomId);
+
+        if (!roomId || !roomState || roomState.length === 0) {
+            console.log("No tracked room state");
+            return;
+        }
+
+        console.log(roomState);
+
+       await this.syncIssueState(roomId, roomState[0]);
     }
 
     private async onMatrixIssueComment (event: any, bridgeState: IBridgeRoomState) {

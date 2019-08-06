@@ -7,10 +7,15 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 
 export interface IWebhookEvent {
     action: string;
-    issue?: IssuesGetResponse, // more or less
-    comment?: IssuesGetCommentResponse,
-    repository?: ReposGetResponse,
-    sender?: IssuesGetResponseUser,
+    issue?: IssuesGetResponse; // more or less
+    comment?: IssuesGetCommentResponse;
+    repository?: ReposGetResponse;
+    sender?: IssuesGetResponseUser;
+    changes?: {
+        title?: {
+            from: string;
+        }
+    }
 }
 
 export class GithubWebhooks extends EventEmitter {
@@ -35,7 +40,7 @@ export class GithubWebhooks extends EventEmitter {
 
     onPayload(req: Request, res: Response) {
         const body = req.body as IWebhookEvent;
-        console.log("Got", body.action);
+        console.debug("Got", body);
         try {
             if (body.action === "created" && body.comment) {
                 this.queue.push({
@@ -43,6 +48,24 @@ export class GithubWebhooks extends EventEmitter {
                     sender: "GithubWebhooks",
                     data: body,
                 })
+            } else if (body.action === "edited" && body.issue) {
+                this.queue.push({
+                    eventName: "issue.edited",
+                    sender: "GithubWebhooks",
+                    data: body,
+                });
+            } else if (body.action === "closed" && body.issue) {
+                this.queue.push({
+                    eventName: "issue.closed",
+                    sender: "GithubWebhooks",
+                    data: body,
+                });
+            } else if (body.action === "reopened" && body.issue) {
+                this.queue.push({
+                    eventName: "issue.reopened",
+                    sender: "GithubWebhooks",
+                    data: body,
+                });
             }
         } catch (ex) {
             console.error("Failed to emit");
