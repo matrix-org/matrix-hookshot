@@ -12,9 +12,8 @@ class GithubWebhookApp {
         const webhookHandler = new GithubWebhooks(config);
         webhookHandler.listen();
     }
-
 }
 
 new GithubWebhookApp().start().catch((ex) => {
-    console.error("Bridge encountered an error and has stopped:", ex);
+    console.error("GithubWebhookApp encountered an error and has stopped:", ex);
 });
