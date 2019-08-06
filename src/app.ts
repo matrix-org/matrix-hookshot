@@ -12,13 +12,14 @@ import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
 
 const md = new markdown();
+// tslint:disable: no-console
 
 const log = winston.createLogger({
-    level: 'info',
+    level: "info",
     format: winston.format.simple(),
     transports: [
         new winston.transports.Console(),
-    ]
+    ],
 });
 
 LogService.setLogger(log);
@@ -35,7 +36,7 @@ export class GithubBridge {
     private queue!: MessageQueue;
     private tokenStore!: UserTokenStore;
 
-    constructor () { 
+    constructor() {
         this.roomIdtoBridgeState = new Map();
         this.orgRepoIssueToRoomId = new Map();
         this.matrixHandledEvents = new Set();
@@ -53,7 +54,7 @@ export class GithubBridge {
         const registration = await parseRegistrationFile(registrationFile);
         this.octokit = new Octokit({
             auth: this.config.github.auth,
-            userAgent: "matrix-github v0.0.1"
+            userAgent: "matrix-github v0.0.1",
         });
 
         this.as = new Appservice({
@@ -63,7 +64,7 @@ export class GithubBridge {
             bindAddress: this.config.bridge.bindAddress,
             registration,
         });
-        this.commentProcessor = new CommentProcessor(this.as);
+        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl);
 
         this.tokenStore = new UserTokenStore(this.config.github.passFile || "./passkey.pem", this.as.botIntent);
         await this.tokenStore.load();
@@ -72,8 +73,8 @@ export class GithubBridge {
             cb(this.onQueryRoom(roomAlias));
         });
 
-        this.as.on("room.event", (roomId, event) => {
-            this.onRoomEvent(roomId, event);
+        this.as.on("room.event", async (roomId, event) => {
+            return this.onRoomEvent(roomId, event);
         });
 
         if (this.config.github.webhook && this.config.queue.monolithic) {
@@ -83,20 +84,20 @@ export class GithubBridge {
 
         this.queue.subscribe("comment.*");
 
-        this.queue.on("comment.created", (msg: MessageQueueMessage) => {
-            this.onCommentCreated(msg.data);
+        this.queue.on("comment.created", async (msg: MessageQueueMessage) => {
+            return this.onCommentCreated(msg.data);
         });
 
-        this.queue.on("issue.edited", (msg: MessageQueueMessage) => {
-            this.onIssueEdited(msg.data);
+        this.queue.on("issue.edited", async (msg: MessageQueueMessage) => {
+            return this.onIssueEdited(msg.data);
         });
 
-        this.queue.on("issue.closed", (msg: MessageQueueMessage) => {
-            this.onIssueStateChange(msg.data);
+        this.queue.on("issue.closed", async (msg: MessageQueueMessage) => {
+            return this.onIssueStateChange(msg.data);
         });
 
-        this.queue.on("issue.reopened", (msg: MessageQueueMessage) => {
-            this.onIssueStateChange(msg.data);
+        this.queue.on("issue.reopened", async (msg: MessageQueueMessage) => {
+            return this.onIssueStateChange(msg.data);
         });
 
         // Fetch all room state
@@ -104,9 +105,13 @@ export class GithubBridge {
         for (const roomId of joinedRooms) {
             log.info("Fetching state for " + roomId);
             try {
-                const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData(BRIDGE_ROOM_TYPE, roomId);
+                const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData(
+                    BRIDGE_ROOM_TYPE, roomId,
+                );
                 if (accountData.type === "admin") {
-                    this.adminRooms.set(roomId, new AdminRoom(roomId, accountData.admin_user, this.as.botIntent, this.tokenStore));
+                    this.adminRooms.set(roomId, new AdminRoom(
+                        roomId, accountData.admin_user, this.as.botIntent, this.tokenStore,
+                    ));
                 }
                 continue;
             } catch (ex) { /* this is an old style room */ }
@@ -122,14 +127,19 @@ export class GithubBridge {
             return this.roomIdtoBridgeState.get(roomId)!;
         }
         try {
-            log.info("Updating state cache for " + roomId)
-            const state: any = existingState ? [existingState] : (await this.as.botIntent.underlyingClient.getRoomState(roomId))
-            const bridgeEvents: IBridgeRoomState[] = state.filter((e: any) => 
-                e.type === BRIDGE_STATE_TYPE
+            log.info("Updating state cache for " + roomId);
+            const state = existingState ? [existingState] : (
+                await this.as.botIntent.underlyingClient.getRoomState(roomId)
+            );
+            const bridgeEvents: IBridgeRoomState[] = state.filter((e: any) =>
+                e.type === BRIDGE_STATE_TYPE,
             );
             this.roomIdtoBridgeState.set(roomId, bridgeEvents);
             for (const event of bridgeEvents) {
-                this.orgRepoIssueToRoomId.set(`${event.content.org}/${event.content.repo}#${event.content.issues[0]}`, roomId);
+                this.orgRepoIssueToRoomId.set(
+                    `${event.content.org}/${event.content.repo}#${event.content.issues[0]}`,
+                    roomId,
+                );
             }
             return bridgeEvents;
         } catch (ex) {
@@ -150,11 +160,17 @@ export class GithubBridge {
             await this.as.botIntent.joinRoom(roomId);
             const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
             if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
-                await this.as.botIntent.sendText(roomId, "This bridge currently only supports invites to 1:1 rooms", "m.notice");
+                await this.as.botIntent.sendText(
+                    roomId,
+                    "This bridge currently only supports invites to 1:1 rooms",
+                    "m.notice",
+                );
                 await this.as.botIntent.underlyingClient.leaveRoom(roomId);
                 return;
             }
-            await this.as.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender, type: "admin"});
+            await this.as.botIntent.underlyingClient.setRoomAccountData(
+                BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender, type: "admin"},
+            );
             this.adminRooms.set(roomId, new AdminRoom(roomId, event.sender, this.as.botIntent, this.tokenStore));
         }
 
@@ -173,14 +189,13 @@ export class GithubBridge {
 
         if (event.type === BRIDGE_STATE_TYPE) {
             log.info(`Got new state for ${roomId}`);
-            this.getRoomBridgeState(roomId, event);
+            await this.getRoomBridgeState(roomId, event);
             // Get current state of issue.
             await this.syncIssueState(roomId, event);
         }
 
         const bridgeState = await this.getRoomBridgeState(roomId);
 
-        
         if (bridgeState.length === 0) {
             log.info("Room has no state for bridge");
             return;
@@ -217,8 +232,12 @@ export class GithubBridge {
                 const buffer = await this.octokit.request(user.avatar_url);
                 log.info(`uploading ${user.avatar_url}`);
                 // This does exist, but headers is silly and doesn't have content-type.
-                const contentType = (buffer.headers as any)['content-type'];
-                const mxc = await intent.underlyingClient.uploadContent(Buffer.from(buffer.data as ArrayBuffer), contentType);
+                // tslint:disable-next-line: no-any
+                const contentType = (buffer.headers as any)["content-type"];
+                const mxc = await intent.underlyingClient.uploadContent(
+                    Buffer.from(buffer.data as ArrayBuffer),
+                    contentType,
+                );
                 await intent.underlyingClient.setAvatarUrl(mxc);
                 await intent.underlyingClient.setDisplayName(displayName);
             }
@@ -234,7 +253,7 @@ export class GithubBridge {
         const issue = await this.octokit.issues.get({
             owner: repoState.content.org,
             repo: repoState.content.repo,
-            issue_number: parseInt(repoState.content.issues[0]),
+            issue_number: parseInt(repoState.content.issues[0], 10),
         });
         const creatorIntent = await this.getIntentForUser(issue.data.user);
 
@@ -263,11 +282,11 @@ export class GithubBridge {
             const comments = (await this.octokit.issues.listComments({
                 owner: repoState.content.org,
                 repo: repoState.content.repo,
-                issue_number: parseInt(repoState.content.issues[0]),
+                issue_number: parseInt(repoState.content.issues[0], 10),
                 // TODO: Use since to get a subset
             })).data.slice(repoState.content.comments_processed);
             for (const comment of comments) {
-                this.onCommentCreated({
+                await this.onCommentCreated({
                     comment,
                     action: "fake",
                 }, roomId, false);
@@ -286,7 +305,7 @@ export class GithubBridge {
             }
 
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.topic", "", {
-                topic: FormatUtil.formatTopic(issue.data)
+                topic: FormatUtil.formatTopic(issue.data),
             });
             repoState.content.state = issue.data.state;
         }
@@ -306,7 +325,7 @@ export class GithubBridge {
             throw Error("Alias is in an incorrect format");
         }
         const parts = match!.slice(1);
-        const issueNumber = parseInt(parts[2]);
+        const issueNumber = parseInt(parts[2], 10);
 
         const issue = await this.octokit.issues.get({
             owner: parts[0],
@@ -336,12 +355,12 @@ export class GithubBridge {
                         state: "open",
                     },
                     state_key: issue.data.url,
-                } as IBridgeRoomState
-            ]
+                } as IBridgeRoomState,
+            ],
         };
     }
 
-    private async onCommentCreated (event: IWebhookEvent, roomId?: string, updateState: boolean = true) {
+    private async onCommentCreated(event: IWebhookEvent, roomId?: string, updateState: boolean = true) {
         if (!roomId) {
             const issueKey = `${event.repository!.owner.login}/${event.repository!.name}#${event.issue!.number}`;
             roomId = this.orgRepoIssueToRoomId.get(issueKey);
@@ -354,15 +373,15 @@ export class GithubBridge {
         if (event.repository) {
             // Delay to stop comments racing sends
             await new Promise((resolve) => setTimeout(resolve, 500));
-            const dupeKey = `${event.repository.owner.login}/${event.repository.name}#${event.issue!.number}~${comment.id}`.toLowerCase();
-            console.log("dupekey:", dupeKey);
+            const dupeKey =
+            `${event.repository.owner.login}/${event.repository.name}#${event.issue!.number}~${comment.id}`
+            .toLowerCase();
             if (this.matrixHandledEvents.has(dupeKey)) {
                 return;
             }
         }
         const commentIntent = await this.getIntentForUser(comment.user);
         const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment);
-        console.log(matrixEvent);
         await commentIntent.sendEvent(roomId, matrixEvent);
         if (!updateState) {
             return;
@@ -374,7 +393,7 @@ export class GithubBridge {
             BRIDGE_STATE_TYPE,
             state.state_key,
             state.content,
-        );     
+        );
     }
 
     private async onIssueEdited(event: IWebhookEvent) {
@@ -393,8 +412,8 @@ export class GithubBridge {
         }
 
         if (event.changes.title) {
-            this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.name", "", {
-                name: FormatUtil.formatName(event.issue!)
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.name", "", {
+                name: FormatUtil.formatName(event.issue!),
             });
         }
     }
@@ -411,34 +430,35 @@ export class GithubBridge {
 
         console.log(roomState);
 
-       await this.syncIssueState(roomId, roomState[0]);
+        await this.syncIssueState(roomId, roomState[0]);
     }
 
-    private async onMatrixIssueComment (event: any, bridgeState: IBridgeRoomState) {
+    private async onMatrixIssueComment(event: any, bridgeState: IBridgeRoomState) {
         // TODO: Someone who is not lazy should make this work with oauth.
         const senderToken = await this.tokenStore.getUserToken(event.sender);
         if (senderToken === null) {
             // TODO: Bridge via bot.
-            log.warn("Cannot handle event from " + event.sender + ". No user token configured");
+            log.warn(`Cannot handle event from ${event.sender}. No user token configured`);
             return;
         }
         const clientKit = new Octokit({
             auth: senderToken,
-            userAgent: "matrix-github v0.0.1"
+            userAgent: "matrix-github v0.0.1",
         });
 
         const result = await clientKit.issues.createComment({
             repo: bridgeState.content.repo,
             owner: bridgeState.content.org,
-            body: event.content.body,
-            issue_number: parseInt(bridgeState.content.issues[0]),
+            body: await this.commentProcessor.getCommentBodyForEvent(event.content),
+            issue_number: parseInt(bridgeState.content.issues[0], 10),
         });
-        const key = `${bridgeState.content.org}/${bridgeState.content.repo}#${bridgeState.content.issues[0]}~${result.data.id}`.toLowerCase();
-        console.log("Original dupe key", key);
+        const key =
+        `${bridgeState.content.org}/${bridgeState.content.repo}#${bridgeState.content.issues[0]}~${result.data.id}`
+        .toLowerCase();
         this.matrixHandledEvents.add(key);
     }
 }
 
 new GithubBridge().start().catch((ex) => {
-    console.error("Bridge encountered an error and has stopped:", ex);
+    console.error("GithubBridge encountered an error and has stopped:", ex);
 });

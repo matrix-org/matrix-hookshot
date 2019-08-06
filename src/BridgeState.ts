@@ -7,6 +7,6 @@ export interface IBridgeRoomState {
         repo: string;
         state: string;
         issues: string[];
-        comments_processed: number,
-    },
+        comments_processed: number;
+    };
 }

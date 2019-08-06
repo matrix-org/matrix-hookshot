@@ -1,31 +1,32 @@
 import YAML from "yaml";
-import { promises as fs } from "fs"
+import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 
 export interface BridgeConfig {
     github: {
-        auth: string
+        auth: string;
         webhook: {
-            port: number
-            bindAddress: string
-            secret: string
+            port: number;
+            bindAddress: string;
+            secret: string;
         },
         userTokens: {
-            [userId: string]: string
+            [userId: string]: string;
         }
-        passFile: string,
-    },
+        passFile: string;
+    };
     bridge: {
-        domain: string
-        url: string
-        port: number,
-        bindAddress: string
-    },
+        domain: string;
+        url: string;
+        mediaUrl: string;
+        port: number;
+        bindAddress: string;
+    };
     queue: {
-        monolithic: boolean,
-        port?: number,
-        host?: string,
-    }
+        monolithic: boolean;
+        port?: number;
+        host?: string;
+    };
 }
 
 export async function parseRegistrationFile(filename: string) {
@@ -39,5 +40,6 @@ export async function parseConfig(filename: string) {
     config.queue = config.queue || {
         monolithic: true,
     };
+    config.bridge.mediaUrl = config.bridge.mediaUrl || config.bridge.url;
     return config;
 }

@@ -13,12 +13,11 @@ export class UserTokenStore {
 
     public async load() {
         this.key = await fs.readFile(this.keyPath);
-        console.log(this.key);
     }
 
     public async storeUserToken(userId: string, token: string): Promise<void> {
         await this.intent.underlyingClient.setAccountData(`${ACCOUNT_DATA_TYPE}${userId}`, {
-            encrypted: publicEncrypt(this.key, Buffer.from(token)).toString('base64'),
+            encrypted: publicEncrypt(this.key, Buffer.from(token)).toString("base64"),
         });
         this.userTokens.set(userId, token);
     }
@@ -30,7 +29,7 @@ export class UserTokenStore {
         let obj;
         try {
             obj = await this.intent.underlyingClient.getAccountData(`${ACCOUNT_DATA_TYPE}${userId}`);
-        } catch(ex) {
+        } catch (ex) {
             return null;
         }
         const encryptedTextB64 = obj.encrypted;

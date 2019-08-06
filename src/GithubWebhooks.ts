@@ -7,15 +7,15 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 
 export interface IWebhookEvent {
     action: string;
-    issue?: IssuesGetResponse; // more or less
+    issue?: IssuesGetResponse;
     comment?: IssuesGetCommentResponse;
     repository?: ReposGetResponse;
     sender?: IssuesGetResponseUser;
     changes?: {
         title?: {
             from: string;
-        }
-    }
+        };
+    };
 }
 
 export class GithubWebhooks extends EventEmitter {
@@ -31,14 +31,14 @@ export class GithubWebhooks extends EventEmitter {
         this.queue = createMessageQueue(config);
     }
 
-    listen() {
+    public listen() {
         this.expressApp.listen(
             this.config.github.webhook.port,
-            this.config.github.webhook.bindAddress
+            this.config.github.webhook.bindAddress,
         );
     }
 
-    onPayload(req: Request, res: Response) {
+    public onPayload(req: Request, res: Response) {
         const body = req.body as IWebhookEvent;
         console.debug("Got", body);
         try {
@@ -47,7 +47,7 @@ export class GithubWebhooks extends EventEmitter {
                     eventName: "comment.created",
                     sender: "GithubWebhooks",
                     data: body,
-                })
+                });
             } else if (body.action === "edited" && body.issue) {
                 this.queue.push({
                     eventName: "issue.edited",
@@ -73,21 +73,17 @@ export class GithubWebhooks extends EventEmitter {
         res.sendStatus(200);
     }
 
-    onEvent() {
-
-    }
-
     // Calculate the X-Hub-Signature header value.
-    private getSignature (buf: Buffer) {
-        var hmac = createHmac("sha1", this.config.github.webhook.secret);
+    private getSignature(buf: Buffer) {
+        const hmac = createHmac("sha1", this.config.github.webhook.secret);
         hmac.update(buf);
         return "sha1=" + hmac.digest("hex");
     }
-  
+
     // Verify function compatible with body-parser to retrieve the request payload.
     // Read more: https://github.com/expressjs/body-parser#verify
-    private verifyRequest (req: Request, res: Response, buf: Buffer) {
-        const expected = req.headers['x-hub-signature'];
+    private verifyRequest(req: Request, res: Response, buf: Buffer) {
+        const expected = req.headers["x-hub-signature"];
         const calculated = this.getSignature(buf);
         if (expected !== calculated) {
             res.sendStatus(403);

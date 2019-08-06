@@ -6,33 +6,33 @@ export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
 
 export class AdminRoom {
 
-    constructor (private roomId: string,
-        readonly userId: string,
-        private botIntent: Intent,
-        private tokenStore: UserTokenStore) {
+    constructor(private roomId: string,
+                readonly userId: string,
+                private botIntent: Intent,
+                private tokenStore: UserTokenStore) {
 
     }
 
-    public async handleCommand (command: string) {
+    public async handleCommand(command: string) {
         if (command.startsWith("!setToken ")) {
             const accessToken = command.substr("!setToken ".length);
-            await this.setPersonalAccessToken(command, accessToken);
+            await this.setPersonalAccessToken(accessToken);
             return;
         } else if (command.startsWith("!hasToken")) {
             await this.hasPersonalToken();
             return;
         }
-        this.sendNotice("Command not understood");
+        await this.sendNotice("Command not understood");
     }
 
-    private async setPersonalAccessToken (_command: string, accessToken: string) {
+    private async setPersonalAccessToken(accessToken: string) {
         let me;
         try {
             const octokit = new Octokit({
                 auth: accessToken,
-                userAgent: "matrix-github v0.0.1"
+                userAgent: "matrix-github v0.0.1",
             });
-            me = await octokit.users.getAuthenticated();    
+            me = await octokit.users.getAuthenticated();
         } catch (ex) {
             await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
             return;
@@ -41,7 +41,7 @@ export class AdminRoom {
         await this.tokenStore.storeUserToken(this.userId, accessToken);
     }
 
-    private async hasPersonalToken () {
+    private async hasPersonalToken() {
         const result = await this.tokenStore.getUserToken(this.userId);
         if (result === null) {
             await this.sendNotice("You do not currently have a token stored");

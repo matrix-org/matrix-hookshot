@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "start": "node lib/app.js",
-    "test": "mocha -r ts-node/register tests/**/*.ts"
+    "test": "mocha -r ts-node/register tests/**/*.ts",
+    "lint": "tslint -p tsconfig.json"
   },
   "dependencies": {
     "@octokit/rest": "^16.28.7",
@@ -40,6 +41,7 @@
     "@types/yaml": "^1.0.2",
     "chai": "^4.2.0",
     "ts-node": "^8.3.0",
+    "tslint": "^5.18.0",
     "typescript": "^3.5.3"
   }
 }

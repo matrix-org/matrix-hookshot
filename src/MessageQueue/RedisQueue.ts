@@ -8,7 +8,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     constructor(config: BridgeConfig) {
         super();
         this.redis = new redis(config.queue.port, config.queue.host);
-        this.redis.on("pmessage", (_pattern: string, channel: string, message: string) => {
+        this.redis.on("pmessage", (pattern: string, channel: string, message: string) => {
             const msg = JSON.parse(message);
             const delay = (process.hrtime()[1]) - msg.ts!;
             console.log("Delay: ", delay / 1000000, "ms");
@@ -16,16 +16,16 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         });
     }
 
-    public subscribe (eventGlob: string) {
+    public subscribe(eventGlob: string) {
         this.redis.psubscribe(eventGlob);
     }
 
-    public unsubscribe (eventGlob: string) {
+    public unsubscribe(eventGlob: string) {
         this.redis.punsubscribe(eventGlob);
     }
 
-    public push (data: MessageQueueMessage) {
+    public async push(data: MessageQueueMessage) {
         data.ts = process.hrtime()[1];
-        this.redis.publish(data.eventName, JSON.stringify(data));
+        await this.redis.publish(data.eventName, JSON.stringify(data));
     }
 }
