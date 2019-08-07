@@ -1,6 +1,5 @@
-import { Appservice, LogService } from "matrix-bot-sdk";
+import { Appservice } from "matrix-bot-sdk";
 import Octokit, { IssuesGetResponseUser } from "@octokit/rest";
-import winston from "winston";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig, parseConfig, parseRegistrationFile } from "./Config";
@@ -11,19 +10,10 @@ import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
+import { LogWrapper } from "./LogWrapper";
 
 const md = new markdown();
-// tslint:disable: no-console
-
-const log = winston.createLogger({
-    level: "info",
-    format: winston.format.simple(),
-    transports: [
-        new winston.transports.Console(),
-    ],
-});
-
-LogService.setLogger(log);
+const log = new LogWrapper("GithubBridge");
 
 export class GithubBridge {
     private config!: BridgeConfig;
@@ -52,7 +42,7 @@ export class GithubBridge {
 
         this.queue = createMessageQueue(this.config);
 
-        console.log(this.queue);
+        log.debug(this.queue);
 
         const registration = await parseRegistrationFile(registrationFile);
         this.octokit = new Octokit({
@@ -225,7 +215,7 @@ export class GithubBridge {
             }
             await this.onMatrixIssueComment(messageEvent, bridgeState[0]);
         }
-        console.log(event);
+        log.debug(event);
     }
 
     private async getIntentForUser(user: IssuesGetResponseUser) {
@@ -259,7 +249,7 @@ export class GithubBridge {
     }
 
     private async syncIssueState(roomId: string, repoState: IBridgeRoomState) {
-        console.log("Syncing issue state for", roomId);
+        log.debug("Syncing issue state for", roomId);
         const issue = await this.octokit.issues.get({
             owner: repoState.content.org,
             repo: repoState.content.repo,
@@ -375,7 +365,7 @@ export class GithubBridge {
             const issueKey = `${event.repository!.owner.login}/${event.repository!.name}#${event.issue!.number}`;
             roomId = this.orgRepoIssueToRoomId.get(issueKey);
             if (!roomId) {
-                console.log("No room id for repo");
+                log.debug("No room id for repo");
                 return;
             }
         }
@@ -408,7 +398,7 @@ export class GithubBridge {
 
     private async onIssueEdited(event: IWebhookEvent) {
         if (!event.changes) {
-            console.log("No changes given");
+            log.debug("No changes given");
             return; // No changes made.
         }
 
@@ -417,7 +407,7 @@ export class GithubBridge {
         const roomState = await this.getRoomBridgeState(roomId);
 
         if (!roomId || !roomState) {
-            console.log("No tracked room state");
+            log.debug("No tracked room state");
             return;
         }
 
@@ -434,11 +424,11 @@ export class GithubBridge {
         const roomState = await this.getRoomBridgeState(roomId);
 
         if (!roomId || !roomState || roomState.length === 0) {
-            console.log("No tracked room state");
+            log.debug("No tracked room state");
             return;
         }
 
-        console.log(roomState);
+        log.debug(roomState);
 
         await this.syncIssueState(roomId, roomState[0]);
     }
@@ -468,7 +458,3 @@ export class GithubBridge {
         this.matrixHandledEvents.add(key);
     }
 }
-
-new GithubBridge().start().catch((ex) => {
-    console.error("GithubBridge encountered an error and has stopped:", ex);
-});
