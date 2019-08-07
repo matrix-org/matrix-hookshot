@@ -27,6 +27,9 @@ export interface BridgeConfig {
         port?: number;
         host?: string;
     };
+    logging: {
+        level: string;
+    };
 }
 
 export async function parseRegistrationFile(filename: string) {
@@ -40,6 +43,11 @@ export async function parseConfig(filename: string, env: {[key: string]: string|
     config.queue = config.queue || {
         monolithic: true,
     };
+    if (!config.logging || !config.logging.level) {
+        config.logging = {
+            level: "info",
+        };
+    }
     config.bridge.mediaUrl = config.bridge.mediaUrl || config.bridge.url;
     if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
         config.queue.monolithic = false;

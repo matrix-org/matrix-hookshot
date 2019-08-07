@@ -1,11 +1,14 @@
 import { GithubBridge } from "../GithubBridge";
 import { LogWrapper } from "../LogWrapper";
+import { parseConfig } from "../Config";
 
 const log = new LogWrapper("App");
 
 async function start() {
-    LogWrapper.configureLogging();
-    const bridgeApp = new GithubBridge();
+    const configFile = process.argv[2] || "./config.yml";
+    const config = await parseConfig(configFile, process.env);
+    LogWrapper.configureLogging(config.logging.level);
+    const bridgeApp = new GithubBridge(config);
     await bridgeApp.start();
 }
 start().catch((ex) => {

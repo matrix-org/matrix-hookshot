@@ -2,7 +2,7 @@ import { Appservice } from "matrix-bot-sdk";
 import Octokit, { IssuesGetResponseUser } from "@octokit/rest";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
-import { BridgeConfig, parseConfig, parseRegistrationFile } from "./Config";
+import { BridgeConfig, parseRegistrationFile } from "./Config";
 import { GithubWebhooks, IWebhookEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
@@ -16,7 +16,6 @@ const md = new markdown();
 const log = new LogWrapper("GithubBridge");
 
 export class GithubBridge {
-    private config!: BridgeConfig;
     private octokit!: Octokit;
     private as!: Appservice;
     private adminRooms: Map<string, AdminRoom>;
@@ -27,7 +26,7 @@ export class GithubBridge {
     private queue!: MessageQueue;
     private tokenStore!: UserTokenStore;
 
-    constructor() {
+    constructor(private config: BridgeConfig) {
         this.roomIdtoBridgeState = new Map();
         this.orgRepoIssueToRoomId = new Map();
         this.matrixHandledEvents = new Set();
@@ -35,10 +34,8 @@ export class GithubBridge {
     }
 
     public async start() {
-        const configFile = process.argv[2] || "./config.yml";
         const registrationFile = process.argv[3] || "./registration.yml";
         this.adminRooms = new Map();
-        this.config = await parseConfig(configFile, process.env);
 
         this.queue = createMessageQueue(this.config);
 

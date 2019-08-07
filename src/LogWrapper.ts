@@ -7,9 +7,9 @@ import winston from "winston";
 
 export class LogWrapper {
 
-    public static configureLogging() {
+    public static configureLogging(level: string) {
         const log = winston.createLogger({
-            level: "info",
+            level,
             transports: [
                 new winston.transports.Console({
                     format: winston.format.combine(

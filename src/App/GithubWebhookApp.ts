@@ -5,9 +5,9 @@ import { LogWrapper } from "../LogWrapper";
 const log = new LogWrapper("App");
 
 async function start() {
-    LogWrapper.configureLogging();
     const configFile = process.argv[2] || "./config.yml";
     const config = await parseConfig(configFile, process.env);
+    LogWrapper.configureLogging(config.logging.level);
     const webhookHandler = new GithubWebhooks(config);
     webhookHandler.listen();
 }
