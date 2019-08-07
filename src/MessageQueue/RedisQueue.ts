@@ -2,6 +2,9 @@ import { MessageQueue, MessageQueueMessage } from "./MessageQueue";
 import { Redis, default as redis } from "ioredis";
 import { BridgeConfig } from "../Config";
 import { EventEmitter } from "events";
+import { LogWrapper } from "../LogWrapper";
+
+const log = new LogWrapper("RedisMq");
 
 export class RedisMQ extends EventEmitter implements MessageQueue {
     private redis: Redis;
@@ -11,7 +14,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redis.on("pmessage", (pattern: string, channel: string, message: string) => {
             const msg = JSON.parse(message);
             const delay = (process.hrtime()[1]) - msg.ts!;
-            console.log("Delay: ", delay / 1000000, "ms");
+            log.debug("Delay: ", delay / 1000000, "ms");
             this.emit(channel, JSON.parse(message));
         });
     }
@@ -27,9 +30,9 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     public push(data: MessageQueueMessage) {
         data.ts = process.hrtime()[1];
         this.redis.publish(data.eventName, JSON.stringify(data)).then(() => {
-            console.log(`Pushed ${data.eventName}`);
+            log.debug(`Pushed ${data.eventName}`);
         }).catch((ex) => {
-            console.warn("Failed to push an event:", ex);
+            log.warn("Failed to push an event:", ex);
         });
     }
 }

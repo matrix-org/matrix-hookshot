@@ -5,11 +5,13 @@ import markdown from "markdown-it";
 import mime from "mime";
 import emoji from "node-emoji";
 import { MatrixMessageContent } from "./MatrixEvent";
+import { LogWrapper } from "./LogWrapper";
 
-const md = new markdown();
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
 const REGEX_MATRIX_MENTION = /<a href="https:\/\/matrix\.to\/#\/(.+)">(.*)<\/a>/gmi;
 const REGEX_IMAGES = /!\[.*]\((.*\.(\w+))\)/gm;
+const md = new markdown();
+const log = new LogWrapper("CommentProcessor");
 
 interface IMatrixCommentEvent {
     msgtype: string;
@@ -117,7 +119,7 @@ export class CommentProcessor {
 
                 body = body.replace(rawUrl, url);
             } catch (ex) {
-                console.warn("Failed to upload file");
+                log.warn("Failed to upload file");
             }
         }
         return body;

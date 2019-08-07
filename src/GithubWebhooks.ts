@@ -4,6 +4,9 @@ import { createHmac } from "crypto";
 import { IssuesGetResponse, ReposGetResponse, IssuesGetResponseUser, IssuesGetCommentResponse } from "@octokit/rest";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
+import { LogWrapper } from "./LogWrapper";
+
+const log = new LogWrapper("GithubWebhooks");
 
 export interface IWebhookEvent {
     action: string;
@@ -40,41 +43,34 @@ export class GithubWebhooks extends EventEmitter {
 
     public onPayload(req: Request, res: Response) {
         const body = req.body as IWebhookEvent;
-        console.debug("Got", body);
+        log.debug("Got", body);
+        let eventName;
+        let from;
+        if (body.sender) {
+            from = body.sender.login;
+        }
         try {
             if (body.action === "created" && body.comment) {
-                this.queue.push({
-                    eventName: "comment.created",
-                    sender: "GithubWebhooks",
-                    data: body,
-                });
+                eventName = "comment.created";
             } else if (body.action === "edited" && body.comment) {
-                this.queue.push({
-                    eventName: "comment.edited",
-                    sender: "GithubWebhooks",
-                    data: body,
-                });
+                eventName = "comment.edited";
             } else if (body.action === "edited" && body.issue) {
-                this.queue.push({
-                    eventName: "issue.edited",
-                    sender: "GithubWebhooks",
-                    data: body,
-                });
+                eventName = "issue.edited";
             } else if (body.action === "closed" && body.issue) {
-                this.queue.push({
-                    eventName: "issue.closed",
-                    sender: "GithubWebhooks",
-                    data: body,
-                });
+                eventName = "issue.closed";
             } else if (body.action === "reopened" && body.issue) {
+                eventName = "issue.reopened";
+            }
+            if (eventName) {
+                log.info(`Got event ${eventName} ${from ? "from " + from : ""}`);
                 this.queue.push({
-                    eventName: "issue.reopened",
+                    eventName,
                     sender: "GithubWebhooks",
                     data: body,
                 });
             }
         } catch (ex) {
-            console.error("Failed to emit");
+            log.error("Failed to emit");
         }
         res.sendStatus(200);
     }
