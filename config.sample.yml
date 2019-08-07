@@ -3,8 +3,25 @@ github:
   webhook:
     secret: webhooksecret
     port: 7775
+    bindAddress: 0.0.0.0
+  userTokens: 
+    # If you want to hardcode a users token in the config
+    - "@hardcoded:localhost": "foobarbaz"
+  # This is used to securely store passwords.
+  # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
+  passFile: "passkey.pem"
 bridge:
+  # Homeserver servername
   domain: example.com
+  # Homeserver (internal) url
   url: http://localhost:8008
+  # This is your public facing url where media is served from
+  mediaUrl: http://example.com/
   port: 9993 # Port the appservice is binding to
-  bindAddress: 127.0.0.1 # Not the port the appservice is binding to
+  bindAddress: 127.0.0.1 # Address to bind to
+queue:
+  monolithic: true # If this is false, use a Redis server as a queue.
+  port: 6379 # Port for the redis server, omit for 6379
+  host: localhost # Port for the redis server, omit for localhost
+logging:
+  level: "info" # One of "debug", "info", "warn", "error"

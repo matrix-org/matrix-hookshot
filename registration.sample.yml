@@ -1,0 +1,15 @@
+id: matrix-github # This can be anything, but must be unique within your homeserver
+as_token: aaaaaaaaaa # This again can be a random string
+hs_token: aaaaaaaaaa # ..as can this
+namespaces:
+  rooms: []
+  users:
+    - regex: "@_github_.*:foobar" # Where foobar is your homeserver's domain
+      exclusive: true
+  aliases:
+    - regex: "#github_.+_.+_\\d+:foobar"  # Where foobar is your homeserver's domain
+      exclusive: true
+
+sender_localpart: github
+url: "http://localhost:9993" # This should match the bridge.port in your config file
+rate_limited: false

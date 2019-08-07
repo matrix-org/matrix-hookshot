@@ -1,3 +1,7 @@
 node_modules/
 lib/
+
 config.yml
+*.pem
+registration.yml
+tsconfig.tsbuildinfo
