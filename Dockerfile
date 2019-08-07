@@ -19,4 +19,4 @@ VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
 
-CMD ["node", "app.js", "/data/config.yaml", "/data/registration.yml"]
+CMD ["node", "App/BridgeApp.js", "/data/config.yaml", "/data/registration.yml"]
