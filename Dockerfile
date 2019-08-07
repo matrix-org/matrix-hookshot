@@ -10,7 +10,7 @@ RUN npm run build
 # Stage 1: The actual container
 FROM node:12-alpine
 
-COPY --from=builder /src/lib/* /bin/matrix-github/
+COPY --from=builder /src/lib/ /bin/matrix-github/
 COPY --from=builder /src/package*.json /bin/matrix-github/
 WORKDIR /bin/matrix-github
 RUN npm install --production
@@ -19,4 +19,4 @@ VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
 
-CMD ["node", "App/BridgeApp.js", "/data/config.yaml", "/data/registration.yml"]
+CMD ["node", "/bin/matrix-github/App/BridgeApp.js", "/data/config.yaml", "/data/registration.yml"]
