@@ -9,7 +9,8 @@
   "private": false,
   "scripts": {
     "build": "tsc --project tsconfig.json",
-    "start": "node lib/app.js",
+    "start:app": "node lib/App/BridgeApp.js",
+    "start:webhooks": "node lib/App/GithubWebhookApp.js",
     "test": "mocha -r ts-node/register tests/**/*.ts",
     "lint": "tslint -p tsconfig.json"
   },
