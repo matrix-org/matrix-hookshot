@@ -10,6 +10,7 @@ import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./Message
 import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
+import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 
 const md = new markdown();
 // tslint:disable: no-console
@@ -125,7 +126,7 @@ export class GithubBridge {
         log.info("Started bridge");
     }
 
-    private async getRoomBridgeState(roomId: string, existingState?: any) {
+    private async getRoomBridgeState(roomId: string, existingState?: IBridgeRoomState) {
         if (this.roomIdtoBridgeState.has(roomId) && !existingState) {
             return this.roomIdtoBridgeState.get(roomId)!;
         }
@@ -134,7 +135,7 @@ export class GithubBridge {
             const state = existingState ? [existingState] : (
                 await this.as.botIntent.underlyingClient.getRoomState(roomId)
             );
-            const bridgeEvents: IBridgeRoomState[] = state.filter((e: any) =>
+            const bridgeEvents: IBridgeRoomState[] = state.filter((e: IBridgeRoomState) =>
                 e.type === BRIDGE_STATE_TYPE,
             );
             this.roomIdtoBridgeState.set(roomId, bridgeEvents);
@@ -151,7 +152,7 @@ export class GithubBridge {
         return [];
     }
 
-    private async onRoomEvent(roomId: string, event: any) {
+    private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
         const isOurUser = this.as.isNamespacedUser(event.sender);
         // if (isOurUser) {
         //     log.debug("Not handling our own events.");
@@ -159,7 +160,11 @@ export class GithubBridge {
         //     return;
         // }
 
-        if (event.type === "m.room.member" && !isOurUser && event.content.membership === "invite") {
+        if (event.type === "m.room.member" && !isOurUser) {
+            const memberEvent = event as MatrixEvent<MatrixMemberContent>;
+            if (memberEvent.content.membership !== "invite") {
+                return;
+            }
             await this.as.botIntent.joinRoom(roomId);
             const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
             if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
@@ -178,11 +183,12 @@ export class GithubBridge {
         }
 
         if (event.type === "m.room.message" && this.adminRooms.has(roomId)) {
+            const messageEvent = event as MatrixEvent<MatrixMessageContent>;
             const room = this.adminRooms.get(roomId)!;
             if (room.userId !== event.sender) {
                 return;
             }
-            const command = event.content.body;
+            const command = messageEvent.content.body;
             if (!command) {
                 return;
             }
@@ -191,10 +197,12 @@ export class GithubBridge {
         }
 
         if (event.type === BRIDGE_STATE_TYPE) {
+            const state = event as IBridgeRoomState;
             log.info(`Got new state for ${roomId}`);
-            await this.getRoomBridgeState(roomId, event);
+            await this.getRoomBridgeState(roomId, state);
             // Get current state of issue.
-            await this.syncIssueState(roomId, event);
+            await this.syncIssueState(roomId, state);
+            return;
         }
 
         const bridgeState = await this.getRoomBridgeState(roomId);
@@ -210,13 +218,12 @@ export class GithubBridge {
         // Get a client for the IRC user.
         const githubRepo = bridgeState[0].content;
         log.info(`Got new request for ${githubRepo.org}${githubRepo.repo}#${githubRepo.issues.join("|")}`);
-        if (!isOurUser) {
-            if (event.content.body === "!sync") {
+        if (!isOurUser && event.type === "m.room.message") {
+            const messageEvent = event as MatrixEvent<MatrixMessageContent>;
+            if (messageEvent.content.body === "!sync") {
                 await this.syncIssueState(roomId, bridgeState[0]);
             }
-            if (event.type === "m.room.message") {
-                await this.onMatrixIssueComment(event, bridgeState[0]);
-            }
+            await this.onMatrixIssueComment(messageEvent, bridgeState[0]);
         }
         console.log(event);
     }
@@ -407,7 +414,7 @@ export class GithubBridge {
 
         const issueKey = `${event.repository!.owner.login}/${event.repository!.name}#${event.issue!.number}`;
         const roomId = this.orgRepoIssueToRoomId.get(issueKey)!;
-        const roomState = await this.getRoomBridgeState(roomId, event);
+        const roomState = await this.getRoomBridgeState(roomId);
 
         if (!roomId || !roomState) {
             console.log("No tracked room state");
@@ -436,7 +443,7 @@ export class GithubBridge {
         await this.syncIssueState(roomId, roomState[0]);
     }
 
-    private async onMatrixIssueComment(event: any, bridgeState: IBridgeRoomState) {
+    private async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, bridgeState: IBridgeRoomState) {
         // TODO: Someone who is not lazy should make this work with oauth.
         const senderToken = await this.tokenStore.getUserToken(event.sender);
         if (senderToken === null) {

@@ -4,6 +4,7 @@ import request from "request-promise-native";
 import markdown from "markdown-it";
 import mime from "mime";
 import emoji from "node-emoji";
+import { MatrixMessageContent } from "./MatrixEvent";
 
 const md = new markdown();
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
@@ -24,10 +25,12 @@ interface IMatrixCommentEvent {
 export class CommentProcessor {
     constructor(private as: Appservice, private mediaUrl: string) {}
 
-    public async getCommentBodyForEvent(event: any): Promise<string> {
+    public async getCommentBodyForEvent(event: MatrixMessageContent): Promise<string> {
         let body = event.body;
         body = await this.replaceImages(body, false);
-        body = this.replaceMatrixMentions(body, event.formatted_body);
+        if (event.formatted_body) {
+            body = this.replaceMatrixMentions(body, event.formatted_body);
+        }
         return body;
     }
 
@@ -85,7 +88,7 @@ export class CommentProcessor {
     private async replaceImages(body: string, convertToMxc: boolean): Promise<string> {
         let bodyCopy = body;
         const urlMatches: string[] = [];
-        let match = REGEX_IMAGES.exec(bodyCopy)
+        let match = REGEX_IMAGES.exec(bodyCopy);
         while (match) {
             bodyCopy = bodyCopy.replace(match[1], "");
             const contentType = mime.getType(match[1]) || "none";

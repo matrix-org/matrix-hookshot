@@ -28,6 +28,8 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         data.ts = process.hrtime()[1];
         this.redis.publish(data.eventName, JSON.stringify(data)).then(() => {
             console.log(`Pushed ${data.eventName}`);
+        }).catch((ex) => {
+            console.warn("Failed to push an event:", ex);
         });
     }
 }

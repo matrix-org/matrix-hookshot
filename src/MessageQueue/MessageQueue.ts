@@ -14,9 +14,9 @@ export interface MessageQueueMessage {
 }
 
 export interface MessageQueue {
-    subscribe: (eventGlob: string) => void,
-    unsubscribe: (eventGlob: string) => void,
-    push: (data: MessageQueueMessage) => void,
+    subscribe: (eventGlob: string) => void;
+    unsubscribe: (eventGlob: string) => void;
+    push: (data: MessageQueueMessage) => void;
     on: (eventName: string, cb: (data: MessageQueueMessage) => void) => void;
 }
 
