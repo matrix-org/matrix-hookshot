@@ -46,7 +46,7 @@ export class GithubBridge {
             userAgent: "matrix-github v0.0.1",
         });
 
-        const storage = new SimpleFsStorageProvider("bridgestore.js");
+        const storage = new SimpleFsStorageProvider(this.config.bridge.store || "bridgestore.json");
 
         this.as = new Appservice({
             homeserverName: this.config.bridge.domain,

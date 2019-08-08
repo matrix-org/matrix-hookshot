@@ -26,6 +26,7 @@ export interface BridgeConfig {
         mediaUrl: string;
         port: number;
         bindAddress: string;
+        store: string;
     };
     queue: {
         monolithic: boolean;
