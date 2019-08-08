@@ -29,9 +29,9 @@ Additionally, you will need to setup some permissions in "Permissions & events".
 
 Largely, these need to be:
 
-- Repository contents: "Read-only"
-- Issues: "Read-only"
-- Pull-requests: "Read-only"
+- Repository contents: "Read & Write"
+- Issues: "Read & Write"
+- Pull-requests: "Read & Write"
 
 You will also need to subscribe to, at a minimum:
 
