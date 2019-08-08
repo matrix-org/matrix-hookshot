@@ -14,6 +14,11 @@ export interface BridgeConfig {
             [userId: string]: string;
         }
         passFile: string;
+        oauth: {
+            client_id: string;
+            client_secret: string;
+            redirect_uri: string;
+        };
     };
     bridge: {
         domain: string;

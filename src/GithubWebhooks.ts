@@ -5,6 +5,8 @@ import { IssuesGetResponse, ReposGetResponse, IssuesGetResponseUser, IssuesGetCo
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { LogWrapper } from "./LogWrapper";
+import request from "request-promise-native";
+import qs from "querystring";
 
 const log = new LogWrapper("GithubWebhooks");
 
@@ -21,6 +23,17 @@ export interface IWebhookEvent {
     };
 }
 
+export interface IOAuthRequest {
+    code: string;
+    state: string;
+}
+
+export interface IOAuthTokens {
+    access_token: string;
+    token_type: string;
+    state: string;
+}
+
 export class GithubWebhooks extends EventEmitter {
     private expressApp: Application;
     private queue: MessageQueue;
@@ -31,6 +44,7 @@ export class GithubWebhooks extends EventEmitter {
             verify: this.verifyRequest.bind(this),
         }));
         this.expressApp.post("/", this.onPayload.bind(this));
+        this.expressApp.get("/oauth", this.onGetOauth.bind(this));
         this.queue = createMessageQueue(config);
     }
 
@@ -73,6 +87,41 @@ export class GithubWebhooks extends EventEmitter {
             log.error("Failed to emit");
         }
         res.sendStatus(200);
+    }
+
+    public async onGetOauth(req: Request, res: Response) {
+        log.info("Got new oauth request");
+        try {
+            const exists = await this.queue.pushWait<IOAuthRequest, boolean>({
+                eventName: "oauth.response",
+                sender: "GithubWebhooks",
+                data: req.query,
+            });
+            if (!exists) {
+                res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
+                return;
+            }
+            const accessTokenResponse = await request.post("https://github.com/login/oauth/access_token", {
+                json: false,
+                qs: {
+                    client_id: this.config.github.oauth.client_id,
+                    client_secret: this.config.github.oauth.client_secret,
+                    code: req.query.code,
+                    redirect_uri: this.config.github.oauth.redirect_uri,
+                    state: req.query.state,
+                },
+            });
+            const result = qs.parse(accessTokenResponse) as { access_token: string, token_type: string };
+            this.queue.push<IOAuthTokens>({
+                eventName: "oauth.tokens",
+                sender: "GithubWebhooks",
+                data: { state: req.query.state, ... result },
+            });
+            res.send(`<p> Your account has been bridged </p>`);
+        } catch (ex) {
+            log.error("Failed to handle oauth request:", ex);
+            res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+        }
     }
 
     // Calculate the X-Hub-Signature header value.

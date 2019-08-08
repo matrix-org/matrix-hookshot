@@ -3,7 +3,7 @@ import Octokit, { IssuesGetResponseUser } from "@octokit/rest";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig } from "./Config";
-import { IWebhookEvent } from "./GithubWebhooks";
+import { IWebhookEvent, IOAuthRequest, IOAuthTokens } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
@@ -90,6 +90,26 @@ export class GithubBridge {
             return this.onIssueStateChange(msg.data);
         });
 
+        this.queue.on<IOAuthRequest>("oauth.response", async (msg) => {
+            const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
+            this.queue.push<boolean>({
+                data: !!(adminRoom),
+                sender: "GithubBridge",
+                messageId: msg.messageId,
+                eventName: "response.oauth.response",
+            });
+        });
+
+        this.queue.on<IOAuthTokens>("oauth.tokens", async (msg) => {
+            const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
+            if (!adminRoom) {
+                log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
+                return;
+            }
+            adminRoom.clearOauthState();
+            await this.tokenStore.storeUserToken(adminRoom.userId, msg.data.access_token);
+        });
+
         // Fetch all room state
         const joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
         for (const roomId of joinedRooms) {
@@ -100,7 +120,7 @@ export class GithubBridge {
                 );
                 if (accountData.type === "admin") {
                     this.adminRooms.set(roomId, new AdminRoom(
-                        roomId, accountData.admin_user, this.as.botIntent, this.tokenStore,
+                        roomId, accountData.admin_user, this.as.botIntent, this.tokenStore, this.config,
                     ));
                 }
                 continue;
@@ -165,7 +185,10 @@ export class GithubBridge {
             await this.as.botIntent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender, type: "admin"},
             );
-            this.adminRooms.set(roomId, new AdminRoom(roomId, event.sender, this.as.botIntent, this.tokenStore));
+            this.adminRooms.set(
+                roomId,
+                new AdminRoom(roomId, event.sender, this.as.botIntent, this.tokenStore, this.config)
+            );
         }
 
         if (event.type === "m.room.message" && this.adminRooms.has(roomId)) {
