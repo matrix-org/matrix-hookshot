@@ -1,5 +1,9 @@
 github:
   auth: someauthtoken
+  oauth:
+    client_id: foo
+    client_secret: bar
+    redirect_uri: baz
   webhook:
     secret: webhooksecret
     port: 7775
