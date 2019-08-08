@@ -1,8 +1,10 @@
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
+import { LogWrapper } from "./LogWrapper";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
+const log = new LogWrapper("UserTokenStore");
 
 export class UserTokenStore {
     private key!: Buffer;
@@ -20,6 +22,7 @@ export class UserTokenStore {
             encrypted: publicEncrypt(this.key, Buffer.from(token)).toString("base64"),
         });
         this.userTokens.set(userId, token);
+        log.info("Stored new token for", userId);
     }
 
     public async getUserToken(userId: string): Promise<string|null> {
