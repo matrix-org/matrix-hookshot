@@ -1,16 +1,17 @@
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import Octokit, { IssuesGetResponseUser } from "@octokit/rest";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
-import { BridgeConfig, parseRegistrationFile } from "./Config";
-import { GithubWebhooks, IWebhookEvent } from "./GithubWebhooks";
+import { BridgeConfig } from "./Config";
+import { IWebhookEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
-import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
+import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
-import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
+import { MatrixEvent, MatrixMemberContent, MatrixMessageContent, MatrixEventContent } from "./MatrixEvent";
 import { LogWrapper } from "./LogWrapper";
+import { IMatrixSendMessage, IMatrixSendMessageResponse } from "./MatrixSender";
 
 const md = new markdown();
 const log = new LogWrapper("GithubBridge");
@@ -26,7 +27,7 @@ export class GithubBridge {
     private queue!: MessageQueue;
     private tokenStore!: UserTokenStore;
 
-    constructor(private config: BridgeConfig) {
+    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) {
         this.roomIdtoBridgeState = new Map();
         this.orgRepoIssueToRoomId = new Map();
         this.matrixHandledEvents = new Set();
@@ -34,26 +35,28 @@ export class GithubBridge {
     }
 
     public async start() {
-        const registrationFile = process.argv[3] || "./registration.yml";
         this.adminRooms = new Map();
 
         this.queue = createMessageQueue(this.config);
 
         log.debug(this.queue);
 
-        const registration = await parseRegistrationFile(registrationFile);
         this.octokit = new Octokit({
             auth: this.config.github.auth,
             userAgent: "matrix-github v0.0.1",
         });
+
+        const storage = new SimpleFsStorageProvider("bridgestore.js");
 
         this.as = new Appservice({
             homeserverName: this.config.bridge.domain,
             homeserverUrl: this.config.bridge.url,
             port: this.config.bridge.port,
             bindAddress: this.config.bridge.bindAddress,
-            registration,
+            registration: this.registration,
+            storage,
         });
+
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl);
 
         this.tokenStore = new UserTokenStore(this.config.github.passFile || "./passkey.pem", this.as.botIntent);
@@ -67,27 +70,23 @@ export class GithubBridge {
             return this.onRoomEvent(roomId, event);
         });
 
-        if (this.config.github.webhook && this.config.queue.monolithic) {
-            const webhookHandler = new GithubWebhooks(this.config);
-            webhookHandler.listen();
-        }
-
         this.queue.subscribe("comment.*");
         this.queue.subscribe("issue.*");
+        this.queue.subscribe("response.matrix.message");
 
-        this.queue.on("comment.created", async (msg: MessageQueueMessage) => {
+        this.queue.on<IWebhookEvent>("comment.created", async (msg) => {
             return this.onCommentCreated(msg.data);
         });
 
-        this.queue.on("issue.edited", async (msg: MessageQueueMessage) => {
+        this.queue.on<IWebhookEvent>("issue.edited", async (msg) => {
             return this.onIssueEdited(msg.data);
         });
 
-        this.queue.on("issue.closed", async (msg: MessageQueueMessage) => {
+        this.queue.on<IWebhookEvent>("issue.closed", async (msg) => {
             return this.onIssueStateChange(msg.data);
         });
 
-        this.queue.on("issue.reopened", async (msg: MessageQueueMessage) => {
+        this.queue.on<IWebhookEvent>("issue.reopened", async (msg) => {
             return this.onIssueStateChange(msg.data);
         });
 
@@ -155,7 +154,7 @@ export class GithubBridge {
             await this.as.botIntent.joinRoom(roomId);
             const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
             if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
-                await this.as.botIntent.sendText(
+                await this.sendMatrixText(
                     roomId,
                     "This bridge currently only supports invites to 1:1 rooms",
                     "m.notice",
@@ -252,22 +251,24 @@ export class GithubBridge {
             repo: repoState.content.repo,
             issue_number: parseInt(repoState.content.issues[0], 10),
         });
-        const creatorIntent = await this.getIntentForUser(issue.data.user);
+        const creatorUserId = this.as.getUserIdForSuffix(issue.data.user.login);
 
         if (repoState.content.comments_processed === -1) {
             // We've not sent any messages into the room yet, let's do it!
-            await creatorIntent.sendEvent(roomId, {
-                msgtype: "m.notice",
-                body: `created ${issue.data.pull_request ? "a pull request" : "an issue"} at ${issue.data.created_at}`,
-            });
+            await this.sendMatrixText(
+                roomId,
+                "This bridge currently only supports invites to 1:1 rooms",
+                "m.notice",
+                creatorUserId,
+            );
             if (issue.data.body) {
-                await creatorIntent.sendEvent(roomId, {
+                await this.sendMatrixMessage(roomId, {
                     msgtype: "m.text",
                     external_url: issue.data.html_url,
                     body: `${issue.data.body} (${issue.data.updated_at})`,
                     format: "org.matrix.custom.html",
                     formatted_body: md.render(issue.data.body),
-                });
+                }, "m.room.message", creatorUserId);
             }
             if (issue.data.pull_request) {
                 // Send a patch in
@@ -293,12 +294,12 @@ export class GithubBridge {
 
         if (repoState.content.state !== issue.data.state) {
             if (issue.data.state === "closed") {
-                const closedIntent = await this.getIntentForUser(issue.data.closed_by);
-                await closedIntent.sendEvent(roomId, {
+                const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by.login);
+                await this.sendMatrixMessage(roomId, {
                     msgtype: "m.notice",
                     body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
                     external_url: issue.data.closed_by.html_url,
-                });
+                }, "m.room.message", closedUserId);
             }
 
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.topic", "", {
@@ -379,7 +380,8 @@ export class GithubBridge {
         }
         const commentIntent = await this.getIntentForUser(comment.user);
         const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment);
-        await commentIntent.sendEvent(roomId, matrixEvent);
+
+        await this.sendMatrixMessage(roomId, matrixEvent, "m.room.message", commentIntent.userId);
         if (!updateState) {
             return;
         }
@@ -453,5 +455,28 @@ export class GithubBridge {
         `${bridgeState.content.org}/${bridgeState.content.repo}#${bridgeState.content.issues[0]}~${result.data.id}`
         .toLowerCase();
         this.matrixHandledEvents.add(key);
+    }
+
+    private async sendMatrixText(roomId: string, text: string, msgtype: string = "m.text",
+                                 sender: string|null = null): Promise<string> {
+        return this.sendMatrixMessage(roomId, {
+            msgtype,
+            body: text,
+        } as MatrixMessageContent, "m.room.message", sender);
+    }
+
+    private async sendMatrixMessage(roomId: string,
+                                    content: MatrixEventContent, eventType: string = "m.room.message",
+                                    sender: string|null = null): Promise<string> {
+        return (await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse>({
+            eventName: "matrix.message",
+            sender: "GithubBridge",
+            data: {
+                roomId,
+                type: eventType,
+                sender,
+                content,
+            },
+        })).eventId;
     }
 }
