@@ -10,7 +10,12 @@ async function start() {
     LogWrapper.configureLogging(config.logging.level);
     const webhookHandler = new GithubWebhooks(config);
     webhookHandler.listen();
+    process.once("SIGTERM", () => {
+        log.error("Got SIGTERM");
+        webhookHandler.stop();
+    });
 }
+
 start().catch((ex) => {
     log.error("GithubWebhookApp encountered an error and has stopped:", ex);
 });

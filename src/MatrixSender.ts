@@ -42,6 +42,10 @@ export class MatrixSender {
         });
     }
 
+    public stop() {
+        this.mq.stop();
+    }
+
     public async sendMatrixMessage(messageId: string, msg: IMatrixSendMessage) {
        const intent = msg.sender ? this.as.getIntentForUserId(msg.sender) : this.as.botIntent;
        const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);

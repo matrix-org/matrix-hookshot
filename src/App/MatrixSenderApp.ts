@@ -10,7 +10,12 @@ async function start() {
     const config = await parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
     LogWrapper.configureLogging(config.logging.level);
-    new MatrixSender(config, registration).listen();
+    const sender = new MatrixSender(config, registration);
+    sender.listen();
+    process.once("SIGTERM", () => {
+        log.error("Got SIGTERM");
+        sender.stop();
+    });
 }
 
 start().catch((ex) => {

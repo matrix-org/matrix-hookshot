@@ -67,4 +67,9 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.push(message);
         return p;
     }
+
+    public stop() {
+        this.redisPub.disconnect();
+        this.redisSub.disconnect();
+    }
 }

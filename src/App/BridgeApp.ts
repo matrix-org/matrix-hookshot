@@ -21,8 +21,14 @@ async function start() {
     }
 
     const bridgeApp = new GithubBridge(config, registration);
+
+    process.once("SIGTERM", () => {
+        log.error("Got SIGTERM");
+        bridgeApp.stop();
+    });
     await bridgeApp.start();
 }
+
 start().catch((ex) => {
     log.error("BridgeApp encountered an error and has stopped:", ex);
 });

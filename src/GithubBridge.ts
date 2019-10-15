@@ -132,6 +132,11 @@ export class GithubBridge {
         log.info("Started bridge");
     }
 
+    public stop() {
+        this.as.stop();
+        this.queue.stop();
+    }
+
     private async getRoomBridgeState(roomId: string, existingState?: IBridgeRoomState) {
         if (this.roomIdtoBridgeState.has(roomId) && !existingState) {
             return this.roomIdtoBridgeState.get(roomId)!;
@@ -187,7 +192,7 @@ export class GithubBridge {
             );
             this.adminRooms.set(
                 roomId,
-                new AdminRoom(roomId, event.sender, this.as.botIntent, this.tokenStore, this.config)
+                new AdminRoom(roomId, event.sender, this.as.botIntent, this.tokenStore, this.config),
             );
         }
 

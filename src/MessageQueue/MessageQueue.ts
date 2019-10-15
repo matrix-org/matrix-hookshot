@@ -21,6 +21,7 @@ export interface MessageQueue {
     push: <T>(data: MessageQueueMessage<T>) => void;
     pushWait: <T, X>(data: MessageQueueMessage<T>) => Promise<X>;
     on: <T>(eventName: string, cb: (data: MessageQueueMessage<T>) => void) => void;
+    stop(): void;
 }
 
 export function createMessageQueue(config: BridgeConfig): MessageQueue {

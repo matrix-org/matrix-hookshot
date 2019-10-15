@@ -53,4 +53,6 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
         this.push(message);
         return p;
     }
+
+    public stop() { }
 }

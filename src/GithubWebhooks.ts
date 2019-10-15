@@ -7,6 +7,7 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { LogWrapper } from "./LogWrapper";
 import request from "request-promise-native";
 import qs from "querystring";
+import { Server } from "http";
 
 const log = new LogWrapper("GithubWebhooks");
 
@@ -37,6 +38,7 @@ export interface IOAuthTokens {
 export class GithubWebhooks extends EventEmitter {
     private expressApp: Application;
     private queue: MessageQueue;
+    private server?: Server;
     constructor(private config: BridgeConfig) {
         super();
         this.expressApp = express();
@@ -49,10 +51,17 @@ export class GithubWebhooks extends EventEmitter {
     }
 
     public listen() {
-        this.expressApp.listen(
+        this.server = this.expressApp.listen(
             this.config.github.webhook.port,
             this.config.github.webhook.bindAddress,
         );
+    }
+
+    public stop() {
+        this.queue.stop();
+        if (this.server) {
+            this.server.close();
+        }
     }
 
     public onPayload(req: Request, res: Response) {
