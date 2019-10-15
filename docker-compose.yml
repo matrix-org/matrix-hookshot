@@ -1,0 +1,44 @@
+version: '3.7'
+services:
+  redis:
+    image: redis
+  webhook:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "7775:7775"
+    volumes:
+      - ./data:/data
+    links:
+      - redis
+    environment:
+      CFG_QUEUE_MONOLITHIC: "false"
+      CFG_QUEUE_HOST: "redis"
+    command: node /bin/matrix-github/App/GithubWebhookApp.js /data/config.yml /data/registration.yml
+  sender:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./data:/data
+    links:
+      - redis
+    environment:
+      CFG_QUEUE_MONOLITHIC: "false"
+      CFG_QUEUE_HOST: "redis"
+    command: node /bin/matrix-github/App/MatrixSenderApp.js /data/config.yml /data/registration.yml
+  app:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "9993:9993"
+    volumes:
+      - ./data:/data
+    links:
+      - redis
+    environment:
+      CFG_QUEUE_MONOLITHIC: "false"
+      CFG_QUEUE_HOST: "redis"
+    command: node /bin/matrix-github/App/BridgeApp.js /data/config.yml /data/registration.yml
