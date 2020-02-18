@@ -12,6 +12,7 @@ import { FormatUtil } from "./FormatUtil";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent, MatrixEventContent } from "./MatrixEvent";
 import { LogWrapper } from "./LogWrapper";
 import { IMatrixSendMessage, IMatrixSendMessageResponse } from "./MatrixSender";
+import { promises as fs} from "fs";
 
 const md = new markdown();
 const log = new LogWrapper("GithubBridge");
@@ -42,7 +43,10 @@ export class GithubBridge {
         log.debug(this.queue);
 
         this.octokit = new Octokit({
-            auth: this.config.github.auth,
+            auth: {
+                id: parseInt(this.config.github.auth.id as string),
+                privateKey: await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
+            },
             userAgent: "matrix-github v0.0.1",
         });
 

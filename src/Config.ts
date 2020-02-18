@@ -4,7 +4,10 @@ import { IAppserviceRegistration } from "matrix-bot-sdk";
 
 export interface BridgeConfig {
     github: {
-        auth: string;
+        auth: {
+            id: number|string;
+            privateKeyFile: string;
+        };
         webhook: {
             port: number;
             bindAddress: string;
