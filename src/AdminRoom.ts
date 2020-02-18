@@ -1,5 +1,6 @@
 import { Intent } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
+import { createTokenAuth } from "@octokit/auth-token";
 import { UserTokenStore } from "./UserTokenStore";
 import { BridgeConfig } from "./Config";
 import uuid from "uuid/v4";
@@ -47,6 +48,7 @@ export class AdminRoom {
         let me;
         try {
             const octokit = new Octokit({
+                authStrategy: createTokenAuth,
                 auth: accessToken,
                 userAgent: "matrix-github v0.0.1",
             });

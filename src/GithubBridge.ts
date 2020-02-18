@@ -1,5 +1,7 @@
 import { Appservice, IAppserviceRegistration, SimpleFsStorageProvider } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
+import { createTokenAuth } from "@octokit/auth-token";
+import { createAppAuth } from "@octokit/auth-app";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig } from "./Config";
@@ -43,6 +45,7 @@ export class GithubBridge {
         log.debug(this.queue);
 
         this.octokit = new Octokit({
+            authStrategy: createAppAuth,
             auth: {
                 id: parseInt(this.config.github.auth.id as string),
                 privateKey: await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
@@ -468,6 +471,7 @@ export class GithubBridge {
             return;
         }
         const clientKit = new Octokit({
+            authStrategy: createTokenAuth,
             auth: senderToken,
             userAgent: "matrix-github v0.0.1",
         });
