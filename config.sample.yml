@@ -1,5 +1,7 @@
 github:
-  auth: someauthtoken
+  auth: 
+    id: 123
+    privateKeyFile: "github-key.pem"
   oauth:
     client_id: foo
     client_secret: bar
