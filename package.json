@@ -16,16 +16,16 @@
     "lint": "tslint -p tsconfig.json"
   },
   "dependencies": {
-    "@octokit/rest": "^16.28.7",
+    "@octokit/rest": "^16.43.1",
+    "axios": "^0.19.2",
     "express": "^4.17.1",
     "ioredis": "^4.14.0",
     "markdown-it": "^9.0.1",
-    "matrix-bot-sdk": "^0.3.9",
+    "matrix-bot-sdk": "^0.5.0",
     "micromatch": "^4.0.2",
     "mime": "^2.4.4",
     "mocha": "^6.2.0",
     "node-emoji": "^1.10.0",
-    "request-promise-native": "^1.0.7",
     "uuid": "^3.3.2",
     "winston": "^3.2.1",
     "yaml": "^1.6.0"
@@ -40,12 +40,11 @@
     "@types/mocha": "^5.2.7",
     "@types/node": "^12.6.9",
     "@types/node-emoji": "^1.8.1",
-    "@types/request-promise-native": "^1.0.16",
     "@types/uuid": "^3.4.5",
     "@types/yaml": "^1.0.2",
     "chai": "^4.2.0",
     "ts-node": "^8.3.0",
     "tslint": "^5.18.0",
-    "typescript": "^3.5.3"
+    "typescript": "^3.7.5"
   }
 }

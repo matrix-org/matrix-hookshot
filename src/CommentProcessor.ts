@@ -1,11 +1,11 @@
 import { IssuesGetCommentResponse } from "@octokit/rest";
 import { Appservice } from "matrix-bot-sdk";
-import request from "request-promise-native";
 import markdown from "markdown-it";
 import mime from "mime";
 import emoji from "node-emoji";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { LogWrapper } from "./LogWrapper";
+import axios from "axios";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
 const REGEX_MATRIX_MENTION = /<a href="https:\/\/matrix\.to\/#\/(.+)">(.*)<\/a>/gmi;
@@ -105,8 +105,9 @@ export class CommentProcessor {
         }
         for (const rawUrl of urlMatches) {
             try {
-                const imageData = await request.get(rawUrl, { encoding: null});
-                const contentType = mime.getType(rawUrl) || "application/octet-stream";
+                const { data, headers } = await axios.get(rawUrl, {responseType: 'arraybuffer'});
+                const imageData = data;
+                const contentType = headers["content-type"] || mime.getType(rawUrl) || "application/octet-stream";
                 let url;
                 if (convertToMxc) {
                     url = await this.as.botIntent.underlyingClient.uploadContent(imageData, contentType);
