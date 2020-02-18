@@ -1,5 +1,5 @@
 import { Intent } from "matrix-bot-sdk";
-import Octokit, {  } from "@octokit/rest";
+import { Octokit } from "@octokit/rest";
 import { UserTokenStore } from "./UserTokenStore";
 import { BridgeConfig } from "./Config";
 import uuid from "uuid/v4";

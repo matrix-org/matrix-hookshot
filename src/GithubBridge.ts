@@ -1,5 +1,5 @@
 import { Appservice, IAppserviceRegistration, SimpleFsStorageProvider } from "matrix-bot-sdk";
-import Octokit, { IssuesGetResponseUser } from "@octokit/rest";
+import { Octokit } from "@octokit/rest";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig } from "./Config";
@@ -165,11 +165,6 @@ export class GithubBridge {
 
     private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
         const isOurUser = this.as.isNamespacedUser(event.sender);
-        // if (isOurUser) {
-        //     log.debug("Not handling our own events.");
-        //     // We don't handle any IRC side stuff yet.
-        //     return;
-        // }
 
         if (event.type === "m.room.member" && !isOurUser) {
             const memberEvent = event as MatrixEvent<MatrixMemberContent>;
@@ -242,7 +237,7 @@ export class GithubBridge {
         log.debug(event);
     }
 
-    private async getIntentForUser(user: IssuesGetResponseUser) {
+    private async getIntentForUser(user: Octokit.IssuesGetResponseUser) {
         const intent = this.as.getIntentForSuffix(user.login);
         const displayName = `${user.login}`;
         // Verify up-to-date profile

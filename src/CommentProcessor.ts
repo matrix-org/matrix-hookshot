@@ -1,4 +1,4 @@
-import { IssuesGetCommentResponse } from "@octokit/rest";
+import { Octokit } from '@octokit/rest';
 import { Appservice } from "matrix-bot-sdk";
 import markdown from "markdown-it";
 import mime from "mime";
@@ -36,7 +36,7 @@ export class CommentProcessor {
         return body;
     }
 
-    public async getEventBodyForComment(comment: IssuesGetCommentResponse): Promise<IMatrixCommentEvent> {
+    public async getEventBodyForComment(comment: Octokit.IssuesGetCommentResponse): Promise<IMatrixCommentEvent> {
         let body = comment.body;
         body = this.replaceMentions(body);
         body = await this.replaceImages(body, true);

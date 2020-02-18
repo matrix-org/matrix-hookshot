@@ -1,7 +1,7 @@
 import { BridgeConfig } from "./Config";
 import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
-import { IssuesGetResponse, ReposGetResponse, IssuesGetResponseUser, IssuesGetCommentResponse } from "@octokit/rest";
+import { Octokit } from "@octokit/rest";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { LogWrapper } from "./LogWrapper";
@@ -13,10 +13,10 @@ const log = new LogWrapper("GithubWebhooks");
 
 export interface IWebhookEvent {
     action: string;
-    issue?: IssuesGetResponse;
-    comment?: IssuesGetCommentResponse;
-    repository?: ReposGetResponse;
-    sender?: IssuesGetResponseUser;
+    issue?: Octokit.IssuesGetResponse;
+    comment?: Octokit.IssuesGetCommentResponse;
+    repository?: Octokit.ReposGetResponse;
+    sender?: Octokit.IssuesGetResponseUser;
     changes?: {
         title?: {
             from: string;
