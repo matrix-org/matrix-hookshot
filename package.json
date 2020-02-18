@@ -16,6 +16,8 @@
     "lint": "tslint -p tsconfig.json"
   },
   "dependencies": {
+    "@octokit/auth-app": "^2.4.2",
+    "@octokit/auth-token": "^2.4.0",
     "@octokit/rest": "^16.43.1",
     "axios": "^0.19.2",
     "express": "^4.17.1",

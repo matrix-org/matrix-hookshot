@@ -44,6 +44,10 @@ export class LogWrapper {
                 log.warn(getMessageString(messageOrObject), { module });
             },
             error: (module: string, ...messageOrObject: any[]) => {
+                if (messageOrObject[0]?.error === "Room account data not found") {
+                    log.debug(getMessageString(messageOrObject), { module });
+                    return; // This is just noise :|
+                }
                 log.error(getMessageString(messageOrObject), { module });
             },
             debug: (module: string, ...messageOrObject: any[]) => {

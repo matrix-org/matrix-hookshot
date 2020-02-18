@@ -3,11 +3,12 @@ import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
 import { Octokit } from "@octokit/rest";
 import { EventEmitter } from "events";
-import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
+import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
 import { LogWrapper } from "./LogWrapper";
 import qs from "querystring";
 import { Server } from "http";
 import axios from "axios";
+import { UserNotificationWatcher } from "./UserNotificationWatcher";
 
 const log = new LogWrapper("GithubWebhooks");
 
@@ -35,9 +36,21 @@ export interface IOAuthTokens {
     state: string;
 }
 
+export interface NotificationsEnableEvent {
+    user_id: string;
+    room_id: string;
+    since: number;
+    token: string;
+}
+
+export interface NotificationsDisableEvent {
+    user_id: string;
+}
+
 export class GithubWebhooks extends EventEmitter {
     private expressApp: Application;
     private queue: MessageQueue;
+    private userNotificationWatcher: UserNotificationWatcher;
     private server?: Server;
     constructor(private config: BridgeConfig) {
         super();
@@ -48,6 +61,14 @@ export class GithubWebhooks extends EventEmitter {
         this.expressApp.post("/", this.onPayload.bind(this));
         this.expressApp.get("/oauth", this.onGetOauth.bind(this));
         this.queue = createMessageQueue(config);
+        this.userNotificationWatcher = new UserNotificationWatcher(this.queue);
+        this.queue.subscribe("notifications.user.*");
+        this.queue.on("notifications.user.enable", (msg: MessageQueueMessage<NotificationsEnableEvent>) => {
+            this.userNotificationWatcher.addUser(msg.data);
+        });
+        this.queue.on("notifications.user.disable", (msg: MessageQueueMessage<NotificationsDisableEvent>) => {
+            this.userNotificationWatcher.removeUser(msg.data.user_id);
+        });
     }
 
     public listen() {
@@ -55,6 +76,7 @@ export class GithubWebhooks extends EventEmitter {
             this.config.github.webhook.port,
             this.config.github.webhook.bindAddress,
         );
+        this.userNotificationWatcher.start();
     }
 
     public stop() {

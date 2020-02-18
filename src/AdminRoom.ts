@@ -7,39 +7,74 @@ import uuid from "uuid/v4";
 import qs from "querystring";
 
 export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
+export const BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";
+
+export interface AdminAccountData {
+    admin_user: string;
+    notifications?: {
+        enabled: boolean;
+    }
+}
 
 export class AdminRoom {
 
     private pendingOAuthState: string|null = null;
 
     constructor(private roomId: string,
-                public readonly userId: string,
+                public readonly data: AdminAccountData,
                 private botIntent: Intent,
                 private tokenStore: UserTokenStore,
                 private config: BridgeConfig) {
 
     }
 
+    public get userId() {
+        return this.data.admin_user;
+    }
+
     public get oauthState() {
         return this.pendingOAuthState;
+    }
+
+    public get notificationsEnabled() {
+        return this.data.notifications?.enabled;
     }
 
     public clearOauthState() {
         this.pendingOAuthState = null;
     }
 
+    public async getNotifSince() {
+        try {
+            const { since } = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId);
+            console.log(`getNotifSince for ${this.roomId} = ${since}`);
+            return since;
+        } catch {
+            // TODO: We should look at this error.
+            return 0;
+        }
+    }
+    public async setNotifSince(since: number) {
+        console.log(`setNotifSince for ${this.roomId} = ${since}`);
+        return this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId, {
+            since,
+        });
+    }
+
     public async handleCommand(command: string) {
         const cmdLower = command.toLowerCase();
-        if (cmdLower.startsWith("!setpersonaltoken ")) {
-            const accessToken = command.substr("!setPersonalToken ".length);
-            await this.setPersonalAccessToken(accessToken);
-            return;
-        } else if (cmdLower.startsWith("!hastoken")) {
-            await this.hasPersonalToken();
-            return;
-        } else if (cmdLower.startsWith("!startoauth")) {
-            await this.beginOAuth();
-            return;
+        if (cmdLower.startsWith("setpersonaltoken ")) {
+            const accessToken = command.substr("setPersonalToken ".length);
+            return this.setPersonalAccessToken(accessToken);
+        } else if (cmdLower.startsWith("hastoken")) {
+            return this.hasPersonalToken();
+        } else if (cmdLower.startsWith("startoauth")) {
+            return this.beginOAuth();
+        } else if (cmdLower.startsWith("notifications enable")) {
+            // TODO: Check if we can do this.
+            return this.setNotificationsState(true);
+        } else if (cmdLower.startsWith("notifications disable")) {
+            return this.setNotificationsState(false);
         }
         await this.sendNotice("Command not understood");
     }
@@ -82,9 +117,17 @@ export class AdminRoom {
         await this.sendNotice(`You should follow ${url} to link your account to the bridge`);
     }
 
+    private async setNotificationsState(enabled: boolean) {
+        const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId);
+        if (data.notifications?.enabled === enabled) {
+            return this.sendNotice(`Notifications are already ${enabled ? "en" : "dis"}abled`);
+        }
+        data.notifications = { enabled };
+        await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, data);
+        return this.sendNotice(`${enabled ? "En" : "Dis"}abled GitHub notifcations`);
+    }
+
     private async sendNotice(noticeText: string) {
         return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
     }
-    // Initiate oauth
-    // Relinquish oauth
 }

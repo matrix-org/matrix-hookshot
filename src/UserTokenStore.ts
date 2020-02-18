@@ -32,13 +32,14 @@ export class UserTokenStore {
         let obj;
         try {
             obj = await this.intent.underlyingClient.getAccountData(`${ACCOUNT_DATA_TYPE}${userId}`);
+            const encryptedTextB64 = obj.encrypted;
+            const encryptedText = Buffer.from(encryptedTextB64, "base64");
+            const token = privateDecrypt(this.key, encryptedText).toString("utf-8");
+            this.userTokens.set(userId, token);
+            return token;
         } catch (ex) {
-            return null;
+            log.error("Failed to get token:", ex);
         }
-        const encryptedTextB64 = obj.encrypted;
-        const encryptedText = Buffer.from(encryptedTextB64, "base64");
-        const token = privateDecrypt(this.key, encryptedText).toString("utf-8");
-        this.userTokens.set(userId, token);
-        return token;
+        return null;
     }
 }
