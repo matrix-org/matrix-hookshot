@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration, SimpleFsStorageProvider } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, SimpleFsStorageProvider, IAppserviceStorageProvider } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
 import { createTokenAuth } from "@octokit/auth-token";
 import { createAppAuth } from "@octokit/auth-app";
@@ -16,6 +16,7 @@ import { LogWrapper } from "./LogWrapper";
 import { IMatrixSendMessage, IMatrixSendMessageResponse } from "./MatrixSender";
 import { promises as fs } from "fs";
 import { UserNotificationsEvent, UserNotification } from "./UserNotificationWatcher";
+import { RedisAppserviceStorageProvider } from "./Stores/RedisAppserviceStorageProvider";
 
 const md = new markdown();
 const log = new LogWrapper("GithubBridge");
@@ -54,7 +55,12 @@ export class GithubBridge {
             userAgent: "matrix-github v0.0.1",
         });
 
-        const storage = new SimpleFsStorageProvider(this.config.bridge.store || "bridgestore.json");
+        let storage: IAppserviceStorageProvider;
+        if (this.config.queue.host && this.config.queue.port) {
+            storage = new RedisAppserviceStorageProvider(this.config.queue.host, this.config.queue.port);
+        } else {
+            storage = new SimpleFsStorageProvider(this.config.bridge.store || "bridgestore.json");
+        }
 
         this.as = new Appservice({
             homeserverName: this.config.bridge.domain,
