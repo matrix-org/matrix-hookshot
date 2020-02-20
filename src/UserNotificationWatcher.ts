@@ -76,8 +76,8 @@ export class UserNotificationWatcher {
             }
             log.info(`Getting notifications for ${userId} ${stream.lastReadTs}`);
             try {
-                const since = stream.lastReadTs !== 0 ? `?since=${new Date(stream.lastReadTs).toISOString()}`: "";
-                const response = await stream.octoKit.request(`/notifications${since}`);
+                const since = stream.lastReadTs !== 0 ? `&since=${new Date(stream.lastReadTs).toISOString()}`: "";
+                const response = await stream.octoKit.request(`/notifications?participating=true${since}`);
                 stream.lastReadTs = Date.now();
                 const events: UserNotification[] = await Promise.all(response.data.map(async (event: UserNotification) => {
                     if (event.subject.url) {
