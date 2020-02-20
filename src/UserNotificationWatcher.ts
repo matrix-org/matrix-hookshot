@@ -112,7 +112,7 @@ export class UserNotificationWatcher {
             } catch (ex) {
                 log.error("An error occured getting notifications:", ex);
             }
-            this.userQueue.push(userId);
+            this.userQueue.unshift(userId);
         }
     }
 
