@@ -3,7 +3,7 @@ import { Appservice } from "matrix-bot-sdk";
 import markdown from "markdown-it";
 import mime from "mime";
 import emoji from "node-emoji";
-import { MatrixMessageContent } from "./MatrixEvent";
+import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import { LogWrapper } from "./LogWrapper";
 import axios from "axios";
 
@@ -27,11 +27,14 @@ interface IMatrixCommentEvent {
 export class CommentProcessor {
     constructor(private as: Appservice, private mediaUrl: string) {}
 
-    public async getCommentBodyForEvent(event: MatrixMessageContent): Promise<string> {
-        let body = event.body;
+    public async getCommentBodyForEvent(event: MatrixEvent<MatrixMessageContent>, asBot: boolean): Promise<string> {
+        let body = event.content.body;
         body = await this.replaceImages(body, false);
-        if (event.formatted_body) {
-            body = this.replaceMatrixMentions(body, event.formatted_body);
+        if (event.content.formatted_body) {
+            body = this.replaceMatrixMentions(body, event.content.formatted_body);
+        }
+        if (asBot) {
+            body = `[${event.sender}](https://matrix.to/#/${event.sender}): ${body}`
         }
         return body;
     }

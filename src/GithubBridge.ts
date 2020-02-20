@@ -278,7 +278,7 @@ export class GithubBridge {
             log.error("Can't handle multiple bridges yet");
             return;
         }
-        // Get a client for the IRC user.
+
         const githubRepo = bridgeState[0].content;
         log.info(`Got new request for ${githubRepo.org}${githubRepo.repo}#${githubRepo.issues.join("|")}`);
         if (!isOurUser && event.type === "m.room.message") {
@@ -512,21 +512,21 @@ export class GithubBridge {
     private async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, bridgeState: IBridgeRoomState) {
         // TODO: Someone who is not lazy should make this work with oauth.
         const senderToken = await this.tokenStore.getUserToken(event.sender);
+        let clientKit: Octokit;
         if (senderToken === null) {
-            // TODO: Bridge via bot.
-            log.warn(`Cannot handle event from ${event.sender}. No user token configured`);
-            return;
+            clientKit = this.octokit;
+        } else {
+            clientKit = new Octokit({
+                authStrategy: createTokenAuth,
+                auth: senderToken,
+                userAgent: "matrix-github v0.0.1",
+            });
         }
-        const clientKit = new Octokit({
-            authStrategy: createTokenAuth,
-            auth: senderToken,
-            userAgent: "matrix-github v0.0.1",
-        });
 
         const result = await clientKit.issues.createComment({
             repo: bridgeState.content.repo,
             owner: bridgeState.content.org,
-            body: await this.commentProcessor.getCommentBodyForEvent(event.content),
+            body: await this.commentProcessor.getCommentBodyForEvent(event, senderToken === null),
             issue_number: parseInt(bridgeState.content.issues[0], 10),
         });
         const key =
