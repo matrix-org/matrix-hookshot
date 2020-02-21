@@ -45,7 +45,7 @@ const FAILURE_THRESHOLD = 50;
 const log = new LogWrapper("UserNotificationWatcher");
 
 export class UserNotificationWatcher {
-    private userIntervals: Map<string, number> = new Map();
+    private userIntervals: Map<string, NodeJS.Timeout> = new Map();
     private matrixMessageSender: MessageSenderClient;
 
     constructor(private queue: MessageQueue) {
@@ -57,11 +57,6 @@ export class UserNotificationWatcher {
     }
 
     public async fetchUserNotifications(stream: UserStream) {
-        const interval = MIN_INTERVAL_MS - (Date.now() - stream.lastReadTs);
-        if (interval > 0) {
-            log.info(`We read this users notifications ${MIN_INTERVAL_MS - interval}ms ago, waiting ${interval}ms`);
-            await new Promise((res) => setTimeout(res, interval));
-        }
         log.info(`Getting notifications for ${stream.userId} ${stream.lastReadTs}`);
         try {
             const since = stream.lastReadTs !== 0 ? `&since=${new Date(stream.lastReadTs).toISOString()}`: "";
@@ -118,7 +113,10 @@ Check your GitHub token is still valid, and then turn notifications back on.`, "
     }
 
     public removeUser(userId: string) {
-        clearInterval(this.userIntervals.get(userId));
+        const timer = this.userIntervals.get(userId);
+        if (timer) {
+            clearInterval(timer);
+        }
         log.info(`Removed ${userId} to notif queue`);
     }
 
@@ -145,7 +143,7 @@ Check your GitHub token is still valid, and then turn notifications back on.`, "
             log.info(`Inserted ${userId} into the notif queue`);
             const interval = setInterval(async () => {
                 stream = await this.fetchUserNotifications(stream);
-            });
+            }, MIN_INTERVAL_MS);
             this.userIntervals.set(userId, interval);
             return;
         }
