@@ -13,7 +13,8 @@ export interface AdminAccountData {
     admin_user: string;
     notifications?: {
         enabled: boolean;
-    }
+        participating?: boolean;
+    };
 }
 
 export class AdminRoom {
@@ -37,7 +38,11 @@ export class AdminRoom {
     }
 
     public get notificationsEnabled() {
-        return this.data.notifications?.enabled;
+        return !!this.data.notifications?.enabled;
+    }
+
+    public get notificationsParticipating() {
+        return !!this.data.notifications?.participating;
     }
 
     public clearOauthState() {
@@ -47,7 +52,6 @@ export class AdminRoom {
     public async getNotifSince() {
         try {
             const { since } = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId);
-            console.log(`getNotifSince for ${this.roomId} = ${since}`);
             return since;
         } catch {
             // TODO: We should look at this error.
@@ -55,7 +59,6 @@ export class AdminRoom {
         }
     }
     public async setNotifSince(since: number) {
-        console.log(`setNotifSince for ${this.roomId} = ${since}`);
         return this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId, {
             since,
         });
@@ -70,11 +73,10 @@ export class AdminRoom {
             return this.hasPersonalToken();
         } else if (cmdLower.startsWith("startoauth")) {
             return this.beginOAuth();
-        } else if (cmdLower.startsWith("notifications enable")) {
-            // TODO: Check if we can do this.
-            return this.setNotificationsState(true);
-        } else if (cmdLower.startsWith("notifications disable")) {
-            return this.setNotificationsState(false);
+        } else if (cmdLower.startsWith("notifications toggle")) {
+            return this.setNotificationsState(!this.notificationsEnabled);
+        } else if (cmdLower.startsWith("notifications filter participating")) {
+            return this.setNotificationsState(this.notificationsEnabled, !this.notificationsParticipating);
         }
         await this.sendNotice("Command not understood");
     }
@@ -117,16 +119,20 @@ export class AdminRoom {
         await this.sendNotice(`You should follow ${url} to link your account to the bridge`);
     }
 
-    private async setNotificationsState(enabled: boolean) {
-        const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId);
-        if (data.notifications?.enabled === enabled) {
-            return this.sendNotice(`Notifications are already ${enabled ? "en" : "dis"}abled`);
-        }
-        data.notifications = { enabled };
+    private async setNotificationsState(enabled: boolean, participating: boolean = false) {
+        const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
+            BRIDGE_ROOM_TYPE, this.roomId,
+        );
+        const oldState = data.notifications;
+        data.notifications = { enabled, participating };
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, data);
-        return this.sendNotice(`${enabled ? "En" : "Dis"}abled GitHub notifcations`);
+        if (oldState?.enabled !== enabled) {
+            await this.sendNotice(`${enabled ? "En" : "Dis"}abled GitHub notifcations`);
+        }
+        if (oldState?.participating !== participating) {
+            await this.sendNotice(`${enabled ? "En" : "Dis"}abled filtering for participating notifications`);
+        }
     }
-
     private async sendNotice(noticeText: string) {
         return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
     }
