@@ -1,4 +1,4 @@
-import { Octokit } from '@octokit/rest';
+import { Octokit } from "@octokit/rest";
 import { Appservice } from "matrix-bot-sdk";
 import markdown from "markdown-it";
 import mime from "mime";
@@ -108,7 +108,7 @@ export class CommentProcessor {
         }
         for (const rawUrl of urlMatches) {
             try {
-                const { data, headers } = await axios.get(rawUrl, {responseType: 'arraybuffer'});
+                const { data, headers } = await axios.get(rawUrl, {responseType: "arraybuffer"});
                 const imageData = data;
                 const contentType = headers["content-type"] || mime.getType(rawUrl) || "application/octet-stream";
                 let url;

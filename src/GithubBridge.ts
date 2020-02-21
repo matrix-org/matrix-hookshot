@@ -18,6 +18,7 @@ import { promises as fs } from "fs";
 import { UserNotificationsEvent } from "./UserNotificationWatcher";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
+import { NotificationProcessor } from "./NotificationsProcessor";
 import { IStorageProvider } from "./Stores/StorageProvider";
 
 const md = new markdown();
@@ -33,6 +34,7 @@ export class GithubBridge {
     private commentProcessor!: CommentProcessor;
     private queue!: MessageQueue;
     private tokenStore!: UserTokenStore;
+    private messageClient!: MessageSenderClient;
 
     constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) {
         this.roomIdtoBridgeState = new Map();
@@ -45,13 +47,14 @@ export class GithubBridge {
         this.adminRooms = new Map();
 
         this.queue = createMessageQueue(this.config);
+        this.messageClient = new MessageSenderClient(this.queue);
 
         log.debug(this.queue);
 
         this.octokit = new Octokit({
             authStrategy: createAppAuth,
             auth: {
-                id: parseInt(this.config.github.auth.id as string),
+                id: parseInt(this.config.github.auth.id as string, 10),
                 privateKey: await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
             },
             userAgent: "matrix-github v0.0.1",
@@ -63,6 +66,8 @@ export class GithubBridge {
         } else {
             storage = new MemoryStorageProvider();
         }
+
+        const notifProcessor = new NotificationProcessor(storage, this.messageClient);
 
         this.as = new Appservice({
             homeserverName: this.config.bridge.domain,
@@ -113,18 +118,7 @@ export class GithubBridge {
                 log.warn("No admin room for this notif stream!");
                 return;
             }
-            for (const event of msg.data.events) {
-                try {
-                    await this.handleUserNotification(msg.data.roomId, event);
-                } catch (ex) {
-                    log.warn("Failed to handle event:", ex);
-                }
-            }
-            try {
-                await adminRoom.setNotifSince(msg.data.lastReadTs);
-            } catch (ex) {
-                log.error("Failed to update stream position for notifications:", ex);
-            }
+            await notifProcessor.onUserEvents(msg.data, adminRoom);
         });
 
         this.queue.on<IOAuthRequest>("oauth.response", async (msg) => {
@@ -164,15 +158,19 @@ export class GithubBridge {
                     if (adminRoom.notificationsEnabled) {
                         log.info(`Notifications enabled for ${adminRoom.userId}`);
                         const token = await this.tokenStore.getUserToken(adminRoom.userId);
-                        console.log(token);
                         if (token) {
                             log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
-                            this.queue.push<NotificationsEnableEvent>({ eventName: "notifications.user.enable", sender: "GithubBridge", data: {
-                                user_id: adminRoom.userId,
-                                room_id: roomId,
-                                token,
-                                since: await adminRoom.getNotifSince(),
-                            }});
+                            this.queue.push<NotificationsEnableEvent>({
+                                eventName: "notifications.user.enable",
+                                sender: "GithubBridge",
+                                data: {
+                                    user_id: adminRoom.userId,
+                                    room_id: roomId,
+                                    token,
+                                    since: await adminRoom.getNotifSince(),
+                                    filter_participating: adminRoom.notificationsParticipating,
+                                },
+                            });
                         } else {
                             log.warn(`Notifications enabled for ${adminRoom.userId} but no token stored!`);
                         }
@@ -229,7 +227,7 @@ export class GithubBridge {
             await this.as.botIntent.joinRoom(roomId);
             const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
             if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
-                await this.sendMatrixText(
+                await this.messageClient.sendMatrixText(
                     roomId,
                     "This bridge currently only supports invites to 1:1 rooms",
                     "m.notice",
@@ -334,14 +332,14 @@ export class GithubBridge {
 
         if (repoState.content.comments_processed === -1) {
             // We've not sent any messages into the room yet, let's do it!
-            await this.sendMatrixText(
+            await this.messageClient.sendMatrixText(
                 roomId,
                 "This bridge currently only supports invites to 1:1 rooms",
                 "m.notice",
                 creatorUserId,
             );
             if (issue.data.body) {
-                await this.sendMatrixMessage(roomId, {
+                await this.messageClient.sendMatrixMessage(roomId, {
                     msgtype: "m.text",
                     external_url: issue.data.html_url,
                     body: `${issue.data.body} (${issue.data.updated_at})`,
@@ -374,7 +372,7 @@ export class GithubBridge {
         if (repoState.content.state !== issue.data.state) {
             if (issue.data.state === "closed") {
                 const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by.login);
-                await this.sendMatrixMessage(roomId, {
+                await this.messageClient.sendMatrixMessage(roomId, {
                     msgtype: "m.notice",
                     body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
                     external_url: issue.data.closed_by.html_url,
@@ -382,7 +380,7 @@ export class GithubBridge {
             }
 
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.topic", "", {
-                topic: FormatUtil.formatTopic(issue.data),
+                topic: FormatUtil.formatRoomTopic(issue.data),
             });
             repoState.content.state = issue.data.state;
         }
@@ -418,8 +416,8 @@ export class GithubBridge {
 
         return {
             visibility: "public",
-            name: FormatUtil.formatName(issue.data),
-            topic: FormatUtil.formatTopic(issue.data),
+            name: FormatUtil.formatRoomName(issue.data),
+            topic: FormatUtil.formatRoomTopic(issue.data),
             preset: "public_chat",
             initial_state: [
                 {
@@ -460,7 +458,7 @@ export class GithubBridge {
         const commentIntent = await this.getIntentForUser(comment.user);
         const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment);
 
-        await this.sendMatrixMessage(roomId, matrixEvent, "m.room.message", commentIntent.userId);
+        await this.messageClient.sendMatrixMessage(roomId, matrixEvent, "m.room.message", commentIntent.userId);
         if (!updateState) {
             return;
         }
@@ -491,7 +489,7 @@ export class GithubBridge {
 
         if (event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, "m.room.name", "", {
-                name: FormatUtil.formatName(event.issue!),
+                name: FormatUtil.formatRoomName(event.issue!),
             });
         }
     }
@@ -535,39 +533,5 @@ export class GithubBridge {
         `${bridgeState.content.org}/${bridgeState.content.repo}#${bridgeState.content.issues[0]}~${result.data.id}`
         .toLowerCase();
         this.matrixHandledEvents.add(key);
-    }
-
-    private async handleUserNotification(roomId: string, notif: UserNotification) {
-        log.info("New notification event:", notif.subject);
-        const formatted = FormatUtil.formatNotification(notif);
-        this.sendMatrixMessage(roomId, {
-            msgtype: "m.text",
-            body: formatted.plain,
-            formatted_body: formatted.html,
-            format: "org.matrix.custom.html",
-        });
-    }
-
-    private async sendMatrixText(roomId: string, text: string, msgtype: string = "m.text",
-                                 sender: string|null = null): Promise<string> {
-        return this.sendMatrixMessage(roomId, {
-            msgtype,
-            body: text,
-        } as MatrixMessageContent, "m.room.message", sender);
-    }
-
-    private async sendMatrixMessage(roomId: string,
-                                    content: MatrixEventContent, eventType: string = "m.room.message",
-                                    sender: string|null = null): Promise<string> {
-        return (await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse>({
-            eventName: "matrix.message",
-            sender: "GithubBridge",
-            data: {
-                roomId,
-                type: eventType,
-                sender,
-                content,
-            },
-        })).eventId;
     }
 }

@@ -41,6 +41,7 @@ export interface NotificationsEnableEvent {
     room_id: string;
     since: number;
     token: string;
+    filter_participating: boolean;
 }
 
 export interface NotificationsDisableEvent {
@@ -69,6 +70,8 @@ export class GithubWebhooks extends EventEmitter {
         this.queue.on("notifications.user.disable", (msg: MessageQueueMessage<NotificationsDisableEvent>) => {
             this.userNotificationWatcher.removeUser(msg.data.user_id);
         });
+
+        // This also listens for notifications for users, which is long polly.
     }
 
     public listen() {

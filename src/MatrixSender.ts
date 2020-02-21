@@ -1,6 +1,6 @@
 import { BridgeConfig } from "./Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
-import { MatrixEventContent } from "./MatrixEvent";
+import { MatrixEventContent, MatrixMessageContent } from "./MatrixEvent";
 import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
 import { LogWrapper } from "./LogWrapper";
 
@@ -58,5 +58,32 @@ export class MatrixSender {
            },
            messageId,
        });
+    }
+}
+
+export class MessageSenderClient {
+    constructor(private queue: MessageQueue) { }
+
+    public async sendMatrixText(roomId: string, text: string, msgtype: string = "m.text",
+                                sender: string|null = null): Promise<string> {
+        return this.sendMatrixMessage(roomId, {
+            msgtype,
+            body: text,
+        } as MatrixMessageContent, "m.room.message", sender);
+    }
+
+    public async sendMatrixMessage(roomId: string,
+                                   content: MatrixEventContent, eventType: string = "m.room.message",
+                                   sender: string|null = null): Promise<string> {
+        return (await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse>({
+            eventName: "matrix.message",
+            sender: "GithubBridge",
+            data: {
+                roomId,
+                type: eventType,
+                sender,
+                content,
+            },
+        })).eventId;
     }
 }
