@@ -116,8 +116,8 @@ Check your GitHub token is still valid, and then turn notifications back on.`, "
         const timer = this.userIntervals.get(userId);
         if (timer) {
             clearInterval(timer);
+            log.info(`Removed ${userId} to notif queue`);
         }
-        log.info(`Removed ${userId} to notif queue`);
     }
 
     public addUser(data: NotificationsEnableEvent) {
