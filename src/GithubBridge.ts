@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration, SimpleFsStorageProvider, IAppserviceStorageProvider } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
 import { createTokenAuth } from "@octokit/auth-token";
 import { createAppAuth } from "@octokit/auth-app";
@@ -11,12 +11,14 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
-import { MatrixEvent, MatrixMemberContent, MatrixMessageContent, MatrixEventContent } from "./MatrixEvent";
+import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { LogWrapper } from "./LogWrapper";
-import { IMatrixSendMessage, IMatrixSendMessageResponse } from "./MatrixSender";
+import { MessageSenderClient } from "./MatrixSender";
 import { promises as fs } from "fs";
-import { UserNotificationsEvent, UserNotification } from "./UserNotificationWatcher";
-import { RedisAppserviceStorageProvider } from "./Stores/RedisAppserviceStorageProvider";
+import { UserNotificationsEvent } from "./UserNotificationWatcher";
+import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
+import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
+import { IStorageProvider } from "./Stores/StorageProvider";
 
 const md = new markdown();
 const log = new LogWrapper("GithubBridge");
@@ -55,11 +57,11 @@ export class GithubBridge {
             userAgent: "matrix-github v0.0.1",
         });
 
-        let storage: IAppserviceStorageProvider;
+        let storage: IStorageProvider;
         if (this.config.queue.host && this.config.queue.port) {
-            storage = new RedisAppserviceStorageProvider(this.config.queue.host, this.config.queue.port);
+            storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
         } else {
-            storage = new SimpleFsStorageProvider(this.config.bridge.store || "bridgestore.json");
+            storage = new MemoryStorageProvider();
         }
 
         this.as = new Appservice({
