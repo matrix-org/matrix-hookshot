@@ -20,11 +20,11 @@ export class NotificationProcessor {
     private static formatNotification(notif: UserNotification, diff: IssueDiff|null, newComment: boolean) {
         let plain = `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data.html_url})`;
         const issueNumber = notif.subject.url_data?.number;
+        if (issueNumber) {
+            plain += ` #${issueNumber}`;
+        }
         if (notif.repository) {
             plain += ` for **[${notif.repository.full_name}](${notif.repository.html_url})`;
-            if (issueNumber) {
-                plain += `#${issueNumber}`;
-            }
         }
         if (diff) {
             if (diff.state) {
