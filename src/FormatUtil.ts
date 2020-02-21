@@ -1,16 +1,15 @@
-import { Octokit } from '@octokit/rest';
-import { UserNotification } from './UserNotificationWatcher';
+import { UserNotification } from "./UserNotificationWatcher";
 import markdown from "markdown-it";
 
 const md = new markdown();
 
 export class FormatUtil {
-    public static formatName(issue: Octokit.IssuesGetResponse) {
+    public static formatRoomName(issue: {number: number, title: string, repository_url: string}) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
         return `${orgRepoName}#${issue.number}: ${issue.title}`;
     }
 
-    public static formatTopic(issue: Octokit.IssuesGetResponse) {
+    public static formatRoomTopic(issue: {state: string, title: string, html_url: string}) {
         return `${issue.title} | Status: ${issue.state} | ${issue.html_url}`;
     }
 
@@ -26,16 +25,33 @@ export class FormatUtil {
         return {
             plain,
             html: md.render(plain),
-        }
+        };
     }
 
+    // private static getPhraselineForNotification(notif: UserNotification) {
+    //     // opened a new issue
+    //     const actionLine = "";
+    //     return actionLine;
+    // }
+
+    // private static getReasonLine(notif: UserNotification) {
+    //     switch (notif.reason) {
+    //         case "assign":
+    //             return `You were assigned to`;
+    //         case "mention":
+    //             return "You were mentioned";
+    //         default:
+    //             return "";
+    //     }
+    // }
+
     private static getEmojiForNotifType(notif: UserNotification): string {
-        switch(notif.subject.type) {
+        switch (notif.subject.type) {
             case "Issue":
                 return "📝";
             case "PullRequest":
                 return "✋"; // What should we do about this?
-            default: 
+            default:
                 return "🔔";
         }
     }
