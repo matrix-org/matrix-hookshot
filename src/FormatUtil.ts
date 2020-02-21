@@ -50,7 +50,7 @@ export class FormatUtil {
             case "Issue":
                 return "📝";
             case "PullRequest":
-                return "✋"; // What should we do about this?
+                return "⤵";
             default:
                 return "🔔";
         }
