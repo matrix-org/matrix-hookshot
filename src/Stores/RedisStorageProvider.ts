@@ -5,7 +5,10 @@ import { IStorageProvider } from "./StorageProvider";
 const REGISTERED_USERS_KEY = "as.registered_users";
 const COMPLETED_TRANSACTIONS_KEY = "as.completed_transactions";
 const GH_ISSUES_KEY = "gh.issues";
+const GH_ISSUES_LAST_COMMENT_KEY = "gh.issues.last_comment";
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
+const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
+const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
 
 const log = new LogWrapper("RedisASProvider");
 
@@ -35,12 +38,25 @@ export class RedisStorageProvider implements IStorageProvider {
         return (await this.redis.sismember(COMPLETED_TRANSACTIONS_KEY, transactionId)) === 1;
     }
 
-    public async setGithubIssue(repo: string, issueNumber: string, data: any) {
-        await this.redis.set(`${GH_ISSUES_KEY}:${repo}/${issueNumber}`, JSON.stringify(data));
+    public async setGithubIssue(repo: string, issueNumber: string, data: any, scope: string = "") {
+        const key = `${scope}${GH_ISSUES_KEY}:${repo}/${issueNumber}`;
+        await this.redis.set(key, JSON.stringify(data));
+        await this.redis.expire(key, ISSUES_EXPIRE_AFTER);
     }
 
-    public async getGithubIssue(repo: string, issueNumber: string) {
-        const res = await this.redis.get(`${GH_ISSUES_KEY}:${repo}/${issueNumber}`);
+    public async getGithubIssue(repo: string, issueNumber: string, scope: string = "") {
+        const res = await this.redis.get(`${scope}:${GH_ISSUES_KEY}:${repo}/${issueNumber}`);
         return res ? JSON.parse(res) : null;
+    }
+
+    public async setLastNotifCommentUrl(repo: string, issueNumber: string, url: string, scope: string = "") {
+        const key = `${scope}${GH_ISSUES_LAST_COMMENT_KEY}:${repo}/${issueNumber}`;
+        await this.redis.set(key, url);
+        await this.redis.expire(key, ISSUES_LAST_COMMENT_EXPIRE_AFTER);
+    }
+
+    public async getLastNotifCommentUrl(repo: string, issueNumber: string, scope: string = "") {
+        const res = await this.redis.get(`${scope}:${GH_ISSUES_LAST_COMMENT_KEY}:${repo}/${issueNumber}`);
+        return res ? res : null;
     }
 }

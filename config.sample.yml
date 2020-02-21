@@ -25,7 +25,6 @@ bridge:
   mediaUrl: http://example.com/
   port: 9993 # Port the appservice is binding to
   bindAddress: 127.0.0.1 # Address to bind to
-  store: "bridgestore.json" # If queue.host and queue.port are provided, this isn't used.
 queue:
   monolithic: true # If this is false, use a Redis server as a queue.
   # Redis settings
