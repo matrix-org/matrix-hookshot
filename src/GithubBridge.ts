@@ -61,7 +61,7 @@ export class GithubBridge {
         });
 
         try {
-            await this.octokit.apps.checkToken();
+            await this.octokit.rateLimit.get();
             log.info("Auth check success");
         } catch (ex) {
             log.info("Auth check failed:", ex);
