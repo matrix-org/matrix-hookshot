@@ -83,8 +83,13 @@ export class GithubBridge {
         this.tokenStore = new UserTokenStore(this.config.github.passFile || "./passkey.pem", this.as.botIntent);
         await this.tokenStore.load();
 
-        this.as.on("query.room", (roomAlias, cb) => {
-            cb(this.onQueryRoom(roomAlias));
+        this.as.on("query.room", async (roomAlias, cb) => {
+            try {
+                cb(await this.onQueryRoom(roomAlias));
+            } catch (ex) {
+                log.error("Failed to create room:", ex);
+                cb(false);
+            }
         });
 
         this.as.on("room.event", async (roomId, event) => {
