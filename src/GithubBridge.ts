@@ -400,24 +400,31 @@ export class GithubBridge {
             throw Error("Alias is in an incorrect format");
         }
         const parts = match!.slice(1);
+
+        const owner = parts[0];
+        const repo = parts[1];
         const issueNumber = parseInt(parts[2], 10);
 
-        const issue = await this.octokit.issues.get({
-            owner: parts[0],
-            repo: parts[1],
-            issue_number: issueNumber,
-        });
-
-        if (issue.status !== 200) {
+        log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
+        let issue: Octokit.IssuesGetResponse;
+        try {
+            issue = (await this.octokit.issues.get({
+                owner,
+                repo,
+                issue_number: issueNumber,
+            })).data;
+        } catch (ex) {
+            log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
         }
 
-        const orgRepoName = issue.data.repository_url.substr("https://api.github.com/repos/".length);
+        // URL hack so we don't need to fetch the repo itself.
+        const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
 
         return {
             visibility: "public",
-            name: FormatUtil.formatRoomName(issue.data),
-            topic: FormatUtil.formatRoomTopic(issue.data),
+            name: FormatUtil.formatRoomName(issue),
+            topic: FormatUtil.formatRoomTopic(issue),
             preset: "public_chat",
             initial_state: [
                 {
@@ -425,11 +432,11 @@ export class GithubBridge {
                     content: {
                         org: orgRepoName.split("/")[0],
                         repo: orgRepoName.split("/")[1],
-                        issues: [String(issue.data.number)],
+                        issues: [String(issue.number)],
                         comments_processed: -1,
                         state: "open",
                     },
-                    state_key: issue.data.url,
+                    state_key: issue.url,
                 } as IBridgeRoomState,
             ],
         };
