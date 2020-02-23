@@ -31,4 +31,5 @@ async function start() {
 
 start().catch((ex) => {
     log.error("BridgeApp encountered an error and has stopped:", ex);
+    process.exit(1);
 });

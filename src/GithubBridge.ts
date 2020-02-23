@@ -60,6 +60,14 @@ export class GithubBridge {
             userAgent: "matrix-github v0.0.1",
         });
 
+        try {
+            await this.octokit.apps.checkToken();
+            log.info("Auth check success");
+        } catch (ex) {
+            log.info("Auth check failed:", ex);
+            throw Error("Attempting to verify GitHub authentication configration failed");
+        }
+
         let storage: IStorageProvider;
         if (this.config.queue.host && this.config.queue.port) {
             storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
