@@ -128,7 +128,6 @@ Check your GitHub token is still valid, and then turn notifications back on.`, "
         });
 
         const userId = data.user_id;
-        const existing = this.userIntervals.has(userId);
         this.removeUser(userId);
 
         let stream: UserStream = {
@@ -139,14 +138,12 @@ Check your GitHub token is still valid, and then turn notifications back on.`, "
             participating: data.filter_participating,
             failureCount: 0,
         };
-        if (!existing) {
-            log.info(`Inserted ${userId} into the notif queue`);
-            const interval = setInterval(async () => {
-                stream = await this.fetchUserNotifications(stream);
-            }, MIN_INTERVAL_MS);
-            this.userIntervals.set(userId, interval);
-            return;
-        }
-        log.info(`Reinserted ${userId} into the notif queue`);
+
+        log.info(`Inserted ${userId} into the notif queue`);
+        const interval = setInterval(async () => {
+            stream = await this.fetchUserNotifications(stream);
+        }, MIN_INTERVAL_MS);
+        this.userIntervals.set(userId, interval);
+        return;
     }
 }
