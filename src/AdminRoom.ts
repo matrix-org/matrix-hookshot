@@ -5,6 +5,7 @@ import { UserTokenStore } from "./UserTokenStore";
 import { BridgeConfig } from "./Config";
 import uuid from "uuid/v4";
 import qs from "querystring";
+import { EventEmitter } from "events";
 
 export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
 export const BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";
@@ -17,16 +18,16 @@ export interface AdminAccountData {
     };
 }
 
-export class AdminRoom {
+export class AdminRoom extends EventEmitter {
 
     private pendingOAuthState: string|null = null;
 
-    constructor(private roomId: string,
+    constructor(public readonly roomId: string,
                 public readonly data: AdminAccountData,
                 private botIntent: Intent,
                 private tokenStore: UserTokenStore,
                 private config: BridgeConfig) {
-
+        super();
     }
 
     public get userId() {
@@ -126,6 +127,7 @@ export class AdminRoom {
         const oldState = data.notifications;
         data.notifications = { enabled, participating };
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, data);
+        this.emit("settings.changed", this, data);
         if (oldState?.enabled !== enabled) {
             await this.sendNotice(`${enabled ? "En" : "Dis"}abled GitHub notifcations`);
         }

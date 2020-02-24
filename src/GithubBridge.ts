@@ -5,10 +5,10 @@ import { createAppAuth } from "@octokit/auth-app";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig } from "./Config";
-import { IWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent } from "./GithubWebhooks";
+import { IWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
-import { AdminRoom, BRIDGE_ROOM_TYPE } from "./AdminRoom";
+import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
@@ -167,30 +167,12 @@ export class GithubBridge {
                     const adminRoom = new AdminRoom(
                         roomId, accountData, this.as.botIntent, this.tokenStore, this.config,
                     );
+                    adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
                     this.adminRooms.set(roomId, adminRoom);
                     log.info(`${roomId} is an admin room for ${adminRoom.userId}`);
-                    if (adminRoom.notificationsEnabled) {
-                        log.info(`Notifications enabled for ${adminRoom.userId}`);
-                        const token = await this.tokenStore.getUserToken(adminRoom.userId);
-                        if (token) {
-                            log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
-                            this.queue.push<NotificationsEnableEvent>({
-                                eventName: "notifications.user.enable",
-                                sender: "GithubBridge",
-                                data: {
-                                    user_id: adminRoom.userId,
-                                    room_id: roomId,
-                                    token,
-                                    since: await adminRoom.getNotifSince(),
-                                    filter_participating: adminRoom.notificationsParticipating,
-                                },
-                            });
-                        } else {
-                            log.warn(`Notifications enabled for ${adminRoom.userId} but no token stored!`);
-                        }
-                    }
+                    // Call this on startup to set the state
+                    await this.onAdminRoomSettingsChanged(adminRoom, adminRoom.data);
                 }
-                continue;
             } catch (ex) { /* this is an old style room */ }
             await this.getRoomBridgeState(roomId);
         }
@@ -253,9 +235,11 @@ export class GithubBridge {
             await this.as.botIntent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, data,
             );
+            const adminRoom = new AdminRoom(roomId, data, this.as.botIntent, this.tokenStore, this.config);
+            adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
             this.adminRooms.set(
                 roomId,
-                new AdminRoom(roomId, data, this.as.botIntent, this.tokenStore, this.config),
+                adminRoom,
             );
         }
 
@@ -554,5 +538,37 @@ export class GithubBridge {
         `${bridgeState.content.org}/${bridgeState.content.repo}#${bridgeState.content.issues[0]}~${result.data.id}`
         .toLowerCase();
         this.matrixHandledEvents.add(key);
+    }
+
+    private async onAdminRoomSettingsChanged(adminRoom: AdminRoom, settings: AdminAccountData) {
+        log.info(`Settings changed for ${adminRoom.userId} ${settings}`);
+        if (adminRoom.notificationsEnabled) {
+            log.info(`Notifications enabled for ${adminRoom.userId}`);
+            const token = await this.tokenStore.getUserToken(adminRoom.userId);
+            if (token) {
+                log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
+                this.queue.push<NotificationsEnableEvent>({
+                    eventName: "notifications.user.enable",
+                    sender: "GithubBridge",
+                    data: {
+                        user_id: adminRoom.userId,
+                        room_id: adminRoom.roomId,
+                        token,
+                        since: await adminRoom.getNotifSince(),
+                        filter_participating: adminRoom.notificationsParticipating,
+                    },
+                });
+            } else {
+                log.warn(`Notifications enabled for ${adminRoom.userId} but no token stored!`);
+            }
+        } else {
+            this.queue.push<NotificationsDisableEvent>({
+                eventName: "notifications.user.disable",
+                sender: "GithubBridge",
+                data: {
+                    user_id: adminRoom.userId,
+                },
+            });
+        }
     }
 }
