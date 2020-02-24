@@ -20,6 +20,7 @@ import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { NotificationProcessor } from "./NotificationsProcessor";
 import { IStorageProvider } from "./Stores/StorageProvider";
+import { retry } from "./PromiseUtil";
 
 const md = new markdown();
 const log = new LogWrapper("GithubBridge");
@@ -220,7 +221,8 @@ export class GithubBridge {
             if (memberEvent.content.membership !== "invite") {
                 return;
             }
-            await this.as.botIntent.joinRoom(roomId);
+            // Room joins can fail over federation
+            await retry(() => this.as.botIntent.joinRoom(roomId), 5);
             const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
             if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
                 await this.messageClient.sendMatrixText(
