@@ -24,23 +24,24 @@ export class NotificationProcessor {
             plain += ` #${issueNumber}`;
         }
         if (notif.repository) {
-            plain += ` for **[${notif.repository.full_name}](${notif.repository.html_url})`;
+            plain += ` for **[${notif.repository.full_name}](${notif.repository.html_url})**`;
         }
         if (diff) {
+            plain += "\n\n ";
             if (diff.state) {
                 const state = diff.state[0].toUpperCase() + diff.state.slice(1).toLowerCase();
-                plain += `\n State changed to: ${state}`;
+                plain += `State changed to: ${state}`;
             }
             if (diff.title) {
-                plain += `\n Title changed to: ${diff.title}`;
+                plain += `Title changed to: ${diff.title}`;
             }
             if (diff.assignee) {
-                plain += `\n Assigned to: ${diff.assignee.login}`;
+                plain += `Assigned to: ${diff.assignee.login}`;
             }
         }
         if (newComment) {
             const comment = notif.subject.latest_comment_url_data as Octokit.IssuesGetCommentResponse;
-            plain += `\n**[${comment.user.login}](${comment.user.html_url})**: ${comment.body}`;
+            plain += `\n\n **[${comment.user.login}](${comment.user.html_url})**:\n\n > ${comment.body}`;
         }
         return {
             plain,
