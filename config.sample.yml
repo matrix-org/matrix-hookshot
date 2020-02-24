@@ -1,4 +1,8 @@
 github:
+  # You can find this by going to https://github.com/settings/installations,
+  # clicking on the bridge app and taking note of the ID in the URL.
+  # E.g. https://github.com/settings/installations/6854059
+  installationId: 6854059
   auth: 
     id: 123
     privateKeyFile: "github-key.pem"

@@ -22,6 +22,7 @@ export interface BridgeConfig {
             client_secret: string;
             redirect_uri: string;
         };
+        installationId: number|string;
     };
     bridge: {
         domain: string;

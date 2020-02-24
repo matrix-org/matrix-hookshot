@@ -49,14 +49,15 @@ export class GithubBridge {
         this.queue = createMessageQueue(this.config);
         this.messageClient = new MessageSenderClient(this.queue);
 
-        log.debug(this.queue);
+        const auth = {
+            id: parseInt(this.config.github.auth.id as string, 10),
+            privateKey: await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
+            installationId: parseInt(this.config.github.installationId as string, 10),
+        };
 
         this.octokit = new Octokit({
             authStrategy: createAppAuth,
-            auth: {
-                id: parseInt(this.config.github.auth.id as string, 10),
-                privateKey: await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
-            },
+            auth,
             userAgent: "matrix-github v0.0.1",
         });
 
