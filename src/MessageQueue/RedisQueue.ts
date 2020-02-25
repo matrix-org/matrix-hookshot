@@ -7,15 +7,30 @@ import uuid from "uuid/v4";
 
 const log = new LogWrapper("RedisMq");
 
+const CONSUMER_TRACK_PREFIX = "consumers.";
+
 export class RedisMQ extends EventEmitter implements MessageQueue {
+
+    private static removePartsFromEventName(evName: string, partCount: number) {
+        return evName.split(".").slice(0, -partCount).join(".");
+    }
+
     private redisSub: Redis;
     private redisPub: Redis;
+    private redis: Redis;
+    private myUuid: string;
     constructor(config: BridgeConfig) {
         super();
         this.redisSub = new redis(config.queue.port, config.queue.host);
         this.redisPub = new redis(config.queue.port, config.queue.host);
+        this.redis = new redis(config.queue.port, config.queue.host);
+        this.myUuid = uuid();
         this.redisSub.on("pmessage", (pattern: string, channel: string, message: string) => {
-            const msg = JSON.parse(message);
+            const msg = JSON.parse(message) as MessageQueueMessage<unknown>;
+            if (msg.for && msg.for !== this.myUuid) {
+                log.debug(`Got message for ${msg.for}, dropping`);
+                return;
+            }
             const delay = (process.hrtime()[1]) - msg.ts!;
             log.debug("Delay: ", delay / 1000000, "ms");
             this.emit(channel, JSON.parse(message));
@@ -24,26 +39,39 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
 
     public subscribe(eventGlob: string) {
         this.redisSub.psubscribe(eventGlob);
+        const consumerName = eventGlob.endsWith("*") ? RedisMQ.removePartsFromEventName(eventGlob, 1) : eventGlob;
+        this.redis.sadd(`${CONSUMER_TRACK_PREFIX}${consumerName}`, this.myUuid);
     }
 
     public unsubscribe(eventGlob: string) {
         this.redisSub.punsubscribe(eventGlob);
+        this.redis.srem(`${CONSUMER_TRACK_PREFIX}${eventGlob}`, this.myUuid);
     }
 
-    public push<T>(message: MessageQueueMessage<T>) {
+    public async push<T>(message: MessageQueueMessage<T>, single: boolean = false) {
         if (!message.messageId) {
             message.messageId = uuid();
         }
+        if (single) {
+            const recipient = await this.getRecipientForEvent(message.eventName);
+            if (!recipient) {
+                throw Error("Cannot find recipient for event");
+            }
+            message.for = recipient;
+        }
         message.ts = process.hrtime()[1];
-        this.redisPub.publish(message.eventName, JSON.stringify(message)).then(() => {
+        try {
+            await this.redisPub.publish(message.eventName, JSON.stringify(message));
             log.debug(`Pushed ${message.eventName}`);
-        }).catch((ex) => {
+        } catch (ex) {
             log.warn("Failed to push an event:", ex);
-        });
+            throw Error("Failed to push message into queue");
+        }
     }
 
     public async pushWait<T, X>(message: MessageQueueMessage<T>,
-                                timeout: number = DEFAULT_RES_TIMEOUT): Promise<X> {
+                                timeout: number = DEFAULT_RES_TIMEOUT,
+                                single: boolean = false): Promise<X> {
         let awaitResponse: (response: MessageQueueMessage<X>) => void;
         let resolve: (value: X) => void;
         let timer: NodeJS.Timer;
@@ -64,12 +92,25 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         };
 
         this.addListener(`response.${message.eventName}`, awaitResponse);
-        this.push(message);
+        await this.push(message);
         return p;
     }
 
     public stop() {
         this.redisPub.disconnect();
         this.redisSub.disconnect();
+    }
+
+    private async getRecipientForEvent(eventName: string): Promise<string|null> {
+        let recipient = null;
+        let parts = 0;
+        const totalParts = eventName.split(".").length;
+        // Work backwards from the event name.
+        while (recipient === null && parts < totalParts) {
+            const evName = RedisMQ.removePartsFromEventName(eventName, parts);
+            recipient = await this.redis.srandmember(evName) || null;
+            parts++;
+        }
+        return recipient;
     }
 }

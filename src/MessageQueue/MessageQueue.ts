@@ -13,13 +13,14 @@ export interface MessageQueueMessage<T> {
     data: T;
     ts?: number;
     messageId?: string;
+    for?: string;
 }
 
 export interface MessageQueue {
     subscribe: (eventGlob: string) => void;
     unsubscribe: (eventGlob: string) => void;
-    push: <T>(data: MessageQueueMessage<T>) => void;
-    pushWait: <T, X>(data: MessageQueueMessage<T>) => Promise<X>;
+    push: <T>(data: MessageQueueMessage<T>, single?: boolean) => Promise<void>;
+    pushWait: <T, X>(data: MessageQueueMessage<T>, timeout?: number, single?: boolean) => Promise<X>;
     on: <T>(eventName: string, cb: (data: MessageQueueMessage<T>) => void) => void;
     stop(): void;
 }

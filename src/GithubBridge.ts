@@ -138,7 +138,7 @@ export class GithubBridge {
 
         this.queue.on<IOAuthRequest>("oauth.response", async (msg) => {
             const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
-            this.queue.push<boolean>({
+            await this.queue.push<boolean>({
                 data: !!(adminRoom),
                 sender: "GithubBridge",
                 messageId: msg.messageId,
@@ -549,7 +549,7 @@ export class GithubBridge {
             const token = await this.tokenStore.getUserToken(adminRoom.userId);
             if (token) {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
-                this.queue.push<NotificationsEnableEvent>({
+                await this.queue.push<NotificationsEnableEvent>({
                     eventName: "notifications.user.enable",
                     sender: "GithubBridge",
                     data: {
@@ -564,7 +564,7 @@ export class GithubBridge {
                 log.warn(`Notifications enabled for ${adminRoom.userId} but no token stored!`);
             }
         } else {
-            this.queue.push<NotificationsDisableEvent>({
+            await this.queue.push<NotificationsDisableEvent>({
                 eventName: "notifications.user.disable",
                 sender: "GithubBridge",
                 data: {

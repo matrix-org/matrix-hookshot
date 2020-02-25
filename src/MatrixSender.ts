@@ -50,7 +50,7 @@ export class MatrixSender {
        const intent = msg.sender ? this.as.getIntentForUserId(msg.sender) : this.as.botIntent;
        const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
        log.info("Sent", eventId);
-       this.mq.push<IMatrixSendMessageResponse>({
+       await this.mq.push<IMatrixSendMessageResponse>({
            eventName: "response.matrix.message",
            sender: "MatrixSender",
            data: {

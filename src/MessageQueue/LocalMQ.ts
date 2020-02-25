@@ -18,7 +18,7 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
         this.subs.delete(eventGlob);
     }
 
-    public push<T>(message: MessageQueueMessage<T>) {
+    public async push<T>(message: MessageQueueMessage<T>) {
         if (!micromatch.match([...this.subs], message.eventName)) {
             return;
         }

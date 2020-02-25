@@ -87,7 +87,7 @@ export class UserNotificationWatcher {
                 }
             }
 
-            this.queue.push<UserNotificationsEvent>({
+            await this.queue.push<UserNotificationsEvent>({
                 eventName: "notifications.user.events",
                 data: {
                     roomId: stream.roomId,

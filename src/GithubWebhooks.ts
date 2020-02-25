@@ -115,6 +115,8 @@ export class GithubWebhooks extends EventEmitter {
                     eventName,
                     sender: "GithubWebhooks",
                     data: body,
+                }).catch((err) => {
+                    log.info(`Failed to emit payload: ${err}`);
                 });
             }
         } catch (ex) {
@@ -143,7 +145,7 @@ export class GithubWebhooks extends EventEmitter {
                 state: req.query.state,
             })}`);
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
-            this.queue.push<IOAuthTokens>({
+            await this.queue.push<IOAuthTokens>({
                 eventName: "oauth.tokens",
                 sender: "GithubWebhooks",
                 data: { state: req.query.state, ... result },
