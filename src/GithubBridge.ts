@@ -1,11 +1,12 @@
-import { Appservice, IAppserviceRegistration, RichReply, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
 import { createTokenAuth } from "@octokit/auth-token";
 import { createAppAuth } from "@octokit/auth-app";
 import markdown from "markdown-it";
 import { IBridgeRoomState, BRIDGE_STATE_TYPE } from "./BridgeState";
 import { BridgeConfig } from "./Config";
-import { IWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent } from "./GithubWebhooks";
+import { IWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
+    NotificationsDisableEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
