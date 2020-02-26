@@ -254,7 +254,7 @@ export class GithubBridge {
                 return;
             }
 
-            const replyId = messageEvent["m.relates_to"]?.["m.in_reply_to"]?.event_id;
+            const replyId = messageEvent.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
 
             if (replyId) {
                 log.info(`Handling reply to ${replyId} for ${room.userId}`);

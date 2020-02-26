@@ -5,11 +5,6 @@ export interface MatrixEvent<T extends MatrixEventContent|unknown> {
     sender: string;
     state_key: string|undefined;
     type: string;
-    "m.relates_to"?: {
-        "m.in_reply_to"?: {
-          event_id: string;
-        },
-    },
 }
 
 // tslint:disable-next-line: no-empty-interface
@@ -30,4 +25,9 @@ export interface MatrixMessageContent extends MatrixEventContent {
     formatted_body?: string;
     format?: string;
     msgtype: "m.text"|"m.notice"|"m.image"|"m.video"|"m.audio";
+    "m.relates_to"?: {
+        "m.in_reply_to"?: {
+          event_id: string;
+        },
+    };
 }
