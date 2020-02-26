@@ -104,10 +104,6 @@ export class GithubBridge {
             }
         });
 
-        this.as.on("room.join", async (roomId, event) => {
-            return this.onRoomJoin(roomId, event);
-        });
-
         this.as.on("room.invite", async (roomId, event) => {
             return this.onRoomInvite(roomId, event);
         });
@@ -225,28 +221,6 @@ export class GithubBridge {
             log.error(`Failed to get room state for ${roomId}:` + ex);
         }
         return [];
-    }
-
-    private async onRoomJoin(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
-        if (this.as.botUserId !== event.sender) {
-            // We only care about the bot.
-            return;
-        }
-        log.info(`Bridge bot joined ${roomId}`);
-        const stateEvs = await this.as.botClient.getRoomState(roomId);
-        console.log(stateEvs);
-        const bridgeStateEvents: IBridgeRoomState[] = stateEvs.filter((ev) =>
-            ev.type === BRIDGE_STATE_TYPE,
-        );
-
-        for (const stateEvent of bridgeStateEvents) {
-            log.info(`Processing ${stateEvent.state_key}`);
-            try {
-                await this.syncIssueState(roomId, stateEvent);
-            } catch (ex) {
-                log.error(`Failed to sync state for ${roomId}: ${ex}`);
-            }
-        }
     }
 
     private async onRoomInvite(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
