@@ -261,7 +261,7 @@ export class GithubBridge {
                 // This might be a reply to a notification
                 try {
                     const ev = await this.as.botIntent.underlyingClient.getEvent(roomId, replyId);
-                    const splitParts: string[] = ev.content["uk.half-shot.matrix-github.repo"]?.full_name.split("/");
+                    const splitParts: string[] = ev.content["uk.half-shot.matrix-github.repo"]?.name.split("/");
                     const issueNumber = ev.content["uk.half-shot.matrix-github.issue"]?.number;
                     if (splitParts && issueNumber) {
                         log.info(`Handling reply for ${splitParts}${issueNumber}`);
