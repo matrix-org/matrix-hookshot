@@ -261,17 +261,17 @@ export class GithubBridge {
                 // This might be a reply to a notification
                 try {
                     const ev = await this.as.botIntent.underlyingClient.getEvent(roomId, replyId);
-                    const commentId = ev.content["uk.half-shot.matrix-github.comment"]?.id;
-                    const splitParts: string[] = ev.content["ukuk.half-shot.matrix-github.repo"]?.full_name.split("/");
-                    const issueNumber = ev.content["ukuk.half-shot.matrix-github.issue"]?.number;
-                    if (commentId && splitParts && issueNumber) {
+                    const splitParts: string[] = ev.content["uk.half-shot.matrix-github.repo"]?.full_name.split("/");
+                    const issueNumber = ev.content["uk.half-shot.matrix-github.issue"]?.number;
+                    if (splitParts && issueNumber) {
+                        log.info(`Handling reply for ${splitParts}${issueNumber}`);
                         await this.onMatrixIssueComment(messageEvent, {
                             org: splitParts[0],
                             repo: splitParts[1],
                             issues: [issueNumber.toString()],
                         });
                     } else {
-                        log.debug("Missing parts!:", commentId, splitParts, issueNumber);
+                        log.info("Missing parts!:", splitParts, issueNumber);
                     }
                 } catch (ex) {
                     log.error("Reply event could not be handled:", ex);
