@@ -6,6 +6,7 @@ import emoji from "node-emoji";
 import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import { LogWrapper } from "./LogWrapper";
 import axios from "axios";
+import { FormatUtil } from "./FormatUtil";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
 const REGEX_MATRIX_MENTION = /<a href="https:\/\/matrix\.to\/#\/(.+)">(.*)<\/a>/gmi;
@@ -39,7 +40,9 @@ export class CommentProcessor {
         return body;
     }
 
-    public async getEventBodyForComment(comment: Octokit.IssuesGetCommentResponse): Promise<IMatrixCommentEvent> {
+    public async getEventBodyForComment(comment: Octokit.IssuesGetCommentResponse,
+                                        repo?: Octokit.ReposGetResponse,
+                                        issue?: Octokit.IssuesGetResponse): Promise<IMatrixCommentEvent> {
         let body = comment.body;
         body = this.replaceMentions(body);
         body = await this.replaceImages(body, true);
@@ -47,13 +50,10 @@ export class CommentProcessor {
         const htmlBody = md.render(body);
         return {
             body,
-            "formatted_body": htmlBody,
-            "msgtype": "m.text",
-            "format": "org.matrix.custom.html",
-            "external_url": comment.html_url,
-            "uk.half-shot.matrix-github.comment": {
-                id: comment.id,
-            },
+            formatted_body: htmlBody,
+            msgtype: "m.text",
+            format: "org.matrix.custom.html",
+            ...FormatUtil.getPartialBodyForComment(comment, repo, issue)
         };
     }
 

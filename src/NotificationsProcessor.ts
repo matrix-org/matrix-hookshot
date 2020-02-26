@@ -5,6 +5,7 @@ import { LogWrapper } from "./LogWrapper";
 import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { Octokit } from "@octokit/rest";
+import { FormatUtil } from "./FormatUtil";
 
 const log = new LogWrapper("GithubBridge");
 const md = new markdown();
@@ -18,7 +19,7 @@ export interface IssueDiff {
 export class NotificationProcessor {
 
     private static formatNotification(notif: UserNotification, diff: IssueDiff|null, newComment: boolean) {
-        let plain = `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data.html_url})`;
+        let plain = `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data?.html_url})`;
         const issueNumber = notif.subject.url_data?.number;
         if (issueNumber) {
             plain += ` #${issueNumber}`;
@@ -75,7 +76,7 @@ export class NotificationProcessor {
             if (event.subject.url_data?.number) {
                 await this.storage.setGithubIssue(
                     event.repository.full_name,
-                    event.subject.url_data.number,
+                    event.subject.url_data.number.toString(),
                     event.subject.url_data,
                     msg.roomId,
                 );
@@ -83,7 +84,7 @@ export class NotificationProcessor {
             if (event.subject.latest_comment_url) {
                 await this.storage.setLastNotifCommentUrl(
                     event.repository.full_name,
-                    event.subject.url_data.number,
+                    event.subject.url_data!.number.toString(),
                     event.subject.latest_comment_url,
                     msg.roomId,
                 );
@@ -107,23 +108,43 @@ export class NotificationProcessor {
 
     private async handleUserNotification(roomId: string, notif: UserNotification) {
         log.info("New notification event:", notif);
-        const issueNumber = notif.subject.url_data?.number;
+        const issueNumber = notif.subject.url_data?.number.toString();
         let diff = null;
         if (issueNumber) {
             const prevIssue: Octokit.IssuesGetResponse|null = await this.storage.getGithubIssue(
                 notif.repository.full_name, issueNumber, roomId);
-            if (prevIssue) {
+            if (prevIssue && notif.subject.url_data) {
                 diff = this.diffIssueChanges(notif.subject.url_data, prevIssue);
             }
         }
-        const newComment = !!notif.subject.latest_comment_url && notif.subject.latest_comment_url !==
+
+        const newComment = !!notif.subject.latest_comment_url && !!issueNumber && notif.subject.latest_comment_url !==
             (await this.storage.getLastNotifCommentUrl(notif.repository.full_name, issueNumber, roomId));
+
         const formatted = NotificationProcessor.formatNotification(notif, diff, newComment);
-        await this.matrixSender.sendMatrixMessage(roomId, {
+        let body: any = {
             msgtype: "m.text",
             body: formatted.plain,
             formatted_body: formatted.html,
             format: "org.matrix.custom.html",
-        });
+        }
+        if (newComment && notif.subject.latest_comment_url_data && notif.repository) {
+            // Get the details
+            body = {
+                ...FormatUtil.getPartialBodyForComment(
+                    notif.subject.latest_comment_url_data,
+                    notif.repository,
+                    notif.subject.url_data,
+                ),
+            };
+        } else if (notif.subject.url_data && notif.repository) {
+            body = {
+                ...FormatUtil.getPartialBodyForIssue(
+                    notif.repository,
+                    notif.subject.url_data,
+                ),
+            };
+        }
+        await this.matrixSender.sendMatrixMessage(roomId, body);
     }
 }

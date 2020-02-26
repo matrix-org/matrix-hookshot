@@ -33,8 +33,9 @@ export interface UserNotification {
         url: string;
         latest_comment_url: string|null;
         type: "PullRequest"|"Issue";
-        url_data: any;
-        latest_comment_url_data: any;
+        // Probably.
+        url_data?: Octokit.IssuesGetResponse;
+        latest_comment_url_data?: Octokit.IssuesGetCommentResponse;
     };
     repository: Octokit.ActivityGetThreadResponseRepository;
 }

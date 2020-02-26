@@ -33,6 +33,7 @@ export class GithubBridge {
     private orgRepoIssueToRoomId: Map<string, string>;
     private matrixHandledEvents: Set<string>;
     private commentProcessor!: CommentProcessor;
+    private notifProcessor!: NotificationProcessor;
     private queue!: MessageQueue;
     private tokenStore!: UserTokenStore;
     private messageClient!: MessageSenderClient;
@@ -77,7 +78,7 @@ export class GithubBridge {
             storage = new MemoryStorageProvider();
         }
 
-        const notifProcessor = new NotificationProcessor(storage, this.messageClient);
+        this.notifProcessor = new NotificationProcessor(storage, this.messageClient);
 
         this.as = new Appservice({
             homeserverName: this.config.bridge.domain,
@@ -133,7 +134,7 @@ export class GithubBridge {
                 log.warn("No admin room for this notif stream!");
                 return;
             }
-            await notifProcessor.onUserEvents(msg.data, adminRoom);
+            await this.notifProcessor.onUserEvents(msg.data, adminRoom);
         });
 
         this.queue.on<IOAuthRequest>("oauth.response", async (msg) => {
@@ -247,15 +248,41 @@ export class GithubBridge {
 
         if (event.type === "m.room.message" && this.adminRooms.has(roomId)) {
             const messageEvent = event as MatrixEvent<MatrixMessageContent>;
+
             const room = this.adminRooms.get(roomId)!;
             if (room.userId !== event.sender) {
                 return;
             }
-            const command = messageEvent.content.body;
-            if (!command) {
+
+            const replyId = messageEvent["m.relates_to"]?.["m.in_reply_to"]?.event_id;
+
+            if (replyId) {
+                log.info(`Handling reply to ${replyId} for ${room.userId}`);
+                // This might be a reply to a notification
+                try {
+                    const ev = await this.as.botIntent.underlyingClient.getEvent(roomId, replyId);
+                    const commentId = ev.content["uk.half-shot.matrix-github.comment"]?.id;
+                    const splitParts: string[] = ev.content["ukuk.half-shot.matrix-github.repo"]?.full_name.split("/");
+                    const issueNumber = ev.content["ukuk.half-shot.matrix-github.issue"]?.number;
+                    if (commentId && splitParts && issueNumber) {
+                        await this.onMatrixIssueComment(messageEvent, {
+                            org: splitParts[0],
+                            repo: splitParts[1],
+                            issues: [issueNumber.toString()],
+                        });
+                    } else {
+                        log.debug("Missing parts!:", commentId, splitParts, issueNumber);
+                    }
+                } catch (ex) {
+                    log.error("Reply event could not be handled:", ex);
+                }
                 return;
             }
-            await this.adminRooms.get(roomId)!.handleCommand(command);
+
+            const command = messageEvent.content.body;
+            if (command) {
+                await this.adminRooms.get(roomId)!.handleCommand(command);
+            }
             return;
         }
 
@@ -286,7 +313,7 @@ export class GithubBridge {
             if (messageEvent.content.body === "!sync") {
                 await this.syncIssueState(roomId, bridgeState[0]);
             }
-            await this.onMatrixIssueComment(messageEvent, bridgeState[0]);
+            await this.onMatrixIssueComment(messageEvent, bridgeState[0].content);
         }
         log.debug(event);
     }
@@ -463,7 +490,7 @@ export class GithubBridge {
             }
         }
         const commentIntent = await this.getIntentForUser(comment.user);
-        const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment);
+        const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment, event.repository, event.issue);
 
         await this.messageClient.sendMatrixMessage(roomId, matrixEvent, "m.room.message", commentIntent.userId);
         if (!updateState) {
@@ -516,28 +543,26 @@ export class GithubBridge {
         await this.syncIssueState(roomId, roomState[0]);
     }
 
-    private async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, bridgeState: IBridgeRoomState) {
-        // TODO: Someone who is not lazy should make this work with oauth.
-        const senderToken = await this.tokenStore.getUserToken(event.sender);
-        let clientKit: Octokit;
-        if (senderToken === null) {
-            clientKit = this.octokit;
-        } else {
-            clientKit = new Octokit({
-                authStrategy: createTokenAuth,
-                auth: senderToken,
-                userAgent: "matrix-github v0.0.1",
-            });
+    private async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>,
+                                       bridgeState: {repo: string, org: string, issues: string[]},
+                                       allowEcho: boolean = false) {
+        const clientKit = await this.getOctokitForUser(event.sender);
+        if (clientKit === null) {
+            log.info("Ignoring comment, user is not authenticated");
+            return;
         }
 
         const result = await clientKit.issues.createComment({
-            repo: bridgeState.content.repo,
-            owner: bridgeState.content.org,
-            body: await this.commentProcessor.getCommentBodyForEvent(event, senderToken === null),
-            issue_number: parseInt(bridgeState.content.issues[0], 10),
+            repo: bridgeState.repo,
+            owner: bridgeState.org,
+            body: await this.commentProcessor.getCommentBodyForEvent(event, false),
+            issue_number: parseInt(bridgeState.issues[0], 10),
         });
+        if (allowEcho) {
+            return;
+        }
         const key =
-        `${bridgeState.content.org}/${bridgeState.content.repo}#${bridgeState.content.issues[0]}~${result.data.id}`
+        `${bridgeState.org}/${bridgeState.repo}#${bridgeState.issues[0]}~${result.data.id}`
         .toLowerCase();
         this.matrixHandledEvents.add(key);
     }
@@ -572,5 +597,17 @@ export class GithubBridge {
                 },
             });
         }
+    }
+
+    private async getOctokitForUser(userId: string) {
+        const senderToken = await this.tokenStore.getUserToken(userId);
+        if (!senderToken) {
+            return null;
+        }
+        return new Octokit({
+            authStrategy: createTokenAuth,
+            auth: senderToken,
+            userAgent: "matrix-github v0.0.1",
+        });
     }
 }

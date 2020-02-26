@@ -5,6 +5,11 @@ export interface MatrixEvent<T extends MatrixEventContent|unknown> {
     sender: string;
     state_key: string|undefined;
     type: string;
+    "m.relates_to"?: {
+        "m.in_reply_to"?: {
+          event_id: string;
+        },
+    },
 }
 
 // tslint:disable-next-line: no-empty-interface
