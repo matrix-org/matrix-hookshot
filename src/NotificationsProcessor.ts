@@ -17,7 +17,6 @@ export interface IssueDiff {
 }
 
 export class NotificationProcessor {
-
     private static formatNotification(notif: UserNotification, diff: IssueDiff|null, newComment: boolean) {
         let plain = `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data?.html_url})`;
         const issueNumber = notif.subject.url_data?.number;
@@ -127,10 +126,11 @@ export class NotificationProcessor {
             body: formatted.plain,
             formatted_body: formatted.html,
             format: "org.matrix.custom.html",
-        }
+        };
         if (newComment && notif.subject.latest_comment_url_data && notif.repository) {
             // Get the details
             body = {
+                ...body,
                 ...FormatUtil.getPartialBodyForComment(
                     notif.subject.latest_comment_url_data,
                     notif.repository,
@@ -139,6 +139,7 @@ export class NotificationProcessor {
             };
         } else if (notif.subject.url_data && notif.repository) {
             body = {
+                ...body,
                 ...FormatUtil.getPartialBodyForIssue(
                     notif.repository,
                     notif.subject.url_data,
