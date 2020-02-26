@@ -452,6 +452,31 @@ export class GithubBridge {
 
         // URL hack so we don't need to fetch the repo itself.
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
+        let avatarUrl = undefined;
+        try {
+            const profile = await this.octokit.users.getByUsername({
+                username: owner,
+            });
+            if (profile.data.avatar_url) {
+                const buffer = await this.octokit.request(profile.data.avatar_url);
+                log.info(`uploading ${profile.data.avatar_url}`);
+                // This does exist, but headers is silly and doesn't have content-type.
+                // tslint:disable-next-line: no-any
+                const contentType = (buffer.headers as any)["content-type"];
+                avatarUrl = {
+                    type: "m.room.avatar",
+                    state_key: "",
+                    content: {
+                        url:  await this.as.botClient.uploadContent(
+                            Buffer.from(buffer.data as ArrayBuffer),
+                            contentType,
+                        ),
+                    },
+                };
+            }
+        } catch (ex) {
+            log.info("Failed to get avatar for org:", ex);
+        }
 
         return {
             visibility: "public",
@@ -470,6 +495,7 @@ export class GithubBridge {
                     },
                     state_key: issue.url,
                 } as IBridgeRoomState,
+                avatarUrl,
             ],
         };
     }
