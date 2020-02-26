@@ -236,10 +236,10 @@ export class GithubBridge {
         const bridgeStateEvents: IBridgeRoomState[] =
             (await this.as.botClient.getRoomState(roomId)).filter((ev) =>
             ev.type === BRIDGE_STATE_TYPE,
-        ).filter((ev) => ev.content.comments_processed === -1);
+        );
 
         for (const stateEvent of bridgeStateEvents) {
-            log.info(`${stateEvent.state_key} has not been processed yet`);
+            log.info(`Processing ${stateEvent.state_key}`);
             try {
                 await this.syncIssueState(roomId, stateEvent);
             } catch (ex) {
