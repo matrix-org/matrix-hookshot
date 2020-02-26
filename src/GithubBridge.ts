@@ -104,6 +104,18 @@ export class GithubBridge {
             }
         });
 
+        this.as.on("room.join", async (roomId, event) => {
+            return this.onRoomJoin(roomId, event);
+        });
+
+        this.as.on("room.invite", async (roomId, event) => {
+            return this.onRoomInvite(roomId, event);
+        });
+
+        this.as.on("room.message", async (roomId, event) => {
+            return this.onRoomMessage(roomId, event);
+        });
+
         this.as.on("room.event", async (roomId, event) => {
             return this.onRoomEvent(roomId, event);
         });
@@ -215,41 +227,62 @@ export class GithubBridge {
         return [];
     }
 
-    private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
-        const isOurUser = this.as.isNamespacedUser(event.sender);
+    private async onRoomJoin(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
+        if (this.as.botUserId !== event.sender) {
+            // We only care about the bot.
+            return;
+        }
+        log.info(`Bridge bot joined ${roomId}`);
+        const bridgeStateEvents: IBridgeRoomState[] =
+            (await this.as.botClient.getRoomState(roomId)).filter((ev) =>
+            ev.type === BRIDGE_STATE_TYPE,
+        ).filter((ev) => ev.content.comments_processed === -1);
 
-        if (event.type === "m.room.member" && !isOurUser) {
-            const memberEvent = event as MatrixEvent<MatrixMemberContent>;
-            if (memberEvent.content.membership !== "invite") {
-                return;
+        for (const stateEvent of bridgeStateEvents) {
+            log.info(`${stateEvent.state_key} has not been processed yet`);
+            try {
+                await this.syncIssueState(roomId, stateEvent);
+            } catch (ex) {
+                log.error(`Failed to sync state for ${roomId}: ${ex}`);
             }
-            // Room joins can fail over federation
-            await retry(() => this.as.botIntent.joinRoom(roomId), 5);
-            const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
-            if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
-                await this.messageClient.sendMatrixText(
-                    roomId,
-                    "This bridge currently only supports invites to 1:1 rooms",
-                    "m.notice",
-                );
-                await this.as.botIntent.underlyingClient.leaveRoom(roomId);
-                return;
-            }
-            const data = {admin_user: event.sender, type: "admin"};
-            await this.as.botIntent.underlyingClient.setRoomAccountData(
-                BRIDGE_ROOM_TYPE, roomId, data,
-            );
-            const adminRoom = new AdminRoom(roomId, data, this.as.botIntent, this.tokenStore, this.config);
-            adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
-            this.adminRooms.set(
+        }
+    }
+
+    private async onRoomInvite(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
+        if (this.as.isNamespacedUser(event.sender)) {
+            return;
+        }
+        // Room joins can fail over federation
+        await retry(() => this.as.botIntent.joinRoom(roomId), 5);
+        const members = await this.as.botIntent.underlyingClient.getJoinedRoomMembers(roomId);
+        if (members.filter((userId) => ![this.as.botUserId, event.sender].includes(userId)).length !== 0) {
+            await this.messageClient.sendMatrixText(
                 roomId,
-                adminRoom,
+                "This bridge currently only supports invites to 1:1 rooms",
+                "m.notice",
             );
+            await this.as.botIntent.underlyingClient.leaveRoom(roomId);
+            return;
+        }
+        const data = {admin_user: event.sender, type: "admin"};
+        await this.as.botIntent.underlyingClient.setRoomAccountData(
+            BRIDGE_ROOM_TYPE, roomId, data,
+        );
+        const adminRoom = new AdminRoom(roomId, data, this.as.botIntent, this.tokenStore, this.config);
+        adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
+        this.adminRooms.set(
+            roomId,
+            adminRoom,
+        );
+    }
+
+    private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
+        const isOurUser = this.as.isNamespacedUser(event.sender);
+        if (isOurUser) {
+            return;
         }
 
-        if (event.type === "m.room.message" && this.adminRooms.has(roomId)) {
-            const messageEvent = event as MatrixEvent<MatrixMessageContent>;
-
+        if (this.adminRooms.has(roomId)) {
             const room = this.adminRooms.get(roomId)!;
             if (room.userId !== event.sender) {
                 return;
@@ -283,20 +316,10 @@ export class GithubBridge {
                 return;
             }
 
-            const command = messageEvent.content.body;
+            const command = event.content.body;
             if (command) {
                 await this.adminRooms.get(roomId)!.handleCommand(command);
             }
-            return;
-        }
-
-        if (event.type === BRIDGE_STATE_TYPE) {
-            const state = event as IBridgeRoomState;
-            log.info(`Got new state for ${roomId}`);
-            await this.getRoomBridgeState(roomId, state);
-            // Get current state of issue.
-            await this.syncIssueState(roomId, state);
-            return;
         }
 
         const bridgeState = await this.getRoomBridgeState(roomId);
@@ -312,14 +335,23 @@ export class GithubBridge {
 
         const githubRepo = bridgeState[0].content;
         log.info(`Got new request for ${githubRepo.org}${githubRepo.repo}#${githubRepo.issues.join("|")}`);
-        if (!isOurUser && event.type === "m.room.message") {
-            const messageEvent = event as MatrixEvent<MatrixMessageContent>;
-            if (messageEvent.content.body === "!sync") {
-                await this.syncIssueState(roomId, bridgeState[0]);
-            }
-            await this.onMatrixIssueComment(messageEvent, bridgeState[0].content);
+        const messageEvent = event as MatrixEvent<MatrixMessageContent>;
+        if (messageEvent.content.body === "!sync") {
+            await this.syncIssueState(roomId, bridgeState[0]);
         }
+        await this.onMatrixIssueComment(messageEvent, bridgeState[0].content);
         log.debug(event);
+    }
+
+    private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
+        if (event.type === BRIDGE_STATE_TYPE) {
+            const state = event as IBridgeRoomState;
+            log.info(`Got new state for ${roomId}`);
+            await this.getRoomBridgeState(roomId, state);
+            // Get current state of issue.
+            await this.syncIssueState(roomId, state);
+            return;
+        }
     }
 
     private async getIntentForUser(user: Octokit.IssuesGetResponseUser) {
