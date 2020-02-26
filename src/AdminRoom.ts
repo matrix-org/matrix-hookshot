@@ -82,6 +82,10 @@ export class AdminRoom extends EventEmitter {
         await this.sendNotice("Command not understood");
     }
 
+    public async sendNotice(noticeText: string) {
+        return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
+    }
+
     private async setPersonalAccessToken(accessToken: string) {
         let me;
         try {
@@ -134,8 +138,5 @@ export class AdminRoom extends EventEmitter {
         if (oldState?.participating !== participating) {
             await this.sendNotice(`${enabled ? "En" : "Dis"}abled filtering for participating notifications`);
         }
-    }
-    private async sendNotice(noticeText: string) {
-        return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
     }
 }

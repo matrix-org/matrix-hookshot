@@ -277,6 +277,7 @@ export class GithubBridge {
                         log.info("Missing parts!:", splitParts, issueNumber);
                     }
                 } catch (ex) {
+                    await room.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
                     log.error("Reply event could not be handled:", ex);
                 }
                 return;
