@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichReply, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
 import { createTokenAuth } from "@octokit/auth-token";
 import { createAppAuth } from "@octokit/auth-app";
@@ -254,13 +254,15 @@ export class GithubBridge {
                 return;
             }
 
-            const replyId = messageEvent.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
+            const replyProcessor = new RichRepliesPreprocessor(true);
+            const processedReply = await replyProcessor.processEvent(event, this.as.botClient);
 
-            if (replyId) {
-                log.info(`Handling reply to ${replyId} for ${room.userId}`);
+            if (processedReply) {
+                const metadata: IRichReplyMetadata = processedReply.mx_richreply;
+                log.info(`Handling reply to ${metadata.parentEventId} for ${room.userId}`);
                 // This might be a reply to a notification
                 try {
-                    const ev = await this.as.botIntent.underlyingClient.getEvent(roomId, replyId);
+                    const ev = metadata.realEvent;
                     const splitParts: string[] = ev.content["uk.half-shot.matrix-github.repo"]?.name.split("/");
                     const issueNumber = ev.content["uk.half-shot.matrix-github.issue"]?.number;
                     if (splitParts && issueNumber) {
