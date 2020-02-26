@@ -17,7 +17,7 @@ describe("FormatUtilTest", () => {
     });
     it("correctly formats a room topic", () => {
         expect(FormatUtil.formatRoomTopic(SIMPLE_ISSUE)).to.equal(
-            "A simple title | Status: open | https://github.com/evilcorp/lab/issues/123",
+            "Status: open | https://github.com/evilcorp/lab/issues/123",
         );
     });
 });

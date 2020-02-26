@@ -13,7 +13,7 @@ export class FormatUtil {
     }
 
     public static formatRoomTopic(issue: {state: string, title: string, html_url: string}) {
-        return `${issue.title} | Status: ${issue.state} | ${issue.html_url}`;
+        return `Status: ${issue.state} | ${issue.html_url}`;
     }
 
     public static getPartialBodyForIssue(repo: IMinimalRepository, issue: Octokit.IssuesGetResponse) {
