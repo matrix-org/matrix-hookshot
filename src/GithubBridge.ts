@@ -233,8 +233,9 @@ export class GithubBridge {
             return;
         }
         log.info(`Bridge bot joined ${roomId}`);
-        const bridgeStateEvents: IBridgeRoomState[] =
-            (await this.as.botClient.getRoomState(roomId)).filter((ev) =>
+        const stateEvs = await this.as.botClient.getRoomState(roomId);
+        console.log(stateEvs);
+        const bridgeStateEvents: IBridgeRoomState[] = stateEvs.filter((ev) =>
             ev.type === BRIDGE_STATE_TYPE,
         );
 
