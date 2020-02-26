@@ -396,12 +396,6 @@ export class GithubBridge {
 
         if (repoState.content.comments_processed === -1) {
             // We've not sent any messages into the room yet, let's do it!
-            await this.messageClient.sendMatrixText(
-                roomId,
-                "This bridge currently only supports invites to 1:1 rooms",
-                "m.notice",
-                creatorUserId,
-            );
             if (issue.data.body) {
                 await this.messageClient.sendMatrixMessage(roomId, {
                     msgtype: "m.text",
