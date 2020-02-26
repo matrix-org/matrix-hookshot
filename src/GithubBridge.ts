@@ -267,7 +267,7 @@ export class GithubBridge {
                     const issueNumber = ev.content["uk.half-shot.matrix-github.issue"]?.number;
                     if (splitParts && issueNumber) {
                         log.info(`Handling reply for ${splitParts}${issueNumber}`);
-                        await this.onMatrixIssueComment(messageEvent, {
+                        await this.onMatrixIssueComment(processedReply, {
                             org: splitParts[0],
                             repo: splitParts[1],
                             issues: [issueNumber.toString()],
