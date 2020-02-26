@@ -88,15 +88,18 @@ export class UserNotificationWatcher {
                 }
             }
 
-            await this.queue.push<UserNotificationsEvent>({
-                eventName: "notifications.user.events",
-                data: {
-                    roomId: stream.roomId,
-                    events,
-                    lastReadTs: stream.lastReadTs,
-                },
-                sender: "GithubWebhooks",
-            });
+            if (events.length > 0) {
+                await this.queue.push<UserNotificationsEvent>({
+                    eventName: "notifications.user.events",
+                    data: {
+                        roomId: stream.roomId,
+                        events,
+                        lastReadTs: stream.lastReadTs,
+                    },
+                    sender: "GithubWebhooks",
+                });
+            }
+
         } catch (ex) {
             stream.failureCount++;
             log.error("An error occured getting notifications:", ex);

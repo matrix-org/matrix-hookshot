@@ -66,7 +66,7 @@ export class NotificationProcessor {
     }
 
     public async onUserEvents(msg: UserNotificationsEvent, adminRoom: AdminRoom) {
-        log.info(`Got new events for ${adminRoom.userId}`);
+        log.info(`Got new events for ${adminRoom.userId} ${msg.events.length}`);
         for (const event of msg.events) {
             try {
                 await this.handleUserNotification(msg.roomId, event);
