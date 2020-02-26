@@ -366,9 +366,9 @@ export class GithubBridge {
             repo: repoState.content.repo,
             issue_number: parseInt(repoState.content.issues[0], 10),
         });
-        const creatorUserId = this.as.getUserIdForSuffix(issue.data.user.login);
-
         if (repoState.content.comments_processed === -1) {
+            // This has a side effect of creating a profile for the user.
+            const creator = await this.getIntentForUser(issue.data.user);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
                 await this.messageClient.sendMatrixMessage(roomId, {
@@ -377,7 +377,7 @@ export class GithubBridge {
                     body: `${issue.data.body} (${issue.data.updated_at})`,
                     format: "org.matrix.custom.html",
                     formatted_body: md.render(issue.data.body),
-                }, "m.room.message", creatorUserId);
+                }, "m.room.message", creator.userId);
             }
             if (issue.data.pull_request) {
                 // Send a patch in
