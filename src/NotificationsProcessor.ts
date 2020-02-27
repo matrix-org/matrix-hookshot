@@ -69,26 +69,29 @@ export class NotificationProcessor {
     public async onUserEvents(msg: UserNotificationsEvent, adminRoom: AdminRoom) {
         log.info(`Got new events for ${adminRoom.userId} ${msg.events.length}`);
         for (const event of msg.events) {
+            const isIssueOrPR = event.subject.type === "Issue" || event.subject.type === "PullRequest";
             try {
                 await this.handleUserNotification(msg.roomId, event);
+
+                if (isIssueOrPR && event.subject.url_data) {
+                    await this.storage.setGithubIssue(
+                        event.repository.full_name,
+                        event.subject.url_data!.number.toString(),
+                        event.subject.url_data,
+                        msg.roomId,
+                    );
+                }
+                if (isIssueOrPR && event.subject.latest_comment_url) {
+                    await this.storage.setLastNotifCommentUrl(
+                        event.repository.full_name,
+                        event.subject.url_data!.number.toString(),
+                        event.subject.latest_comment_url,
+                        msg.roomId,
+                    );
+                }
+
             } catch (ex) {
                 log.warn("Failed to handle event:", ex);
-            }
-            if (event.subject.url_data?.number) {
-                await this.storage.setGithubIssue(
-                    event.repository.full_name,
-                    event.subject.url_data.number.toString(),
-                    event.subject.url_data,
-                    msg.roomId,
-                );
-            }
-            if (event.subject.latest_comment_url) {
-                await this.storage.setLastNotifCommentUrl(
-                    event.repository.full_name,
-                    event.subject.url_data!.number.toString(),
-                    event.subject.latest_comment_url,
-                    msg.roomId,
-                );
             }
         }
         try {
