@@ -50,6 +50,10 @@ export class NotificationProcessor {
     }
 
     private static getEmojiForNotifType(notif: UserNotification): string {
+        switch(notif.reason) {
+            case "review_requested":
+                return "🚩";
+        }
         switch (notif.subject.type) {
             case "Issue":
                 return "📝";
@@ -110,6 +114,19 @@ export class NotificationProcessor {
         return diff;
     }
 
+    private formatReviewRequest(notif: UserNotification) {
+        const issue = notif.subject.url_data!;
+        const body = `🚩 Review Requested for [${issue.title} #${issue.number}](${issue.html_url}) - `
+            + ` **[${notif.repository.full_name}](${notif.repository.html_url})**`;
+        return {
+            ...FormatUtil.getPartialBodyForRepo(notif.repository),
+            msgtype: "m.text",
+            body,
+            formatted_body: md.render(body),
+            format: "org.matrix.custom.html",
+        };
+    }
+
     private formatSecurityAlert(notif: UserNotification) {
         const body = `⚠️ ${notif.subject.title} - `
             + `for **[${notif.repository.full_name}](${notif.repository.html_url})**`;
@@ -167,9 +184,11 @@ export class NotificationProcessor {
 
     private async handleUserNotification(roomId: string, notif: UserNotification) {
         log.info("New notification event:", notif);
-        if (notif.subject.type === "RepositoryVulnerabilityAlert") {
+        if (notif.reason === "security_alert") {
             return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));
-        } else if (notif.subject.type !== "Issue" && notif.subject.type !== "PullRequest") {
+        } else if (notif.reason === "review_requested") {
+            return this.matrixSender.sendMatrixMessage(roomId, this.formatReviewRequest(notif));
+        } else if (notif.subject.type === "Issue" || notif.subject.type === "PullRequest") {
             return this.formatIssueOrPullRequest(roomId, notif);
         }
         // We don't understand this type yet

@@ -22,7 +22,7 @@ export interface UserNotificationsEvent {
 
 export interface UserNotification {
     id: string;
-    reason: "assign"|"author"|"comment"|"invitation"|"manual"|"mention"|"review_required"|
+    reason: "assign"|"author"|"comment"|"invitation"|"manual"|"mention"|"review_required"|"review_requested"|
             "security_alert"|"state_change"|"subscribed"|"team_mention";
     unread: boolean;
     updated_at: number;
