@@ -119,7 +119,7 @@ export class NotificationProcessor {
         };
     }
 
-    private formatIssueOrPullRequest(roomId: string, notif: UserNotification) {
+    private async formatIssueOrPullRequest(roomId: string, notif: UserNotification) {
         const issueNumber = notif.subject.url_data?.number.toString();
         let diff = null;
         if (issueNumber) {
