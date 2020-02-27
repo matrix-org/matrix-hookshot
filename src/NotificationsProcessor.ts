@@ -55,6 +55,8 @@ export class NotificationProcessor {
                 return "📝";
             case "PullRequest":
                 return "⤵";
+            case "RepositoryVulnerabilityAlert":
+                return "⚠️";
             default:
                 return "🔔";
         }
@@ -105,8 +107,23 @@ export class NotificationProcessor {
         return diff;
     }
 
+    private formatSecurityAlert(notif: UserNotification) {
+        const body = `⚠️ ${notif.subject.title} - `
+            + `for **[${notif.repository.full_name}](${notif.repository.html_url})**`;
+        return {
+            ...FormatUtil.getPartialBodyForRepo(notif.repository),
+            msgtype: "m.text",
+            body,
+            formatted_body: md.render(body),
+            format: "org.matrix.custom.html",
+        };
+    }
+
     private async handleUserNotification(roomId: string, notif: UserNotification) {
         log.info("New notification event:", notif);
+        if (notif.reason === "security_alert") {
+            return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));
+        }
         const issueNumber = notif.subject.url_data?.number.toString();
         let diff = null;
         if (issueNumber) {
@@ -133,7 +150,7 @@ export class NotificationProcessor {
                 ...body,
                 ...FormatUtil.getPartialBodyForComment(
                     notif.subject.latest_comment_url_data,
-                    notif.repository,
+                   notif.repository,
                     notif.subject.url_data,
                 ),
             };
@@ -146,6 +163,6 @@ export class NotificationProcessor {
                 ),
             };
         }
-        await this.matrixSender.sendMatrixMessage(roomId, body);
+        return this.matrixSender.sendMatrixMessage(roomId, body);
     }
 }

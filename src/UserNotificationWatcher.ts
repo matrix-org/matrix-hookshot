@@ -32,7 +32,7 @@ export interface UserNotification {
         title: string;
         url: string;
         latest_comment_url: string|null;
-        type: "PullRequest"|"Issue";
+        type: "PullRequest"|"Issue"|"RepositoryVulnerabilityAlert";
         // Probably.
         url_data?: Octokit.IssuesGetResponse;
         latest_comment_url_data?: Octokit.IssuesGetCommentResponse;

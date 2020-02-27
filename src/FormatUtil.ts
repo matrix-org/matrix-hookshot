@@ -16,8 +16,20 @@ export class FormatUtil {
         return `Status: ${issue.state} | ${issue.html_url}`;
     }
 
+    public static getPartialBodyForRepo(repo: IMinimalRepository) {
+        return {
+            "external_url": repo.html_url,
+            "uk.half-shot.matrix-github.repo": {
+                id: repo.id,
+                name: repo.full_name,
+                url: repo.html_url,
+            },
+        };
+    }
+
     public static getPartialBodyForIssue(repo: IMinimalRepository, issue: Octokit.IssuesGetResponse) {
         return {
+            ...FormatUtil.getPartialBodyForRepo(repo),
             "external_url": issue.html_url,
             "uk.half-shot.matrix-github.issue": {
                 id: issue.id,
@@ -25,11 +37,6 @@ export class FormatUtil {
                 title: issue.title,
                 is_pull_request: !!issue.pull_request,
                 url: issue.html_url,
-            },
-            "uk.half-shot.matrix-github.repo": {
-                id: repo.id,
-                name: repo.full_name,
-                url: repo.html_url,
             },
         };
     }
