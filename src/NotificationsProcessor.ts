@@ -119,11 +119,7 @@ export class NotificationProcessor {
         };
     }
 
-    private async handleUserNotification(roomId: string, notif: UserNotification) {
-        log.info("New notification event:", notif);
-        if (notif.reason === "security_alert") {
-            return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));
-        }
+    private formatIssueOrPullRequest(roomId: string, notif: UserNotification) {
         const issueNumber = notif.subject.url_data?.number.toString();
         let diff = null;
         if (issueNumber) {
@@ -164,5 +160,22 @@ export class NotificationProcessor {
             };
         }
         return this.matrixSender.sendMatrixMessage(roomId, body);
+    }
+
+    private async handleUserNotification(roomId: string, notif: UserNotification) {
+        log.info("New notification event:", notif);
+        if (notif.subject.type === "RepositoryVulnerabilityAlert") {
+            return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));
+        } else if (notif.subject.type !== "Issue" && notif.subject.type !== "PullRequest") {
+            return this.formatIssueOrPullRequest(roomId, notif);
+        }
+        // We don't understand this type yet
+        const genericNotif = NotificationProcessor.formatNotification(notif, null, false);
+        return this.matrixSender.sendMatrixMessage(roomId, {
+            msgtype: "m.text",
+            body: genericNotif.plain,
+            formatted_body: genericNotif.html,
+            format: "org.matrix.custom.html",
+        });
     }
 }
