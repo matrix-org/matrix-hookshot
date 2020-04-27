@@ -16,6 +16,10 @@ export interface IssueDiff {
     title: null|string;
 }
 
+export interface CachedReviewData {
+    requested_reviewers: Octokit.PullsListReviewRequestsResponse;
+    reviews: Octokit.PullsListReviewsResponse;
+}
 export class NotificationProcessor {
     private static formatNotification(notif: UserNotification, diff: IssueDiff|null, newComment: boolean) {
         let plain = `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data?.html_url})`;
@@ -50,15 +54,17 @@ export class NotificationProcessor {
     }
 
     private static getEmojiForNotifType(notif: UserNotification): string {
-        switch(notif.reason) {
+        let reasonFlag = "";
+        switch (notif.reason) {
             case "review_requested":
-                return "🚩";
+                reasonFlag = "🚩";
+                break;
         }
         switch (notif.subject.type) {
             case "Issue":
                 return "📝";
             case "PullRequest":
-                return "⤵";
+                return `⤵+${reasonFlag}`;
             case "RepositoryVulnerabilityAlert":
                 return "⚠️";
             default:
@@ -76,22 +82,31 @@ export class NotificationProcessor {
             const isIssueOrPR = event.subject.type === "Issue" || event.subject.type === "PullRequest";
             try {
                 await this.handleUserNotification(msg.roomId, event);
-
                 if (isIssueOrPR && event.subject.url_data) {
+                    const issueNumber = event.subject.url_data.number.toString();
                     await this.storage.setGithubIssue(
                         event.repository.full_name,
-                        event.subject.url_data!.number.toString(),
+                        issueNumber,
                         event.subject.url_data,
                         msg.roomId,
                     );
-                }
-                if (isIssueOrPR && event.subject.latest_comment_url) {
-                    await this.storage.setLastNotifCommentUrl(
-                        event.repository.full_name,
-                        event.subject.url_data!.number.toString(),
-                        event.subject.latest_comment_url,
-                        msg.roomId,
-                    );
+                    if (event.subject.latest_comment_url) {
+                        await this.storage.setLastNotifCommentUrl(
+                            event.repository.full_name,
+                            issueNumber,
+                            event.subject.latest_comment_url,
+                            msg.roomId,
+                        );
+                    }
+
+                    if (event.subject.requested_reviewers && event.subject.reviews) {
+                        await this.storage.setPRReviewData(
+                            event.repository.full_name,
+                            issueNumber,
+                            event.subject as CachedReviewData,
+                            msg.roomId,
+                        );
+                    }
                 }
 
             } catch (ex) {
@@ -105,13 +120,30 @@ export class NotificationProcessor {
         }
     }
 
-    private diffIssueChanges(curr: Octokit.IssuesGetResponse, prev: Octokit.IssuesGetResponse): IssueDiff {
-        const diff: IssueDiff = {
-            state: curr.state === prev.state ? null : curr.state,
-            assignee: curr.assignee?.id === prev.assignee?.id ? null : curr.assignee,
-            title: curr.title === prev.title ? null : curr.title,
+    private async diffReviewChanges(roomId: string, notif: UserNotification) {
+        const issueNumber = notif.subject.url_data!.number.toString();
+        const diff = {
+            newReviewers: [] as string[],
+            removedReviewers: [] as string[],
+            completedReviews: [] as string[],
         };
-        return diff;
+
+        const existingData: CachedReviewData|null = await this.storage.getPRReviewData(
+            notif.repository.full_name,
+            issueNumber,
+            roomId,
+        );
+
+        const newData = notif.subject as CachedReviewData;
+
+        if (existingData === null) {
+            // Treat everyone as new.
+            diff.newReviewers = diff.newReviewers.concat(
+                notif.subject.requested_reviewers!.users.map((u) => u.login),
+                notif.subject.requested_reviewers!.teams.map((t) => t.name)
+            );
+            return diff;
+        }
     }
 
     private formatReviewRequest(notif: UserNotification) {
@@ -137,6 +169,15 @@ export class NotificationProcessor {
             formatted_body: md.render(body),
             format: "org.matrix.custom.html",
         };
+    }
+
+    private diffIssueChanges(curr: Octokit.IssuesGetResponse, prev: Octokit.IssuesGetResponse): IssueDiff {
+        const diff: IssueDiff = {
+            state: curr.state === prev.state ? null : curr.state,
+            assignee: curr.assignee?.id === prev.assignee?.id ? null : curr.assignee,
+            title: curr.title === prev.title ? null : curr.title,
+        };
+        return diff;
     }
 
     private async formatIssueOrPullRequest(roomId: string, notif: UserNotification) {
@@ -186,8 +227,6 @@ export class NotificationProcessor {
         log.info("New notification event:", notif);
         if (notif.reason === "security_alert") {
             return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));
-        } else if (notif.reason === "review_requested") {
-            return this.matrixSender.sendMatrixMessage(roomId, this.formatReviewRequest(notif));
         } else if (notif.subject.type === "Issue" || notif.subject.type === "PullRequest") {
             return this.formatIssueOrPullRequest(roomId, notif);
         }
