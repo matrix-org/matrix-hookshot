@@ -2,7 +2,7 @@ import { MatrixEvent } from "./MatrixEvent";
 
 export const BRIDGE_STATE_TYPE = "uk.half-shot.matrix-github.bridge";
 
-interface IBridgeRoomStateContent {
+interface BridgeRoomStateContent {
     org: string;
     repo: string;
     state: string;
@@ -10,6 +10,6 @@ interface IBridgeRoomStateContent {
     comments_processed: number;
 }
 
-export interface IBridgeRoomState extends MatrixEvent<IBridgeRoomStateContent> {
+export interface IBridgeRoomState extends MatrixEvent<BridgeRoomStateContent> {
     state_key: string;
 }

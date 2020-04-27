@@ -6,6 +6,7 @@ import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { Octokit } from "@octokit/rest";
 import { FormatUtil } from "./FormatUtil";
+import { format } from "path";
 
 const log = new LogWrapper("GithubBridge");
 const md = new markdown();
@@ -14,15 +15,34 @@ export interface IssueDiff {
     state: null|string;
     assignee: null|Octokit.IssuesGetResponseAssignee;
     title: null|string;
+    merged: boolean;
+    mergedBy: null|{
+        login: string;
+        html_url: string;
+    };
+    user: {
+        login: string;
+        html_url: string;
+    };
 }
 
 export interface CachedReviewData {
     requested_reviewers: Octokit.PullsListReviewRequestsResponse;
     reviews: Octokit.PullsListReviewsResponse;
 }
+
+type PROrIssue = Octokit.IssuesGetResponse|Octokit.PullsGetResponse;
+
 export class NotificationProcessor {
+
+    private static formatUser(user: {login: string, html_url: string}) {
+        return `**[${user.login}](${user.html_url})**`;
+    }
+
     private static formatNotification(notif: UserNotification, diff: IssueDiff|null, newComment: boolean) {
-        let plain = `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data?.html_url})`;
+        const user = diff ? ` by ${this.formatUser(diff?.user)}` : "";
+        let plain =
+`${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data?.html_url})${user}`;
         const issueNumber = notif.subject.url_data?.number;
         if (issueNumber) {
             plain += ` #${issueNumber}`;
@@ -32,20 +52,22 @@ export class NotificationProcessor {
         }
         if (diff) {
             plain += "\n\n ";
-            if (diff.state) {
+            if (diff.merged) {
+            plain += `\n\n PR was merged by ${diff.mergedBy ? NotificationProcessor.formatUser(diff.mergedBy) : ""}`;
+            } else if (diff.state) {
                 const state = diff.state[0].toUpperCase() + diff.state.slice(1).toLowerCase();
-                plain += `State changed to: ${state}`;
+                plain += `\n\n State changed to: ${state}`;
             }
             if (diff.title) {
-                plain += `Title changed to: ${diff.title}`;
+                plain += `\n\n Title changed to: ${diff.title}`;
             }
             if (diff.assignee) {
-                plain += `Assigned to: ${diff.assignee.login}`;
+                plain += `\n\n Assigned to: ${diff.assignee.login}`;
             }
         }
         if (newComment) {
             const comment = notif.subject.latest_comment_url_data as Octokit.IssuesGetCommentResponse;
-            plain += `\n\n **[${comment.user.login}](${comment.user.html_url})**:\n\n > ${comment.body}`;
+            plain += `\n\n ${NotificationProcessor.formatUser(comment.user)}:\n\n > ${comment.body}`;
         }
         return {
             plain,
@@ -120,44 +142,31 @@ export class NotificationProcessor {
         }
     }
 
-    private async diffReviewChanges(roomId: string, notif: UserNotification) {
-        const issueNumber = notif.subject.url_data!.number.toString();
-        const diff = {
-            newReviewers: [] as string[],
-            removedReviewers: [] as string[],
-            completedReviews: [] as string[],
-        };
+    // private async diffReviewChanges(roomId: string, notif: UserNotification) {
+    //     const issueNumber = notif.subject.url_data!.number.toString();
+    //     const diff = {
+    //         newReviewers: [] as string[],
+    //         removedReviewers: [] as string[],
+    //         completedReviews: [] as string[],
+    //     };
 
-        const existingData: CachedReviewData|null = await this.storage.getPRReviewData(
-            notif.repository.full_name,
-            issueNumber,
-            roomId,
-        );
+    //     const existingData: CachedReviewData|null = await this.storage.getPRReviewData(
+    //         notif.repository.full_name,
+    //         issueNumber,
+    //         roomId,
+    //     );
 
-        const newData = notif.subject as CachedReviewData;
+    //     const newData = notif.subject as CachedReviewData;
 
-        if (existingData === null) {
-            // Treat everyone as new.
-            diff.newReviewers = diff.newReviewers.concat(
-                notif.subject.requested_reviewers!.users.map((u) => u.login),
-                notif.subject.requested_reviewers!.teams.map((t) => t.name)
-            );
-            return diff;
-        }
-    }
-
-    private formatReviewRequest(notif: UserNotification) {
-        const issue = notif.subject.url_data!;
-        const body = `🚩 Review Requested for [${issue.title} #${issue.number}](${issue.html_url}) - `
-            + ` **[${notif.repository.full_name}](${notif.repository.html_url})**`;
-        return {
-            ...FormatUtil.getPartialBodyForRepo(notif.repository),
-            msgtype: "m.text",
-            body,
-            formatted_body: md.render(body),
-            format: "org.matrix.custom.html",
-        };
-    }
+    //     if (existingData === null) {
+    //         // Treat everyone as new.
+    //         diff.newReviewers = diff.newReviewers.concat(
+    //             notif.subject.requested_reviewers!.users.map((u) => u.login),
+    //             notif.subject.requested_reviewers!.teams.map((t) => t.name)
+    //         );
+    //         return diff;
+    //     }
+    // }
 
     private formatSecurityAlert(notif: UserNotification) {
         const body = `⚠️ ${notif.subject.title} - `
@@ -171,11 +180,20 @@ export class NotificationProcessor {
         };
     }
 
-    private diffIssueChanges(curr: Octokit.IssuesGetResponse, prev: Octokit.IssuesGetResponse): IssueDiff {
+    private diffIssueChanges(curr: PROrIssue, prev: PROrIssue): IssueDiff {
+        let merged = false;
+        let mergedBy = null;
+        if ((curr as Octokit.PullsGetResponse).merged !== (prev as Octokit.PullsGetResponse).merged) {
+            merged = true;
+            mergedBy = (curr as Octokit.PullsGetResponse).merged_by;
+        }
         const diff: IssueDiff = {
             state: curr.state === prev.state ? null : curr.state,
+            merged,
+            mergedBy,
             assignee: curr.assignee?.id === prev.assignee?.id ? null : curr.assignee,
             title: curr.title === prev.title ? null : curr.title,
+            user: curr.user,
         };
         return diff;
     }

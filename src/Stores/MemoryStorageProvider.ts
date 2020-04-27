@@ -4,6 +4,7 @@ import { IStorageProvider } from "./StorageProvider";
 export class MemoryStorageProvider extends MSP implements IStorageProvider {
     private issues: Map<string, any> = new Map();
     private issuesLastComment: Map<string, string> = new Map();
+    private reviewData: Map<string, string> = new Map();
     constructor() {
         super();
     }
@@ -22,5 +23,15 @@ export class MemoryStorageProvider extends MSP implements IStorageProvider {
 
     public async getLastNotifCommentUrl(repo: string, issueNumber: string, scope: string = "") {
         return this.issuesLastComment.get(`${scope}${repo}/${issueNumber}`) || null;
+    }
+
+    public async setPRReviewData(repo: string, issueNumber: string, data: any, scope: string = "") {
+        const key = `${scope}:${repo}/${issueNumber}`;
+        this.reviewData.set(key, data);
+    }
+
+    public async getPRReviewData(repo: string, issueNumber: string, scope: string = "") {
+        const key = `${scope}:${repo}/${issueNumber}`;
+        return this.reviewData.get(key) || null;
     }
 }
