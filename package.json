@@ -27,6 +27,7 @@
     "micromatch": "^4.0.2",
     "mime": "^2.4.4",
     "mocha": "^6.2.0",
+    "moment": "^2.26.0",
     "node-emoji": "^1.10.0",
     "uuid": "^3.3.2",
     "winston": "^3.2.1",

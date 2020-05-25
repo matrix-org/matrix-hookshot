@@ -5,6 +5,7 @@ export class MemoryStorageProvider extends MSP implements IStorageProvider {
     private issues: Map<string, any> = new Map();
     private issuesLastComment: Map<string, string> = new Map();
     private reviewData: Map<string, string> = new Map();
+    private snoozeDate: Map<string, number> = new Map();
     constructor() {
         super();
     }

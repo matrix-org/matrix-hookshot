@@ -6,6 +6,8 @@ import { BridgeConfig } from "./Config";
 import uuid from "uuid/v4";
 import qs from "querystring";
 import { EventEmitter } from "events";
+import moment from "moment";
+import DateFormat from "./DateFormat";
 
 export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
 export const BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";
@@ -15,6 +17,7 @@ export interface AdminAccountData {
     notifications?: {
         enabled: boolean;
         participating?: boolean;
+        snoozeUntil?: number;
     };
 }
 
@@ -46,6 +49,10 @@ export class AdminRoom extends EventEmitter {
         return !!this.data.notifications?.participating;
     }
 
+    public get snoozeUntil() {
+        return this.data.notifications?.snoozeUntil;
+    }
+
     public clearOauthState() {
         this.pendingOAuthState = null;
     }
@@ -65,28 +72,14 @@ export class AdminRoom extends EventEmitter {
         });
     }
 
-    public async handleCommand(command: string) {
-        const cmdLower = command.toLowerCase();
-        if (cmdLower.startsWith("setpersonaltoken ")) {
-            const accessToken = command.substr("setPersonalToken ".length);
-            return this.setPersonalAccessToken(accessToken);
-        } else if (cmdLower.startsWith("hastoken")) {
-            return this.hasPersonalToken();
-        } else if (cmdLower.startsWith("startoauth")) {
-            return this.beginOAuth();
-        } else if (cmdLower.startsWith("notifications toggle")) {
-            return this.setNotificationsState(!this.notificationsEnabled);
-        } else if (cmdLower.startsWith("notifications filter participating")) {
-            return this.setNotificationsState(this.notificationsEnabled, !this.notificationsParticipating);
-        }
-        await this.sendNotice("Command not understood");
-    }
-
     public async sendNotice(noticeText: string) {
         return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
     }
 
     private async setPersonalAccessToken(accessToken: string) {
+        if (!accessToken) {
+            return this.sendNotice("You need to provide a token as the second argument");
+        }
         let me;
         try {
             const octokit = new Octokit({
@@ -96,11 +89,10 @@ export class AdminRoom extends EventEmitter {
             });
             me = await octokit.users.getAuthenticated();
         } catch (ex) {
-            await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
-            return;
+            return this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
         }
         await this.sendNotice(`Connected as ${me.data.login}. Storing token..`);
-        await this.tokenStore.storeUserToken(this.userId, accessToken);
+        return this.tokenStore.storeUserToken(this.userId, accessToken);
     }
 
     private async hasPersonalToken() {
@@ -124,12 +116,12 @@ export class AdminRoom extends EventEmitter {
         await this.sendNotice(`You should follow ${url} to link your account to the bridge`);
     }
 
-    private async setNotificationsState(enabled: boolean, participating: boolean = false) {
+    private async setNotificationsState(enabled: boolean, participating: boolean = false, snoozeUntil?: Date) {
         const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
             BRIDGE_ROOM_TYPE, this.roomId,
         );
         const oldState = data.notifications;
-        data.notifications = { enabled, participating };
+        data.notifications = { enabled, participating, snoozeUntil: snoozeUntil ? Number(snoozeUntil) : undefined};
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, data);
         this.emit("settings.changed", this, data);
         if (oldState?.enabled !== enabled) {
@@ -138,5 +130,51 @@ export class AdminRoom extends EventEmitter {
         if (oldState?.participating !== participating) {
             await this.sendNotice(`${enabled ? "En" : "Dis"}abled filtering for participating notifications`);
         }
+        if (typeof(oldState?.snoozeUntil) !== "number" && !snoozeUntil) {
+            // Do Nothing
+        }
+        else if (snoozeUntil) {
+            await this.sendNotice(`"Will not send notifications. Sending will resume ${moment(snoozeUntil).fromNow()}`);
+        }
+        else if (!snoozeUntil) {
+            await this.sendNotice(`"Unsnoozed notifications.`);
+        }
+    }
+
+    private async snoozeNotifications(time: string) {
+        try {
+            const snoozeUntil = DateFormat.parseUntilOrForDateString(time);
+            this.setNotificationsState(this.notificationsEnabled, this.notificationsParticipating, snoozeUntil);
+        } catch (ex) {
+            await this.sendNotice(`Couldn't set snooze time: ${ex.message}`);
+        }
+    }
+
+    public handleCommand(command: string) {
+        const args = command.toLowerCase().split(" ");
+        switch(args[0]) {
+            case "setpersonaltoken":
+                return this.setPersonalAccessToken(args[1]);
+            case "hastoken":
+                return this.hasPersonalToken();
+            case "startoauth":
+                return this.beginOAuth();
+            case "notifications":
+                // Submenu
+                return this.handleNotificationsCommand(args.slice(1));
+        }
+        return this.sendNotice("Command not understood");
+    }
+
+    public handleNotificationsCommand(args: string[]) {
+        switch(args[0]) {
+            case "toggle":
+                return this.setNotificationsState(!this.notificationsEnabled);
+            case "filter":
+                return this.setNotificationsState(!this.notificationsEnabled, !this.notificationsParticipating);
+            case "snooze":
+                return this.snoozeNotifications(args.slice(1).join(" "));
+        }
+        return this.sendNotice("Command not understood");
     }
 }

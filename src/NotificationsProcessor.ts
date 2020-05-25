@@ -6,7 +6,6 @@ import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { Octokit } from "@octokit/rest";
 import { FormatUtil } from "./FormatUtil";
-import { format } from "path";
 
 const log = new LogWrapper("GithubBridge");
 const md = new markdown();
@@ -100,6 +99,10 @@ export class NotificationProcessor {
 
     public async onUserEvents(msg: UserNotificationsEvent, adminRoom: AdminRoom) {
         log.info(`Got new events for ${adminRoom.userId} ${msg.events.length}`);
+        if (adminRoom.snoozeUntil && Date.now() > adminRoom.snoozeUntil) {
+            log.info(`User has snoozed notifications, not sending`);
+            return;
+        }
         for (const event of msg.events) {
             const isIssueOrPR = event.subject.type === "Issue" || event.subject.type === "PullRequest";
             try {
