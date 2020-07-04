@@ -163,11 +163,23 @@ export class GithubBridge {
                 return;
             }
             adminRoom.clearOauthState();
-            await this.tokenStore.storeUserToken(adminRoom.userId, msg.data.access_token);
+            await this.tokenStore.storeUserToken("github", adminRoom.userId, msg.data.access_token);
         });
 
         // Fetch all room state
-        const joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
+        let joinedRooms: string[];
+        while(true) {
+            try {
+                log.info("Connecting to homeserver and fetching joined rooms..");
+                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
+                log.info(`Found ${joinedRooms.length} rooms`);
+            } catch (ex) {
+                // This is our first interaction with the homeserver, so wait if it's not ready yet.
+                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
+                await new Promise((r) => setTimeout(r, 5000));
+            }
+        }
+
         for (const roomId of joinedRooms) {
             log.info("Fetching state for " + roomId);
             try {
