@@ -100,11 +100,11 @@ export class AdminRoom extends EventEmitter {
             return;
         }
         await this.sendNotice(`Connected as ${me.data.login}. Storing token..`);
-        await this.tokenStore.storeUserToken(this.userId, accessToken);
+        await this.tokenStore.storeUserToken("github", this.userId, accessToken);
     }
 
     private async hasPersonalToken() {
-        const result = await this.tokenStore.getUserToken(this.userId);
+        const result = await this.tokenStore.getUserToken("github", this.userId);
         if (result === null) {
             await this.sendNotice("You do not currently have a token stored");
             return;

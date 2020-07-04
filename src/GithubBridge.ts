@@ -602,7 +602,7 @@ export class GithubBridge {
         log.info(`Settings changed for ${adminRoom.userId} ${settings}`);
         if (adminRoom.notificationsEnabled) {
             log.info(`Notifications enabled for ${adminRoom.userId}`);
-            const token = await this.tokenStore.getUserToken(adminRoom.userId);
+            const token = await this.tokenStore.getUserToken("github", adminRoom.userId);
             if (token) {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
                 await this.queue.push<NotificationsEnableEvent>({
@@ -631,7 +631,7 @@ export class GithubBridge {
     }
 
     private async getOctokitForUser(userId: string) {
-        const senderToken = await this.tokenStore.getUserToken(userId);
+        const senderToken = await this.tokenStore.getUserToken("github", userId);
         if (!senderToken) {
             return null;
         }
