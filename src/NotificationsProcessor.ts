@@ -6,7 +6,6 @@ import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { Octokit } from "@octokit/rest";
 import { FormatUtil } from "./FormatUtil";
-import { format } from "path";
 
 const log = new LogWrapper("GithubBridge");
 const md = new markdown();
