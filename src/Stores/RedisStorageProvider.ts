@@ -17,7 +17,7 @@ export class RedisStorageProvider implements IStorageProvider {
     private redis: Redis;
 
     constructor(host: string, port: number) {
-        this.redis = redis(port, host);
+        this.redis = new redis(port, host);
         this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER).catch((ex) => {
             log.warn("Failed to set expiry time on as.completed_transactions");
         });
