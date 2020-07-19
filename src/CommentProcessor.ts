@@ -26,7 +26,26 @@ interface IMatrixCommentEvent {
 }
 
 export class CommentProcessor {
+    private processedComments = new Set<string>();
+    private processedEvents = new Set<string>();
+
     constructor(private as: Appservice, private mediaUrl: string) {}
+
+    public hasCommentBeenProcessed(org: string, repo: string, issue: string, id: number) {
+        return this.processedComments.has(`${org}/${repo}#${issue}~${id}`.toLowerCase());
+    }
+
+    public markCommentAsProcessed(org: string, repo: string, issue: string, id: number) {
+        this.processedComments.add(`${org}/${repo}#${issue}~${id}`.toLowerCase());
+    }
+
+    public hasEventBeenProcessed(roomId: string, eventId: string) {
+        return this.processedEvents.has(`${roomId}/${eventId}`);
+    }
+
+    public markEventAsProcessed(roomId: string, eventId: string) {
+        this.processedEvents.add(`${roomId}/${eventId}`);
+    }
 
     public async getCommentBodyForEvent(event: MatrixEvent<MatrixMessageContent>, asBot: boolean): Promise<string> {
         let body = event.content.body;

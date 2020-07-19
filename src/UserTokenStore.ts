@@ -2,6 +2,8 @@ import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
+import { Octokit } from "@octokit/rest";
+import { createTokenAuth } from "@octokit/auth-token";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
@@ -15,6 +17,7 @@ export class UserTokenStore {
     }
 
     public async load() {
+        log.info(`Loading token key file ${this.keyPath}`);
         this.key = await fs.readFile(this.keyPath);
     }
 
@@ -47,5 +50,18 @@ export class UserTokenStore {
             log.error("Failed to get token:", ex);
         }
         return null;
+    }
+
+    public async getOctokitForUser(userId: string) {
+        // TODO: Move this somewhere else.
+        const senderToken = await this.getUserToken("github", userId);
+        if (!senderToken) {
+            return null;
+        }
+        return new Octokit({
+            authStrategy: createTokenAuth,
+            auth: senderToken,
+            userAgent: "matrix-github v0.0.1",
+        });
     }
 }
