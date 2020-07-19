@@ -23,11 +23,12 @@
     "express": "^4.17.1",
     "ioredis": "^4.14.0",
     "markdown-it": "^9.0.1",
-    "matrix-bot-sdk": "^0.5.0",
+    "matrix-bot-sdk": "^0.5.4",
     "micromatch": "^4.0.2",
     "mime": "^2.4.4",
     "mocha": "^6.2.0",
     "node-emoji": "^1.10.0",
+    "reflect-metadata": "^0.1.13",
     "uuid": "^3.3.2",
     "winston": "^3.2.1",
     "yaml": "^1.6.0"
@@ -47,6 +48,6 @@
     "chai": "^4.2.0",
     "ts-node": "^8.3.0",
     "tslint": "^5.18.0",
-    "typescript": "^3.7.5"
+    "typescript": "^3.9.7"
   }
 }
