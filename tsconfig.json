@@ -3,7 +3,6 @@
     "incremental": true,
     "target": "ES2019",
     "module": "commonjs",
-    "allowJs": false,
     "declaration": false,
     "outDir": "./lib",
     "rootDir": "./src",

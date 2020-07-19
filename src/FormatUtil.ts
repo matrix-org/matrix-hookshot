@@ -7,13 +7,22 @@ interface IMinimalRepository {
 }
 
 export class FormatUtil {
-    public static formatRoomName(issue: {number: number, title: string, repository_url: string}) {
+    public static formatIssueRoomName(issue: {number: number, title: string, repository_url: string}) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
         return `${orgRepoName}#${issue.number}: ${issue.title}`;
     }
 
-    public static formatRoomTopic(issue: {state: string, title: string, html_url: string}) {
-        return `Status: ${issue.state} | ${issue.html_url}`;
+    public static formatRepoRoomName(repo: {full_name: string, url: string}) {
+        const orgRepoName = repo.url.substr("https://api.github.com/repos/".length);
+        return `${orgRepoName}: ${repo.full_name}`;
+    }
+
+    public static formatRoomTopic(repo: {state: string, html_url: string}) {
+        return `Status: ${repo.state} | ${repo.html_url}`;
+    }
+
+    public static formatRepoRoomTeam(repo: {html_url: string}) {
+        return `${repo.html_url}`;
     }
 
     public static getPartialBodyForRepo(repo: IMinimalRepository) {
@@ -51,5 +60,9 @@ export class FormatUtil {
                 id: comment.id,
             },
         };
+    }
+
+    public static projectListing(projectItem: Octokit.ProjectsListForOrgResponseItem|Octokit.ProjectsListForUserResponseItem|Octokit.ProjectsListForRepoResponseItem) {
+        return `${projectItem.name} (#${projectItem.number}) - Project ID: ${projectItem.id}`
     }
 }

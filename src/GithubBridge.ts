@@ -21,6 +21,7 @@ import { retry } from "./PromiseUtil";
 import { IConnection } from "./Connections/IConnection";
 import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
+import { GitHubProjectConnection } from "./Connections/GithubProject";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -38,13 +39,14 @@ export class GithubBridge {
 
     constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) { }
 
-    private async createConnectionForState(roomId: string, state: MatrixEvent<any>) {
+    private createConnectionForState(roomId: string, state: MatrixEvent<any>) {
         if (state.content.disabled === false) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
+
         if (GitHubRepoConnection.EventTypes.includes(state.type)) {
-            return new GitHubRepoConnection(roomId, this.as, state);
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, this.octokit);
         }
 
         if (GitHubIssueConnection.EventTypes.includes(state.type)) {
@@ -59,7 +61,8 @@ export class GithubBridge {
     }
 
     private getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number) {
-        return this.connections.filter((c) => c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber);
+        return this.connections.filter((c) => (c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber) ||
+            (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo));
     }
 
     public stop() {
@@ -140,6 +143,10 @@ export class GithubBridge {
             return this.onRoomEvent(roomId, event);
         });
 
+        this.as.on("room.join", async (roomId, event) => {
+            return this.onRoomJoin(roomId, event);
+        });
+
         this.queue.subscribe("comment.*");
         this.queue.subscribe("issue.*");
         this.queue.subscribe("response.matrix.message");
@@ -151,6 +158,18 @@ export class GithubBridge {
                 try {
                     if (c.onCommentCreated)
                         await c.onCommentCreated(msg.data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<IWebhookEvent>("issue.opened", async (msg) => {
+            const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+            connections.map(async (c) => {
+                try {
+                    if (c.onIssueCreated)
+                        await c.onIssueCreated(msg.data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
@@ -248,20 +267,15 @@ export class GithubBridge {
                         BRIDGE_ROOM_TYPE, roomId,
                     );
                     if (accountData.type === "admin") {
-                        const adminRoom = new AdminRoom(
-                            roomId, accountData, this.as.botIntent, this.tokenStore, this.config,
-                        );
-                        adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
-                        this.adminRooms.set(roomId, adminRoom);
-                        log.info(`${roomId} is an admin room for ${adminRoom.userId}`);
+                        const adminRoom = this.setupAdminRoom(roomId, accountData);
                         // Call this on startup to set the state
-                        await this.onAdminRoomSettingsChanged(adminRoom, adminRoom.data);
+                        await this.onAdminRoomSettingsChanged(adminRoom, accountData);
                     }
                 } catch (ex) {
                     log.warn(`Room ${roomId} has no connections and is not an admin room`);
                 }
             } else {
-                log.debug(`Room ${roomId} is connected to: ${connections.join(',')}`);
+                log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
             }
         }
 
@@ -281,19 +295,9 @@ export class GithubBridge {
         }
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const data = {admin_user: event.sender, type: "admin"};
-            await this.as.botIntent.underlyingClient.setRoomAccountData(
-                BRIDGE_ROOM_TYPE, roomId, data,
-            );
-            const adminRoom = new AdminRoom(roomId, data, this.as.botIntent, this.tokenStore, this.config);
-            adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
-            this.adminRooms.set(
-                roomId,
-                adminRoom,
-            );
-        } else {
-            // This is a group room, don't add the admin settings and just sit in the room.
+            this.setupAdminRoom(roomId, {admin_user: event.sender, notifications: { enabled: false, participating: false}});
         }
+        // This is a group room, don't add the admin settings and just sit in the room.
     }
 
     private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
@@ -354,6 +358,21 @@ export class GithubBridge {
         }
     }
 
+    private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
+        if (this.as.botUserId !== matrixEvent.sender) {
+            // Only act on bot joins
+            return;
+        }
+
+        const isRoomConnected = !!this.connections.find(c => c.roomId === roomId);
+
+        // Only fetch rooms we have no connections in yet.
+        if (!isRoomConnected) {
+            const connections = await this.createConnectionsForRoomId(roomId);
+            this.connections.push(...connections);
+        }
+    }
+
     private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
         if (event.state_key) {
             // A state update, hurrah!
@@ -368,8 +387,9 @@ export class GithubBridge {
                     this.connections.push(connection);
                 }
             }
+            return null;
         }
-    
+
         // Alas, it's just an event.
         return this.connections.filter((c) => c.roomId === roomId).map((c) => c.onEvent(event))
     }
@@ -392,9 +412,25 @@ export class GithubBridge {
                 log.error(`Could not handle alias with GitHubIssueConnection`, ex);
                 throw ex;
             }
-        } else {
-            throw Error('No regex matching query pattern');
         }
+
+        res = GitHubRepoConnection.QueryRoomRegex.exec(roomAlias);
+        if (res) {
+            try {
+                return await GitHubRepoConnection.onQueryRoom(res, {
+                    as: this.as,
+                    tokenStore: this.tokenStore,
+                    messageClient: this.messageClient,
+                    commentProcessor: this.commentProcessor,
+                    octokit: this.octokit,
+                });
+            } catch (ex) {
+                log.error(`Could not handle alias with GitHubRepoConnection`, ex);
+                throw ex;
+            }
+        }
+
+        throw Error('No regex matching query pattern');
     }
 
     private async onAdminRoomSettingsChanged(adminRoom: AdminRoom, settings: AdminAccountData) {
@@ -427,5 +463,19 @@ export class GithubBridge {
                 },
             });
         }
+    }
+
+    private setupAdminRoom(roomId: string, accountData: AdminAccountData) {
+        const adminRoom = new AdminRoom(
+            roomId, accountData, this.as.botIntent, this.tokenStore, this.config,
+        );
+        adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
+        adminRoom.on("open.project", async (project: Octokit.ProjectsGetResponse) => {
+            const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+            this.connections.push(connection);
+        });
+        this.adminRooms.set(roomId, adminRoom);
+        log.info(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
+        return adminRoom;
     }
 }

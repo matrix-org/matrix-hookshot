@@ -22,6 +22,8 @@ export interface IConnection {
      */
     onCommentCreated?: (ev: IWebhookEvent) => Promise<void>;
 
+    onIssueCreated?: (ev: IWebhookEvent) => Promise<void>;
+
     onIssueStateChange?: (ev: IWebhookEvent) => Promise<void>;
 
     onIssueEdited? :(event: IWebhookEvent) => Promise<void>;

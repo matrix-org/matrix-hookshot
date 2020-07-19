@@ -31,3 +31,11 @@ export interface MatrixMessageContent extends MatrixEventContent {
         },
     };
 }
+
+export interface MatrixReactionContent extends MatrixEventContent {
+    'm.relates_to': {
+        event_id: string;
+        key: string;
+        rel_type: 'm.annotation';
+    }
+}

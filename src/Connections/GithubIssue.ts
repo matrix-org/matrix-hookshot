@@ -10,6 +10,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
 import { IWebhookEvent } from "../GithubWebhooks";
+import axios from "axios";
 
 export interface GitHubIssueConnectionState {
     org: string;
@@ -70,29 +71,35 @@ export class GitHubIssueConnection implements IConnection {
                 username: owner,
             });
             if (profile.data.avatar_url) {
-                const buffer = await opts.octokit.request(profile.data.avatar_url);
+                const res = await axios.get(profile.data.avatar_url, {
+                    responseType: 'arraybuffer',
+                });
                 log.info(`uploading ${profile.data.avatar_url}`);
                 // This does exist, but headers is silly and doesn't have content-type.
                 // tslint:disable-next-line: no-any
-                const contentType = (buffer.headers as any)["content-type"];
+                console.log(res.headers);
+                const contentType: string = res.headers["content-type"];
+                const mxcUrl = await opts.as.botClient.uploadContent(
+                    Buffer.from(res.data as ArrayBuffer),
+                    contentType,
+                    `avatar_${profile.data.id}.png`,
+                );
                 avatarUrl = {
                     type: "m.room.avatar",
                     state_key: "",
                     content: {
-                        url:  await opts.as.botClient.uploadContent(
-                            Buffer.from(buffer.data as ArrayBuffer),
-                            contentType,
-                        ),
+                        url: mxcUrl,
                     },
                 };
             }
         } catch (ex) {
             log.info("Failed to get avatar for org:", ex);
+            throw ex;
         }
 
         return {
             visibility: "public",
-            name: FormatUtil.formatRoomName(issue),
+            name: FormatUtil.formatIssueRoomName(issue),
             topic: FormatUtil.formatRoomTopic(issue),
             preset: "public_chat",
             initial_state: [
@@ -236,6 +243,13 @@ export class GitHubIssueConnection implements IConnection {
     public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho: boolean = false) {
         const clientKit = await this.tokenStore.getOctokitForUser(event.sender);
         if (clientKit === null) {
+            await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+                "m.relates_to": {
+                    rel_type: "m.annotation",
+                    event_id: event.event_id,
+                    key: "⚠️ Not bridged",
+                }
+            })
             log.info("Ignoring comment, user is not authenticated");
             return;
         }
@@ -260,7 +274,7 @@ export class GitHubIssueConnection implements IConnection {
 
         if (event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
-                name: FormatUtil.formatRoomName(event.issue!),
+                name: FormatUtil.formatIssueRoomName(event.issue!),
             });
         }
     }

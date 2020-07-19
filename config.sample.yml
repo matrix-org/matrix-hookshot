@@ -17,9 +17,6 @@ github:
   userTokens: 
     # If you want to hardcode a users token in the config
     - "@hardcoded:localhost": "foobarbaz"
-  # This is used to securely store passwords.
-  # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
-  passFile: "passkey.pem"
 bridge:
   # Homeserver servername
   domain: example.com
@@ -37,3 +34,7 @@ queue:
   # Note that setting the above will make the bridge use redis as a storage location
 logging:
   level: "info" # One of "debug", "info", "warn", "error"
+
+# This is used to securely store passwords.
+# Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
+passFile: "passkey.pem"

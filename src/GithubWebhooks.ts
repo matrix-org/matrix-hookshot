@@ -102,6 +102,8 @@ export class GithubWebhooks extends EventEmitter {
                 eventName = "comment.created";
             } else if (body.action === "edited" && body.comment) {
                 eventName = "comment.edited";
+            } else if (body.action === "opened" && body.issue) {
+                eventName = "issue.opened";
             } else if (body.action === "edited" && body.issue) {
                 eventName = "issue.edited";
             } else if (body.action === "closed" && body.issue) {
@@ -131,7 +133,10 @@ export class GithubWebhooks extends EventEmitter {
             const exists = await this.queue.pushWait<IOAuthRequest, boolean>({
                 eventName: "oauth.response",
                 sender: "GithubWebhooks",
-                data: req.query,
+                data: {
+                    code: req.query.code as string,
+                    state: req.query.state as string,
+                },
             });
             if (!exists) {
                 res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
@@ -140,15 +145,15 @@ export class GithubWebhooks extends EventEmitter {
             const accessTokenRes = await axios.post(`https://github.com/login/oauth/access_token?${qs.encode({
                 client_id: this.config.github.oauth.client_id,
                 client_secret: this.config.github.oauth.client_secret,
-                code: req.query.code,
+                code: req.query.code as string,
                 redirect_uri: this.config.github.oauth.redirect_uri,
-                state: req.query.state,
+                state: req.query.state as string,
             })}`);
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
             await this.queue.push<IOAuthTokens>({
                 eventName: "oauth.tokens",
                 sender: "GithubWebhooks",
-                data: { state: req.query.state, ... result },
+                data: { state: req.query.state as string, ... result },
             });
             res.send(`<p> Your account has been bridged </p>`);
         } catch (ex) {
@@ -170,6 +175,7 @@ export class GithubWebhooks extends EventEmitter {
         const expected = req.headers["x-hub-signature"];
         const calculated = this.getSignature(buf);
         if (expected !== calculated) {
+            log.error(`${req.url} had an invalid signature`);
             res.sendStatus(403);
             throw new Error("Invalid signature.");
         }
