@@ -1,5 +1,6 @@
 import { Redis, default as redis } from "ioredis";
-import { LogWrapper } from "../LogWrapper";
+import LogWrapper from "../LogWrapper";
+
 import { IStorageProvider } from "./StorageProvider";
 
 const REGISTERED_USERS_KEY = "as.registered_users";

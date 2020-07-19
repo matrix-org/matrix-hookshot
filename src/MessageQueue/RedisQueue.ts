@@ -2,7 +2,8 @@ import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./Messag
 import { Redis, default as redis } from "ioredis";
 import { BridgeConfig } from "../Config";
 import { EventEmitter } from "events";
-import { LogWrapper } from "../LogWrapper";
+import LogWrapper from "../LogWrapper";
+
 import uuid from "uuid/v4";
 
 const log = new LogWrapper("RedisMq");

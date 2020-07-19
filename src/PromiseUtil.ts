@@ -1,4 +1,4 @@
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 
 const SLEEP_TIME_MS = 250;
 const DEFAULT_RETRY = () => true;

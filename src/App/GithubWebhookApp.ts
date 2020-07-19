@@ -1,6 +1,7 @@
 import { parseConfig } from "../Config";
 import { GithubWebhooks } from "../GithubWebhooks";
-import { LogWrapper } from "../LogWrapper";
+import LogWrapper from "../LogWrapper";
+
 
 const log = new LogWrapper("App");
 

@@ -1,7 +1,7 @@
 import { MessageSenderClient } from "./MatrixSender";
 import { IStorageProvider } from "./Stores/StorageProvider";
 import { UserNotificationsEvent, UserNotification } from "./UserNotificationWatcher";
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { Octokit } from "@octokit/rest";

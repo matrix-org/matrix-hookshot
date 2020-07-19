@@ -4,7 +4,7 @@ import { createHmac } from "crypto";
 import { Octokit } from "@octokit/rest";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import { Server } from "http";
 import axios from "axios";

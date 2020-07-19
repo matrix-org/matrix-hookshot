@@ -2,7 +2,7 @@ import { NotificationsEnableEvent } from "./GithubWebhooks";
 import { Octokit } from "@octokit/rest";
 import { createTokenAuth } from "@octokit/auth-token";
 import { RequestError } from "@octokit/request-error";
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 import { MessageQueue } from "./MessageQueue/MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 

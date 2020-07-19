@@ -1,5 +1,6 @@
 import { GithubBridge } from "../GithubBridge";
-import { LogWrapper } from "../LogWrapper";
+import LogWrapper from "../LogWrapper";
+
 import { parseConfig, parseRegistrationFile } from "../Config";
 import { GithubWebhooks } from "../GithubWebhooks";
 import { MatrixSender } from "../MatrixSender";

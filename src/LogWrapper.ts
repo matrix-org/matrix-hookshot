@@ -5,7 +5,7 @@ import winston from "winston";
 // Logs contain unknowns, ignore this.
 // tslint:disable: no-any
 
-export class LogWrapper {
+export default class LogWrapper {
 
     public static configureLogging(level: string) {
         const log = winston.createLogger({

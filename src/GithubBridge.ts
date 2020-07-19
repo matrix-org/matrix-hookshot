@@ -13,7 +13,7 @@ import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
 import { UserTokenStore } from "./UserTokenStore";
 import { FormatUtil } from "./FormatUtil";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
 import { promises as fs } from "fs";
 import { UserNotificationsEvent } from "./UserNotificationWatcher";

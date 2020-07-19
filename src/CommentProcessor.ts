@@ -4,7 +4,7 @@ import markdown from "markdown-it";
 import mime from "mime";
 import emoji from "node-emoji";
 import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 import axios from "axios";
 import { FormatUtil } from "./FormatUtil";
 

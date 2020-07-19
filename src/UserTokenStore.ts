@@ -1,7 +1,7 @@
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
-import { LogWrapper } from "./LogWrapper";
+import LogWrapper from "./LogWrapper";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";

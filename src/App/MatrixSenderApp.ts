@@ -1,6 +1,7 @@
 import { parseConfig, parseRegistrationFile } from "../Config";
 import { MatrixSender } from "../MatrixSender";
-import { LogWrapper } from "../LogWrapper";
+import LogWrapper from "../LogWrapper";
+
 
 const log = new LogWrapper("App");
 
