@@ -9,7 +9,7 @@ import { Octokit } from "@octokit/rest";
 import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
-import { IWebhookEvent } from "../GithubWebhooks";
+import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import axios from "axios";
 
 export interface GitHubIssueConnectionState {
@@ -144,7 +144,7 @@ export class GitHubIssueConnection implements IConnection {
         return this.state.repo;
     }
 
-    public async onCommentCreated(event: IWebhookEvent, updateState = true) {
+    public async onCommentCreated(event: IGitHubWebhookEvent, updateState = true) {
         const comment = event.comment!;
         if (event.repository) {
             // Delay to stop comments racing sends
@@ -266,7 +266,7 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public async onIssueEdited(event: IWebhookEvent) {
+    public async onIssueEdited(event: IGitHubWebhookEvent) {
         if (!event.changes) {
             log.debug("No changes given");
             return; // No changes made.
@@ -279,7 +279,7 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public onIssueStateChange(event: IWebhookEvent) {
+    public onIssueStateChange(event: IGitHubWebhookEvent) {
         return this.syncIssueState();
     }
 

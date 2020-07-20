@@ -1,5 +1,5 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
-import { IWebhookEvent } from "../GithubWebhooks";
+import { IGitHubWebhookEvent } from "../GithubWebhooks";
 
 export interface IConnection {
     roomId: string;
@@ -20,13 +20,13 @@ export interface IConnection {
     /**
      * When a comment is created on a repo
      */
-    onCommentCreated?: (ev: IWebhookEvent) => Promise<void>;
+    onCommentCreated?: (ev: IGitHubWebhookEvent) => Promise<void>;
 
-    onIssueCreated?: (ev: IWebhookEvent) => Promise<void>;
+    onIssueCreated?: (ev: IGitHubWebhookEvent) => Promise<void>;
 
-    onIssueStateChange?: (ev: IWebhookEvent) => Promise<void>;
+    onIssueStateChange?: (ev: IGitHubWebhookEvent) => Promise<void>;
 
-    onIssueEdited? :(event: IWebhookEvent) => Promise<void>;
+    onIssueEdited? :(event: IGitHubWebhookEvent) => Promise<void>;
 
     isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
 

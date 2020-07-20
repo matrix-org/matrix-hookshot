@@ -10,7 +10,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
-import { IWebhookEvent } from "../GithubWebhooks";
+import { IGitHubWebhookEvent } from "../GithubWebhooks";
 
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
@@ -189,7 +189,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    public async onIssueCreated(event: IWebhookEvent) {
+    public async onIssueCreated(event: IGitHubWebhookEvent) {
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         const orgRepoName = event.issue!.repository_url.substr("https://api.github.com/repos/".length);
         const content = `New issue created [${orgRepoName}#${event.issue!.number}](${event.issue!.html_url}): "${event.issue!.title}"`;
@@ -209,7 +209,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    public async onIssueStateChange(event: IWebhookEvent) {
+    public async onIssueStateChange(event: IGitHubWebhookEvent) {
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (event.issue?.state === "closed") {
             const orgRepoName = event.issue!.repository_url.substr("https://api.github.com/repos/".length);

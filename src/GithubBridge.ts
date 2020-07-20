@@ -2,7 +2,7 @@ import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichRepl
 import { Octokit } from "@octokit/rest";
 import { createAppAuth } from "@octokit/auth-app";
 import { BridgeConfig } from "./Config";
-import { IWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
+import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
@@ -152,7 +152,7 @@ export class GithubBridge {
         this.queue.subscribe("response.matrix.message");
         this.queue.subscribe("notifications.user.events");
 
-        this.queue.on<IWebhookEvent>("comment.created", async (msg) => {
+        this.queue.on<IGitHubWebhookEvent>("comment.created", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
             connections.map(async (c) => {
                 try {
@@ -164,7 +164,7 @@ export class GithubBridge {
             })
         });
 
-        this.queue.on<IWebhookEvent>("issue.opened", async (msg) => {
+        this.queue.on<IGitHubWebhookEvent>("issue.opened", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
             connections.map(async (c) => {
                 try {
@@ -176,7 +176,7 @@ export class GithubBridge {
             })
         });
 
-        this.queue.on<IWebhookEvent>("issue.edited", async (msg) => {
+        this.queue.on<IGitHubWebhookEvent>("issue.edited", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
             connections.map(async (c) => {
                 try {
@@ -188,7 +188,7 @@ export class GithubBridge {
             })
         });
 
-        this.queue.on<IWebhookEvent>("issue.closed", async (msg) => {
+        this.queue.on<IGitHubWebhookEvent>("issue.closed", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
             connections.map(async (c) => {
                 try {
@@ -200,7 +200,7 @@ export class GithubBridge {
             })
         });
 
-        this.queue.on<IWebhookEvent>("issue.reopened", async (msg) => {
+        this.queue.on<IGitHubWebhookEvent>("issue.reopened", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
             connections.map(async (c) => {
                 try {
