@@ -227,7 +227,7 @@ export class GitHubRepoConnection implements IConnection {
 
     @botCommand("gh close", "Close an issue", ["number"], ["comment"], true)
     // @ts-ignore
-    private async onAssign(userId: string, number: string, comment?: string) {
+    private async onClose(userId: string, number: string, comment?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             return this.as.botIntent.sendText(this.roomId, "You must login to close an issue", "m.notice");
