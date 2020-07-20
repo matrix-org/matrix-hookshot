@@ -256,6 +256,21 @@ export class GithubBridge {
             }
         }
 
+        // Set the name and avatar of the bot
+        if (this.config.bot) {
+            // Ensure we are registered before we set a profile
+            await this.as.botIntent.ensureRegistered();
+            const profile = await this.as.botClient.getUserProfile(this.as.botUserId);
+            if (this.config.bot.avatar && profile.avatar_url !== this.config.bot.avatar) {
+                log.info(`Setting avatar to ${this.config.bot.avatar}`);
+                await this.as.botClient.setAvatarUrl(this.config.bot.avatar);
+            }
+            if (this.config.bot.displayname && profile.displayname !== this.config.bot.displayname) {
+                log.info(`Setting displayname to ${this.config.bot.displayname}`);
+                await this.as.botClient.setDisplayName(this.config.bot.displayname);
+            }
+        }
+
         for (const roomId of joinedRooms) {
             log.info("Fetching state for " + roomId);
             const connections = await this.createConnectionsForRoomId(roomId);

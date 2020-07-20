@@ -63,6 +63,10 @@ export interface BridgeConfig {
         level: string;
     };
     passFile: string;
+    bot?: {
+        displayname?: string;
+        avatar?: string;
+    }
 }
 
 export async function parseRegistrationFile(filename: string) {

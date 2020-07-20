@@ -38,3 +38,7 @@ logging:
 # This is used to securely store passwords.
 # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
 passFile: "passkey.pem"
+
+bot:
+  displayname: "GitHub Bot"
+  avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
