@@ -51,7 +51,7 @@ export function compileBotCommands(prototype: any): {helpMessage: any, botComman
     }
 }
 
-export function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: any): string|null {
+export function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: any, errorOnUnknown=true): string|null {
     const cmdLower = command.toLowerCase();
     const parts = argvSplit(cmdLower);
     for (let i = parts.length; i > 0; i--) {
@@ -70,5 +70,5 @@ export function handleCommand(userId: string, command: string, botCommands: BotC
             return null;
         }
     }
-    return "Command not understood";
+    return errorOnUnknown ? "Command not understood" : null;
 }

@@ -159,7 +159,7 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        const err = handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this);
+        const err = handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this, false);
         if (err) {
             await this.as.botIntent.sendText(this.roomId, err, "m.notice");
         }
