@@ -12,7 +12,7 @@ import { UserNotificationWatcher } from "./UserNotificationWatcher";
 
 const log = new LogWrapper("GithubWebhooks");
 
-export interface IWebhookEvent {
+export interface IGitHubWebhookEvent {
     action: string;
     issue?: Octokit.IssuesGetResponse;
     comment?: Octokit.IssuesGetCommentResponse;
@@ -79,6 +79,7 @@ export class GithubWebhooks extends EventEmitter {
             this.config.github.webhook.port,
             this.config.github.webhook.bindAddress,
         );
+        log.info(`Listening on http://${this.config.github.webhook.bindAddress}:${this.config.github.webhook.port}`)
         this.userNotificationWatcher.start();
     }
 
@@ -89,9 +90,7 @@ export class GithubWebhooks extends EventEmitter {
         }
     }
 
-    public onPayload(req: Request, res: Response) {
-        const body = req.body as IWebhookEvent;
-        log.debug("Got", body);
+    private onGitHubPayload(body: IGitHubWebhookEvent) {
         let eventName;
         let from;
         if (body.sender) {
@@ -124,7 +123,17 @@ export class GithubWebhooks extends EventEmitter {
         } catch (ex) {
             log.error("Failed to emit");
         }
+
+    }
+
+    private onPayload(req: Request, res: Response) {
+        log.debug(`New webhook: ${req.url}`);
+        const body = req.body as IGitHubWebhookEvent;
+        log.debug("Got", body);
         res.sendStatus(200);
+        if (req.headers['x-hub-signature']) {
+            return this.onGitHubPayload(body);
+        }
     }
 
     public async onGetOauth(req: Request, res: Response) {
@@ -172,13 +181,35 @@ export class GithubWebhooks extends EventEmitter {
     // Verify function compatible with body-parser to retrieve the request payload.
     // Read more: https://github.com/expressjs/body-parser#verify
     private verifyRequest(req: Request, res: Response, buf: Buffer) {
-        const expected = req.headers["x-hub-signature"];
-        const calculated = this.getSignature(buf);
-        if (expected !== calculated) {
-            log.error(`${req.url} had an invalid signature`);
-            res.sendStatus(403);
-            throw new Error("Invalid signature.");
+        if (req.headers['x-gitlab-token']) {
+            // This is a gitlab request!
+            if (!this.config.gitlab) {
+                log.error("Got a GitLab webhook, but the bridge is not set up for it.");
+                res.sendStatus(400);
+                throw Error('Not expecting a gitlab request!');
+            }
+            if (req.headers['x-gitlab-token'] === this.config.gitlab.webhook.secret) {
+                log.debug('Verified GitLab request');
+                return true;
+            } else {
+                log.error(`${req.url} had an invalid signature`);
+                res.sendStatus(403);
+                throw Error("Invalid signature.");
+            }
+        } else if (req.headers["x-hub-signature"]) {
+            const expected = req.headers["x-hub-signature"];
+            const calculated = this.getSignature(buf);
+            if (expected !== calculated) {
+                log.error(`${req.url} had an invalid signature`);
+                res.sendStatus(403);
+                throw Error("Invalid signature.");
+            } else {
+                log.debug('Verified GitHub request');
+                return true;
+            }
         }
-        return true;
+        log.error(`No signature on URL. Rejecting`);
+        res.sendStatus(400);
+        throw Error("Invalid signature.");
     }
 }
