@@ -159,14 +159,30 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        const err = handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this, false);
-        if (err) {
-            await this.as.botIntent.sendText(this.roomId, err, "m.notice");
+        const { error, handled } = await handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this);
+        if (!handled) {
+            // Not for us.
+            return;
         }
+        if (error) {
+            await this.as.botIntent.sendEvent(this.roomId,{
+                msgtype: "m.notice",
+                body: "Failed to handle command",
+            });
+            return;
+        }
+        await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+            "m.relates_to": {
+                rel_type: "m.annotation",
+                event_id: ev.event_id,
+                key: "✅",
+            }
+        });
     }
 
     @botCommand("gh create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
-    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+    // @ts-ignore
+    private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             return this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
@@ -186,6 +202,51 @@ export class GitHubRepoConnection implements IConnection {
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html"
+        });
+    }
+
+    @botCommand("gh assign", "Assign an issue to a user", ["number", "...users"], [], true)
+    // @ts-ignore
+    private async onAssign(userId: string, number: string, ...users: string[]) {
+        const octokit = await this.tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            return this.as.botIntent.sendText(this.roomId, "You must login to assign an issue", "m.notice");
+        }
+
+        if (users.length === 1) {
+            users = users[0].split(",");
+        }
+
+        await octokit.issues.addAssignees({
+            repo: this.state.repo,
+            owner: this.state.org,
+            issue_number: parseInt(number, 10),
+            assignees: users,
+        });
+    }
+
+    @botCommand("gh close", "Close an issue", ["number"], ["comment"], true)
+    // @ts-ignore
+    private async onAssign(userId: string, number: string, comment?: string) {
+        const octokit = await this.tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            return this.as.botIntent.sendText(this.roomId, "You must login to close an issue", "m.notice");
+        }
+
+        if (comment) {
+            await octokit.issues.createComment({
+                repo: this.state.repo,
+                owner: this.state.org,
+                issue_number: parseInt(number, 10),
+                body: comment,
+            })
+        }
+
+        await octokit.issues.update({
+            repo: this.state.repo,
+            owner: this.state.org,
+            issue_number: parseInt(number, 10),
+            state: "closed",
         });
     }
 

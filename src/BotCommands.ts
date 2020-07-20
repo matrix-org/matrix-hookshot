@@ -1,6 +1,7 @@
 import markdown from "markdown-it";
 // @ts-ignore
 import argvSplit from "argv-split";
+import e from "express";
 
 const md = new markdown();
 
@@ -16,7 +17,7 @@ export function botCommand(prefix: string, help: string, requiredArgs: string[] 
 }
 
 export type BotCommands = {[prefix: string]: {
-    fn: (...args: string[]) => Promise<void>,
+    fn: (...args: string[]) => Promise<{status: boolean}>,
     requiredArgs: string[],
     optionalArgs: string[],
     includeUserId: boolean,
@@ -51,7 +52,7 @@ export function compileBotCommands(prototype: any): {helpMessage: any, botComman
     }
 }
 
-export function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: any, errorOnUnknown=true): string|null {
+export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: any): Promise<{error?: string, handled?: boolean}> {
     const cmdLower = command.toLowerCase();
     const parts = argvSplit(cmdLower);
     for (let i = parts.length; i > 0; i--) {
@@ -60,15 +61,19 @@ export function handleCommand(userId: string, command: string, botCommands: BotC
         const command = botCommands[prefix];
         if (command) {
             if (command.requiredArgs.length > parts.length - i) {
-                return "Missing args";
+                return {error: "Missing args"};
             }
             const args = parts.slice(i);
             if (command.includeUserId) {
                 args.splice(0,0, userId);
             }
-            botCommands[prefix].fn.apply(obj,  args);
-            return null;
+            try {
+                await botCommands[prefix].fn.apply(obj,  args);
+                return {handled: true};
+            } catch (ex) {
+                return {handled: true, error: ex.message};
+            }
         }
     }
-    return errorOnUnknown ? "Command not understood" : null;
+    return {handled: false};
 }

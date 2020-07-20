@@ -251,11 +251,21 @@ export class AdminRoom extends EventEmitter {
         }
     }
 
-    public async handleCommand(command: string) {
-        const err = handleCommand(this.userId, command, AdminRoom.botCommands, this);
-        if (err) {
-            await this.sendNotice(err);
+    public async handleCommand(event_id: string, command: string) {
+        const { error, handled } = await handleCommand(this.userId, command, AdminRoom.botCommands, this);
+        if (!handled) {
+            return this.sendNotice("Command not understood");
         }
+        if (error) {
+            return this.sendNotice("Failed to handle command:" + error);
+        }
+        return this.botIntent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
+            "m.relates_to": {
+                rel_type: "m.annotation",
+                event_id: event_id,
+                key: "✅",
+            }
+        });
     }
 }
 
