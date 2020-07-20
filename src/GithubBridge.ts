@@ -398,7 +398,7 @@ export class GithubBridge {
                 // Is anyone interested in this state?
                 const connection = await this.createConnectionForState(roomId, event);
                 if (connection) {
-                    log.info(`Found new state for ${roomId}`);
+                    log.info(`New connected added to ${roomId}: ${connection.toString()}`);
                     this.connections.push(connection);
                 }
             }
