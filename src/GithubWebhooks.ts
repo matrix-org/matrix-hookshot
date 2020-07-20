@@ -9,6 +9,7 @@ import qs from "querystring";
 import { Server } from "http";
 import axios from "axios";
 import { UserNotificationWatcher } from "./UserNotificationWatcher";
+import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 
 const log = new LogWrapper("GithubWebhooks");
 
@@ -91,27 +92,41 @@ export class GithubWebhooks extends EventEmitter {
     }
 
     private onGitHubPayload(body: IGitHubWebhookEvent) {
-        let eventName;
-        let from;
-        if (body.sender) {
-            from = body.sender.login;
+        if (body.action === "created" && body.comment) {
+            return "comment.created";
+        } else if (body.action === "edited" && body.comment) {
+            return "comment.edited";
+        } else if (body.action === "opened" && body.issue) {
+            return "issue.opened";
+        } else if (body.action === "edited" && body.issue) {
+            return "issue.edited";
+        } else if (body.action === "closed" && body.issue) {
+            return "issue.closed";
+        } else if (body.action === "reopened" && body.issue) {
+            return "issue.reopened";
         }
+        return null;
+    }
+
+    private onGitLabPayload(body: IGitLabWebhookEvent) {
+        if (body.event_type === "merge_request") {
+            return `merge_request.${body.object_attributes.action}`;
+        }
+        return null;
+    }
+
+    private onPayload(req: Request, res: Response) {
+        log.debug(`New webhook: ${req.url}`);
         try {
-            if (body.action === "created" && body.comment) {
-                eventName = "comment.created";
-            } else if (body.action === "edited" && body.comment) {
-                eventName = "comment.edited";
-            } else if (body.action === "opened" && body.issue) {
-                eventName = "issue.opened";
-            } else if (body.action === "edited" && body.issue) {
-                eventName = "issue.edited";
-            } else if (body.action === "closed" && body.issue) {
-                eventName = "issue.closed";
-            } else if (body.action === "reopened" && body.issue) {
-                eventName = "issue.reopened";
+            let eventName: string|null = null;
+            let body = req.body;
+            res.sendStatus(200);
+            if (req.headers['x-hub-signature']) {
+                eventName = this.onGitHubPayload(body);
+            } else if (req.headers['x-gitlab-token']) {
+                eventName = this.onGitLabPayload(body);
             }
             if (eventName) {
-                log.info(`Got event ${eventName} ${from ? "from " + from : ""}`);
                 this.queue.push({
                     eventName,
                     sender: "GithubWebhooks",
@@ -119,20 +134,11 @@ export class GithubWebhooks extends EventEmitter {
                 }).catch((err) => {
                     log.info(`Failed to emit payload: ${err}`);
                 });
+            } else {
+                log.debug("Unknown event:", req.body);
             }
         } catch (ex) {
             log.error("Failed to emit");
-        }
-
-    }
-
-    private onPayload(req: Request, res: Response) {
-        log.debug(`New webhook: ${req.url}`);
-        const body = req.body as IGitHubWebhookEvent;
-        log.debug("Got", body);
-        res.sendStatus(200);
-        if (req.headers['x-hub-signature']) {
-            return this.onGitHubPayload(body);
         }
     }
 

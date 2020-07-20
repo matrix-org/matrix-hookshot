@@ -1,7 +1,6 @@
 import markdown from "markdown-it";
 // @ts-ignore
 import argvSplit from "argv-split";
-import e from "express";
 
 const md = new markdown();
 
@@ -53,10 +52,9 @@ export function compileBotCommands(prototype: any): {helpMessage: any, botComman
 }
 
 export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: any): Promise<{error?: string, handled?: boolean}> {
-    const cmdLower = command.toLowerCase();
-    const parts = argvSplit(cmdLower);
+    const parts = argvSplit(command);
     for (let i = parts.length; i > 0; i--) {
-        const prefix = parts.slice(0, i).join(" ");
+        const prefix = parts.slice(0, i).join(" ").toLowerCase();
         // We have a match!
         const command = botCommands[prefix];
         if (command) {

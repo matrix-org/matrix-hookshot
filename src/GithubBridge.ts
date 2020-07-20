@@ -22,6 +22,8 @@ import { IConnection } from "./Connections/IConnection";
 import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
+import { GitLabRepoConnection } from "./Connections/GitlabRepo";
+import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -52,6 +54,9 @@ export class GithubBridge {
         if (GitHubIssueConnection.EventTypes.includes(state.type)) {
             return new GitHubIssueConnection(roomId, this.as, state.content, state.state_key || "", this.tokenStore, this.commentProcessor, this.messageClient, this.octokit);
         }
+        if (GitLabRepoConnection.EventTypes.includes(state.type)) {
+            return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore);
+        }
         return;
     }
 
@@ -63,6 +68,10 @@ export class GithubBridge {
     private getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number) {
         return this.connections.filter((c) => (c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber) ||
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo));
+    }
+
+    private getConnectionsForGitLabIssue(org: string, repo: string, issueNumber: number) {
+        return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.org === org && c.repo === repo));
     }
 
     public stop() {
@@ -151,6 +160,7 @@ export class GithubBridge {
         this.queue.subscribe("issue.*");
         this.queue.subscribe("response.matrix.message");
         this.queue.subscribe("notifications.user.events");
+        this.queue.subscribe("merge_request.*")
 
         this.queue.on<IGitHubWebhookEvent>("comment.created", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
@@ -211,6 +221,18 @@ export class GithubBridge {
                 }
             })
         });
+
+        // this.queue.on<IGitLabWebhookMREvent>("merge_request.open", async (msg) => {
+        //     const connections = this.getConnectionsForGitLabIssue(msg.data.project.namespace, msg.data.repository!.name, msg.data.issue!.number);
+        //     connections.map(async (c) => {
+        //         try {
+        //             if (c.onIssueCreated)
+        //                 await c.onIssueStateChange(msg.data);
+        //         } catch (ex) {
+        //             log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+        //         }
+        //     })
+        // });
 
         this.queue.on<UserNotificationsEvent>("notifications.user.events", async (msg) => {
             const adminRoom = this.adminRooms.get(msg.data.roomId);
@@ -281,11 +303,9 @@ export class GithubBridge {
                     const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData(
                         BRIDGE_ROOM_TYPE, roomId,
                     );
-                    if (accountData.type === "admin") {
-                        const adminRoom = this.setupAdminRoom(roomId, accountData);
-                        // Call this on startup to set the state
-                        await this.onAdminRoomSettingsChanged(adminRoom, accountData);
-                    }
+                    const adminRoom = this.setupAdminRoom(roomId, accountData);
+                    // Call this on startup to set the state
+                    await this.onAdminRoomSettingsChanged(adminRoom, accountData);
                 } catch (ex) {
                     log.warn(`Room ${roomId} has no connections and is not an admin room`);
                 }
@@ -310,7 +330,10 @@ export class GithubBridge {
         }
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            this.setupAdminRoom(roomId, {admin_user: event.sender, notifications: { enabled: false, participating: false}});
+            const room = this.setupAdminRoom(roomId, {admin_user: event.sender, notifications: { enabled: false, participating: false}});
+            await this.as.botIntent.underlyingClient.setRoomAccountData(
+                BRIDGE_ROOM_TYPE, roomId, room.data,
+            );
         }
         // This is a group room, don't add the admin settings and just sit in the room.
     }
@@ -360,7 +383,7 @@ export class GithubBridge {
 
             const command = event.content.body;
             if (command) {
-                await this.adminRooms.get(roomId)!.handleCommand(command);
+                await this.adminRooms.get(roomId)!.handleCommand(event.event_id, command);
             }
         }
 
@@ -444,6 +467,7 @@ export class GithubBridge {
                 throw ex;
             }
         }
+
 
         throw Error('No regex matching query pattern');
     }

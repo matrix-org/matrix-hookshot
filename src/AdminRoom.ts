@@ -11,6 +11,7 @@ import "reflect-metadata";
 import markdown from "markdown-it";
 import { FormatUtil } from "./FormatUtil";
 import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
+import { GitLabClient } from "./Gitlab/Client";
 
 const md = new markdown();
 const log = new LogWrapper('AdminRoom');
@@ -84,10 +85,9 @@ export class AdminRoom extends EventEmitter {
         return this.botIntent.underlyingClient.sendMessage(this.roomId, AdminRoom.helpMessage);
     }
 
-
     @botCommand("setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
     // @ts-ignore - property is used
-    private async setPersonalAccessToken(accessToken: string) {
+    private async setGHPersonalAccessToken(accessToken: string) {
         let me;
         try {
             const octokit = new Octokit({
@@ -102,6 +102,22 @@ export class AdminRoom extends EventEmitter {
         }
         await this.sendNotice(`Connected as ${me.data.login}. Token stored`);
         await this.tokenStore.storeUserToken("github", this.userId, accessToken);
+    }
+
+    @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceUrl', 'accessToken'])
+    // @ts-ignore - property is used
+    private async setGitLabPersonalAccessToken(instanceUrl: string, accessToken: string) {
+        let me: GetUserResponse;
+        try {
+            const client = new GitLabClient(instanceUrl, accessToken);
+            me = await client.user();
+        } catch (ex) {
+            log.error("Gitlab auth error:", ex);
+            await this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
+            return;
+        }
+        await this.sendNotice(`Connected as ${me.username}. Token stored`);
+        await this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instanceUrl);
     }
 
     @botCommand("hastoken", "Check if you have a token stored for GitHub")
@@ -259,13 +275,14 @@ export class AdminRoom extends EventEmitter {
         if (error) {
             return this.sendNotice("Failed to handle command:" + error);
         }
-        return this.botIntent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
-            "m.relates_to": {
-                rel_type: "m.annotation",
-                event_id: event_id,
-                key: "✅",
-            }
-        });
+        return null;
+        // return this.botIntent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
+        //     "m.relates_to": {
+        //         rel_type: "m.annotation",
+        //         event_id: event_id,
+        //         key: "✅",
+        //     }
+        // });
     }
 }
 
