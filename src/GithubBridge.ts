@@ -23,7 +23,7 @@ import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
 import { GitLabRepoConnection } from "./Connections/GitlabRepo";
-import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
+// import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -70,9 +70,9 @@ export class GithubBridge {
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo));
     }
 
-    private getConnectionsForGitLabIssue(org: string, repo: string, issueNumber: number) {
-        return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.org === org && c.repo === repo));
-    }
+    // private getConnectionsForGitLabIssue(org: string, repo: string, issueNumber: number) {
+    //     return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.org === org && c.repo === repo));
+    // }
 
     public stop() {
         this.as.stop();
