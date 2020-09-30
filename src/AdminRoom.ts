@@ -12,6 +12,7 @@ import markdown from "markdown-it";
 import { FormatUtil } from "./FormatUtil";
 import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
 import { GitLabClient } from "./Gitlab/Client";
+import { GetUserResponse } from "./Gitlab/Types";
 
 const md = new markdown();
 const log = new LogWrapper('AdminRoom');
@@ -277,7 +278,7 @@ export class AdminRoom extends EventEmitter {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
-        const instance = this.config.gitlab.instances.find((i) => i.name === instanceName);
+        const instance = this.config.gitlab.instances[instanceName];
         if (!instance) {
             return this.sendNotice("The bridge is not configured for this GitLab instance");
         }
@@ -285,12 +286,12 @@ export class AdminRoom extends EventEmitter {
         if (!client) {
             return this.sendNotice("You have not added a personal access token for GitLab");
         }
-        // https://gitlab.com/Half-Shot/bridge-test/-/issues/1
-        const issue = await client.issues.get({
+        const getIssueOpts = {
             issue: parseInt(issueNumber),
             projects: projectParts.split("/"),
-        });
-        this.emit('open.gitlab-issue', issue);
+        };
+        const issue = await client.issues.get(getIssueOpts);
+        this.emit('open.gitlab-issue', getIssueOpts, issue, instance);
 
     }
 
@@ -301,7 +302,7 @@ export class AdminRoom extends EventEmitter {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
-        const instance = this.config.gitlab.instances.find((i) => i.name === instanceName);
+        const instance = this.config.gitlab.instances[instanceName];
         if (!instance) {
             return this.sendNotice("The bridge is not configured for this GitLab instance");
         }

@@ -114,8 +114,11 @@ export class GithubWebhooks extends EventEmitter {
             return `gitlab.merge_request.${body.object_attributes.action}`;
         } else if (body.event_type === "issue") {
             return `gitlab.issue.${body.object_attributes.action}`;
+        } else if (body.event_type === "note") {
+            return `gitlab.note.created`;
+        } else {
+            return null;
         }
-        return null;
     }
 
     private onPayload(req: Request, res: Response) {

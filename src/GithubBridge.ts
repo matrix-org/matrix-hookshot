@@ -1,6 +1,6 @@
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
-import { BridgeConfig } from "./Config";
+import { BridgeConfig, GitLabInstance } from "./Config";
 import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
@@ -22,9 +22,9 @@ import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
 import { GitLabRepoConnection } from "./Connections/GitlabRepo";
 import { GithubInstance } from "./Github/GithubInstance";
-import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 import { GitLabIssueConnection } from "./Connections/GitlabIssue";
-import { GetIssueResponse } from "./Gitlab/Types"
+import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 // import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
 
 const log = new LogWrapper("GithubBridge");
@@ -44,6 +44,7 @@ export class GithubBridge {
     constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) { }
 
     private createConnectionForState(roomId: string, state: MatrixEvent<any>) {
+        log.debug(`Looking to create connection for ${roomId}`);
         if (state.content.disabled === false) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
@@ -66,15 +67,28 @@ export class GithubBridge {
             if (!this.config.gitlab) {
                 throw Error('GitLab is not configured');
             }
-            const instance = this.config.gitlab.instances.find((instance) => instance.name === state.content.instance);
+            const instance = this.config.gitlab.instances[state.content.instance];
             if (!instance) {
                 throw Error('Instance name not recongnised');
             }
             return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore, instance);
         }
-        // if (GitLabIssueConnection.EventTypes.includes(state.type)) {
-        //     return new GitLabIssueConnection(roomId, this.as, state.content, this.tokenStore);
-        // }
+
+        if (GitLabIssueConnection.EventTypes.includes(state.type)) {
+            if (!this.config.gitlab) {
+                throw Error('GitLab is not configured');
+            }
+            const instance = this.config.gitlab.instances[state.content.instance];
+            return new GitLabIssueConnection(
+                roomId,
+                this.as,
+                state.content,
+                state.state_key as string, 
+                this.tokenStore,
+                this.commentProcessor,
+                this.messageClient,
+                instance);
+        }
         return;
     }
 
@@ -88,8 +102,13 @@ export class GithubBridge {
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo));
     }
 
-    private getConnectionsForGitLabIssue(instance: string, repo: string, issueNumber: number) {
-        return this.connections.filter((c) => (c instanceof GitLabIssueConnection && c. && c.repo === repo));
+    private getConnectionsForGitLabIssue(instance: GitLabInstance, projects: string[], issueNumber: number) {
+        return this.connections.filter((c) => (
+            c instanceof GitLabIssueConnection &&
+            c.issueNumber == issueNumber &&
+            c.instanceUrl == instance.url &&
+            c.projectPath == projects.join("/")
+        ));
     }
 
     public stop() {
@@ -167,7 +186,8 @@ export class GithubBridge {
         this.queue.subscribe("issue.*");
         this.queue.subscribe("response.matrix.message");
         this.queue.subscribe("notifications.user.events");
-        this.queue.subscribe("merge_request.*")
+        this.queue.subscribe("merge_request.*");
+        this.queue.subscribe("gitlab.*");
 
         this.queue.on<IGitHubWebhookEvent>("comment.created", async (msg) => {
             const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
@@ -269,6 +289,19 @@ export class GithubBridge {
             }
             adminRoom.clearOauthState();
             await this.tokenStore.storeUserToken("github", adminRoom.userId, msg.data.access_token);
+        });
+
+        this.queue.on<IGitLabWebhookNoteEvent>("gitlab.note.created", async (msg) => {
+            console.log(msg);
+            // const connections = this.getConnectionsForGitLabIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+            // connections.map(async (c) => {
+            //     try {
+            //         if (c.onCommentCreated)
+            //             await c.onCommentCreated(msg.data);
+            //     } catch (ex) {
+            //         log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+            //     }
+            // })
         });
     
         // Fetch all room state
@@ -532,10 +565,13 @@ export class GithubBridge {
             const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
             this.connections.push(connection);
         });
-        adminRoom.on("open.gitlab-issue", async (project: GetIssueResponse) => {
-            let connection = this.getConnectionsForGitLabIssue()
-            const connection = await GitLabIssueConnection.on(project, this.as, adminRoom.userId);
-            this.connections.push(connection);
+        adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instance: GitLabInstance) => {
+            let [ connection ] = this.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue);
+            if (connection) {
+                return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+            }
+            // connection = await GitLabIssueConnection.createRoomForIssue(instance, res, this.as);
+            // this.connections.push(connection);
         });
         this.adminRooms.set(roomId, adminRoom);
         log.info(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);

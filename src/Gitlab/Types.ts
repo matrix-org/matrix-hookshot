@@ -85,6 +85,11 @@ export interface GetIssueResponse {
         state: 'active';
         avatar_url: string;
         web_url: string;
+    };
+    references: {
+        short: string;
+        relative: string;
+        full: string;
     }
     web_url: string;
 }

@@ -22,10 +22,9 @@ export interface BridgeConfigGitHub {
 }
 
 export interface GitLabInstance {
-    name: string;
     url: string;
     userTokens: {
-        [userId: string]: string[];
+        [userId: string]: string;
     }
     // oauth: {
     //     client_id: string;
@@ -42,7 +41,7 @@ interface BridgeConfigGitLab {
     webhook: {
         secret: string;
     },
-    instances: GitLabInstance[];
+    instances: {[name: string]: GitLabInstance};
 }
 
 export interface BridgeConfig {
