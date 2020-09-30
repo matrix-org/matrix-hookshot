@@ -5,15 +5,16 @@ import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../B
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
+import { GitLabInstance } from "../Config";
 
 export interface GitLabRepoConnectionState {
-    instance_url: string;
+    instance: string;
     org: string;
     repo: string;
     state: string;
 }
 
-const log = new LogWrapper("GitHubRepoConnection");
+const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
 /**
@@ -32,7 +33,8 @@ export class GitLabRepoConnection implements IConnection {
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private readonly state: GitLabRepoConnectionState,
-        private readonly tokenStore: UserTokenStore) {
+        private readonly tokenStore: UserTokenStore,
+        private readonly instance: GitLabInstance) {
 
     }
 
@@ -74,7 +76,7 @@ export class GitLabRepoConnection implements IConnection {
     @botCommand("gl create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     // @ts-ignore
     private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
-        const client = await this.tokenStore.getGitLabForUser(userId, this.state.instance_url);
+        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
             throw Error('Not logged in');
@@ -98,7 +100,7 @@ export class GitLabRepoConnection implements IConnection {
     @botCommand("gl close", "Close an issue", ["number"], ["comment"], true)
     // @ts-ignore
     private async onClose(userId: string, number: string, comment?: string) {
-        const client = await this.tokenStore.getGitLabForUser(userId, this.state.instance_url);
+        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
             throw Error('Not logged in');

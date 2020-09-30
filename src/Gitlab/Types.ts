@@ -1,4 +1,4 @@
-interface GetUserResponse {
+export interface GetUserResponse {
     id: number;
     username: string;
     email: string;
@@ -33,8 +33,14 @@ interface GetUserResponse {
     private_profile: boolean;
 }
 
+// hhttps://docs.gitlab.com/ee/api/issues.html#single-project-issue
+export interface GetIssueOpts {
+    projects: string[];
+    issue: number;
+}
+
 // https://docs.gitlab.com/ee/api/issues.html#new-issue
-interface CreateIssueOpts {
+export interface CreateIssueOpts {
     id: string|number;
     title: string;
     description?: string;
@@ -42,7 +48,7 @@ interface CreateIssueOpts {
     labels?: string[];
 }
 
-interface CreateIssueResponse {
+export interface CreateIssueResponse {
     state: string;
     id: string;
     iid: string;
@@ -50,7 +56,7 @@ interface CreateIssueResponse {
 }
 
 // https://docs.gitlab.com/ee/api/issues.html#new-issue
-interface EditIssueOpts {
+export interface EditIssueOpts {
     id: string|number;
     issue_iid: string|number;
     title?: string;
@@ -60,8 +66,25 @@ interface EditIssueOpts {
     state_event?: string;
 }
 
-interface CreateIssueResponse {
+export interface CreateIssueResponse {
     state: string;
     id: string;
+    web_url: string;
+}
+
+export interface GetIssueResponse {
+    id: number;
+    iid: number;
+    title: string;
+    description: string;
+    state: 'opened'|'closed';
+    author: {
+        id: number;
+        name: string;
+        username: string;
+        state: 'active';
+        avatar_url: string;
+        web_url: string;
+    }
     web_url: string;
 }

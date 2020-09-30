@@ -85,9 +85,12 @@ export class AdminRoom extends EventEmitter {
         return this.botIntent.underlyingClient.sendMessage(this.roomId, AdminRoom.helpMessage);
     }
 
-    @botCommand("setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
+    @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
     // @ts-ignore - property is used
     private async setGHPersonalAccessToken(accessToken: string) {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
         let me;
         try {
             const octokit = new Octokit({
@@ -104,25 +107,12 @@ export class AdminRoom extends EventEmitter {
         await this.tokenStore.storeUserToken("github", this.userId, accessToken);
     }
 
-    @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceUrl', 'accessToken'])
-    // @ts-ignore - property is used
-    private async setGitLabPersonalAccessToken(instanceUrl: string, accessToken: string) {
-        let me: GetUserResponse;
-        try {
-            const client = new GitLabClient(instanceUrl, accessToken);
-            me = await client.user();
-        } catch (ex) {
-            log.error("Gitlab auth error:", ex);
-            await this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
-            return;
-        }
-        await this.sendNotice(`Connected as ${me.username}. Token stored`);
-        await this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instanceUrl);
-    }
-
-    @botCommand("hastoken", "Check if you have a token stored for GitHub")
+    @botCommand("github hastoken", "Check if you have a token stored for GitHub")
     // @ts-ignore - property is used
     private async hasPersonalToken() {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
         const result = await this.tokenStore.getUserToken("github", this.userId);
         if (result === null) {
             await this.sendNotice("You do not currently have a token stored");
@@ -131,9 +121,12 @@ export class AdminRoom extends EventEmitter {
         await this.sendNotice("A token is stored for your GitHub account.");
     }
 
-    @botCommand("startoauth", "Start the OAuth process with GitHub")
+    @botCommand("github startoauth", "Start the OAuth process with GitHub")
     // @ts-ignore - property is used
     private async beginOAuth() {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
         // If this is already set, calling this command will invalidate the previous session.
         this.pendingOAuthState = uuid();
         const q = qs.stringify({
@@ -177,9 +170,12 @@ export class AdminRoom extends EventEmitter {
         await this.sendNotice(`${data.notifications.participating ? "En" : "Dis"}abled filtering for participating notifications`); 
     }
 
-    @botCommand("project list-for-user", "List GitHub projects for a user", [], ['user', 'repo'])
+    @botCommand("github project list-for-user", "List GitHub projects for a user", [], ['user', 'repo'])
     // @ts-ignore - property is used
     private async listProjects(username?: string, repo?: string) {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
             return this.sendNotice("You can not list projects without an account.");
@@ -215,9 +211,12 @@ export class AdminRoom extends EventEmitter {
         });
     }
 
-    @botCommand("project list-for-org", "List GitHub projects for an org", ['org'], ['repo'])
+    @botCommand("github project list-for-org", "List GitHub projects for an org", ['org'], ['repo'])
     // @ts-ignore - property is used
     private async listProjects(org: string, repo?: string) {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
             return this.sendNotice("You can not list projects without an account.");
@@ -248,9 +247,12 @@ export class AdminRoom extends EventEmitter {
         });
     }
 
-    @botCommand("project open", "Open a GitHub project as a room", [], ['projectId'])
+    @botCommand("github project open", "Open a GitHub project as a room", ['projectId'])
     // @ts-ignore - property is used
     private async openProject(projectId: string) {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
             return this.sendNotice("You can not list projects without an account.");
@@ -265,6 +267,55 @@ export class AdminRoom extends EventEmitter {
             log.warn(`Failed to fetch project:`, ex);
             return this.sendNotice(`Failed to fetch project due to an error. See logs for details`);
         }
+    }
+
+    /* GitLab commands */
+
+    @botCommand("gitlab open issue", "Open or join a issue room for GitLab", ['instanceName', 'projectParts', 'issueNumber'])
+    // @ts-ignore - property is used
+    private async gitLabOpenIssue(instanceName: string, projectParts: string, issueNumber: string) {
+        if (!this.config.gitlab) {
+            return this.sendNotice("The bridge is not configured with GitLab support");
+        }
+        const instance = this.config.gitlab.instances.find((i) => i.name === instanceName);
+        if (!instance) {
+            return this.sendNotice("The bridge is not configured for this GitLab instance");
+        }
+        const client = await this.tokenStore.getGitLabForUser(this.userId, instance.url);
+        if (!client) {
+            return this.sendNotice("You have not added a personal access token for GitLab");
+        }
+        // https://gitlab.com/Half-Shot/bridge-test/-/issues/1
+        const issue = await client.issues.get({
+            issue: parseInt(issueNumber),
+            projects: projectParts.split("/"),
+        });
+        this.emit('open.gitlab-issue', issue);
+
+    }
+
+    @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceName', 'accessToken'])
+    // @ts-ignore - property is used
+    private async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
+        let me: GetUserResponse;
+        if (!this.config.gitlab) {
+            return this.sendNotice("The bridge is not configured with GitLab support");
+        }
+        const instance = this.config.gitlab.instances.find((i) => i.name === instanceName);
+        if (!instance) {
+            return this.sendNotice("The bridge is not configured for this GitLab instance");
+        }
+        try {
+            const client = new GitLabClient(instance.url, accessToken);
+            me = await client.user();
+            client.issues
+        } catch (ex) {
+            log.error("Gitlab auth error:", ex);
+            await this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
+            return;
+        }
+        await this.sendNotice(`Connected as ${me.username}. Token stored`);
+        await this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
     }
 
     public async handleCommand(event_id: string, command: string) {

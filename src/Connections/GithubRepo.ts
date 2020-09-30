@@ -141,8 +141,7 @@ export class GitHubRepoConnection implements IConnection {
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private readonly state: GitHubRepoConnectionState,
-        private readonly tokenStore: UserTokenStore,
-        octokit: Octokit) {
+        private readonly tokenStore: UserTokenStore) {
 
     }
 

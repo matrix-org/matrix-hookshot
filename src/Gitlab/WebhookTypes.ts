@@ -4,6 +4,7 @@ export interface IGitLabWebhookEvent {
     event_type: string;    
     object_attributes: {
         action: string;
+        state: string;
     }
 }
 

@@ -1,6 +1,5 @@
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
 import { Octokit } from "@octokit/rest";
-import { createAppAuth } from "@octokit/auth-app";
 import { BridgeConfig } from "./Config";
 import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
@@ -11,7 +10,6 @@ import { UserTokenStore } from "./UserTokenStore";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
-import { promises as fs } from "fs";
 import { UserNotificationsEvent } from "./UserNotificationWatcher";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
@@ -23,12 +21,16 @@ import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
 import { GitLabRepoConnection } from "./Connections/GitlabRepo";
+import { GithubInstance } from "./Github/GithubInstance";
+import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
+import { GitLabIssueConnection } from "./Connections/GitlabIssue";
+import { GetIssueResponse } from "./Gitlab/Types"
 // import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
 
 const log = new LogWrapper("GithubBridge");
 
 export class GithubBridge {
-    private octokit!: Octokit;
+    private github?: GithubInstance;
     private as!: Appservice;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private commentProcessor!: CommentProcessor;
@@ -48,15 +50,31 @@ export class GithubBridge {
         }
 
         if (GitHubRepoConnection.EventTypes.includes(state.type)) {
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, this.octokit);
+            if (!this.github) {
+                throw Error('GitHub is not configured');
+            }
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore);
         }
 
         if (GitHubIssueConnection.EventTypes.includes(state.type)) {
-            return new GitHubIssueConnection(roomId, this.as, state.content, state.state_key || "", this.tokenStore, this.commentProcessor, this.messageClient, this.octokit);
+            if (!this.github) {
+                throw Error('GitHub is not configured');
+            }
+            return new GitHubIssueConnection(roomId, this.as, state.content, state.state_key || "", this.tokenStore, this.commentProcessor, this.messageClient, this.github);
         }
         if (GitLabRepoConnection.EventTypes.includes(state.type)) {
-            return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore);
+            if (!this.config.gitlab) {
+                throw Error('GitLab is not configured');
+            }
+            const instance = this.config.gitlab.instances.find((instance) => instance.name === state.content.instance);
+            if (!instance) {
+                throw Error('Instance name not recongnised');
+            }
+            return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore, instance);
         }
+        // if (GitLabIssueConnection.EventTypes.includes(state.type)) {
+        //     return new GitLabIssueConnection(roomId, this.as, state.content, this.tokenStore);
+        // }
         return;
     }
 
@@ -70,9 +88,9 @@ export class GithubBridge {
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo));
     }
 
-    // private getConnectionsForGitLabIssue(org: string, repo: string, issueNumber: number) {
-    //     return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.org === org && c.repo === repo));
-    // }
+    private getConnectionsForGitLabIssue(instance: string, repo: string, issueNumber: number) {
+        return this.connections.filter((c) => (c instanceof GitLabIssueConnection && c. && c.repo === repo));
+    }
 
     public stop() {
         this.as.stop();
@@ -84,25 +102,14 @@ export class GithubBridge {
         this.queue = createMessageQueue(this.config);
         this.messageClient = new MessageSenderClient(this.queue);
 
-        // TODO: Make this generic.
-        const auth = {
-            id: parseInt(this.config.github.auth.id as string, 10),
-            privateKey: await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
-            installationId: parseInt(this.config.github.installationId as string, 10),
-        };
+        if (!this.config.github && !this.config.gitlab) {
+            log.error("You haven't configured support for GitHub or GitLab!");
+            throw Error('Bridge cannot start -- no connectors are configured');
+        }
 
-        this.octokit = new Octokit({
-            authStrategy: createAppAuth,
-            auth,
-            userAgent: "matrix-github v0.0.1",
-        });
-
-        try {
-            await this.octokit.rateLimit.get();
-            log.info("Auth check success");
-        } catch (ex) {
-            log.info("Auth check failed:", ex);
-            throw Error("Attempting to verify GitHub authentication configration failed");
+        if (this.config.github) {
+            this.github = new GithubInstance(this.config.github);
+            await this.github.start();
         }
 
         let storage: IStorageProvider;
@@ -222,17 +229,18 @@ export class GithubBridge {
             })
         });
 
-        // this.queue.on<IGitLabWebhookMREvent>("merge_request.open", async (msg) => {
-        //     const connections = this.getConnectionsForGitLabIssue(msg.data.project.namespace, msg.data.repository!.name, msg.data.issue!.number);
-        //     connections.map(async (c) => {
-        //         try {
-        //             if (c.onIssueCreated)
-        //                 await c.onIssueStateChange(msg.data);
-        //         } catch (ex) {
-        //             log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
-        //         }
-        //     })
-        // });
+        this.queue.on<IGitLabWebhookMREvent>("merge_request.open", async (msg) => {
+            console.log(msg);
+            // const connections = this.(msg.data.project.namespace, msg.data.repository!.name, msg.data.issue!.number);
+            // connections.map(async (c) => {
+            //     try {
+            //         if (c.onIssueCreated)
+            //             await c.onIssueStateChange(msg.data);
+            //     } catch (ex) {
+            //         log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+            //     }
+            // })
+        });
 
         this.queue.on<UserNotificationsEvent>("notifications.user.events", async (msg) => {
             const adminRoom = this.adminRooms.get(msg.data.roomId);
@@ -282,7 +290,12 @@ export class GithubBridge {
         if (this.config.bot) {
             // Ensure we are registered before we set a profile
             await this.as.botIntent.ensureRegistered();
-            const profile = await this.as.botClient.getUserProfile(this.as.botUserId);
+            let profile;
+            try {
+                profile = await this.as.botClient.getUserProfile(this.as.botUserId);
+            } catch {
+                profile = {}
+            }
             if (this.config.bot.avatar && profile.avatar_url !== this.config.bot.avatar) {
                 log.info(`Setting avatar to ${this.config.bot.avatar}`);
                 await this.as.botClient.setAvatarUrl(this.config.bot.avatar);
@@ -438,13 +451,16 @@ export class GithubBridge {
         let res: RegExpExecArray | null;
         res = GitHubIssueConnection.QueryRoomRegex.exec(roomAlias);
         if (res) {
+            if (!this.github) {
+                throw Error("GitHub is not configured on this bridge");
+            }
             try {
                 return await GitHubIssueConnection.onQueryRoom(res, {
                     as: this.as,
                     tokenStore: this.tokenStore,
                     messageClient: this.messageClient,
                     commentProcessor: this.commentProcessor,
-                    octokit: this.octokit,
+                    octokit: this.github.octokit,
                 });
             } catch (ex) {
                 log.error(`Could not handle alias with GitHubIssueConnection`, ex);
@@ -454,13 +470,16 @@ export class GithubBridge {
 
         res = GitHubRepoConnection.QueryRoomRegex.exec(roomAlias);
         if (res) {
+            if (!this.github) {
+                throw Error("GitHub is not configured on this bridge");
+            }
             try {
                 return await GitHubRepoConnection.onQueryRoom(res, {
                     as: this.as,
                     tokenStore: this.tokenStore,
                     messageClient: this.messageClient,
                     commentProcessor: this.commentProcessor,
-                    octokit: this.octokit,
+                    octokit: this.github.octokit,
                 });
             } catch (ex) {
                 log.error(`Could not handle alias with GitHubRepoConnection`, ex);
@@ -511,6 +530,11 @@ export class GithubBridge {
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: Octokit.ProjectsGetResponse) => {
             const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+            this.connections.push(connection);
+        });
+        adminRoom.on("open.gitlab-issue", async (project: GetIssueResponse) => {
+            let connection = this.getConnectionsForGitLabIssue()
+            const connection = await GitLabIssueConnection.on(project, this.as, adminRoom.userId);
             this.connections.push(connection);
         });
         this.adminRooms.set(roomId, adminRoom);

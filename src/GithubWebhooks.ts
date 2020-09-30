@@ -77,10 +77,10 @@ export class GithubWebhooks extends EventEmitter {
 
     public listen() {
         this.server = this.expressApp.listen(
-            this.config.github.webhook.port,
-            this.config.github.webhook.bindAddress,
+            this.config.webhook.port,
+            this.config.webhook.bindAddress,
         );
-        log.info(`Listening on http://${this.config.github.webhook.bindAddress}:${this.config.github.webhook.port}`)
+        log.info(`Listening on http://${this.config.webhook.bindAddress}:${this.config.webhook.port}`)
         this.userNotificationWatcher.start();
     }
 
@@ -109,8 +109,11 @@ export class GithubWebhooks extends EventEmitter {
     }
 
     private onGitLabPayload(body: IGitLabWebhookEvent) {
+        log.debug(`onGitLabPayload ${body.event_type}:`, body);
         if (body.event_type === "merge_request") {
-            return `merge_request.${body.object_attributes.action}`;
+            return `gitlab.merge_request.${body.object_attributes.action}`;
+        } else if (body.event_type === "issue") {
+            return `gitlab.issue.${body.object_attributes.action}`;
         }
         return null;
     }
@@ -145,6 +148,9 @@ export class GithubWebhooks extends EventEmitter {
     public async onGetOauth(req: Request, res: Response) {
         log.info("Got new oauth request");
         try {
+            if (!this.config.github) {
+                throw Error("Got GitHub oauth request but github was not configured!");
+            }
             const exists = await this.queue.pushWait<IOAuthRequest, boolean>({
                 eventName: "oauth.response",
                 sender: "GithubWebhooks",
@@ -179,6 +185,9 @@ export class GithubWebhooks extends EventEmitter {
 
     // Calculate the X-Hub-Signature header value.
     private getSignature(buf: Buffer) {
+        if (!this.config.github) {
+            throw Error("Got GitHub oauth request but github was not configured!");
+        }
         const hmac = createHmac("sha1", this.config.github.webhook.secret);
         hmac.update(buf);
         return "sha1=" + hmac.digest("hex");

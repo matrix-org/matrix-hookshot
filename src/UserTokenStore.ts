@@ -22,20 +22,17 @@ export class UserTokenStore {
         this.key = await fs.readFile(this.keyPath);
     }
 
-    public async storeUserToken(type: "github"|"gitlab", userId: string, token: string, instanceUrl?: string): Promise<void> {
+    public async storeUserToken(type: "github"|"gitlab", userId: string, token: string, instance?: string): Promise<void> {
         let prefix = type === "github" ?  ACCOUNT_DATA_TYPE : ACCOUNT_DATA_GITLAB_TYPE;
-        if (instanceUrl) {
-            prefix += instanceUrl;
-        }
         await this.intent.underlyingClient.setAccountData(`${prefix}${userId}`, {
             encrypted: publicEncrypt(this.key, Buffer.from(token)).toString("base64"),
-            instance_url: instanceUrl,
+            instance: instance,
         });
         this.userTokens.set(userId, token);
         log.info(`Stored new ${type} token for ${userId}`);
     }
 
-    public async getUserToken(type: "github"|"gitlab", userId: string, instanceUrl?: string): Promise<string|null> {
+    public async getUserToken(type: "github"|"gitlab", userId: string, instance?: string): Promise<string|null> {
         if (this.userTokens.has(userId)) {
             return this.userTokens.get(userId)!;
         }
@@ -44,7 +41,7 @@ export class UserTokenStore {
             if (type === "github") {
                 obj = await this.intent.underlyingClient.getAccountData(`${ACCOUNT_DATA_TYPE}${userId}`);
             } else if (type === "gitlab") {
-                obj = await this.intent.underlyingClient.getAccountData(`${ACCOUNT_DATA_GITLAB_TYPE}${instanceUrl}${userId}`);
+                obj = await this.intent.underlyingClient.getAccountData(`${ACCOUNT_DATA_GITLAB_TYPE}${instance}${userId}`);
             }
             const encryptedTextB64 = obj.encrypted;
             const encryptedText = Buffer.from(encryptedTextB64, "base64");

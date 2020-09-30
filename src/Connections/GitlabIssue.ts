@@ -11,17 +11,18 @@ import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import axios from "axios";
-import { GithubInstance } from "../Github/GithubInstance";
+import { GitLabInstance } from "../Config";
 
-export interface GitHubIssueConnectionState {
-    org: string;
+export interface GitLabIssueConnectionState {
+    instance: string;
+    projects: string[];
     repo: string;
     state: string;
     issues: string[];
     comments_processed: number;
 }
 
-const log = new LogWrapper("GitHubIssueConnection");
+const log = new LogWrapper("GitLabIssueConnection");
 const md = new markdown();
 
 interface IQueryRoomOpts {
@@ -35,14 +36,14 @@ interface IQueryRoomOpts {
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubIssueConnection implements IConnection {
+export class GitLabIssueConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-github.bridge";
 
     static readonly EventTypes = [
-        GitHubIssueConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitLabIssueConnection.CanonicalEventType, // Legacy event, with an awful name.
     ];
 
-    static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
+    static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<any> {
         const parts = result!.slice(1);
@@ -112,7 +113,7 @@ export class GitHubIssueConnection implements IConnection {
                         issues: [String(issue.number)],
                         comments_processed: -1,
                         state: "open",
-                    } as GitHubIssueConnectionState,
+                    } as GitLabIssueConnectionState,
                     state_key: issue.url,
                 },
                 avatarUrl,
@@ -120,17 +121,21 @@ export class GitHubIssueConnection implements IConnection {
         };
     }
 
+    public get instanceName() {
+        return this.instance.name;
+    }
+
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
-        private state: GitHubIssueConnectionState,
+        private state: GitLabIssueConnectionState,
         private readonly stateKey: string,
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
-        private github: GithubInstance) { }
+        private instance: GitLabInstance) { }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
-        return GitHubIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
+        return GitLabIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
     public get issueNumber() {
@@ -154,7 +159,7 @@ export class GitHubIssueConnection implements IConnection {
                 return;
             }
         }
-        const commentIntent = await getIntentForUser(comment.user, this.as, this.github.octokit);
+        const commentIntent = await getIntentForUser(comment.user, this.as, this.octokit);
         const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment, event.repository, event.issue);
 
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
@@ -164,7 +169,7 @@ export class GitHubIssueConnection implements IConnection {
         this.state.comments_processed++;
         await this.as.botIntent.underlyingClient.sendStateEvent(
             this.roomId,
-            GitHubIssueConnection.CanonicalEventType,
+            GitLabIssueConnection.CanonicalEventType,
             this.stateKey,
             this.state,
         );
@@ -172,7 +177,7 @@ export class GitHubIssueConnection implements IConnection {
 
     private async syncIssueState() {
         log.debug("Syncing issue state for", this.roomId);
-        const issue = await this.github.octokit.issues.get({
+        const issue = await this.octokit.issues.get({
             owner: this.state.org,
             repo: this.state.repo,
             issue_number: this.issueNumber,
@@ -180,7 +185,7 @@ export class GitHubIssueConnection implements IConnection {
 
         if (this.state.comments_processed === -1) {
             // This has a side effect of creating a profile for the user.
-            const creator = await getIntentForUser(issue.data.user, this.as, this.github.octokit);
+            const creator = await getIntentForUser(issue.data.user, this.as, this.octokit);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
                 await this.messageClient.sendMatrixMessage(this.roomId, {
@@ -199,7 +204,7 @@ export class GitHubIssueConnection implements IConnection {
         }
 
         if (this.state.comments_processed !== issue.data.comments) {
-            const comments = (await this.github.octokit.issues.listComments({
+            const comments = (await this.octokit.issues.listComments({
                 owner: this.state.org,
                 repo: this.state.repo,
                 issue_number: this.issueNumber,
@@ -234,7 +239,7 @@ export class GitHubIssueConnection implements IConnection {
 
         await this.as.botIntent.underlyingClient.sendStateEvent(
             this.roomId,
-            GitHubIssueConnection.CanonicalEventType,
+            GitLabIssueConnection.CanonicalEventType,
             this.stateKey,
             this.state,
         );
