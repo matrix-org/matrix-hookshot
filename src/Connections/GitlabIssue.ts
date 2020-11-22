@@ -15,6 +15,7 @@ export interface GitLabIssueConnectionState {
     projects: string[];
     state: string;
     issue: number;
+    // eslint-disable-next-line camelcase
     comments_processed: number;
 }
 
@@ -44,7 +45,7 @@ export class GitLabIssueConnection implements IConnection {
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
 
     public static createRoomForIssue() {
-
+        // Fill me in
     }
 
     public get projectPath() {
@@ -169,7 +170,7 @@ export class GitLabIssueConnection implements IConnection {
     // }
 
 
-    public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho: boolean = false) {
+    public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
 
         console.log(this.messageClient, this.commentProcessor);
         const clientKit = await this.tokenStore.getGitLabForUser(event.sender, this.instanceUrl);
@@ -203,23 +204,11 @@ export class GitLabIssueConnection implements IConnection {
             return; // No changes made.
         }
 
-        if (event.changes.title) {
+        if (event.issue && event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
-                name: FormatUtil.formatIssueRoomName(event.issue!),
+                name: FormatUtil.formatIssueRoomName(event.issue),
             });
         }
-    }
-
-    // public onIssueStateChange(event: IGitHubWebhookEvent) {
-    //     return this.syncIssueState();
-    // }
-
-    public async onEvent() {
-
-    }
-
-    public async onStateUpdate() {
-
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {

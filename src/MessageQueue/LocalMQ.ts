@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./MessageQueue";
 import micromatch from "micromatch";
-import uuid from "uuid/v4";
+import {v4 as uuid} from "uuid";
 
 export class LocalMQ extends EventEmitter implements MessageQueue {
     private subs: Set<string>;
@@ -30,7 +30,6 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
 
     public async pushWait<T, X>(message: MessageQueueMessage<T>,
                                 timeout: number = DEFAULT_RES_TIMEOUT): Promise<X> {
-        let awaitResponse: (response: MessageQueueMessage<X>) => void;
         let resolve: (value: X) => void;
         let timer: NodeJS.Timer;
 
@@ -41,7 +40,7 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
             }, timeout);
         });
 
-        awaitResponse = (response: MessageQueueMessage<X>) => {
+        const awaitResponse = (response: MessageQueueMessage<X>) => {
             if (response.messageId === message.messageId) {
                 clearTimeout(timer);
                 this.removeListener(`response.${message.eventName}`, awaitResponse);
@@ -53,6 +52,4 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
         this.push(message);
         return p;
     }
-
-    public stop() { }
 }

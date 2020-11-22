@@ -1,3 +1,15 @@
+/* eslint-disable camelcase */
+export interface GitLabAuthor {
+    author: {
+        id: number;
+        name: string;
+        username: string;
+        state: 'active';
+        avatar_url: string;
+        web_url: string;
+    };
+}
+
 export interface GetUserResponse {
     id: number;
     username: string;
@@ -78,18 +90,41 @@ export interface GetIssueResponse {
     title: string;
     description: string;
     state: 'opened'|'closed';
-    author: {
-        id: number;
-        name: string;
-        username: string;
-        state: 'active';
-        avatar_url: string;
-        web_url: string;
-    };
+    author: GitLabAuthor;
     references: {
         short: string;
         relative: string;
         full: string;
     }
     web_url: string;
+}
+
+export interface GetTodosResponse {
+    id: number;
+    author: GitLabAuthor;
+    action_name: string;
+    project: {
+        id: number;
+        name: string;
+        name_with_namespace: string;
+        path: string;
+        path_with_namespace: string;
+    };
+    target: {
+        title: string;
+        description: string;
+        state: 'opened'|'closed';
+        assignee: {
+            name: string;
+            username: string;
+            id: 1;
+            state: "active";
+            avatar_url: string;
+            web_url: string;
+        }
+    }
+    target_url: string;
+    body: string;
+    created_at: string;
+    updated_at: string;
 }

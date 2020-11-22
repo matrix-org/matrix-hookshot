@@ -1,3 +1,4 @@
+import { IssuesGetResponseData } from "@octokit/types";
 import { Redis, default as redis } from "ioredis";
 import LogWrapper from "../LogWrapper";
 
@@ -20,7 +21,7 @@ export class RedisStorageProvider implements IStorageProvider {
     constructor(host: string, port: number) {
         this.redis = new redis(port, host);
         this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER).catch((ex) => {
-            log.warn("Failed to set expiry time on as.completed_transactions");
+            log.warn("Failed to set expiry time on as.completed_transactions", ex);
         });
     }
 
@@ -40,35 +41,35 @@ export class RedisStorageProvider implements IStorageProvider {
         return (await this.redis.sismember(COMPLETED_TRANSACTIONS_KEY, transactionId)) === 1;
     }
 
-    public async setGithubIssue(repo: string, issueNumber: string, data: any, scope: string = "") {
+    public async setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope = "") {
         const key = `${scope}${GH_ISSUES_KEY}:${repo}/${issueNumber}`;
         await this.redis.set(key, JSON.stringify(data));
         await this.redis.expire(key, ISSUES_EXPIRE_AFTER);
     }
 
-    public async getGithubIssue(repo: string, issueNumber: string, scope: string = "") {
+    public async getGithubIssue(repo: string, issueNumber: string, scope = "") {
         const res = await this.redis.get(`${scope}:${GH_ISSUES_KEY}:${repo}/${issueNumber}`);
         return res ? JSON.parse(res) : null;
     }
 
-    public async setLastNotifCommentUrl(repo: string, issueNumber: string, url: string, scope: string = "") {
+    public async setLastNotifCommentUrl(repo: string, issueNumber: string, url: string, scope = "") {
         const key = `${scope}${GH_ISSUES_LAST_COMMENT_KEY}:${repo}/${issueNumber}`;
         await this.redis.set(key, url);
         await this.redis.expire(key, ISSUES_LAST_COMMENT_EXPIRE_AFTER);
     }
 
-    public async getLastNotifCommentUrl(repo: string, issueNumber: string, scope: string = "") {
+    public async getLastNotifCommentUrl(repo: string, issueNumber: string, scope = "") {
         const res = await this.redis.get(`${scope}:${GH_ISSUES_LAST_COMMENT_KEY}:${repo}/${issueNumber}`);
         return res ? res : null;
     }
 
-    public async setPRReviewData(repo: string, issueNumber: string, url: string, scope: string = "") {
+    public async setPRReviewData(repo: string, issueNumber: string, url: string, scope = "") {
         const key = `${scope}${GH_ISSUES_REVIEW_DATA_KEY}:${repo}/${issueNumber}`;
         await this.redis.set(key, url);
         await this.redis.expire(key, ISSUES_LAST_COMMENT_EXPIRE_AFTER);
     }
 
-    public async getPRReviewData(repo: string, issueNumber: string, scope: string = "") {
+    public async getPRReviewData(repo: string, issueNumber: string, scope = "") {
         const res = await this.redis.get(`${scope}:${GH_ISSUES_REVIEW_DATA_KEY}:${repo}/${issueNumber}`);
         return res ? res : null;
     }

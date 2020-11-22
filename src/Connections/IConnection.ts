@@ -6,11 +6,11 @@ export interface IConnection {
     /**
      * When a room gets an update to it's state.
      */
-    onStateUpdate: (ev: any) => Promise<void>;
+    onStateUpdate?: (ev: MatrixEvent<unknown>) => Promise<void>;
     /**
      * When a room gets any event
      */
-    onEvent: (ev: MatrixEvent<unknown>) => Promise<void>;
+    onEvent?: (ev: MatrixEvent<unknown>) => Promise<void>;
 
     /**
      * When a room gets a message event

@@ -1,11 +1,11 @@
 import markdown from "markdown-it";
-// @ts-ignore
-import argvSplit from "argv-split";
+import stringArgv from "string-argv";
+import { MatrixMessageContent } from "./MatrixEvent";
 
 const md = new markdown();
 
 export const botCommandSymbol = Symbol("botCommandMetadata");
-export function botCommand(prefix: string, help: string, requiredArgs: string[] = [], optionalArgs: string[] = [], includeUserId: boolean = false) {
+export function botCommand(prefix: string, help: string, requiredArgs: string[] = [], optionalArgs: string[] = [], includeUserId = false) {
     return Reflect.metadata(botCommandSymbol, {
         prefix,
         help,
@@ -15,21 +15,23 @@ export function botCommand(prefix: string, help: string, requiredArgs: string[] 
     });
 }
 
+type BotCommandFunction = (...args: string[]) => Promise<{status: boolean}>;
+
 export type BotCommands = {[prefix: string]: {
-    fn: (...args: string[]) => Promise<{status: boolean}>,
+    fn: BotCommandFunction,
     requiredArgs: string[],
     optionalArgs: string[],
     includeUserId: boolean,
 }};
 
-export function compileBotCommands(prototype: any): {helpMessage: any, botCommands: BotCommands} {
+export function compileBotCommands(prototype: Record<string, BotCommandFunction>): {helpMessage: MatrixMessageContent, botCommands: BotCommands} {
     let content = "Commands:\n";
-    let botCommands: BotCommands = {};
+    const botCommands: BotCommands = {};
     Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
         const b = Reflect.getMetadata(botCommandSymbol, prototype, propetyKey);
         if (b) {
-            const requiredArgs = b.requiredArgs.join((arg: string) =>  `__${arg}__`);
-            const optionalArgs = b.optionalArgs.join((arg: string) =>  `\[${arg}\]`);
+            const requiredArgs = b.requiredArgs.join(" ");
+            const optionalArgs = b.optionalArgs.map((arg: string) =>  `[${arg}]`).join(" ");
             content += ` - \`${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}\n`;
             // We know that this is safe.
             botCommands[b.prefix as string] = {
@@ -51,8 +53,8 @@ export function compileBotCommands(prototype: any): {helpMessage: any, botComman
     }
 }
 
-export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: any): Promise<{error?: string, handled?: boolean}> {
-    const parts = argvSplit(command);
+export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: unknown): Promise<{error?: string, handled?: boolean}> {
+    const parts = stringArgv(command);
     for (let i = parts.length; i > 0; i--) {
         const prefix = parts.slice(0, i).join(" ").toLowerCase();
         // We have a match!

@@ -1,5 +1,5 @@
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
-import { Octokit } from "@octokit/rest";
+import { ProjectsGetResponseData } from "@octokit/types";
 import { BridgeConfig, GitLabInstance } from "./Config";
 import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
@@ -10,7 +10,7 @@ import { UserTokenStore } from "./UserTokenStore";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
-import { UserNotificationsEvent } from "./UserNotificationWatcher";
+import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { NotificationProcessor } from "./NotificationsProcessor";
@@ -113,7 +113,7 @@ export class GithubBridge {
 
     public stop() {
         this.as.stop();
-        this.queue.stop();
+        if(this.queue.stop) this.queue.stop();
     }
 
     public async start() {
@@ -189,60 +189,75 @@ export class GithubBridge {
         this.queue.subscribe("merge_request.*");
         this.queue.subscribe("gitlab.*");
 
-        this.queue.on<IGitHubWebhookEvent>("comment.created", async (msg) => {
-            const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+        const validateRepoIssue = (data: IGitHubWebhookEvent) => {
+            if (!data.repository || !data.issue) {
+                throw Error("Malformed webhook event, missing repository or issue");
+            }
+            return {
+                repository: data.repository,
+                issue: data.issue,
+            };
+        }
+
+        this.queue.on<IGitHubWebhookEvent>("comment.created", async ({ data }) => {
+            const { repository, issue } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c.onCommentCreated)
-                        await c.onCommentCreated(msg.data);
+                        await c.onCommentCreated(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
             })
         });
 
-        this.queue.on<IGitHubWebhookEvent>("issue.opened", async (msg) => {
-            const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+        this.queue.on<IGitHubWebhookEvent>("issue.opened", async ({ data }) => {
+            const { repository, issue } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c.onIssueCreated)
-                        await c.onIssueCreated(msg.data);
+                        await c.onIssueCreated(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
             })
         });
 
-        this.queue.on<IGitHubWebhookEvent>("issue.edited", async (msg) => {
-            const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+        this.queue.on<IGitHubWebhookEvent>("issue.edited", async ({ data }) => {
+            const { repository, issue } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c.onIssueEdited)
-                        await c.onIssueEdited(msg.data);
+                        await c.onIssueEdited(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
             })
         });
 
-        this.queue.on<IGitHubWebhookEvent>("issue.closed", async (msg) => {
-            const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+        this.queue.on<IGitHubWebhookEvent>("issue.closed", async ({ data }) => {
+            const { repository, issue } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c.onIssueStateChange)
-                        await c.onIssueStateChange(msg.data);
+                        await c.onIssueStateChange(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
             })
         });
 
-        this.queue.on<IGitHubWebhookEvent>("issue.reopened", async (msg) => {
-            const connections = this.getConnectionsForGithubIssue(msg.data.repository!.owner.login, msg.data.repository!.name, msg.data.issue!.number);
+        this.queue.on<IGitHubWebhookEvent>("issue.reopened", async ({ data }) => {
+            const { repository, issue } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c.onIssueStateChange)
-                        await c.onIssueStateChange(msg.data);
+                        await c.onIssueStateChange(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
@@ -305,13 +320,12 @@ export class GithubBridge {
         });
     
         // Fetch all room state
-        let joinedRooms: string[];
-        while(true) {
+        let joinedRooms: string[]|undefined;
+        while(joinedRooms === undefined) {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
                 joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
                 log.info(`Found ${joinedRooms.length} rooms`);
-                break;
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
                 log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
@@ -428,14 +442,17 @@ export class GithubBridge {
             }
 
             const command = event.content.body;
-            if (command) {
-                await this.adminRooms.get(roomId)!.handleCommand(event.event_id, command);
+            const adminRoom = this.adminRooms.get(roomId);
+            if (command && adminRoom) {
+                await adminRoom.handleCommand(event.event_id, command);
             }
         }
 
-        for (const connection of this.connections.filter((c) => c.roomId === roomId && c.onMessageEvent)) {
+        for (const connection of this.connections.filter((c) => c.roomId === roomId)) {
             try {
-                await connection.onMessageEvent!(event);
+                if (connection.onMessageEvent) {
+                    await connection.onMessageEvent(event);
+                }
             } catch (ex) {
                 log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
             }
@@ -461,7 +478,7 @@ export class GithubBridge {
         if (event.state_key) {
             // A state update, hurrah!
             const existingConnection = this.connections.find((c) => c.roomId === roomId && c.isInterestedInStateEvent(event.type, event.state_key || ""));
-            if (existingConnection) {
+            if (existingConnection?.onStateUpdate) {
                 existingConnection.onStateUpdate(event);
             } else {
                 // Is anyone interested in this state?
@@ -475,7 +492,7 @@ export class GithubBridge {
         }
 
         // Alas, it's just an event.
-        return this.connections.filter((c) => c.roomId === roomId).map((c) => c.onEvent(event))
+        return this.connections.filter((c) => c.roomId === roomId).map((c) => c.onEvent ? c.onEvent(event) : undefined);
     }
 
     private async onQueryRoom(roomAlias: string) {
@@ -535,11 +552,13 @@ export class GithubBridge {
                     eventName: "notifications.user.enable",
                     sender: "GithubBridge",
                     data: {
-                        user_id: adminRoom.userId,
-                        room_id: adminRoom.roomId,
+                        userId: adminRoom.userId,
+                        roomId: adminRoom.roomId,
                         token,
                         since: await adminRoom.getNotifSince(),
-                        filter_participating: adminRoom.notificationsParticipating,
+                        filterParticipating: adminRoom.notificationsParticipating,
+                        type: "github",
+                        instanceUrl: undefined,
                     },
                 });
             } else {
@@ -550,7 +569,9 @@ export class GithubBridge {
                 eventName: "notifications.user.disable",
                 sender: "GithubBridge",
                 data: {
-                    user_id: adminRoom.userId,
+                    userId: adminRoom.userId,
+                    type: "github",
+                    instanceUrl: undefined,
                 },
             });
         }
@@ -561,12 +582,12 @@ export class GithubBridge {
             roomId, accountData, this.as.botIntent, this.tokenStore, this.config,
         );
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
-        adminRoom.on("open.project", async (project: Octokit.ProjectsGetResponse) => {
+        adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
             const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
             this.connections.push(connection);
         });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instance: GitLabInstance) => {
-            let [ connection ] = this.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue);
+            const [ connection ] = this.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue);
             if (connection) {
                 return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
             }

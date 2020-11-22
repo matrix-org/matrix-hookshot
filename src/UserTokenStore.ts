@@ -2,9 +2,8 @@ import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
-import { Octokit } from "@octokit/rest";
-import { createTokenAuth } from "@octokit/auth-token";
 import { GitLabClient } from "./Gitlab/Client";
+import { GithubInstance } from "./Github/GithubInstance";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
@@ -23,7 +22,7 @@ export class UserTokenStore {
     }
 
     public async storeUserToken(type: "github"|"gitlab", userId: string, token: string, instance?: string): Promise<void> {
-        let prefix = type === "github" ?  ACCOUNT_DATA_TYPE : ACCOUNT_DATA_GITLAB_TYPE;
+        const prefix = type === "github" ?  ACCOUNT_DATA_TYPE : ACCOUNT_DATA_GITLAB_TYPE;
         await this.intent.underlyingClient.setAccountData(`${prefix}${userId}`, {
             encrypted: publicEncrypt(this.key, Buffer.from(token)).toString("base64"),
             instance: instance,
@@ -33,8 +32,9 @@ export class UserTokenStore {
     }
 
     public async getUserToken(type: "github"|"gitlab", userId: string, instance?: string): Promise<string|null> {
-        if (this.userTokens.has(userId)) {
-            return this.userTokens.get(userId)!;
+        const existingToken = this.userTokens.get(userId);
+        if (existingToken) {
+            return existingToken;
         }
         let obj;
         try {
@@ -61,11 +61,7 @@ export class UserTokenStore {
         if (!senderToken) {
             return null;
         }
-        return new Octokit({
-            authStrategy: createTokenAuth,
-            auth: senderToken,
-            userAgent: "matrix-github v0.0.1",
-        });
+        return GithubInstance.createUserOctokit(senderToken);
     }
 
     public async getGitLabForUser(userId: string, instanceUrl: string) {

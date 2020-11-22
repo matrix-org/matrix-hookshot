@@ -1,9 +1,10 @@
 import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { Octokit } from "@octokit/rest";
+import { ProjectsGetResponseData } from "@octokit/types";
 
 export interface GitHubProjectConnectionState {
+    // eslint-disable-next-line camelcase
     project_id: number;
     state: "open"|"closed";
 }
@@ -20,7 +21,7 @@ export class GitHubProjectConnection implements IConnection {
         GitHubProjectConnection.CanonicalEventType, // Legacy event, with an awful name.
     ];
 
-    static async onOpenProject(project: Octokit.ProjectsGetResponse, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {
+    static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {
         log.info(`Fetching ${project.name} ${project.id}`);
 
         // URL hack so we don't need to fetch the repo itself.
@@ -55,14 +56,6 @@ export class GitHubProjectConnection implements IConnection {
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
-    }
-
-    public async onEvent() {
-
-    }
-
-    public async onStateUpdate() {
-
     }
 
     public toString() {

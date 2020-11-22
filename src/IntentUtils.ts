@@ -4,7 +4,7 @@ import { Appservice } from "matrix-bot-sdk";
 
 const log = new LogWrapper("IntentUtils");
 
-export async function getIntentForUser(user: Octokit.IssuesGetResponseUser, as: Appservice, octokit: Octokit) {
+export async function getIntentForUser(user: {avatar_url?: string, login: string}, as: Appservice, octokit: Octokit) {
     const intent = as.getIntentForSuffix(user.login);
     const displayName = `${user.login}`;
     // Verify up-to-date profile

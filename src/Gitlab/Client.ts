@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts } from "./Types";
+import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse } from "./Types";
 export class GitLabClient {
     constructor(private instanceUrl: string, private token: string) {
 
@@ -35,6 +35,10 @@ export class GitLabClient {
 
     private async editIssue(opts: EditIssueOpts): Promise<CreateIssueResponse> {
         return (await axios.put(`${this.instanceUrl}/api/v4/projects/${opts.id}/issues/${opts.issue_iid}`, opts, this.defaultConfig)).data;
+    }
+
+    public async getTodos() {
+        return (await axios.get(`${this.instanceUrl}/api/v4/todos`, this.defaultConfig)).data as GetTodosResponse[];
     }
 
     get issues() {

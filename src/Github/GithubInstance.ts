@@ -1,10 +1,13 @@
 import { createAppAuth } from "@octokit/auth-app";
+import { createTokenAuth } from "@octokit/auth-token";
 import { Octokit } from "@octokit/rest";
 import { promises as fs } from "fs";
 import { BridgeConfigGitHub } from "../Config";
 import LogWrapper from "../LogWrapper";
 
 const log = new LogWrapper("GithubInstance");
+
+const USER_AGENT = "matrix-github v0.0.1";
 
 export class GithubInstance {
     private internalOctokit!: Octokit;
@@ -15,6 +18,14 @@ export class GithubInstance {
 
     constructor (private config: BridgeConfigGitHub) {
 
+    }
+
+    public static createUserOctokit(token: string) {
+        return new Octokit({
+            authStrategy: createTokenAuth,
+            auth: token,
+            userAgent: USER_AGENT,
+        });
     }
 
     public async start() {
@@ -28,7 +39,7 @@ export class GithubInstance {
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
-            userAgent: "matrix-github v0.0.1",
+            userAgent: USER_AGENT,
         });
 
         try {

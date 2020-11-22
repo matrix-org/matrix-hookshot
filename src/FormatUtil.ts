@@ -1,4 +1,4 @@
-import { Octokit } from "@octokit/rest";
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListForOrgResponseData, ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
 
 interface IMinimalRepository {
     id: number;
@@ -36,7 +36,7 @@ export class FormatUtil {
         };
     }
 
-    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: Octokit.IssuesGetResponse) {
+    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: IssuesGetResponseData) {
         return {
             ...FormatUtil.getPartialBodyForRepo(repo),
             "external_url": issue.html_url,
@@ -50,9 +50,9 @@ export class FormatUtil {
         };
     }
 
-    public static getPartialBodyForComment(comment: Octokit.IssuesGetCommentResponse,
+    public static getPartialBodyForComment(comment: IssuesGetCommentResponseData,
                                            repo?: IMinimalRepository,
-                                           issue?: Octokit.IssuesGetResponse) {
+                                           issue?: IssuesGetResponseData) {
         return {
             ...(issue && repo ? FormatUtil.getPartialBodyForIssue(repo, issue) : undefined),
             "external_url": comment.html_url,
@@ -62,7 +62,7 @@ export class FormatUtil {
         };
     }
 
-    public static projectListing(projectItem: Octokit.ProjectsListForOrgResponseItem|Octokit.ProjectsListForUserResponseItem|Octokit.ProjectsListForRepoResponseItem) {
-        return `${projectItem.name} (#${projectItem.number}) - Project ID: ${projectItem.id}`
+    public static projectListing(projectItem: ProjectsListForOrgResponseData|ProjectsListForUserResponseData|ProjectsListForRepoResponseData) {
+        return `${projectItem[0].name} (#${projectItem[0].number}) - Project ID: ${projectItem[0].id}`
     }
 }

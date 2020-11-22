@@ -3,7 +3,7 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { MatrixEventContent, MatrixMessageContent } from "./MatrixEvent";
 import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
 import LogWrapper from "./LogWrapper";
-
+import { v4 as uuid } from "uuid";
 export interface IMatrixSendMessage {
     sender: string|null;
     type: string;
@@ -35,7 +35,7 @@ export class MatrixSender {
         this.mq.subscribe("matrix.message");
         this.mq.on<IMatrixSendMessage>("matrix.message", async (msg) => {
             try {
-                await this.sendMatrixMessage(msg.messageId!, msg.data);
+                await this.sendMatrixMessage(msg.messageId || uuid(), msg.data);
             } catch (ex) {
                 log.error(`Failed to send message (${msg.data.roomId}, ${msg.data.sender}, ${msg.data.type})`);
             }
@@ -43,7 +43,9 @@ export class MatrixSender {
     }
 
     public stop() {
-        this.mq.stop();
+        if (this.mq.stop) {
+            this.mq.stop();
+        }
     }
 
     public async sendMatrixMessage(messageId: string, msg: IMatrixSendMessage) {
@@ -65,7 +67,7 @@ export class MatrixSender {
 export class MessageSenderClient {
     constructor(private queue: MessageQueue) { }
 
-    public async sendMatrixText(roomId: string, text: string, msgtype: string = "m.text",
+    public async sendMatrixText(roomId: string, text: string, msgtype = "m.text",
                                 sender: string|null = null): Promise<string> {
         return this.sendMatrixMessage(roomId, {
             msgtype,
@@ -74,7 +76,7 @@ export class MessageSenderClient {
     }
 
     public async sendMatrixMessage(roomId: string,
-                                   content: MatrixEventContent, eventType: string = "m.room.message",
+                                   content: MatrixEventContent, eventType = "m.room.message",
                                    sender: string|null = null): Promise<string> {
         return (await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse>({
             eventName: "matrix.message",

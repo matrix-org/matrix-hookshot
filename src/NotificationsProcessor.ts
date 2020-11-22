@@ -1,44 +1,49 @@
 import { MessageSenderClient } from "./MatrixSender";
 import { IStorageProvider } from "./Stores/StorageProvider";
-import { UserNotificationsEvent, UserNotification } from "./UserNotificationWatcher";
+import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import LogWrapper from "./LogWrapper";
 import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
-import { Octokit } from "@octokit/rest";
 import { FormatUtil } from "./FormatUtil";
+import { IssuesListAssigneesResponseData, PullsGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "@octokit/types";
+import { GitHubUserNotification } from "./Github/Types";
 
 const log = new LogWrapper("GithubBridge");
 const md = new markdown();
 
 export interface IssueDiff {
     state: null|string;
-    assignee: null|Octokit.IssuesGetResponseAssignee;
+    assignee: null|IssuesListAssigneesResponseData;
     title: null|string;
     merged: boolean;
     mergedBy: null|{
         login: string;
+        // eslint-disable-next-line camelcase
         html_url: string;
     };
     user: {
         login: string;
+        // eslint-disable-next-line camelcase
         html_url: string;
     };
 }
 
 export interface CachedReviewData {
-    requested_reviewers: Octokit.PullsListReviewRequestsResponse;
-    reviews: Octokit.PullsListReviewsResponse;
+    // eslint-disable-next-line camelcase
+    requested_reviewers: PullsListRequestedReviewersResponseData;
+    reviews: PullsListReviewsResponseData;
 }
 
-type PROrIssue = Octokit.IssuesGetResponse|Octokit.PullsGetResponse;
+type PROrIssue = IssuesGetResponseData|PullsGetResponseData;
 
 export class NotificationProcessor {
 
+    // eslint-disable-next-line camelcase
     private static formatUser(user: {login: string, html_url: string}) {
         return `**[${user.login}](${user.html_url})**`;
     }
 
-    private static formatNotification(notif: UserNotification, diff: IssueDiff|null, newComment: boolean) {
+    private static formatNotification(notif: GitHubUserNotification, diff: IssueDiff|null, newComment: boolean) {
         const user = diff ? ` by ${this.formatUser(diff?.user)}` : "";
         let plain =
 `${this.getEmojiForNotifType(notif)} [${notif.subject.title}](${notif.subject.url_data?.html_url})${user}`;
@@ -61,11 +66,11 @@ export class NotificationProcessor {
                 plain += `\n\n Title changed to: ${diff.title}`;
             }
             if (diff.assignee) {
-                plain += `\n\n Assigned to: ${diff.assignee.login}`;
+                plain += `\n\n Assigned to: ${diff.assignee[0].login}`;
             }
         }
         if (newComment) {
-            const comment = notif.subject.latest_comment_url_data as Octokit.IssuesGetCommentResponse;
+            const comment = notif.subject.latest_comment_url_data as IssuesGetCommentResponseData;
             plain += `\n\n ${NotificationProcessor.formatUser(comment.user)}:\n\n > ${comment.body}`;
         }
         return {
@@ -74,7 +79,7 @@ export class NotificationProcessor {
         };
     }
 
-    private static getEmojiForNotifType(notif: UserNotification): string {
+    private static getEmojiForNotifType(notif: GitHubUserNotification): string {
         let reasonFlag = "";
         switch (notif.reason) {
             case "review_requested":
@@ -167,7 +172,7 @@ export class NotificationProcessor {
     //     }
     // }
 
-    private formatSecurityAlert(notif: UserNotification) {
+    private formatSecurityAlert(notif: GitHubUserNotification) {
         const body = `⚠️ ${notif.subject.title} - `
             + `for **[${notif.repository.full_name}](${notif.repository.html_url})**`;
         return {
@@ -182,26 +187,26 @@ export class NotificationProcessor {
     private diffIssueChanges(curr: PROrIssue, prev: PROrIssue): IssueDiff {
         let merged = false;
         let mergedBy = null;
-        if ((curr as Octokit.PullsGetResponse).merged !== (prev as Octokit.PullsGetResponse).merged) {
+        if ((curr as PullsGetResponseData).merged !== (prev as PullsGetResponseData).merged) {
             merged = true;
-            mergedBy = (curr as Octokit.PullsGetResponse).merged_by;
+            mergedBy = (curr as PullsGetResponseData).merged_by;
         }
         const diff: IssueDiff = {
             state: curr.state === prev.state ? null : curr.state,
             merged,
             mergedBy,
-            assignee: curr.assignee?.id === prev.assignee?.id ? null : curr.assignee,
+            assignee: curr.assignee?.id === prev.assignee?.id ? null : [curr.assignee],
             title: curr.title === prev.title ? null : curr.title,
             user: curr.user,
         };
         return diff;
     }
 
-    private async formatIssueOrPullRequest(roomId: string, notif: UserNotification) {
+    private async formatIssueOrPullRequest(roomId: string, notif: GitHubUserNotification) {
         const issueNumber = notif.subject.url_data?.number.toString();
         let diff = null;
         if (issueNumber) {
-            const prevIssue: Octokit.IssuesGetResponse|null = await this.storage.getGithubIssue(
+            const prevIssue: IssuesGetResponseData|null = await this.storage.getGithubIssue(
                 notif.repository.full_name, issueNumber, roomId);
             if (prevIssue && notif.subject.url_data) {
                 diff = this.diffIssueChanges(notif.subject.url_data, prevIssue);
@@ -240,7 +245,7 @@ export class NotificationProcessor {
         return this.matrixSender.sendMatrixMessage(roomId, body);
     }
 
-    private async handleUserNotification(roomId: string, notif: UserNotification) {
+    private async handleUserNotification(roomId: string, notif: GitHubUserNotification) {
         log.info("New notification event:", notif);
         if (notif.reason === "security_alert") {
             return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));

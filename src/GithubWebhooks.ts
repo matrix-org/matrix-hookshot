@@ -1,24 +1,26 @@
 import { BridgeConfig } from "./Config";
 import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
-import { Octokit } from "@octokit/rest";
+import { IssuesGetResponseData, IssuesGetCommentResponseData, ReposGetResponseData } from "@octokit/types";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
 import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import { Server } from "http";
 import axios from "axios";
-import { UserNotificationWatcher } from "./UserNotificationWatcher";
+import { UserNotificationWatcher } from "./Notifications/UserNotificationWatcher";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 
 const log = new LogWrapper("GithubWebhooks");
 
 export interface IGitHubWebhookEvent {
     action: string;
-    issue?: Octokit.IssuesGetResponse;
-    comment?: Octokit.IssuesGetCommentResponse;
-    repository?: Octokit.ReposGetResponse;
-    sender?: Octokit.IssuesGetResponseUser;
+    issue?: IssuesGetResponseData;
+    comment?: IssuesGetCommentResponseData;
+    repository?: ReposGetResponseData;
+    sender?: {
+        login: string;
+    }
     changes?: {
         title?: {
             from: string;
@@ -38,15 +40,19 @@ export interface IOAuthTokens {
 }
 
 export interface NotificationsEnableEvent {
-    user_id: string;
-    room_id: string;
+    userId: string;
+    roomId: string;
     since: number;
     token: string;
-    filter_participating: boolean;
+    filterParticipating: boolean;
+    type: "github"|"gitlab";
+    instanceUrl?: string;
 }
 
 export interface NotificationsDisableEvent {
-    user_id: string;
+    userId: string;
+    type: "github"|"gitlab";
+    instanceUrl?: string;
 }
 
 export class GithubWebhooks extends EventEmitter {
@@ -69,7 +75,7 @@ export class GithubWebhooks extends EventEmitter {
             this.userNotificationWatcher.addUser(msg.data);
         });
         this.queue.on("notifications.user.disable", (msg: MessageQueueMessage<NotificationsDisableEvent>) => {
-            this.userNotificationWatcher.removeUser(msg.data.user_id);
+            this.userNotificationWatcher.removeUser(msg.data.userId, msg.data.type, msg.data.instanceUrl);
         });
 
         // This also listens for notifications for users, which is long polly.
@@ -85,7 +91,9 @@ export class GithubWebhooks extends EventEmitter {
     }
 
     public stop() {
-        this.queue.stop();
+        if (this.queue.stop) {
+            this.queue.stop();
+        } 
         if (this.server) {
             this.server.close();
         }
@@ -125,7 +133,7 @@ export class GithubWebhooks extends EventEmitter {
         log.debug(`New webhook: ${req.url}`);
         try {
             let eventName: string|null = null;
-            let body = req.body;
+            const body = req.body;
             res.sendStatus(200);
             if (req.headers['x-hub-signature']) {
                 eventName = this.onGitHubPayload(body);

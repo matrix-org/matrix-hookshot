@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
@@ -11,6 +12,7 @@ import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
+import { ReposGetResponseData } from "@octokit/types";
 
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
@@ -46,7 +48,7 @@ const ALLOWED_REACTIONS = {
     "👐": "open",
 }
 
-function compareEmojiStrings(e0: string, e1: string, e0Index: number = 0) {
+function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
 }
 
@@ -62,15 +64,19 @@ export class GitHubRepoConnection implements IConnection {
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
 
-    static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<any> {
-        const parts = result!.slice(1);
+    static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
+        const parts = result?.slice(1);
+        if (!parts) {
+            log.error("Invalid alias pattern");
+            throw Error("Could not find repo");
+        }
 
         const owner = parts[0];
         const repo = parts[1];
         const issueNumber = parseInt(parts[2], 10);
 
         log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
-        let repoRes: Octokit.ReposGetResponse;
+        let repoRes: ReposGetResponseData;
         try {
             repoRes = (await opts.octokit.repos.get({
                 owner,
@@ -135,7 +141,7 @@ export class GitHubRepoConnection implements IConnection {
         };
     }
     
-    static helpMessage: any;
+    static helpMessage: MatrixMessageContent;
     static botCommands: BotCommands;
 
     constructor(public readonly roomId: string,
@@ -153,7 +159,7 @@ export class GitHubRepoConnection implements IConnection {
         return this.state.repo;
     }
 
-    public isInterestedInStateEvent(eventType: string) {
+    public isInterestedInStateEvent() {
         return false;
     }
 
@@ -251,13 +257,18 @@ export class GitHubRepoConnection implements IConnection {
 
     public async onIssueCreated(event: IGitHubWebhookEvent) {
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
-        const orgRepoName = event.issue!.repository_url.substr("https://api.github.com/repos/".length);
-        const content = `New issue created [${orgRepoName}#${event.issue!.number}](${event.issue!.html_url}): "${event.issue!.title}"`;
-        console.log(event.issue?.labels);
-        const labelsHtml = event.issue?.labels.map((label) => 
+        if (!event.issue) {
+            throw Error('No issue content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
+        const content = `New issue created [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        const labelsHtml = event.issue.labels.map((label: {color: string, name: string, description: string}) => 
             `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
         ).join(" ") || "";
-        const labels = event.issue?.labels.map((label) => 
+        const labels = event.issue?.labels.map((label: {name: string}) => 
             label.name
         ).join(", ") || "";
         await this.as.botIntent.sendEvent(this.roomId, {
@@ -265,21 +276,27 @@ export class GitHubRepoConnection implements IConnection {
             body: content + (labels.length > 0 ? ` with labels ${labels}`: ""),
             formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
             format: "org.matrix.custom.html",
-            ...FormatUtil.getPartialBodyForIssue(event.repository!, event.issue!),
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue),
         });
     }
 
     public async onIssueStateChange(event: IGitHubWebhookEvent) {
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
-        if (event.issue?.state === "closed") {
-            const orgRepoName = event.issue!.repository_url.substr("https://api.github.com/repos/".length);
-            const content = `**@${event.sender!.login}** closed issue [${orgRepoName}#${event.issue!.number}](${event.issue!.html_url}): "${event.issue!.title}"`;
+        if (!event.issue) {
+            throw Error('No issue content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        if (event.issue.state === "closed" && event.sender) {
+            const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
+            const content = `**@${event.sender.login}** closed issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
             await this.as.botIntent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content,
                 formatted_body: md.renderInline(content),
                 format: "org.matrix.custom.html",
-                ...FormatUtil.getPartialBodyForIssue(event.repository!, event.issue!),
+                ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue),
             });
         }
     }
@@ -290,6 +307,7 @@ export class GitHubRepoConnection implements IConnection {
             return;
         }
         if (evt.type === 'm.reaction') {
+            // eslint-disable-next-line camelcase
             const {event_id, key} = (evt.content as MatrixReactionContent)["m.relates_to"];
             const ev = await this.as.botClient.getEvent(this.roomId, event_id);
             const issueContent = ev.content["uk.half-shot.matrix-github.issue"];
@@ -297,7 +315,7 @@ export class GitHubRepoConnection implements IConnection {
                 return; // Not our event.
             }
 
-            const [,reactionName] = Object.entries(GITHUB_REACTION_CONTENT).find(([emoji, content]) => compareEmojiStrings(emoji, key)) || [];;
+            const [,reactionName] = Object.entries(GITHUB_REACTION_CONTENT).find(([emoji]) => compareEmojiStrings(emoji, key)) || [];
             const [,action] = Object.entries(ALLOWED_REACTIONS).find(([emoji]) => compareEmojiStrings(emoji, key)) || [];
             if (reactionName) {
                 log.info(`Sending reaction of ${reactionName} for ${this.org}${this.repo}#${issueContent.number}`)
@@ -332,13 +350,12 @@ export class GitHubRepoConnection implements IConnection {
         }
     }
 
-    public async onStateUpdate() { }
-
     public toString() {
         return `GitHubRepo`;
     }
 }
 
-const res = compileBotCommands(GitHubRepoConnection.prototype);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const res = compileBotCommands(GitHubRepoConnection.prototype as any);
 GitHubRepoConnection.helpMessage = res.helpMessage;
 GitHubRepoConnection.botCommands = res.botCommands;

@@ -1,3 +1,5 @@
+// We need to instantiate some functions which are not directly called, which confuses typescript.
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { IConnection } from "./IConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice } from "matrix-bot-sdk";
@@ -27,7 +29,7 @@ export class GitLabRepoConnection implements IConnection {
         GitLabRepoConnection.CanonicalEventType, // Legacy event, with an awful name.
     ];
     
-    static helpMessage: any;
+    static helpMessage: MatrixMessageContent;
     static botCommands: BotCommands;
 
     constructor(public readonly roomId: string,
@@ -46,7 +48,7 @@ export class GitLabRepoConnection implements IConnection {
         return this.state.repo;
     }
 
-    public isInterestedInStateEvent(eventType: string) {
+    public isInterestedInStateEvent() {
         return false;
     }
 
@@ -99,7 +101,7 @@ export class GitLabRepoConnection implements IConnection {
 
     @botCommand("gl close", "Close an issue", ["number"], ["comment"], true)
     // @ts-ignore
-    private async onClose(userId: string, number: string, comment?: string) {
+    private async onClose(userId: string, number: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
@@ -121,17 +123,13 @@ export class GitLabRepoConnection implements IConnection {
 
     // }
 
-    public async onEvent(evt: MatrixEvent<unknown>) {
-
-    }
-
-    public async onStateUpdate() { }
-
     public toString() {
         return `GitHubRepo`;
     }
 }
 
-const res = compileBotCommands(GitLabRepoConnection.prototype);
+// Typescript doesn't understand Prototypes very well yet.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const res = compileBotCommands(GitLabRepoConnection.prototype as any);
 GitLabRepoConnection.helpMessage = res.helpMessage;
 GitLabRepoConnection.botCommands = res.botCommands;

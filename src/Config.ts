@@ -10,12 +10,12 @@ export interface BridgeConfigGitHub {
     webhook: {
         secret: string;
     },
-    userTokens: {
-        [userId: string]: string;
-    }
     oauth: {
+        // eslint-disable-next-line camelcase
         client_id: string;
+        // eslint-disable-next-line camelcase
         client_secret: string;
+        // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
     installationId: number|string;
@@ -23,9 +23,6 @@ export interface BridgeConfigGitHub {
 
 export interface GitLabInstance {
     url: string;
-    userTokens: {
-        [userId: string]: string;
-    }
     // oauth: {
     //     client_id: string;
     //     client_secret: string;
