@@ -26,7 +26,6 @@ describe("MessageQueueTest", () => {
                 eventName: "fakeevent",
                 messageId: "foooo",
                 data: 51,
-                ts: 0,
             });
         });
         it("should be able to push an event, and respond to it", async () => {
@@ -44,7 +43,6 @@ describe("MessageQueueTest", () => {
                     eventName: "response.fakeevent2",
                     messageId: "foooo",
                     data: "worked",
-                    ts: 0,
                 });
             });
             const response = await mq.pushWait<number, string>({
@@ -52,7 +50,6 @@ describe("MessageQueueTest", () => {
                 eventName: "fakeevent2",
                 messageId: "foooo",
                 data: 49,
-                ts: 0,
             });
             expect(response).to.equal("worked");
         });

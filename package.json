@@ -13,7 +13,7 @@
     "start:app": "node lib/App/BridgeApp.js",
     "start:webhooks": "node lib/App/GithubWebhookApp.js",
     "start:matrixsender": "node lib/App/MatrixSenderApp.js",
-    "test": "mocha -r ts-node/register tests/**/*.ts",
+    "test": "mocha -r ts-node/register tests/*.ts",
     "lint": "eslint -c .eslintrc.js src/**/*.ts"
   },
   "dependencies": {

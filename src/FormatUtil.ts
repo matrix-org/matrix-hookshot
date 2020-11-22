@@ -12,9 +12,8 @@ export class FormatUtil {
         return `${orgRepoName}#${issue.number}: ${issue.title}`;
     }
 
-    public static formatRepoRoomName(repo: {full_name: string, url: string}) {
-        const orgRepoName = repo.url.substr("https://api.github.com/repos/".length);
-        return `${orgRepoName}: ${repo.full_name}`;
+    public static formatRepoRoomName(repo: {full_name: string, url: string, title: string, number: number}) {
+        return `${repo.full_name}#${repo.number}: ${repo.title}`;
     }
 
     public static formatRoomTopic(repo: {state: string, html_url: string}) {
