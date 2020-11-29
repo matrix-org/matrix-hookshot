@@ -38,6 +38,11 @@ export default class LogWrapper {
         };
         LogService.setLogger({
             info: (module: string, ...messageOrObject: any[]) => {
+                // These are noisy, redirect to debug.
+                if (module.startsWith("MatrixLiteClient")) {
+                    log.debug(getMessageString(messageOrObject), { module });
+                    return;
+                }
                 log.info(getMessageString(messageOrObject), { module });
             },
             warn: (module: string, ...messageOrObject: any[]) => {

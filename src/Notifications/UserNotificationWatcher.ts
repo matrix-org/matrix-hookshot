@@ -5,6 +5,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";
 import { GitHubUserNotification } from "../Github/Types";
+import { GitLabWatcher } from "./GitLabWatcher";
 
 export interface UserNotificationsEvent {
     roomId: string;
@@ -59,14 +60,14 @@ Check your token is still valid, and then turn notifications back on.`, "m.notic
         let task: NotificationWatcherTask;
         const key = UserNotificationWatcher.constructMapKey(data.userId, data.type, data.instanceUrl);
         if (data.type === "github") {
-            this.userIntervals.get(key)?.stop();
             task = new GitHubWatcher(data.token, data.userId, data.roomId, data.since, data.filterParticipating);
-            task.start(MIN_INTERVAL_MS);
-        }/* else if (data.type === "gitlab") {
-            
-        }*/ else {
+        } else if (data.type === "gitlab" && data.instanceUrl) {
+            task = new GitLabWatcher(data.token, data.instanceUrl, data.userId, data.roomId, data.since);
+        } else {
             throw Error('Notification type not known');
         }
+        this.userIntervals.get(key)?.stop();
+        task.start(MIN_INTERVAL_MS);
         task.on("fetch_failure", this.onFetchFailure.bind(this));
         task.on("new_events", (payload) => {
             this.queue.push<UserNotificationsEvent>(payload);

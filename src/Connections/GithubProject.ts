@@ -8,7 +8,6 @@ export interface GitHubProjectConnectionState {
     project_id: number;
     state: "open"|"closed";
 }
-
 const log = new LogWrapper("GitHubProjectConnection");
 
 /**

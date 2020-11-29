@@ -12,8 +12,8 @@ export class FormatUtil {
         return `${orgRepoName}#${issue.number}: ${issue.title}`;
     }
 
-    public static formatRepoRoomName(repo: {full_name: string, url: string, title: string, number: number}) {
-        return `${repo.full_name}#${repo.number}: ${repo.title}`;
+    public static formatRepoRoomName(repo: {full_name: string, description: string}) {
+        return `${repo.full_name}: ${repo.description}`;
     }
 
     public static formatRoomTopic(repo: {state: string, html_url: string}) {

@@ -9,14 +9,16 @@ import { MessageSenderClient } from "../MatrixSender";
 import { FormatUtil } from "../FormatUtil";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import { GitLabInstance } from "../Config";
+import { GetIssueResponse } from "../Gitlab/Types";
+import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
+import { getIntentForUser } from "../IntentUtils";
 
 export interface GitLabIssueConnectionState {
     instance: string;
     projects: string[];
     state: string;
-    issue: number;
-    // eslint-disable-next-line camelcase
-    comments_processed: number;
+    iid: number;
+    id: number;
 }
 
 const log = new LogWrapper("GitLabIssueConnection");
@@ -44,8 +46,34 @@ export class GitLabIssueConnection implements IConnection {
 
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
 
-    public static createRoomForIssue() {
-        // Fill me in
+    public static async createRoomForIssue(instanceName: string, instance: GitLabInstance,
+        issue: GetIssueResponse, projects: string[], as: Appservice,
+        tokenStore: UserTokenStore, commentProcessor: CommentProcessor, 
+        messageSender: MessageSenderClient) {
+        const state: GitLabIssueConnectionState = {
+            projects,
+            state: issue.state,
+            iid: issue.iid,
+            id: issue.id,
+            instance: instanceName,
+        };
+
+        const roomId = await as.botClient.createRoom({
+            visibility: "private",
+            name: `${issue.references.full}`,
+            topic: `Author: ${issue.author.name} | State: ${issue.state}`,
+            preset: "private_chat",
+            invite: [],
+            initial_state: [
+                {
+                    type: this.CanonicalEventType,
+                    content: state,
+                    state_key: issue.web_url,
+                },
+            ],
+        });
+
+        return new GitLabIssueConnection(roomId, as, state, issue.web_url, tokenStore, commentProcessor, messageSender, instance);
     }
 
     public get projectPath() {
@@ -63,7 +91,7 @@ export class GitLabIssueConnection implements IConnection {
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
-        private instance: GitLabInstance) {
+        private instance: GitLabInstance,) {
         }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -71,33 +99,29 @@ export class GitLabIssueConnection implements IConnection {
     }
 
     public get issueNumber() {
-        return this.state.issue;
+        return this.state.iid;
     }
 
-    // public async onCommentCreated(event: IGitHubWebhookEvent, updateState = true) {
-    //     const comment = event.comment!;
-    //     if (event.repository) {
-    //         // Delay to stop comments racing sends
-    //         await new Promise((resolve) => setTimeout(resolve, 500));
-    //         if (this.commentProcessor.hasCommentBeenProcessed(this.state.org, this.state.repo, this.state.issues[0], comment.id)) {
-    //             return;
-    //         }
-    //     }
-    //     const commentIntent = await getIntentForUser(comment.user, this.as, this.octokit);
-    //     const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment, event.repository, event.issue);
+    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        if (event.repository) {
+            // Delay to stop comments racing sends
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            if (this.commentProcessor.hasCommentBeenProcessed(
+                this.state.instance,
+                this.state.projects.join("/"),
+                this.state.iid.toString(),
+                event.object_attributes.noteable_id)) {
+                return;
+            }
+        }
+        const commentIntent = await getIntentForUser({
+            login: event.user.name,
+            avatarUrl: event.user.avatar_url,
+        }, this.as);
+        const matrixEvent = await this.commentProcessor.getEventBodyForGitLabNote(event);
 
-    //     await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
-    //     if (!updateState) {
-    //         return;
-    //     }
-    //     this.state.comments_processed++;
-    //     await this.as.botIntent.underlyingClient.sendStateEvent(
-    //         this.roomId,
-    //         GitLabIssueConnection.CanonicalEventType,
-    //         this.stateKey,
-    //         this.state,
-    //     );
-    // }
+        await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
+    }
 
     // private async syncIssueState() {
     //     log.debug("Syncing issue state for", this.roomId);
@@ -171,7 +195,6 @@ export class GitLabIssueConnection implements IConnection {
 
 
     public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
-
         console.log(this.messageClient, this.commentProcessor);
         const clientKit = await this.tokenStore.getGitLabForUser(event.sender, this.instanceUrl);
         if (clientKit === null) {
@@ -186,15 +209,20 @@ export class GitLabIssueConnection implements IConnection {
             return;
         }
 
-        // const result = await clientKit.issues.createComment({
-        //     repo: this.state.repo,
-        //     owner: this.state.org,
-        //     body: await this.commentProcessor.getCommentBodyForEvent(event, false),
-        //     issue_number: parseInt(this.state.issues[0], 10),
-        // });
+        const result = await clientKit.notes.createForIssue(
+            this.state.projects,
+            this.state.iid, {
+                body: await this.commentProcessor.getCommentBodyForEvent(event, false),
+            }
+        );
 
         if (!allowEcho) {
-            //this.commentProcessor.markCommentAsProcessed(this.state.org, this.state.repo, this.state.issues[0], result.data.id);
+            this.commentProcessor.markCommentAsProcessed(
+                this.state.instance,
+                this.state.projects.join("/"),
+                this.state.iid.toString(),
+                result.noteable_id,
+            );
         }
     }
 

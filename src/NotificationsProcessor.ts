@@ -140,7 +140,7 @@ export class NotificationProcessor {
             }
         }
         try {
-            await adminRoom.setNotifSince(msg.lastReadTs);
+            await adminRoom.setNotifSince("github", msg.lastReadTs);
         } catch (ex) {
             log.error("Failed to update stream position for notifications:", ex);
         }

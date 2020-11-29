@@ -27,10 +27,20 @@ export const BRIDGE_GITLAB_NOTIF_TYPE = "uk.half-shot.matrix-github.gitlab.notif
 export interface AdminAccountData {
     // eslint-disable-next-line camelcase
     admin_user: string;
-    notifications?: {
-        enabled: boolean;
-        participating?: boolean;
+    github?: {
+        notifications?: {
+            enabled: boolean;
+            participating?: boolean;
+        };
     };
+    gitlab?: {
+        [instanceUrl: string]: {
+            notifications: {
+                enabled: boolean;
+            }
+        }
+    }
+
 }
 export class AdminRoom extends EventEmitter {
     public static helpMessage: MatrixMessageContent;
@@ -54,19 +64,40 @@ export class AdminRoom extends EventEmitter {
         return this.pendingOAuthState;
     }
 
-    public get notificationsEnabled() {
-        return !!this.data.notifications?.enabled;
+    public notificationsEnabled(type: "github"|"gitlab", instanceName?: string) {
+        if (type === "github") {
+            return this.data.github?.notifications?.enabled;
+        }
+        return (type === "gitlab" &&
+            !!instanceName &&
+            this.data.gitlab &&
+            this.data.gitlab[instanceName].notifications.enabled
+        );
     }
 
-    public get notificationsParticipating() {
-        return !!this.data.notifications?.participating;
+    public notificationsParticipating(type: string) {
+        if (type !== "github") {
+            return false;
+        }
+        return this.data.github?.notifications?.participating || false;
     }
 
     public clearOauthState() {
         this.pendingOAuthState = null;
     }
 
-    public async getNotifSince() {
+    public async getNotifSince(type: "github"|"gitlab", instanceName?: string) {
+        if (type === "gitlab") {
+            try {
+                const { since } = await this.botIntent.underlyingClient.getRoomAccountData(
+                    `${BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`, this.roomId
+                );
+                return since;
+            } catch {
+                // TODO: We should look at this error.
+                return 0;
+            }
+        }
         try {
             const { since } = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId);
             return since;
@@ -76,7 +107,14 @@ export class AdminRoom extends EventEmitter {
         }
     }
 
-    public async setNotifSince(since: number) {
+    public async setNotifSince(type: "github"|"gitlab", since: number, instanceName?: string) {
+        if (type === "gitlab") {
+            return this.botIntent.underlyingClient.setRoomAccountData(
+                `${BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`,
+                this.roomId, {
+                since,
+            });
+        }
         return this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId, {
             since,
         });
@@ -143,33 +181,38 @@ export class AdminRoom extends EventEmitter {
     @botCommand("github notifications toggle", "Toggle enabling/disabling GitHub notifications in this room")
     // @ts-ignore - property is used
     private async setGitHubNotificationsStateToggle() {
-        const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
-            BRIDGE_ROOM_TYPE, this.roomId,
-        );
-        const oldState = data.notifications || {
-            enabled: false,
-            participating: true,
-        };
-        data.notifications = { enabled: !oldState?.enabled, participating: oldState?.participating };
-        await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, data);
-        this.emit("settings.changed", this, data);
-        await this.sendNotice(`${data.notifications.enabled ? "En" : "Dis"}abled GitHub notifcations`);
+        const data = await this.saveAccountData((data) => {
+            return {
+                ...data,
+                github: {
+                    notifications: {
+                        enabled: !(data.github?.notifications?.enabled ?? false),
+                        participating: data.github?.notifications?.participating,
+                    },
+                },
+            };
+        });
+        await this.sendNotice(`${data.github?.notifications?.enabled ? "En" : "Dis"}abled GitHub notifcations`);
     }
 
     @botCommand("github notifications filter participating", "Toggle enabling/disabling GitHub notifications in this room")
     // @ts-ignore - property is used
     private async setGitHubNotificationsStateParticipating() {
-        const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
-            BRIDGE_ROOM_TYPE, this.roomId,
-        );
-        const oldState = data.notifications || {
-            enabled: false,
-            participating: true,
-        };
-        data.notifications = { enabled: oldState?.enabled, participating: !oldState?.participating };
-        await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, data);
-        this.emit("settings.changed", this, data);
-        await this.sendNotice(`${data.notifications.participating ? "En" : "Dis"}abled filtering for participating notifications`); 
+        const data = await this.saveAccountData((data) => {
+            if (!data.github?.notifications?.enabled) {
+                throw Error('Notifications are not enabled')
+            }
+            return {
+                ...data,
+                github: {
+                    notifications: {
+                        participating: !(data.github?.notifications?.participating ?? false),
+                        enabled: true,
+                    },
+                },
+            };
+        });
+        await this.sendNotice(`${data.github?.notifications?.enabled ? "" : "Not"} filtering for events you are participating in`);
     }
 
     @botCommand("github project list-for-user", "List GitHub projects for a user", [], ['user', 'repo'])
@@ -273,27 +316,30 @@ export class AdminRoom extends EventEmitter {
 
     /* GitLab commands */
 
-    @botCommand("gitlab open issue", "Open or join a issue room for GitLab", ['instanceName', 'projectParts', 'issueNumber'])
+    @botCommand("gitlab open issue", "Open or join a issue room for GitLab", ['url'])
     // @ts-ignore - property is used
-    private async gitLabOpenIssue(instanceName: string, projectParts: string, issueNumber: string) {
+    private async gitLabOpenIssue(url: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
-        const instance = this.config.gitlab.instances[instanceName];
-        if (!instance) {
-            return this.sendNotice("The bridge is not configured for this GitLab instance");
+
+        const urlResult = GitLabClient.splitUrlIntoParts(this.config.gitlab.instances, url);
+        if (!urlResult) {
+            return this.sendNotice("The URL was not understood. The URL must be an issue and the bridge must know of the GitLab instance.");
         }
+        const [instanceName, parts] = urlResult;
+        const instance = this.config.gitlab.instances[instanceName];
         const client = await this.tokenStore.getGitLabForUser(this.userId, instance.url);
         if (!client) {
             return this.sendNotice("You have not added a personal access token for GitLab");
         }
         const getIssueOpts = {
-            issue: parseInt(issueNumber),
-            projects: projectParts.split("/"),
+            issue: parseInt(parts[parts.length-1]),
+            projects: parts.slice(0, parts.length-3), // Remove - and /issues
         };
+        log.info(`Looking up issue ${instanceName} ${getIssueOpts.projects.join("/")}#${getIssueOpts.issue}`);
         const issue = await client.issues.get(getIssueOpts);
-        this.emit('open.gitlab-issue', getIssueOpts, issue, instance);
-
+        this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
     }
 
     @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceName', 'accessToken'])
@@ -338,19 +384,47 @@ export class AdminRoom extends EventEmitter {
         await this.sendNotice("A token is stored for your GitLab account.");
     }
 
-    @botCommand("gitlab notifications toggle", "Toggle enabling/disabling GitHub notifications in this room")
+    @botCommand("gitlab notifications toggle", "Toggle enabling/disabling GitHub notifications in this room", ["instanceName"])
     // @ts-ignore - property is used
-    private async setGitLabNotificationsStateToggle() {
-        const data: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
-            BRIDGE_GITLAB_NOTIF_TYPE, this.roomId,
+    private async setGitLabNotificationsStateToggle(instanceName: string) {
+        if (!this.config.gitlab) {
+            return this.sendNotice("The bridge is not configured with GitLab support");
+        }
+        const instance = this.config.gitlab.instances[instanceName];
+        if (!instance) {
+            return this.sendNotice("The bridge is not configured for this GitLab instance");
+        }
+        const hasClient = await this.tokenStore.getGitLabForUser(this.userId, instance.url);
+        if (!hasClient) {
+            return this.sendNotice("You do not have a GitLab token configured for this instance");
+        }
+        let newValue = false;
+        await this.saveAccountData((data) => {
+            const currentNotifs = (data.gitlab || {})[instanceName].notifications;
+            console.log("current:", currentNotifs.enabled);
+            newValue = !currentNotifs.enabled;
+            return {
+                ...data,
+                gitlab: {
+                    [instanceName]: {
+                        notifications: {
+                            enabled: newValue,
+                        },
+                    }
+                },
+            };
+        });
+        await this.sendNotice(`${newValue ? "En" : "Dis"}abled GitLab notifications for ${instanceName}`);
+    }
+
+    private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
+        const oldData: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
+            BRIDGE_ROOM_TYPE, this.roomId,
         );
-        const oldState = data.notifications || {
-            enabled: false,
-        };
-        data.notifications = { enabled: !oldState?.enabled };
-        await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_GITLAB_NOTIF_TYPE, this.roomId, data);
-        this.emit("settings.changed", this, data);
-        await this.sendNotice(`${data.notifications.enabled ? "En" : "Dis"}abled GitLab  notifcations`);
+        const newData = updateFn(oldData);
+        await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, newData);
+        this.emit("settings.changed", this, oldData, newData);
+        return newData;
     }
 
     public async handleCommand(eventId: string, command: string) {

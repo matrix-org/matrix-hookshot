@@ -1,13 +1,11 @@
 /* eslint-disable camelcase */
 export interface GitLabAuthor {
-    author: {
-        id: number;
-        name: string;
-        username: string;
-        state: 'active';
-        avatar_url: string;
-        web_url: string;
-    };
+    id: number;
+    name: string;
+    username: string;
+    state: 'active';
+    avatar_url: string;
+    web_url: string;
 }
 
 export interface GetUserResponse {
@@ -128,3 +126,30 @@ export interface GetTodosResponse {
     created_at: string;
     updated_at: string;
 }
+
+export interface EventsOpts {
+    after: Date;
+}
+
+export interface CreateIssueNoteOpts {
+    body: string;
+    confidential?: boolean;
+}
+
+export interface CreateIssueNoteResponse {
+    id: number;
+    type: string|null;
+    body: string;
+    attachment: null;
+    author: GitLabAuthor;
+    created_at: string;
+    updated_at: string;
+    system: boolean;
+    noteable_id: number;
+    noteable_type: 'Issue';
+    resolvable: boolean;
+    confidential: boolean;
+    noteable_iid: string;
+    commands_changes: unknown;
+}
+  

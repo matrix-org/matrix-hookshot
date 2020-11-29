@@ -1,10 +1,10 @@
 import LogWrapper from "./LogWrapper";
-import { Octokit } from "@octokit/rest";
 import { Appservice } from "matrix-bot-sdk";
+import axios from "axios";
 
 const log = new LogWrapper("IntentUtils");
 
-export async function getIntentForUser(user: {avatar_url?: string, login: string}, as: Appservice, octokit: Octokit) {
+export async function getIntentForUser(user: {avatarUrl?: string, login: string}, as: Appservice) {
     const intent = as.getIntentForSuffix(user.login);
     const displayName = `${user.login}`;
     // Verify up-to-date profile
@@ -22,19 +22,20 @@ export async function getIntentForUser(user: {avatar_url?: string, login: string
         await intent.underlyingClient.setDisplayName(displayName);
     }
 
-    if (!profile.avatar_url && user.avatar_url) {
+    if (!profile.avatar_url && user.avatarUrl) {
         log.debug(`Updating ${intent.userId}'s avatar`);
-        const buffer = await octokit.request(user.avatar_url);
-        log.info(`uploading ${user.avatar_url}`);
+        const buffer = await axios.get(user.avatarUrl, {
+            responseType: "arraybuffer",
+        });
+        log.info(`Uploading ${user.avatarUrl}`);
         // This does exist, but headers is silly and doesn't have content-type.
         // tslint:disable-next-line: no-any
-        const contentType = (buffer.headers as any)["content-type"];
+        const contentType = buffer.headers["content-type"];
         const mxc = await intent.underlyingClient.uploadContent(
             Buffer.from(buffer.data as ArrayBuffer),
             contentType,
         );
         await intent.underlyingClient.setAvatarUrl(mxc);
-
     }
 
     return intent;

@@ -9,19 +9,19 @@ export interface IGitLabWebhookEvent {
     }
 }
 
-interface IGitlabUser {
+export interface IGitlabUser {
     name: string;
     username: string;
     avatar_url: string;
     email: string;
 }
 
-interface IGitlabProject {
+export interface IGitlabProject {
     path_with_namespace: string;
     web_url: string;
 }
 
-interface IGitlabIssue {
+export interface IGitlabIssue {
     iid: number;
     description: string;
 }
@@ -37,4 +37,14 @@ export interface IGitLabWebhookNoteEvent {
     user: IGitlabUser;
     project: IGitlabProject;
     issue: IGitlabIssue;
+    repository: {
+        name: string;
+        url: string;
+        description: string;
+        homepage: string;
+    };
+    object_attributes: {
+        noteable_id: number;
+        description: string;
+    }
 }

@@ -31,7 +31,7 @@ export class GithubInstance {
     public async start() {
         // TODO: Make this generic.
         const auth = {
-            id: parseInt(this.config.auth.id as string, 10),
+            appId: parseInt(this.config.auth.id as string, 10),
             privateKey: await fs.readFile(this.config.auth.privateKeyFile, "utf-8"),
             installationId: parseInt(this.config.installationId as string, 10),
         };

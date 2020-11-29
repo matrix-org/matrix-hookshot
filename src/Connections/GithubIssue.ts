@@ -163,8 +163,11 @@ export class GitHubIssueConnection implements IConnection {
                 return;
             }
         }
-        const commentIntent = await getIntentForUser(comment.user, this.as, this.github.octokit);
-        const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment, event.repository, event.issue);
+        const commentIntent = await getIntentForUser({
+            login: comment.user.login,
+            avatarUrl: comment.user.avatar_url,
+        }, this.as);
+        const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
 
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
         if (!updateState) {
@@ -189,7 +192,10 @@ export class GitHubIssueConnection implements IConnection {
 
         if (this.state.comments_processed === -1) {
             // This has a side effect of creating a profile for the user.
-            const creator = await getIntentForUser(issue.data.user, this.as, this.github.octokit);
+            const creator = await getIntentForUser({
+                login: issue.data.user.login,
+                avatarUrl: issue.data.user.avatar_url
+            }, this.as);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
                 await this.messageClient.sendMatrixMessage(this.roomId, {

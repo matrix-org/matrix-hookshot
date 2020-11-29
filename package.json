@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.json",
     "prepare": "yarn build",
+    "start": "node lib/App/BridgeApp.js",
     "start:app": "node lib/App/BridgeApp.js",
     "start:webhooks": "node lib/App/GithubWebhookApp.js",
     "start:matrixsender": "node lib/App/MatrixSenderApp.js",
