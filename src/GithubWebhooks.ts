@@ -117,7 +117,7 @@ export class GithubWebhooks extends EventEmitter {
     }
 
     private onGitLabPayload(body: IGitLabWebhookEvent) {
-        log.debug(`onGitLabPayload ${body.event_type}:`, body);
+        log.info(`onGitLabPayload ${body.event_type}:`, body);
         if (body.event_type === "merge_request") {
             return `gitlab.merge_request.${body.object_attributes.action}`;
         } else if (body.event_type === "issue") {

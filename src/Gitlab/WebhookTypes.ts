@@ -44,7 +44,23 @@ export interface IGitLabWebhookNoteEvent {
         homepage: string;
     };
     object_attributes: {
+        id: number;
         noteable_id: number;
+        description: string;
+    }
+}
+export interface IGitLabWebhookIssueStateEvent {
+    user: IGitlabUser;
+    project: IGitlabProject;
+    repository: {
+        name: string;
+        url: string;
+        description: string;
+        homepage: string;
+    };
+    object_attributes: {
+        id: number;
+        iid: number;
         description: string;
     }
 }

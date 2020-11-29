@@ -19,6 +19,7 @@ export interface GitLabIssueConnectionState {
     state: string;
     iid: number;
     id: number;
+    authorName: string;
 }
 
 const log = new LogWrapper("GitLabIssueConnection");
@@ -46,6 +47,10 @@ export class GitLabIssueConnection implements IConnection {
 
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
 
+    static getTopicString(authorName: string, state: string) {
+        `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
+    }
+
     public static async createRoomForIssue(instanceName: string, instance: GitLabInstance,
         issue: GetIssueResponse, projects: string[], as: Appservice,
         tokenStore: UserTokenStore, commentProcessor: CommentProcessor, 
@@ -56,12 +61,13 @@ export class GitLabIssueConnection implements IConnection {
             iid: issue.iid,
             id: issue.id,
             instance: instanceName,
+            authorName: issue.author.name,
         };
 
         const roomId = await as.botClient.createRoom({
             visibility: "private",
             name: `${issue.references.full}`,
-            topic: `Author: ${issue.author.name} | State: ${issue.state}`,
+            topic: GitLabIssueConnection.getTopicString(issue.author.name, issue.state),
             preset: "private_chat",
             invite: [],
             initial_state: [
@@ -103,6 +109,8 @@ export class GitLabIssueConnection implements IConnection {
     }
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        log.info(`${this.toString()} onCommentCreated ${event.object_attributes.noteable_id}`);
+        console.log(event);
         if (event.repository) {
             // Delay to stop comments racing sends
             await new Promise((resolve) => setTimeout(resolve, 500));
@@ -110,7 +118,7 @@ export class GitLabIssueConnection implements IConnection {
                 this.state.instance,
                 this.state.projects.join("/"),
                 this.state.iid.toString(),
-                event.object_attributes.noteable_id)) {
+                event.object_attributes.id)) {
                 return;
             }
         }
@@ -123,79 +131,7 @@ export class GitLabIssueConnection implements IConnection {
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
     }
 
-    // private async syncIssueState() {
-    //     log.debug("Syncing issue state for", this.roomId);
-    //     const issue = await this.octokit.issues.get({
-    //         owner: this.state.org,
-    //         repo: this.state.repo,
-    //         issue_number: this.issueNumber,
-    //     });
-
-    //     if (this.state.comments_processed === -1) {
-    //         // This has a side effect of creating a profile for the user.
-    //         const creator = await getIntentForUser(issue.data.user, this.as, this.octokit);
-    //         // We've not sent any messages into the room yet, let's do it!
-    //         if (issue.data.body) {
-    //             await this.messageClient.sendMatrixMessage(this.roomId, {
-    //                 msgtype: "m.text",
-    //                 external_url: issue.data.html_url,
-    //                 body: `${issue.data.body} (${issue.data.updated_at})`,
-    //                 format: "org.matrix.custom.html",
-    //                 formatted_body: md.render(issue.data.body),
-    //             }, "m.room.message", creator.userId);
-    //         }
-    //         if (issue.data.pull_request) {
-    //             // Send a patch in
-    //             // ...was this intended as a request for code?
-    //         }
-    //         this.state.comments_processed = 0;
-    //     }
-
-    //     if (this.state.comments_processed !== issue.data.comments) {
-    //         const comments = (await this.octokit.issues.listComments({
-    //             owner: this.state.org,
-    //             repo: this.state.repo,
-    //             issue_number: this.issueNumber,
-    //             // TODO: Use since to get a subset
-    //         })).data.slice(this.state.comments_processed);
-
-    //         for (const comment of comments) {
-    //             await this.onCommentCreated({
-    //                 comment,
-    //                 action: "fake",
-    //             }, false);
-    //             this.state.comments_processed++;
-    //         }
-    //     }
-
-    //     if (this.state.state !== issue.data.state) {
-    //         if (issue.data.state === "closed") {
-    //             const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by.login);
-    //             await this.messageClient.sendMatrixMessage(this.roomId, {
-    //                 msgtype: "m.notice",
-    //                 body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
-    //                 external_url: issue.data.closed_by.html_url,
-    //             }, "m.room.message", closedUserId);
-    //         }
-
-    //         await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.topic", "", {
-    //             topic: FormatUtil.formatRoomTopic(issue.data),
-    //         });
-
-    //         this.state.state = issue.data.state;
-    //     }
-
-    //     await this.as.botIntent.underlyingClient.sendStateEvent(
-    //         this.roomId,
-    //         GitLabIssueConnection.CanonicalEventType,
-    //         this.stateKey,
-    //         this.state,
-    //     );
-    // }
-
-
     public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
-        console.log(this.messageClient, this.commentProcessor);
         const clientKit = await this.tokenStore.getGitLabForUser(event.sender, this.instanceUrl);
         if (clientKit === null) {
             await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
@@ -208,22 +144,40 @@ export class GitLabIssueConnection implements IConnection {
             log.info("Ignoring comment, user is not authenticated");
             return;
         }
-
         const result = await clientKit.notes.createForIssue(
             this.state.projects,
             this.state.iid, {
                 body: await this.commentProcessor.getCommentBodyForEvent(event, false),
             }
         );
+        log.info(`${this.toString()} created note ${result.noteable_id} for ${event.event_id} ${event.sender}`);
 
         if (!allowEcho) {
             this.commentProcessor.markCommentAsProcessed(
                 this.state.instance,
                 this.state.projects.join("/"),
                 this.state.iid.toString(),
-                result.noteable_id,
+                result.id,
             );
         }
+    }
+
+    public async onIssueReopened() {
+        // TODO: We don't store the author data.
+        this.state.state = "reopened";
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabIssueConnection.CanonicalEventType, this.stateKey, this.state);
+        return this.as.botClient.sendStateEvent(this.roomId, "m.room.topic", "", {
+            topic: GitLabIssueConnection.getTopicString(this.state.authorName, this.state.state),
+        });
+    }
+
+    public async onIssueClosed() {
+        // TODO: We don't store the author data.
+        this.state.state = "closed";
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabIssueConnection.CanonicalEventType, this.stateKey , this.state);
+        return this.as.botClient.sendStateEvent(this.roomId, "m.room.topic", "", {
+            topic: GitLabIssueConnection.getTopicString(this.state.authorName, this.state.state),
+        });
     }
 
     public async onIssueEdited(event: IGitHubWebhookEvent) {

@@ -22,7 +22,7 @@ import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
 import { GitLabRepoConnection } from "./Connections/GitlabRepo";
 import { GithubInstance } from "./Github/GithubInstance";
-import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
+import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GitLabClient } from "./Gitlab/Client";
@@ -105,6 +105,18 @@ export class GithubBridge {
 
     private getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
         return this.connections.filter((c) => (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as GitHubRepoConnection[];
+    }
+
+    private getConnectionsForGitLabIssueWebhook(repoHome: string, issueId: number) {
+        if (!this.config.gitlab) {
+            throw Error('GitLab configuration missing, cannot handle note');
+        }
+        const res = GitLabClient.splitUrlIntoParts(this.config.gitlab.instances, repoHome);
+        if (!res) {
+            throw Error('No instance found for note');
+        }
+        const instance = this.config.gitlab.instances[res[0]];
+        return this.getConnectionsForGitLabIssue(instance, res[1], issueId);
     }
 
     private getConnectionsForGitLabIssue(instance: GitLabInstance, projects: string[], issueNumber: number): GitLabIssueConnection[] {
@@ -311,15 +323,7 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitLabWebhookNoteEvent>("gitlab.note.created", async ({data}) => {
-            if (!this.config.gitlab) {
-                throw Error('GitLab configuration missing, cannot handle note');
-            }
-            const res = GitLabClient.splitUrlIntoParts(this.config.gitlab.instances, data.repository.homepage);
-            if (!res) {
-                throw Error('No instance found for note');
-            }
-            const instance = this.config.gitlab.instances[res[0]];
-            const connections = this.getConnectionsForGitLabIssue(instance, res[1], data.issue.iid);
+            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.issue.iid);
             connections.map(async (c) => {
                 try {
                     if (c.onCommentCreated)
@@ -329,7 +333,29 @@ export class GithubBridge {
                 }
             })
         });
-    
+
+        this.queue.on<IGitLabWebhookIssueStateEvent>("gitlab.issue.reopen", async ({data}) => {
+            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
+            connections.map(async (c) => {
+                try {
+                    await c.onIssueReopened();
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<IGitLabWebhookIssueStateEvent>("gitlab.issue.close", async ({data}) => {
+            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
+            connections.map(async (c) => {
+                try {
+                    await c.onIssueClosed();
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                }
+            })
+        });
+
         // Fetch all room state
         let joinedRooms: string[]|undefined;
         while(joinedRooms === undefined) {
@@ -378,7 +404,7 @@ export class GithubBridge {
                     // Call this on startup to set the state
                     await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 } catch (ex) {
-                    log.warn(`Room ${roomId} has no connections and is not an admin room`);
+                    log.debug(`Room ${roomId} has no connections and is not an admin room`);
                 }
             } else {
                 log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
@@ -486,6 +512,10 @@ export class GithubBridge {
     }
 
     private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
+        if (event.sender === this.as.botUserId) {
+            // It's us
+            return;
+        }
         if (event.state_key) {
             // A state update, hurrah!
             const existingConnection = this.connections.find((c) => c.roomId === roomId && c.isInterestedInStateEvent(event.type, event.state_key || ""));
@@ -553,7 +583,7 @@ export class GithubBridge {
     }
 
     private async onAdminRoomSettingsChanged(adminRoom: AdminRoom, settings: AdminAccountData, oldSettings: AdminAccountData) {
-        log.info(`Settings changed for ${adminRoom.userId}`, settings);
+        log.debug(`Settings changed for ${adminRoom.userId}`, settings);
         // Make this more efficent.
         if (!oldSettings.github?.notifications?.enabled && settings.github?.notifications?.enabled) {
             log.info(`Notifications enabled for ${adminRoom.userId}`);
