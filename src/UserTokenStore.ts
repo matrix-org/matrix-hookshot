@@ -59,7 +59,7 @@ export class UserTokenStore {
             this.userTokens.set(key, token);
             return token;
         } catch (ex) {
-            log.error(`Failed to get token for user ${userId}`);
+            log.error(`Failed to get ${type} token for user ${userId}`);
             log.debug(ex);
         }
         return null;

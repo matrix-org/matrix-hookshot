@@ -1,7 +1,7 @@
 import { h, Component } from 'preact';
 import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
 import "./AdminSettings.css";
-import LoginCard from './LoginCard';
+import GitHubState from './GitHubState';
 
 interface IProps{
     roomState: BridgeRoomState;
@@ -29,7 +29,7 @@ export default class AdminSettings extends Component<IProps> {
                 Your token does not appear to work
             </strong>;
         }
-        return <LoginCard name={githubConfig.identity.name} avatarUrl={githubConfig.identity.avatarUrl}/>;
+        return <GitHubState config={githubConfig}/>;
     }
 
     render() {

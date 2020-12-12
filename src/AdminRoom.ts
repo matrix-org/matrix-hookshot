@@ -15,7 +15,7 @@ import { GetUserResponse } from "./Gitlab/Types";
 import { GithubInstance } from "./Github/GithubInstance";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
-import { BridgeRoomState } from "./Widgets/BridgeWidgetInterface";
+import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 
 
 const md = new markdown();
@@ -456,10 +456,11 @@ export class AdminRoom extends EventEmitter {
 
     public async getBridgeState(): Promise<BridgeRoomState> {
         const gitHubEnabled = !!this.config.github;
-        const github: {enabled: boolean; tokenStored: boolean; identity: null|{name: string|null; avatarUrl: string|null}} = {
+        const github: BridgeRoomStateGitHub = {
             enabled: false,
             tokenStored: false,
             identity: null,
+            notifications: false,
         };
         if (gitHubEnabled) {
             const octokit = await this.tokenStore.getOctokitForUser(this.userId);
@@ -471,6 +472,7 @@ export class AdminRoom extends EventEmitter {
                     name: identity?.data.login || null,
                     avatarUrl: identity?.data.avatar_url || null,
                 };
+                github.notifications = this.notificationsEnabled("github") || false;
             } catch (ex) {
                 log.warn(`Failed to get user identity: ${ex}`);
             }
