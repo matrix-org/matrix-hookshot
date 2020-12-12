@@ -15,6 +15,7 @@ import { GetUserResponse } from "./Gitlab/Types";
 import { GithubInstance } from "./Github/GithubInstance";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
+import { BridgeRoomState } from "./Widgets/BridgeWidgetInterface";
 
 
 const md = new markdown();
@@ -44,6 +45,7 @@ export interface AdminAccountData {
 }
 export class AdminRoom extends EventEmitter {
     public static helpMessage: MatrixMessageContent;
+    private widgetAccessToken = `abcdef`;
     static botCommands: BotCommands;
 
     private pendingOAuthState: string|null = null;
@@ -54,6 +56,8 @@ export class AdminRoom extends EventEmitter {
                 private tokenStore: UserTokenStore,
                 private config: BridgeConfig) {
         super();
+        // TODO: Move this
+        this.backfillAccessToken();
     }
 
     public get userId() {
@@ -62,6 +66,10 @@ export class AdminRoom extends EventEmitter {
 
     public get oauthState() {
         return this.pendingOAuthState;
+    }
+
+    public verifyWidgetAccessToken(token: string) {
+        return this.widgetAccessToken === token;
     }
 
     public notificationsEnabled(type: "github"|"gitlab", instanceName?: string) {
@@ -140,6 +148,7 @@ export class AdminRoom extends EventEmitter {
             const octokit = GithubInstance.createUserOctokit(accessToken);
             me = await octokit.users.getAuthenticated();
         } catch (ex) {
+            log.error("Failed to auth with GitHub", ex);
             await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
             return;
         }
@@ -443,6 +452,77 @@ export class AdminRoom extends EventEmitter {
         //         key: "✅",
         //     }
         // });
+    }
+
+    public async getBridgeState(): Promise<BridgeRoomState> {
+        const gitHubEnabled = !!this.config.github;
+        const github: {enabled: boolean; tokenStored: boolean; identity: null|{name: string|null; avatarUrl: string|null}} = {
+            enabled: false,
+            tokenStored: false,
+            identity: null,
+        };
+        if (gitHubEnabled) {
+            const octokit = await this.tokenStore.getOctokitForUser(this.userId);
+            try {
+                const identity = await octokit?.users.getAuthenticated();
+                github.enabled = true;
+                github.tokenStored = !!octokit;
+                github.identity = {
+                    name: identity?.data.login || null,
+                    avatarUrl: identity?.data.avatar_url || null,
+                };
+            } catch (ex) {
+                log.warn(`Failed to get user identity: ${ex}`);
+            }
+        }
+        
+        return {
+            title: "Admin Room",
+            github,
+        }
+    }
+
+    public async setupWidget() {
+        try {
+            const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
+            if (res) {
+                // No-op
+                // Validate?
+                return;
+            }
+        } catch (ex) {
+            // Didn't exist, create it.
+        }
+        const accessToken = uuid();
+        return this.botIntent.underlyingClient.sendStateEvent(
+            this.roomId,
+            "im.vector.modular.widgets",
+            "bridge_control",
+            {
+                "creatorUserId": this.botIntent.userId,
+                "data": {
+                  "title": "Bridge Control"
+                },
+                "id": "bridge_control",
+                "name": "Bridge Control",
+                "type": "m.custom",
+                "url": `${this.config.widgets?.publicUrl}/#/?roomId=$matrix_room_id&widgetId=$matrix_widget_id&accessToken=${accessToken}`,
+                accessToken,
+                "waitForIframeLoad": true
+            }
+        );
+    }
+
+    private async backfillAccessToken() {
+        try {
+            const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
+            if (res) {
+                log.debug(`Stored access token for widgets for ${this.roomId}`);
+                this.widgetAccessToken = res.accessToken;
+            }
+        } catch (ex) {
+            log.info(`No widget access token for ${this.roomId}`);
+        }
     }
 }
 

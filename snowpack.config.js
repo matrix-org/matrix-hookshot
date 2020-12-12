@@ -1,17 +1,18 @@
 /** @type {import("snowpack").SnowpackUserConfig } */
 module.exports = {
     mount: {
-        "web/": '/',
+        "web/": '/'
     },
     plugins: [
-        ['@snowpack/plugin-typescript', '--project tsconfig.web.json'],
-        '@prefresh/snowpack',
+      '@prefresh/snowpack',
+      ['@snowpack/plugin-typescript', '--project tsconfig.web.json'],
     ],
     install: [
       /* ... */
     ],
     installOptions: {
         installTypes: true,
+        polyfillNode: true,
     },
     devOptions: {
       /* ... */

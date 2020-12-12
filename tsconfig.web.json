@@ -1,8 +1,8 @@
 {
-    "include": ["src", "types"],
+    "include": ["web"],
     "compilerOptions": {
-      "module": "esnext",
-      "target": "esnext",
+      "module": "commonjs",
+      "target": "es2019",
       "moduleResolution": "node",
       "jsx": "preserve",
       "jsxFactory": "h",
@@ -17,7 +17,10 @@
       "forceConsistentCasingInFileNames": true,
       "resolveJsonModule": true,
       "allowSyntheticDefaultImports": true,
-      "importsNotUsedAsValues": "error"
+      "importsNotUsedAsValues": "error",
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true,
+      "esModuleInterop": true
     }
   }
   
