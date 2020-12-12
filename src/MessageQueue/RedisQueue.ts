@@ -1,10 +1,10 @@
-import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./MessageQueue";
+import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessageOut } from "./MessageQueue";
 import { Redis, default as redis } from "ioredis";
 import { BridgeConfig } from "../Config";
 import { EventEmitter } from "events";
 import LogWrapper from "../LogWrapper";
 
-import uuid from "uuid/v4";
+import {v4 as uuid} from "uuid";
 
 const log = new LogWrapper("RedisMq");
 
@@ -26,13 +26,13 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redisPub = new redis(config.queue.port, config.queue.host);
         this.redis = new redis(config.queue.port, config.queue.host);
         this.myUuid = uuid();
-        this.redisSub.on("pmessage", (pattern: string, channel: string, message: string) => {
-            const msg = JSON.parse(message) as MessageQueueMessage<unknown>;
+        this.redisSub.on("pmessage", (_: string, channel: string, message: string) => {
+            const msg = JSON.parse(message) as MessageQueueMessageOut<unknown>;
             if (msg.for && msg.for !== this.myUuid) {
                 log.debug(`Got message for ${msg.for}, dropping`);
                 return;
             }
-            const delay = (process.hrtime()[1]) - msg.ts!;
+            const delay = (process.hrtime()[1]) - msg.ts;
             log.debug("Delay: ", delay / 1000000, "ms");
             this.emit(channel, JSON.parse(message));
         });
@@ -49,7 +49,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redis.srem(`${CONSUMER_TRACK_PREFIX}${eventGlob}`, this.myUuid);
     }
 
-    public async push<T>(message: MessageQueueMessage<T>, single: boolean = false) {
+    public async push<T>(message: MessageQueueMessage<T>, single = false) {
         if (!message.messageId) {
             message.messageId = uuid();
         }
@@ -60,9 +60,12 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
             }
             message.for = recipient;
         }
-        message.ts = process.hrtime()[1];
+        const outMsg: MessageQueueMessageOut<T> = {
+            ...message,
+            ts: process.hrtime()[1],
+        }
         try {
-            await this.redisPub.publish(message.eventName, JSON.stringify(message));
+            await this.redisPub.publish(message.eventName, JSON.stringify(outMsg));
             log.debug(`Pushed ${message.eventName}`);
         } catch (ex) {
             log.warn("Failed to push an event:", ex);
@@ -71,9 +74,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     }
 
     public async pushWait<T, X>(message: MessageQueueMessage<T>,
-                                timeout: number = DEFAULT_RES_TIMEOUT,
-                                single: boolean = false): Promise<X> {
-        let awaitResponse: (response: MessageQueueMessage<X>) => void;
+                                timeout: number = DEFAULT_RES_TIMEOUT): Promise<X> {
         let resolve: (value: X) => void;
         let timer: NodeJS.Timer;
 
@@ -84,7 +85,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
                 }, timeout);
         });
 
-        awaitResponse = (response: MessageQueueMessage<X>) => {
+        const awaitResponse = (response: MessageQueueMessage<X>) => {
             if (response.messageId === message.messageId) {
                 clearTimeout(timer);
                 this.removeListener(`response.${message.eventName}`, awaitResponse);

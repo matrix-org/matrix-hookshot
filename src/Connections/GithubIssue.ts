@@ -11,12 +11,15 @@ import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import axios from "axios";
+import { GithubInstance } from "../Github/GithubInstance";
+import { IssuesGetResponseData } from "@octokit/types";
 
 export interface GitHubIssueConnectionState {
     org: string;
     repo: string;
     state: string;
     issues: string[];
+    // eslint-disable-next-line camelcase
     comments_processed: number;
 }
 
@@ -43,15 +46,19 @@ export class GitHubIssueConnection implements IConnection {
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
 
-    static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<any> {
-        const parts = result!.slice(1);
+    static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
+        const parts = result?.slice(1);
+        if (!parts) {
+            log.error("Invalid alias pattern");
+            throw Error("Could not find issue");
+        }
 
         const owner = parts[0];
         const repo = parts[1];
         const issueNumber = parseInt(parts[2], 10);
 
         log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
-        let issue: Octokit.IssuesGetResponse;
+        let issue: IssuesGetResponseData;
         try {
             issue = (await opts.octokit.issues.get({
                 owner,
@@ -126,7 +133,7 @@ export class GitHubIssueConnection implements IConnection {
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
-        private octokit: Octokit) { }
+        private github: GithubInstance) { }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
@@ -145,7 +152,10 @@ export class GitHubIssueConnection implements IConnection {
     }
 
     public async onCommentCreated(event: IGitHubWebhookEvent, updateState = true) {
-        const comment = event.comment!;
+        const comment = event.comment;
+        if (!comment || !comment.user) {
+            throw Error('Comment undefined');
+        }
         if (event.repository) {
             // Delay to stop comments racing sends
             await new Promise((resolve) => setTimeout(resolve, 500));
@@ -153,8 +163,11 @@ export class GitHubIssueConnection implements IConnection {
                 return;
             }
         }
-        const commentIntent = await getIntentForUser(comment.user, this.as, this.octokit);
-        const matrixEvent = await this.commentProcessor.getEventBodyForComment(comment, event.repository, event.issue);
+        const commentIntent = await getIntentForUser({
+            login: comment.user.login,
+            avatarUrl: comment.user.avatar_url,
+        }, this.as);
+        const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
 
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
         if (!updateState) {
@@ -171,7 +184,7 @@ export class GitHubIssueConnection implements IConnection {
 
     private async syncIssueState() {
         log.debug("Syncing issue state for", this.roomId);
-        const issue = await this.octokit.issues.get({
+        const issue = await this.github.octokit.issues.get({
             owner: this.state.org,
             repo: this.state.repo,
             issue_number: this.issueNumber,
@@ -179,7 +192,10 @@ export class GitHubIssueConnection implements IConnection {
 
         if (this.state.comments_processed === -1) {
             // This has a side effect of creating a profile for the user.
-            const creator = await getIntentForUser(issue.data.user, this.as, this.octokit);
+            const creator = await getIntentForUser({
+                login: issue.data.user.login,
+                avatarUrl: issue.data.user.avatar_url
+            }, this.as);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
                 await this.messageClient.sendMatrixMessage(this.roomId, {
@@ -198,7 +214,7 @@ export class GitHubIssueConnection implements IConnection {
         }
 
         if (this.state.comments_processed !== issue.data.comments) {
-            const comments = (await this.octokit.issues.listComments({
+            const comments = (await this.github.octokit.issues.listComments({
                 owner: this.state.org,
                 repo: this.state.repo,
                 issue_number: this.issueNumber,
@@ -240,7 +256,7 @@ export class GitHubIssueConnection implements IConnection {
     }
 
 
-    public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho: boolean = false) {
+    public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
         const clientKit = await this.tokenStore.getOctokitForUser(event.sender);
         if (clientKit === null) {
             await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
@@ -272,23 +288,15 @@ export class GitHubIssueConnection implements IConnection {
             return; // No changes made.
         }
 
-        if (event.changes.title) {
+        if (event.issue && event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
-                name: FormatUtil.formatIssueRoomName(event.issue!),
+                name: FormatUtil.formatIssueRoomName(event.issue),
             });
         }
     }
 
-    public onIssueStateChange(event: IGitHubWebhookEvent) {
+    public onIssueStateChange() {
         return this.syncIssueState();
-    }
-
-    public async onEvent() {
-
-    }
-
-    public async onStateUpdate() {
-
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {

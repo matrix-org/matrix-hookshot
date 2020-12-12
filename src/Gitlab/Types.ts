@@ -1,4 +1,14 @@
-interface GetUserResponse {
+/* eslint-disable camelcase */
+export interface GitLabAuthor {
+    id: number;
+    name: string;
+    username: string;
+    state: 'active';
+    avatar_url: string;
+    web_url: string;
+}
+
+export interface GetUserResponse {
     id: number;
     username: string;
     email: string;
@@ -33,8 +43,14 @@ interface GetUserResponse {
     private_profile: boolean;
 }
 
+// hhttps://docs.gitlab.com/ee/api/issues.html#single-project-issue
+export interface GetIssueOpts {
+    projects: string[];
+    issue: number;
+}
+
 // https://docs.gitlab.com/ee/api/issues.html#new-issue
-interface CreateIssueOpts {
+export interface CreateIssueOpts {
     id: string|number;
     title: string;
     description?: string;
@@ -42,7 +58,7 @@ interface CreateIssueOpts {
     labels?: string[];
 }
 
-interface CreateIssueResponse {
+export interface CreateIssueResponse {
     state: string;
     id: string;
     iid: string;
@@ -50,7 +66,7 @@ interface CreateIssueResponse {
 }
 
 // https://docs.gitlab.com/ee/api/issues.html#new-issue
-interface EditIssueOpts {
+export interface EditIssueOpts {
     id: string|number;
     issue_iid: string|number;
     title?: string;
@@ -60,8 +76,80 @@ interface EditIssueOpts {
     state_event?: string;
 }
 
-interface CreateIssueResponse {
+export interface CreateIssueResponse {
     state: string;
     id: string;
     web_url: string;
 }
+
+export interface GetIssueResponse {
+    id: number;
+    iid: number;
+    title: string;
+    description: string;
+    state: 'opened'|'closed';
+    author: GitLabAuthor;
+    references: {
+        short: string;
+        relative: string;
+        full: string;
+    }
+    web_url: string;
+}
+
+export interface GetTodosResponse {
+    id: number;
+    author: GitLabAuthor;
+    action_name: string;
+    project: {
+        id: number;
+        name: string;
+        name_with_namespace: string;
+        path: string;
+        path_with_namespace: string;
+    };
+    target: {
+        title: string;
+        description: string;
+        state: 'opened'|'closed';
+        assignee: {
+            name: string;
+            username: string;
+            id: 1;
+            state: "active";
+            avatar_url: string;
+            web_url: string;
+        }
+    }
+    target_url: string;
+    body: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface EventsOpts {
+    after: Date;
+}
+
+export interface CreateIssueNoteOpts {
+    body: string;
+    confidential?: boolean;
+}
+
+export interface CreateIssueNoteResponse {
+    id: number;
+    type: string|null;
+    body: string;
+    attachment: null;
+    author: GitLabAuthor;
+    created_at: string;
+    updated_at: string;
+    system: boolean;
+    noteable_id: number;
+    noteable_type: 'Issue';
+    resolvable: boolean;
+    confidential: boolean;
+    noteable_iid: string;
+    commands_changes: unknown;
+}
+  

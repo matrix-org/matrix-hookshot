@@ -1,3 +1,5 @@
+// We need to instantiate some functions which are not directly called, which confuses typescript.
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { IConnection } from "./IConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice } from "matrix-bot-sdk";
@@ -5,15 +7,16 @@ import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../B
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
+import { GitLabInstance } from "../Config";
 
 export interface GitLabRepoConnectionState {
-    instance_url: string;
+    instance: string;
     org: string;
     repo: string;
     state: string;
 }
 
-const log = new LogWrapper("GitHubRepoConnection");
+const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
 /**
@@ -26,13 +29,14 @@ export class GitLabRepoConnection implements IConnection {
         GitLabRepoConnection.CanonicalEventType, // Legacy event, with an awful name.
     ];
     
-    static helpMessage: any;
+    static helpMessage: MatrixMessageContent;
     static botCommands: BotCommands;
 
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private readonly state: GitLabRepoConnectionState,
-        private readonly tokenStore: UserTokenStore) {
+        private readonly tokenStore: UserTokenStore,
+        private readonly instance: GitLabInstance) {
 
     }
 
@@ -44,7 +48,7 @@ export class GitLabRepoConnection implements IConnection {
         return this.state.repo;
     }
 
-    public isInterestedInStateEvent(eventType: string) {
+    public isInterestedInStateEvent() {
         return false;
     }
 
@@ -74,7 +78,7 @@ export class GitLabRepoConnection implements IConnection {
     @botCommand("gl create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     // @ts-ignore
     private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
-        const client = await this.tokenStore.getGitLabForUser(userId, this.state.instance_url);
+        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
             throw Error('Not logged in');
@@ -97,8 +101,8 @@ export class GitLabRepoConnection implements IConnection {
 
     @botCommand("gl close", "Close an issue", ["number"], ["comment"], true)
     // @ts-ignore
-    private async onClose(userId: string, number: string, comment?: string) {
-        const client = await this.tokenStore.getGitLabForUser(userId, this.state.instance_url);
+    private async onClose(userId: string, number: string) {
+        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
             throw Error('Not logged in');
@@ -119,17 +123,13 @@ export class GitLabRepoConnection implements IConnection {
 
     // }
 
-    public async onEvent(evt: MatrixEvent<unknown>) {
-
-    }
-
-    public async onStateUpdate() { }
-
     public toString() {
         return `GitHubRepo`;
     }
 }
 
-const res = compileBotCommands(GitLabRepoConnection.prototype);
+// Typescript doesn't understand Prototypes very well yet.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const res = compileBotCommands(GitLabRepoConnection.prototype as any);
 GitLabRepoConnection.helpMessage = res.helpMessage;
 GitLabRepoConnection.botCommands = res.botCommands;

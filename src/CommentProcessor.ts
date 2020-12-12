@@ -1,4 +1,3 @@
-import { Octokit } from "@octokit/rest";
 import { Appservice } from "matrix-bot-sdk";
 import markdown from "markdown-it";
 import mime from "mime";
@@ -7,6 +6,8 @@ import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import LogWrapper from "./LogWrapper";
 import axios from "axios";
 import { FormatUtil } from "./FormatUtil";
+import { IssuesGetCommentResponseData, ReposGetResponseData, IssuesGetResponseData } from "@octokit/types";
+import { IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
 const REGEX_MATRIX_MENTION = /<a href="https:\/\/matrix\.to\/#\/(.+)">(.*)<\/a>/gmi;
@@ -14,11 +15,8 @@ const REGEX_IMAGES = /!\[.*]\((.*\.(\w+))\)/gm;
 const md = new markdown();
 const log = new LogWrapper("CommentProcessor");
 
-interface IMatrixCommentEvent {
-    msgtype: string;
-    body: string;
-    formatted_body: string;
-    format: string;
+interface IMatrixCommentEvent extends MatrixMessageContent {
+    // eslint-disable-next-line camelcase
     external_url: string;
     "uk.half-shot.matrix-github.comment": {
         id: number;
@@ -59,9 +57,9 @@ export class CommentProcessor {
         return body;
     }
 
-    public async getEventBodyForComment(comment: Octokit.IssuesGetCommentResponse,
-                                        repo?: Octokit.ReposGetResponse,
-                                        issue?: Octokit.IssuesGetResponse): Promise<IMatrixCommentEvent> {
+    public async getEventBodyForGitHubComment(comment: IssuesGetCommentResponseData,
+                                        repo?: ReposGetResponseData,
+                                        issue?: IssuesGetResponseData): Promise<IMatrixCommentEvent> {
         let body = comment.body;
         body = this.replaceMentions(body);
         body = await this.replaceImages(body, true);
@@ -73,6 +71,21 @@ export class CommentProcessor {
             msgtype: "m.text",
             format: "org.matrix.custom.html",
             ...FormatUtil.getPartialBodyForComment(comment, repo, issue)
+        };
+    }
+
+    public async getEventBodyForGitLabNote(comment: IGitLabWebhookNoteEvent): Promise<MatrixMessageContent> {
+        let body = comment.object_attributes.description;
+        body = this.replaceMentions(body);
+        body = await this.replaceImages(body, true);
+        body = emoji.emojify(body);
+        const htmlBody = md.render(body);
+        return {
+            body,
+            formatted_body: htmlBody,
+            msgtype: "m.text",
+            format: "org.matrix.custom.html",
+            // ...FormatUtil.getPartialBodyForComment(comment, repo, issue)
         };
     }
 

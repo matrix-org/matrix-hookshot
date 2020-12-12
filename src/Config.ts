@@ -2,25 +2,32 @@ import YAML from "yaml";
 import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 
-interface BridgeConfigGitHub {
+export interface BridgeConfigGitHub {
     auth: {
         id: number|string;
         privateKeyFile: string;
     };
     webhook: {
-        port: number;
-        bindAddress: string;
         secret: string;
     },
-    userTokens: {
-        [userId: string]: string;
-    }
     oauth: {
+        // eslint-disable-next-line camelcase
         client_id: string;
+        // eslint-disable-next-line camelcase
         client_secret: string;
+        // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
     installationId: number|string;
+}
+
+export interface GitLabInstance {
+    url: string;
+    // oauth: {
+    //     client_id: string;
+    //     client_secret: string;
+    //     redirect_uri: string;
+    // };
 }
 
 interface BridgeConfigGitLab {
@@ -29,23 +36,18 @@ interface BridgeConfigGitLab {
         privateKeyFile: string;
     };
     webhook: {
-        port: number;
-        bindAddress: string;
         secret: string;
     },
-    userTokens: {
-        [userId: string]: string;
-    }
-    oauth: {
-        client_id: string;
-        client_secret: string;
-        redirect_uri: string;
-    };
+    instances: {[name: string]: GitLabInstance};
 }
 
 export interface BridgeConfig {
-    github: BridgeConfigGitHub;
-    gitlab: BridgeConfigGitLab;
+    github?: BridgeConfigGitHub;
+    gitlab?: BridgeConfigGitLab;
+    webhook: {
+        port: number;
+        bindAddress: string;
+    };
     bridge: {
         domain: string;
         url: string;
