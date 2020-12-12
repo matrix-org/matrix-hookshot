@@ -26,6 +26,7 @@
     "emitDecoratorMetadata": true,
   },
   "exclude": [
-      "tests/**/*"
+      "tests/**/*",
+      "web/**/*"
   ]
 }

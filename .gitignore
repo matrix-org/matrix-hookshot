@@ -5,3 +5,5 @@ config.yml
 *.pem
 registration.yml
 tsconfig.tsbuildinfo
+
+public/
