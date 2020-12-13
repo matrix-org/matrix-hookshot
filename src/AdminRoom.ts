@@ -288,6 +288,9 @@ export class AdminRoom extends EventEmitter {
                 org,
             })).data;
         } catch (ex) {
+            if (ex.status === 404) {
+                return this.sendNotice('Not found');
+            }
             log.warn(`Failed to fetch projects:`, ex);
             return this.sendNotice(`Failed to fetch projects due to an error. See logs for details`);
         }
@@ -318,6 +321,9 @@ export class AdminRoom extends EventEmitter {
             });
             this.emit('open.project', project.data);
         } catch (ex) {
+            if (ex.status === 404) {
+                return this.sendNotice('Not found');
+            }
             log.warn(`Failed to fetch project:`, ex);
             return this.sendNotice(`Failed to fetch project due to an error. See logs for details`);
         }

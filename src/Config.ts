@@ -1,6 +1,8 @@
 import YAML from "yaml";
 import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
+import * as assert from "assert";
+import { configKey } from "./Config/Decorators";
 
 export interface BridgeConfigGitHub {
     auth: {
@@ -31,10 +33,6 @@ export interface GitLabInstance {
 }
 
 interface BridgeConfigGitLab {
-    auth: {
-        id: number|string;
-        privateKeyFile: string;
-    };
     webhook: {
         secret: string;
     },
@@ -47,58 +45,88 @@ interface BridgeWidgetConfig {
     publicUrl: string;
 }
 
-export interface BridgeConfig {
+interface BridgeConfigBridge {
+    domain: string;
+    url: string;
+    mediaUrl?: string;
+    port: number;
+    bindAddress: string;
+}
+
+interface BridgeConfigWebhook {
+    port: number;
+    bindAddress: string;
+}
+
+interface BridgeConfigQueue {
+    monolithic: boolean;
+    port?: number;
+    host?: string;
+}
+
+interface BridgeConfigLogging {
+    level: string;
+}
+
+interface BridgeConfigBot {
+    displayname?: string;
+    avatar?: string;
+}
+
+interface BridgeConfigRoot {
+    bridge: BridgeConfigBridge;
+    webhook: BridgeConfigWebhook;
+    queue: BridgeConfigQueue;
+    logging: BridgeConfigLogging;
+    passFile: string;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
-    webhook: {
-        port: number;
-        bindAddress: string;
-    };
-    bridge: {
-        domain: string;
-        url: string;
-        mediaUrl: string;
-        port: number;
-        bindAddress: string;
-        store: string;
-    };
-    queue: {
-        monolithic: boolean;
-        port?: number;
-        host?: string;
-    };
-    logging: {
-        level: string;
-    };
-    passFile: string;
-    bot?: {
-        displayname?: string;
-        avatar?: string;
-    }
+    bot?: BridgeConfigBot;
     widgets?: BridgeWidgetConfig;
+}
+
+export class BridgeConfig {
+    @configKey("Basic homeserver configuration")
+    public readonly bridge: BridgeConfigBridge;
+    public readonly webhook: BridgeConfigWebhook;
+    public readonly queue: BridgeConfigQueue;
+    public readonly logging: BridgeConfigLogging;
+    public readonly passFile: string;
+    public readonly github?: BridgeConfigGitHub;
+    public readonly gitlab?: BridgeConfigGitLab;
+    public readonly bot?: BridgeConfigBot;
+    public readonly widgets?: BridgeWidgetConfig;
+
+    constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
+        this.bridge = configData.bridge;
+        assert.ok(this.bridge);
+        this.github = configData.github;
+        this.gitlab = configData.gitlab;
+        this.webhook = configData.webhook;
+        this.passFile = configData.passFile;
+        assert.ok(this.webhook);
+        this.queue = configData.queue || {
+            monolithic: true,
+        };
+        this.logging = configData.logging || {
+            level: "info",
+        }
+        // TODO: Formalize env support
+        if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
+            this.queue.monolithic = false;
+            this.queue.host = env.CFG_QUEUE_HOST;
+            this.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
+        }
+
+    }
+
+    static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {
+        const file = await fs.readFile(filename, "utf-8");
+        return new BridgeConfig(YAML.parse(file), env);
+    }
 }
 
 export async function parseRegistrationFile(filename: string) {
     const file = await fs.readFile(filename, "utf-8");
     return YAML.parse(file) as IAppserviceRegistration;
-}
-
-export async function parseConfig(filename: string, env: {[key: string]: string|undefined}) {
-    const file = await fs.readFile(filename, "utf-8");
-    const config = YAML.parse(file) as BridgeConfig;
-    config.queue = config.queue || {
-        monolithic: true,
-    };
-    if (!config.logging || !config.logging.level) {
-        config.logging = {
-            level: "info",
-        };
-    }
-    config.bridge.mediaUrl = config.bridge.mediaUrl || config.bridge.url;
-    if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
-        config.queue.monolithic = false;
-        config.queue.host = env.CFG_QUEUE_HOST;
-        config.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
-    }
-    return config;
 }

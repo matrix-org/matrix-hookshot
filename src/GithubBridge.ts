@@ -172,7 +172,7 @@ export class GithubBridge {
 
         this.widgetApi = new BridgeWidgetApi(this.adminRooms);
 
-        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl);
+        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
 
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent);
         await this.tokenStore.load();

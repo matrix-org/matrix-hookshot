@@ -1,7 +1,7 @@
 import { GithubBridge } from "../GithubBridge";
 import LogWrapper from "../LogWrapper";
 
-import { parseConfig, parseRegistrationFile } from "../Config";
+import { BridgeConfig, parseRegistrationFile } from "../Config";
 import { GithubWebhooks } from "../GithubWebhooks";
 import { MatrixSender } from "../MatrixSender";
 
@@ -10,7 +10,7 @@ const log = new LogWrapper("App");
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
     const registrationFile = process.argv[3] || "./registration.yml";
-    const config = await parseConfig(configFile, process.env);
+    const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
     LogWrapper.configureLogging(config.logging.level);
 

@@ -18,7 +18,8 @@
     "start:webhooks": "node --require source-map-support/register lib/App/GithubWebhookApp.js",
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
     "test": "mocha -r ts-node/register tests/*.ts",
-    "lint": "eslint -c .eslintrc.js src/**/*.ts"
+    "lint": "eslint -c .eslintrc.js src/**/*.ts",
+    "generate-default-config": "node lib/Config/Defaults.js > config.sample.yml"
   },
   "dependencies": {
     "@octokit/auth-app": "2.10.2",
@@ -42,7 +43,7 @@
     "string-argv": "v0.3.1",
     "uuid": "^8.3.1",
     "winston": "^3.3.3",
-    "yaml": "^1.10.0"
+    "yaml": "^2.0.0-1"
   },
   "devDependencies": {
     "@prefresh/snowpack": "^2.2.0",

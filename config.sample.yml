@@ -1,55 +1,39 @@
+# This is an example configuration file
+
+bridge:
+  # Basic homeserver configuration
+  #
+  domain: example.com
+  url: http://localhost:8008
+  mediaUrl: http://example.com
+  port: 9993
+  bindAddress: 127.0.0.1
 github:
-  # You can find this by going to https://github.com/settings/installations,
-  # clicking on the bridge app and taking note of the ID in the URL.
-  # E.g. https://github.com/settings/installations/6854059
   installationId: 6854059
-  auth: 
+  auth:
     id: 123
-    privateKeyFile: "github-key.pem"
+    privateKeyFile: github-key.pem
   oauth:
     client_id: foo
     client_secret: bar
-    redirect_uri: baz
+    redirect_uri: https://example.com/bridge_oauth/
   webhook:
-    secret: webhooksecret
-    port: 7775
-    bindAddress: 0.0.0.0
-  userTokens: 
-    # If you want to hardcode a users token in the config
-    - "@hardcoded:localhost": "foobarbaz"
-bridge:
-  # Homeserver servername
-  domain: example.com
-  # Homeserver (internal) url
-  url: http://localhost:8008
-  # This is your public facing url where media is served from
-  mediaUrl: http://example.com/
-  port: 9993 # Port the appservice is binding to
-  bindAddress: 127.0.0.1 # Address to bind to
-queue:
-  monolithic: true # If this is false, use a Redis server as a queue.
-  # Redis settings
-  port: 6379 # Port for the redis server, omit for 6379
-  host: localhost # Port for the redis server, omit for localhost
-  # Note that setting the above will make the bridge use redis as a storage location
-logging:
-  level: "info" # One of "debug", "info", "warn", "error"
-
-# This is used to securely store passwords.
-# Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
-passFile: "passkey.pem"
-
+    secret: secrettoken
+gitlab:
+  instances:
+    gitlab.com:
+      url: https://gitlab.com
+  webhook:
+    secret: secrettoken
 webhook:
   port: 9000
+  bindAddress: 0.0.0.0
+passFile: passkey.pem
+queue:
+  monolithic: true
+  port: 6379
+  host: localhost
+logging:
+  level: info
 
-widgets:
-  # The port to listen on for the widget API
-  port: 5000
-  # Public url that the widget API is reachable on
-  publicUrl: "https://example.com/bridgewidgets/"
-  # Add the widget to admin rooms
-  addToAdminRooms: true
-
-bot:
-  displayname: "GitHub Bot"
-  avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+sdasdsade
