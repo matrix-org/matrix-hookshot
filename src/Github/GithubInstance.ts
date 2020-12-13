@@ -22,8 +22,10 @@ export class GithubInstance {
 
     public static createUserOctokit(token: string) {
         return new Octokit({
-            authStrategy: createTokenAuth,
-            auth: token,
+            // XXX: A recent release of octokit (rest/auth-token?) broke passing in the token
+            // as an auth parameter. For now we can just do this.
+            authStrategy: () => createTokenAuth(token),
+            auth: null,
             userAgent: USER_AGENT,
         });
     }

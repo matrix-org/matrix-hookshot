@@ -1,19 +1,20 @@
 # Stage 0: Build the thing
-FROM node:12-alpine AS builder
+FROM node:14-alpine AS builder
 
 COPY . /src
 WORKDIR /src
 
-RUN npm install
-RUN npm run build
+# will also build
+RUN yarn 
 
 # Stage 1: The actual container
 FROM node:12-alpine
 
 COPY --from=builder /src/lib/ /bin/matrix-github/
+COPY --from=builder /src/public/ /bin/matrix-github/
 COPY --from=builder /src/package*.json /bin/matrix-github/
 WORKDIR /bin/matrix-github
-RUN npm install --production
+RUN yarn --production
 
 VOLUME /data
 EXPOSE 9993

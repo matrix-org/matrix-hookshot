@@ -25,7 +25,11 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
   },
+  "include": [
+      "src/**/*"
+  ],
   "exclude": [
-      "tests/**/*"
+      "tests/**/*",
+      "web/**/*"
   ]
 }

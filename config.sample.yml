@@ -39,6 +39,17 @@ logging:
 # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096
 passFile: "passkey.pem"
 
+webhook:
+  port: 9000
+
+widgets:
+  # The port to listen on for the widget API
+  port: 5000
+  # Public url that the widget API is reachable on
+  publicUrl: "https://example.com/bridgewidgets/"
+  # Add the widget to admin rooms
+  addToAdminRooms: true
+
 bot:
   displayname: "GitHub Bot"
   avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d

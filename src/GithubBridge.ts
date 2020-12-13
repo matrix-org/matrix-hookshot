@@ -26,7 +26,7 @@ import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNot
 import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GitLabClient } from "./Gitlab/Client";
-// import { IGitLabWebhookMREvent } from "./Gitlab/WebhookTypes";
+import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -39,6 +39,7 @@ export class GithubBridge {
     private queue!: MessageQueue;
     private tokenStore!: UserTokenStore;
     private messageClient!: MessageSenderClient;
+    private widgetApi!: BridgeWidgetApi;
 
     private connections: IConnection[] = [];
 
@@ -168,6 +169,8 @@ export class GithubBridge {
             registration: this.registration,
             storage,
         });
+
+        this.widgetApi = new BridgeWidgetApi(this.adminRooms);
 
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl);
 
@@ -392,7 +395,13 @@ export class GithubBridge {
 
         for (const roomId of joinedRooms) {
             log.debug("Fetching state for " + roomId);
-            const connections = await this.createConnectionsForRoomId(roomId);
+            let connections: IConnection[];
+            try {
+                connections = await this.createConnectionsForRoomId(roomId);
+            } catch (ex) {
+                log.error(`Unable to create connection for ${roomId}`, ex);
+                continue;
+            }
             this.connections.push(...connections);
             if (connections.length === 0) {
                 // TODO: Refactor this to be a connection
@@ -400,7 +409,7 @@ export class GithubBridge {
                     const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData(
                         BRIDGE_ROOM_TYPE, roomId,
                     );
-                    const adminRoom = this.setupAdminRoom(roomId, accountData);
+                    const adminRoom = await this.setupAdminRoom(roomId, accountData);
                     // Call this on startup to set the state
                     await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 } catch (ex) {
@@ -410,7 +419,9 @@ export class GithubBridge {
                 log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
             }
         }
-
+        if (this.config.widgets) {
+            await this.widgetApi.start(this.config.widgets.port);
+        }
         await this.as.begin();
         log.info("Started bridge");
     }
@@ -427,7 +438,7 @@ export class GithubBridge {
         }
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const room = this.setupAdminRoom(roomId, {admin_user: event.sender});
+            const room = await this.setupAdminRoom(roomId, {admin_user: event.sender});
             await this.as.botIntent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.data,
             );
@@ -652,7 +663,7 @@ export class GithubBridge {
         
     }
 
-    private setupAdminRoom(roomId: string, accountData: AdminAccountData) {
+    private async setupAdminRoom(roomId: string, accountData: AdminAccountData) {
         const adminRoom = new AdminRoom(
             roomId, accountData, this.as.botIntent, this.tokenStore, this.config,
         );
@@ -680,6 +691,9 @@ export class GithubBridge {
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
+        if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
+            await adminRoom.setupWidget();
+        }
         log.info(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
     }

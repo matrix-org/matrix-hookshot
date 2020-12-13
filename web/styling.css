@@ -1,0 +1,7 @@
+
+@import "fontsource-open-sans/400-normal.css";
+@import "mini.css";
+
+body {
+  font-family: 'Open Sans';
+}

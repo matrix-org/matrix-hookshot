@@ -323,7 +323,7 @@ export class GitHubRepoConnection implements IConnection {
                     owner: this.org,
                     repo: this.repo,
                     issue_number: issueContent.number,
-                    content: reactionName,
+                    content: reactionName as any,
                     mediaType: {
                       previews: [
                         // Needed as this is a preview

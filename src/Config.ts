@@ -41,6 +41,12 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
+interface BridgeWidgetConfig {
+    port: number;
+    addToAdminRooms: boolean;
+    publicUrl: string;
+}
+
 export interface BridgeConfig {
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
@@ -69,6 +75,7 @@ export interface BridgeConfig {
         displayname?: string;
         avatar?: string;
     }
+    widgets?: BridgeWidgetConfig;
 }
 
 export async function parseRegistrationFile(filename: string) {
