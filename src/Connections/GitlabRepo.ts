@@ -7,7 +7,7 @@ import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../B
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
-import { GitLabInstance } from "../Config";
+import { GitLabInstance } from "../Config/Config";
 
 export interface GitLabRepoConnectionState {
     instance: string;

@@ -1,4 +1,4 @@
-import { BridgeConfig } from "../Config";
+import { BridgeConfig } from "../Config/Config";
 import { GithubWebhooks } from "../GithubWebhooks";
 import LogWrapper from "../LogWrapper";
 

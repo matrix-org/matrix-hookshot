@@ -8,7 +8,7 @@ import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { FormatUtil } from "../FormatUtil";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
-import { GitLabInstance } from "../Config";
+import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { getIntentForUser } from "../IntentUtils";

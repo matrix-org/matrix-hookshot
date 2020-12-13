@@ -2,7 +2,7 @@ import { createAppAuth } from "@octokit/auth-app";
 import { createTokenAuth } from "@octokit/auth-token";
 import { Octokit } from "@octokit/rest";
 import { promises as fs } from "fs";
-import { BridgeConfigGitHub } from "../Config";
+import { BridgeConfigGitHub } from "../Config/Config";
 import LogWrapper from "../LogWrapper";
 
 const log = new LogWrapper("GithubInstance");

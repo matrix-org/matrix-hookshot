@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Intent } from "matrix-bot-sdk";
 import { UserTokenStore } from "./UserTokenStore";
-import { BridgeConfig } from "./Config";
+import { BridgeConfig } from "./Config/Config";
 import {v4 as uuid} from "uuid";
 import qs from "querystring";
 import { EventEmitter } from "events";

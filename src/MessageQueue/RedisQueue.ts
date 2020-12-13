@@ -1,6 +1,6 @@
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessageOut } from "./MessageQueue";
 import { Redis, default as redis } from "ioredis";
-import { BridgeConfig } from "../Config";
+import { BridgeConfig } from "../Config/Config";
 import { EventEmitter } from "events";
 import LogWrapper from "../LogWrapper";
 

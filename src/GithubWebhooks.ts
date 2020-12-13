@@ -1,4 +1,4 @@
-import { BridgeConfig } from "./Config";
+import { BridgeConfig } from "./Config/Config";
 import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
 import { IssuesGetResponseData, IssuesGetCommentResponseData, ReposGetResponseData } from "@octokit/types";

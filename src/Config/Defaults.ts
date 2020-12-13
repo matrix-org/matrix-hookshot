@@ -1,4 +1,4 @@
-import { BridgeConfig } from "../Config";
+import { BridgeConfig } from "./Config";
 import YAML from "yaml";
 import { getConfigKeyMetadata } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
@@ -73,7 +73,7 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
         
         const metadata = getConfigKeyMetadata(obj, key);
         if (metadata) {
-            newNode.commentBefore = `${metadata[1] ? '(Optional)' : ''} ${metadata[0]}\n`;
+            newNode.commentBefore = `${metadata[1] ? ' (Optional)' : ''} ${metadata[0]}\n`;
         }
 
         if (parentNode) {

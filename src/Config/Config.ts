@@ -2,7 +2,7 @@ import YAML from "yaml";
 import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 import * as assert from "assert";
-import { configKey } from "./Config/Decorators";
+import { configKey } from "./Decorators";
 
 export interface BridgeConfigGitHub {
     auth: {
@@ -88,13 +88,22 @@ interface BridgeConfigRoot {
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
+    @configKey("HTTP webhook listener options")
     public readonly webhook: BridgeConfigWebhook;
+    @configKey("Message queue / cache configuration options for large scale deployments", true)
     public readonly queue: BridgeConfigQueue;
+    @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
+    @configKey(`A passkey used to encrypt tokens stored inside the bridge.
+ Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
+    @configKey("Configure this to enable support for GitHub", true)
     public readonly github?: BridgeConfigGitHub;
+    @configKey("Configure this to enable support for GitLab", true)
     public readonly gitlab?: BridgeConfigGitLab;
+    @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
+    @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {

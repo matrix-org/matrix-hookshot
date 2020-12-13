@@ -9,6 +9,8 @@ bridge:
   port: 9993
   bindAddress: 127.0.0.1
 github:
+  # (Optional) Configure this to enable support for GitHub
+  #
   installationId: 6854059
   auth:
     id: 123
@@ -20,20 +22,31 @@ github:
   webhook:
     secret: secrettoken
 gitlab:
+  # (Optional) Configure this to enable support for GitLab
+  #
   instances:
     gitlab.com:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
 webhook:
+  # HTTP webhook listener options
+  #
   port: 9000
   bindAddress: 0.0.0.0
-passFile: passkey.pem
+passFile:
+  # A passkey used to encrypt tokens stored inside the bridge.
+  # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
+  #
+  passkey.pem
 queue:
+  # (Optional) Message queue / cache configuration options for large scale deployments
+  #
   monolithic: true
   port: 6379
   host: localhost
 logging:
+  # (Optional) Logging settings. You can have a severity debug,info,warn,error
+  #
   level: info
 
-sdasdsade

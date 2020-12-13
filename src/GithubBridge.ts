@@ -1,6 +1,6 @@
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
 import { ProjectsGetResponseData } from "@octokit/types";
-import { BridgeConfig, GitLabInstance } from "./Config";
+import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
 import { CommentProcessor } from "./CommentProcessor";
