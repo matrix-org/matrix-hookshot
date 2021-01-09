@@ -127,8 +127,6 @@ async function renderRegistrationFile(configPath?: string) {
             rooms: [],
         },
     };
-    obj.namespaces.aliases[0].regex = obj.namespaces.aliases[0].regex.replace('example.com', bridgeConfig.homeserver.domain);
-    obj.namespaces.users[0].regex = obj.namespaces.users[0].regex.replace('example.com', bridgeConfig.homeserver.domain);
     console.log(YAML.stringify(obj));
 }
 

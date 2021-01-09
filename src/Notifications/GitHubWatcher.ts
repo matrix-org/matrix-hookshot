@@ -36,15 +36,17 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     public readonly type = "github";
     public readonly instanceUrl = undefined;
 
-    constructor(token: string, public userId: string, public roomId: string, public since: number, private participating = false) {
+    constructor(token: string, public userId: string, public roomId: string, since: number, private participating = false) {
         super();
         this.octoKit =  GithubInstance.createUserOctokit(token);
+        this.lastReadTs = since;
     }
 
     public start(intervalMs: number) {
         this.interval = setTimeout(() => {
             this.getNotifications();
         }, intervalMs);
+        this.getNotifications();
     }
 
     public stop() {
@@ -86,50 +88,43 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
         }
         log.info(`Got ${response.data.length} notifications`);
         this.lastReadTs = Date.now();
-        const events: GitHubUserNotification[] = [];
 
         for (const rawEvent of response.data) {
-                try {
-                    await (async () => {
-                        if (rawEvent.subject.url) {
-                            const res = await this.octoKit.request(rawEvent.subject.url);
-                            rawEvent.subject.url_data = res.data;
-                        }
-                        if (rawEvent.subject.latest_comment_url) {
-                            const res = await this.octoKit.request(rawEvent.subject.latest_comment_url);
-                            rawEvent.subject.latest_comment_url_data = res.data;
-                        }
-                        if (rawEvent.reason === "review_requested") {
-                            if (!rawEvent.subject.url_data?.number) {
-                                log.warn("review_requested was missing subject.url_data.number");
-                                return;
-                            }
-                            rawEvent.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
-                                pull_number: rawEvent.subject.url_data.number,
-                                owner: rawEvent.repository.owner.login,
-                                repo: rawEvent.repository.name,
-                            })).data;
-                            rawEvent.subject.reviews = (await this.octoKit.pulls.listReviews({
-                                pull_number: rawEvent.subject.url_data.number,
-                                owner: rawEvent.repository.owner.login,
-                                repo: rawEvent.repository.name,
-                            })).data;
-                        }
-                        events.push(rawEvent);
-                    })();
-                } catch (ex) {
-                    log.warn(`Failed to pre-process ${rawEvent.id}: ${ex}`);
-                    // If it fails, we can just push the raw thing.
-                    events.push(rawEvent);
+            try {
+                if (rawEvent.subject.url) {
+                    const res = await this.octoKit.request(rawEvent.subject.url);
+                    rawEvent.subject.url_data = res.data;
                 }
+                if (rawEvent.subject.latest_comment_url) {
+                    const res = await this.octoKit.request(rawEvent.subject.latest_comment_url);
+                    rawEvent.subject.latest_comment_url_data = res.data;
+                }
+                if (rawEvent.reason === "review_requested") {
+                    if (!rawEvent.subject.url_data?.number) {
+                        log.warn("review_requested was missing subject.url_data.number");
+                        continue;
+                    }
+                    rawEvent.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
+                        pull_number: rawEvent.subject.url_data.number,
+                        owner: rawEvent.repository.owner.login,
+                        repo: rawEvent.repository.name,
+                    })).data;
+                    rawEvent.subject.reviews = (await this.octoKit.pulls.listReviews({
+                        pull_number: rawEvent.subject.url_data.number,
+                        owner: rawEvent.repository.owner.login,
+                        repo: rawEvent.repository.name,
+                    })).data;
+                }
+            } catch (ex) {
+                log.warn(`Failed to pre-process ${rawEvent.id}: ${ex}`);
+                // We still push
             }
-
-        if (events.length > 0) {
-            this.emit("notification_events", {
+            log.debug(`Pushing ${rawEvent.id}`);
+            this.emit("new_events", {
                 eventName: "notifications.user.events",
                 data: {
                     roomId: this.roomId,
-                    events,
+                    events: [rawEvent],
                     lastReadTs: this.lastReadTs,
                 },
                 sender: "GithubWebhooks",
