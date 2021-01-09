@@ -2,6 +2,7 @@ import { BridgeConfig } from "./Config";
 import YAML from "yaml";
 import { getConfigKeyMetadata } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
+import { randomBytes } from "crypto";
 
 const DefaultConfig = new BridgeConfig({
     bridge: {
@@ -62,7 +63,7 @@ const DefaultConfig = new BridgeConfig({
 
 function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
     const entries = Object.entries(obj);
-    entries.forEach(([key, value], i) => {
+    entries.forEach(([key, value]) => {
         let newNode: Node;
         if (typeof value === "object") {
             newNode = doc.createNode({});
@@ -82,7 +83,6 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
             doc.add({key, value: newNode});
         }
     })
-
 }
 
 function renderDefaultConfig() {
@@ -94,5 +94,55 @@ function renderDefaultConfig() {
     return doc.toString();
 }
 
+
+async function renderRegistrationFile(configPath?: string) {
+    let bridgeConfig: BridgeConfig;
+    if (configPath) {
+        bridgeConfig = await BridgeConfig.parseConfig(configPath, process.env);
+    } else {
+        bridgeConfig = new BridgeConfig(DefaultConfig, process.env);
+    }
+    const obj = {
+        as_token: randomBytes(32).toString('hex'),
+        hs_token: randomBytes(32).toString('hex'),
+        id: 'github-bridge',
+        url: `http://${bridgeConfig.bridge.bindAddress}:${bridgeConfig.bridge.port}/`,
+        rate_limited: false,
+        sender_localpart: 'github',
+        namespaces: {
+            aliases: [{
+                exclusive: true,
+                regex: `#github_.+:${bridgeConfig.bridge.domain}`
+            },{
+                exclusive: true,
+                regex: `#gitlab_.+:${bridgeConfig.bridge.domain}`
+            }],
+            users: [{
+                exclusive: true,
+                regex: `@_github_.+:${bridgeConfig.bridge.domain}`
+            },{
+                exclusive: true,
+                regex: `@_gitlab_.+:${bridgeConfig.bridge.domain}`
+            }],
+            rooms: [],
+        },
+    };
+    obj.namespaces.aliases[0].regex = obj.namespaces.aliases[0].regex.replace('example.com', bridgeConfig.homeserver.domain);
+    obj.namespaces.users[0].regex = obj.namespaces.users[0].regex.replace('example.com', bridgeConfig.homeserver.domain);
+    console.log(YAML.stringify(obj));
+}
+
+
 // Can be called directly
-console.log(renderDefaultConfig())
+if (require.main === module) {
+    if (process.argv[2] === '--config') {
+        console.log(renderDefaultConfig());
+    } else if (process.argv[2] === '--registration') {
+        renderRegistrationFile(process.argv[3]).catch(ex => {
+            console.error(ex);
+            process.exit(1);
+        });
+    } else {
+        throw Error('Must give --config or --registration');
+    }
+}

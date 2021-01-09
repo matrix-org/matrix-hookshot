@@ -108,14 +108,17 @@ export class AdminRoom extends EventEmitter {
         }
         try {
             const { since } = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId);
+            log.debug(`Got ${type} notif-since to ${since}`);
             return since;
-        } catch {
+        } catch (ex) {
+            log.warn(`Filed to get ${type} notif-since`, ex);
             // TODO: We should look at this error.
             return 0;
         }
     }
 
     public async setNotifSince(type: "github"|"gitlab", since: number, instanceName?: string) {
+        log.debug(`Updated ${type} notif-since to ${since}`);
         if (type === "gitlab") {
             return this.botIntent.underlyingClient.setRoomAccountData(
                 `${BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`,
