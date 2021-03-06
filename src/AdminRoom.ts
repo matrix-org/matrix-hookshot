@@ -12,7 +12,7 @@ import { FormatUtil } from "./FormatUtil";
 import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
 import { GitLabClient } from "./Gitlab/Client";
 import { GetUserResponse } from "./Gitlab/Types";
-import { GithubInstance } from "./Github/GithubInstance";
+import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
@@ -330,6 +330,31 @@ export class AdminRoom extends EventEmitter {
             log.warn(`Failed to fetch project:`, ex);
             return this.sendNotice(`Failed to fetch project due to an error. See logs for details`);
         }
+    }
+
+    @botCommand("github discussion open", "Open a discussion room", ['owner', 'repo', 'number'])
+    // @ts-ignore - property is used
+    private async listDiscussions(owner: string, repo: string, numberStr: string) {
+        const number = parseInt(numberStr);
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support");
+        }
+        const octokit = await this.tokenStore.getOctokitForUser(this.userId);
+        if (!octokit) {
+            return this.sendNotice("You can not list projects without an account.");
+        }
+        try {
+            const graphql = new GithubGraphQLClient(octokit);
+            const discussions = await graphql.getDiscussionByNumber(owner, repo, number);
+            this.emit('open.discussion', owner, repo, discussions);
+        } catch (ex) {
+            if (ex.status === 404) {
+                return this.sendNotice('Not found');
+            }
+            log.warn(`Failed to fetch discussions:`, ex);
+            return this.sendNotice(`Failed to fetch discussions due to an error. See logs for details`);
+        }
+
     }
 
     /* GitLab commands */

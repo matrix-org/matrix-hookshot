@@ -27,6 +27,8 @@ import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GitLabClient } from "./Gitlab/Client";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
+import { GitHubDiscussionConnection } from "./Connections/GithubDiscussion";
+import { Discussion } from "./Github/Discussion";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -57,6 +59,16 @@ export class GithubBridge {
                 throw Error('GitHub is not configured');
             }
             return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore);
+        }
+
+        if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
+            if (!this.github) {
+                throw Error('GitHub is not configured');
+            }
+            return new GitHubDiscussionConnection(
+                roomId, this.as, state.content, state.state_key || "", this.tokenStore, this.commentProcessor,
+                this.messageClient,
+            );
         }
 
         if (GitHubIssueConnection.EventTypes.includes(state.type)) {
@@ -453,10 +465,10 @@ export class GithubBridge {
         }
         log.info(`Got message roomId=${roomId} from=${event.sender}`);
         log.debug(event);
+        const adminRoom = this.adminRooms.get(roomId);
 
-        if (this.adminRooms.has(roomId)) {
-            const room = this.adminRooms.get(roomId)!;
-            if (room.userId !== event.sender) {
+        if (adminRoom) {
+            if (adminRoom.userId !== event.sender) {
                 return;
             }
 
@@ -465,7 +477,7 @@ export class GithubBridge {
 
             if (processedReply) {
                 const metadata: IRichReplyMetadata = processedReply.mx_richreply;
-                log.info(`Handling reply to ${metadata.parentEventId} for ${room.userId}`);
+                log.info(`Handling reply to ${metadata.parentEventId} for ${adminRoom.userId}`);
                 // This might be a reply to a notification
                 try {
                     const ev = metadata.realEvent;
@@ -483,15 +495,14 @@ export class GithubBridge {
                         log.info("Missing parts!:", splitParts, issueNumber);
                     }
                 } catch (ex) {
-                    await room.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
+                    await adminRoom.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
                     log.error("Reply event could not be handled:", ex);
                 }
                 return;
             }
 
             const command = event.content.body;
-            const adminRoom = this.adminRooms.get(roomId);
-            if (command && adminRoom) {
+            if (command) {
                 await adminRoom.handleCommand(event.event_id, command);
             }
         }
@@ -670,6 +681,12 @@ export class GithubBridge {
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
             const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+            this.connections.push(connection);
+        });
+        adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
+            const connection = await GitHubDiscussionConnection.createDiscussionRoom(
+                this.as, adminRoom.userId, owner, repo, discussions, this.tokenStore, this.commentProcessor, this.messageClient,
+            );
             this.connections.push(connection);
         });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
