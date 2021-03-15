@@ -78,6 +78,18 @@ query($name: String!, $owner: String!, $number: Int!) {
         return result.repository.discussion as Discussion;
     }
 
+    public async createDiscussionComment(number: number) {
+        // const result = await this.query(`
+        // mutation($name: String!, $owner: String!, $number: Int!) {
+        //     createDiscussion(input: {}) {
+        //         discussion(number: $number) {
+        //             ${DiscussionQL}
+        //         }
+        //     }
+        // }`, {name, owner, number}) as any;
+        //         return result.repository.discussion as Discussion;
+    }
+ 
     public async listDiscussions(owner: string, name: string) {
         return this.query(`
 query($name: String!, $owner: String!) {

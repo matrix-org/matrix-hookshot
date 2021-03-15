@@ -1,15 +1,17 @@
 import { IConnection } from "./IConnection";
-import { Appservice, MatrixEvent } from "matrix-bot-sdk";
+import { Appservice } from "matrix-bot-sdk";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
 import { Discussion } from "../Github/Discussion";
-import { MatrixMessageContent } from "../MatrixEvent";
+import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+
 
 export interface GitHubDiscussionConnectionState {
     owner: string;
     name: string;
+    id: number;
     discussion: number;
 }
 
@@ -39,6 +41,7 @@ export class GitHubDiscussionConnection implements IConnection {
         const state: GitHubDiscussionConnectionState = {
             owner,
             name,
+            id: discussion.id,
             discussion: discussion.number,
         };
         const roomId = await commentIntent.underlyingClient.createRoom({
@@ -82,6 +85,7 @@ export class GitHubDiscussionConnection implements IConnection {
             await this.as.botClient.sendNotice(this.roomId, `${ev.sender}: Cannot send comment, you are not logged into GitHub`);
             return;
         }
+        
     }
 
     public get discussionNumber() {
