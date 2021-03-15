@@ -523,10 +523,6 @@ export class GithubBridge {
     }
 
     private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
-        if (event.sender === this.as.botUserId) {
-            // It's us
-            return;
-        }
         if (event.state_key) {
             // A state update, hurrah!
             const existingConnection = this.connections.find((c) => c.roomId === roomId && c.isInterestedInStateEvent(event.type, event.state_key || ""));
@@ -541,6 +537,10 @@ export class GithubBridge {
                 }
             }
             return null;
+        }
+        if (event.sender === this.as.botUserId) {
+            // It's us
+            return;
         }
 
         // Alas, it's just an event.
