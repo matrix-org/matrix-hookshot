@@ -65,6 +65,7 @@ export class GithubBridge {
             }
             const issue = new GitHubIssueConnection(roomId, this.as, state.content, state.state_key || "", this.tokenStore, this.commentProcessor, this.messageClient, this.github);
             await issue.syncIssueState();
+            return issue;
         }
         if (GitLabRepoConnection.EventTypes.includes(state.type)) {
             if (!this.config.gitlab) {
