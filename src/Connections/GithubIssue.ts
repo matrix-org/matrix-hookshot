@@ -182,7 +182,7 @@ export class GitHubIssueConnection implements IConnection {
         );
     }
 
-    private async syncIssueState() {
+    public async syncIssueState() {
         log.debug("Syncing issue state for", this.roomId);
         const issue = await this.github.octokit.issues.get({
             owner: this.state.org,
