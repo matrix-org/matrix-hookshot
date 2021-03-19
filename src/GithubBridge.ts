@@ -535,7 +535,7 @@ export class GithubBridge {
             const existingConnection = this.connections.find((c) => c.roomId === roomId && c.isInterestedInStateEvent(event.type, event.state_key || ""));
             if (existingConnection?.onStateUpdate) {
                 existingConnection.onStateUpdate(event);
-            } else {
+            } else if (!existingConnection) {
                 // Is anyone interested in this state?
                 const connection = await this.createConnectionForState(roomId, event);
                 if (connection) {
