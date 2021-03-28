@@ -43,6 +43,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     }
 
     public start(intervalMs: number) {
+        log.info(`Starting for ${this.userId}`);
         this.interval = setTimeout(() => {
             this.getNotifications();
         }, intervalMs);
@@ -51,6 +52,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
 
     public stop() {
         if (this.interval) {
+            log.info(`Stopping for ${this.userId}`);
             clearInterval(this.interval);
         }
     }
