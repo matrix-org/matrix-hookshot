@@ -16,7 +16,7 @@ export class GitLabWatcher extends EventEmitter implements NotificationWatcherTa
     }
 
     public start(intervalMs: number) {
-        this.interval = setTimeout(() => {
+        this.interval = setInterval(() => {
             this.getNotifications();
         }, intervalMs);
     }

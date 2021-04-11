@@ -13,8 +13,8 @@ const GH_API_THRESHOLD = 50;
 const GH_API_RETRY_IN = 1000 * 60;
 
 export class GitHubWatcher extends EventEmitter implements NotificationWatcherTask  {
-    private static apiFailureCount: number;
-    private static globalRetryIn: number;
+    private static apiFailureCount = 0;
+    private static globalRetryIn = 0;
 
     public static checkGitHubStatus() {
         this.apiFailureCount = Math.min(this.apiFailureCount + 1, GH_API_THRESHOLD);
@@ -44,7 +44,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
 
     public start(intervalMs: number) {
         log.info(`Starting for ${this.userId}`);
-        this.interval = setTimeout(() => {
+        this.interval = setInterval(() => {
             this.getNotifications();
         }, intervalMs);
         this.getNotifications();
