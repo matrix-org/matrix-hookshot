@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "incremental": true,
-    "target": "ESNEXT",
+    "target": "ES2019",
     "module": "commonjs",
     "declaration": false,
     "outDir": "./lib",
