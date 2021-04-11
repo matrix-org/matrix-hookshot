@@ -483,11 +483,12 @@ export class AdminRoom extends EventEmitter {
         }
         if (this.notifFilter.forNotifications.has(name)) {
             this.notifFilter.forNotifications.delete(name);
-            return this.sendNotice(`Filter "${name}" disabled for notifications`);
+            await this.sendNotice(`Filter "${name}" disabled for notifications`);
         } else {
             this.notifFilter.forNotifications.add(name);
-            return this.sendNotice(`Filter "${name}" enabled for notifications`);
+            await this.sendNotice(`Filter "${name}" enabled for notifications`);
         }
+        await this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
