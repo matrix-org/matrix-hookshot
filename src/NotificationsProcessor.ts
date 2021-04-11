@@ -8,9 +8,10 @@ import { FormatUtil } from "./FormatUtil";
 import { PullGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "./Github/Types";
 import { GitHubUserNotification } from "./Github/Types";
 import { components } from "@octokit/openapi-types/dist-types/generated/types";
+import { NotifFilter } from "./NotificationFilters";
 
 
-const log = new LogWrapper("GithubBridge");
+const log = new LogWrapper("NotificationProcessor");
 const md = new markdown();
 
 export interface IssueDiff {
@@ -110,7 +111,7 @@ export class NotificationProcessor {
         for (const event of msg.events) {
             const isIssueOrPR = event.subject.type === "Issue" || event.subject.type === "PullRequest";
             try {
-                await this.handleUserNotification(msg.roomId, event);
+                await this.handleUserNotification(msg.roomId, event, adminRoom.notifFilter);
                 if (isIssueOrPR && event.subject.url_data) {
                     const issueNumber = event.subject.url_data.number.toString();
                     await this.storage.setGithubIssue(
@@ -251,8 +252,15 @@ export class NotificationProcessor {
         return this.matrixSender.sendMatrixMessage(roomId, body);
     }
 
-    private async handleUserNotification(roomId: string, notif: GitHubUserNotification) {
+    private async handleUserNotification(roomId: string, notif: GitHubUserNotification, filter: NotifFilter) {
         log.info("New notification event:", notif);
+        if (!filter.shouldSendNotification(
+            notif.subject.latest_comment_url_data?.user?.login,
+            notif.repository.full_name,
+            notif.repository.owner?.login)) {
+                log.debug(`Dropping notification because user is filtering it out`)
+                return;
+            }
         if (notif.reason === "security_alert") {
             return this.matrixSender.sendMatrixMessage(roomId, this.formatSecurityAlert(notif));
         } else if (notif.subject.type === "Issue" || notif.subject.type === "PullRequest") {

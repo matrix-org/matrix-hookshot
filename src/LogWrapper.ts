@@ -45,10 +45,16 @@ export default class LogWrapper {
                 log.info(getMessageString(messageOrObject), { module });
             },
             warn: (module: string, ...messageOrObject: MsgType[]) => {
+                const error = messageOrObject[0].error || messageOrObject[1].body?.error;
+                if (error === "Room account data not found") {
+                    log.debug(getMessageString(messageOrObject), { module });
+                    return; // This is just noise :|
+                }
                 log.warn(getMessageString(messageOrObject), { module });
             },
             error: (module: string, ...messageOrObject: MsgType[]) => {
-                if (typeof messageOrObject[0] === "object" && messageOrObject[0].error === "Room account data not found") {
+                const error = messageOrObject[0].error || messageOrObject[1]?.body?.error;
+                if (error === "Room account data not found") {
                     log.debug(getMessageString(messageOrObject), { module });
                     return; // This is just noise :|
                 }

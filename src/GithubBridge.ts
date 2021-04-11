@@ -27,6 +27,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GitLabClient } from "./Gitlab/Client";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { ProjectsGetResponseData } from "./Github/Types";
+import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -413,21 +414,35 @@ export class GithubBridge {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 continue;
             }
-            this.connections.push(...connections);
-            if (connections.length === 0) {
-                // TODO: Refactor this to be a connection
-                try {
-                    const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData<AdminAccountData>(
-                        BRIDGE_ROOM_TYPE, roomId,
-                    );
-                    const adminRoom = await this.setupAdminRoom(roomId, accountData);
-                    // Call this on startup to set the state
-                    await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
-                } catch (ex) {
-                    log.debug(`Room ${roomId} has no connections and is not an admin room`);
-                }
-            } else {
+            if (this.connections.length) {
                 log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
+                this.connections.push(...connections);
+                continue;
+            }
+            // TODO: Refactor this to be a connection
+            try {
+                const accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                    BRIDGE_ROOM_TYPE, roomId,
+                );
+                if (!accountData) {
+                    log.debug(`Room ${roomId} has no connections and is not an admin room`);
+                    continue;
+                }
+
+                let notifContent;
+                try {
+                    notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                        roomId, NotifFilter.StateType, "",
+                    );
+                } catch (ex) {
+                    // No state yet
+                }
+                const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                // Call this on startup to set the state
+                await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
+                log.info(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
+            } catch (ex) {
+                log.error(`Failed to setup admin room ${roomId}:`, ex);
             }
         }
         if (this.config.widgets) {
@@ -449,7 +464,7 @@ export class GithubBridge {
         }
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const room = await this.setupAdminRoom(roomId, {admin_user: event.sender});
+            const room = await this.setupAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
             await this.as.botIntent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.data,
             );
@@ -673,9 +688,9 @@ export class GithubBridge {
         
     }
 
-    private async setupAdminRoom(roomId: string, accountData: AdminAccountData) {
+    private async setupAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
         const adminRoom = new AdminRoom(
-            roomId, accountData, this.as.botIntent, this.tokenStore, this.config,
+            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config,
         );
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {

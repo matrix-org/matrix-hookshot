@@ -17,6 +17,7 @@ import { MatrixMessageContent } from "./MatrixEvent";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 import { Endpoints } from "@octokit/types";
 import { ProjectsListResponseData } from "./Github/Types";
+import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
@@ -45,21 +46,24 @@ export interface AdminAccountData {
             }
         }
     }
-
 }
+
 export class AdminRoom extends EventEmitter {
     public static helpMessage: MatrixMessageContent;
     private widgetAccessToken = `abcdef`;
     static botCommands: BotCommands;
 
     private pendingOAuthState: string|null = null;
+    public readonly notifFilter: NotifFilter;
 
     constructor(public readonly roomId: string,
                 public readonly data: AdminAccountData,
+                notifContent: NotificationFilterStateContent,
                 private botIntent: Intent,
                 private tokenStore: UserTokenStore,
                 private config: BridgeConfig) {
         super();
+        this.notifFilter = new NotifFilter(notifContent);
         // TODO: Move this
         this.backfillAccessToken();
     }
@@ -408,8 +412,7 @@ export class AdminRoom extends EventEmitter {
     }
 
     @botCommand("gitlab notifications toggle", "Toggle enabling/disabling GitHub notifications in this room", ["instanceName"])
-    // @ts-ignore - property is used
-    private async setGitLabNotificationsStateToggle(instanceName: string) {
+    public async setGitLabNotificationsStateToggle(instanceName: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
@@ -437,7 +440,54 @@ export class AdminRoom extends EventEmitter {
                 },
             };
         });
-        await this.sendNotice(`${newValue ? "En" : "Dis"}abled GitLab notifications for ${instanceName}`);
+        return this.sendNotice(`${newValue ? "En" : "Dis"}abled GitLab notifications for ${instanceName}`);
+    }
+
+    @botCommand("filters list", "List your saved filters")
+    public async getFilters() {
+        if (this.notifFilter.empty) {
+            return this.sendNotice("You do not currently have any filters");
+        }
+        const filterText = Object.entries(this.notifFilter.filters).map(([name, value]) => {
+            const userText = value.users.length ? `users: ${value.users.join("|")}` : '';
+            const reposText = value.repos.length ? `users: ${value.repos.join("|")}` : '';
+            const orgsText = value.orgs.length ? `users: ${value.orgs.join("|")}` : '';
+            return `${name}: ${userText} ${reposText} ${orgsText}`
+        }).join("\n");
+        const enabledForInvites = [...this.notifFilter.forInvites].join(', ');
+        const enabledForNotifications = [...this.notifFilter.forNotifications].join(', ');
+        return this.sendNotice(`Your filters:\n ${filterText}\nEnabled for automatic room invites: ${enabledForInvites}\nEnabled for notifications: ${enabledForNotifications}`);
+    }
+
+    @botCommand("filters set", "List your saved filters", ["name", "...parameters"])
+    public async setFilter(name: string, ...parameters: string[]) {
+        const orgs = parameters.filter(param => param.toLowerCase().startsWith("orgs:")).map(param => param.toLowerCase().substring("orgs:".length).split(",")).flat();
+        const users = parameters.filter(param => param.toLowerCase().startsWith("users:")).map(param => param.toLowerCase().substring("users:".length).split(",")).flat();
+        const repos = parameters.filter(param => param.toLowerCase().startsWith("repos:")).map(param => param.toLowerCase().substring("repos:".length).split(",")).flat();
+        if (orgs.length + users.length + repos.length === 0) {
+            return this.sendNotice("You must specify some filter options like 'orgs:matrix-org,half-shot', 'users:Half-Shot' or 'repos:matrix-github'");
+        }
+        this.notifFilter.setFilter(name, {
+            orgs,
+            users,
+            repos,
+        });
+        await this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
+        return this.sendNotice(`Stored new filter "${name}". You can now apply the filter by saying 'filters notifications toggle $name'`);
+    }
+
+    @botCommand("filters notifications toggle", "List your saved filters", ["name"])
+    public async setFiltersNotificationsToggle(name: string) {
+        if (!this.notifFilter.filters[name]) {
+            return this.sendNotice(`Filter "${name}" doesn't exist'`);
+        }
+        if (this.notifFilter.forNotifications.has(name)) {
+            this.notifFilter.forNotifications.delete(name);
+            return this.sendNotice(`Filter "${name}" disabled for notifications`);
+        } else {
+            this.notifFilter.forNotifications.add(name);
+            return this.sendNotice(`Filter "${name}" enabled for notifications`);
+        }
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
@@ -539,6 +589,10 @@ export class AdminRoom extends EventEmitter {
         } catch (ex) {
             log.info(`No widget access token for ${this.roomId}`);
         }
+    }
+
+    public toString() {
+        return `AdminRoom(${this.roomId}, ${this.userId})`;
     }
 }
 
