@@ -459,7 +459,7 @@ export class AdminRoom extends EventEmitter {
         return this.sendNotice(`Your filters:\n ${filterText}\nEnabled for automatic room invites: ${enabledForInvites}\nEnabled for notifications: ${enabledForNotifications}`);
     }
 
-    @botCommand("filters set", "List your saved filters", ["name", "...parameters"])
+    @botCommand("filters set", "Create (or update) a filter. You can use 'orgs:', 'users:' or 'repos:' as filter parameters.", ["name", "...parameters"])
     public async setFilter(name: string, ...parameters: string[]) {
         const orgs = parameters.filter(param => param.toLowerCase().startsWith("orgs:")).map(param => param.toLowerCase().substring("orgs:".length).split(",")).flat();
         const users = parameters.filter(param => param.toLowerCase().startsWith("users:")).map(param => param.toLowerCase().substring("users:".length).split(",")).flat();
