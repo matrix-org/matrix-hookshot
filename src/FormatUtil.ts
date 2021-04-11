@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListResponseData } from './Github/Types';
-
+import emoji from "node-emoji";
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -10,11 +10,11 @@ interface IMinimalRepository {
 export class FormatUtil {
     public static formatIssueRoomName(issue: {number: number, title: string, repository_url: string}) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
-        return `${orgRepoName}#${issue.number}: ${issue.title}`;
+        return emoji.emojify(`${orgRepoName}#${issue.number}: ${issue.title}`);
     }
 
     public static formatRepoRoomName(repo: {full_name: string, description: string|null}) {
-        return  repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name;
+        return emoji.emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
     }
 
     public static formatRoomTopic(repo: {state: string, html_url: string}) {

@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
@@ -46,7 +46,7 @@ export class GithubBridge {
 
     constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) { }
 
-    private async createConnectionForState(roomId: string, state: MatrixEvent<any>) {
+    private async createConnectionForState(roomId: string, state: StateEvent<any>) {
         log.debug(`Looking to create connection for ${roomId}`);
         if (state.content.disabled === false) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
@@ -64,7 +64,7 @@ export class GithubBridge {
             if (!this.github) {
                 throw Error('GitHub is not configured');
             }
-            const issue = new GitHubIssueConnection(roomId, this.as, state.content, state.state_key || "", this.tokenStore, this.commentProcessor, this.messageClient, this.github);
+            const issue = new GitHubIssueConnection(roomId, this.as, state.content, state.stateKey || "", this.tokenStore, this.commentProcessor, this.messageClient, this.github);
             await issue.syncIssueState();
             return issue;
         }
@@ -88,7 +88,7 @@ export class GithubBridge {
                 roomId,
                 this.as,
                 state.content,
-                state.state_key as string, 
+                state.stateKey as string, 
                 this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
@@ -101,7 +101,7 @@ export class GithubBridge {
         const state = await this.as.botClient.getRoomState(roomId);
         const connections: IConnection[] = [];
         for (const event of state) {
-            const conn = await this.createConnectionForState(roomId, event);
+            const conn = await this.createConnectionForState(roomId, new StateEvent(event));
             if (conn) { connections.push(conn); }
         }
         return connections;
@@ -113,6 +113,8 @@ export class GithubBridge {
     }
 
     private getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
+        org = org.toLowerCase();
+        repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as GitHubRepoConnection[];
     }
 
@@ -261,7 +263,7 @@ export class GithubBridge {
             const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
-                    // TODO: Needs impl
+                    // TODO: Needs impls
                     if (c instanceof GitHubIssueConnection /* || c instanceof GitHubRepoConnection*/)
                         await c.onIssueEdited(data);
                 } catch (ex) {
@@ -415,7 +417,7 @@ export class GithubBridge {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 continue;
             }
-            if (this.connections.length) {
+            if (connections.length) {
                 log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
                 this.connections.push(...connections);
                 continue;
@@ -556,7 +558,7 @@ export class GithubBridge {
                 existingConnection.onStateUpdate(event);
             } else if (!existingConnection) {
                 // Is anyone interested in this state?
-                const connection = await this.createConnectionForState(roomId, event);
+                const connection = await this.createConnectionForState(roomId, new StateEvent(event));
                 if (connection) {
                     log.info(`New connected added to ${roomId}: ${connection.toString()}`);
                     this.connections.push(connection);

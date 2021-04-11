@@ -13,7 +13,7 @@ import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import { ReposGetResponseData } from "../Github/Types";
-
+import emoji from "node-emoji";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -152,11 +152,11 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     public get org() {
-        return this.state.org;
+        return this.state.org.toLowerCase();
     }
 
     public get repo() {
-        return this.state.repo;
+        return this.state.repo.toLowerCase();
     }
 
     public isInterestedInStateEvent() {
@@ -264,7 +264,7 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
-        const content = `New issue created [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        const content = emoji.emojify(`New issue created [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
         const labelsHtml = event.issue.labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
             typeof(label) === "string" ?
              `<span>${label}</span>` :
@@ -292,7 +292,7 @@ export class GitHubRepoConnection implements IConnection {
         }
         if (event.issue.state === "closed" && event.sender) {
             const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
-            const content = `**@${event.sender.login}** closed issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+            const content = `**@${event.sender.login}** closed issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
             await this.as.botIntent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content,
