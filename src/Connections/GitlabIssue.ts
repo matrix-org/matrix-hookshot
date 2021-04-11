@@ -1,7 +1,6 @@
 import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
-import markdown from "markdown-it";
 import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
 import { CommentProcessor } from "../CommentProcessor";
@@ -23,9 +22,6 @@ export interface GitLabIssueConnectionState {
 }
 
 const log = new LogWrapper("GitLabIssueConnection");
-const md = new markdown();
-
-md.render("foo");
 
 // interface IQueryRoomOpts {
 //     as: Appservice;

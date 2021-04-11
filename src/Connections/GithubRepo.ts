@@ -12,7 +12,7 @@ import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
-import { ReposGetResponseData } from "@octokit/types";
+import { ReposGetResponseData } from "../Github/Types";
 
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
@@ -265,11 +265,13 @@ export class GitHubRepoConnection implements IConnection {
         }
         const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
         const content = `New issue created [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
-        const labelsHtml = event.issue.labels.map((label: {color: string, name: string, description: string}) => 
-            `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
+        const labelsHtml = event.issue.labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
+            typeof(label) === "string" ?
+             `<span>${label}</span>` :
+             `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
         ).join(" ") || "";
-        const labels = event.issue?.labels.map((label: {name: string}) => 
-            label.name
+        const labels = event.issue?.labels.map((label: {name?: string}|string) => 
+            typeof(label) === "string" ? label : label.name
         ).join(", ") || "";
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",

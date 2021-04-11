@@ -12,7 +12,7 @@ import { FormatUtil } from "../FormatUtil";
 import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import axios from "axios";
 import { GithubInstance } from "../Github/GithubInstance";
-import { IssuesGetResponseData } from "@octokit/types";
+import { IssuesGetResponseData } from "../Github/Types";
 
 export interface GitHubIssueConnectionState {
     org: string;
@@ -168,8 +168,10 @@ export class GitHubIssueConnection implements IConnection {
             avatarUrl: comment.user.avatar_url,
         }, this.as);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
-
-        await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
+        // Comment body may be blank
+        if (matrixEvent) {
+            await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
+        }
         if (!updateState) {
             return;
         }
@@ -193,8 +195,9 @@ export class GitHubIssueConnection implements IConnection {
         if (this.state.comments_processed === -1) {
             // This has a side effect of creating a profile for the user.
             const creator = await getIntentForUser({
-                login: issue.data.user.login,
-                avatarUrl: issue.data.user.avatar_url
+                // TODO: Fix
+                login: issue.data.user?.login as string,
+                avatarUrl: issue.data.user?.avatar_url || undefined
             }, this.as);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
@@ -232,11 +235,12 @@ export class GitHubIssueConnection implements IConnection {
 
         if (this.state.state !== issue.data.state) {
             if (issue.data.state === "closed") {
-                const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by.login);
+                // TODO: Fix
+                const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by?.login as string);
                 await this.messageClient.sendMatrixMessage(this.roomId, {
                     msgtype: "m.notice",
                     body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
-                    external_url: issue.data.closed_by.html_url,
+                    external_url: issue.data.closed_by?.html_url,
                 }, "m.room.message", closedUserId);
             }
 

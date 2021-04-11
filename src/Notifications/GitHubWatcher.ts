@@ -106,6 +106,10 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                         log.warn("review_requested was missing subject.url_data.number");
                         continue;
                     }
+                    if (!rawEvent.repository.owner) {
+                        log.warn("review_requested was missing repository.owner");
+                        continue;
+                    }
                     rawEvent.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
                         pull_number: rawEvent.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,

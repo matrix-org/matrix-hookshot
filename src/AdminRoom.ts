@@ -14,8 +14,12 @@ import { GitLabClient } from "./Gitlab/Client";
 import { GetUserResponse } from "./Gitlab/Types";
 import { GithubInstance } from "./Github/GithubInstance";
 import { MatrixMessageContent } from "./MatrixEvent";
-import { ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
+import { Endpoints } from "@octokit/types";
+import { ProjectsListResponseData } from "./Github/Types";
+
+type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
+type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
 
 const md = new markdown();
@@ -240,10 +244,11 @@ export class AdminRoom extends EventEmitter {
 
         if (!username) {
             const me = await octokit.users.getAuthenticated();
-            username = me.data.name;
+            // TODO: Fix
+            username = me.data.name!;
         }
 
-        let res: ProjectsListForUserResponseData|ProjectsListForRepoResponseData;
+        let res: ProjectsListResponseData;
         try {
             if (repo) {
                 res = (await octokit.projects.listForRepo({
@@ -259,7 +264,7 @@ export class AdminRoom extends EventEmitter {
             return this.sendNotice(`Failed to fetch projects due to an error. See logs for details`);
         }
 
-        const content = `Projects for ${username}:\n` + res.map(r => ` - ${FormatUtil.projectListing([r])}\n`).join("\n");
+        const content = `Projects for ${username}:\n${FormatUtil.projectListing(res)}\n`;
         return this.botIntent.sendEvent(this.roomId,{
             msgtype: "m.notice",
             body: content,
@@ -285,11 +290,11 @@ export class AdminRoom extends EventEmitter {
                 res = (await octokit.projects.listForRepo({
                     repo,
                     owner: org,
-                })).data;
+                }));
             }
             res = (await octokit.projects.listForOrg({
                 org,
-            })).data;
+            }));
         } catch (ex) {
             if (ex.status === 404) {
                 return this.sendNotice('Not found');
@@ -298,7 +303,7 @@ export class AdminRoom extends EventEmitter {
             return this.sendNotice(`Failed to fetch projects due to an error. See logs for details`);
         }
 
-        const content = `Projects for ${org}:\n` + res.map(r => ` - ${FormatUtil.projectListing([r])}\n`).join("\n");
+        const content = `Projects for ${org}:\n` + res.data.map(r => ` - ${FormatUtil.projectListing([r])}\n`).join("\n");
         return this.botIntent.sendEvent(this.roomId,{
             msgtype: "m.notice",
             body: content,

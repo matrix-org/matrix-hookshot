@@ -46,12 +46,14 @@ export class UserTokenStore {
         if (existingToken) {
             return existingToken;
         }
-        let obj;
         try {
+            let obj;
             if (type === "github") {
-                obj = await this.intent.underlyingClient.getAccountData(key);
+                obj = await this.intent.underlyingClient.getAccountData<{encrypted: string}>(key);
             } else if (type === "gitlab") {
-                obj = await this.intent.underlyingClient.getAccountData(key);
+                obj = await this.intent.underlyingClient.getAccountData<{encrypted: string}>(key);
+            } else {
+                throw Error('Unknown type');
             }
             const encryptedTextB64 = obj.encrypted;
             const encryptedText = Buffer.from(encryptedTextB64, "base64");

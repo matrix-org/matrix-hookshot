@@ -1,5 +1,5 @@
 
-@import "fontsource-open-sans/400-normal.css";
+@import "../node_modules/@fontsource/open-sans/400.css";
 @import "mini.css";
 
 body {

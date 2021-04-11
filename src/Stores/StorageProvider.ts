@@ -1,5 +1,5 @@
 import { IAppserviceStorageProvider } from "matrix-bot-sdk";
-import { IssuesGetResponseData } from "@octokit/types";
+import { IssuesGetResponseData } from "../Github/Types";
 
 export interface IStorageProvider extends IAppserviceStorageProvider {
     setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope?: string): Promise<void>;

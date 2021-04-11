@@ -1,4 +1,4 @@
-import { IssuesGetResponseData } from "@octokit/types";
+import { IssuesGetResponseData } from "../Github/Types";
 import { Redis, default as redis } from "ioredis";
 import LogWrapper from "../LogWrapper";
 

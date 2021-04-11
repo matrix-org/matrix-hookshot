@@ -5,15 +5,17 @@ import LogWrapper from "./LogWrapper";
 import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { FormatUtil } from "./FormatUtil";
-import { IssuesListAssigneesResponseData, PullsGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "@octokit/types";
+import { PullGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "./Github/Types";
 import { GitHubUserNotification } from "./Github/Types";
+import { components } from "@octokit/openapi-types/dist-types/generated/types";
+
 
 const log = new LogWrapper("GithubBridge");
 const md = new markdown();
 
 export interface IssueDiff {
     state: null|string;
-    assignee: null|IssuesListAssigneesResponseData;
+    assignee: null|(components["schemas"]["simple-user"][]);
     title: null|string;
     merged: boolean;
     mergedBy: null|{
@@ -34,7 +36,7 @@ export interface CachedReviewData {
     reviews: PullsListReviewsResponseData;
 }
 
-type PROrIssue = IssuesGetResponseData|PullsGetResponseData;
+type PROrIssue = IssuesGetResponseData|PullGetResponseData;
 
 export class NotificationProcessor {
 
@@ -66,12 +68,13 @@ export class NotificationProcessor {
                 plain += `\n\n Title changed to: ${diff.title}`;
             }
             if (diff.assignee) {
-                plain += `\n\n Assigned to: ${diff.assignee[0].login}`;
+                plain += `\n\n Assigned to: ${diff.assignee.map(l => l?.login).join(", ")}`;
             }
         }
         if (newComment) {
             const comment = notif.subject.latest_comment_url_data as IssuesGetCommentResponseData;
-            plain += `\n\n ${NotificationProcessor.formatUser(comment.user)}:\n\n > ${comment.body}`;
+            const user = comment.user ? NotificationProcessor.formatUser(comment.user) : 'user';
+            plain += `\n\n ${user}:\n\n > ${comment.body}`;
         }
         return {
             plain,
@@ -187,9 +190,12 @@ export class NotificationProcessor {
     private diffIssueChanges(curr: PROrIssue, prev: PROrIssue): IssueDiff {
         let merged = false;
         let mergedBy = null;
-        if ((curr as PullsGetResponseData).merged !== (prev as PullsGetResponseData).merged) {
+        if ((curr as PullGetResponseData).merged !== (prev as PullGetResponseData).merged) {
             merged = true;
-            mergedBy = (curr as PullsGetResponseData).merged_by;
+            mergedBy = (curr as PullGetResponseData).merged_by;
+        }
+        if (!curr.user) {
+            throw Error('No user for issue');
         }
         const diff: IssueDiff = {
             state: curr.state === prev.state ? null : curr.state,
@@ -217,7 +223,7 @@ export class NotificationProcessor {
             (await this.storage.getLastNotifCommentUrl(notif.repository.full_name, issueNumber, roomId));
 
         const formatted = NotificationProcessor.formatNotification(notif, diff, newComment);
-        let body: any = {
+        let body = {
             msgtype: "m.text",
             body: formatted.plain,
             formatted_body: formatted.html,

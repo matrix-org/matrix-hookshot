@@ -1,5 +1,4 @@
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata } from "matrix-bot-sdk";
-import { ProjectsGetResponseData } from "@octokit/types";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { IGitHubWebhookEvent, IOAuthRequest, IOAuthTokens, NotificationsEnableEvent,
     NotificationsDisableEvent } from "./GithubWebhooks";
@@ -27,6 +26,7 @@ import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GitLabClient } from "./Gitlab/Client";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
+import { ProjectsGetResponseData } from "./Github/Types";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -220,15 +220,19 @@ export class GithubBridge {
             if (!data.repository || !data.issue) {
                 throw Error("Malformed webhook event, missing repository or issue");
             }
+            if (!data.repository.owner?.login) {
+                throw Error('Cannot get connection for ownerless issue');
+            }
             return {
+                owner: data.repository.owner?.login,
                 repository: data.repository,
                 issue: data.issue,
             };
         }
 
         this.queue.on<IGitHubWebhookEvent>("comment.created", async ({ data }) => {
-            const { repository, issue } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
+            const { repository, issue, owner } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection)
@@ -240,8 +244,8 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitHubWebhookEvent>("issue.opened", async ({ data }) => {
-            const { repository } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubRepo(repository.owner.login, repository.name);
+            const { repository, owner } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubRepo(owner, repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onIssueCreated(data);
@@ -252,8 +256,8 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitHubWebhookEvent>("issue.edited", async ({ data }) => {
-            const { repository, issue } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
+            const { repository, issue, owner } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection)
@@ -265,8 +269,8 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitHubWebhookEvent>("issue.closed", async ({ data }) => {
-            const { repository, issue } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
+            const { repository, issue, owner } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection)
@@ -278,8 +282,8 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitHubWebhookEvent>("issue.reopened", async ({ data }) => {
-            const { repository, issue } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(repository.owner.login, repository.name, issue.number);
+            const { repository, issue, owner } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection)
@@ -413,7 +417,7 @@ export class GithubBridge {
             if (connections.length === 0) {
                 // TODO: Refactor this to be a connection
                 try {
-                    const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData(
+                    const accountData = await this.as.botIntent.underlyingClient.getRoomAccountData<AdminAccountData>(
                         BRIDGE_ROOM_TYPE, roomId,
                     );
                     const adminRoom = await this.setupAdminRoom(roomId, accountData);
@@ -461,9 +465,9 @@ export class GithubBridge {
         log.info(`Got message roomId=${roomId} from=${event.sender}`);
         log.debug(event);
 
-        if (this.adminRooms.has(roomId)) {
-            const room = this.adminRooms.get(roomId)!;
-            if (room.userId !== event.sender) {
+        const adminRoom = this.adminRooms.get(roomId);
+        if (adminRoom) {
+            if (adminRoom.userId !== event.sender) {
                 return;
             }
 
@@ -472,7 +476,7 @@ export class GithubBridge {
 
             if (processedReply) {
                 const metadata: IRichReplyMetadata = processedReply.mx_richreply;
-                log.info(`Handling reply to ${metadata.parentEventId} for ${room.userId}`);
+                log.info(`Handling reply to ${metadata.parentEventId} for ${adminRoom.userId}`);
                 // This might be a reply to a notification
                 try {
                     const ev = metadata.realEvent;
@@ -490,15 +494,14 @@ export class GithubBridge {
                         log.info("Missing parts!:", splitParts, issueNumber);
                     }
                 } catch (ex) {
-                    await room.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
+                    await adminRoom.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
                     log.error("Reply event could not be handled:", ex);
                 }
                 return;
             }
 
             const command = event.content.body;
-            const adminRoom = this.adminRooms.get(roomId);
-            if (command && adminRoom) {
+            if (command) {
                 await adminRoom.handleCommand(event.event_id, command);
             }
         }

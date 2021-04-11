@@ -1,4 +1,5 @@
-import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListForOrgResponseData, ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
+/* eslint-disable camelcase */
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListResponseData } from './Github/Types';
 
 interface IMinimalRepository {
     id: number;
@@ -12,8 +13,8 @@ export class FormatUtil {
         return `${orgRepoName}#${issue.number}: ${issue.title}`;
     }
 
-    public static formatRepoRoomName(repo: {full_name: string, description: string}) {
-        return `${repo.full_name}: ${repo.description}`;
+    public static formatRepoRoomName(repo: {full_name: string, description: string|null}) {
+        return  repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name;
     }
 
     public static formatRoomTopic(repo: {state: string, html_url: string}) {
@@ -61,7 +62,11 @@ export class FormatUtil {
         };
     }
 
-    public static projectListing(projectItem: ProjectsListForOrgResponseData|ProjectsListForUserResponseData|ProjectsListForRepoResponseData) {
-        return `${projectItem[0].name} (#${projectItem[0].number}) - Project ID: ${projectItem[0].id}`
+    public static projectListing(projects: ProjectsListResponseData): string {
+        let f = '';
+        for (const projectItem of projects) {
+            f += ` - ${projectItem.name} (#${projectItem.number}) - Project ID: ${projectItem.id}`;
+        }
+        return f;
     }
 }

@@ -1,7 +1,6 @@
 import { BridgeConfig } from "./Config/Config";
 import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
-import { IssuesGetResponseData, IssuesGetCommentResponseData, ReposGetResponseData } from "@octokit/types";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
 import LogWrapper from "./LogWrapper";
@@ -10,6 +9,7 @@ import { Server } from "http";
 import axios from "axios";
 import { UserNotificationWatcher } from "./Notifications/UserNotificationWatcher";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData } from "./Github/Types";
 
 const log = new LogWrapper("GithubWebhooks");
 
@@ -34,7 +34,9 @@ export interface IOAuthRequest {
 }
 
 export interface IOAuthTokens {
+    // eslint-disable-next-line camelcase
     access_token: string;
+    // eslint-disable-next-line camelcase
     token_type: string;
     state: string;
 }
@@ -181,6 +183,7 @@ export class GithubWebhooks extends EventEmitter {
                 redirect_uri: this.config.github.oauth.redirect_uri,
                 state: req.query.state as string,
             })}`);
+            // eslint-disable-next-line camelcase
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
             await this.queue.push<IOAuthTokens>({
                 eventName: "oauth.tokens",

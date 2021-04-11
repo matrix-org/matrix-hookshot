@@ -1,5 +1,18 @@
-import { IssuesGetResponseData, IssuesGetCommentResponseData, PullsListReviewsResponseData, ReposGetResponseData, PullsListRequestedReviewersResponseData } from "@octokit/types";
+import { Endpoints } from "@octokit/types";
 
+export type IssuesGetResponseData = Endpoints["GET /repos/{owner}/{repo}/issues/{issue_number}"]["response"]["data"];
+export type IssuesGetCommentResponseData = Endpoints["GET /repos/{owner}/{repo}/issues/comments/{comment_id}"]["response"]["data"];
+export type PullsListReviewsResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews"]["response"]["data"];
+export type PullsListRequestedReviewersResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}/requested_reviewers"]["response"]["data"];
+export type ReposGetResponseData = Endpoints["GET /repos/{owner}/{repo}"]["response"]["data"];
+export type ProjectsGetResponseData = Endpoints["GET /projects/{project_id}"]["response"]["data"];
+export type ProjectsListForTeamsResponseData = Endpoints["GET /teams/{team_id}/projects"]["response"]["data"];
+export type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"]["data"];
+export type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"]["data"];
+export type ProjectsListResponseData = ProjectsListForTeamsResponseData|ProjectsListForRepoResponseData|ProjectsListForUserResponseData;
+export type IssuesListAssigneesResponseData = Endpoints["GET /repos/{owner}/{repo}/issues"]["response"]["data"];
+export type PullsGetResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"];
+export type PullGetResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}"]["response"]["data"];
 /* eslint-disable camelcase */
 export interface GitHubUserNotification {
     id: string;
