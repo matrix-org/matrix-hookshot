@@ -87,7 +87,7 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
 
 function renderDefaultConfig() {
     const doc = new YAML.Document();
-    doc.contents = new YAMLSeq();
+    doc.contents = YAML.createNode({});
     doc.commentBefore = ' This is an example configuration file';
     // Needed because the entries syntax below would not work otherwise
     renderSection(doc, DefaultConfig as any);
