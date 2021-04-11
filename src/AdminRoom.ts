@@ -476,7 +476,7 @@ export class AdminRoom extends EventEmitter {
         return this.sendNotice(`Stored new filter "${name}". You can now apply the filter by saying 'filters notifications toggle $name'`);
     }
 
-    @botCommand("filters notifications toggle", "List your saved filters", ["name"])
+    @botCommand("filters notifications toggle", "Apply a filter as a whitelist to your notifications", ["name"])
     public async setFiltersNotificationsToggle(name: string) {
         if (!this.notifFilter.filters[name]) {
             return this.sendNotice(`Filter "${name}" doesn't exist'`);
