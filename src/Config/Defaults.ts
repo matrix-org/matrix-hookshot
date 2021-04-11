@@ -1,6 +1,7 @@
 import { BridgeConfig } from "./Config";
+import YAML from "yaml";
 import { getConfigKeyMetadata } from "./Decorators";
-import { Node, YAMLSeq, Document, stringify } from "yaml";
+import { Node, YAMLSeq } from "yaml/types";
 import { randomBytes } from "crypto";
 
 const DefaultConfig = new BridgeConfig({
@@ -60,15 +61,15 @@ const DefaultConfig = new BridgeConfig({
     }
 }, {});
 
-function renderSection(doc: Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
+function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
     const entries = Object.entries(obj);
     entries.forEach(([key, value]) => {
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
-            newNode = doc.createNode({});
+            newNode = YAML.createNode({});
             renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq);
         } else {
-            newNode = doc.createNode(value);
+            newNode = YAML.createNode(value);
         }
         
         const metadata = getConfigKeyMetadata(obj, key);
@@ -85,7 +86,7 @@ function renderSection(doc: Document, obj: Record<string, unknown>, parentNode?:
 }
 
 function renderDefaultConfig() {
-    const doc = new Document({});
+    const doc = new YAML.Document({});
     doc.commentBefore = ' This is an example configuration file';
     // Needed because the entries syntax below would not work otherwise
     renderSection(doc, DefaultConfig as any);
@@ -125,7 +126,7 @@ async function renderRegistrationFile(configPath?: string) {
             rooms: [],
         },
     };
-    console.log(stringify(obj));
+    console.log(YAML.stringify(obj));
 }
 
 
