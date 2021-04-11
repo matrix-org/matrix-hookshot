@@ -1,4 +1,10 @@
 node_modules/
 lib/
+tests/
 config.yml
 public/
+.github/
+logging.txt
+tsconfig.tsbuildinfo
+*.pem
+registration.yml
