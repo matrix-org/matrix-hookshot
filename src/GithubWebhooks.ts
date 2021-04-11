@@ -115,6 +115,7 @@ export class GithubWebhooks extends EventEmitter {
         } else if (body.action === "reopened" && body.issue) {
             return "issue.reopened";
         }
+        log.info(`Unknown event ${body.action}`);
         return null;
     }
 

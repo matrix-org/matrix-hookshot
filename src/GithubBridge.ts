@@ -261,7 +261,8 @@ export class GithubBridge {
             const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
-                    if (c instanceof GitHubIssueConnection)
+                    // TODO: Needs impl
+                    if (c instanceof GitHubIssueConnection /* || c instanceof GitHubRepoConnection*/)
                         await c.onIssueEdited(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
@@ -274,7 +275,7 @@ export class GithubBridge {
             const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
-                    if (c instanceof GitHubIssueConnection)
+                    if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
                         await c.onIssueStateChange();
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
@@ -287,7 +288,7 @@ export class GithubBridge {
             const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
-                    if (c instanceof GitHubIssueConnection)
+                    if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
                         await c.onIssueStateChange();
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);

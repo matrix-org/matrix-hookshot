@@ -73,7 +73,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             log.info(`Not getting notifications for ${this.userId}, API is still down.`);
             return;
         }
-        log.info(`Getting notifications for ${this.userId} ${this.lastReadTs}`);
+        log.debug(`Getting notifications for ${this.userId} ${this.lastReadTs}`);
         const since = this.lastReadTs !== 0 ? `&since=${new Date(this.lastReadTs).toISOString()}`: "";
         let response: OctokitResponse<GitHubUserNotification[]>;
         try {
@@ -88,9 +88,11 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             await this.handleGitHubFailure(ex);
             return;
         }
-        log.info(`Got ${response.data.length} notifications`);
         this.lastReadTs = Date.now();
 
+        if (response.data.length) {
+            log.info(`Got ${response.data.length} notifications for ${this.userId}`);
+        }
         for (const rawEvent of response.data) {
             try {
                 if (rawEvent.subject.url) {
