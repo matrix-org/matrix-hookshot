@@ -1,52 +1,59 @@
 # This is an example configuration file
 
-bridge:
-  # Basic homeserver configuration
-  #
-  domain: example.com
-  url: http://localhost:8008
-  mediaUrl: http://example.com
-  port: 9993
-  bindAddress: 127.0.0.1
-github:
-  # (Optional) Configure this to enable support for GitHub
-  #
-  installationId: 6854059
-  auth:
-    id: 123
-    privateKeyFile: github-key.pem
-  oauth:
-    client_id: foo
-    client_secret: bar
-    redirect_uri: https://example.com/bridge_oauth/
-  webhook:
-    secret: secrettoken
-gitlab:
-  # (Optional) Configure this to enable support for GitLab
-  #
-  instances:
-    gitlab.com:
-      url: https://gitlab.com
-  webhook:
-    secret: secrettoken
-webhook:
-  # HTTP webhook listener options
-  #
-  port: 9000
-  bindAddress: 0.0.0.0
-passFile:
-  # A passkey used to encrypt tokens stored inside the bridge.
-  # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
-  #
-  passkey.pem
-queue:
-  # (Optional) Message queue / cache configuration options for large scale deployments
-  #
-  monolithic: true
-  port: 6379
-  host: localhost
-logging:
-  # (Optional) Logging settings. You can have a severity debug,info,warn,error
-  #
-  level: info
+- key: bridge
+  value:
+    # Basic homeserver configuration
+    #
+    domain: example.com
+    url: http://localhost:8008
+    mediaUrl: http://example.com
+    port: 9993
+    bindAddress: 127.0.0.1
+- key: github
+  value:
+    # (Optional) Configure this to enable support for GitHub
+    #
+    installationId: 6854059
+    auth:
+      id: 123
+      privateKeyFile: github-key.pem
+    oauth:
+      client_id: foo
+      client_secret: bar
+      redirect_uri: https://example.com/bridge_oauth/
+    webhook:
+      secret: secrettoken
+- key: gitlab
+  value:
+    # (Optional) Configure this to enable support for GitLab
+    #
+    instances:
+      gitlab.com:
+        url: https://gitlab.com
+    webhook:
+      secret: secrettoken
+- key: webhook
+  value:
+    # HTTP webhook listener options
+    #
+    port: 9000
+    bindAddress: 0.0.0.0
+- key: passFile
+  value:
+    # A passkey used to encrypt tokens stored inside the bridge.
+    # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
+    #
+    passkey.pem
+- key: queue
+  value:
+    # (Optional) Message queue / cache configuration options for large scale deployments
+    #
+    monolithic: true
+    port: 6379
+    host: localhost
+- key: logging
+  value:
+    # (Optional) Logging settings. You can have a severity debug,info,warn,error
+    #
+    level: info
 

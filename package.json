@@ -19,7 +19,7 @@
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
     "test": "mocha -r ts-node/register tests/*.ts",
     "lint": "eslint -c .eslintrc.js src/**/*.ts",
-    "generate-default-config": "node lib/Config/Defaults.js > config.sample.yml"
+    "generate-default-config": "node lib/Config/Defaults.js --config > config.sample.yml"
   },
   "dependencies": {
     "@octokit/auth-app": "^3.3.0",
