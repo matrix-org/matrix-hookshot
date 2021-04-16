@@ -1,6 +1,6 @@
 {
   "name": "matrix-github",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A bridge that displays GitHub issues/PRs as rooms.",
   "main": "lib/app.js",
   "repository": "https://github.com/Half-Shot/matrix-github",
