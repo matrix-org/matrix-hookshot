@@ -57,7 +57,7 @@ export class AdminRoom extends EventEmitter {
     public readonly notifFilter: NotifFilter;
 
     constructor(public readonly roomId: string,
-                public readonly data: AdminAccountData,
+                private data: AdminAccountData,
                 notifContent: NotificationFilterStateContent,
                 private botIntent: Intent,
                 private tokenStore: UserTokenStore,
@@ -66,6 +66,10 @@ export class AdminRoom extends EventEmitter {
         this.notifFilter = new NotifFilter(notifContent);
         // TODO: Move this
         this.backfillAccessToken();
+    }
+
+    public get accountData() {
+        return {...this.data};
     }
 
     public get userId() {
@@ -91,7 +95,7 @@ export class AdminRoom extends EventEmitter {
         );
     }
 
-    public notificationsParticipating(type: string) {
+    public notificationsParticipating(type: "github"|"gitlab") {
         if (type !== "github") {
             return false;
         }
@@ -199,9 +203,8 @@ export class AdminRoom extends EventEmitter {
     }
 
     @botCommand("github notifications toggle", "Toggle enabling/disabling GitHub notifications in this room")
-    // @ts-ignore - property is used
-    private async setGitHubNotificationsStateToggle() {
-        const data = await this.saveAccountData((data) => {
+    public async setGitHubNotificationsStateToggle() {
+        const newData = await this.saveAccountData((data) => {
             return {
                 ...data,
                 github: {
@@ -212,28 +215,43 @@ export class AdminRoom extends EventEmitter {
                 },
             };
         });
-        await this.sendNotice(`${data.github?.notifications?.enabled ? "En" : "Dis"}abled GitHub notifcations`);
+        await this.sendNotice(`${newData.github?.notifications?.enabled ? "En" : "Dis"}abled GitHub notifcations`);
     }
 
     @botCommand("github notifications filter participating", "Toggle enabling/disabling GitHub notifications in this room")
     // @ts-ignore - property is used
     private async setGitHubNotificationsStateParticipating() {
-        const data = await this.saveAccountData((data) => {
+        const newData = await this.saveAccountData((data) => {
             if (!data.github?.notifications?.enabled) {
                 throw Error('Notifications are not enabled')
             }
+            const oldState = data.github?.notifications?.participating ?? false;
             return {
                 ...data,
                 github: {
                     notifications: {
-                        participating: !(data.github?.notifications?.participating ?? false),
+                        participating: !oldState,
                         enabled: true,
                     },
                 },
             };
         });
-        await this.sendNotice(`${data.github?.notifications?.enabled ? "" : "Not"} filtering for events you are participating in`);
+        console.log(newData);
+        if (newData.github?.notifications?.participating) {
+            return this.sendNotice(`Filtering for events you are participating in`);
+        }
+        return this.sendNotice(`Showing all events`);
     }
+
+    @botCommand("github notifications", "Show the current notification settings")
+    // @ts-ignore - property is used
+    private async getGitHubNotificationsState() {
+        if (!this.notificationsEnabled("github")) {
+            return this.sendNotice(`Notifications are disabled`);
+        }
+        return this.sendNotice(`Notifications are enabled, ${this.notificationsParticipating("github") ? "Showing only events you are particiapting in" : "Showing all events"}`);
+    }
+
 
     @botCommand("github project list-for-user", "List GitHub projects for a user", [], ['user', 'repo'])
     // @ts-ignore - property is used
@@ -488,7 +506,7 @@ export class AdminRoom extends EventEmitter {
             this.notifFilter.forNotifications.add(name);
             await this.sendNotice(`Filter "${name}" enabled for notifications`);
         }
-        await this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
+        return this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
@@ -498,6 +516,7 @@ export class AdminRoom extends EventEmitter {
         const newData = updateFn(oldData);
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, newData);
         this.emit("settings.changed", this, oldData, newData);
+        this.data = newData;
         return newData;
     }
 

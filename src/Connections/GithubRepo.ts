@@ -264,7 +264,8 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
-        const content = emoji.emojify(`New issue created [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
+        
+        const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
         const labelsHtml = event.issue.labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
             typeof(label) === "string" ?
              `<span>${label}</span>` :

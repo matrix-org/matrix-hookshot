@@ -469,7 +469,7 @@ export class GithubBridge {
         if (event.content.is_direct) {
             const room = await this.setupAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
             await this.as.botIntent.underlyingClient.setRoomAccountData(
-                BRIDGE_ROOM_TYPE, roomId, room.data,
+                BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
         }
         // This is a group room, don't add the admin settings and just sit in the room.
