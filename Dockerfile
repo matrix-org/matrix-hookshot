@@ -8,7 +8,7 @@ WORKDIR /src
 RUN yarn 
 
 # Stage 1: The actual container
-FROM node:12-alpine
+FROM node:14-alpine
 
 COPY --from=builder /src/lib/ /bin/matrix-github/
 COPY --from=builder /src/public/ /bin/matrix-github/public/
