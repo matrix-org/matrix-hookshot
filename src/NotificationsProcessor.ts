@@ -60,7 +60,7 @@ export class NotificationProcessor {
         if (diff) {
             plain += "\n\n ";
             if (diff.merged) {
-            plain += `\n\n PR was merged by ${diff.mergedBy ? NotificationProcessor.formatUser(diff.mergedBy) : ""}`;
+                plain += `\n\n PR was merged by ${diff.mergedBy ? NotificationProcessor.formatUser(diff.mergedBy) : ""}`;
             } else if (diff.state) {
                 const state = diff.state[0].toUpperCase() + diff.state.slice(1).toLowerCase();
                 plain += `\n\n State changed to: ${state}`;
@@ -75,7 +75,11 @@ export class NotificationProcessor {
         if (newComment) {
             const comment = notif.subject.latest_comment_url_data as IssuesGetCommentResponseData;
             const user = comment.user ? NotificationProcessor.formatUser(comment.user) : 'user';
-            plain += `\n\n ${user}:\n\n > ${comment.body}`;
+            if (comment.body) {
+                plain += `\n\n ${user}:\n\n > ${comment.body}`;
+            } else {
+                plain += `\n\n ${user}:\n\n posted with no body`;
+            }
         }
         return {
             plain,
