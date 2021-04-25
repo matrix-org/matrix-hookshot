@@ -9,10 +9,10 @@ import { Octokit } from "@octokit/rest";
 import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
-import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import axios from "axios";
 import { GithubInstance } from "../Github/GithubInstance";
-import { IssuesGetResponseData } from "@octokit/types";
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData} from "../Github/Types";
+import { IssuesEditedEvent, IssueCommentCreatedEvent } from "@octokit/webhooks-types";
 
 export interface GitHubIssueConnectionState {
     org: string;
@@ -151,7 +151,20 @@ export class GitHubIssueConnection implements IConnection {
         return this.state.repo;
     }
 
-    public async onCommentCreated(event: IGitHubWebhookEvent, updateState = true) {
+    public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
+        return this.onCommentCreated({
+            // TODO: Fix types,
+            comment: event.comment as any,
+            action: event.action,
+        })
+    }
+
+    private async onCommentCreated(event: {
+        comment: IssuesGetCommentResponseData,
+        action: string,
+        repository?: ReposGetResponseData,
+        issue?: IssuesGetResponseData,
+    }, updateState = true) {
         const comment = event.comment;
         if (!comment || !comment.user) {
             throw Error('Comment undefined');
@@ -168,8 +181,10 @@ export class GitHubIssueConnection implements IConnection {
             avatarUrl: comment.user.avatar_url,
         }, this.as);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
-
-        await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
+        // Comment body may be blank
+        if (matrixEvent) {
+            await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
+        }
         if (!updateState) {
             return;
         }
@@ -182,7 +197,7 @@ export class GitHubIssueConnection implements IConnection {
         );
     }
 
-    private async syncIssueState() {
+    public async syncIssueState() {
         log.debug("Syncing issue state for", this.roomId);
         const issue = await this.github.octokit.issues.get({
             owner: this.state.org,
@@ -193,8 +208,9 @@ export class GitHubIssueConnection implements IConnection {
         if (this.state.comments_processed === -1) {
             // This has a side effect of creating a profile for the user.
             const creator = await getIntentForUser({
-                login: issue.data.user.login,
-                avatarUrl: issue.data.user.avatar_url
+                // TODO: Fix
+                login: issue.data.user?.login as string,
+                avatarUrl: issue.data.user?.avatar_url || undefined
             }, this.as);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
@@ -232,11 +248,12 @@ export class GitHubIssueConnection implements IConnection {
 
         if (this.state.state !== issue.data.state) {
             if (issue.data.state === "closed") {
-                const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by.login);
+                // TODO: Fix
+                const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by?.login as string);
                 await this.messageClient.sendMatrixMessage(this.roomId, {
                     msgtype: "m.notice",
                     body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
-                    external_url: issue.data.closed_by.html_url,
+                    external_url: issue.data.closed_by?.html_url,
                 }, "m.room.message", closedUserId);
             }
 
@@ -282,12 +299,13 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public async onIssueEdited(event: IGitHubWebhookEvent) {
+    public async onIssueEdited(event: IssuesEditedEvent) {
         if (!event.changes) {
             log.debug("No changes given");
             return; // No changes made.
         }
 
+        // TODO: Fix types
         if (event.issue && event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
                 name: FormatUtil.formatIssueRoomName(event.issue),

@@ -13,8 +13,8 @@ const GH_API_THRESHOLD = 50;
 const GH_API_RETRY_IN = 1000 * 60;
 
 export class GitHubWatcher extends EventEmitter implements NotificationWatcherTask  {
-    private static apiFailureCount: number;
-    private static globalRetryIn: number;
+    private static apiFailureCount = 0;
+    private static globalRetryIn = 0;
 
     public static checkGitHubStatus() {
         this.apiFailureCount = Math.min(this.apiFailureCount + 1, GH_API_THRESHOLD);
@@ -43,7 +43,8 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     }
 
     public start(intervalMs: number) {
-        this.interval = setTimeout(() => {
+        log.info(`Starting for ${this.userId}`);
+        this.interval = setInterval(() => {
             this.getNotifications();
         }, intervalMs);
         this.getNotifications();
@@ -51,6 +52,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
 
     public stop() {
         if (this.interval) {
+            log.info(`Stopping for ${this.userId}`);
             clearInterval(this.interval);
         }
     }
@@ -71,7 +73,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             log.info(`Not getting notifications for ${this.userId}, API is still down.`);
             return;
         }
-        log.info(`Getting notifications for ${this.userId} ${this.lastReadTs}`);
+        log.debug(`Getting notifications for ${this.userId} ${this.lastReadTs}`);
         const since = this.lastReadTs !== 0 ? `&since=${new Date(this.lastReadTs).toISOString()}`: "";
         let response: OctokitResponse<GitHubUserNotification[]>;
         try {
@@ -86,9 +88,11 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             await this.handleGitHubFailure(ex);
             return;
         }
-        log.info(`Got ${response.data.length} notifications`);
         this.lastReadTs = Date.now();
 
+        if (response.data.length) {
+            log.info(`Got ${response.data.length} notifications for ${this.userId}`);
+        }
         for (const rawEvent of response.data) {
             try {
                 if (rawEvent.subject.url) {
@@ -102,6 +106,10 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                 if (rawEvent.reason === "review_requested") {
                     if (!rawEvent.subject.url_data?.number) {
                         log.warn("review_requested was missing subject.url_data.number");
+                        continue;
+                    }
+                    if (!rawEvent.repository.owner) {
+                        log.warn("review_requested was missing repository.owner");
                         continue;
                     }
                     rawEvent.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({

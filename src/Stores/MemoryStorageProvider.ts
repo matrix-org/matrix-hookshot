@@ -1,6 +1,6 @@
 import { MemoryStorageProvider as MSP } from "matrix-bot-sdk";
 import { IStorageProvider } from "./StorageProvider";
-import { IssuesGetResponseData } from "@octokit/types";
+import { IssuesGetResponseData } from "../Github/Types";
 
 export class MemoryStorageProvider extends MSP implements IStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();

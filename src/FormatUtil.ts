@@ -1,19 +1,30 @@
-import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListForOrgResponseData, ProjectsListForUserResponseData, ProjectsListForRepoResponseData } from "@octokit/types";
-
+/* eslint-disable camelcase */
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListResponseData } from './Github/Types';
+import emoji from "node-emoji";
 interface IMinimalRepository {
     id: number;
     full_name: string;
     html_url: string;
+    description: string | null;
+}
+
+interface IMinimalIssue {
+    html_url: string;
+    id: number;
+    number: number;
+    title: string;
+    repository_url: string;
+    pull_request?: any;
 }
 
 export class FormatUtil {
-    public static formatIssueRoomName(issue: {number: number, title: string, repository_url: string}) {
+    public static formatIssueRoomName(issue: IMinimalIssue) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
-        return `${orgRepoName}#${issue.number}: ${issue.title}`;
+        return emoji.emojify(`${orgRepoName}#${issue.number}: ${issue.title}`);
     }
 
-    public static formatRepoRoomName(repo: {full_name: string, description: string}) {
-        return `${repo.full_name}: ${repo.description}`;
+    public static formatRepoRoomName(repo: IMinimalRepository) {
+        return emoji.emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
     }
 
     public static formatRoomTopic(repo: {state: string, html_url: string}) {
@@ -35,7 +46,7 @@ export class FormatUtil {
         };
     }
 
-    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: IssuesGetResponseData) {
+    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: IMinimalIssue) {
         return {
             ...FormatUtil.getPartialBodyForRepo(repo),
             "external_url": issue.html_url,
@@ -49,9 +60,9 @@ export class FormatUtil {
         };
     }
 
-    public static getPartialBodyForComment(comment: IssuesGetCommentResponseData,
+    public static getPartialBodyForComment(comment: {id: number, html_url: string},
                                            repo?: IMinimalRepository,
-                                           issue?: IssuesGetResponseData) {
+                                           issue?: IMinimalIssue) {
         return {
             ...(issue && repo ? FormatUtil.getPartialBodyForIssue(repo, issue) : undefined),
             "external_url": comment.html_url,
@@ -61,7 +72,11 @@ export class FormatUtil {
         };
     }
 
-    public static projectListing(projectItem: ProjectsListForOrgResponseData|ProjectsListForUserResponseData|ProjectsListForRepoResponseData) {
-        return `${projectItem[0].name} (#${projectItem[0].number}) - Project ID: ${projectItem[0].id}`
+    public static projectListing(projects: ProjectsListResponseData): string {
+        let f = '';
+        for (const projectItem of projects) {
+            f += ` - ${projectItem.name} (#${projectItem.number}) - Project ID: ${projectItem.id}`;
+        }
+        return f;
     }
 }

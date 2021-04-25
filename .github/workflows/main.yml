@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: 12
       - run: yarn
-      - run: node lib/Config/Defaults.js > expected-config.sample.yml 
+      - run: node lib/Config/Defaults.js --config > expected-config.sample.yml 
       - run: cmp --silent config.sample.yml expected-config.sample.yml
   test:
     runs-on: ubuntu-latest

@@ -1,5 +1,5 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
-import { IGitHubWebhookEvent } from "../GithubWebhooks";
+import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 
 export interface IConnection {
     roomId: string;
@@ -17,11 +17,11 @@ export interface IConnection {
      */
     onMessageEvent?: (ev: MatrixEvent<MatrixMessageContent>) => Promise<void>;
 
-    onIssueCreated?: (ev: IGitHubWebhookEvent) => Promise<void>;
+    onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
 
-    onIssueStateChange?: (ev: IGitHubWebhookEvent) => Promise<void>;
+    onIssueStateChange?: (ev: IssuesEditedEvent) => Promise<void>;
 
-    onIssueEdited? :(event: IGitHubWebhookEvent) => Promise<void>;
+    onIssueEdited? :(event: IssuesEditedEvent) => Promise<void>;
 
     isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
 

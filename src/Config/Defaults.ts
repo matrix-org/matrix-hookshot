@@ -65,11 +65,11 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
     const entries = Object.entries(obj);
     entries.forEach(([key, value]) => {
         let newNode: Node;
-        if (typeof value === "object") {
-            newNode = doc.createNode({});
-            renderSection(doc, value as any, newNode as YAMLSeq);
+        if (typeof value === "object" && !Array.isArray(value)) {
+            newNode = YAML.createNode({});
+            renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq);
         } else {
-            newNode = doc.createNode(value);
+            newNode = YAML.createNode(value);
         }
         
         const metadata = getConfigKeyMetadata(obj, key);
@@ -86,10 +86,10 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
 }
 
 function renderDefaultConfig() {
-    const doc = new YAML.Document({});
+    const doc = new YAML.Document();
+    doc.contents = YAML.createNode({});
     doc.commentBefore = ' This is an example configuration file';
     // Needed because the entries syntax below would not work otherwise
-    //const typeLessDefaultConfig = DefaultConfig as any;
     renderSection(doc, DefaultConfig as any);
     return doc.toString();
 }

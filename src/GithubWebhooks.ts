@@ -1,7 +1,6 @@
 import { BridgeConfig } from "./Config/Config";
 import { Application, default as express, Request, Response } from "express";
 import { createHmac } from "crypto";
-import { IssuesGetResponseData, IssuesGetCommentResponseData, ReposGetResponseData } from "@octokit/types";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
 import LogWrapper from "./LogWrapper";
@@ -10,31 +9,17 @@ import { Server } from "http";
 import axios from "axios";
 import { UserNotificationWatcher } from "./Notifications/UserNotificationWatcher";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
-
+import { Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 const log = new LogWrapper("GithubWebhooks");
-
-export interface IGitHubWebhookEvent {
-    action: string;
-    issue?: IssuesGetResponseData;
-    comment?: IssuesGetCommentResponseData;
-    repository?: ReposGetResponseData;
-    sender?: {
-        login: string;
-    }
-    changes?: {
-        title?: {
-            from: string;
-        };
-    };
-}
-
 export interface IOAuthRequest {
     code: string;
     state: string;
 }
 
 export interface IOAuthTokens {
+    // eslint-disable-next-line camelcase
     access_token: string;
+    // eslint-disable-next-line camelcase
     token_type: string;
     state: string;
 }
@@ -60,9 +45,26 @@ export class GithubWebhooks extends EventEmitter {
     private queue: MessageQueue;
     private userNotificationWatcher: UserNotificationWatcher;
     private server?: Server;
+    private ghWebhooks?: OctokitWebhooks;
     constructor(private config: BridgeConfig) {
         super();
         this.expressApp = express();
+        if (this.config.github?.webhook.secret) {
+            this.ghWebhooks = new OctokitWebhooks({
+                secret: config.github?.webhook.secret as string,
+            });
+            this.ghWebhooks.onAny(({id, name, payload}) => {
+                log.info(`Got GitHub webhook event ${id} ${name}`);
+                this.queue.push({
+                    eventName: `github.name`,
+                    sender: "GithubWebhooks",
+                    data: payload,
+                }).catch((err) => {
+                    log.error(`Failed to emit payload: ${err}`);
+                });
+            });
+        }
+
         this.expressApp.use(express.json({
             verify: this.verifyRequest.bind(this),
         }));
@@ -77,8 +79,6 @@ export class GithubWebhooks extends EventEmitter {
         this.queue.on("notifications.user.disable", (msg: MessageQueueMessage<NotificationsDisableEvent>) => {
             this.userNotificationWatcher.removeUser(msg.data.userId, msg.data.type, msg.data.instanceUrl);
         });
-
-        // This also listens for notifications for users, which is long polly.
     }
 
     public listen() {
@@ -99,23 +99,6 @@ export class GithubWebhooks extends EventEmitter {
         }
     }
 
-    private onGitHubPayload(body: IGitHubWebhookEvent) {
-        if (body.action === "created" && body.comment) {
-            return "comment.created";
-        } else if (body.action === "edited" && body.comment) {
-            return "comment.edited";
-        } else if (body.action === "opened" && body.issue) {
-            return "issue.opened";
-        } else if (body.action === "edited" && body.issue) {
-            return "issue.edited";
-        } else if (body.action === "closed" && body.issue) {
-            return "issue.closed";
-        } else if (body.action === "reopened" && body.issue) {
-            return "issue.reopened";
-        }
-        return null;
-    }
-
     private onGitLabPayload(body: IGitLabWebhookEvent) {
         log.info(`onGitLabPayload ${body.event_type}:`, body);
         if (body.event_type === "merge_request") {
@@ -134,10 +117,25 @@ export class GithubWebhooks extends EventEmitter {
         try {
             let eventName: string|null = null;
             const body = req.body;
-            res.sendStatus(200);
             if (req.headers['x-hub-signature']) {
-                eventName = this.onGitHubPayload(body);
+                if (!this.ghWebhooks) {
+                    log.warn(`Not configured for GitHub webhooks, but got a GitHub event`)
+                    res.sendStatus(500);
+                    return;
+                }
+                res.sendStatus(200);
+                this.ghWebhooks.verifyAndReceive({
+                    id: req.headers["x-github-delivery"] as string,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    name: req.headers["x-github-event"] as any,
+                    payload: req.body,
+                    signature: req.headers["x-hub-signature-256"] as string,
+                }).catch((err) => {
+                    log.error(`Failed handle GitHubEvent: ${err}`);
+                });
+                res.sendStatus(200);
             } else if (req.headers['x-gitlab-token']) {
+                res.sendStatus(200);
                 eventName = this.onGitLabPayload(body);
             }
             if (eventName) {
@@ -146,7 +144,7 @@ export class GithubWebhooks extends EventEmitter {
                     sender: "GithubWebhooks",
                     data: body,
                 }).catch((err) => {
-                    log.info(`Failed to emit payload: ${err}`);
+                    log.error(`Failed to emit payload: ${err}`);
                 });
             } else {
                 log.debug("Unknown event:", req.body);
@@ -181,6 +179,7 @@ export class GithubWebhooks extends EventEmitter {
                 redirect_uri: this.config.github.oauth.redirect_uri,
                 state: req.query.state as string,
             })}`);
+            // eslint-disable-next-line camelcase
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
             await this.queue.push<IOAuthTokens>({
                 eventName: "oauth.tokens",
@@ -194,21 +193,9 @@ export class GithubWebhooks extends EventEmitter {
         }
     }
 
-    // Calculate the X-Hub-Signature header value.
-    private getSignature(buf: Buffer) {
-        if (!this.config.github) {
-            throw Error("Got GitHub oauth request but github was not configured!");
-        }
-        const hmac = createHmac("sha1", this.config.github.webhook.secret);
-        hmac.update(buf);
-        return "sha1=" + hmac.digest("hex");
-    }
-
-    // Verify function compatible with body-parser to retrieve the request payload.
-    // Read more: https://github.com/expressjs/body-parser#verify
-    private verifyRequest(req: Request, res: Response, buf: Buffer) {
+    private verifyRequest(req: Request, res: Response) {
         if (req.headers['x-gitlab-token']) {
-            // This is a gitlab request!
+            // GitLab
             if (!this.config.gitlab) {
                 log.error("Got a GitLab webhook, but the bridge is not set up for it.");
                 res.sendStatus(400);
@@ -223,16 +210,9 @@ export class GithubWebhooks extends EventEmitter {
                 throw Error("Invalid signature.");
             }
         } else if (req.headers["x-hub-signature"]) {
-            const expected = req.headers["x-hub-signature"];
-            const calculated = this.getSignature(buf);
-            if (expected !== calculated) {
-                log.error(`${req.url} had an invalid signature`);
-                res.sendStatus(403);
-                throw Error("Invalid signature.");
-            } else {
-                log.debug('Verified GitHub request');
-                return true;
-            }
+            // GitHub
+            // Verified within handler.
+            return true;
         }
         log.error(`No signature on URL. Rejecting`);
         res.sendStatus(400);

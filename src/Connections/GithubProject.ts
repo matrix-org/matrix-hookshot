@@ -1,7 +1,7 @@
 import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { ProjectsGetResponseData } from "@octokit/types";
+import { ProjectsGetResponseData } from "../Github/Types";
 
 export interface GitHubProjectConnectionState {
     // eslint-disable-next-line camelcase

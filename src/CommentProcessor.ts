@@ -6,7 +6,7 @@ import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import LogWrapper from "./LogWrapper";
 import axios from "axios";
 import { FormatUtil } from "./FormatUtil";
-import { IssuesGetCommentResponseData, ReposGetResponseData, IssuesGetResponseData } from "@octokit/types";
+import { IssuesGetCommentResponseData, ReposGetResponseData, IssuesGetResponseData } from "./Github/Types"
 import { IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
@@ -59,7 +59,10 @@ export class CommentProcessor {
 
     public async getEventBodyForGitHubComment(comment: IssuesGetCommentResponseData,
                                         repo?: ReposGetResponseData,
-                                        issue?: IssuesGetResponseData): Promise<IMatrixCommentEvent> {
+                                        issue?: IssuesGetResponseData): Promise<IMatrixCommentEvent|undefined> {
+        if (!comment.body) {
+            return undefined;
+        }
         let body = comment.body;
         body = this.replaceMentions(body);
         body = await this.replaceImages(body, true);

@@ -2,9 +2,8 @@ import { LogService } from "matrix-bot-sdk";
 import util from "util";
 import winston from "winston";
 
-// Logs contain unknowns, ignore this.
-// tslint:disable: no-any
-
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type MsgType = string|Error|any|{error?: string};
 export default class LogWrapper {
 
     public static configureLogging(level: string) {
@@ -24,7 +23,7 @@ export default class LogWrapper {
                 }),
             ],
         });
-        const getMessageString = (...messageOrObject: any[]) => {
+        const getMessageString = (messageOrObject: MsgType[]) => {
             messageOrObject = messageOrObject.flat();
             const messageParts: string[] = [];
             messageOrObject.forEach((obj) => {
@@ -37,7 +36,7 @@ export default class LogWrapper {
             return messageParts.join(" ");
         };
         LogService.setLogger({
-            info: (module: string, ...messageOrObject: any[]) => {
+            info: (module: string, ...messageOrObject: MsgType[]) => {
                 // These are noisy, redirect to debug.
                 if (module.startsWith("MatrixLiteClient")) {
                     log.debug(getMessageString(messageOrObject), { module });
@@ -45,18 +44,27 @@ export default class LogWrapper {
                 }
                 log.info(getMessageString(messageOrObject), { module });
             },
-            warn: (module: string, ...messageOrObject: any[]) => {
+            warn: (module: string, ...messageOrObject: MsgType[]) => {
+                const error = messageOrObject[0].error || messageOrObject[1].body?.error;
+                if (error === "Room account data not found") {
+                    log.debug(getMessageString(messageOrObject), { module });
+                    return; // This is just noise :|
+                }
                 log.warn(getMessageString(messageOrObject), { module });
             },
-            error: (module: string, ...messageOrObject: any[]) => {
-                if (messageOrObject[0]?.error === "Room account data not found") {
+            error: (module: string, ...messageOrObject: MsgType[]) => {
+                const error = messageOrObject[0].error || messageOrObject[1]?.body?.error;
+                if (error === "Room account data not found") {
                     log.debug(getMessageString(messageOrObject), { module });
                     return; // This is just noise :|
                 }
                 log.error(getMessageString(messageOrObject), { module });
             },
-            debug: (module: string, ...messageOrObject: any[]) => {
+            debug: (module: string, ...messageOrObject: MsgType[]) => {
                 log.debug(getMessageString(messageOrObject), { module });
+            },
+            trace: (module: string, ...messageOrObject: MsgType[]) => {
+                log.verbose(getMessageString(messageOrObject), { module });
             },
         });
         LogService.info("LogWrapper", "Reconfigured logging");
@@ -69,7 +77,7 @@ export default class LogWrapper {
      * @param {string} module The module being logged
      * @param {*[]} messageOrObject The data to log
      */
-    public debug(...messageOrObject: any[]) {
+    public debug(...messageOrObject: MsgType[]) {
         LogService.debug(this.module, ...messageOrObject);
     }
 
@@ -77,7 +85,7 @@ export default class LogWrapper {
      * Logs to the ERROR channel
      * @param {*[]} messageOrObject The data to log
      */
-    public error(...messageOrObject: any[]) {
+    public error(...messageOrObject: MsgType[]) {
         LogService.error(this.module, ...messageOrObject);
     }
 
@@ -85,7 +93,7 @@ export default class LogWrapper {
      * Logs to the INFO channel
      * @param {*[]} messageOrObject The data to log
      */
-    public info(...messageOrObject: any[]) {
+    public info(...messageOrObject: MsgType[]) {
         LogService.info(this.module, ...messageOrObject);
     }
 
@@ -93,7 +101,7 @@ export default class LogWrapper {
      * Logs to the WARN channel
      * @param {*[]} messageOrObject The data to log
      */
-    public warn(...messageOrObject: any[]) {
+    public warn(...messageOrObject: MsgType[]) {
         LogService.warn(this.module, ...messageOrObject);
     }
 }

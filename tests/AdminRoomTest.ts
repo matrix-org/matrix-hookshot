@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { expect } from "chai";
 import { AdminRoom } from "../src/AdminRoom";
+import { NotifFilter } from "../src/NotificationFilters";
 import { UserTokenStore } from "../src/UserTokenStore";
 import { IntentMock } from "./utils/IntentMock";
 
@@ -12,7 +13,7 @@ function createAdminRoom(data: any = {admin_user: "@admin:bar"}): [AdminRoom, In
         data.admin_user = "@admin:bar";
     }
     const tokenStore = new UserTokenStore("notapath", intent);
-    return [new AdminRoom(ROOM_ID, data, intent, tokenStore, {} as any), intent];
+    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, {} as any, ), intent];
 }
 
 describe("AdminRoom", () => {

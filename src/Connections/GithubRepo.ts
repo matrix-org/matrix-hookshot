@@ -11,9 +11,9 @@ import { MessageSenderClient } from "../MatrixSender";
 import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
-import { IGitHubWebhookEvent } from "../GithubWebhooks";
-import { ReposGetResponseData } from "@octokit/types";
-
+import { ReposGetResponseData } from "../Github/Types";
+import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
+import emoji from "node-emoji";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -152,11 +152,11 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     public get org() {
-        return this.state.org;
+        return this.state.org.toLowerCase();
     }
 
     public get repo() {
-        return this.state.repo;
+        return this.state.repo.toLowerCase();
     }
 
     public isInterestedInStateEvent() {
@@ -255,7 +255,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    public async onIssueCreated(event: IGitHubWebhookEvent) {
+    public async onIssueCreated(event: IssuesOpenedEvent) {
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (!event.issue) {
             throw Error('No issue content!');
@@ -264,23 +264,27 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
-        const content = `New issue created [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
-        const labelsHtml = event.issue.labels.map((label: {color: string, name: string, description: string}) => 
-            `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
+        
+        const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
+        const labelsHtml = (event.issue.labels || []).map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
+            typeof(label) === "string" ?
+             `<span>${label}</span>` :
+             `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
         ).join(" ") || "";
-        const labels = event.issue?.labels.map((label: {name: string}) => 
-            label.name
+        const labels = (event.issue?.labels || []).map((label: {name?: string}|string) => 
+            typeof(label) === "string" ? label : label.name
         ).join(", ") || "";
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.length > 0 ? ` with labels ${labels}`: ""),
             formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
             format: "org.matrix.custom.html",
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue),
+            // TODO: Fix types.
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
         });
     }
 
-    public async onIssueStateChange(event: IGitHubWebhookEvent) {
+    public async onIssueStateChange(event: IssuesEditedEvent) {
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (!event.issue) {
             throw Error('No issue content!');
@@ -290,13 +294,14 @@ export class GitHubRepoConnection implements IConnection {
         }
         if (event.issue.state === "closed" && event.sender) {
             const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
-            const content = `**@${event.sender.login}** closed issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+            const content = `**@${event.sender.login}** closed issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
             await this.as.botIntent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content,
                 formatted_body: md.renderInline(content),
                 format: "org.matrix.custom.html",
-                ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue),
+                // TODO: Fix types
+                ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
             });
         }
     }

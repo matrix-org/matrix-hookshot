@@ -7,25 +7,12 @@ module.exports = {
       '@prefresh/snowpack',
       ['@snowpack/plugin-typescript', '--project tsconfig.web.json'],
     ],
-    install: [
-      /* ... */
-    ],
-    installOptions: {
+    packageOptions: {
         installTypes: true,
         polyfillNode: true,
     },
-    devOptions: {
-      /* ... */
-    },
     buildOptions: {
         out: 'public'
-      /* ... */
-    },
-    proxy: {
-      /* ... */
-    },
-    alias: {
-      /* ... */
     },
   };
   

@@ -11,8 +11,9 @@ RUN yarn
 FROM node:12-alpine
 
 COPY --from=builder /src/lib/ /bin/matrix-github/
-COPY --from=builder /src/public/ /bin/matrix-github/
-COPY --from=builder /src/package*.json /bin/matrix-github/
+COPY --from=builder /src/public/ /bin/matrix-github/public/
+COPY --from=builder /src/package.json /bin/matrix-github/
+COPY --from=builder /src/yarn.lock /bin/matrix-github/
 WORKDIR /bin/matrix-github
 RUN yarn --production
 
