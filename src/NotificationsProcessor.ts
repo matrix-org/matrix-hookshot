@@ -253,7 +253,7 @@ export class NotificationProcessor {
     }
 
     private async handleUserNotification(roomId: string, notif: GitHubUserNotification, filter: NotifFilter) {
-        log.info("New notification event:", notif);
+        log.debug("New notification event:", notif);
         if (!filter.shouldSendNotification(
             notif.subject.latest_comment_url_data?.user?.login,
             notif.repository.full_name,

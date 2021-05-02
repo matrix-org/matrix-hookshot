@@ -10,7 +10,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 
 export interface GitHubDiscussionConnectionState {
     owner: string;
-    name: string;
+    repo: string;
     id: number;
     discussion: number;
 }
@@ -31,7 +31,7 @@ export class GitHubDiscussionConnection implements IConnection {
     static readonly QueryRoomRegex = /#github_disc_(.+)_(.+)_(\d+):.*/;
 
     public static async createDiscussionRoom(
-        as: Appservice, userId: string, owner: string, name: string, discussion: Discussion,
+        as: Appservice, userId: string, owner: string, repo: string, discussion: Discussion,
         tokenStore: UserTokenStore, commentProcessor: CommentProcessor, messageClient: MessageSenderClient
     ) {
         const commentIntent = await getIntentForUser({
@@ -40,7 +40,7 @@ export class GitHubDiscussionConnection implements IConnection {
         }, as);
         const state: GitHubDiscussionConnectionState = {
             owner,
-            name,
+            repo,
             id: discussion.id,
             discussion: discussion.number,
         };
@@ -48,7 +48,7 @@ export class GitHubDiscussionConnection implements IConnection {
             invite: [userId, as.botUserId],
             preset: 'private_chat',
             name: `${discussion.title} (${owner}/${name})`,
-            room_alias_name: `github_disc_${owner.toLowerCase()}_${name.toLowerCase()}_${discussion.number}`,
+            room_alias_name: `github_disc_${owner.toLowerCase()}_${repo.toLowerCase()}_${discussion.number}`,
             initial_state: [{
                 content: state,
                 state_key: '',
@@ -92,8 +92,8 @@ export class GitHubDiscussionConnection implements IConnection {
         return this.state.discussion;
     }
 
-    public get name() {
-        return this.state.name;
+    public get repo() {
+        return this.state.repo;
     }
 
     public get owner() {
@@ -101,6 +101,10 @@ export class GitHubDiscussionConnection implements IConnection {
     }
 
     public toString() {
-        return `GitHubDiscussion ${this.owner}/${this.name}#${this.state.discussion}`;
+        return `GitHubDiscussion ${this.owner}/${this.repo}#${this.state.discussion}`;
+    }
+
+    public onDiscussionCommentCreated() {
+        this.messageClient.sendMatrixMessage()
     }
 }

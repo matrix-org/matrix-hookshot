@@ -7,7 +7,7 @@ import qs from "querystring";
 import { Server } from "http";
 import axios from "axios";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
-import { Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 const log = new LogWrapper("GithubWebhooks");
 
 export interface OAuthRequest {
@@ -51,16 +51,7 @@ export class Webhooks extends EventEmitter {
             this.ghWebhooks = new OctokitWebhooks({
                 secret: config.github?.webhook.secret as string,
             });
-            this.ghWebhooks.onAny(({id, name, payload}) => {
-                log.info(`Got GitHub webhook event ${id} ${name}`);
-                this.queue.push({
-                    eventName: `github.name`,
-                    sender: "GithubWebhooks",
-                    data: payload,
-                }).catch((err) => {
-                    log.error(`Failed to emit payload: ${err}`);
-                });
-            });
+            this.ghWebhooks.onAny(e => this.onGitHubPayload(e));
         }
 
         this.expressApp.use(express.json({
@@ -101,6 +92,21 @@ export class Webhooks extends EventEmitter {
         }
     }
 
+    private async onGitHubPayload({id, name, payload}: EmitterWebhookEvent) {
+        log.info(`Got GitHub webhook event ${id} ${name}`);
+        console.log(payload);
+        const action = (payload as unknown as {action: string|undefined}).action;
+        try {
+            await this.queue.push({
+                eventName: `github.${name}${action ? `.${action}` : ""}`,
+                sender: "Webhooks",
+                data: payload,
+            });
+        } catch (err) {
+            log.error(`Failed to emit payload ${id}: ${err}`);
+        }
+    }
+
     private onPayload(req: Request, res: Response) {
         log.debug(`New webhook: ${req.url}`);
         try {
@@ -122,7 +128,6 @@ export class Webhooks extends EventEmitter {
                 }).catch((err) => {
                     log.error(`Failed handle GitHubEvent: ${err}`);
                 });
-                res.sendStatus(200);
                 return;
             } else if (req.headers['x-gitlab-token']) {
                 res.sendStatus(200);

@@ -106,6 +106,7 @@ export class GithubBridge {
                 this.messageClient,
                 instance);
         }
+
         return;
     }
 
@@ -124,10 +125,25 @@ export class GithubBridge {
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitLabRepoConnection)[];
     }
 
+
     private getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
         org = org.toLowerCase();
         repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as GitHubRepoConnection[];
+    }
+
+
+    private getConnectionsForGithubDiscussion(owner: string, repo: string, discussionNumber: number) {
+        owner = owner.toLowerCase();
+        repo = repo.toLowerCase();
+        return this.connections.filter(
+            (c) => (
+                c instanceof GitHubDiscussionConnection &&
+                c.owner === owner &&
+                c.repo === repo &&
+                c.discussionNumber === discussionNumber
+            )
+        ) as GitHubDiscussionConnection[];
     }
 
     private getConnectionsForGitLabIssueWebhook(repoHome: string, issueId: number) {
@@ -384,11 +400,11 @@ export class GithubBridge {
             })
         });
 
-        this.queue.on<IGitLabWebhookIssueStateEvent>("github.discussion_comment.created", async ({data}) => {
-            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
+        this.queue.on<GitHubWebhookTypes.DiscussionCommentCreatedEvent>("github.discussion_comment.created", async ({data}) => {
+            const connections = this.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number);
             connections.map(async (c) => {
                 try {
-                    await c.onIssueClosed();
+                    await c.onDiscussionCommentCreated(data);
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
                 }
