@@ -1,6 +1,6 @@
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
-import { IOAuthRequest, IOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent,} from "./GithubWebhooks";
+import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent,} from "./Webhooks";
 import { CommentProcessor } from "./CommentProcessor";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
@@ -330,7 +330,7 @@ export class GithubBridge {
             await this.notifProcessor.onUserEvents(msg.data, adminRoom);
         });
 
-        this.queue.on<IOAuthRequest>("oauth.response", async (msg) => {
+        this.queue.on<OAuthRequest>("oauth.response", async (msg) => {
             const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
             await this.queue.push<boolean>({
                 data: !!(adminRoom),
@@ -340,7 +340,7 @@ export class GithubBridge {
             });
         });
 
-        this.queue.on<IOAuthTokens>("oauth.tokens", async (msg) => {
+        this.queue.on<OAuthTokens>("oauth.tokens", async (msg) => {
             const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
             if (!adminRoom) {
                 log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");

@@ -2,8 +2,9 @@ import { GithubBridge } from "../GithubBridge";
 import LogWrapper from "../LogWrapper";
 
 import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
-import { GithubWebhooks } from "../GithubWebhooks";
+import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
+import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 
 const log = new LogWrapper("App");
 
@@ -15,10 +16,12 @@ async function start() {
     LogWrapper.configureLogging(config.logging.level);
 
     if (config.queue.monolithic) {
-        const webhookHandler = new GithubWebhooks(config);
+        const webhookHandler = new Webhooks(config);
         webhookHandler.listen();
         const matrixSender = new MatrixSender(config, registration);
         matrixSender.listen();
+        const userNotificationWatcher = new UserNotificationWatcher(config);
+        userNotificationWatcher.start();
     }
 
     const bridgeApp = new GithubBridge(config, registration);

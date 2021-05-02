@@ -1,22 +1,21 @@
 import { BridgeConfig } from "./Config/Config";
 import { Application, default as express, Request, Response } from "express";
-import { createHmac } from "crypto";
 import { EventEmitter } from "events";
-import { MessageQueue, createMessageQueue, MessageQueueMessage } from "./MessageQueue/MessageQueue";
+import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import { Server } from "http";
 import axios from "axios";
-import { UserNotificationWatcher } from "./Notifications/UserNotificationWatcher";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 const log = new LogWrapper("GithubWebhooks");
-export interface IOAuthRequest {
+
+export interface OAuthRequest {
     code: string;
     state: string;
 }
 
-export interface IOAuthTokens {
+export interface OAuthTokens {
     // eslint-disable-next-line camelcase
     access_token: string;
     // eslint-disable-next-line camelcase
@@ -40,10 +39,9 @@ export interface NotificationsDisableEvent {
     instanceUrl?: string;
 }
 
-export class GithubWebhooks extends EventEmitter {
+export class Webhooks extends EventEmitter {
     private expressApp: Application;
     private queue: MessageQueue;
-    private userNotificationWatcher: UserNotificationWatcher;
     private server?: Server;
     private ghWebhooks?: OctokitWebhooks;
     constructor(private config: BridgeConfig) {
@@ -71,14 +69,6 @@ export class GithubWebhooks extends EventEmitter {
         this.expressApp.post("/", this.onPayload.bind(this));
         this.expressApp.get("/oauth", this.onGetOauth.bind(this));
         this.queue = createMessageQueue(config);
-        this.userNotificationWatcher = new UserNotificationWatcher(this.queue);
-        this.queue.subscribe("notifications.user.*");
-        this.queue.on("notifications.user.enable", (msg: MessageQueueMessage<NotificationsEnableEvent>) => {
-            this.userNotificationWatcher.addUser(msg.data);
-        });
-        this.queue.on("notifications.user.disable", (msg: MessageQueueMessage<NotificationsDisableEvent>) => {
-            this.userNotificationWatcher.removeUser(msg.data.userId, msg.data.type, msg.data.instanceUrl);
-        });
     }
 
     public listen() {
@@ -86,8 +76,7 @@ export class GithubWebhooks extends EventEmitter {
             this.config.webhook.port,
             this.config.webhook.bindAddress,
         );
-        log.info(`Listening on http://${this.config.webhook.bindAddress}:${this.config.webhook.port}`)
-        this.userNotificationWatcher.start();
+        log.info(`Listening on http://${this.config.webhook.bindAddress}:${this.config.webhook.port}`);
     }
 
     public stop() {
@@ -128,12 +117,13 @@ export class GithubWebhooks extends EventEmitter {
                     id: req.headers["x-github-delivery"] as string,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     name: req.headers["x-github-event"] as any,
-                    payload: req.body,
+                    payload: body,
                     signature: req.headers["x-hub-signature-256"] as string,
                 }).catch((err) => {
                     log.error(`Failed handle GitHubEvent: ${err}`);
                 });
                 res.sendStatus(200);
+                return;
             } else if (req.headers['x-gitlab-token']) {
                 res.sendStatus(200);
                 eventName = this.onGitLabPayload(body);
@@ -150,7 +140,7 @@ export class GithubWebhooks extends EventEmitter {
                 log.debug("Unknown event:", req.body);
             }
         } catch (ex) {
-            log.error("Failed to emit");
+            log.error("Failed to emit message", ex);
         }
     }
 
@@ -160,7 +150,7 @@ export class GithubWebhooks extends EventEmitter {
             if (!this.config.github) {
                 throw Error("Got GitHub oauth request but github was not configured!");
             }
-            const exists = await this.queue.pushWait<IOAuthRequest, boolean>({
+            const exists = await this.queue.pushWait<OAuthRequest, boolean>({
                 eventName: "oauth.response",
                 sender: "GithubWebhooks",
                 data: {
@@ -181,7 +171,7 @@ export class GithubWebhooks extends EventEmitter {
             })}`);
             // eslint-disable-next-line camelcase
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
-            await this.queue.push<IOAuthTokens>({
+            await this.queue.push<OAuthTokens>({
                 eventName: "oauth.tokens",
                 sender: "GithubWebhooks",
                 data: { state: req.query.state as string, ... result },

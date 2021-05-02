@@ -1,11 +1,12 @@
-import { NotificationsEnableEvent } from "../GithubWebhooks";
+import { NotificationsDisableEvent, NotificationsEnableEvent } from "../Webhooks";
 import LogWrapper from "../LogWrapper";
-import { MessageQueue } from "../MessageQueue/MessageQueue";
+import { createMessageQueue, MessageQueue, MessageQueueMessage } from "../MessageQueue/MessageQueue";
 import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";
 import { GitHubUserNotification } from "../Github/Types";
 import { GitLabWatcher } from "./GitLabWatcher";
+import { BridgeConfig } from "../Config/Config";
 
 export interface UserNotificationsEvent {
     roomId: string;
@@ -22,9 +23,11 @@ export class UserNotificationWatcher {
     /* Key: userId:type:instanceUrl */
     private userIntervals = new Map<string, NotificationWatcherTask>();
     private matrixMessageSender: MessageSenderClient;
+    private queue: MessageQueue;
 
-    constructor(private queue: MessageQueue) {
-        this.matrixMessageSender = new MessageSenderClient(queue);
+    constructor(config: BridgeConfig) {
+        this.queue = createMessageQueue(config);
+        this.matrixMessageSender = new MessageSenderClient(this.queue);
     }
 
     private static constructMapKey(userId: string, type: "github"|"gitlab", instanceUrl?: string) {
@@ -32,7 +35,20 @@ export class UserNotificationWatcher {
     }
 
     public start() {
-        // No-op
+        this.queue.subscribe("notifications.user.*");
+        this.queue.on("notifications.user.enable", (msg: MessageQueueMessage<NotificationsEnableEvent>) => {
+            this.addUser(msg.data);
+        });
+        this.queue.on("notifications.user.disable", (msg: MessageQueueMessage<NotificationsDisableEvent>) => {
+            this.removeUser(msg.data.userId, msg.data.type, msg.data.instanceUrl);
+        });
+    }
+
+    public stop() {
+        [...this.userIntervals.values()].forEach((v) => {
+            v.stop();
+        });
+        this.queue.stop ? this.queue.stop() : undefined;
     }
 
     public removeUser(userId: string, type: "github"|"gitlab", instanceUrl?: string) {
