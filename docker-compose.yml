@@ -7,7 +7,7 @@ services:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - "7775:7775"
+      - "127.0.0.1:7775:7775"
     volumes:
       - ./data:/data
     links:
