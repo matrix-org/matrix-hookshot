@@ -14,7 +14,8 @@ import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { NotificationProcessor } from "./NotificationsProcessor";
 import { IStorageProvider } from "./Stores/StorageProvider";
 import { retry } from "./PromiseUtil";
-import { IConnection } from "./Connections/IConnection";
+import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace
+} from "./Connections";
 import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
@@ -25,8 +26,6 @@ import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GitLabClient } from "./Gitlab/Client";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
-import { GitHubDiscussionConnection } from "./Connections/GithubDiscussion";
-import { Discussion } from "./Github/Discussion";
 import { ProjectsGetResponseData } from "./Github/Types";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
@@ -71,6 +70,16 @@ export class GithubBridge {
                 this.messageClient,
             );
         }
+    
+        if (GitHubDiscussionSpace.EventTypes.includes(state.type)) {
+            if (!this.github) {
+                throw Error('GitHub is not configured');
+            }
+
+            return new GitHubDiscussionSpace(
+                await this.as.botClient.getSpace(roomId), state.content, state.stateKey
+            );
+        }
 
         if (GitHubIssueConnection.EventTypes.includes(state.type)) {
             if (!this.github) {
@@ -80,6 +89,16 @@ export class GithubBridge {
             await issue.syncIssueState();
             return issue;
         }
+
+        if (GitHubUserSpace.EventTypes.includes(state.type)) {
+            if (!this.github) {
+                throw Error('GitHub is not configured');
+            }
+            return new GitHubUserSpace(
+                await this.as.botClient.getSpace(roomId), state.content, state.stateKey
+            );
+        }
+        
         if (GitLabRepoConnection.EventTypes.includes(state.type)) {
             if (!this.config.gitlab) {
                 throw Error('GitLab is not configured');
@@ -125,11 +144,20 @@ export class GithubBridge {
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitLabRepoConnection)[];
     }
 
-
     private getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
         org = org.toLowerCase();
         repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as GitHubRepoConnection[];
+    }
+
+    private getConnectionsForGithubRepoDiscussion(owner: string, repo: string): GitHubDiscussionSpace[] {
+        owner = owner.toLowerCase();
+        repo = repo.toLowerCase();
+        return this.connections.filter((c) => (c instanceof GitHubDiscussionSpace && c.owner === owner && c.repo === repo)) as GitHubDiscussionSpace[];
+    }
+
+    private getConnectionForGithubUser(user: string): GitHubUserSpace {
+        return this.connections.find(c => c instanceof GitHubUserSpace && c.owner === user.toLowerCase()) as GitHubUserSpace;
     }
 
 
@@ -411,6 +439,47 @@ export class GithubBridge {
             })
         });
 
+        this.queue.on<GitHubWebhookTypes.DiscussionCreatedEvent>("github.discussion.created", async ({data}) => {
+            if (!this.github) {
+                return;
+            }
+            const spaces = this.getConnectionsForGithubRepoDiscussion(data.repository.owner.login, data.repository.name);
+            if (spaces.length === 0) {
+                log.info(`Not creating discussion ${data.discussion.id} ${data.repository.owner.login}/${data.repository.name}, no target spaces`);
+                // We don't want to create any discussions if we have no target spaces.
+                return;
+            }
+            let [discussionConnection] = this.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.id);
+            if (!discussionConnection) {
+                try {
+                    // If we don't have an existing connection for this discussion (likely), then create one.
+                    discussionConnection = await GitHubDiscussionConnection.createDiscussionRoom(
+                        this.as,
+                        null,
+                        data.repository.owner.login,
+                        data.repository.name,
+                        data.discussion,
+                        this.tokenStore,
+                        this.commentProcessor,
+                        this.messageClient,
+                    );
+                    this.connections.push(discussionConnection);
+                } catch (ex) {
+                    log.error(ex);
+                    throw Error('Failed to create discussion room');
+                }
+            }
+
+            spaces.map(async (c) => {
+                try {
+                    await c.onDiscussionCreated(discussionConnection);
+                } catch (ex) {
+                    log.warn(`Failed to add discussion ${c.toString()} failed to handle comment.created:`, ex);
+                }
+            })
+
+        });
+
         // Fetch all room state
         let joinedRooms: string[]|undefined;
         while(joinedRooms === undefined) {
@@ -459,6 +528,7 @@ export class GithubBridge {
                 this.connections.push(...connections);
                 continue;
             }
+
             // TODO: Refactor this to be a connection
             try {
                 const accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
@@ -485,6 +555,17 @@ export class GithubBridge {
                 log.error(`Failed to setup admin room ${roomId}:`, ex);
             }
         }
+
+        // Handle spaces
+        for (const discussion of this.connections.filter((c) => c instanceof GitHubDiscussionSpace) as GitHubDiscussionSpace[]) {
+            console.log(discussion);
+            const user = this.getConnectionForGithubUser(discussion.owner);
+            console.log("user:", user);
+            if (user) {
+                await user.ensureDiscussionInSpace(discussion);
+            }
+        }
+
         if (this.config.widgets) {
             await this.widgetApi.start(this.config.widgets.port);
         }
@@ -635,6 +716,22 @@ export class GithubBridge {
             }
         }
 
+        res = GitHubDiscussionSpace.QueryRoomRegex.exec(roomAlias);
+        if (res) {
+            if (!this.github) {
+                throw Error("GitHub is not configured on this bridge");
+            }
+            try {
+                return await GitHubDiscussionSpace.onQueryRoom(res, {
+                    octokit: this.github.octokit,
+                    as: this.as,
+                });
+            } catch (ex) {
+                log.error(`Could not handle alias with GitHubRepoConnection`, ex);
+                throw ex;
+            }
+        }
+
         res = GitHubRepoConnection.QueryRoomRegex.exec(roomAlias);
         if (res) {
             if (!this.github) {
@@ -654,6 +751,22 @@ export class GithubBridge {
             }
         }
 
+
+        res = GitHubUserSpace.QueryRoomRegex.exec(roomAlias);
+        if (res) {
+            if (!this.github) {
+                throw Error("GitHub is not configured on this bridge");
+            }
+            try {
+                return await GitHubUserSpace.onQueryRoom(res, {
+                    octokit: this.github.octokit,
+                    as: this.as,
+                });
+            } catch (ex) {
+                log.error(`Could not handle alias with GitHubRepoConnection`, ex);
+                throw ex;
+            }
+        }
 
         throw Error('No regex matching query pattern');
     }
@@ -737,12 +850,12 @@ export class GithubBridge {
             const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
             this.connections.push(connection);
         });
-        adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
-            const connection = await GitHubDiscussionConnection.createDiscussionRoom(
-                this.as, adminRoom.userId, owner, repo, discussions, this.tokenStore, this.commentProcessor, this.messageClient,
-            );
-            this.connections.push(connection);
-        });
+        // adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
+        //     const connection = await GitHubDiscussionConnection.createDiscussionRoom(
+        //         this.as, adminRoom.userId, owner, repo, discussions, this.tokenStore, this.commentProcessor, this.messageClient,
+        //     );
+        //     this.connections.push(connection);
+        // });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
             const [ connection ] = this.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue);
             if (connection) {

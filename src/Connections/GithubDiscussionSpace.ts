@@ -1,0 +1,156 @@
+import { IConnection } from "./IConnection";
+import { Appservice, Space } from "matrix-bot-sdk";
+import LogWrapper from "../LogWrapper";
+import { Octokit } from "@octokit/rest";
+import { ReposGetResponseData } from "../Github/Types";
+import axios from "axios";
+import { GitHubDiscussionConnection } from "./GithubDiscussion";
+
+const log = new LogWrapper("GitHubDiscussionSpace");
+
+export interface GitHubDiscussionSpaceConnectionState {
+    owner: string;
+    repo: string;
+}
+
+/**
+ * Handles rooms connected to a github repo.
+ */
+export class GitHubDiscussionSpace implements IConnection {
+    static readonly CanonicalEventType = "uk.half-shot.matrix-github.discussion.space";
+
+    static readonly EventTypes = [
+        GitHubDiscussionSpace.CanonicalEventType, // Legacy event, with an awful name.
+    ];
+
+    static readonly QueryRoomRegex = /#github_disc_(.+)_(.+):.*/;
+
+    static async onQueryRoom(result: RegExpExecArray, opts: {octokit: Octokit, as: Appservice}): Promise<Record<string, unknown>> {
+        if (!result) {
+            log.error("Invalid alias pattern");
+            throw Error("Could not find issue");
+        }
+
+        const [ owner, repo ] = result?.slice(1);
+
+        log.info(`Fetching ${owner}/${repo}`);
+        let repoRes: ReposGetResponseData;
+        try {
+            // TODO: Determine if the repo has discussions?
+            repoRes = (await opts.octokit.repos.get({
+                owner,
+                repo,
+            })).data;
+            if (!repoRes.owner) {
+                throw Error('Repo has no owner!');
+            }
+        } catch (ex) {
+            log.error("Failed to get repo:", ex);
+            throw Error("Could not find repo");
+        }
+        const state: GitHubDiscussionSpaceConnectionState = {
+            owner: repoRes.owner.login.toLowerCase(),
+            repo: repoRes.name.toLowerCase(),
+        };
+
+        // URL hack so we don't need to fetch the repo itself.
+        let avatarUrl = undefined;
+        try {
+            const profile = await opts.octokit.users.getByUsername({
+                username: owner,
+            });
+            if (profile.data.avatar_url) {
+                const res = await axios.get(profile.data.avatar_url as string, {
+                    responseType: 'arraybuffer',
+                });
+                log.info(`uploading ${profile.data.avatar_url}`);
+                // This does exist, but headers is silly and doesn't have content-type.
+                // tslint:disable-next-line: no-any
+                console.log(res.headers);
+                const contentType: string = res.headers["content-type"];
+                const mxcUrl = await opts.as.botClient.uploadContent(
+                    Buffer.from(res.data as ArrayBuffer),
+                    contentType,
+                    `avatar_${profile.data.id}.png`,
+                );
+                avatarUrl = {
+                    type: "m.room.avatar",
+                    state_key: "",
+                    content: {
+                        url: mxcUrl,
+                    },
+                };
+            }
+        } catch (ex) {
+            log.warn("Failed to get avatar for org:", ex);
+        }
+
+        return {
+            visibility: "public",
+            name: `${state.owner}/${state.repo} Discussions`,
+            topic: `GitHub discussion index for ${state.owner}/${state.repo}`,
+            preset: 'public_chat',
+            room_alias_name: `github_disc_${owner.toLowerCase()}_${repo.toLowerCase()}`,
+            initial_state: [
+                
+                {
+                    type: this.CanonicalEventType,
+                    content: state,
+                    state_key: `${state.owner}/${state.repo}`,
+                },
+                avatarUrl,
+                {
+                    type: "m.room.history_visibility",
+                    state_key: "",
+                    content: {
+                        history_visibility: 'world_readable',
+                    },
+                },
+            ],
+            creation_content: {
+                type: "m.space",
+            },
+            power_level_content_override: {
+                ban: 100,
+                events_default: 50,
+                invite: 50,
+                kick: 100,
+                notifications: {
+                    room: 100,
+                },
+                redact: 100,
+                state_default: 100,
+                users_default: 0,
+            },
+        };
+    }
+
+    get roomId() {
+        return this.space.roomId;
+    }
+
+    constructor(public readonly space: Space,
+        private state: GitHubDiscussionSpaceConnectionState,
+        private readonly stateKey: string) {}
+
+    public isInterestedInStateEvent(eventType: string, stateKey: string) {
+        return GitHubDiscussionSpace.EventTypes.includes(eventType) && this.stateKey === stateKey;
+    }
+
+    public get repo() {
+        return this.state.repo.toLowerCase();
+    }
+
+    public get owner() {
+        return this.state.owner.toLowerCase();
+    }
+
+    public toString() {
+        return `GitHubDiscussionSpace ${this.owner}/${this.repo}`;
+    }
+
+    public async onDiscussionCreated(discussion: GitHubDiscussionConnection) {
+        log.info(`Adding connection to ${this.toString()}`);
+        await this.space.addChildRoom(discussion.roomId);
+    }
+}

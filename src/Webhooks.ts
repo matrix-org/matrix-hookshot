@@ -63,11 +63,12 @@ export class Webhooks extends EventEmitter {
     }
 
     public listen() {
+        const bindAddr = this.config.webhook.bindAddress || "0.0.0.0";
         this.server = this.expressApp.listen(
             this.config.webhook.port,
-            this.config.webhook.bindAddress,
+            bindAddr,
         );
-        log.info(`Listening on http://${this.config.webhook.bindAddress}:${this.config.webhook.port}`);
+        log.info(`Listening on http://${bindAddr}:${this.config.webhook.port}`);
     }
 
     public stop() {

@@ -4,7 +4,7 @@ import { Octokit } from "@octokit/rest";
 import { promises as fs } from "fs";
 import { BridgeConfigGitHub } from "../Config/Config";
 import LogWrapper from "../LogWrapper";
-import { Discussion, DiscussionQL } from "./Discussion";
+import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 
 const log = new LogWrapper("GithubInstance");
 
@@ -75,19 +75,19 @@ query($name: String!, $owner: String!, $number: Int!) {
         }
     }
 }`, {name, owner, number}) as any;
-        return result.repository.discussion as Discussion;
+        return result.repository.discussion as DiscussionQLResponse;
     }
 
-    public async createDiscussionComment(number: number) {
-        // const result = await this.query(`
-        // mutation($name: String!, $owner: String!, $number: Int!) {
-        //     createDiscussion(input: {}) {
-        //         discussion(number: $number) {
-        //             ${DiscussionQL}
-        //         }
-        //     }
-        // }`, {name, owner, number}) as any;
-        //         return result.repository.discussion as Discussion;
+    public async addDiscussionComment(discussionId: string, body: string): Promise<string> {
+        const result = await this.query(`
+mutation addDiscussionComment($discussionId: ID!, $body: String!) {
+    addDiscussionComment(input: {discussionId: $discussionId, body: $body}) {
+        comment {
+        id
+        }
+    }
+    }`, {discussionId, body}) as any;
+        return result.addDiscussionComment.comment.id as string;
     }
  
     public async listDiscussions(owner: string, name: string) {

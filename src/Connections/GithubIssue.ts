@@ -64,7 +64,9 @@ export class GitHubIssueConnection implements IConnection {
                 owner,
                 repo,
                 issue_number: issueNumber,
-            })).data;
+            // Typing issue
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            })).data as any;
         } catch (ex) {
             log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
@@ -78,7 +80,7 @@ export class GitHubIssueConnection implements IConnection {
                 username: owner,
             });
             if (profile.data.avatar_url) {
-                const res = await axios.get(profile.data.avatar_url, {
+                const res = await axios.get(profile.data.avatar_url as string, {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
@@ -239,7 +241,8 @@ export class GitHubIssueConnection implements IConnection {
 
             for (const comment of comments) {
                 await this.onCommentCreated({
-                    comment,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    comment: comment as any,
                     action: "fake",
                 }, false);
                 this.state.comments_processed++;

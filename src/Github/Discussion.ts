@@ -1,5 +1,5 @@
-export interface Discussion {
-    id: number;
+export interface DiscussionQLResponse {
+    id: string;
     number: number;
     author: {
         login: string;

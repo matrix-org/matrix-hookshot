@@ -95,7 +95,7 @@ export class GitHubRepoConnection implements IConnection {
                 username: owner,
             });
             if (profile.data.avatar_url) {
-                const res = await axios.get(profile.data.avatar_url, {
+                const res = await axios.get(profile.data.avatar_url as string, {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
