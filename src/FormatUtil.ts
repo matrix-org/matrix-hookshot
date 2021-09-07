@@ -5,15 +5,25 @@ interface IMinimalRepository {
     id: number;
     full_name: string;
     html_url: string;
+    description: string | null;
+}
+
+interface IMinimalIssue {
+    html_url: string;
+    id: number;
+    number: number;
+    title: string;
+    repository_url: string;
+    pull_request?: any;
 }
 
 export class FormatUtil {
-    public static formatIssueRoomName(issue: {number: number, title: string, repository_url: string}) {
+    public static formatIssueRoomName(issue: IMinimalIssue) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
         return emoji.emojify(`${orgRepoName}#${issue.number}: ${issue.title}`);
     }
 
-    public static formatRepoRoomName(repo: {full_name: string, description: string|null}) {
+    public static formatRepoRoomName(repo: IMinimalRepository) {
         return emoji.emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
     }
 
@@ -36,7 +46,7 @@ export class FormatUtil {
         };
     }
 
-    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: IssuesGetResponseData) {
+    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: IMinimalIssue) {
         return {
             ...FormatUtil.getPartialBodyForRepo(repo),
             "external_url": issue.html_url,
@@ -50,9 +60,9 @@ export class FormatUtil {
         };
     }
 
-    public static getPartialBodyForComment(comment: IssuesGetCommentResponseData,
+    public static getPartialBodyForComment(comment: {id: number, html_url: string},
                                            repo?: IMinimalRepository,
-                                           issue?: IssuesGetResponseData) {
+                                           issue?: IMinimalIssue) {
         return {
             ...(issue && repo ? FormatUtil.getPartialBodyForIssue(repo, issue) : undefined),
             "external_url": comment.html_url,

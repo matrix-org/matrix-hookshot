@@ -13,6 +13,7 @@ export type ProjectsListResponseData = ProjectsListForTeamsResponseData|Projects
 export type IssuesListAssigneesResponseData = Endpoints["GET /repos/{owner}/{repo}/issues"]["response"]["data"];
 export type PullsGetResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"];
 export type PullGetResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}"]["response"]["data"];
+export type DiscussionDataType = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}"]["response"]["data"];
 /* eslint-disable camelcase */
 export interface GitHubUserNotification {
     id: string;

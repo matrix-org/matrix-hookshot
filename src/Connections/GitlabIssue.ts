@@ -6,7 +6,6 @@ import LogWrapper from "../LogWrapper";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { FormatUtil } from "../FormatUtil";
-import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
@@ -174,19 +173,6 @@ export class GitLabIssueConnection implements IConnection {
         return this.as.botClient.sendStateEvent(this.roomId, "m.room.topic", "", {
             topic: GitLabIssueConnection.getTopicString(this.state.authorName, this.state.state),
         });
-    }
-
-    public async onIssueEdited(event: IGitHubWebhookEvent) {
-        if (!event.changes) {
-            log.debug("No changes given");
-            return; // No changes made.
-        }
-
-        if (event.issue && event.changes.title) {
-            await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
-                name: FormatUtil.formatIssueRoomName(event.issue),
-            });
-        }
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {

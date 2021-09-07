@@ -116,7 +116,8 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                         pull_number: rawEvent.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,
                         repo: rawEvent.repository.name,
-                    })).data;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    })).data as any; 
                     rawEvent.subject.reviews = (await this.octoKit.pulls.listReviews({
                         pull_number: rawEvent.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,

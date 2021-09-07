@@ -11,8 +11,8 @@ import { MessageSenderClient } from "../MatrixSender";
 import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
-import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import { ReposGetResponseData } from "../Github/Types";
+import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import emoji from "node-emoji";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
@@ -95,7 +95,7 @@ export class GitHubRepoConnection implements IConnection {
                 username: owner,
             });
             if (profile.data.avatar_url) {
-                const res = await axios.get(profile.data.avatar_url, {
+                const res = await axios.get(profile.data.avatar_url as string, {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
@@ -255,7 +255,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    public async onIssueCreated(event: IGitHubWebhookEvent) {
+    public async onIssueCreated(event: IssuesOpenedEvent) {
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (!event.issue) {
             throw Error('No issue content!');
@@ -266,12 +266,12 @@ export class GitHubRepoConnection implements IConnection {
         const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
         
         const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
-        const labelsHtml = event.issue.labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
+        const labelsHtml = (event.issue.labels || []).map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
             typeof(label) === "string" ?
              `<span>${label}</span>` :
              `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
         ).join(" ") || "";
-        const labels = event.issue?.labels.map((label: {name?: string}|string) => 
+        const labels = (event.issue?.labels || []).map((label: {name?: string}|string) => 
             typeof(label) === "string" ? label : label.name
         ).join(", ") || "";
         await this.as.botIntent.sendEvent(this.roomId, {
@@ -279,11 +279,12 @@ export class GitHubRepoConnection implements IConnection {
             body: content + (labels.length > 0 ? ` with labels ${labels}`: ""),
             formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
             format: "org.matrix.custom.html",
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue),
+            // TODO: Fix types.
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
         });
     }
 
-    public async onIssueStateChange(event: IGitHubWebhookEvent) {
+    public async onIssueStateChange(event: IssuesEditedEvent) {
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (!event.issue) {
             throw Error('No issue content!');
@@ -299,7 +300,8 @@ export class GitHubRepoConnection implements IConnection {
                 body: content,
                 formatted_body: md.renderInline(content),
                 format: "org.matrix.custom.html",
-                ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue),
+                // TODO: Fix types
+                ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
             });
         }
     }

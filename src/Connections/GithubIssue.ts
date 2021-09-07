@@ -9,10 +9,10 @@ import { Octokit } from "@octokit/rest";
 import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
-import { IGitHubWebhookEvent } from "../GithubWebhooks";
 import axios from "axios";
 import { GithubInstance } from "../Github/GithubInstance";
-import { IssuesGetResponseData } from "../Github/Types";
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData} from "../Github/Types";
+import { IssuesEditedEvent, IssueCommentCreatedEvent } from "@octokit/webhooks-types";
 
 export interface GitHubIssueConnectionState {
     org: string;
@@ -64,7 +64,9 @@ export class GitHubIssueConnection implements IConnection {
                 owner,
                 repo,
                 issue_number: issueNumber,
-            })).data;
+            // Typing issue
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            })).data as any;
         } catch (ex) {
             log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
@@ -78,7 +80,7 @@ export class GitHubIssueConnection implements IConnection {
                 username: owner,
             });
             if (profile.data.avatar_url) {
-                const res = await axios.get(profile.data.avatar_url, {
+                const res = await axios.get(profile.data.avatar_url as string, {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
@@ -151,7 +153,20 @@ export class GitHubIssueConnection implements IConnection {
         return this.state.repo;
     }
 
-    public async onCommentCreated(event: IGitHubWebhookEvent, updateState = true) {
+    public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
+        return this.onCommentCreated({
+            // TODO: Fix types,
+            comment: event.comment as any,
+            action: event.action,
+        })
+    }
+
+    private async onCommentCreated(event: {
+        comment: IssuesGetCommentResponseData,
+        action: string,
+        repository?: ReposGetResponseData,
+        issue?: IssuesGetResponseData,
+    }, updateState = true) {
         const comment = event.comment;
         if (!comment || !comment.user) {
             throw Error('Comment undefined');
@@ -226,7 +241,8 @@ export class GitHubIssueConnection implements IConnection {
 
             for (const comment of comments) {
                 await this.onCommentCreated({
-                    comment,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    comment: comment as any,
                     action: "fake",
                 }, false);
                 this.state.comments_processed++;
@@ -286,12 +302,13 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public async onIssueEdited(event: IGitHubWebhookEvent) {
+    public async onIssueEdited(event: IssuesEditedEvent) {
         if (!event.changes) {
             log.debug("No changes given");
             return; // No changes made.
         }
 
+        // TODO: Fix types
         if (event.issue && event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
                 name: FormatUtil.formatIssueRoomName(event.issue),
