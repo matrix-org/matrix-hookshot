@@ -28,7 +28,6 @@ interface IQueryRoomOpts {
 export interface GitHubRepoConnectionState {
     org: string;
     repo: string;
-    state: string;
 }
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
