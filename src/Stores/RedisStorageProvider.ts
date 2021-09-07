@@ -2,8 +2,12 @@ import { IssuesGetResponseData } from "../Github/Types";
 import { Redis, default as redis } from "ioredis";
 import LogWrapper from "../LogWrapper";
 
-import { IStorageProvider } from "./StorageProvider";
+import { IBridgeStorageProvider } from "./StorageProvider";
+import { IFilterInfo } from "matrix-bot-sdk";
 
+const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
+const BOT_FILTER_KEY = "bot.filter.";
+const BOT_VALUE_KEY = "bot.value.";
 const REGISTERED_USERS_KEY = "as.registered_users";
 const COMPLETED_TRANSACTIONS_KEY = "as.completed_transactions";
 const GH_ISSUES_KEY = "gh.issues";
@@ -15,14 +19,43 @@ const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
 
 const log = new LogWrapper("RedisASProvider");
 
-export class RedisStorageProvider implements IStorageProvider {
+export class RedisStorageProvider implements IBridgeStorageProvider {
     private redis: Redis;
 
-    constructor(host: string, port: number) {
+    constructor(host: string, port: number, private contextSuffix = '') {
         this.redis = new redis(port, host);
         this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER).catch((ex) => {
             log.warn("Failed to set expiry time on as.completed_transactions", ex);
         });
+    }
+
+    public setSyncToken(token: string|null){
+        if (token === null) {
+            this.redis.del(BOT_SYNC_TOKEN_KEY + this.contextSuffix);
+        } else {
+            this.redis.set(BOT_SYNC_TOKEN_KEY + this.contextSuffix, token);
+        }
+    }
+
+    public getSyncToken() {
+        return this.redis.get(BOT_SYNC_TOKEN_KEY + this.contextSuffix);
+    }
+
+    public setFilter(filter: IFilterInfo) {
+        this.redis.set(BOT_FILTER_KEY + this.contextSuffix, JSON.stringify(filter));
+    }
+
+    public async getFilter() {
+        const value = await this.redis.get(BOT_FILTER_KEY + this.contextSuffix);
+        return value && JSON.parse(value);
+    }
+
+    public storeValue(key: string, value: string) {
+        this.redis.set(`${BOT_VALUE_KEY}${this.contextSuffix}.${key}`, value);
+    }
+
+    public readValue(key: string) {
+        return this.redis.get(`${BOT_VALUE_KEY}${this.contextSuffix}.${key}`);
     }
 
     public async addRegisteredUser(userId: string) {

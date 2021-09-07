@@ -149,7 +149,6 @@ export class GitHubUserSpace implements IConnection {
     public async ensureDiscussionInSpace(discussion: GitHubDiscussionSpace) {
         // TODO: Optimise
         const children = await this.space.getChildEntities();
-        console.log("Foo", children);
         if (!children[discussion.roomId]) {
             await this.space.addChildRoom(discussion.roomId);
         }

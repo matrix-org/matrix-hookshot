@@ -51,6 +51,11 @@ interface BridgeConfigBridge {
     mediaUrl?: string;
     port: number;
     bindAddress: string;
+    pantalaimon?: {
+        url: string;
+        username: string;
+        password: string;
+    }
 }
 
 interface BridgeConfigWebhook {

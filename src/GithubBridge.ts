@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent,} from "./Webhooks";
 import { CommentProcessor } from "./CommentProcessor";
@@ -12,7 +12,7 @@ import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher"
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { IStorageProvider } from "./Stores/StorageProvider";
+import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { retry } from "./PromiseUtil";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace
 } from "./Connections";
@@ -35,6 +35,7 @@ const log = new LogWrapper("GithubBridge");
 export class GithubBridge {
     private github?: GithubInstance;
     private as!: Appservice;
+    private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private commentProcessor!: CommentProcessor;
     private notifProcessor!: NotificationProcessor;
@@ -215,7 +216,7 @@ export class GithubBridge {
             await this.github.start();
         }
 
-        let storage: IStorageProvider;
+        let storage: IBridgeStorageProvider;
         if (this.config.queue.host && this.config.queue.port) {
             log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
             storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
@@ -235,6 +236,23 @@ export class GithubBridge {
             registration: this.registration,
             storage,
         });
+        if (this.config.bridge.pantalaimon) {
+            log.info(`Loading pantalaimon client`);
+            const pan = new PantalaimonClient(
+                this.config.bridge.pantalaimon.url,
+                storage,
+            );
+            this.encryptedMatrixClient = await pan.createClientWithCredentials(
+                this.config.bridge.pantalaimon.username,
+                this.config.bridge.pantalaimon.password
+            );
+            this.encryptedMatrixClient.on("room.message", async (roomId, event) => {
+                return this.onRoomMessage(roomId, event);
+            });
+            // TODO: Filter
+            await this.encryptedMatrixClient.start();
+            log.info(`Pan client is syncing`);
+        }
 
         this.widgetApi = new BridgeWidgetApi(this.adminRooms);
 
@@ -558,9 +576,7 @@ export class GithubBridge {
 
         // Handle spaces
         for (const discussion of this.connections.filter((c) => c instanceof GitHubDiscussionSpace) as GitHubDiscussionSpace[]) {
-            console.log(discussion);
             const user = this.getConnectionForGithubUser(discussion.owner);
-            console.log("user:", user);
             if (user) {
                 await user.ensureDiscussionInSpace(discussion);
             }
@@ -598,8 +614,9 @@ export class GithubBridge {
             /* We ignore messages from our users */
             return;
         }
-        log.info(`Got message roomId=${roomId} from=${event.sender}`);
-        log.debug(event);
+        log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
+        console.log(event);
+        log.debug("Content:", JSON.stringify(event));
         const adminRoom = this.adminRooms.get(roomId);
 
         if (adminRoom) {

@@ -1,5 +1,5 @@
 import { MessageSenderClient } from "./MatrixSender";
-import { IStorageProvider } from "./Stores/StorageProvider";
+import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import LogWrapper from "./LogWrapper";
 import { AdminRoom } from "./AdminRoom";
@@ -106,7 +106,7 @@ export class NotificationProcessor {
         }
     }
 
-    constructor(private storage: IStorageProvider, private matrixSender: MessageSenderClient) {
+    constructor(private storage: IBridgeStorageProvider, private matrixSender: MessageSenderClient) {
 
     }
 

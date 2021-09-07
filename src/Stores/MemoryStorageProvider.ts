@@ -1,8 +1,8 @@
 import { MemoryStorageProvider as MSP } from "matrix-bot-sdk";
-import { IStorageProvider } from "./StorageProvider";
+import { IBridgeStorageProvider } from "./StorageProvider";
 import { IssuesGetResponseData } from "../Github/Types";
 
-export class MemoryStorageProvider extends MSP implements IStorageProvider {
+export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();
     private issuesLastComment: Map<string, string> = new Map();
     private reviewData: Map<string, string> = new Map();
