@@ -146,11 +146,11 @@ export class GitHubIssueConnection implements IConnection {
     }
 
     public get org() {
-        return this.state.org;
+        return this.state.org.toLowerCase();
     }
 
     public get repo() {
-        return this.state.repo;
+        return this.state.repo.toLowerCase();
     }
 
     public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
@@ -316,7 +316,7 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public onIssueStateChange() {
+    public onIssueStateChange(data?: any) {
         return this.syncIssueState();
     }
 

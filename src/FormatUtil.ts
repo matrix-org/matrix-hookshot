@@ -79,4 +79,19 @@ export class FormatUtil {
         }
         return f;
     }
+
+    public static formatLabels(labels: Array<{color?: string|null, name?: string, description?: string|null}|string> = []) {
+        const labelsHtml = labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
+            typeof(label) === "string" ?
+            `<span>${label}</span>` :
+            `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
+        ).join(" ") || "";
+        const labelsStr = labels.map((label: {name?: string}|string) => 
+            typeof(label) === "string" ? label : label.name
+        ).join(", ") || "";
+        return {
+            labelsStr,
+            labelsHtml,
+        }
+    }
 }

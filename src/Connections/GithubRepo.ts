@@ -12,8 +12,9 @@ import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
 import { ReposGetResponseData } from "../Github/Types";
-import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
+import { IssuesOpenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
 import emoji from "node-emoji";
+import { NotLoggedInError } from "../errors";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -28,6 +29,8 @@ interface IQueryRoomOpts {
 export interface GitHubRepoConnectionState {
     org: string;
     repo: string;
+    ignoreHooks?: string[],
+    commandPrefix?: string;
 }
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
@@ -140,7 +143,7 @@ export class GitHubRepoConnection implements IConnection {
         };
     }
     
-    static helpMessage: MatrixMessageContent;
+    static helpMessage: (cmdPrefix: string) => MatrixMessageContent;
     static botCommands: BotCommands;
 
     constructor(public readonly roomId: string,
@@ -158,20 +161,31 @@ export class GitHubRepoConnection implements IConnection {
         return this.state.repo.toLowerCase();
     }
 
+    private get commandPrefix() {
+        return (this.state.commandPrefix || "gh") + " ";
+    }
+
     public isInterestedInStateEvent() {
         return false;
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        const { error, handled } = await handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this);
+        const { error, handled, humanError } = await handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this, this.commandPrefix);
         if (!handled) {
             // Not for us.
             return;
         }
         if (error) {
+            await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+                "m.relates_to": {
+                    rel_type: "m.annotation",
+                    event_id: ev.event_id,
+                    key: "⛔",
+                }
+            });
             await this.as.botIntent.sendEvent(this.roomId,{
                 msgtype: "m.notice",
-                body: "Failed to handle command",
+                body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command",
             });
             return;
         }
@@ -184,12 +198,17 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    @botCommand("gh create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
+    @botCommand("help", "This help text")
+    public async helpCommand() {
+        return this.as.botIntent.sendEvent(this.roomId, GitHubRepoConnection.helpMessage(this.commandPrefix));
+    }
+
+    @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     // @ts-ignore
     private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            return this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
+            throw new NotLoggedInError();
         }
         const labelsNames = labels?.split(",");
         const res = await octokit.issues.create({
@@ -209,7 +228,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    @botCommand("gh assign", "Assign an issue to a user", ["number", "...users"], [], true)
+    @botCommand("assign", "Assign an issue to a user", ["number", "...users"], [], true)
     // @ts-ignore
     private async onAssign(userId: string, number: string, ...users: string[]) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
@@ -229,7 +248,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    @botCommand("gh close", "Close an issue", ["number"], ["comment"], true)
+    @botCommand("close", "Close an issue", ["number"], ["comment"], true)
     // @ts-ignore
     private async onClose(userId: string, number: string, comment?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
@@ -255,6 +274,9 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
+        if (this.shouldSkipHook('issue.created', 'issue')) {
+            return;
+        }
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (!event.issue) {
             throw Error('No issue content!');
@@ -262,20 +284,13 @@ export class GitHubRepoConnection implements IConnection {
         if (!event.repository) {
             throw Error('No repository content!');
         }
-        const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
+        const orgRepoName = event.repository.full_name;
         
         const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
-        const labelsHtml = (event.issue.labels || []).map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
-            typeof(label) === "string" ?
-             `<span>${label}</span>` :
-             `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
-        ).join(" ") || "";
-        const labels = (event.issue?.labels || []).map((label: {name?: string}|string) => 
-            typeof(label) === "string" ? label : label.name
-        ).join(", ") || "";
+        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labels.length > 0 ? ` with labels ${labels}`: ""),
+            body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
             formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
@@ -284,6 +299,9 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     public async onIssueStateChange(event: IssuesEditedEvent) {
+        if (this.shouldSkipHook('issue.changed', 'issue')) {
+            return;
+        }
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
         if (!event.issue) {
             throw Error('No issue content!');
@@ -291,18 +309,158 @@ export class GitHubRepoConnection implements IConnection {
         if (!event.repository) {
             throw Error('No repository content!');
         }
-        if (event.issue.state === "closed" && event.sender) {
-            const orgRepoName = event.issue.repository_url.substr("https://api.github.com/repos/".length);
-            const content = `**@${event.sender.login}** closed issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-            await this.as.botIntent.sendEvent(this.roomId, {
-                msgtype: "m.notice",
-                body: content,
-                formatted_body: md.renderInline(content),
-                format: "org.matrix.custom.html",
-                // TODO: Fix types
-                ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
-            });
+        const state = event.issue.state === 'open' ? 'reopened' : 'closed';
+        const orgRepoName = event.repository.full_name;
+        const content = `**${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+            // TODO: Fix types
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
+        });
+    }
+
+    public async onIssueEdited(event: IssuesEditedEvent) {
+        if (this.shouldSkipHook('issue.edited', 'issue')) {
+            return;
         }
+        if (!event.issue) {
+            throw Error('No issue content!');
+        }
+        log.info(`onIssueEdited ${this.roomId} ${this.org}/${this.repo} #${event.issue.number}`);
+        const orgRepoName = event.repository.full_name;
+        const content = `**${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+            // TODO: Fix types
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
+        });
+    }
+
+    public async onPROpened(event: PullRequestOpenedEvent) {
+        if (this.shouldSkipHook('pull_request.opened', 'pull_request')) {
+            return;
+        }
+        log.info(`onPROpened ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
+        if (!event.pull_request) {
+            throw Error('No pull_request content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.repository.full_name;
+        const verb = event.pull_request.draft ? 'drafted' : 'opened';
+        const content = emoji.emojify(`**${event.pull_request.user?.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
+        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.pull_request.labels); 
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
+            formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
+            format: "org.matrix.custom.html",
+            // TODO: Fix types.
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+        });
+    }
+
+    public async onPRReadyForReview(event: PullRequestReadyForReviewEvent) {
+        if (this.shouldSkipHook('pull_request.ready_for_review', 'pull_request')) {
+            return;
+        }
+        log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
+        if (!event.pull_request) {
+            throw Error('No pull_request content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.repository.full_name;
+        const content = emoji.emojify(`**${event.pull_request.user?.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review (${event.pull_request.title})`);
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+            // TODO: Fix types.
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+        });    
+    }
+
+    public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {
+        if (this.shouldSkipHook('pull_request.reviewed', 'pull_request')) {
+            return;
+        }
+        log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
+        if (!event.pull_request) {
+            throw Error('No pull_request content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.repository.full_name;
+        const emojiForReview = {'approved': '✅', 'commented': '🗨️', 'changes_requested': '🔴'}[event.review.state.toLowerCase()];
+        if (!emojiForReview) {
+            // We don't recongnise this state, run away!
+            return;
+        }
+        const content = emoji.emojify(`**${event.review.user?.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) (${event.pull_request.title})`);
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+            // TODO: Fix types.
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+        });
+    }
+
+    public async onPRClosed(event: PullRequestClosedEvent) {
+        if (this.shouldSkipHook('pull_request.closed', 'pull_request')) {
+            return;
+        }
+        log.info(`onPRClosed ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
+        if (!event.pull_request) {
+            throw Error('No pull_request content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.repository.full_name;
+        const verb = event.pull_request.merged ? 'merged' : 'closed';
+        const content = emoji.emojify(`**${event.pull_request.user?.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+            // TODO: Fix types.
+            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+        });
+    }
+
+    public async onReleaseCreated(event: ReleaseCreatedEvent) {
+        if (this.shouldSkipHook('release', 'release.created')) {
+            return;
+        }
+        log.info(`onReleaseCreated ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
+        if (!event.release) {
+            throw Error('No release content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.repository.full_name;
+        const content = `🪄 **${event.release.author?.login}** released [${event.release.name}]${event.release.html_url} for ${orgRepoName}`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
     }
 
     public async onEvent(evt: MatrixEvent<unknown>) {
@@ -316,6 +474,7 @@ export class GitHubRepoConnection implements IConnection {
             const ev = await this.as.botClient.getEvent(this.roomId, event_id);
             const issueContent = ev.content["uk.half-shot.matrix-github.issue"];
             if (!issueContent) {
+                log.debug('Reaction to event did not pertain to a issue');
                 return; // Not our event.
             }
 
@@ -335,27 +494,37 @@ export class GitHubRepoConnection implements IConnection {
                       ]
                     }
                 });
-            } else if (action && action[1] === "close") {
+            } else if (action && action === "close") {
                 await octokit.issues.update({
                     state: "closed",
                     owner: this.org,
                     repo: this.repo,
-                    issue_number: ev.number,
+                    issue_number: issueContent.number,
                 });
-            } else if (action && action[1] === "open") {
+            } else if (action && action === "open") {
                 await octokit.issues.update({
                     state: "open",
                     owner: this.org,
                     repo: this.repo,
-                    issue_number: ev.number,
+                    issue_number: issueContent.number,
                 });
             }
-            return;
         }
     }
 
     public toString() {
-        return `GitHubRepo`;
+        return `GitHubRepo ${this.org}/${this.repo}`;
+    }
+
+    private shouldSkipHook(...hookName: string[]) {
+        if (this.state.ignoreHooks) {
+            for (const name of hookName) {
+                if (this.state.ignoreHooks?.includes(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 

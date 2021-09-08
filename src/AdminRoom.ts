@@ -49,7 +49,7 @@ export interface AdminAccountData {
 }
 
 export class AdminRoom extends EventEmitter {
-    public static helpMessage: MatrixMessageContent;
+    public static helpMessage: () => MatrixMessageContent;
     private widgetAccessToken = `abcdef`;
     static botCommands: BotCommands;
 
@@ -149,7 +149,7 @@ export class AdminRoom extends EventEmitter {
 
     @botCommand("help", "This help text")
     public async helpCommand() {
-        return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage);
+        return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage());
     }
 
     @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])

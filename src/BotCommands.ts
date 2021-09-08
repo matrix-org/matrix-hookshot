@@ -24,7 +24,7 @@ export type BotCommands = {[prefix: string]: {
     includeUserId: boolean,
 }};
 
-export function compileBotCommands(prototype: Record<string, BotCommandFunction>): {helpMessage: MatrixMessageContent, botCommands: BotCommands} {
+export function compileBotCommands(prototype: Record<string, BotCommandFunction>): {helpMessage: (cmdPrefix?: string) => MatrixMessageContent, botCommands: BotCommands} {
     let content = "Commands:\n";
     const botCommands: BotCommands = {};
     Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
@@ -32,7 +32,7 @@ export function compileBotCommands(prototype: Record<string, BotCommandFunction>
         if (b) {
             const requiredArgs = b.requiredArgs.join(" ");
             const optionalArgs = b.optionalArgs.map((arg: string) =>  `[${arg}]`).join(" ");
-            content += ` - \`${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}\n`;
+            content += ` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}\n`;
             // We know that this is safe.
             botCommands[b.prefix as string] = {
                 fn: prototype[propetyKey],
@@ -43,17 +43,23 @@ export function compileBotCommands(prototype: Record<string, BotCommandFunction>
         }
     });
     return {
-        helpMessage: {
+        helpMessage: (cmdPrefix?: string) => ({
             msgtype: "m.notice",
             body: content,
-            formatted_body: md.render(content),
+            formatted_body: md.render(content).replace(/££PREFIX££/g, cmdPrefix || ""),
             format: "org.matrix.custom.html"
-        },
+        }),
         botCommands,
     }
 }
 
-export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: unknown): Promise<{error?: string, handled?: boolean}> {
+export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: unknown, prefix?: string): Promise<{error?: string, handled?: boolean, humanError?: string}> {
+    if (prefix) {
+        if (!command.startsWith(prefix)) {
+            return {handled: false};
+        }
+        command = command.substring(prefix.length);
+    }
     const parts = stringArgv(command);
     for (let i = parts.length; i > 0; i--) {
         const prefix = parts.slice(0, i).join(" ").toLowerCase();
@@ -71,7 +77,7 @@ export async function handleCommand(userId: string, command: string, botCommands
                 await botCommands[prefix].fn.apply(obj,  args);
                 return {handled: true};
             } catch (ex) {
-                return {handled: true, error: ex.message};
+                return {handled: true, error: ex.message, humanError: ex.humanError};
             }
         }
     }

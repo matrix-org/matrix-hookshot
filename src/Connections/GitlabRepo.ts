@@ -29,7 +29,6 @@ export class GitLabRepoConnection implements IConnection {
         GitLabRepoConnection.CanonicalEventType, // Legacy event, with an awful name.
     ];
     
-    static helpMessage: MatrixMessageContent;
     static botCommands: BotCommands;
 
     constructor(public readonly roomId: string,
@@ -131,5 +130,4 @@ export class GitLabRepoConnection implements IConnection {
 // Typescript doesn't understand Prototypes very well yet.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const res = compileBotCommands(GitLabRepoConnection.prototype as any);
-GitLabRepoConnection.helpMessage = res.helpMessage;
 GitLabRepoConnection.botCommands = res.botCommands;

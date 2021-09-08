@@ -141,6 +141,8 @@ export class GithubBridge {
     }
 
     private getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitLabRepoConnection)[] {
+        org = org.toLowerCase();
+        repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber) ||
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitLabRepoConnection)[];
     }
@@ -313,7 +315,7 @@ export class GithubBridge {
                     if (c instanceof GitHubIssueConnection)
                         await c.onIssueCommentCreated(data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle github.issue_comment.created:`, ex);
                 }
             })
         });
@@ -325,7 +327,7 @@ export class GithubBridge {
                 try {
                     await c.onIssueCreated(data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle github.issues.opened:`, ex);
                 }
             })
         });
@@ -339,7 +341,7 @@ export class GithubBridge {
                     if (c instanceof GitHubIssueConnection /* || c instanceof GitHubRepoConnection*/)
                         await c.onIssueEdited(data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle github.issues.edited:`, ex);
                 }
             })
         });
@@ -350,9 +352,9 @@ export class GithubBridge {
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
-                        await c.onIssueStateChange();
+                        await c.onIssueStateChange(data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle github.issues.closed:`, ex);
                 }
             })
         });
@@ -363,9 +365,76 @@ export class GithubBridge {
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
-                        await c.onIssueStateChange();
+                        await c.onIssueStateChange(data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle github.issues.reopened:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<GitHubWebhookTypes.IssuesEditedEvent>("github.issues.edited", async ({ data }) => {
+            const { repository, issue, owner } = validateRepoIssue(data);
+            const connections = this.getConnectionsForGithubRepo(owner, repository.name);
+            connections.map(async (c) => {
+                try {
+                    await c.onIssueEdited(data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle github.issues.edited:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<GitHubWebhookTypes.PullRequestOpenedEvent>("github.pull_request.opened", async ({ data }) => {
+            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            connections.map(async (c) => {
+                try {
+                    await c.onPROpened(data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle github.pull_request.opened:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<GitHubWebhookTypes.PullRequestClosedEvent>("github.pull_request.closed", async ({ data }) => {
+            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            connections.map(async (c) => {
+                try {
+                    await c.onPRClosed(data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle github.pull_request.closed:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<GitHubWebhookTypes.PullRequestReadyForReviewEvent>("github.pull_request.ready_for_review", async ({ data }) => {
+            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            connections.map(async (c) => {
+                try {
+                    await c.onPRReadyForReview(data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle github.pull_request.closed:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<GitHubWebhookTypes.PullRequestReviewSubmittedEvent>("github.pull_request_review.submitted", async ({ data }) => {
+            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            connections.map(async (c) => {
+                try {
+                    await c.onPRReviewed(data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle github.pull_request.closed:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<GitHubWebhookTypes.ReleaseCreatedEvent>("github.release.created", async ({ data }) => {
+            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            connections.map(async (c) => {
+                try {
+                    await c.onReleaseCreated(data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle github.pull_request.closed:`, ex);
                 }
             })
         });
@@ -614,6 +683,10 @@ export class GithubBridge {
             /* We ignore messages from our users */
             return;
         }
+        if (Date.now() - event.origin_server_ts > 30000) {
+            /* We ignore old messages too */
+            return;
+        }
         log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
         console.log(event);
         log.debug("Content:", JSON.stringify(event));
@@ -699,15 +772,22 @@ export class GithubBridge {
                     this.connections.push(connection);
                 }
             }
-            return null;
+            return;
         }
         if (event.sender === this.as.botUserId) {
             // It's us
             return;
         }
 
-        // Alas, it's just an event.
-        return this.connections.filter((c) => c.roomId === roomId).map((c) => c.onEvent ? c.onEvent(event) : undefined);
+        for (const connection of this.connections.filter((c) => c.roomId === roomId)) {
+            try {
+                if (connection.onEvent) {
+                    await connection.onEvent(event);
+                }
+            } catch (ex) {
+                log.warn(`Connection ${connection.toString()} failed to handle event:`, ex);
+            }
+        }
     }
 
     private async onQueryRoom(roomAlias: string) {
