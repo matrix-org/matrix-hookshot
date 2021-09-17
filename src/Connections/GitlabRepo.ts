@@ -8,11 +8,11 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
+import { IGitLabWebhookMREvent } from "../Gitlab/WebhookTypes";
 
 export interface GitLabRepoConnectionState {
     instance: string;
-    org: string;
-    repo: string;
+    path: string;
     state: string;
 }
 
@@ -36,16 +36,15 @@ export class GitLabRepoConnection implements IConnection {
         private readonly state: GitLabRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance) {
-
+            if (!state.path || !state.instance) {
+                throw Error('Invalid state, missing `path` or `instance`');
+            }
     }
 
-    public get org() {
-        return this.state.org;
+    public get path() {
+        return this.state.path?.toString();
     }
 
-    public get repo() {
-        return this.state.repo;
-    }
 
     public isInterestedInStateEvent() {
         return false;
@@ -83,7 +82,7 @@ export class GitLabRepoConnection implements IConnection {
             throw Error('Not logged in');
         }
         const res = await client.issues.create({
-            id: encodeURIComponent(`${this.state.org}/${this.state.repo}`),
+            id: encodeURIComponent(this.path),
             title,
             description,
             labels: labels ? labels.split(",") : undefined,
@@ -108,9 +107,27 @@ export class GitLabRepoConnection implements IConnection {
         }
 
         await client.issues.edit({
-            id: encodeURIComponent(`${this.state.org}/${this.state.repo}`),
+            id: encodeURIComponent(this.state.path),
             issue_iid: number,
             state_event: "close",
+        });
+    }
+
+    public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
+        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        if (!event.object_attributes) {
+            throw Error('No merge_request content!');
+        }
+        if (!event.project) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.project.path_with_namespace;
+        const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
         });
     }
 

@@ -149,7 +149,8 @@ export class GitHubRepoConnection implements IConnection {
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private readonly state: GitHubRepoConnectionState,
-        private readonly tokenStore: UserTokenStore) {
+        private readonly tokenStore: UserTokenStore,
+        private readonly stateKey: string) {
 
     }
 
@@ -165,8 +166,8 @@ export class GitHubRepoConnection implements IConnection {
         return (this.state.commandPrefix || "gh") + " ";
     }
 
-    public isInterestedInStateEvent() {
-        return false;
+    public isInterestedInStateEvent(eventType: string, stateKey: string) {
+        return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
@@ -187,6 +188,7 @@ export class GitHubRepoConnection implements IConnection {
                 msgtype: "m.notice",
                 body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command",
             });
+            log.warn(`Failed to handle command:`, error);
             return;
         }
         await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
@@ -355,7 +357,7 @@ export class GitHubRepoConnection implements IConnection {
         }
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.draft ? 'drafted' : 'opened';
-        const content = emoji.emojify(`**${event.pull_request.user?.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
+        const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
         const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.pull_request.labels); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -379,7 +381,7 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        const content = emoji.emojify(`**${event.pull_request.user?.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review (${event.pull_request.title})`);
+        const content = emoji.emojify(`**${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review (${event.pull_request.title})`);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -402,12 +404,17 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        const emojiForReview = {'approved': '✅', 'commented': '🗨️', 'changes_requested': '🔴'}[event.review.state.toLowerCase()];
+        const emojiForReview = {
+            'approved': '✅',
+        // This apparently fires each time someone comments on the PR, which is not helpful.
+        //    'commented': '🗨️',
+            'changes_requested': '🔴'
+        }[event.review.state.toLowerCase()];
         if (!emojiForReview) {
             // We don't recongnise this state, run away!
             return;
         }
-        const content = emoji.emojify(`**${event.review.user?.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) (${event.pull_request.title})`);
+        const content = emoji.emojify(`**${event.sender.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) (${event.pull_request.title})`);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -431,7 +438,7 @@ export class GitHubRepoConnection implements IConnection {
         }
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.merged ? 'merged' : 'closed';
-        const content = emoji.emojify(`**${event.pull_request.user?.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
+        const content = emoji.emojify(`**${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -454,11 +461,13 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        const content = `🪄 **${event.release.author?.login}** released [${event.release.name}]${event.release.html_url} for ${orgRepoName}`;
+        const content = `**${event.sender.login}** 🪄 released [${event.release.name}](${event.release.html_url}) for ${orgRepoName}
+
+${event.release.body}`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
-            formatted_body: md.renderInline(content),
+            formatted_body: md.render(content),
             format: "org.matrix.custom.html",
         });
     }

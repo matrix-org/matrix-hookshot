@@ -15,6 +15,13 @@ export interface IGitlabUser {
     avatar_url: string;
     email: string;
 }
+export interface IGitlabRepository {
+    name: string;
+    homepage: string;
+    url: string;
+    description: string;
+}
+
 
 export interface IGitlabProject {
     path_with_namespace: string;
@@ -26,11 +33,20 @@ export interface IGitlabIssue {
     description: string;
 }
 
+export interface IGitlabMergeRequest {
+    url: string;
+    title: string;
+    iid: number;
+    author_id: number;
+    state: 'opened'|'closed'|'merged';
+}
 
 export interface IGitLabWebhookMREvent {
     object_kind: "merge_request";
     user: IGitlabUser;
     project: IGitlabProject;
+    repository: IGitlabRepository;
+    object_attributes: IGitlabMergeRequest;
 }
 
 export interface IGitLabWebhookNoteEvent {

@@ -1,6 +1,8 @@
 /* eslint-disable camelcase */
-import { IssuesGetCommentResponseData, IssuesGetResponseData, ProjectsListResponseData } from './Github/Types';
+import { ProjectsListResponseData } from './Github/Types';
 import emoji from "node-emoji";
+// @ts-ignore 
+import { contrastColor } from "contrast-color";
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -81,10 +83,14 @@ export class FormatUtil {
     }
 
     public static formatLabels(labels: Array<{color?: string|null, name?: string, description?: string|null}|string> = []) {
-        const labelsHtml = labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => 
-            typeof(label) === "string" ?
-            `<span>${label}</span>` :
-            `<span title="${label.description}" data-mx-color="#CCCCCC" data-mx-bg-color="#${label.color}">${label.name}</span>`
+        const labelsHtml = labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => {
+            if (typeof(label) === "string") {
+                return `<span>${label}</span>`;
+            }
+            const fontColor = contrastColor(label.color);
+            return `<span title="${label.description}" data-mx-color="${fontColor}" data-mx-bg-color="#${label.color}">${label.name}</span>`
+        }
+            
         ).join(" ") || "";
         const labelsStr = labels.map((label: {name?: string}|string) => 
             typeof(label) === "string" ? label : label.name

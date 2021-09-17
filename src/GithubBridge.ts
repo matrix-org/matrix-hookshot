@@ -59,7 +59,7 @@ export class GithubBridge {
             if (!this.github) {
                 throw Error('GitHub is not configured');
             }
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore);
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey);
         }
 
         if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
@@ -106,7 +106,7 @@ export class GithubBridge {
             }
             const instance = this.config.gitlab.instances[state.content.instance];
             if (!instance) {
-                throw Error('Instance name not recongnised');
+                throw Error('Instance name not recognised');
             }
             return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore, instance);
         }
@@ -197,6 +197,12 @@ export class GithubBridge {
             c.projectPath == projects.join("/")
         )) as GitLabIssueConnection[];
     }
+
+    private getConnectionsForGitLabRepo(pathWithNamespace: string): GitLabRepoConnection[] {
+        pathWithNamespace = pathWithNamespace.toLowerCase();
+        return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
+    }
+
 
     public stop() {
         this.as.stop();
@@ -440,16 +446,14 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitLabWebhookMREvent>("gitlab.merge_request.open", async (msg) => {
-            console.log(msg);
-            // const connections = this.(msg.data.project.namespace, msg.data.repository!.name, msg.data.issue!.number);
-            // connections.map(async (c) => {
-            //     try {
-            //         if (c.onIssueCreated)
-            //             await c.onIssueStateChange(msg.data);
-            //     } catch (ex) {
-            //         log.warn(`Connection ${c.toString()} failed to handle comment.created:`, ex);
-            //     }
-            // })
+            const connections = this.getConnectionsForGitLabRepo(msg.data.project.path_with_namespace);
+            connections.map(async (c) => {
+                try {
+                    await c.onMergeRequestOpened(msg.data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle gitlab.merge_request.opened:`, ex);
+                }
+            })
         });
 
         this.queue.on<UserNotificationsEvent>("notifications.user.events", async (msg) => {

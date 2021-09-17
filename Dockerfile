@@ -1,5 +1,5 @@
 # Stage 0: Build the thing
-FROM node:14-alpine AS builder
+FROM node:16-alpine AS builder
 
 COPY . /src
 WORKDIR /src
@@ -8,7 +8,7 @@ WORKDIR /src
 RUN yarn 
 
 # Stage 1: The actual container
-FROM node:14-alpine
+FROM node:16-alpine
 
 COPY --from=builder /src/lib/ /bin/matrix-github/
 COPY --from=builder /src/public/ /bin/matrix-github/public/
