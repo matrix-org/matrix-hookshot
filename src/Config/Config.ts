@@ -115,6 +115,12 @@ export class BridgeConfig {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
         this.github = configData.github;
+        if (this.github?.auth && env["GITHUB_PRIVATE_KEY_FILE"]) {
+            this.github.auth.privateKeyFile = env["GITHUB_PRIVATE_KEY_FILE"];
+        }
+        if (this.github?.oauth && env["GITHUB_OAUTH_REDIRECT_URI"]) {
+            this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
+        }
         this.gitlab = configData.gitlab;
         this.webhook = configData.webhook;
         this.passFile = configData.passFile;
