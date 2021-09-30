@@ -246,7 +246,7 @@ export class GithubBridge {
             storage,
         });
 
-        this.as.expressAppInstance.get("/health", (_, res) => res.send({ok: true}));
+        this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
 
         if (this.config.bridge.pantalaimon) {
