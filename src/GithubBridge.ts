@@ -43,8 +43,9 @@ export class GithubBridge {
     private tokenStore!: UserTokenStore;
     private messageClient!: MessageSenderClient;
     private widgetApi!: BridgeWidgetApi;
-
     private connections: IConnection[] = [];
+
+    private ready = false;
 
     constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) { }
 
@@ -244,6 +245,10 @@ export class GithubBridge {
             registration: this.registration,
             storage,
         });
+
+        this.as.expressAppInstance.get("/health", (_, res) => res.send({ok: true}));
+        this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
+
         if (this.config.bridge.pantalaimon) {
             log.info(`Loading pantalaimon client`);
             const pan = new PantalaimonClient(
@@ -660,6 +665,7 @@ export class GithubBridge {
         }
         await this.as.begin();
         log.info("Started bridge");
+        this.ready = true;
     }
 
     private async onRoomInvite(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
