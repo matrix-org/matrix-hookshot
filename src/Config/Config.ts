@@ -39,6 +39,12 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
+interface BridgeConfigJira {
+    webhook: {
+        secret: string;
+    };
+}
+
 interface BridgeWidgetConfig {
     port: number;
     addToAdminRooms: boolean;
@@ -86,6 +92,7 @@ interface BridgeConfigRoot {
     passFile: string;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
+    jira?: BridgeConfigJira;
     bot?: BridgeConfigBot;
     widgets?: BridgeWidgetConfig;
 }
@@ -102,10 +109,12 @@ export class BridgeConfig {
     @configKey(`A passkey used to encrypt tokens stored inside the bridge.
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
-    @configKey("Configure this to enable support for GitHub", true)
+    @configKey("Configure this to enable GitHub support", true)
     public readonly github?: BridgeConfigGitHub;
-    @configKey("Configure this to enable support for GitLab", true)
+    @configKey("Configure this to enable GitLab support", true)
     public readonly gitlab?: BridgeConfigGitLab;
+    @configKey("Configure this to enable Jira support")
+    public readonly jira?: BridgeConfigJira;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
@@ -122,6 +131,7 @@ export class BridgeConfig {
             this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab;
+        this.jira = configData.jira;
         this.webhook = configData.webhook;
         this.passFile = configData.passFile;
         assert.ok(this.webhook);

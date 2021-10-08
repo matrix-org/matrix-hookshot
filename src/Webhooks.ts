@@ -8,6 +8,7 @@ import { Server } from "http";
 import axios from "axios";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { IJiraWebhookEvent, JiraIssueEvent } from "./Jira/WebhookTypes";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface OAuthRequest {
@@ -88,9 +89,20 @@ export class Webhooks extends EventEmitter {
             return `gitlab.issue.${body.object_attributes.action}`;
         } else if (body.event_type === "note") {
             return `gitlab.note.created`;
+        } else if (body.object_kind === "tag_push") {
+            return "gitlab.tag_push";
         } else {
             return null;
         }
+    }
+
+    private onJiraPayload(body: IJiraWebhookEvent) {
+        const webhookEvent = body.webhookEvent.replace("jira:", "");
+        log.debug(`onJiraPayload ${webhookEvent}:`, body);
+        if (webhookEvent === "issue_updated") {
+            console.log((body as JiraIssueEvent).issue.fields);
+        }
+        return `jira.${webhookEvent}`;
     }
 
     private async onGitHubPayload({id, name, payload}: EmitterWebhookEvent) {
@@ -134,6 +146,9 @@ export class Webhooks extends EventEmitter {
             } else if (req.headers['x-gitlab-token']) {
                 res.sendStatus(200);
                 eventName = this.onGitLabPayload(body);
+            } else if (req.headers['x-atlassian-webhook-identifier']) {
+                res.sendStatus(200);
+                eventName = this.onJiraPayload(body);
             }
             if (eventName) {
                 this.queue.push({
@@ -210,7 +225,22 @@ export class Webhooks extends EventEmitter {
             // GitHub
             // Verified within handler.
             return true;
+        } else if (req.headers['x-atlassian-webhook-identifier']) {
+            // JIRA
+            if (!this.config.jira) {
+                log.error("Got a JIRA webhook, but the bridge is not set up for it.");
+                res.sendStatus(400);
+                throw Error('Not expecting a jira request!');
+            }
+            if (req.query.secret !== this.config.jira.webhook.secret) {
+                log.error(`${req.url} had an invalid signature`);
+                res.sendStatus(403);
+                throw Error("Invalid signature.");
+            }
+            return true;
         }
+        console.log(req.body);
+        console.log(req.headers);
         log.error(`No signature on URL. Rejecting`);
         res.sendStatus(400);
         throw Error("Invalid signature.");

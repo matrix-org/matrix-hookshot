@@ -3,6 +3,7 @@ import { ProjectsListResponseData } from './Github/Types';
 import emoji from "node-emoji";
 // @ts-ignore 
 import { contrastColor } from "contrast-color";
+import { JiraIssue } from './Jira/Types';
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -99,5 +100,15 @@ export class FormatUtil {
             labelsStr,
             labelsHtml,
         }
+    }
+
+    public static getPartialBodyForJiraIssue(issue: JiraIssue) {
+        return {
+            "external_url": issue.self,
+            "uk.half-shot.matrix-github.jira.issue": {
+                id: issue.id,
+                key: issue.key,
+            },
+        };
     }
 }

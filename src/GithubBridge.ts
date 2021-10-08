@@ -29,6 +29,8 @@ import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { ProjectsGetResponseData } from "./Github/Types";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
+import { JiraCommentCreatedEvent, JiraIssueEvent } from "./Jira/WebhookTypes";
+import { JiraProjectConnection } from "./Connections/JiraProject";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -127,6 +129,12 @@ export class GithubBridge {
                 this.messageClient,
                 instance);
         }
+        if (JiraProjectConnection.EventTypes.includes(state.type)) {
+            if (!this.config.jira) {
+                throw Error('JIRA is not configured');
+            }
+            return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient);
+        }
 
         return;
     }
@@ -204,6 +212,9 @@ export class GithubBridge {
         return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
     }
 
+    private getConnectionsForJiraProject(projectId: string): JiraProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.projectId === projectId)) as JiraProjectConnection[];
+    }
 
     public stop() {
         this.as.stop();
@@ -456,7 +467,18 @@ export class GithubBridge {
                 try {
                     await c.onMergeRequestOpened(msg.data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle gitlab.merge_request.opened:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle gitlab.merge_request.open:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<IGitLabWebhookMREvent>("gitlab.tag_push", async (msg) => {
+            const connections = this.getConnectionsForGitLabRepo(msg.data.project.path_with_namespace);
+            connections.map(async (c) => {
+                try {
+                    await c.onMergeRequestOpened(msg.data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle gitlab.tag_push:`, ex);
                 }
             })
         });
@@ -573,7 +595,19 @@ export class GithubBridge {
                     log.warn(`Failed to add discussion ${c.toString()} failed to handle comment.created:`, ex);
                 }
             })
+        });
 
+        this.queue.on<JiraIssueEvent>("jira.issue_created", async ({data}) => {
+            const projectId = data.issue.fields.project.id;
+            const connections = this.getConnectionsForJiraProject(projectId);
+
+            connections.forEach(async (c) => {
+                try {
+                    await c.onJiraIssueCreated(data);
+                } catch (ex) {
+                    log.warn(`Failed to handle jira.issue_created:`, ex);
+                }
+            });
         });
 
         // Fetch all room state
