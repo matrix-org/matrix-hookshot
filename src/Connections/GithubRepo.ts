@@ -142,7 +142,7 @@ export class GitHubRepoConnection implements IConnection {
             ],
         };
     }
-    
+
     static helpMessage: (cmdPrefix: string) => MatrixMessageContent;
     static botCommands: BotCommands;
 
@@ -287,9 +287,11 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        
-        const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
-        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels); 
+
+        let message = `${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        message = message + (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
+        const content = emoji.emojify(message);
+        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
@@ -358,7 +360,7 @@ export class GitHubRepoConnection implements IConnection {
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.draft ? 'drafted' : 'opened';
         const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
-        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.pull_request.labels); 
+        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.pull_request.labels);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
@@ -389,7 +391,7 @@ export class GitHubRepoConnection implements IConnection {
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
-        });    
+        });
     }
 
     public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {
