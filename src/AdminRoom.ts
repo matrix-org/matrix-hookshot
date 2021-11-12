@@ -236,7 +236,6 @@ export class AdminRoom extends EventEmitter {
                 },
             };
         });
-        console.log(newData);
         if (newData.github?.notifications?.participating) {
             return this.sendNotice(`Filtering for events you are participating in`);
         }
@@ -470,7 +469,6 @@ export class AdminRoom extends EventEmitter {
         let newValue = false;
         await this.saveAccountData((data) => {
             const currentNotifs = (data.gitlab || {})[instanceName].notifications;
-            console.log("current:", currentNotifs.enabled);
             newValue = !currentNotifs.enabled;
             return {
                 ...data,

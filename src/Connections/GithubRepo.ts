@@ -288,7 +288,7 @@ export class GitHubRepoConnection implements IConnection {
         }
         const orgRepoName = event.repository.full_name;
         
-        const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
+        const content = emoji.emojify(`${event.issue.user?.login} created a new JIRA issue [${orgRepoName}#${event.issue.number}](${event.issue}): "${event.issue.title}"`);
         const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",

@@ -99,9 +99,6 @@ export class Webhooks extends EventEmitter {
     private onJiraPayload(body: IJiraWebhookEvent) {
         const webhookEvent = body.webhookEvent.replace("jira:", "");
         log.debug(`onJiraPayload ${webhookEvent}:`, body);
-        if (webhookEvent === "issue_updated") {
-            console.log((body as JiraIssueEvent).issue.fields);
-        }
         return `jira.${webhookEvent}`;
     }
 
@@ -122,7 +119,7 @@ export class Webhooks extends EventEmitter {
     }
 
     private onPayload(req: Request, res: Response) {
-        log.debug(`New webhook: ${req.url}`);
+        log.info(`New webhook: ${req.url}`);
         try {
             let eventName: string|null = null;
             const body = req.body;

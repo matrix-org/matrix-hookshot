@@ -4,6 +4,7 @@ import emoji from "node-emoji";
 // @ts-ignore 
 import { contrastColor } from "contrast-color";
 import { JiraIssue } from './Jira/Types';
+import { generateWebLinkFromIssue } from './Jira/Utils';
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -103,11 +104,18 @@ export class FormatUtil {
     }
 
     public static getPartialBodyForJiraIssue(issue: JiraIssue) {
+        const url = generateWebLinkFromIssue(issue);
         return {
-            "external_url": issue.self,
+            "external_url": url,
             "uk.half-shot.matrix-github.jira.issue": {
                 id: issue.id,
                 key: issue.key,
+                api_url: issue.self,
+            },
+            "uk.half-shot.matrix-github.jira.project": {
+                id: issue.fields.project.id,
+                key: issue.fields.project.key,
+                api_url: issue.fields.project.self,
             },
         };
     }

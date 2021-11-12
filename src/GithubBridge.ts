@@ -129,6 +129,7 @@ export class GithubBridge {
                 this.messageClient,
                 instance);
         }
+
         if (JiraProjectConnection.EventTypes.includes(state.type)) {
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
@@ -598,8 +599,10 @@ export class GithubBridge {
         });
 
         this.queue.on<JiraIssueEvent>("jira.issue_created", async ({data}) => {
+            log.info(`JIRA issue created for project ${data.issue.fields.project.id}, issue id ${data.issue.id}`);
             const projectId = data.issue.fields.project.id;
             const connections = this.getConnectionsForJiraProject(projectId);
+            console.log(data.issue.fields.project);
 
             connections.forEach(async (c) => {
                 try {

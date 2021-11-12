@@ -6,6 +6,7 @@ import { MessageSenderClient } from "../MatrixSender"
 import { JiraIssueEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
+import { generateWebLinkFromIssue } from "../Jira/Utils";
 
 export interface JiraProjectConnectionState {
     id: string;
@@ -50,13 +51,13 @@ export class JiraProjectConnection implements IConnection {
         if (!creator) {
             throw Error('No creator field');
         }
-        const content = `${creator.displayName} created new issue [${data.issue.key}](${data.issue.self}): "${data.issue.fields.summary}"`;
+        const url = generateWebLinkFromIssue(data.issue);
+        const content = `${creator.displayName} created a new JIRA issue [${data.issue.key}](${url}): "${data.issue.fields.summary}"`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            // TODO: Fix types.
             ...FormatUtil.getPartialBodyForJiraIssue(data.issue)
         });
     }
