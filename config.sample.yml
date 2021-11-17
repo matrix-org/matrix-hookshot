@@ -30,7 +30,7 @@ gitlab:
   webhook:
     secret: secrettoken
 jira:
-  # Configure this to enable Jira support
+  # (Optional) Configure this to enable Jira support
   #
   webhook:
     secret: secrettoken
