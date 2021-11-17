@@ -24,7 +24,7 @@ describe("AdminRoom", () => {
 
         expect(intent.sentEvents[0]).to.deep.equal({
             roomId: ROOM_ID,
-            content: AdminRoom.helpMessage,
+            content: AdminRoom.helpMessage(),
         });
     });
 })

@@ -131,14 +131,6 @@ export class GitLabRepoConnection implements IConnection {
         });
     }
 
-    // public async onIssueCreated(event: IGitHubWebhookEvent) {
-
-    // }
-
-    // public async onIssueStateChange(event: IGitHubWebhookEvent) {
-
-    // }
-
     public toString() {
         return `GitHubRepo`;
     }

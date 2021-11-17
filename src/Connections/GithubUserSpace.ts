@@ -55,7 +55,8 @@ export class GitHubUserSpace implements IConnection {
             throw Error("Could not find repo");
         }
 
-        let avatarState: any|undefined;
+        // eslint-disable-next-line camelcase
+        let avatarState: {type: "m.room.avatar", state_key: "", content: { url: string}}|undefined;
         try {
             if (avatarUrl) {
                 const res = await axios.get(avatarUrl, {

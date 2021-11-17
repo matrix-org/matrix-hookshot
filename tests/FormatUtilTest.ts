@@ -2,6 +2,7 @@ import { FormatUtil } from "../src/FormatUtil";
 import { expect } from "chai";
 
 const SIMPLE_ISSUE = {
+    id: 123,
     number: 123,
     state: "open",
     title: "A simple title",
@@ -12,6 +13,7 @@ const SIMPLE_ISSUE = {
 };
 
 const SIMPLE_REPO = {
+    id: 123,
     description: "A simple description",
     full_name: "evilcorp/lab",
     html_url: "https://github.com/evilcorp/lab/issues/123",
