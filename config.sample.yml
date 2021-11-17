@@ -9,7 +9,7 @@ bridge:
   port: 9993
   bindAddress: 127.0.0.1
 github:
-  # (Optional) Configure this to enable support for GitHub
+  # (Optional) Configure this to enable GitHub support
   #
   installationId: 6854059
   auth:
@@ -22,13 +22,17 @@ github:
   webhook:
     secret: secrettoken
 gitlab:
-  # (Optional) Configure this to enable support for GitLab
+  # (Optional) Configure this to enable GitLab support
   #
   instances:
     gitlab.com:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+jira:
+  # Configure this to enable Jira support
+  #
+  null
 webhook:
   # HTTP webhook listener options
   #
