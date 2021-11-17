@@ -119,7 +119,7 @@ export class BridgeConfig {
     public readonly github?: BridgeConfigGitHub;
     @configKey("Configure this to enable GitLab support", true)
     public readonly gitlab?: BridgeConfigGitLab;
-    @configKey("Configure this to enable Jira support")
+    @configKey("Configure this to enable Jira support", true)
     public readonly jira?: BridgeConfigJira;
     @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
     public readonly generic?: BridgeGenericWebhooksConfig;
@@ -140,6 +140,7 @@ export class BridgeConfig {
         }
         this.gitlab = configData.gitlab;
         this.jira = configData.jira;
+        this.generic = configData.generic;
         this.webhook = configData.webhook;
         this.passFile = configData.passFile;
         assert.ok(this.webhook);
