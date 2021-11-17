@@ -1,7 +1,5 @@
 import { IConnection } from "./IConnection";
-import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
 import { Script, createContext } from "vm";
@@ -14,6 +12,8 @@ export interface GenericHookConnectionState {
 
 const log = new LogWrapper("GenericHookConnection");
 const md = new markdownit();
+
+const TRANSFORMATION_TIMEOUT_MS = 2000;
 
 /**
  * Handles rooms connected to a github repo.
@@ -62,12 +62,20 @@ export class GenericHookConnection implements IConnection {
         if (!this.transformationFunction) {
             content = `Recieved webhook data:\n\n\`\`\`${JSON.stringify(data)}\`\`\``;
         } else {
-            const context = createContext({data});
-            this.transformationFunction.runInContext(context);
-            if (context.result) {
-                content = `Recieved webhook: ${context.result}`;
-            } else {
-                content = `No content`;
+            try {
+                const context = createContext({data});
+                this.transformationFunction.runInContext(context, {
+                    timeout: TRANSFORMATION_TIMEOUT_MS,
+                    breakOnSigint: true,
+                    filename: `generic-hook.${this.hookId}`,
+                });
+                if (context.result) {
+                    content = `Recieved webhook: ${context.result}`;
+                } else {
+                    content = `No content`;
+                }
+            } catch (ex) {
+                content = `Webhook recieved but failed to process via transformation function`;
             }
         }
 
