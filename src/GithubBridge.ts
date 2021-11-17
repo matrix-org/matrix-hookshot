@@ -137,8 +137,14 @@ export class GithubBridge {
             return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient);
         }
 
-        if (GenericHookConnection.EventTypes.includes(state.type)) {
-            return new GenericHookConnection(roomId, state.content, state.stateKey, this.messageClient);
+        if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
+            return new GenericHookConnection(
+                roomId,
+                state.content,
+                state.stateKey,
+                this.messageClient,
+                this.config.generic.allowJsTransformationFunctions
+            );
         }
 
         return;

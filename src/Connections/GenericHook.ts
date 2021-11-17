@@ -34,8 +34,9 @@ export class GenericHookConnection implements IConnection {
     constructor(public readonly roomId: string,
         private state: GenericHookConnectionState,
         private readonly stateKey: string,
-        private messageClient: MessageSenderClient) {
-            if (state.transformationFunction) {
+        private messageClient: MessageSenderClient,
+        private readonly allowJSTransformation: boolean = false) {
+            if (state.transformationFunction && allowJSTransformation) {
                 this.transformationFunction = new Script(state.transformationFunction);
             }
         }
@@ -46,7 +47,7 @@ export class GenericHookConnection implements IConnection {
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         const state = stateEv.content as GenericHookConnectionState;
-        if (state.transformationFunction) {
+        if (state.transformationFunction && this.allowJSTransformation) {
             try {
                 this.transformationFunction = new Script(state.transformationFunction);
             } catch (ex) {

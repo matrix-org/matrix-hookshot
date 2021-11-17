@@ -45,6 +45,11 @@ interface BridgeConfigJira {
     };
 }
 
+interface BridgeGenericWebhooksConfig {
+    enabled: boolean;
+    allowJsTransformationFunctions?: boolean;
+}
+
 interface BridgeWidgetConfig {
     port: number;
     addToAdminRooms: boolean;
@@ -95,6 +100,7 @@ interface BridgeConfigRoot {
     jira?: BridgeConfigJira;
     bot?: BridgeConfigBot;
     widgets?: BridgeWidgetConfig;
+    generic?: BridgeGenericWebhooksConfig;
 }
 
 export class BridgeConfig {
@@ -115,6 +121,8 @@ export class BridgeConfig {
     public readonly gitlab?: BridgeConfigGitLab;
     @configKey("Configure this to enable Jira support")
     public readonly jira?: BridgeConfigJira;
+    @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
+    public readonly generic?: BridgeGenericWebhooksConfig;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
