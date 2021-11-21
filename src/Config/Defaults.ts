@@ -58,6 +58,15 @@ const DefaultConfig = new BridgeConfig({
         webhook: {
             secret: "secrettoken",
         }
+    },
+    jira: {
+        webhook: {
+            secret: 'secrettoken'
+        }
+    },
+    generic: {
+        enabled: false,
+        allowJsTransformationFunctions: false,
     }
 }, {});
 

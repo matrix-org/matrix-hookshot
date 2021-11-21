@@ -1,36 +1,36 @@
+import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
-import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent,} from "./Webhooks";
+import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
-import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
-import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
-import { UserTokenStore } from "./UserTokenStore";
-import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import LogWrapper from "./LogWrapper";
-import { MessageSenderClient } from "./MatrixSender";
-import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
-import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
-import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
-import { NotificationProcessor } from "./NotificationsProcessor";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
-import { retry } from "./PromiseUtil";
-import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace
-} from "./Connections";
-import { GitHubRepoConnection } from "./Connections/GithubRepo";
+import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
+import { GenericHookConnection } from "./Connections/GenericHook";
+import { GithubInstance } from "./Github/GithubInstance";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
-import { GitLabRepoConnection } from "./Connections/GitlabRepo";
-import { GithubInstance } from "./Github/GithubInstance";
-import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
-import { GitLabIssueConnection } from "./Connections/GitlabIssue";
-import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
+import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitLabClient } from "./Gitlab/Client";
-import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
-import { ProjectsGetResponseData } from "./Github/Types";
-import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
-import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import { JiraCommentCreatedEvent, JiraIssueEvent } from "./Jira/WebhookTypes";
+import { GitLabIssueConnection } from "./Connections/GitlabIssue";
+import { GitLabRepoConnection } from "./Connections/GitlabRepo";
+import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace } from "./Connections";
+import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
+import { JiraIssueEvent } from "./Jira/WebhookTypes";
 import { JiraProjectConnection } from "./Connections/JiraProject";
+import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
+import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
+import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
+import { MessageSenderClient } from "./MatrixSender";
+import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
+import { NotificationProcessor } from "./NotificationsProcessor";
+import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
+import { ProjectsGetResponseData } from "./Github/Types";
+import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
+import { retry } from "./PromiseUtil";
+import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
+import { UserTokenStore } from "./UserTokenStore";
+import * as GitHubWebhookTypes from "@octokit/webhooks-types";
+import LogWrapper from "./LogWrapper";
 
 const log = new LogWrapper("GithubBridge");
 
@@ -137,6 +137,16 @@ export class GithubBridge {
             return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient);
         }
 
+        if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
+            return new GenericHookConnection(
+                roomId,
+                state.content,
+                state.stateKey,
+                this.messageClient,
+                this.config.generic.allowJsTransformationFunctions
+            );
+        }
+
         return;
     }
 
@@ -216,6 +226,11 @@ export class GithubBridge {
     private getConnectionsForJiraProject(projectId: string): JiraProjectConnection[] {
         return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.projectId === projectId)) as JiraProjectConnection[];
     }
+
+    private getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {
+        return this.connections.filter((c) => (c instanceof GenericHookConnection && c.hookId === hookId)) as GenericHookConnection[];
+    }
+
 
     public stop() {
         this.as.stop();
@@ -602,13 +617,25 @@ export class GithubBridge {
             log.info(`JIRA issue created for project ${data.issue.fields.project.id}, issue id ${data.issue.id}`);
             const projectId = data.issue.fields.project.id;
             const connections = this.getConnectionsForJiraProject(projectId);
-            console.log(data.issue.fields.project);
 
             connections.forEach(async (c) => {
                 try {
                     await c.onJiraIssueCreated(data);
                 } catch (ex) {
                     log.warn(`Failed to handle jira.issue_created:`, ex);
+                }
+            });
+        });
+    
+        this.queue.on<GenericWebhookEvent>("generic-webhook.event", async ({data}) => {
+            log.info(`Incoming generic hook ${data.hookId}`);
+            const connections = this.getConnectionsForGenericWebhook(data.hookId);
+
+            connections.forEach(async (c) => {
+                try {
+                    await c.onGenericHook(data.hookData);
+                } catch (ex) {
+                    log.warn(`Failed to handle generic-webhook.event:`, ex);
                 }
             });
         });

@@ -11,6 +11,11 @@ import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webho
 import { IJiraWebhookEvent, JiraIssueEvent } from "./Jira/WebhookTypes";
 const log = new LogWrapper("GithubWebhooks");
 
+export interface GenericWebhookEvent {
+    hookData: Record<string, unknown>;
+    hookId: string;
+}
+
 export interface OAuthRequest {
     code: string;
     state: string;
@@ -55,6 +60,12 @@ export class Webhooks extends EventEmitter {
             this.ghWebhooks.onAny(e => this.onGitHubPayload(e));
         }
 
+        this.expressApp.all(
+            '/:hookId',
+            express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
+            this.onGenericPayload.bind(this),
+        );
+
         this.expressApp.use(express.json({
             verify: this.verifyRequest.bind(this),
         }));
@@ -80,6 +91,7 @@ export class Webhooks extends EventEmitter {
             this.server.close();
         }
     }
+
 
     private onGitLabPayload(body: IGitLabWebhookEvent) {
         log.info(`onGitLabPayload ${body.event_type}:`, body);
@@ -116,6 +128,32 @@ export class Webhooks extends EventEmitter {
         } catch (err) {
             log.error(`Failed to emit payload ${id}: ${err}`);
         }
+    }
+
+    private onGenericPayload(req: Request, res: Response) {
+        if (!['PUT', 'GET', 'POST'].includes(req.method)) {
+            res.sendStatus(400).send({error: 'Wrong METHOD. Expecting PUT,GET,POST'});
+            return;
+        }
+
+        let body;
+        if (req.method === 'GET') {
+            body = req.query;
+        } else {
+            body = req.body;
+        }
+
+        res.sendStatus(200);
+        this.queue.push({
+            eventName: 'generic-webhook.event',
+            sender: "GithubWebhooks",
+            data: {
+                hookData: body,
+                hookId: req.params.hookId,
+            } as GenericWebhookEvent,
+        }).catch((err) => {
+            log.error(`Failed to emit payload: ${err}`);
+        });
     }
 
     private onPayload(req: Request, res: Response) {
@@ -236,8 +274,6 @@ export class Webhooks extends EventEmitter {
             }
             return true;
         }
-        console.log(req.body);
-        console.log(req.headers);
         log.error(`No signature on URL. Rejecting`);
         res.sendStatus(400);
         throw Error("Invalid signature.");

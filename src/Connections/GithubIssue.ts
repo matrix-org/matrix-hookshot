@@ -316,7 +316,7 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public onIssueStateChange(data?: any) {
+    public onIssueStateChange(data: unknown) {
         return this.syncIssueState();
     }
 
