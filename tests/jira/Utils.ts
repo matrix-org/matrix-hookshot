@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { generateJiraWebLinkFromIssue } from "../../src/Jira/Utils"; 
+import { generateJiraWebLinkFromIssue } from "../../src/Jira"; 
 
 describe("Jira", () => {
     describe("Utils", () => {

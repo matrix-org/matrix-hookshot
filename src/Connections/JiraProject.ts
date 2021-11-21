@@ -6,7 +6,7 @@ import { MessageSenderClient } from "../MatrixSender"
 import { JiraIssueEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
-import { generateJiraWebLinkFromIssue } from "../Jira/Utils";
+import { generateJiraWebLinkFromIssue } from "../Jira";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];

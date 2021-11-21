@@ -48,6 +48,10 @@ export class GitHubProjectConnection implements IConnection {
         return new GitHubProjectConnection(roomId, as, state, project.url)
     }
 
+    get projectId() {
+        return this.state.project_id;
+    }
+
     constructor(public readonly roomId: string,
         as: Appservice,
         private state: GitHubProjectConnectionState,

@@ -3,20 +3,17 @@ import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichRepl
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
+import { ConnectionManager } from "./ConnectionManager";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
-import { GenericHookConnection } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
 import { GitHubRepoConnection } from "./Connections/GithubRepo";
-import { GitLabClient } from "./Gitlab/Client";
 import { GitLabIssueConnection } from "./Connections/GitlabIssue";
-import { GitLabRepoConnection } from "./Connections/GitlabRepo";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent } from "./Jira/WebhookTypes";
-import { JiraProjectConnection } from "./Connections/JiraProject";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
@@ -31,8 +28,6 @@ import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher"
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
-import { ConnectionManager } from "./ConnectionManager";
-
 const log = new LogWrapper("GithubBridge");
 
 export class GithubBridge {
@@ -857,9 +852,13 @@ export class GithubBridge {
         );
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
-            const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
-            // TODO: Surely we only do this if we don't have one already?
-            this.connectionManager?.push(connection);
+            const [connection] = this.connectionManager?.getForGitHubProject(project.id) || [];
+            if (!connection) {
+                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+                this.connectionManager?.push(connection);
+            } else {
+                await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+            }
         });
         // adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
         //     const connection = await GitHubDiscussionConnection.createDiscussionRoom(

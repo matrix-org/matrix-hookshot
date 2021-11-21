@@ -23,6 +23,12 @@ interface IMinimalIssue {
     pull_request?: any;
 }
 
+export interface ILabel {
+    color?: string,
+    name: string,
+    description?: string
+}
+
 export class FormatUtil {
     public static formatIssueRoomName(issue: IMinimalIssue) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
@@ -86,23 +92,8 @@ export class FormatUtil {
         return f;
     }
 
-    public static formatLabels(labels: Array<{color?: string|null, name?: string, description?: string|null}|string> = []) {
-        const labelsHtml = labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => {
-            if (typeof(label) === "string") {
-                return `<span>${label}</span>`;
-            }
-            const fontColor = contrastColor(label.color);
-            return `<span title="${label.description}" data-mx-color="${fontColor}" data-mx-bg-color="#${label.color}">${label.name}</span>`
-        }
-            
-        ).join(" ") || "";
-        const labelsStr = labels.map((label: {name?: string}|string) => 
-            typeof(label) === "string" ? label : label.name
-        ).join(", ") || "";
-        return {
-            labelsStr,
-            labelsHtml,
-        }
+    public static formatLabels(labels: ILabel[] = []): { plain: string, html: string } {
+        return format_util.format_labels(labels);
     }
 
     public static getPartialBodyForJiraIssue(issue: JiraIssue) {

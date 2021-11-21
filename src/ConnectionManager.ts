@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
-import { GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection } from "./Connections";
+import { GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection } from "./Connections";
 import { GenericHookConnection } from "./Connections/GenericHook";
 import { JiraProjectConnection } from "./Connections/JiraProject";
 import { GithubInstance } from "./Github/GithubInstance";
@@ -183,13 +183,22 @@ export class ConnectionManager {
         owner = owner.toLowerCase();
         repo = repo.toLowerCase();
         return this.connections.filter(
-            (c) => (
+            c => (
                 c instanceof GitHubDiscussionConnection &&
                 c.owner === owner &&
                 c.repo === repo &&
                 c.discussionNumber === discussionNumber
             )
         ) as GitHubDiscussionConnection[];
+    }
+
+    public getForGitHubProject(projectId: number): GitHubProjectConnection[] {
+        return this.connections.filter(
+            c => (
+                c instanceof GitHubProjectConnection &&
+                c.projectId === projectId
+            )
+        ) as GitHubProjectConnection[];
     }
 
     public getConnectionsForGitLabIssueWebhook(repoHome: string, issueId: number) {

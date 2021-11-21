@@ -289,11 +289,11 @@ export class GitHubRepoConnection implements IConnection {
         const orgRepoName = event.repository.full_name;
         
         const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
-        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels); 
+        const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
-            formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
@@ -358,11 +358,11 @@ export class GitHubRepoConnection implements IConnection {
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.draft ? 'drafted' : 'opened';
         const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
-        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.pull_request.labels); 
+        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
-            formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),

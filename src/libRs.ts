@@ -1,4 +1,5 @@
 /* eslint-disable camelcase */
+import { ILabel } from "./FormatUtil";
 import { JiraIssue } from "./Jira/Types";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -13,6 +14,7 @@ try {
 
 interface FormatUtil {
     get_partial_body_for_jira_issue: (issue: JiraIssue) => Record<string, unknown>
+    format_labels: (labels: ILabel[]) => { plain: string, html: string }
 }
 
 interface JiraModule {

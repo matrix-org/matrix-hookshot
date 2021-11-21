@@ -43,20 +43,48 @@ const SIMPLE_JIRA_ISSUE = {
 } as JiraIssue;
 
 describe("FormatUtilTest", () => {
-    it("correctly formats a repo room name", () => {
+    it("should correctly formats a repo room name", () => {
         expect(FormatUtil.formatRepoRoomName(SIMPLE_REPO)).to.equal(
             "evilcorp/lab: A simple description",
         );
     });
-    it("correctly formats a issue room name", () => {
+    it("should correctly formats a issue room name", () => {
         expect(FormatUtil.formatIssueRoomName(SIMPLE_ISSUE)).to.equal(
             "evilcorp/lab#123: A simple title",
         );
     });
-    it("correctly formats a room topic", () => {
+    it("should correctly formats a room topic", () => {
         expect(FormatUtil.formatRoomTopic(SIMPLE_ISSUE)).to.equal(
             "Status: open | https://github.com/evilcorp/lab/issues/123",
         );
+    });
+    it("should correctly format one simple label", () => {
+        expect(FormatUtil.formatLabels([{name: "foo"}])).to.deep.equal({
+            plain: "foo",
+            html: "<span>foo</span>"
+        });
+    });
+    it("should correctly format many simple labels", () => {
+        expect(FormatUtil.formatLabels([{name: "foo"},{name: "bar"}])).to.deep.equal({
+            plain: "foo, bar",
+            html: "<span>foo</span> <span>bar</span>"
+        });
+    });
+    it("should correctly format one detailed label", () => {
+        expect(FormatUtil.formatLabels([{name: "foo", color: '#FFFFFF', description: 'My label'}])).to.deep.equal({
+            plain: "foo",
+            html: "<span data-mx-bg-color=\"#FFFFFF\" data-mx-color=\"#000000\" title=\"My label\">foo</span>"
+        });
+    });
+    it("should correctly format many detailed labels", () => {
+        expect(FormatUtil.formatLabels([
+            {name: "foo", color: '#FFFFFF', description: 'My label'},
+            {name: "bar", color: '#AACCEE', description: 'My other label'},
+        ])).to.deep.equal({
+            plain: "foo, bar",
+            html: "<span data-mx-bg-color=\"#FFFFFF\" data-mx-color=\"#000000\" title=\"My label\">foo</span> "
+            + "<span data-mx-bg-color=\"#AACCEE\" data-mx-color=\"#000000\" title=\"My other label\">bar</span>"
+        },);
     });
     it("should correctly format a JIRA issue", () => {
         expect(FormatUtil.getPartialBodyForJiraIssue(SIMPLE_JIRA_ISSUE)).to.deep.equal({
