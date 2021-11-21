@@ -6,10 +6,13 @@ import { MessageSenderClient } from "../MatrixSender"
 import { JiraIssueEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
-import { generateWebLinkFromIssue } from "../Jira/Utils";
+import { generateJiraWebLinkFromIssue } from "../Jira/Utils";
 
+type JiraAllowedEventsNames = "issue.created";
+const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
 export interface JiraProjectConnectionState {
     id: string;
+    events?: JiraAllowedEventsNames[],
 }
 
 const log = new LogWrapper("JiraProjectConnection");
@@ -33,6 +36,10 @@ export class JiraProjectConnection implements IConnection {
         return this.state.id;
     }
 
+    public isInterestedInHookEvent(eventName: string) {
+        return !this.state.events || this.state.events?.includes(eventName as JiraAllowedEventsNames);
+    }
+
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private state: JiraProjectConnectionState,
@@ -47,11 +54,12 @@ export class JiraProjectConnection implements IConnection {
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {
         log.info(`onIssueCreated ${this.roomId} ${this.projectId} ${data.issue.id}`);
+
         const creator = data.issue.fields.creator;
         if (!creator) {
             throw Error('No creator field');
         }
-        const url = generateWebLinkFromIssue(data.issue);
+        const url = generateJiraWebLinkFromIssue(data.issue);
         const content = `${creator.displayName} created a new JIRA issue [${data.issue.key}](${url}): "${data.issue.fields.summary}"`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",

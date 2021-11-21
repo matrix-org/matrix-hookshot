@@ -1,10 +1,12 @@
 /* eslint-disable camelcase */
 import { ProjectsListResponseData } from './Github/Types';
 import emoji from "node-emoji";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
 import { contrastColor } from "contrast-color";
 import { JiraIssue } from './Jira/Types';
-import { generateWebLinkFromIssue } from './Jira/Utils';
+import { format_util } from "./libRs";
+
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -104,19 +106,6 @@ export class FormatUtil {
     }
 
     public static getPartialBodyForJiraIssue(issue: JiraIssue) {
-        const url = generateWebLinkFromIssue(issue);
-        return {
-            "external_url": url,
-            "uk.half-shot.matrix-github.jira.issue": {
-                id: issue.id,
-                key: issue.key,
-                api_url: issue.self,
-            },
-            "uk.half-shot.matrix-github.jira.project": {
-                id: issue.fields.project.id,
-                key: issue.fields.project.key,
-                api_url: issue.fields.project.self,
-            },
-        };
+        return format_util.get_partial_body_for_jira_issue(issue);
     }
 }

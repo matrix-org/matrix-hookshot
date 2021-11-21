@@ -1,11 +1,17 @@
 # Stage 0: Build the thing
-FROM node:16-alpine AS builder
+# Need debian based image to make node happy
+FROM node:16 AS builder
 
 COPY . /src
 WORKDIR /src
 
+RUN apk add rustup
+RUN rustup-init -y --target x86_64-unknown-linux-gnu
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+
 # will also build
-RUN yarn 
+RUN yarn
 
 # Stage 1: The actual container
 FROM node:16-alpine

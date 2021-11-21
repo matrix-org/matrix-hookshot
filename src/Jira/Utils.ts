@@ -1,6 +1,3 @@
-import { JiraIssue } from "./Types";
+import { jira } from "../libRs";
 
-export function generateWebLinkFromIssue(issue: JiraIssue) {
-    const { origin } = new URL(issue.self);
-    return `${origin}/browse/${issue.key}`
-}
+export const generateJiraWebLinkFromIssue = jira.utils.generate_jira_web_link_from_issue;
