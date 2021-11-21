@@ -43,5 +43,7 @@ jobs:
           node-version: ${{ matrix.node_version }}
       - name: Install stable rust
         uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
       - run: yarn
       - run: yarn test
