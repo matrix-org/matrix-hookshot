@@ -1,17 +1,20 @@
 # Stage 0: Build the thing
-# Need debian based image to make node happy
+# Need debian based image to build the native rust module
+# as musl doesn't support cdylib
 FROM node:16 AS builder
 
 COPY . /src
 WORKDIR /src
 
-RUN apk add rustup
-RUN rustup-init -y --target x86_64-unknown-linux-gnu
+RUN apt update && apt install -y rustc cargo git
+# RUN rustup-init -y --target x86_64-unknown-linux-gnu
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 
 # will also build
-RUN yarn
+RUN yarn --ignore-scripts
+# Workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=998232#10
+RUN CARGO_NET_GIT_FETCH_WITH_CLI=true yarn build:app:rs --target x86_64-unknown-linux-gnu
 
 # Stage 1: The actual container
 FROM node:16-alpine
