@@ -16,8 +16,8 @@ jobs:
     - name: Use Node.js
       uses: actions/setup-node@v1
       with:
-        node-version: 12
-    - run: yarn
+        node-version: 16
+    - run: yarn --ignore-scripts
     - run: yarn lint
   config:
     runs-on: ubuntu-latest
@@ -26,7 +26,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 12
+          node-version: 16
       - run: yarn
       - run: node lib/Config/Defaults.js --config > expected-config.sample.yml 
       - run: cmp --silent config.sample.yml expected-config.sample.yml
@@ -34,12 +34,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node_version: ['14', '12']
+        node_version: ['12, '14', '16']
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node_version }}
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node_version }}
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
       - run: yarn
       - run: yarn test
