@@ -6,18 +6,17 @@ FROM node:16 AS builder
 COPY . /src
 WORKDIR /src
 
-RUN apt update && apt install -y rustc cargo git
-# RUN rustup-init -y --target x86_64-unknown-linux-gnu
+# We need rustup so we have a sensible rust version, the version packed with bullsye is too old
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --target x86_64-unknown-linux-gnu
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-
-# will also build
+# Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN yarn --ignore-scripts
-# Workaround for https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=998232#10
-RUN CARGO_NET_GIT_FETCH_WITH_CLI=true yarn build:app:rs --target x86_64-unknown-linux-gnu
+RUN node node_modules/esbuild/install.js
+RUN yarn build
 
 # Stage 1: The actual container
-FROM node:16-alpine
+FROM node:16
 
 COPY --from=builder /src/lib/ /bin/matrix-github/
 COPY --from=builder /src/public/ /bin/matrix-github/public/

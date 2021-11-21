@@ -16,9 +16,9 @@ To set up the bridge, simply clone this repository.
 
 then you will need to install the dependencies
 
-```bash
+```sh
 cd matrix-github
-yarn # Or "yarn"
+yarn
 ```
 
 Then you will need to copy the `config.sample.yml` to a new file called `config.yml`. You should fill this in. Pay **close** attention to settings like `passkey` which are required for the bridge to function.

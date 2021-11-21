@@ -2,7 +2,14 @@
 import { JiraIssue } from "./Jira/Types";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const rootModule = require('../lib/matrix-github-rs.node');
+let rootModule;
+try {
+    // In production, we expect it co-located
+    rootModule = require('./matrix-github-rs.node');
+} catch (ex) {
+    // When running under ts-node, it may not be co-located.
+    rootModule = require('../lib/matrix-github-rs.node');
+}
 
 interface FormatUtil {
     get_partial_body_for_jira_issue: (issue: JiraIssue) => Record<string, unknown>
