@@ -1,6 +1,6 @@
 #[derive(Serialize, Debug, Deserialize)]
 pub struct JiraProject {
-    #[serde(rename = "self")] 
+    #[serde(rename = "self")]
     pub _self: String,
     pub id: String,
     pub key: String,
@@ -9,7 +9,7 @@ pub struct JiraProject {
 #[derive(Serialize, Debug, Deserialize)]
 
 pub struct JiraIssue {
-    #[serde(rename = "self")] 
+    #[serde(rename = "self")]
     pub _self: String,
     pub id: String,
     pub key: String,
@@ -18,12 +18,12 @@ pub struct JiraIssue {
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct JiraIssueFields {
-    pub project: JiraProject
+    pub project: JiraProject,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
 pub struct JiraIssueLight {
-    #[serde(rename = "self")] 
+    #[serde(rename = "self")]
     pub _self: String,
     pub key: String,
 }
