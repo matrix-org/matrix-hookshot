@@ -39,9 +39,17 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
-interface BridgeConfigJira {
+export interface BridgeConfigJira {
     webhook: {
         secret: string;
+    };
+    oauth: {
+        // eslint-disable-next-line camelcase
+        client_id: string;
+        // eslint-disable-next-line camelcase
+        client_secret: string;
+        // eslint-disable-next-line camelcase
+        redirect_uri: string;
     };
 }
 
