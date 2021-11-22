@@ -7,7 +7,7 @@ import markdown from "markdown-it";
 import { FormatUtil } from "./FormatUtil";
 import { PullGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "./Github/Types";
 import { GitHubUserNotification } from "./Github/Types";
-import { components } from "@octokit/openapi-types/dist-types/generated/types";
+import { components } from "@octokit/openapi-types/types";
 import { NotifFilter } from "./NotificationFilters";
 
 
@@ -16,7 +16,7 @@ const md = new markdown();
 
 export interface IssueDiff {
     state: null|string;
-    assignee: null|(components["schemas"]["simple-user"][]);
+    assignee: null|(components["schemas"]["nullable-simple-user"][]);
     title: null|string;
     merged: boolean;
     mergedBy: null|{

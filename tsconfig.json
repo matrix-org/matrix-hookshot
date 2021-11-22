@@ -24,6 +24,8 @@
     "inlineSources": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    // TODO: Type errors
+    "useUnknownInCatchVariables": false,
   },
   "include": [
       "src/**/*"

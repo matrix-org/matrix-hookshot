@@ -1,219 +1,81 @@
+import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
-import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent,} from "./Webhooks";
+import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
-import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
-import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
-import { UserTokenStore } from "./UserTokenStore";
-import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import LogWrapper from "./LogWrapper";
-import { MessageSenderClient } from "./MatrixSender";
-import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
-import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
-import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
-import { NotificationProcessor } from "./NotificationsProcessor";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
-import { retry } from "./PromiseUtil";
-import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace
-} from "./Connections";
-import { GitHubRepoConnection } from "./Connections/GithubRepo";
+import { ConnectionManager } from "./ConnectionManager";
+import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
+import { GithubInstance } from "./Github/GithubInstance";
 import { GitHubIssueConnection } from "./Connections/GithubIssue";
 import { GitHubProjectConnection } from "./Connections/GithubProject";
-import { GitLabRepoConnection } from "./Connections/GitlabRepo";
-import { GithubInstance } from "./Github/GithubInstance";
-import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
+import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitLabIssueConnection } from "./Connections/GitlabIssue";
-import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
-import { GitLabClient } from "./Gitlab/Client";
-import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
-import { ProjectsGetResponseData } from "./Github/Types";
+import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace } from "./Connections";
+import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
+import { JiraIssueEvent } from "./Jira/WebhookTypes";
+import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
+import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
+import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
+import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
+import { NotificationProcessor } from "./NotificationsProcessor";
+import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
+import { ProjectsGetResponseData } from "./Github/Types";
+import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
+import { retry } from "./PromiseUtil";
+import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
+import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-
+import LogWrapper from "./LogWrapper";
 const log = new LogWrapper("GithubBridge");
 
 export class GithubBridge {
+    private readonly as: Appservice;
+    private readonly storage: IBridgeStorageProvider;
+    private readonly messageClient: MessageSenderClient;
+    private readonly queue: MessageQueue;
+    private readonly commentProcessor: CommentProcessor;
+    private readonly notifProcessor: NotificationProcessor;
+    private readonly tokenStore: UserTokenStore;
+    private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
-    private as!: Appservice;
     private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private commentProcessor!: CommentProcessor;
-    private notifProcessor!: NotificationProcessor;
-    private queue!: MessageQueue;
-    private tokenStore!: UserTokenStore;
-    private messageClient!: MessageSenderClient;
-    private widgetApi!: BridgeWidgetApi;
-    private connections: IConnection[] = [];
+    private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
 
     private ready = false;
 
-    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) { }
-
-    private async createConnectionForState(roomId: string, state: StateEvent<any>) {
-        log.debug(`Looking to create connection for ${roomId}`);
-        if (state.content.disabled === false) {
-            log.debug(`${roomId} has disabled state for ${state.type}`);
-            return;
+    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) {
+        if (this.config.queue.host && this.config.queue.port) {
+            log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
+            this.storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
+        } else {
+            log.info('Initialising memory storage');
+            this.storage = new MemoryStorageProvider();
         }
-
-        if (GitHubRepoConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey);
-        }
-
-        if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-            return new GitHubDiscussionConnection(
-                roomId, this.as, state.content, state.stateKey, this.tokenStore, this.commentProcessor,
-                this.messageClient,
-            );
-        }
-    
-        if (GitHubDiscussionSpace.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-
-            return new GitHubDiscussionSpace(
-                await this.as.botClient.getSpace(roomId), state.content, state.stateKey
-            );
-        }
-
-        if (GitHubIssueConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-            const issue = new GitHubIssueConnection(roomId, this.as, state.content, state.stateKey || "", this.tokenStore, this.commentProcessor, this.messageClient, this.github);
-            await issue.syncIssueState();
-            return issue;
-        }
-
-        if (GitHubUserSpace.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-            return new GitHubUserSpace(
-                await this.as.botClient.getSpace(roomId), state.content, state.stateKey
-            );
-        }
-        
-        if (GitLabRepoConnection.EventTypes.includes(state.type)) {
-            if (!this.config.gitlab) {
-                throw Error('GitLab is not configured');
-            }
-            const instance = this.config.gitlab.instances[state.content.instance];
-            if (!instance) {
-                throw Error('Instance name not recognised');
-            }
-            return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore, instance);
-        }
-
-        if (GitLabIssueConnection.EventTypes.includes(state.type)) {
-            if (!this.config.gitlab) {
-                throw Error('GitLab is not configured');
-            }
-            const instance = this.config.gitlab.instances[state.content.instance];
-            return new GitLabIssueConnection(
-                roomId,
-                this.as,
-                state.content,
-                state.stateKey as string, 
-                this.tokenStore,
-                this.commentProcessor,
-                this.messageClient,
-                instance);
-        }
-
-        return;
+        this.as = new Appservice({
+            homeserverName: this.config.bridge.domain,
+            homeserverUrl: this.config.bridge.url,
+            port: this.config.bridge.port,
+            bindAddress: this.config.bridge.bindAddress,
+            registration: this.registration,
+            storage: this.storage,
+        });
+        this.queue = createMessageQueue(this.config);
+        this.messageClient = new MessageSenderClient(this.queue);
+        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
+        this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
+        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent);
     }
-
-    private async createConnectionsForRoomId(roomId: string): Promise<IConnection[]> {
-        const state = await this.as.botClient.getRoomState(roomId);
-        const connections: IConnection[] = [];
-        for (const event of state) {
-            const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-            if (conn) { connections.push(conn); }
-        }
-        return connections;
-    }
-
-    private getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitLabRepoConnection)[] {
-        org = org.toLowerCase();
-        repo = repo.toLowerCase();
-        return this.connections.filter((c) => (c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber) ||
-            (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitLabRepoConnection)[];
-    }
-
-    private getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
-        org = org.toLowerCase();
-        repo = repo.toLowerCase();
-        return this.connections.filter((c) => (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as GitHubRepoConnection[];
-    }
-
-    private getConnectionsForGithubRepoDiscussion(owner: string, repo: string): GitHubDiscussionSpace[] {
-        owner = owner.toLowerCase();
-        repo = repo.toLowerCase();
-        return this.connections.filter((c) => (c instanceof GitHubDiscussionSpace && c.owner === owner && c.repo === repo)) as GitHubDiscussionSpace[];
-    }
-
-    private getConnectionForGithubUser(user: string): GitHubUserSpace {
-        return this.connections.find(c => c instanceof GitHubUserSpace && c.owner === user.toLowerCase()) as GitHubUserSpace;
-    }
-
-
-    private getConnectionsForGithubDiscussion(owner: string, repo: string, discussionNumber: number) {
-        owner = owner.toLowerCase();
-        repo = repo.toLowerCase();
-        return this.connections.filter(
-            (c) => (
-                c instanceof GitHubDiscussionConnection &&
-                c.owner === owner &&
-                c.repo === repo &&
-                c.discussionNumber === discussionNumber
-            )
-        ) as GitHubDiscussionConnection[];
-    }
-
-    private getConnectionsForGitLabIssueWebhook(repoHome: string, issueId: number) {
-        if (!this.config.gitlab) {
-            throw Error('GitLab configuration missing, cannot handle note');
-        }
-        const res = GitLabClient.splitUrlIntoParts(this.config.gitlab.instances, repoHome);
-        if (!res) {
-            throw Error('No instance found for note');
-        }
-        const instance = this.config.gitlab.instances[res[0]];
-        return this.getConnectionsForGitLabIssue(instance, res[1], issueId);
-    }
-
-    private getConnectionsForGitLabIssue(instance: GitLabInstance, projects: string[], issueNumber: number): GitLabIssueConnection[] {
-        return this.connections.filter((c) => (
-            c instanceof GitLabIssueConnection &&
-            c.issueNumber == issueNumber &&
-            c.instanceUrl == instance.url &&
-            c.projectPath == projects.join("/")
-        )) as GitLabIssueConnection[];
-    }
-
-    private getConnectionsForGitLabRepo(pathWithNamespace: string): GitLabRepoConnection[] {
-        pathWithNamespace = pathWithNamespace.toLowerCase();
-        return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
-    }
-
 
     public stop() {
         this.as.stop();
-        if(this.queue.stop) this.queue.stop();
+        if (this.queue.stop) this.queue.stop();
     }
 
     public async start() {
         log.info('Starting up');
-        this.queue = createMessageQueue(this.config);
-        this.messageClient = new MessageSenderClient(this.queue);
 
         if (!this.config.github && !this.config.gitlab) {
             log.error("You haven't configured support for GitHub or GitLab!");
@@ -225,27 +87,6 @@ export class GithubBridge {
             await this.github.start();
         }
 
-        let storage: IBridgeStorageProvider;
-        if (this.config.queue.host && this.config.queue.port) {
-            log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
-            storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
-        } else {
-            log.info('Initialising memory storage');
-            storage = new MemoryStorageProvider();
-        }
-
-
-        this.notifProcessor = new NotificationProcessor(storage, this.messageClient);
-
-        this.as = new Appservice({
-            homeserverName: this.config.bridge.domain,
-            homeserverUrl: this.config.bridge.url,
-            port: this.config.bridge.port,
-            bindAddress: this.config.bridge.bindAddress,
-            registration: this.registration,
-            storage,
-        });
-
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
 
@@ -253,7 +94,7 @@ export class GithubBridge {
             log.info(`Loading pantalaimon client`);
             const pan = new PantalaimonClient(
                 this.config.bridge.pantalaimon.url,
-                storage,
+                this.storage,
             );
             this.encryptedMatrixClient = await pan.createClientWithCredentials(
                 this.config.bridge.pantalaimon.username,
@@ -267,12 +108,10 @@ export class GithubBridge {
             log.info(`Pan client is syncing`);
         }
 
-        this.widgetApi = new BridgeWidgetApi(this.adminRooms);
 
-        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
-
-        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent);
         await this.tokenStore.load();
+        const connManager = this.connectionManager = new ConnectionManager(this.as,
+            this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.github);
 
         this.as.on("query.room", async (roomAlias, cb) => {
             try {
@@ -320,7 +159,7 @@ export class GithubBridge {
 
         this.queue.on<GitHubWebhookTypes.IssueCommentCreatedEvent>("github.issue_comment.created", async ({ data }) => {
             const { repository, issue, owner } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
+            const connections = connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection)
@@ -333,7 +172,7 @@ export class GithubBridge {
 
         this.queue.on<GitHubWebhookTypes.IssuesOpenedEvent>("github.issues.opened", async ({ data }) => {
             const { repository, owner } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubRepo(owner, repository.name);
+            const connections = connManager.getConnectionsForGithubRepo(owner, repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onIssueCreated(data);
@@ -345,7 +184,7 @@ export class GithubBridge {
 
         this.queue.on<GitHubWebhookTypes.IssuesEditedEvent>("github.issues.edited", async ({ data }) => {
             const { repository, issue, owner } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
+            const connections = connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     // TODO: Needs impls
@@ -359,7 +198,7 @@ export class GithubBridge {
 
         this.queue.on<GitHubWebhookTypes.IssuesClosedEvent>("github.issues.closed", async ({ data }) => {
             const { repository, issue, owner } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
+            const connections = connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
                     if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
@@ -372,11 +211,12 @@ export class GithubBridge {
 
         this.queue.on<GitHubWebhookTypes.IssuesReopenedEvent>("github.issues.reopened", async ({ data }) => {
             const { repository, issue, owner } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubIssue(owner, repository.name, issue.number);
+            const connections = connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
-                    if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
+                    if (c.onIssueStateChange) {
                         await c.onIssueStateChange(data);
+                    }
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle github.issues.reopened:`, ex);
                 }
@@ -384,8 +224,8 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.IssuesEditedEvent>("github.issues.edited", async ({ data }) => {
-            const { repository, issue, owner } = validateRepoIssue(data);
-            const connections = this.getConnectionsForGithubRepo(owner, repository.name);
+            const { repository, owner } = validateRepoIssue(data);
+            const connections = connManager.getConnectionsForGithubRepo(owner, repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onIssueEdited(data);
@@ -396,7 +236,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.PullRequestOpenedEvent>("github.pull_request.opened", async ({ data }) => {
-            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            const connections = connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onPROpened(data);
@@ -407,7 +247,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.PullRequestClosedEvent>("github.pull_request.closed", async ({ data }) => {
-            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            const connections = connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onPRClosed(data);
@@ -418,7 +258,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.PullRequestReadyForReviewEvent>("github.pull_request.ready_for_review", async ({ data }) => {
-            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            const connections = connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onPRReadyForReview(data);
@@ -429,7 +269,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.PullRequestReviewSubmittedEvent>("github.pull_request_review.submitted", async ({ data }) => {
-            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            const connections = connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onPRReviewed(data);
@@ -440,7 +280,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.ReleaseCreatedEvent>("github.release.created", async ({ data }) => {
-            const connections = this.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
+            const connections = connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name);
             connections.map(async (c) => {
                 try {
                     await c.onReleaseCreated(data);
@@ -451,12 +291,23 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitLabWebhookMREvent>("gitlab.merge_request.open", async (msg) => {
-            const connections = this.getConnectionsForGitLabRepo(msg.data.project.path_with_namespace);
+            const connections = connManager.getConnectionsForGitLabRepo(msg.data.project.path_with_namespace);
             connections.map(async (c) => {
                 try {
                     await c.onMergeRequestOpened(msg.data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle gitlab.merge_request.opened:`, ex);
+                    log.warn(`Connection ${c.toString()} failed to handle gitlab.merge_request.open:`, ex);
+                }
+            })
+        });
+
+        this.queue.on<IGitLabWebhookMREvent>("gitlab.tag_push", async (msg) => {
+            const connections = connManager.getConnectionsForGitLabRepo(msg.data.project.path_with_namespace);
+            connections.map(async (c) => {
+                try {
+                    await c.onMergeRequestOpened(msg.data);
+                } catch (ex) {
+                    log.warn(`Connection ${c.toString()} failed to handle gitlab.tag_push:`, ex);
                 }
             })
         });
@@ -491,7 +342,7 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitLabWebhookNoteEvent>("gitlab.note.created", async ({data}) => {
-            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.issue.iid);
+            const connections = connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.issue.iid);
             connections.map(async (c) => {
                 try {
                     if (c.onCommentCreated)
@@ -503,7 +354,7 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitLabWebhookIssueStateEvent>("gitlab.issue.reopen", async ({data}) => {
-            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
+            const connections = connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
             connections.map(async (c) => {
                 try {
                     await c.onIssueReopened();
@@ -514,7 +365,7 @@ export class GithubBridge {
         });
 
         this.queue.on<IGitLabWebhookIssueStateEvent>("gitlab.issue.close", async ({data}) => {
-            const connections = this.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
+            const connections = connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid);
             connections.map(async (c) => {
                 try {
                     await c.onIssueClosed();
@@ -525,7 +376,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.DiscussionCommentCreatedEvent>("github.discussion_comment.created", async ({data}) => {
-            const connections = this.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number);
+            const connections = connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number);
             connections.map(async (c) => {
                 try {
                     await c.onDiscussionCommentCreated(data);
@@ -539,13 +390,13 @@ export class GithubBridge {
             if (!this.github) {
                 return;
             }
-            const spaces = this.getConnectionsForGithubRepoDiscussion(data.repository.owner.login, data.repository.name);
+            const spaces = connManager.getConnectionsForGithubRepoDiscussion(data.repository.owner.login, data.repository.name);
             if (spaces.length === 0) {
                 log.info(`Not creating discussion ${data.discussion.id} ${data.repository.owner.login}/${data.repository.name}, no target spaces`);
                 // We don't want to create any discussions if we have no target spaces.
                 return;
             }
-            let [discussionConnection] = this.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.id);
+            let [discussionConnection] = connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.id);
             if (!discussionConnection) {
                 try {
                     // If we don't have an existing connection for this discussion (likely), then create one.
@@ -559,7 +410,7 @@ export class GithubBridge {
                         this.commentProcessor,
                         this.messageClient,
                     );
-                    this.connections.push(discussionConnection);
+                    connManager.push(discussionConnection);
                 } catch (ex) {
                     log.error(ex);
                     throw Error('Failed to create discussion room');
@@ -573,7 +424,33 @@ export class GithubBridge {
                     log.warn(`Failed to add discussion ${c.toString()} failed to handle comment.created:`, ex);
                 }
             })
+        });
 
+        this.queue.on<JiraIssueEvent>("jira.issue_created", async ({data}) => {
+            log.info(`JIRA issue created for project ${data.issue.fields.project.id}, issue id ${data.issue.id}`);
+            const projectId = data.issue.fields.project.id;
+            const connections = connManager.getConnectionsForJiraProject(projectId, "jira.issue_created");
+
+            connections.forEach(async (c) => {
+                try {
+                    await c.onJiraIssueCreated(data);
+                } catch (ex) {
+                    log.warn(`Failed to handle jira.issue_created:`, ex);
+                }
+            });
+        });
+    
+        this.queue.on<GenericWebhookEvent>("generic-webhook.event", async ({data}) => {
+            log.info(`Incoming generic hook ${data.hookId}`);
+            const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
+
+            connections.forEach(async (c) => {
+                try {
+                    await c.onGenericHook(data.hookData);
+                } catch (ex) {
+                    log.warn(`Failed to handle generic-webhook.event:`, ex);
+                }
+            });
         });
 
         // Fetch all room state
@@ -614,14 +491,14 @@ export class GithubBridge {
             log.debug("Fetching state for " + roomId);
             let connections: IConnection[];
             try {
-                connections = await this.createConnectionsForRoomId(roomId);
+                connections = await connManager.createConnectionsForRoomId(roomId);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 continue;
             }
             if (connections.length) {
                 log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
-                this.connections.push(...connections);
+                connManager.push(...connections);
                 continue;
             }
 
@@ -641,7 +518,14 @@ export class GithubBridge {
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
-                    // No state yet
+                    try {
+                        notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                            roomId, NotifFilter.LegacyStateType, "",
+                        );
+                    }
+                    catch (ex) {
+                        // No state yet
+                    }
                 }
                 const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
@@ -653,8 +537,8 @@ export class GithubBridge {
         }
 
         // Handle spaces
-        for (const discussion of this.connections.filter((c) => c instanceof GitHubDiscussionSpace) as GitHubDiscussionSpace[]) {
-            const user = this.getConnectionForGithubUser(discussion.owner);
+        for (const discussion of connManager.getAllConnectionsOfType(GitHubDiscussionSpace)) {
+            const user = connManager.getConnectionForGithubUser(discussion.owner);
             if (user) {
                 await user.ensureDiscussionInSpace(discussion);
             }
@@ -689,6 +573,10 @@ export class GithubBridge {
     }
 
     private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
+        if (!this.connectionManager) {
+            // Not ready yet.
+            return;
+        }
         if (this.as.isNamespacedUser(event.sender)) {
             /* We ignore messages from our users */
             return;
@@ -698,7 +586,6 @@ export class GithubBridge {
             return;
         }
         log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
-        console.log(event);
         log.debug("Content:", JSON.stringify(event));
         const adminRoom = this.adminRooms.get(roomId);
 
@@ -716,11 +603,11 @@ export class GithubBridge {
                 // This might be a reply to a notification
                 try {
                     const ev = metadata.realEvent;
-                    const splitParts: string[] = ev.content["uk.half-shot.matrix-github.repo"]?.name.split("/");
-                    const issueNumber = ev.content["uk.half-shot.matrix-github.issue"]?.number;
+                    const splitParts: string[] = ev.content["uk.half-shot.matrix-hookshot.github.repo"]?.name.split("/");
+                    const issueNumber = ev.content["uk.half-shot.matrix-hookshot.github.issue"]?.number;
                     if (splitParts && issueNumber) {
                         log.info(`Handling reply for ${splitParts}${issueNumber}`);
-                        const connections = this.getConnectionsForGithubIssue(splitParts[0], splitParts[1], issueNumber);
+                        const connections = this.connectionManager.getConnectionsForGithubIssue(splitParts[0], splitParts[1], issueNumber);
                         await Promise.all(connections.map(async c => {
                             if (c instanceof GitHubIssueConnection) {
                                 return c.onMatrixIssueComment(processedReply);
@@ -742,7 +629,7 @@ export class GithubBridge {
             }
         }
 
-        for (const connection of this.connections.filter((c) => c.roomId === roomId)) {
+        for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
             try {
                 if (connection.onMessageEvent) {
                     await connection.onMessageEvent(event);
@@ -758,44 +645,59 @@ export class GithubBridge {
             // Only act on bot joins
             return;
         }
-
-        const isRoomConnected = !!this.connections.find(c => c.roomId === roomId);
+        if (!this.connectionManager) {
+            // Not ready yet.
+            return;
+        }
 
         // Only fetch rooms we have no connections in yet.
-        if (!isRoomConnected) {
-            const connections = await this.createConnectionsForRoomId(roomId);
-            this.connections.push(...connections);
+        if (!this.connectionManager.isRoomConnected(roomId)) {
+            const connections = await this.connectionManager.createConnectionsForRoomId(roomId);
+            this.connectionManager.push(...connections);
         }
     }
 
     private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
+        if (!this.connectionManager) {
+            // Not ready yet.
+            return;
+        }
         if (event.state_key) {
             // A state update, hurrah!
-            const existingConnection = this.connections.find((c) => c.roomId === roomId && c.isInterestedInStateEvent(event.type, event.state_key || ""));
-            if (existingConnection?.onStateUpdate) {
-                existingConnection.onStateUpdate(event);
-            } else if (!existingConnection) {
+            const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
+            for (const connection of existingConnections) {
+                try {
+                    if (connection?.onStateUpdate) {
+                        connection.onStateUpdate(event);
+                    }
+                } catch (ex) {
+                    log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
+                }
+            }
+            if (!existingConnections.length) {
                 // Is anyone interested in this state?
-                const connection = await this.createConnectionForState(roomId, new StateEvent(event));
+                const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event));
                 if (connection) {
                     log.info(`New connected added to ${roomId}: ${connection.toString()}`);
-                    this.connections.push(connection);
+                    this.connectionManager.push(connection);
                 }
             }
             return;
         }
+
+        // We still want to react to our own state events.
         if (event.sender === this.as.botUserId) {
             // It's us
             return;
         }
 
-        for (const connection of this.connections.filter((c) => c.roomId === roomId)) {
+        for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
             try {
                 if (connection.onEvent) {
                     await connection.onEvent(event);
                 }
             } catch (ex) {
-                log.warn(`Connection ${connection.toString()} failed to handle event:`, ex);
+                log.warn(`Connection ${connection.toString()} failed to handle onEvent:`, ex);
             }
         }
     }
@@ -857,7 +759,6 @@ export class GithubBridge {
                 throw ex;
             }
         }
-
 
         res = GitHubUserSpace.QueryRoomRegex.exec(roomAlias);
         if (res) {
@@ -954,8 +855,13 @@ export class GithubBridge {
         );
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
-            const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
-            this.connections.push(connection);
+            const [connection] = this.connectionManager?.getForGitHubProject(project.id) || [];
+            if (!connection) {
+                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+                this.connectionManager?.push(connection);
+            } else {
+                await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+            }
         });
         // adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
         //     const connection = await GitHubDiscussionConnection.createDiscussionRoom(
@@ -964,7 +870,7 @@ export class GithubBridge {
         //     this.connections.push(connection);
         // });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
-            const [ connection ] = this.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue);
+            const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {
                 return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
             } 
@@ -978,7 +884,7 @@ export class GithubBridge {
                 this.commentProcessor,
                 this.messageClient
             );
-            this.connections.push(newConnection);
+            this.connectionManager?.push(newConnection);
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);

@@ -8,7 +8,7 @@ import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 
 const log = new LogWrapper("GithubInstance");
 
-const USER_AGENT = "matrix-github v0.0.1";
+const USER_AGENT = "matrix-hookshot v0.0.1";
 export class GithubInstance {
     private internalOctokit!: Octokit;
 
@@ -60,7 +60,8 @@ export class GithubGraphQLClient {
 
     private async query(request: string, variables: Record<string, string|number>) {
         log.debug(`GraphQL Query: ${request}`);
-        return this.octokit.graphql(`${request}`, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return this.octokit.graphql<Record<string, any>>(`${request}`, {
             headers: GithubGraphQLClient.headers,
             ...variables,
         });
@@ -74,7 +75,7 @@ query($name: String!, $owner: String!, $number: Int!) {
             ${DiscussionQL}
         }
     }
-}`, {name, owner, number}) as any;
+}`, {name, owner, number});
         return result.repository.discussion as DiscussionQLResponse;
     }
 
@@ -86,7 +87,7 @@ mutation addDiscussionComment($discussionId: ID!, $body: String!) {
         id
         }
     }
-    }`, {discussionId, body}) as any;
+    }`, {discussionId, body});
         return result.addDiscussionComment.comment.id as string;
     }
  

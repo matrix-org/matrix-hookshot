@@ -38,10 +38,12 @@ interface IQueryRoomOpts {
  * Handles rooms connected to a github repo.
  */
 export class GitHubIssueConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.bridge";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.issue";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.bridge";
 
     static readonly EventTypes = [
-        GitHubIssueConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitHubIssueConnection.CanonicalEventType,
+        GitHubIssueConnection.LegacyCanonicalEventType,
     ];
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
@@ -84,9 +86,6 @@ export class GitHubIssueConnection implements IConnection {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
-                // This does exist, but headers is silly and doesn't have content-type.
-                // tslint:disable-next-line: no-any
-                console.log(res.headers);
                 const contentType: string = res.headers["content-type"];
                 const mxcUrl = await opts.as.botClient.uploadContent(
                     Buffer.from(res.data as ArrayBuffer),
@@ -316,7 +315,7 @@ export class GitHubIssueConnection implements IConnection {
         }
     }
 
-    public onIssueStateChange(data?: any) {
+    public onIssueStateChange() {
         return this.syncIssueState();
     }
 

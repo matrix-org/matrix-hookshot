@@ -16,7 +16,8 @@ export interface GitHubUserSpaceConnectionState {
  * Handles rooms connected to a github repo.
  */
 export class GitHubUserSpace implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.user.space";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.user.space";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.user.space";
 
     static readonly EventTypes = [
         GitHubUserSpace.CanonicalEventType, // Legacy event, with an awful name.
@@ -25,12 +26,12 @@ export class GitHubUserSpace implements IConnection {
     static readonly QueryRoomRegex = /#github_(.+):.*/;
 
     static async onQueryRoom(result: RegExpExecArray, opts: {octokit: Octokit, as: Appservice}): Promise<Record<string, unknown>> {
-        if (!result) {
-            log.error("Invalid alias pattern");
+        if (!result || result.length < 1) {
+            log.error(`Invalid alias pattern '${result}'`);
             throw Error("Could not find issue");
         }
 
-        const [ username ] = result?.slice(1);
+        const [ username ] = result.slice(1);
 
         log.info(`Fetching ${username}`);
         let state: GitHubUserSpaceConnectionState;
@@ -55,7 +56,8 @@ export class GitHubUserSpace implements IConnection {
             throw Error("Could not find repo");
         }
 
-        let avatarState: any|undefined;
+        // eslint-disable-next-line camelcase
+        let avatarState: {type: "m.room.avatar", state_key: "", content: { url: string}}|undefined;
         try {
             if (avatarUrl) {
                 const res = await axios.get(avatarUrl, {

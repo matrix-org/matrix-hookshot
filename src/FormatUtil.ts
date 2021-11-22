@@ -1,8 +1,11 @@
 /* eslint-disable camelcase */
 import { ProjectsListResponseData } from './Github/Types';
 import emoji from "node-emoji";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
-import { contrastColor } from "contrast-color";
+import { JiraIssue } from './Jira/Types';
+import { format_util } from "./libRs";
+
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -17,6 +20,12 @@ interface IMinimalIssue {
     title: string;
     repository_url: string;
     pull_request?: any;
+}
+
+export interface ILabel {
+    color?: string,
+    name: string,
+    description?: string
 }
 
 export class FormatUtil {
@@ -40,7 +49,7 @@ export class FormatUtil {
     public static getPartialBodyForRepo(repo: IMinimalRepository) {
         return {
             "external_url": repo.html_url,
-            "uk.half-shot.matrix-github.repo": {
+            "uk.half-shot.matrix-hookshot.github.repo": {
                 id: repo.id,
                 name: repo.full_name,
                 url: repo.html_url,
@@ -52,7 +61,7 @@ export class FormatUtil {
         return {
             ...FormatUtil.getPartialBodyForRepo(repo),
             "external_url": issue.html_url,
-            "uk.half-shot.matrix-github.issue": {
+            "uk.half-shot.matrix-hookshot.github.issue": {
                 id: issue.id,
                 number: issue.number,
                 title: issue.title,
@@ -68,7 +77,7 @@ export class FormatUtil {
         return {
             ...(issue && repo ? FormatUtil.getPartialBodyForIssue(repo, issue) : undefined),
             "external_url": comment.html_url,
-            "uk.half-shot.matrix-github.comment": {
+            "uk.half-shot.matrix-hookshot.github.comment": {
                 id: comment.id,
             },
         };
@@ -82,22 +91,11 @@ export class FormatUtil {
         return f;
     }
 
-    public static formatLabels(labels: Array<{color?: string|null, name?: string, description?: string|null}|string> = []) {
-        const labelsHtml = labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => {
-            if (typeof(label) === "string") {
-                return `<span>${label}</span>`;
-            }
-            const fontColor = contrastColor(label.color);
-            return `<span title="${label.description}" data-mx-color="${fontColor}" data-mx-bg-color="#${label.color}">${label.name}</span>`
-        }
-            
-        ).join(" ") || "";
-        const labelsStr = labels.map((label: {name?: string}|string) => 
-            typeof(label) === "string" ? label : label.name
-        ).join(", ") || "";
-        return {
-            labelsStr,
-            labelsHtml,
-        }
+    public static formatLabels(labels: ILabel[] = []): { plain: string, html: string } {
+        return format_util.format_labels(labels);
+    }
+
+    public static getPartialBodyForJiraIssue(issue: JiraIssue) {
+        return format_util.get_partial_body_for_jira_issue(issue);
     }
 }

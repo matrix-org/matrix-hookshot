@@ -9,7 +9,7 @@ bridge:
   port: 9993
   bindAddress: 127.0.0.1
 github:
-  # (Optional) Configure this to enable support for GitHub
+  # (Optional) Configure this to enable GitHub support
   #
   installationId: 6854059
   auth:
@@ -22,13 +22,23 @@ github:
   webhook:
     secret: secrettoken
 gitlab:
-  # (Optional) Configure this to enable support for GitLab
+  # (Optional) Configure this to enable GitLab support
   #
   instances:
     gitlab.com:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+jira:
+  # (Optional) Configure this to enable Jira support
+  #
+  webhook:
+    secret: secrettoken
+generic:
+  # (Optional) Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
+  #
+  enabled: false
+  allowJsTransformationFunctions: false
 webhook:
   # HTTP webhook listener options
   #

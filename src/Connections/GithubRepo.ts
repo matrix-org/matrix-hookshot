@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
-import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
-import markdown from "markdown-it";
-import { UserTokenStore } from "../UserTokenStore";
-import LogWrapper from "../LogWrapper";
-import { CommentProcessor } from "../CommentProcessor";
-import { Octokit } from "@octokit/rest";
-import { MessageSenderClient } from "../MatrixSender";
-import { FormatUtil } from "../FormatUtil";
-import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
-import { ReposGetResponseData } from "../Github/Types";
-import { IssuesOpenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
-import emoji from "node-emoji";
+import { CommentProcessor } from "../CommentProcessor";
+import { FormatUtil } from "../FormatUtil";
+import { IConnection } from "./IConnection";
+import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
+import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
+import { MessageSenderClient } from "../MatrixSender";
 import { NotLoggedInError } from "../errors";
+import { Octokit } from "@octokit/rest";
+import { ReposGetResponseData } from "../Github/Types";
+import { UserTokenStore } from "../UserTokenStore";
+import axios from "axios";
+import emoji from "node-emoji";
+import LogWrapper from "../LogWrapper";
+import markdown from "markdown-it";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -58,10 +58,12 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
  * Handles rooms connected to a github repo.
  */
 export class GitHubRepoConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.repository";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.repository";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.repository";
 
     static readonly EventTypes = [
-        GitHubRepoConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitHubRepoConnection.CanonicalEventType,
+        GitHubRepoConnection.LegacyCanonicalEventType,
     ];
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
@@ -101,9 +103,6 @@ export class GitHubRepoConnection implements IConnection {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
-                // This does exist, but headers is silly and doesn't have content-type.
-                // tslint:disable-next-line: no-any
-                console.log(res.headers);
                 const contentType: string = res.headers["content-type"];
                 const mxcUrl = await opts.as.botClient.uploadContent(
                     Buffer.from(res.data as ArrayBuffer),
@@ -163,7 +162,7 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     private get commandPrefix() {
-        return (this.state.commandPrefix || "gh") + " ";
+        return (this.state.commandPrefix || "!gh") + " ";
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -292,17 +291,18 @@ export class GitHubRepoConnection implements IConnection {
         message = message + (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
         const content = emoji.emojify(message);
         const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels);
+        const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
-            formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
         });
     }
 
-    public async onIssueStateChange(event: IssuesEditedEvent) {
+    public async onIssueStateChange(event: IssuesEditedEvent|IssuesReopenedEvent|IssuesClosedEvent) {
         if (this.shouldSkipHook('issue.changed', 'issue')) {
             return;
         }
@@ -360,11 +360,11 @@ export class GitHubRepoConnection implements IConnection {
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.draft ? 'drafted' : 'opened';
         const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
-        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.pull_request.labels);
+        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labelsStr.length > 0 ? ` with labels ${labelsStr}`: ""),
-            formatted_body: md.renderInline(content) + (labelsHtml.length > 0 ? ` with labels ${labelsHtml}`: ""),
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
@@ -483,7 +483,7 @@ ${event.release.body}`;
             // eslint-disable-next-line camelcase
             const {event_id, key} = (evt.content as MatrixReactionContent)["m.relates_to"];
             const ev = await this.as.botClient.getEvent(this.roomId, event_id);
-            const issueContent = ev.content["uk.half-shot.matrix-github.issue"];
+            const issueContent = ev.content["uk.half-shot.matrix-hookshot.github.issue"];
             if (!issueContent) {
                 log.debug('Reaction to event did not pertain to a issue');
                 return; // Not our event.

@@ -14,10 +14,12 @@ const log = new LogWrapper("GitHubProjectConnection");
  * Handles rooms connected to a github repo.
  */
 export class GitHubProjectConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.project";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.project";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.project";
 
     static readonly EventTypes = [
-        GitHubProjectConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitHubProjectConnection.CanonicalEventType,
+        GitHubProjectConnection.LegacyCanonicalEventType,
     ];
 
     static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {
@@ -46,6 +48,10 @@ export class GitHubProjectConnection implements IConnection {
         });
         
         return new GitHubProjectConnection(roomId, as, state, project.url)
+    }
+
+    get projectId() {
+        return this.state.project_id;
     }
 
     constructor(public readonly roomId: string,

@@ -26,10 +26,13 @@ type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects
 const md = new markdown();
 const log = new LogWrapper('AdminRoom');
 
-export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
-export const BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";
-export const BRIDGE_GITLAB_NOTIF_TYPE = "uk.half-shot.matrix-github.gitlab.notif_state";
+export const LEGACY_BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
+export const LEGACY_BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";
+export const LEGACY_BRIDGE_GITLAB_NOTIF_TYPE = "uk.half-shot.matrix-github.gitlab.notif_state";
 
+export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-hookshot.github.room";
+export const BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-hookshot.github.notif_state";
+export const BRIDGE_GITLAB_NOTIF_TYPE = "uk.half-shot.matrix-hookshot.gitlab.notif_state";
 export interface AdminAccountData {
     // eslint-disable-next-line camelcase
     admin_user: string;
@@ -109,19 +112,29 @@ export class AdminRoom extends EventEmitter {
     public async getNotifSince(type: "github"|"gitlab", instanceName?: string) {
         if (type === "gitlab") {
             try {
-                const { since } = await this.botIntent.underlyingClient.getRoomAccountData(
-                    `${BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`, this.roomId
+                let accountData: null|{since: number} = await this.botIntent.underlyingClient.getSafeRoomAccountData(
+                    `${BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`, this.roomId, null
                 );
-                return since;
+                if (!accountData) {
+                    accountData = await this.botIntent.underlyingClient.getSafeRoomAccountData(
+                        `${LEGACY_BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`, this.roomId, { since: 0 }
+                    );
+                }
+                return accountData.since;
             } catch {
                 // TODO: We should look at this error.
                 return 0;
             }
         }
         try {
-            const { since } = await this.botIntent.underlyingClient.getRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId);
-            log.debug(`Got ${type} notif-since to ${since}`);
-            return since;
+            let accountData: null|{since: number} = await this.botIntent.underlyingClient.getSafeRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId, { since: 0 });
+            if (!accountData) {
+                accountData = await this.botIntent.underlyingClient.getSafeRoomAccountData(
+                    `${LEGACY_BRIDGE_NOTIF_TYPE}:${instanceName}`, this.roomId, { since: 0 }
+                );
+            }
+            log.debug(`Got ${type} notif-since to ${accountData.since}`);
+            return accountData.since;
         } catch (ex) {
             log.warn(`Filed to get ${type} notif-since`, ex);
             // TODO: We should look at this error.
@@ -236,7 +249,6 @@ export class AdminRoom extends EventEmitter {
                 },
             };
         });
-        console.log(newData);
         if (newData.github?.notifications?.participating) {
             return this.sendNotice(`Filtering for events you are participating in`);
         }
@@ -470,7 +482,6 @@ export class AdminRoom extends EventEmitter {
         let newValue = false;
         await this.saveAccountData((data) => {
             const currentNotifs = (data.gitlab || {})[instanceName].notifications;
-            console.log("current:", currentNotifs.enabled);
             newValue = !currentNotifs.enabled;
             return {
                 ...data,
@@ -508,7 +519,7 @@ export class AdminRoom extends EventEmitter {
         const users = parameters.filter(param => param.toLowerCase().startsWith("users:")).map(param => param.toLowerCase().substring("users:".length).split(",")).flat();
         const repos = parameters.filter(param => param.toLowerCase().startsWith("repos:")).map(param => param.toLowerCase().substring("repos:".length).split(",")).flat();
         if (orgs.length + users.length + repos.length === 0) {
-            return this.sendNotice("You must specify some filter options like 'orgs:matrix-org,half-shot', 'users:Half-Shot' or 'repos:matrix-github'");
+            return this.sendNotice("You must specify some filter options like 'orgs:matrix-org,half-shot', 'users:Half-Shot' or 'repos:matrix-hookshot'");
         }
         this.notifFilter.setFilter(name, {
             orgs,
@@ -535,9 +546,10 @@ export class AdminRoom extends EventEmitter {
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
-        const oldData: AdminAccountData = await this.botIntent.underlyingClient.getRoomAccountData(
-            BRIDGE_ROOM_TYPE, this.roomId,
-        );
+        let oldData: AdminAccountData|null = await this.botIntent.underlyingClient.getSafeRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, null);
+        if (!oldData) {
+            oldData = await this.botIntent.underlyingClient.getSafeRoomAccountData(LEGACY_BRIDGE_ROOM_TYPE, this.roomId, {admin_user: this.userId});
+        }
         const newData = updateFn(oldData);
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, newData);
         this.emit("settings.changed", this, oldData, newData);

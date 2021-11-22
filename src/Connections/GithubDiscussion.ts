@@ -27,10 +27,12 @@ const md = new markdown();
  * Handles rooms connected to a github repo.
  */
 export class GitHubDiscussionConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.discussion";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.discussion";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.discussion";
 
     static readonly EventTypes = [
-        GitHubDiscussionConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitHubDiscussionConnection.CanonicalEventType,
+        GitHubDiscussionConnection.LegacyCanonicalEventType,
     ];
 
     static readonly QueryRoomRegex = /#github_disc_(.+)_(.+)_(\d+):.*/;
@@ -131,7 +133,7 @@ export class GitHubDiscussionConnection implements IConnection {
             formatted_body: md.render(data.comment.body),
             msgtype: 'm.text',
             external_url: data.comment.html_url,
-            'uk.half-shot.matrix-github.discussion.comment_id': data.comment.id,
+            'uk.half-shot.matrix-hookshot.github.discussion.comment_id': data.comment.id,
         });
     }
 }

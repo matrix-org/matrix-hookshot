@@ -1,11 +1,12 @@
-node_modules/
-lib/
-
-config.yml
 *.pem
+config.yml
+lib/
+node_modules/
+public/
 registration.yml
 tsconfig.tsbuildinfo
-
 public/
 
 .idea
+# Added by cargo
+/target

@@ -2,23 +2,33 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
   workflow_dispatch:
 
 jobs:
-  lint:
+  lint-node:
    runs-on: ubuntu-latest
    steps:
     - uses: actions/checkout@v2
     - name: Use Node.js
       uses: actions/setup-node@v1
       with:
-        node-version: 12
-    - run: yarn
+        node-version: 16
+    - run: yarn --ignore-scripts
     - run: yarn lint
+  lint-rust:
+   runs-on: ubuntu-latest
+   steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt
+    - run: cargo fmt --all -- --check
   config:
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +36,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v1
         with:
-          node-version: 12
+          node-version: 16
       - run: yarn
       - run: node lib/Config/Defaults.js --config > expected-config.sample.yml 
       - run: cmp --silent config.sample.yml expected-config.sample.yml
@@ -34,12 +44,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node_version: ['14', '12']
+        node_version: [12, 14, 16]
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node_version }}
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node_version }}
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            profile: minimal
       - run: yarn
       - run: yarn test

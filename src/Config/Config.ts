@@ -39,6 +39,17 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
+interface BridgeConfigJira {
+    webhook: {
+        secret: string;
+    };
+}
+
+interface BridgeGenericWebhooksConfig {
+    enabled: boolean;
+    allowJsTransformationFunctions?: boolean;
+}
+
 interface BridgeWidgetConfig {
     port: number;
     addToAdminRooms: boolean;
@@ -86,8 +97,10 @@ interface BridgeConfigRoot {
     passFile: string;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
+    jira?: BridgeConfigJira;
     bot?: BridgeConfigBot;
     widgets?: BridgeWidgetConfig;
+    generic?: BridgeGenericWebhooksConfig;
 }
 
 export class BridgeConfig {
@@ -102,10 +115,14 @@ export class BridgeConfig {
     @configKey(`A passkey used to encrypt tokens stored inside the bridge.
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
-    @configKey("Configure this to enable support for GitHub", true)
+    @configKey("Configure this to enable GitHub support", true)
     public readonly github?: BridgeConfigGitHub;
-    @configKey("Configure this to enable support for GitLab", true)
+    @configKey("Configure this to enable GitLab support", true)
     public readonly gitlab?: BridgeConfigGitLab;
+    @configKey("Configure this to enable Jira support", true)
+    public readonly jira?: BridgeConfigJira;
+    @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
+    public readonly generic?: BridgeGenericWebhooksConfig;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
@@ -122,6 +139,8 @@ export class BridgeConfig {
             this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab;
+        this.jira = configData.jira;
+        this.generic = configData.generic;
         this.webhook = configData.webhook;
         this.passFile = configData.passFile;
         assert.ok(this.webhook);
