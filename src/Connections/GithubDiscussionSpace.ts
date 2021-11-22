@@ -28,12 +28,12 @@ export class GitHubDiscussionSpace implements IConnection {
     static readonly QueryRoomRegex = /#github_disc_(.+)_(.+):.*/;
 
     static async onQueryRoom(result: RegExpExecArray, opts: {octokit: Octokit, as: Appservice}): Promise<Record<string, unknown>> {
-        if (!result) {
-            log.error("Invalid alias pattern");
+        if (!result || result.length < 2) {
+            log.error(`Invalid alias pattern '${result}'`);
             throw Error("Could not find issue");
         }
 
-        const [ owner, repo ] = result?.slice(1);
+        const [ owner, repo ] = result.slice(1);
 
         log.info(`Fetching ${owner}/${repo}`);
         let repoRes: ReposGetResponseData;

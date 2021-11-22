@@ -26,12 +26,12 @@ export class GitHubUserSpace implements IConnection {
     static readonly QueryRoomRegex = /#github_(.+):.*/;
 
     static async onQueryRoom(result: RegExpExecArray, opts: {octokit: Octokit, as: Appservice}): Promise<Record<string, unknown>> {
-        if (!result) {
-            log.error("Invalid alias pattern");
+        if (!result || result.length < 1) {
+            log.error(`Invalid alias pattern '${result}'`);
             throw Error("Could not find issue");
         }
 
-        const [ username ] = result?.slice(1);
+        const [ username ] = result.slice(1);
 
         log.info(`Fetching ${username}`);
         let state: GitHubUserSpaceConnectionState;
