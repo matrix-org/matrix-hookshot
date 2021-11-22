@@ -22,10 +22,12 @@ const md = new markdownit();
  * Handles rooms connected to a github repo.
  */
 export class JiraProjectConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.jira.project";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.jira.project";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.jira.project";
 
     static readonly EventTypes = [
         JiraProjectConnection.CanonicalEventType,
+        JiraProjectConnection.LegacyCanonicalEventType,
     ];
 
     static getTopicString(authorName: string, state: string) {

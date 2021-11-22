@@ -8,7 +8,7 @@ import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 
 const log = new LogWrapper("GithubInstance");
 
-const USER_AGENT = "matrix-github v0.0.1";
+const USER_AGENT = "matrix-hookshot v0.0.1";
 export class GithubInstance {
     private internalOctokit!: Octokit;
 

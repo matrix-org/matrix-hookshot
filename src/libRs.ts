@@ -6,10 +6,10 @@ import { JiraIssue } from "./Jira/Types";
 let rootModule;
 try {
     // In production, we expect it co-located
-    rootModule = require('./matrix-github-rs.node');
+    rootModule = require('./matrix-hookshot-rs.node');
 } catch (ex) {
     // When running under ts-node, it may not be co-located.
-    rootModule = require('../lib/matrix-github-rs.node');
+    rootModule = require('../lib/matrix-hookshot-rs.node');
 }
 
 interface FormatUtil {

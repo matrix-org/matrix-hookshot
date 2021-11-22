@@ -19,10 +19,12 @@ const TRANSFORMATION_TIMEOUT_MS = 2000;
  * Handles rooms connected to a github repo.
  */
 export class GenericHookConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.generic.hook";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.generic.hook";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.generic.hook";
 
     static readonly EventTypes = [
         GenericHookConnection.CanonicalEventType,
+        GenericHookConnection.LegacyCanonicalEventType,
     ];
 
     public get hookId() {

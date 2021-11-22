@@ -58,10 +58,12 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
  * Handles rooms connected to a github repo.
  */
 export class GitHubRepoConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.repository";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.repository";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.repository";
 
     static readonly EventTypes = [
-        GitHubRepoConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitHubRepoConnection.CanonicalEventType,
+        GitHubRepoConnection.LegacyCanonicalEventType,
     ];
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
@@ -101,9 +103,6 @@ export class GitHubRepoConnection implements IConnection {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
-                // This does exist, but headers is silly and doesn't have content-type.
-                // tslint:disable-next-line: no-any
-                console.log(res.headers);
                 const contentType: string = res.headers["content-type"];
                 const mxcUrl = await opts.as.botClient.uploadContent(
                     Buffer.from(res.data as ArrayBuffer),
@@ -481,7 +480,7 @@ ${event.release.body}`;
             // eslint-disable-next-line camelcase
             const {event_id, key} = (evt.content as MatrixReactionContent)["m.relates_to"];
             const ev = await this.as.botClient.getEvent(this.roomId, event_id);
-            const issueContent = ev.content["uk.half-shot.matrix-github.issue"];
+            const issueContent = ev.content["uk.half-shot.matrix-hookshot.github.issue"];
             if (!issueContent) {
                 log.debug('Reaction to event did not pertain to a issue');
                 return; // Not our event.
