@@ -85,7 +85,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             // To avoid a bouncing issue, gradually reduce the failure count.
             GitHubWatcher.apiFailureCount = Math.max(0, GitHubWatcher.apiFailureCount - 2);
         } catch (ex) {
-            await this.handleGitHubFailure(ex);
+            await this.handleGitHubFailure(ex as RequestError);
             return;
         }
         this.lastReadTs = Date.now();

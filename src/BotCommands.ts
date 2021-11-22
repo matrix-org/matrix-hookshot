@@ -1,5 +1,6 @@
 import markdown from "markdown-it";
 import stringArgv from "string-argv";
+import { CommandError } from "./errors";
 import { MatrixMessageContent } from "./MatrixEvent";
 
 const md = new markdown();
@@ -77,7 +78,8 @@ export async function handleCommand(userId: string, command: string, botCommands
                 await botCommands[prefix].fn.apply(obj,  args);
                 return {handled: true};
             } catch (ex) {
-                return {handled: true, error: ex.message, humanError: ex.humanError};
+                const commandError = ex as CommandError;
+                return {handled: true, error: commandError.message, humanError: commandError.humanError};
             }
         }
     }
