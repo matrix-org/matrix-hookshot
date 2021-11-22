@@ -28,7 +28,7 @@ jobs:
           toolchain: stable
           profile: minimal
           components: rustfmt
-    - run: cargo fmt --check
+    - run: cargo fmt --all -- --check
   config:
     runs-on: ubuntu-latest
     steps:
