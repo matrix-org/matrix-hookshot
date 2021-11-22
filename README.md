@@ -3,7 +3,7 @@ matrix-hookshot
 
 *Previously matrix-github*
 
-[![#github-bridge:half-shot.uk](https://img.shields.io/matrix/github-bridge:half-shot.uk.svg?server_fqdn=matrix.half-shot.uk&label=%23github-bridge:half-shot.uk&logo=matrix)](https://matrix.to/#/#github-bridge:half-shot.uk)
+[![#hookshot:half-shot.uk](https://img.shields.io/matrix/github-bridge:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
 [![Docker Image Version (latest by date)](https://img.shields.io/docker/v/halfshot/matrix-hookshot)](https://hub.docker.com/r/halfshot/matrix-hookshot)
 
 This bridge enables users to join Github issues and PRs through Matrix and collaborate using rooms.
