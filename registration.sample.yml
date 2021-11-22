@@ -1,4 +1,4 @@
-id: matrix-github # This can be anything, but must be unique within your homeserver
+id: matrix-hookshot # This can be anything, but must be unique within your homeserver
 as_token: aaaaaaaaaa # This again can be a random string
 hs_token: aaaaaaaaaa # ..as can this
 namespaces:

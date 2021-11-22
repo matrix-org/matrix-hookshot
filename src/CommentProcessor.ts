@@ -18,7 +18,7 @@ const log = new LogWrapper("CommentProcessor");
 interface IMatrixCommentEvent extends MatrixMessageContent {
     // eslint-disable-next-line camelcase
     external_url: string;
-    "uk.half-shot.matrix-github.comment": {
+    "uk.half-shot.matrix-hookshot.github.comment": {
         id: number;
     };
 }

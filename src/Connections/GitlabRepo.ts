@@ -23,10 +23,12 @@ const md = new markdown();
  * Handles rooms connected to a github repo.
  */
 export class GitLabRepoConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
 
     static readonly EventTypes = [
-        GitLabRepoConnection.CanonicalEventType, // Legacy event, with an awful name.
+        GitLabRepoConnection.CanonicalEventType,
+        GitLabRepoConnection.LegacyCanonicalEventType,
     ];
     
     static botCommands: BotCommands;

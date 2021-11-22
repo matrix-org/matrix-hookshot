@@ -518,7 +518,14 @@ export class GithubBridge {
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
-                    // No state yet
+                    try {
+                        notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                            roomId, NotifFilter.LegacyStateType, "",
+                        );
+                    }
+                    catch (ex) {
+                        // No state yet
+                    }
                 }
                 const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
@@ -596,8 +603,8 @@ export class GithubBridge {
                 // This might be a reply to a notification
                 try {
                     const ev = metadata.realEvent;
-                    const splitParts: string[] = ev.content["uk.half-shot.matrix-github.repo"]?.name.split("/");
-                    const issueNumber = ev.content["uk.half-shot.matrix-github.issue"]?.number;
+                    const splitParts: string[] = ev.content["uk.half-shot.matrix-hookshot.github.repo"]?.name.split("/");
+                    const issueNumber = ev.content["uk.half-shot.matrix-hookshot.github.issue"]?.number;
                     if (splitParts && issueNumber) {
                         log.info(`Handling reply for ${splitParts}${issueNumber}`);
                         const connections = this.connectionManager.getConnectionsForGithubIssue(splitParts[0], splitParts[1], issueNumber);

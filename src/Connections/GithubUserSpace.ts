@@ -16,7 +16,8 @@ export interface GitHubUserSpaceConnectionState {
  * Handles rooms connected to a github repo.
  */
 export class GitHubUserSpace implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.user.space";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.user.space";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.user.space";
 
     static readonly EventTypes = [
         GitHubUserSpace.CanonicalEventType, // Legacy event, with an awful name.

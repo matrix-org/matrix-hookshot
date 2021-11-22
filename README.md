@@ -1,5 +1,7 @@
-matrix-github
+matrix-hookshot
 =============
+
+*Previously matrix-github*
 
 [![#github-bridge:half-shot.uk](https://img.shields.io/matrix/github-bridge:half-shot.uk.svg?server_fqdn=matrix.half-shot.uk&label=%23github-bridge:half-shot.uk&logo=matrix)](https://matrix.to/#/#github-bridge:half-shot.uk)
 
@@ -12,12 +14,12 @@ This bridge requires at least Node 12, and Rust installed. If you do not have ru
 
 To set up the bridge, simply clone this repository.
 
-` git clone git@github.com:Half-Shot/matrix-github.git`
+` git clone git@github.com:Half-Shot/matrix-hookshot.git`
 
 then you will need to install the dependencies
 
 ```sh
-cd matrix-github
+cd matrix-hookshot
 yarn
 ```
 

@@ -5,15 +5,24 @@ import LogWrapper from "./LogWrapper";
 import { GitLabClient } from "./Gitlab/Client";
 import { GithubInstance } from "./Github/GithubInstance";
 
-const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
-const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
-const log = new LogWrapper("UserTokenStore");
+const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
+const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
 
-function tokenKey(type: "github"|"gitlab", userId: string, instanceUrl?: string) {
+const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
+const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
+
+const log = new LogWrapper("UserTokenStore");
+type TokenType = "github"|"gitlab"|"jira";
+const AllowedTokenTypes = ["github", "gitlab", "jira"];
+
+function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?: string) {
     if (type === "github") {
-        return `${ACCOUNT_DATA_TYPE}${userId}`;
+        return `${legacy ? LEGACY_ACCOUNT_DATA_TYPE : ACCOUNT_DATA_TYPE}${userId}`;
     }
-    return `${ACCOUNT_DATA_GITLAB_TYPE}${instanceUrl}${userId}`;
+    if (!instanceUrl) {
+        throw Error(`Expected instanceUrl for ${type}`);
+    }
+    return `${legacy ? LEGACY_ACCOUNT_DATA_GITLAB_TYPE : ACCOUNT_DATA_GITLAB_TYPE}${instanceUrl}${userId}`;
 }
 
 export class UserTokenStore {
@@ -28,8 +37,8 @@ export class UserTokenStore {
         this.key = await fs.readFile(this.keyPath);
     }
 
-    public async storeUserToken(type: "github"|"gitlab", userId: string, token: string, instanceUrl?: string): Promise<void> {
-        const key = tokenKey(type, userId, instanceUrl);
+    public async storeUserToken(type: TokenType, userId: string, token: string, instanceUrl?: string): Promise<void> {
+        const key = tokenKey(type, userId, false, instanceUrl);
         const data = {
             encrypted: publicEncrypt(this.key, Buffer.from(token)).toString("base64"),
             instance: instanceUrl,
@@ -40,18 +49,19 @@ export class UserTokenStore {
         log.debug(`Stored`, data);
     }
 
-    public async getUserToken(type: "github"|"gitlab", userId: string, instanceUrl?: string): Promise<string|null> {
-        const key = tokenKey(type, userId, instanceUrl);
+    public async getUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<string|null> {
+        const key = tokenKey(type, userId, false, instanceUrl);
         const existingToken = this.userTokens.get(key);
         if (existingToken) {
             return existingToken;
         }
         try {
             let obj;
-            if (type === "github") {
-                obj = await this.intent.underlyingClient.getAccountData<{encrypted: string}>(key);
-            } else if (type === "gitlab") {
-                obj = await this.intent.underlyingClient.getAccountData<{encrypted: string}>(key);
+            if (AllowedTokenTypes.includes(type)) {
+                obj = await this.intent.underlyingClient.getSafeAccountData<{encrypted: string}>(key);
+                if (!obj) {
+                    obj = await this.intent.underlyingClient.getAccountData<{encrypted: string}>(tokenKey(type, userId, true, instanceUrl));
+                }
             } else {
                 throw Error('Unknown type');
             }

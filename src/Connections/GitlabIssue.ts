@@ -33,10 +33,12 @@ const log = new LogWrapper("GitLabIssueConnection");
  * Handles rooms connected to a github repo.
  */
 export class GitLabIssueConnection implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.gitlab.issue";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.issue";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.issue";
 
     static readonly EventTypes = [
         GitLabIssueConnection.CanonicalEventType,
+        GitLabIssueConnection.LegacyCanonicalEventType,
     ];
 
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
@@ -104,7 +106,6 @@ export class GitLabIssueConnection implements IConnection {
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
         log.info(`${this.toString()} onCommentCreated ${event.object_attributes.noteable_id}`);
-        console.log(event);
         if (event.repository) {
             // Delay to stop comments racing sends
             await new Promise((resolve) => setTimeout(resolve, 500));
