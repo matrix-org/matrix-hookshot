@@ -25,5 +25,10 @@ export interface IConnection {
 
     isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
 
+    /**
+     * Is the connection interested in the event that is being sent from the remote side?
+     */
+    isInterestedInHookEvent?: (eventType: string) => boolean;
+
     toString(): string;
 }

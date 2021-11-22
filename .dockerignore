@@ -1,10 +1,12 @@
-node_modules/
-lib/
-tests/
-config.yml
-public/
 .github/
-logging.txt
-tsconfig.tsbuildinfo
 *.pem
+config.yml
+lib/
+node_modules/
+public/
 registration.yml
+tests/
+tsconfig.tsbuildinfo
+
+# Added by cargo
+/target

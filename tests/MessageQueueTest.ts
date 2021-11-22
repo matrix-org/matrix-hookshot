@@ -5,7 +5,6 @@ const mq = createMessageQueue({
     queue: {
         monolithic: true,
     },
-// tslint:disable-next-line: no-any
 } as any);
 
 describe("MessageQueueTest", () => {

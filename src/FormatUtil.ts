@@ -1,10 +1,12 @@
 /* eslint-disable camelcase */
 import { ProjectsListResponseData } from './Github/Types';
 import emoji from "node-emoji";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
 import { contrastColor } from "contrast-color";
 import { JiraIssue } from './Jira/Types';
-import { generateWebLinkFromIssue } from './Jira/Utils';
+import { format_util } from "./libRs";
+
 interface IMinimalRepository {
     id: number;
     full_name: string;
@@ -19,6 +21,12 @@ interface IMinimalIssue {
     title: string;
     repository_url: string;
     pull_request?: any;
+}
+
+export interface ILabel {
+    color?: string,
+    name: string,
+    description?: string
 }
 
 export class FormatUtil {
@@ -84,39 +92,11 @@ export class FormatUtil {
         return f;
     }
 
-    public static formatLabels(labels: Array<{color?: string|null, name?: string, description?: string|null}|string> = []) {
-        const labelsHtml = labels.map((label: {color?: string|null, name?: string, description?: string|null}|string) => {
-            if (typeof(label) === "string") {
-                return `<span>${label}</span>`;
-            }
-            const fontColor = contrastColor(label.color);
-            return `<span title="${label.description}" data-mx-color="${fontColor}" data-mx-bg-color="#${label.color}">${label.name}</span>`
-        }
-            
-        ).join(" ") || "";
-        const labelsStr = labels.map((label: {name?: string}|string) => 
-            typeof(label) === "string" ? label : label.name
-        ).join(", ") || "";
-        return {
-            labelsStr,
-            labelsHtml,
-        }
+    public static formatLabels(labels: ILabel[] = []): { plain: string, html: string } {
+        return format_util.format_labels(labels);
     }
 
     public static getPartialBodyForJiraIssue(issue: JiraIssue) {
-        const url = generateWebLinkFromIssue(issue);
-        return {
-            "external_url": url,
-            "uk.half-shot.matrix-github.jira.issue": {
-                id: issue.id,
-                key: issue.key,
-                api_url: issue.self,
-            },
-            "uk.half-shot.matrix-github.jira.project": {
-                id: issue.fields.project.id,
-                key: issue.fields.project.key,
-                api_url: issue.fields.project.self,
-            },
-        };
+        return format_util.get_partial_body_for_jira_issue(issue);
     }
 }

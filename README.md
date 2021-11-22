@@ -8,15 +8,17 @@ This bridge enables users to join Github issues and PRs through Matrix and colla
 
 ## Setup
 
+This bridge requires at least Node 12, and Rust installed. If you do not have rust, https://rustup.rs/ is the quickest way to get it.
+
 To set up the bridge, simply clone this repository.
 
 ` git clone git@github.com:Half-Shot/matrix-github.git`
 
-then you will need to install dependencies
+then you will need to install the dependencies
 
-```bash
+```sh
 cd matrix-github
-npm i # Or "yarn"
+yarn
 ```
 
 Then you will need to copy the `config.sample.yml` to a new file called `config.yml`. You should fill this in. Pay **close** attention to settings like `passkey` which are required for the bridge to function.
