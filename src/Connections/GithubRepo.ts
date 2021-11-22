@@ -163,7 +163,7 @@ export class GitHubRepoConnection implements IConnection {
     }
 
     private get commandPrefix() {
-        return (this.state.commandPrefix || "gh") + " ";
+        return (this.state.commandPrefix || "!gh") + " ";
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
