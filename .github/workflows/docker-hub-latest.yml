@@ -9,7 +9,7 @@ env:
   DOCKER_NAMESPACE: halfshot
   PLATFORMS: linux/amd64
   # Only push if this is develop, otherwise we just want to build
-  PUSH: ${{ github.ref == 'refs/heads/master' }}
+  PUSH: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:
   docker-latest:
