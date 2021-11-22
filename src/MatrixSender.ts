@@ -80,7 +80,7 @@ export class MessageSenderClient {
                                    sender: string|null = null): Promise<string> {
         return (await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse>({
             eventName: "matrix.message",
-            sender: "GithubBridge",
+            sender: "Bridge",
             data: {
                 roomId,
                 type: eventType,

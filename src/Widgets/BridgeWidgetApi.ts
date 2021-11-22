@@ -3,7 +3,7 @@ import cors from "cors";
 import { AdminRoom } from "../AdminRoom";
 import LogWrapper from "../LogWrapper";
 
-const log = new LogWrapper("GithubBridge");
+const log = new LogWrapper("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
     private app: Application;

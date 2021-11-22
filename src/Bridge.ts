@@ -28,9 +28,9 @@ import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher"
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
-const log = new LogWrapper("GithubBridge");
+const log = new LogWrapper("Bridge");
 
-export class GithubBridge {
+export class Bridge {
     private readonly as: Appservice;
     private readonly storage: IBridgeStorageProvider;
     private readonly messageClient: MessageSenderClient;
@@ -325,7 +325,7 @@ export class GithubBridge {
             const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
             await this.queue.push<boolean>({
                 data: !!(adminRoom),
-                sender: "GithubBridge",
+                sender: "Bridge",
                 messageId: msg.messageId,
                 eventName: "response.oauth.response",
             });
@@ -789,7 +789,7 @@ export class GithubBridge {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
                 await this.queue.push<NotificationsEnableEvent>({
                     eventName: "notifications.user.enable",
-                    sender: "GithubBridge",
+                    sender: "Bridge",
                     data: {
                         userId: adminRoom.userId,
                         roomId: adminRoom.roomId,
@@ -806,7 +806,7 @@ export class GithubBridge {
         } else if (oldSettings.github?.notifications?.enabled && !settings.github?.notifications?.enabled) {
             await this.queue.push<NotificationsDisableEvent>({
                 eventName: "notifications.user.disable",
-                sender: "GithubBridge",
+                sender: "Bridge",
                 data: {
                     userId: adminRoom.userId,
                     type: "github",
@@ -822,7 +822,7 @@ export class GithubBridge {
                 log.info(`GitLab ${instanceName} notifications enabled for ${adminRoom.userId}`);
                 await this.queue.push<NotificationsEnableEvent>({
                     eventName: "notifications.user.enable",
-                    sender: "GithubBridge",
+                    sender: "Bridge",
                     data: {
                         userId: adminRoom.userId,
                         roomId: adminRoom.roomId,
@@ -837,7 +837,7 @@ export class GithubBridge {
                 log.info(`GitLab ${instanceName} notifications disabled for ${adminRoom.userId}`);
                 await this.queue.push<NotificationsDisableEvent>({
                     eventName: "notifications.user.disable",
-                    sender: "GithubBridge",
+                    sender: "Bridge",
                     data: {
                         userId: adminRoom.userId,
                         type: "gitlab",

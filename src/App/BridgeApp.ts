@@ -1,4 +1,4 @@
-import { GithubBridge } from "../GithubBridge";
+import { Bridge } from "../Bridge";
 import LogWrapper from "../LogWrapper";
 
 import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
@@ -24,7 +24,7 @@ async function start() {
         userNotificationWatcher.start();
     }
 
-    const bridgeApp = new GithubBridge(config, registration);
+    const bridgeApp = new Bridge(config, registration);
 
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");
