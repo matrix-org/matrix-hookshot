@@ -141,7 +141,7 @@ export class GitHubRepoConnection implements IConnection {
             ],
         };
     }
-    
+
     static helpMessage: (cmdPrefix: string) => MatrixMessageContent;
     static botCommands: BotCommands;
 
@@ -286,8 +286,11 @@ export class GitHubRepoConnection implements IConnection {
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        
-        const content = emoji.emojify(`${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
+
+        let message = `${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        message = message + (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
+        const content = emoji.emojify(message);
+        const { labelsHtml, labelsStr } = FormatUtil.formatLabels(event.issue.labels);
         const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -388,7 +391,7 @@ export class GitHubRepoConnection implements IConnection {
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
-        });    
+        });
     }
 
     public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {

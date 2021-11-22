@@ -5,6 +5,8 @@ node_modules/
 public/
 registration.yml
 tsconfig.tsbuildinfo
+public/
 
+.idea
 # Added by cargo
 /target
