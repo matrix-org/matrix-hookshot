@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
+  lint-node:
    runs-on: ubuntu-latest
    steps:
     - uses: actions/checkout@v2
@@ -19,6 +19,16 @@ jobs:
         node-version: 16
     - run: yarn --ignore-scripts
     - run: yarn lint
+  lint-rust:
+   runs-on: ubuntu-latest
+   steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt
+    - run: cargo fmt
   config:
     runs-on: ubuntu-latest
     steps:
@@ -41,8 +51,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node_version }}
-      - name: Install stable rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions-rs/toolchain@v1
         with:
             toolchain: stable
             profile: minimal
