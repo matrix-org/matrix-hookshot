@@ -89,12 +89,12 @@ describe("FormatUtilTest", () => {
     it("should correctly format a JIRA issue", () => {
         expect(FormatUtil.getPartialBodyForJiraIssue(SIMPLE_JIRA_ISSUE)).to.deep.equal({
                 "external_url": "http://example-api.url.com/browse/TEST-001",
-                "uk.half-shot.matrix-github.jira.issue": {
+                "uk.half-shot.matrix-hookshot.jira.issue": {
                     "api_url": "http://example-api.url.com/issue-url",
                     "id": "test-issue",
                     "key": "TEST-001",
                 },
-                "uk.half-shot.matrix-github.jira.project": {
+                "uk.half-shot.matrix-hookshot.jira.project": {
                     "api_url": "http://example-api.url.com/project-url",
                     "id": "test-project",
                     "key": "TEST",

@@ -3,7 +3,6 @@ import { ProjectsListResponseData } from './Github/Types';
 import emoji from "node-emoji";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
-import { contrastColor } from "contrast-color";
 import { JiraIssue } from './Jira/Types';
 import { format_util } from "./libRs";
 
@@ -50,7 +49,7 @@ export class FormatUtil {
     public static getPartialBodyForRepo(repo: IMinimalRepository) {
         return {
             "external_url": repo.html_url,
-            "uk.half-shot.matrix-github.repo": {
+            "uk.half-shot.matrix-hookshot.github.repo": {
                 id: repo.id,
                 name: repo.full_name,
                 url: repo.html_url,
@@ -62,7 +61,7 @@ export class FormatUtil {
         return {
             ...FormatUtil.getPartialBodyForRepo(repo),
             "external_url": issue.html_url,
-            "uk.half-shot.matrix-github.issue": {
+            "uk.half-shot.matrix-hookshot.github.issue": {
                 id: issue.id,
                 number: issue.number,
                 title: issue.title,
@@ -78,7 +77,7 @@ export class FormatUtil {
         return {
             ...(issue && repo ? FormatUtil.getPartialBodyForIssue(repo, issue) : undefined),
             "external_url": comment.html_url,
-            "uk.half-shot.matrix-github.comment": {
+            "uk.half-shot.matrix-hookshot.github.comment": {
                 id: comment.id,
             },
         };

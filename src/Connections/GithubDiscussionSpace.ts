@@ -17,10 +17,12 @@ export interface GitHubDiscussionSpaceConnectionState {
  * Handles rooms connected to a github repo.
  */
 export class GitHubDiscussionSpace implements IConnection {
-    static readonly CanonicalEventType = "uk.half-shot.matrix-github.discussion.space";
+    static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.discussion.space";
+    static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.discussion.space";
 
     static readonly EventTypes = [
-        GitHubDiscussionSpace.CanonicalEventType, // Legacy event, with an awful name.
+        GitHubDiscussionSpace.CanonicalEventType,
+        GitHubDiscussionSpace.LegacyCanonicalEventType,
     ];
 
     static readonly QueryRoomRegex = /#github_disc_(.+)_(.+):.*/;
@@ -64,9 +66,6 @@ export class GitHubDiscussionSpace implements IConnection {
                     responseType: 'arraybuffer',
                 });
                 log.info(`uploading ${profile.data.avatar_url}`);
-                // This does exist, but headers is silly and doesn't have content-type.
-                // tslint:disable-next-line: no-any
-                console.log(res.headers);
                 const contentType: string = res.headers["content-type"];
                 const mxcUrl = await opts.as.botClient.uploadContent(
                     Buffer.from(res.data as ArrayBuffer),

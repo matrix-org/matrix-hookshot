@@ -1,14 +1,14 @@
 {
-  "name": "matrix-github",
+  "name": "matrix-hookshot",
   "version": "0.1.0",
   "description": "A bridge that displays GitHub issues/PRs as rooms.",
   "main": "lib/app.js",
-  "repository": "https://github.com/Half-Shot/matrix-github",
+  "repository": "https://github.com/Half-Shot/matrix-hookshot",
   "author": "Half-Shot",
   "license": "MIT",
   "private": false,
   "napi": {
-    "name": "matrix-github-rs"
+    "name": "matrix-hookshot-rs"
   },
   "engines": {
     "node": ">=12"

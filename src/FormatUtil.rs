@@ -152,7 +152,7 @@ pub fn get_partial_body_for_jira_issue(ctx: CallContext) -> Result<JsObject, Nap
             .create_string_from_std(jira_issue.fields.project._self)?,
     )?;
 
-    body.set_named_property("uk.half-shot.matrix-github.jira.issue", jira_issue_result)?;
-    body.set_named_property("uk.half-shot.matrix-github.jira.project", jira_project)?;
+    body.set_named_property("uk.half-shot.matrix-hookshot.jira.issue", jira_issue_result)?;
+    body.set_named_property("uk.half-shot.matrix-hookshot.jira.project", jira_project)?;
     Ok(body)
 }

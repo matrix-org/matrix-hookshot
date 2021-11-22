@@ -23,7 +23,7 @@ export class GitLabClient {
         return {
             headers: {
                 "Authorization": `Bearer ${this.token}`,
-                "User-Agent": "matrix-github v0.0.1",
+                "User-Agent": "matrix-hookshot v0.0.1",
             },
             baseURL: this.instanceUrl
         };
