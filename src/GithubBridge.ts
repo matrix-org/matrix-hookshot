@@ -31,31 +31,51 @@ import LogWrapper from "./LogWrapper";
 const log = new LogWrapper("GithubBridge");
 
 export class GithubBridge {
+    private readonly as: Appservice;
+    private readonly storage: IBridgeStorageProvider;
+    private readonly messageClient: MessageSenderClient;
+    private readonly queue: MessageQueue;
+    private readonly commentProcessor: CommentProcessor;
+    private readonly notifProcessor: NotificationProcessor;
+    private readonly tokenStore: UserTokenStore;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
-    private as!: Appservice;
     private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private commentProcessor!: CommentProcessor;
-    private notifProcessor!: NotificationProcessor;
-    private queue!: MessageQueue;
-    private tokenStore!: UserTokenStore;
-    private messageClient!: MessageSenderClient;
-    private widgetApi!: BridgeWidgetApi;
+    private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
 
     private ready = false;
 
-    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) { }
+    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) {
+        if (this.config.queue.host && this.config.queue.port) {
+            log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
+            this.storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
+        } else {
+            log.info('Initialising memory storage');
+            this.storage = new MemoryStorageProvider();
+        }
+        this.as = new Appservice({
+            homeserverName: this.config.bridge.domain,
+            homeserverUrl: this.config.bridge.url,
+            port: this.config.bridge.port,
+            bindAddress: this.config.bridge.bindAddress,
+            registration: this.registration,
+            storage: this.storage,
+        });
+        this.queue = createMessageQueue(this.config);
+        this.messageClient = new MessageSenderClient(this.queue);
+        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
+        this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
+        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent);
+    }
 
     public stop() {
         this.as.stop();
-        if(this.queue.stop) this.queue.stop();
+        if (this.queue.stop) this.queue.stop();
     }
 
     public async start() {
         log.info('Starting up');
-        this.queue = createMessageQueue(this.config);
-        this.messageClient = new MessageSenderClient(this.queue);
 
         if (!this.config.github && !this.config.gitlab) {
             log.error("You haven't configured support for GitHub or GitLab!");
@@ -67,27 +87,6 @@ export class GithubBridge {
             await this.github.start();
         }
 
-        let storage: IBridgeStorageProvider;
-        if (this.config.queue.host && this.config.queue.port) {
-            log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
-            storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
-        } else {
-            log.info('Initialising memory storage');
-            storage = new MemoryStorageProvider();
-        }
-
-
-        this.notifProcessor = new NotificationProcessor(storage, this.messageClient);
-
-        this.as = new Appservice({
-            homeserverName: this.config.bridge.domain,
-            homeserverUrl: this.config.bridge.url,
-            port: this.config.bridge.port,
-            bindAddress: this.config.bridge.bindAddress,
-            registration: this.registration,
-            storage,
-        });
-
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
 
@@ -95,7 +94,7 @@ export class GithubBridge {
             log.info(`Loading pantalaimon client`);
             const pan = new PantalaimonClient(
                 this.config.bridge.pantalaimon.url,
-                storage,
+                this.storage,
             );
             this.encryptedMatrixClient = await pan.createClientWithCredentials(
                 this.config.bridge.pantalaimon.username,
@@ -109,11 +108,7 @@ export class GithubBridge {
             log.info(`Pan client is syncing`);
         }
 
-        this.widgetApi = new BridgeWidgetApi(this.adminRooms);
 
-        this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
-
-        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent);
         await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.github);
@@ -219,8 +214,9 @@ export class GithubBridge {
             const connections = connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             connections.map(async (c) => {
                 try {
-                    if (c instanceof GitHubIssueConnection || c instanceof GitHubRepoConnection)
+                    if (c.onIssueStateChange) {
                         await c.onIssueStateChange(data);
+                    }
                 } catch (ex) {
                     log.warn(`Connection ${c.toString()} failed to handle github.issues.reopened:`, ex);
                 }
@@ -228,7 +224,7 @@ export class GithubBridge {
         });
 
         this.queue.on<GitHubWebhookTypes.IssuesEditedEvent>("github.issues.edited", async ({ data }) => {
-            const { repository, issue, owner } = validateRepoIssue(data);
+            const { repository, owner } = validateRepoIssue(data);
             const connections = connManager.getConnectionsForGithubRepo(owner, repository.name);
             connections.map(async (c) => {
                 try {

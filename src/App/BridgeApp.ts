@@ -5,7 +5,6 @@ import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
 import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
-
 LogWrapper.configureLogging("debug");
 const log = new LogWrapper("App");
 

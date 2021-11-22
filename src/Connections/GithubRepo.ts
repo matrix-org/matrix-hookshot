@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
-import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
-import markdown from "markdown-it";
-import { UserTokenStore } from "../UserTokenStore";
-import LogWrapper from "../LogWrapper";
-import { CommentProcessor } from "../CommentProcessor";
-import { Octokit } from "@octokit/rest";
-import { MessageSenderClient } from "../MatrixSender";
-import { FormatUtil } from "../FormatUtil";
-import axios from "axios";
 import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
-import { ReposGetResponseData } from "../Github/Types";
-import { IssuesOpenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
-import emoji from "node-emoji";
+import { CommentProcessor } from "../CommentProcessor";
+import { FormatUtil } from "../FormatUtil";
+import { IConnection } from "./IConnection";
+import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
+import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
+import { MessageSenderClient } from "../MatrixSender";
 import { NotLoggedInError } from "../errors";
+import { Octokit } from "@octokit/rest";
+import { ReposGetResponseData } from "../Github/Types";
+import { UserTokenStore } from "../UserTokenStore";
+import axios from "axios";
+import emoji from "node-emoji";
+import LogWrapper from "../LogWrapper";
+import markdown from "markdown-it";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -300,7 +300,7 @@ export class GitHubRepoConnection implements IConnection {
         });
     }
 
-    public async onIssueStateChange(event: IssuesEditedEvent) {
+    public async onIssueStateChange(event: IssuesEditedEvent|IssuesReopenedEvent|IssuesClosedEvent) {
         if (this.shouldSkipHook('issue.changed', 'issue')) {
             return;
         }

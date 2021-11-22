@@ -156,11 +156,11 @@ export class ConnectionManager {
         return connections;
     }
 
-    public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitLabRepoConnection)[] {
+    public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
         org = org.toLowerCase();
         repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber) ||
-            (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitLabRepoConnection)[];
+            (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitHubRepoConnection)[];
     }
 
     public getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
