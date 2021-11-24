@@ -67,6 +67,11 @@ const DefaultConfig = new BridgeConfig({
     generic: {
         enabled: false,
         allowJsTransformationFunctions: false,
+    },
+    provisioning: {
+        host: "127.0.0.1",
+        port: 9001,
+        secret: "!secretToken"
     }
 }, {});
 

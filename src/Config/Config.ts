@@ -89,6 +89,12 @@ interface BridgeConfigBot {
     avatar?: string;
 }
 
+export interface BridgeConfigProvisioning {
+    host?: string;
+    port: number;
+    secret: string;
+}
+
 interface BridgeConfigRoot {
     bridge: BridgeConfigBridge;
     webhook: BridgeConfigWebhook;
@@ -97,6 +103,7 @@ interface BridgeConfigRoot {
     passFile: string;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
+    provisioning?: BridgeConfigProvisioning;
     jira?: BridgeConfigJira;
     bot?: BridgeConfigBot;
     widgets?: BridgeWidgetConfig;
@@ -127,6 +134,8 @@ export class BridgeConfig {
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;
+    @configKey("Provisioning API for integration managers", true)
+    public readonly provisioning?: BridgeConfigProvisioning;
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;

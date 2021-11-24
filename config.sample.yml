@@ -42,7 +42,7 @@ generic:
 webhook:
   # HTTP webhook listener options
   #
-  port: 9000
+  port: 5061
   bindAddress: 0.0.0.0
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
