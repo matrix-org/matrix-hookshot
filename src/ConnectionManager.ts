@@ -12,6 +12,7 @@ import { GenericHookConnection } from "./Connections/GenericHook";
 import { JiraProjectConnection } from "./Connections/JiraProject";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
+import { JiraProject } from "./Jira/Types";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./UserTokenStore";
@@ -41,7 +42,8 @@ export class ConnectionManager {
     public push(...connections: IConnection[]) {
         // NOTE: Double loop
         for (const connection of connections) {
-            if (this.connections.find((c) => c !== connection)) {
+            if (!this.connections.find((c) => c === connection)) {
+                console.log("PUSH!");
                 this.connections.push(connection);
             }
         }
@@ -49,8 +51,8 @@ export class ConnectionManager {
     }
 
     public async createConnectionForState(roomId: string, state: StateEvent<any>) {
-        log.debug(`Looking to create connection for ${roomId}`);
-        if (state.content.disabled === false) {
+        log.debug(`Looking to create connection for ${roomId} ${state.type}`);
+        if (state.content.disabled === true) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
@@ -128,10 +130,11 @@ export class ConnectionManager {
         }
 
         if (JiraProjectConnection.EventTypes.includes(state.type)) {
+            console.log("WOOF", state);
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
-            return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient);
+            return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient, this.tokenStore);
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
@@ -227,9 +230,14 @@ export class ConnectionManager {
         return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
     }
 
-    public getConnectionsForJiraProject(projectId: string, eventName: string): JiraProjectConnection[] {
-        return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.projectId === projectId && c.isInterestedInHookEvent(eventName))) as JiraProjectConnection[];
+    public getConnectionsForJiraProject(project: JiraProject, eventName: string): JiraProjectConnection[] {
+        console.log(this.connections);
+        return this.connections.filter((c) => 
+            (c instanceof JiraProjectConnection &&
+                c.interestedInProject(project) &&
+                c.isInterestedInHookEvent(eventName))) as JiraProjectConnection[];
     }
+
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {
         return this.connections.filter((c) => (c instanceof GenericHookConnection && c.hookId === hookId)) as GenericHookConnection[];

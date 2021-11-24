@@ -97,18 +97,19 @@ interface BridgeConfigBot {
     avatar?: string;
 }
 
+
 interface BridgeConfigRoot {
+    bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
-    webhook: BridgeConfigWebhook;
-    queue: BridgeConfigQueue;
-    logging: BridgeConfigLogging;
-    passFile: string;
+    generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
     jira?: BridgeConfigJira;
-    bot?: BridgeConfigBot;
+    logging: BridgeConfigLogging;
+    passFile: string;
+    queue: BridgeConfigQueue;
+    webhook: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfig;
-    generic?: BridgeGenericWebhooksConfig;
 }
 
 export class BridgeConfig {

@@ -18,11 +18,10 @@ export interface GenericWebhookEvent {
 }
 
 export interface OAuthRequest {
-    code: string;
     state: string;
 }
 
-export interface OAuthTokens {
+export interface GitHubOAuthTokens {
     // eslint-disable-next-line camelcase
     access_token: string;
     // eslint-disable-next-line camelcase
@@ -216,7 +215,6 @@ export class Webhooks extends EventEmitter {
                 eventName: "oauth.response",
                 sender: "GithubWebhooks",
                 data: {
-                    code: req.query.code as string,
                     state: req.query.state as string,
                 },
             });
@@ -233,7 +231,7 @@ export class Webhooks extends EventEmitter {
             })}`);
             // eslint-disable-next-line camelcase
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
-            await this.queue.push<OAuthTokens>({
+            await this.queue.push<GitHubOAuthTokens>({
                 eventName: "oauth.tokens",
                 sender: "GithubWebhooks",
                 data: { state: req.query.state as string, ... result },

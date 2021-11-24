@@ -1,12 +1,17 @@
+import { GithubInstance } from "./Github/GithubInstance";
+import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
+import JiraApi from 'jira-client';
 import LogWrapper from "./LogWrapper";
-import { GitLabClient } from "./Gitlab/Client";
-import { GithubInstance } from "./Github/GithubInstance";
+import { JiraClient } from "./Jira/Client";
+import { JiraOAuthResult } from "./Jira/Types";
+import { BridgeConfig } from "./Config/Config";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
+const ACCOUNT_DATA_JIRA_TYPE = "uk.half-shot.matrix-hookshot.jira.password-store:";
 
 const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
@@ -19,16 +24,20 @@ function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?:
     if (type === "github") {
         return `${legacy ? LEGACY_ACCOUNT_DATA_TYPE : ACCOUNT_DATA_TYPE}${userId}`;
     }
+    if (type === "jira") {
+        return `${ACCOUNT_DATA_JIRA_TYPE}${userId}`;
+    }
     if (!instanceUrl) {
         throw Error(`Expected instanceUrl for ${type}`);
     }
     return `${legacy ? LEGACY_ACCOUNT_DATA_GITLAB_TYPE : ACCOUNT_DATA_GITLAB_TYPE}${instanceUrl}${userId}`;
 }
 
+const MAX_TOKEN_PART_SIZE = 128;
 export class UserTokenStore {
     private key!: Buffer;
     private userTokens: Map<string, string>;
-    constructor(private keyPath: string, private intent: Intent) {
+    constructor(private keyPath: string, private intent: Intent, private config: BridgeConfig) {
         this.userTokens = new Map();
     }
 
@@ -39,8 +48,14 @@ export class UserTokenStore {
 
     public async storeUserToken(type: TokenType, userId: string, token: string, instanceUrl?: string): Promise<void> {
         const key = tokenKey(type, userId, false, instanceUrl);
+        const tokenParts: string[] = [];
+        while (token && token.length > 0) {
+            const part = token.slice(0, MAX_TOKEN_PART_SIZE);
+            token = token.substring(MAX_TOKEN_PART_SIZE);
+            tokenParts.push(publicEncrypt(this.key, Buffer.from(part)).toString("base64"));
+        }
         const data = {
-            encrypted: publicEncrypt(this.key, Buffer.from(token)).toString("base64"),
+            encrypted: tokenParts,
             instance: instanceUrl,
         };
         await this.intent.underlyingClient.setAccountData(key, data);
@@ -58,16 +73,15 @@ export class UserTokenStore {
         try {
             let obj;
             if (AllowedTokenTypes.includes(type)) {
-                obj = await this.intent.underlyingClient.getSafeAccountData<{encrypted: string}>(key);
+                obj = await this.intent.underlyingClient.getSafeAccountData<{encrypted: string|string[]}>(key);
                 if (!obj) {
-                    obj = await this.intent.underlyingClient.getAccountData<{encrypted: string}>(tokenKey(type, userId, true, instanceUrl));
+                    obj = await this.intent.underlyingClient.getAccountData<{encrypted: string|string[]}>(tokenKey(type, userId, true, instanceUrl));
                 }
             } else {
                 throw Error('Unknown type');
             }
-            const encryptedTextB64 = obj.encrypted;
-            const encryptedText = Buffer.from(encryptedTextB64, "base64");
-            const token = privateDecrypt(this.key, encryptedText).toString("utf-8");
+            const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
+            const token = encryptedParts.map((t) => privateDecrypt(this.key, Buffer.from(t, "base64")).toString("utf-8")).join("");
             this.userTokens.set(key, token);
             return token;
         } catch (ex) {
@@ -93,5 +107,19 @@ export class UserTokenStore {
             return null;
         }
         return new GitLabClient(instanceUrl, senderToken);
+    }
+
+    public async getJiraForUser(userId: string) {
+        if (!this.config.jira?.oauth) {
+            throw Error('Jira not configured');
+        }
+        const jsonData = await this.getUserToken("jira", userId);
+        if (!jsonData) {
+            return null;
+        }
+        // TODO: Hacks
+        return new JiraClient(JSON.parse(jsonData) as JiraOAuthResult, (data) => {
+            return this.storeUserToken('jira', userId, JSON.stringify(data));
+        }, this.config.jira);
     }
 }

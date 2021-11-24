@@ -62,7 +62,12 @@ const DefaultConfig = new BridgeConfig({
     jira: {
         webhook: {
             secret: 'secrettoken'
-        }
+        },
+        oauth: {
+            client_id: "foo",
+            client_secret: "bar",
+            redirect_uri: "https://example.com/bridge_oauth/",
+        },
     },
     generic: {
         enabled: false,
