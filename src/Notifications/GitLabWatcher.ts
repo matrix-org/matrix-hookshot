@@ -32,6 +32,5 @@ export class GitLabWatcher extends EventEmitter implements NotificationWatcherTa
         const events = await this.client.getEvents({
             after: new Date(this.since)
         });
-        console.log(events);
     }
 }

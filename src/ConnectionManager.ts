@@ -43,7 +43,6 @@ export class ConnectionManager {
         // NOTE: Double loop
         for (const connection of connections) {
             if (!this.connections.find((c) => c === connection)) {
-                console.log("PUSH!");
                 this.connections.push(connection);
             }
         }
@@ -130,7 +129,6 @@ export class ConnectionManager {
         }
 
         if (JiraProjectConnection.EventTypes.includes(state.type)) {
-            console.log("WOOF", state);
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
@@ -231,7 +229,6 @@ export class ConnectionManager {
     }
 
     public getConnectionsForJiraProject(project: JiraProject, eventName: string): JiraProjectConnection[] {
-        console.log(this.connections);
         return this.connections.filter((c) => 
             (c instanceof JiraProjectConnection &&
                 c.interestedInProject(project) &&

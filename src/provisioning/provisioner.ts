@@ -129,7 +129,6 @@ export class Provisioner {
     private async getConnections(req: Request<{roomId: string}>, res: Response<GetConnectionsResponseItem[]>, next: NextFunction) {
         try {
             const connections = await this.connMan.getAllConnectionsForRoom(req.params.roomId);
-            console.log(connections);
             const details = connections.map(c => c.getProvisionerDetails?.()).filter(c => !!c) as GetConnectionsResponseItem[];
             return res.send(details);
         } catch (ex) {
