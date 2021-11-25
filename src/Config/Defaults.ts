@@ -4,7 +4,7 @@ import { getConfigKeyMetadata } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
 import { randomBytes } from "crypto";
 
-const DefaultConfig = new BridgeConfig({
+export const DefaultConfig = new BridgeConfig({
     bridge: {
         domain: "example.com",
         url: "http://localhost:8008",
