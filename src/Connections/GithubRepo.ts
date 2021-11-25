@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Appservice } from "matrix-bot-sdk";
-import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
+import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
 import { IConnection } from "./IConnection";
@@ -15,6 +15,7 @@ import axios from "axios";
 import emoji from "node-emoji";
 import LogWrapper from "../LogWrapper";
 import markdown from "markdown-it";
+import { CommandConnection } from "./CommandConnection";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -57,7 +58,7 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubRepoConnection implements IConnection {
+export class GitHubRepoConnection extends CommandConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.repository";
 
@@ -145,12 +146,18 @@ export class GitHubRepoConnection implements IConnection {
     static helpMessage: (cmdPrefix: string) => MatrixMessageContent;
     static botCommands: BotCommands;
 
-    constructor(public readonly roomId: string,
+    constructor(roomId: string,
         private readonly as: Appservice,
         private readonly state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly stateKey: string) {
-
+            super(
+                roomId,
+                as.botClient,
+                GitHubRepoConnection.botCommands,
+                GitHubRepoConnection.helpMessage,
+                state.commandPrefix || "!gh"
+            );
     }
 
     public get org() {
@@ -161,47 +168,9 @@ export class GitHubRepoConnection implements IConnection {
         return this.state.repo.toLowerCase();
     }
 
-    private get commandPrefix() {
-        return (this.state.commandPrefix || "!gh") + " ";
-    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
-    }
-
-    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        const { error, handled, humanError } = await handleCommand(ev.sender, ev.content.body, GitHubRepoConnection.botCommands, this, this.commandPrefix);
-        if (!handled) {
-            // Not for us.
-            return;
-        }
-        if (error) {
-            await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
-                "m.relates_to": {
-                    rel_type: "m.annotation",
-                    event_id: ev.event_id,
-                    key: "⛔",
-                }
-            });
-            await this.as.botIntent.sendEvent(this.roomId,{
-                msgtype: "m.notice",
-                body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command",
-            });
-            log.warn(`Failed to handle command:`, error);
-            return;
-        }
-        await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
-            "m.relates_to": {
-                rel_type: "m.annotation",
-                event_id: ev.event_id,
-                key: "✅",
-            }
-        });
-    }
-
-    @botCommand("help", "This help text")
-    public async helpCommand() {
-        return this.as.botIntent.sendEvent(this.roomId, GitHubRepoConnection.helpMessage(this.commandPrefix));
     }
 
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
@@ -539,6 +508,6 @@ ${event.release.body}`;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const res = compileBotCommands(GitHubRepoConnection.prototype as any);
+const res = compileBotCommands(GitHubRepoConnection.prototype as any, CommandConnection.prototype as any);
 GitHubRepoConnection.helpMessage = res.helpMessage;
 GitHubRepoConnection.botCommands = res.botCommands;

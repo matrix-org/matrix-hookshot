@@ -1,4 +1,4 @@
-import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
+import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
 import { BridgeConfig, BridgeConfigProvisioning, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
@@ -13,14 +13,14 @@ import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
-import { JiraIssueEvent } from "./Jira/WebhookTypes";
+import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { OAuthRequest, OAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
+import { OAuthRequest, GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
 import { ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
@@ -29,6 +29,8 @@ import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
 import { Provisioner } from "./provisioning/provisioner";
+import { JiraOAuthResult } from "./Jira/Types";
+import { AdminAccountData } from "./AdminRoomCommandHandler";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -68,7 +70,7 @@ export class Bridge {
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
-        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent);
+        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
     }
 
     public stop() {
@@ -150,6 +152,7 @@ export class Bridge {
         this.queue.subscribe("notifications.user.events");
         this.queue.subscribe("github.*");
         this.queue.subscribe("gitlab.*");
+        this.queue.subscribe("jira.*");
 
         const validateRepoIssue = (data: GitHubWebhookTypes.IssuesEvent|GitHubWebhookTypes.IssueCommentEvent) => {
             if (!data.repository || !data.issue) {
@@ -339,7 +342,7 @@ export class Bridge {
             });
         });
 
-        this.queue.on<OAuthTokens>("oauth.tokens", async (msg) => {
+        this.queue.on<GitHubOAuthTokens>("oauth.tokens", async (msg) => {
             const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
             if (!adminRoom) {
                 log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
@@ -436,8 +439,7 @@ export class Bridge {
 
         this.queue.on<JiraIssueEvent>("jira.issue_created", async ({data}) => {
             log.info(`JIRA issue created for project ${data.issue.fields.project.id}, issue id ${data.issue.id}`);
-            const projectId = data.issue.fields.project.id;
-            const connections = connManager.getConnectionsForJiraProject(projectId, "jira.issue_created");
+            const connections = connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_created");
 
             connections.forEach(async (c) => {
                 try {
@@ -447,7 +449,42 @@ export class Bridge {
                 }
             });
         });
+
+        this.queue.on<JiraIssueEvent>("jira.issue_updated", async ({data}) => {
+            log.info(`JIRA issue created for project ${data.issue.fields.project.id}, issue id ${data.issue.id}`);
+            const connections = connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_updated");
+
+            connections.forEach(async (c) => {
+                try {
+                    await c.onJiraIssueUpdated(data as JiraIssueUpdatedEvent);
+                } catch (ex) {
+                    log.warn(`Failed to handle jira.issue_updated:`, ex);
+                }
+            });
+        });
     
+    
+        this.queue.on<OAuthRequest>("jira.oauth.response", async (msg) => {
+            const adminRoom = [...this.adminRooms.values()].find((r) => r.jiraOAuthState === msg.data.state);
+            await this.queue.push<boolean>({
+                data: !!(adminRoom),
+                sender: "Bridge",
+                messageId: msg.messageId,
+                eventName: "response.jira.oauth.response",
+            });
+        });
+
+        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async (msg) => {
+            const adminRoom = [...this.adminRooms.values()].find((r) => r.jiraOAuthState === msg.data.state);
+            if (!adminRoom) {
+                log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
+                return;
+            }
+            adminRoom.clearJiraOauthState();
+            await this.tokenStore.storeUserToken("jira", adminRoom.userId, JSON.stringify(msg.data));
+            await adminRoom.sendNotice(`Logged into Jira`);
+        });
+
         this.queue.on<GenericWebhookEvent>("generic-webhook.event", async ({data}) => {
             log.info(`Incoming generic hook ${data.hookId}`);
             const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
@@ -512,12 +549,20 @@ export class Bridge {
 
             // TODO: Refactor this to be a connection
             try {
-                const accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                let accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                     BRIDGE_ROOM_TYPE, roomId,
                 );
                 if (!accountData) {
-                    log.debug(`Room ${roomId} has no connections and is not an admin room`);
-                    continue;
+                    accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                        LEGACY_BRIDGE_ROOM_TYPE, roomId,
+                    );
+                    if (!accountData) {
+                        log.debug(`Room ${roomId} has no connections and is not an admin room`);
+                        continue;
+                    } else {
+                        // Upgrade the room
+                        await this.as.botClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
+                    }
                 }
 
                 let notifContent;

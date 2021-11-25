@@ -29,6 +29,7 @@
     "generate-default-config": "node lib/Config/Defaults.js --config > config.sample.yml"
   },
   "dependencies": {
+    "@alloc/quick-lru": "^5.2.0",
     "@octokit/auth-app": "^3.3.0",
     "@octokit/auth-token": "^2.4.5",
     "@octokit/rest": "^18.10.0",
@@ -37,6 +38,7 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "ioredis": "^4.28.0",
+    "jira-client": "^8.0.0",
     "markdown-it": "^12.2.0",
     "matrix-bot-sdk": "^0.5.19",
     "matrix-widget-api": "^0.1.0-beta.17",
@@ -66,6 +68,7 @@
     "@types/node": "^12",
     "@types/node-emoji": "^1.8.1",
     "@types/uuid": "^8.3.3",
+    "@types/jira-client": "^7.1.0",
     "@typescript-eslint/eslint-plugin": "^5.4.0",
     "@typescript-eslint/parser": "^5.4.0",
     "chai": "^4.3.4",

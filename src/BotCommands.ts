@@ -25,24 +25,26 @@ export type BotCommands = {[prefix: string]: {
     includeUserId: boolean,
 }};
 
-export function compileBotCommands(prototype: Record<string, BotCommandFunction>): {helpMessage: (cmdPrefix?: string) => MatrixMessageContent, botCommands: BotCommands} {
+export function compileBotCommands(...prototypes: Record<string, BotCommandFunction>[]): {helpMessage: (cmdPrefix?: string) => MatrixMessageContent, botCommands: BotCommands} {
     let content = "Commands:\n";
     const botCommands: BotCommands = {};
-    Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
-        const b = Reflect.getMetadata(botCommandSymbol, prototype, propetyKey);
-        if (b) {
-            const requiredArgs = b.requiredArgs.join(" ");
-            const optionalArgs = b.optionalArgs.map((arg: string) =>  `[${arg}]`).join(" ");
-            content += ` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}\n`;
-            // We know that this is safe.
-            botCommands[b.prefix as string] = {
-                fn: prototype[propetyKey],
-                requiredArgs: b.requiredArgs,
-                optionalArgs: b.optionalArgs,
-                includeUserId: b.includeUserId,
-            };
-        }
-    });
+    prototypes.forEach(prototype => {
+        Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
+            const b = Reflect.getMetadata(botCommandSymbol, prototype, propetyKey);
+            if (b) {
+                const requiredArgs = b.requiredArgs.join(" ");
+                const optionalArgs = b.optionalArgs.map((arg: string) =>  `[${arg}]`).join(" ");
+                content += ` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}\n`;
+                // We know that this is safe.
+                botCommands[b.prefix as string] = {
+                    fn: prototype[propetyKey],
+                    requiredArgs: b.requiredArgs,
+                    optionalArgs: b.optionalArgs,
+                    includeUserId: b.includeUserId,
+                };
+            }
+        });
+    })
     return {
         helpMessage: (cmdPrefix?: string) => ({
             msgtype: "m.notice",

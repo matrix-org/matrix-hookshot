@@ -4,7 +4,6 @@ import { UserTokenStore } from "./UserTokenStore";
 import { BridgeConfig } from "./Config/Config";
 import {v4 as uuid} from "uuid";
 import qs from "querystring";
-import { EventEmitter } from "events";
 import LogWrapper from "./LogWrapper";
 import "reflect-metadata";
 import markdown from "markdown-it";
@@ -18,6 +17,8 @@ import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetIn
 import { Endpoints } from "@octokit/types";
 import { ProjectsListResponseData } from "./Github/Types";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
+import { JiraBotCommands } from "./Jira/AdminCommands";
+import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
 
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
@@ -33,50 +34,24 @@ export const LEGACY_BRIDGE_GITLAB_NOTIF_TYPE = "uk.half-shot.matrix-github.gitla
 export const BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-hookshot.github.room";
 export const BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-hookshot.github.notif_state";
 export const BRIDGE_GITLAB_NOTIF_TYPE = "uk.half-shot.matrix-hookshot.gitlab.notif_state";
-export interface AdminAccountData {
-    // eslint-disable-next-line camelcase
-    admin_user: string;
-    github?: {
-        notifications?: {
-            enabled: boolean;
-            participating?: boolean;
-        };
-    };
-    gitlab?: {
-        [instanceUrl: string]: {
-            notifications: {
-                enabled: boolean;
-            }
-        }
-    }
-}
-
-export class AdminRoom extends EventEmitter {
+export class AdminRoom extends AdminRoomCommandHandler {
     public static helpMessage: () => MatrixMessageContent;
-    private widgetAccessToken = `abcdef`;
+    protected widgetAccessToken = `abcdef`;
     static botCommands: BotCommands;
 
-    private pendingOAuthState: string|null = null;
+    protected pendingOAuthState: string|null = null;
     public readonly notifFilter: NotifFilter;
 
-    constructor(public readonly roomId: string,
-                private data: AdminAccountData,
+    constructor(roomId: string,
+                data: AdminAccountData,
                 notifContent: NotificationFilterStateContent,
-                private botIntent: Intent,
-                private tokenStore: UserTokenStore,
-                private config: BridgeConfig) {
-        super();
+                botIntent: Intent,
+                tokenStore: UserTokenStore,
+                config: BridgeConfig) {
+        super(botIntent, roomId, tokenStore, config, data);
         this.notifFilter = new NotifFilter(notifContent);
         // TODO: Move this
         this.backfillAccessToken();
-    }
-
-    public get accountData() {
-        return {...this.data};
-    }
-
-    public get userId() {
-        return this.data.admin_user;
     }
 
     public get oauthState() {
@@ -154,10 +129,6 @@ export class AdminRoom extends EventEmitter {
         return this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId, {
             since,
         });
-    }
-
-    public async sendNotice(noticeText: string) {
-        return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
     }
 
     @botCommand("help", "This help text")
@@ -654,6 +625,6 @@ export class AdminRoom extends EventEmitter {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const res = compileBotCommands(AdminRoom.prototype as any);
+const res = compileBotCommands(AdminRoom.prototype as any, JiraBotCommands.prototype as any);
 AdminRoom.helpMessage = res.helpMessage;
 AdminRoom.botCommands = res.botCommands;

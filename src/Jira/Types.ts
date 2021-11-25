@@ -1,3 +1,14 @@
+
+export interface JiraIssueType {
+    self: string;
+    id: string;
+    description: string;
+    iconUrl: string;
+    name: string;
+    subtask: boolean;
+    avatarId: number;
+    hierachyLevel: number;
+}
 export interface JiraProject {
     /**
      * URL
@@ -9,6 +20,7 @@ export interface JiraProject {
     projectTypeKey: string;
     simplified: boolean;
     avatarUrls: Record<string, string>;
+    issueTypes?: JiraIssueType[];
 }
 
 export interface JiraAccount {
@@ -54,4 +66,20 @@ export interface JiraIssue {
         status: unknown;
         creator?: JiraAccount;
     }
+}
+
+export interface JiraOAuthResult {
+    state: string;
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    scope: string;
+}
+
+export interface JiraAPIAccessibleResource {
+    id: string;
+    url: string,
+    name: string,
+    scopes: string[],
+    avatarUrl: string,
 }
