@@ -3,12 +3,14 @@ import { Router, Request, Response } from "express";
 import { BridgeConfigJira } from "../Config/Config";
 import LogWrapper from "../LogWrapper";
 import { MessageQueue } from "../MessageQueue/MessageQueue";
+import { UserTokenStore } from "../UserTokenStore";
 import { OAuthRequest } from "../Webhooks";
+import { generateJiraURL } from "./AdminCommands";
 import { JiraOAuthResult } from "./Types";
 
 const log = new LogWrapper("JiraRouter");
 
-export default class JiraRouter {
+export class JiraWebhooksRouter {
     constructor(private readonly config: BridgeConfigJira, private readonly queue: MessageQueue) { }
 
     private async onOAuth(req: Request, res: Response) {
@@ -58,5 +60,22 @@ export default class JiraRouter {
         const router = Router();
         router.get("/oauth", this.onOAuth.bind(this));
         return router;
+    }
+}
+
+
+export class JiraProvisionerRouter {
+    constructor(private readonly config: BridgeConfigJira, private readonly tokenStore: UserTokenStore) { }
+
+    public getRouter() {
+        const router = Router();
+        router.get("/oauth", this.onOAuth.bind(this));
+        return router;
+    }
+
+    private onOAuth(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<{url: string}>) {
+        res.send({
+            url: generateJiraURL(this.config.oauth.client_id, this.config.oauth.redirect_uri, this.tokenStore.createStateForOAuth(req.query.userId))
+        });
     }
 }

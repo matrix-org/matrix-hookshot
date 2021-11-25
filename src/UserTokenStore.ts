@@ -3,11 +3,11 @@ import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
-import JiraApi from 'jira-client';
 import LogWrapper from "./LogWrapper";
 import { JiraClient } from "./Jira/Client";
 import { JiraOAuthResult } from "./Jira/Types";
 import { BridgeConfig } from "./Config/Config";
+import { v4 as uuid } from "uuid";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -34,8 +34,10 @@ function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?:
 }
 
 const MAX_TOKEN_PART_SIZE = 128;
+const OAUTH_TIMEOUT_MS = 1000 * 60 * 30;
 export class UserTokenStore {
     private key!: Buffer;
+    private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
     constructor(private keyPath: string, private intent: Intent, private config: BridgeConfig) {
         this.userTokens = new Map();
@@ -121,5 +123,24 @@ export class UserTokenStore {
         return new JiraClient(JSON.parse(jsonData) as JiraOAuthResult, (data) => {
             return this.storeUserToken('jira', userId, JSON.stringify(data));
         }, this.config.jira);
+    }
+
+    public createStateForOAuth(userId: string): string {
+        const state = uuid();
+        this.oauthSessionStore.set(state, {
+            userId,
+            timeout: setTimeout(() => this.oauthSessionStore.delete(state), OAUTH_TIMEOUT_MS),
+        });
+        return state;
+    }
+
+    public getUserIdForOAuthState(state: string) {
+        const result = this.oauthSessionStore.get(state);
+        if (!result) {
+            return null;
+        }
+        clearTimeout(result.timeout);
+        this.oauthSessionStore.delete(state);
+        return result.userId;
     }
 }

@@ -7,14 +7,13 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
-import { GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection } from "./Connections";
-import { GenericHookConnection } from "./Connections/GenericHook";
-import { JiraProjectConnection } from "./Connections/JiraProject";
+import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
+import { ApiError } from "./provisioning/api";
 import { UserTokenStore } from "./UserTokenStore";
 
 const log = new LogWrapper("ConnectionManager");
@@ -49,8 +48,25 @@ export class ConnectionManager {
         // Already exists, noop.
     }
 
+    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
+        log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
+        const existingConnections = await this.getAllConnectionsForRoom(roomId);
+        if (JiraProjectConnection.EventTypes.includes(type)) {
+            if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
+                // TODO: Support this.
+                throw Error("Cannot support multiple connections of the same type yet");
+            }
+            if (!this.config.jira) {
+                throw Error('JIRA is not configured');
+            }
+            const connection = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
+            this.connections.push(connection);
+            return connection;
+        }
+        throw new ApiError(`Connection type not known`);
+    }
+
     public async createConnectionForState(roomId: string, state: StateEvent<any>) {
-        log.debug(`Looking to create connection for ${roomId} ${state.type}`);
         if (state.content.disabled === true) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
@@ -109,7 +125,7 @@ export class ConnectionManager {
             if (!instance) {
                 throw Error('Instance name not recognised');
             }
-            return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore, instance);
+            return new GitLabRepoConnection(roomId, state.stateKey, this.as, state.content, this.tokenStore, instance);
         }
 
         if (GitLabIssueConnection.EventTypes.includes(state.type)) {
@@ -255,5 +271,22 @@ export class ConnectionManager {
 
     public getInterestedForRoomState(roomId: string, eventType: string, stateKey: string): IConnection[] {
         return this.connections.filter(c => c.roomId === roomId && c.isInterestedInStateEvent(eventType, stateKey));
+    }
+
+    public getConnectionById(roomId: string, connectionId: string) {
+        return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
+    }
+
+    public async removeConnection(roomId: string, connectionId: string) {
+        const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId);
+        if (!connection) {
+            throw Error("Connection not found");
+        }
+        if (!connection.onRemove) {
+            throw Error("Connection doesn't support removal, and so cannot be safely removed");
+        }
+        await connection.onRemove?.();
+        const connectionIndex = this.connections.indexOf(connection);
+        this.connections.splice(connectionIndex, 1);
     }
 }

@@ -23,18 +23,6 @@ export interface AdminAccountData {
 
 
 export abstract class AdminRoomCommandHandler extends EventEmitter {
-
-    // This needs moving to the JIRA specific impl.
-    protected pendingJiraOAuthState: string|null = null;
-
-    public get jiraOAuthState() {
-        return this.pendingJiraOAuthState;
-    }
-
-    public clearJiraOauthState() {
-        this.pendingJiraOAuthState = null;
-    }
-
     public get accountData() {
         return {...this.data};
     }

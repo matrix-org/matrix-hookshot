@@ -9,7 +9,7 @@ import axios from "axios";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
-import JiraRouter from "./Jira/Router";
+import { JiraWebhooksRouter } from "./Jira/Router";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface GenericWebhookEvent {
@@ -73,7 +73,7 @@ export class Webhooks extends EventEmitter {
         this.expressApp.get("/oauth", this.onGitHubGetOauth.bind(this));
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
-            this.expressApp.use("/jira", new JiraRouter(this.config.jira, this.queue).getRouter());
+            this.expressApp.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
         }
         this.queue = createMessageQueue(config);
     }

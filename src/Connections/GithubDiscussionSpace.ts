@@ -128,6 +128,10 @@ export class GitHubDiscussionSpace implements IConnection {
         return this.space.roomId;
     }
 
+    public get connectionId() {
+        return `${this.roomId}/${GitHubDiscussionSpace.CanonicalEventType}/${this.stateKey}`;
+    }
+
     constructor(public readonly space: Space,
         private state: GitHubDiscussionSpaceConnectionState,
         private readonly stateKey: string) {}

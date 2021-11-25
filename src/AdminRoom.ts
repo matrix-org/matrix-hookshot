@@ -19,6 +19,7 @@ import { ProjectsListResponseData } from "./Github/Types";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { JiraBotCommands } from "./Jira/AdminCommands";
 import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
+import { GitHubBotCommands } from "./Github/AdminCommands";
 
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
@@ -167,23 +168,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return;
         }
         await this.sendNotice("A token is stored for your GitHub account.");
-    }
-
-    @botCommand("github startoauth", "Start the OAuth process with GitHub")
-    // @ts-ignore - property is used
-    private async beginOAuth() {
-        if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
-        }
-        // If this is already set, calling this command will invalidate the previous session.
-        this.pendingOAuthState = uuid();
-        const q = qs.stringify({
-            client_id: this.config.github.oauth.client_id,
-            redirect_uri: this.config.github.oauth.redirect_uri,
-            state: this.pendingOAuthState,
-        });
-        const url = `https://github.com/login/oauth/authorize?${q}`;
-        await this.sendNotice(`You should follow ${url} to link your account to the bridge`);
     }
 
     @botCommand("github notifications toggle", "Toggle enabling/disabling GitHub notifications in this room")
@@ -625,6 +609,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const res = compileBotCommands(AdminRoom.prototype as any, JiraBotCommands.prototype as any);
+const res = compileBotCommands(AdminRoom.prototype as any, GitHubBotCommands.prototype as any, JiraBotCommands.prototype as any);
 AdminRoom.helpMessage = res.helpMessage;
 AdminRoom.botCommands = res.botCommands;

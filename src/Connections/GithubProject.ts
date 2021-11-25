@@ -22,6 +22,10 @@ export class GitHubProjectConnection implements IConnection {
         GitHubProjectConnection.LegacyCanonicalEventType,
     ];
 
+    public get connectionId() {
+        return `${this.roomId}/${GitHubProjectConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+
     static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {
         log.info(`Fetching ${project.name} ${project.id}`);
 

@@ -124,6 +124,10 @@ export class GitHubDiscussionConnection implements IConnection {
         return `GitHubDiscussion ${this.owner}/${this.repo}#${this.state.discussion}`;
     }
 
+    public get connectionId() {
+        return `${this.roomId}/${GitHubDiscussionConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+
     public onDiscussionCommentCreated(data: DiscussionCommentCreatedEvent) {
         if (this.sentEvents.has(data.comment.node_id)) {
             return;

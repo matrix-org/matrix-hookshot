@@ -95,6 +95,10 @@ export class GitLabIssueConnection implements IConnection {
         private messageClient: MessageSenderClient,
         private instance: GitLabInstance,) {
         }
+    
+    public get connectionId() {
+        return `${this.roomId}/${GitLabIssueConnection.CanonicalEventType}/${this.stateKey}`;
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitLabIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;

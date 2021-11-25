@@ -4,6 +4,8 @@ import { GetConnectionsResponseItem } from "../provisioning/api";
 
 export interface IConnection {
     roomId: string;
+
+    get connectionId(): string;
     /**
      * When a room gets an update to it's state.
      */
@@ -31,7 +33,21 @@ export interface IConnection {
      */
     isInterestedInHookEvent?: (eventType: string) => boolean;
 
+    /**
+     * The details to be sent to the provisioner when requested about this connection.
+     */
     getProvisionerDetails?: () => GetConnectionsResponseItem;
+
+    /**
+     * If supported, this is sent when a user attempts to update the configuration of a connection.
+     */
+    provisionerUpdateConfig?: <T extends Record<string, unknown>>(userId: string, config: T) => void;
+
+    /**
+     * If supported, this is sent when a user attempts to remove the connection from a room. The connection
+     *  state should be removed and any resources should be cleaned away.
+     */
+    onRemove?: () => void;
 
     toString(): string;
 }

@@ -152,6 +152,11 @@ export class GitHubIssueConnection implements IConnection {
         return this.state.repo.toLowerCase();
     }
 
+    public get connectionId() {
+        return `${this.roomId}/${GitHubIssueConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+
+
     public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
         return this.onCommentCreated({
             // TODO: Fix types,

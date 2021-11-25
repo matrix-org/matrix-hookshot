@@ -43,6 +43,11 @@ export class GenericHookConnection implements IConnection {
             }
         }
 
+    public get connectionId() {
+        return `${this.roomId}/${GenericHookConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+    
+
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GenericHookConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }

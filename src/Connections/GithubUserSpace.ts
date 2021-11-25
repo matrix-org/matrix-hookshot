@@ -127,6 +127,10 @@ export class GitHubUserSpace implements IConnection {
         return this.space.roomId;
     }
 
+    public get connectionId() {
+        return `${this.roomId}/${GitHubUserSpace.CanonicalEventType}/${this.stateKey}`;
+    }
+
     constructor(public readonly space: Space,
         private state: GitHubUserSpaceConnectionState,
         private readonly stateKey: string) {}

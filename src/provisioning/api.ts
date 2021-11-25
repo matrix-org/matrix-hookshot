@@ -1,6 +1,9 @@
+
+import { Request } from "express";
 export interface GetConnectionsResponseItem {
     type: string;
     service: string;
+    id: string;
     config: Record<string, unknown>;
 }
 

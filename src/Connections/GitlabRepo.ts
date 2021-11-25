@@ -34,6 +34,7 @@ export class GitLabRepoConnection implements IConnection {
     static botCommands: BotCommands;
 
     constructor(public readonly roomId: string,
+        private readonly stateKey: string,
         private readonly as: Appservice,
         private readonly state: GitLabRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
@@ -50,6 +51,10 @@ export class GitLabRepoConnection implements IConnection {
 
     public isInterestedInStateEvent() {
         return false;
+    }
+
+    public get connectionId() {
+        return `${this.roomId}/${GitLabRepoConnection.CanonicalEventType}/${this.stateKey}`;
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {

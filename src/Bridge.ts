@@ -1,6 +1,6 @@
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
-import { BridgeConfig, BridgeConfigProvisioning, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
@@ -31,6 +31,8 @@ import LogWrapper from "./LogWrapper";
 import { Provisioner } from "./provisioning/provisioner";
 import { JiraOAuthResult } from "./Jira/Types";
 import { AdminAccountData } from "./AdminRoomCommandHandler";
+import { JiraProvisionerRouter } from "./Jira/Router";
+import { GitHubProvisionerRouter } from "./Github/Router";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -120,7 +122,20 @@ export class Bridge {
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.github);
     
         if (this.config.provisioning) {
-            this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent);
+            const routers = [];
+            if (this.config.jira) {
+                routers.push({
+                    route: "/v1/jira",
+                    router: new JiraProvisionerRouter(this.config.jira, this.tokenStore).getRouter(),
+                });
+            }
+            if (this.config.github) {
+                routers.push({
+                    route: "/v1/jira",
+                    router: new GitHubProvisionerRouter(this.config.github, this.tokenStore).getRouter(),
+                });
+            }
+            this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent, routers);
         }
 
         this.as.on("query.room", async (roomAlias, cb) => {
@@ -465,9 +480,9 @@ export class Bridge {
     
     
         this.queue.on<OAuthRequest>("jira.oauth.response", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.jiraOAuthState === msg.data.state);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
             await this.queue.push<boolean>({
-                data: !!(adminRoom),
+                data: !!(userId),
                 sender: "Bridge",
                 messageId: msg.messageId,
                 eventName: "response.jira.oauth.response",
@@ -475,14 +490,18 @@ export class Bridge {
         });
 
         this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.jiraOAuthState === msg.data.state);
-            if (!adminRoom) {
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
+            if (!userId) {
                 log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
                 return;
             }
-            adminRoom.clearJiraOauthState();
-            await this.tokenStore.storeUserToken("jira", adminRoom.userId, JSON.stringify(msg.data));
-            await adminRoom.sendNotice(`Logged into Jira`);
+            await this.tokenStore.storeUserToken("jira", userId, JSON.stringify(msg.data));
+
+            // Some users won't have an admin room and would have gone through provisioning.
+            const adminRoom = this.adminRooms.get(userId);
+            if (adminRoom) {
+                await adminRoom.sendNotice(`Logged into Jira`);
+            }
         });
 
         this.queue.on<GenericWebhookEvent>("generic-webhook.event", async ({data}) => {

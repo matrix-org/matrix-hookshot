@@ -7,13 +7,14 @@ import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
 import { generateJiraWebLinkFromIssue } from "../Jira";
-import { JiraIssue, JiraProject } from "../Jira/Types";
+import { JiraProject } from "../Jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
-import { start } from "repl";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
+import { ApiError } from "../provisioning/api";
+import { stat } from "fs";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
@@ -23,6 +24,25 @@ export interface JiraProjectConnectionState {
     url?: string;
     events?: JiraAllowedEventsNames[],
     commandPrefix?: string;
+}
+
+function validateJiraConnectionState(state: JiraProjectConnectionState) {
+    const {url, commandPrefix, events} = state as JiraProjectConnectionState;
+    if (url === undefined) {
+        throw new ApiError("Expected a 'url' property", 400);
+    }
+    if (commandPrefix) {
+        if (typeof commandPrefix !== "string") {
+            throw new ApiError("Expected 'commandPrefix' to be a string", 400);
+        }
+        if (commandPrefix.length < 2 || commandPrefix.length > 24) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", 400);
+        }
+    }
+    if (events?.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
+        throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, 400);
+    }
+    return {url, commandPrefix, events};
 }
 
 const log = new LogWrapper("JiraProjectConnection");
@@ -44,8 +64,16 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static getTopicString(authorName: string, state: string) {
-        `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
+        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore): Promise<JiraProjectConnection> {
+        const validateData = validateJiraConnectionState(data);
+        const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, validateData.url, data);
+        log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
+        return new JiraProjectConnection(roomId, as, data, validateData.url, commentProcessor, messageClient, tokenStore);
+    }
+
+    public get connectionId() {
+        return `${this.roomId}-${JiraProjectConnection.CanonicalEventType}-${this.stateKey}`;
     }
     
     public get projectId() {
@@ -128,11 +156,16 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         });
     }
 
+    public get uniqueId() {
+        return `${this.roomId}/${JiraProjectConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+
     public getProvisionerDetails() {
         return {
             service: "jira",
             eventType: JiraProjectConnection.CanonicalEventType,
             type: "JiraProject",
+            id: this.uniqueId,
             config: {
                 ...this.state,
             },

@@ -168,6 +168,9 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return this.state.repo.toLowerCase();
     }
 
+    public get connectionId() {
+        return `${this.roomId}/${GitHubRepoConnection.CanonicalEventType}/${this.stateKey}`;
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;

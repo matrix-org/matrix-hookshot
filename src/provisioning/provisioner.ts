@@ -1,5 +1,5 @@
 import { BridgeConfigProvisioning } from "../Config/Config";
-import e, { Application, default as express, NextFunction, Request, Response } from "express";
+import { Application, default as express, NextFunction, Request, Response, Router } from "express";
 import { ConnectionManager } from "../ConnectionManager";
 import LogWrapper from "../LogWrapper";
 import { Server } from "http";
@@ -19,7 +19,8 @@ export class Provisioner {
     constructor(
         private readonly config: BridgeConfigProvisioning,
         private readonly connMan: ConnectionManager,
-        private readonly intent: Intent,) {
+        private readonly intent: Intent,
+        additionalRoutes: {route: string, router: Router}[]) {
         if (!this.config.secret) {
             throw Error('Missing secret in provisioning config');
         }
@@ -30,12 +31,39 @@ export class Provisioner {
         this.expressApp.get("/v1/health", this.getHealth);
         this.expressApp.use(this.checkAuth.bind(this));
         this.expressApp.use(this.checkUserId.bind(this));
+        additionalRoutes.forEach(route => {
+            this.expressApp.use(route.route, route.router);
+        });
         // Room Routes
         this.expressApp.get<{roomId: string}, unknown, unknown, {userId: string}>(
             "/v1/:roomId/connections",
             this.checkRoomId.bind(this),
             (...args) => this.checkUserPermission("read", ...args),
             this.getConnections.bind(this),
+        );
+        this.expressApp.get<{roomId: string, connectionId: string}, unknown, unknown, {userId: string}>(
+            "/v1/:roomId/connections/:connectionId",
+            this.checkRoomId.bind(this),
+            (...args) => this.checkUserPermission("read", ...args),
+            this.getConnection.bind(this),
+        );
+        this.expressApp.put<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>(
+            "/v1/:roomId/connections/:type",
+            this.checkRoomId.bind(this),
+            (...args) => this.checkUserPermission("write", ...args),
+            this.putConnection.bind(this),
+        );
+        this.expressApp.patch<{roomId: string, connectionId: string}, unknown, Record<string, unknown>, {userId: string}>(
+            "/v1/:roomId/connections/:connectionId",
+            this.checkRoomId.bind(this),
+            (...args) => this.checkUserPermission("write", ...args),
+            this.patchConnection.bind(this),
+        );
+        this.expressApp.delete<{roomId: string, connectionId: string}, unknown, unknown, {userId: string}>(
+            "/v1/:roomId/connections/:connectionId",
+            this.checkRoomId.bind(this),
+            (...args) => this.checkUserPermission("write", ...args),
+            this.deleteConnection.bind(this),
         );
         this.expressApp.use(this.onError);
     }
@@ -47,7 +75,7 @@ export class Provisioner {
         throw new ApiError("Unauthorized", 401);
     }
 
-    private checkRoomId(req: Request, _res: Response, next: NextFunction) {
+    private checkRoomId(req: Request<{roomId: string}>, _res: Response, next: NextFunction) {
         if (!req.params.roomId || !ROOM_ID_VALIDATOR.exec(req.params.roomId)) {
             throw new ApiError("Invalid roomId", 400);
         }
@@ -135,6 +163,65 @@ export class Provisioner {
             log.warn(`Failed to fetch connections for ${req.params.roomId}`, ex);
             return next(new ApiError(`An internal issue occured while trying to fetch connections`));
         }
+    }
+
+    private async getConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
+        try {
+            const connection = await this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
+            if (!connection) {
+                return next(new ApiError("Connection does not exist", 404));
+            }
+            if (!connection.getProvisionerDetails)  {
+                return next(new ApiError("Connection type does not support updates", 400));
+            }
+            return res.send(connection.getProvisionerDetails());
+        } catch (ex) {
+            log.warn(`Failed to fetch connections for ${req.params.roomId}`, ex);
+            return next(new ApiError(`An internal issue occured while trying to fetch connections`));
+        }
+    }
+
+    private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response, next: NextFunction) {
+        // Need to figure out which connections are available
+        try {
+            const connection = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
+            return res.send(connection.getProvisionerDetails ? connection.getProvisionerDetails() : {});
+        } catch (ex) {
+            log.warn(`Failed to create connection for ${req.params.roomId}`, ex);
+            return next(ex);
+        }
+    }
+
+    private async patchConnection(req: Request<{roomId: string, connectionId: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
+        const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
+        if (!connection) {
+            return next(new ApiError("Connection does not exist", 404));
+        }
+        if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
+            return next(new ApiError("Connection type does not support updates", 400));
+        }
+        try {
+            await connection.provisionerUpdateConfig(req.query.userId, req.body);
+        } catch (ex) {
+            next(ex);
+        }
+        res.send(connection.getProvisionerDetails());
+    }
+
+    private async deleteConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<{ok: true}>, next: NextFunction) {
+        const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
+        if (!connection) {
+            return next(new ApiError("Connection does not exist", 404));
+        }
+        if (!connection.onRemove) {
+            return next(new ApiError("Connection does not support removal", 400));
+        }
+        try {
+            await this.connMan.removeConnection(req.params.roomId, req.params.connectionId);
+        } catch (ex) {
+            return next(ex);
+        }
+        res.send({ok: true});
     }
 
     public listen() {
