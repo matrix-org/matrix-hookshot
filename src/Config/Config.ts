@@ -90,7 +90,7 @@ interface BridgeConfigBot {
 }
 
 export interface BridgeConfigProvisioning {
-    host?: string;
+    bindAddress?: string;
     port: number;
     secret: string;
 }
@@ -151,6 +151,7 @@ export class BridgeConfig {
         this.jira = configData.jira;
         this.generic = configData.generic;
         this.webhook = configData.webhook;
+        this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         assert.ok(this.webhook);
         this.queue = configData.queue || {

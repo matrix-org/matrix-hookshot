@@ -69,7 +69,7 @@ const DefaultConfig = new BridgeConfig({
         allowJsTransformationFunctions: false,
     },
     provisioning: {
-        host: "127.0.0.1",
+        bindAddress: "127.0.0.1",
         port: 9001,
         secret: "!secretToken"
     }

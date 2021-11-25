@@ -1,5 +1,6 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
+import { GetConnectionsResponseItem } from "../provisioning/api";
 
 export interface IConnection {
     roomId: string;
@@ -21,7 +22,7 @@ export interface IConnection {
 
     onIssueStateChange?: (ev: IssuesEditedEvent) => Promise<void>;
 
-    onIssueEdited? :(event: IssuesEditedEvent) => Promise<void>;
+    onIssueEdited?: (event: IssuesEditedEvent) => Promise<void>;
 
     isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
 
@@ -29,6 +30,8 @@ export interface IConnection {
      * Is the connection interested in the event that is being sent from the remote side?
      */
     isInterestedInHookEvent?: (eventType: string) => boolean;
+
+    getProvisionerDetails?: () => GetConnectionsResponseItem;
 
     toString(): string;
 }

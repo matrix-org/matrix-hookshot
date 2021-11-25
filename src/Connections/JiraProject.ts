@@ -72,6 +72,17 @@ export class JiraProjectConnection implements IConnection {
         });
     }
 
+    public getProvisionerDetails() {
+        return {
+            service: "jira",
+            eventType: JiraProjectConnection.CanonicalEventType,
+            type: "JiraProject",
+            config: {
+                ...this.state,
+            },
+        }
+    }
+
     public toString() {
         return `JiraProjectConnection ${this.projectId}`;
     }

@@ -2,11 +2,13 @@ import { Application, default as express, Request, Response } from "express";
 import cors from "cors";
 import { AdminRoom } from "../AdminRoom";
 import LogWrapper from "../LogWrapper";
+import { Server } from "http";
 
 const log = new LogWrapper("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
     private app: Application;
+    private server?: Server;
     constructor(private adminRooms: Map<string, AdminRoom>) {
         this.app = express();
         this.app.use((req, _res, next) => {
@@ -22,7 +24,10 @@ export class BridgeWidgetApi {
 
     public start(port = 5000) {
         log.info(`Widget API listening on port ${port}`)
-        this.app.listen(port);
+        this.server = this.app.listen(port);
+    }
+    public stop() {
+        if (this.server) this.server.close();
     }
 
     private async getRoomFromRequest(req: Request): Promise<AdminRoom|{error: string, statusCode: number}> {

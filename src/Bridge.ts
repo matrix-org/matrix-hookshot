@@ -1,6 +1,6 @@
 import { AdminRoom, BRIDGE_ROOM_TYPE, AdminAccountData } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
-import { BridgeConfig, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, BridgeConfigProvisioning, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
@@ -28,6 +28,7 @@ import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher"
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
+import { Provisioner } from "./provisioning/provisioner";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -43,6 +44,7 @@ export class Bridge {
     private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
+    private provisioningApi?: Provisioner;
 
     private ready = false;
 
@@ -72,12 +74,14 @@ export class Bridge {
     public stop() {
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
+        if (this.widgetApi) this.widgetApi.stop();
+        if (this.provisioningApi) this.provisioningApi.stop();
     }
 
     public async start() {
         log.info('Starting up');
 
-        if (!this.config.github && !this.config.gitlab) {
+        if (!this.config.github && !this.config.gitlab && !this.config.jira) {
             log.error("You haven't configured support for GitHub or GitLab!");
             throw Error('Bridge cannot start -- no connectors are configured');
         }
@@ -112,6 +116,10 @@ export class Bridge {
         await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.github);
+    
+        if (this.config.provisioning) {
+            this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent);
+        }
 
         this.as.on("query.room", async (roomAlias, cb) => {
             try {
@@ -546,6 +554,9 @@ export class Bridge {
 
         if (this.config.widgets) {
             await this.widgetApi.start(this.config.widgets.port);
+        }
+        if (this.provisioningApi) {
+            await this.provisioningApi.listen();
         }
         await this.as.begin();
         log.info("Started bridge");
