@@ -5,6 +5,7 @@ import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
 import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
+import { LogLevel, LogService } from "matrix-bot-sdk";
 LogWrapper.configureLogging("debug");
 const log = new LogWrapper("App");
 

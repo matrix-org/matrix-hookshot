@@ -1,4 +1,4 @@
-import { LogService } from "matrix-bot-sdk";
+import { LogLevel, LogService } from "matrix-bot-sdk";
 import util from "util";
 import winston from "winston";
 
@@ -67,6 +67,7 @@ export default class LogWrapper {
                 log.verbose(getMessageString(messageOrObject), { module });
             },
         });
+        LogService.setLevel(LogLevel.fromString(level));
         LogService.info("LogWrapper", "Reconfigured logging");
     }
 

@@ -4,7 +4,7 @@ import { getConfigKeyMetadata } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
 import { randomBytes } from "crypto";
 
-const DefaultConfig = new BridgeConfig({
+export const DefaultConfig = new BridgeConfig({
     bridge: {
         domain: "example.com",
         url: "http://localhost:8008",
@@ -62,7 +62,12 @@ const DefaultConfig = new BridgeConfig({
     jira: {
         webhook: {
             secret: 'secrettoken'
-        }
+        },
+        oauth: {
+            client_id: "foo",
+            client_secret: "bar",
+            redirect_uri: "https://example.com/bridge_oauth/",
+        },
     },
     generic: {
         enabled: false,

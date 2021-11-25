@@ -8,7 +8,8 @@ import { Server } from "http";
 import axios from "axios";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
-import { IJiraWebhookEvent, JiraIssueEvent } from "./Jira/WebhookTypes";
+import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
+import JiraRouter from "./Jira/Router";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface GenericWebhookEvent {
@@ -17,11 +18,10 @@ export interface GenericWebhookEvent {
 }
 
 export interface OAuthRequest {
-    code: string;
     state: string;
 }
 
-export interface OAuthTokens {
+export interface GitHubOAuthTokens {
     // eslint-disable-next-line camelcase
     access_token: string;
     // eslint-disable-next-line camelcase
@@ -70,7 +70,11 @@ export class Webhooks extends EventEmitter {
             verify: this.verifyRequest.bind(this),
         }));
         this.expressApp.post("/", this.onPayload.bind(this));
-        this.expressApp.get("/oauth", this.onGetOauth.bind(this));
+        this.expressApp.get("/oauth", this.onGitHubGetOauth.bind(this));
+        this.queue = createMessageQueue(config);
+        if (this.config.jira) {
+            this.expressApp.use("/jira", new JiraRouter(this.config.jira, this.queue).getRouter());
+        }
         this.queue = createMessageQueue(config);
     }
 
@@ -201,7 +205,7 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    public async onGetOauth(req: Request, res: Response) {
+    public async onGitHubGetOauth(req: Request, res: Response) {
         log.info("Got new oauth request");
         try {
             if (!this.config.github) {
@@ -211,7 +215,6 @@ export class Webhooks extends EventEmitter {
                 eventName: "oauth.response",
                 sender: "GithubWebhooks",
                 data: {
-                    code: req.query.code as string,
                     state: req.query.state as string,
                 },
             });
@@ -228,7 +231,7 @@ export class Webhooks extends EventEmitter {
             })}`);
             // eslint-disable-next-line camelcase
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
-            await this.queue.push<OAuthTokens>({
+            await this.queue.push<GitHubOAuthTokens>({
                 eventName: "oauth.tokens",
                 sender: "GithubWebhooks",
                 data: { state: req.query.state as string, ... result },

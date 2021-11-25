@@ -39,9 +39,17 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
-interface BridgeConfigJira {
+export interface BridgeConfigJira {
     webhook: {
         secret: string;
+    };
+    oauth: {
+        // eslint-disable-next-line camelcase
+        client_id: string;
+        // eslint-disable-next-line camelcase
+        client_secret: string;
+        // eslint-disable-next-line camelcase
+        redirect_uri: string;
     };
 }
 
@@ -89,18 +97,19 @@ interface BridgeConfigBot {
     avatar?: string;
 }
 
+
 interface BridgeConfigRoot {
+    bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
-    webhook: BridgeConfigWebhook;
-    queue: BridgeConfigQueue;
-    logging: BridgeConfigLogging;
-    passFile: string;
+    generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
     jira?: BridgeConfigJira;
-    bot?: BridgeConfigBot;
+    logging: BridgeConfigLogging;
+    passFile: string;
+    queue: BridgeConfigQueue;
+    webhook: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfig;
-    generic?: BridgeGenericWebhooksConfig;
 }
 
 export class BridgeConfig {
