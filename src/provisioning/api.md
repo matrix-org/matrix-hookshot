@@ -33,6 +33,22 @@ HTTP 200
 
 Any other response should be considered a failed request (e.g. 404, 502 etc).
 
+## GET /v1/connectiontypes
+
+Request the connection types enabled for this bridge.
+
+### Response
+
+```json5
+{
+    "uk.half-shot.matrix-hookshot.jira.project": {
+        "type": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
+        "service": "jira", // or github, webhook. A human-readable service name to make things look pretty
+        "botUserId": "@hookshot:yourdomain.com", // The bot mxid for the service. Currently this is the sender_localpart, but may change in the future.
+    }
+}
+```
+
 ## GET /v1/{roomId}/connections
 
 Request the connections for a given room. The `{roomId}` parameter is the target Matrix room.
@@ -44,11 +60,13 @@ Request the connections for a given room. The `{roomId}` parameter is the target
     "type": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
     "id": "opaque-unique-id", // An opaque ID used to refer to this connection. Should **NOT** be assumed to be stable.
     "service": "jira", // or github, webhook. A human-readable service name to make things look pretty
-    "details": {
+    "botUserId": "@hookshot:yourdomain.com", // The bot mxid for the service. Currently this is the sender_localpart, but may change in the future.
+    "config": {
         // ... connection specific details, can be configured.
     }
 }]
 ```
+
 
 ## GET /v1/{roomId}/connections/{id}
 
@@ -61,7 +79,8 @@ Request details of a single connection. The `{roomId}` parameter is the target M
     "type": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
     "id": "opaque-unique-id", // An opaque ID used to refer to this connection. Should **NOT** be assumed to be stable.
     "service": "jira", // or github, webhook. A human-readable service name to make things look pretty
-    "details": {
+    "botUserId": "@hookshot:yourdomain.com", // The bot mxid for the service. Currently this is the sender_localpart, but may change in the future.
+    "config": {
         // ... connection specific details, can be configured.
     }
 }
@@ -86,7 +105,8 @@ The body of the request is the configuration for the connection, which will be t
     "type": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
     "id": "opaque-unique-id", // An opaque ID used to refer to this connection. Should **NOT** be assumed to be stable.
     "service": "jira", // or github, webhook. A human-readable service name to make things look pretty
-    "details": {
+    "botUserId": "@hookshot:yourdomain.com", // The bot mxid for the service. Currently this is the sender_localpart, but may change in the future.
+    "config": {
         // ... connection specific details, can be configured.
     }
 }
@@ -111,7 +131,8 @@ The body of the request is the configuration for the connection, which will be t
     "type": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
     "id": "opaque-unique-id", // An opaque ID used to refer to this connection. Should **NOT** be assumed to be stable.
     "service": "jira", // or github, webhook. A human-readable service name to make things look pretty
-    "details": {
+    "botUserId": "@hookshot:yourdomain.com", // The bot mxid for the service. Currently this is the sender_localpart, but may change in the future.
+    "config": {
         // ... connection specific details, can be configured.
     }
 }

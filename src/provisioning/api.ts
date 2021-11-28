@@ -1,11 +1,16 @@
 
 import { Response } from "express";
-export interface GetConnectionsResponseItem {
+
+export interface GetConnectionTypeResponseItem {
     type: string;
     service: string;
+    botUserId: string;
+}
+export interface GetConnectionsResponseItem extends GetConnectionTypeResponseItem {
     id: string;
     config: Record<string, unknown>;
 }
+
 
 export enum ErrCode {
     // Errors are prefixed with HS_

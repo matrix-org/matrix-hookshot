@@ -3,7 +3,7 @@ import { Application, default as express, NextFunction, Request, Response, Route
 import { ConnectionManager } from "../ConnectionManager";
 import LogWrapper from "../LogWrapper";
 import { Server } from "http";
-import { ApiError, ErrCode, GetConnectionsResponseItem } from "./api";
+import { ApiError, ErrCode, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
 import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 
 const log = new LogWrapper("Provisioner");
@@ -30,11 +30,15 @@ export class Provisioner {
         this.expressApp = express();
         this.expressApp.get("/v1/health", this.getHealth);
         this.expressApp.use(this.checkAuth.bind(this));
+        // Room Routes
+        this.expressApp.get(
+            "/v1/connectiontypes",
+            this.getConnectionTypes.bind(this),
+        );
         this.expressApp.use(this.checkUserId.bind(this));
         additionalRoutes.forEach(route => {
             this.expressApp.use(route.route, route.router);
         });
-        // Room Routes
         this.expressApp.get<{roomId: string}, unknown, unknown, {userId: string}>(
             "/v1/:roomId/connections",
             this.checkRoomId.bind(this),
@@ -153,31 +157,25 @@ export class Provisioner {
         return res.send({})
     }
 
-    private async getConnections(req: Request<{roomId: string}>, res: Response<GetConnectionsResponseItem[]>, next: NextFunction) {
-        try {
-            const connections = await this.connMan.getAllConnectionsForRoom(req.params.roomId);
-            const details = connections.map(c => c.getProvisionerDetails?.()).filter(c => !!c) as GetConnectionsResponseItem[];
-            return res.send(details);
-        } catch (ex) {
-            log.warn(`Failed to fetch connections for ${req.params.roomId}`, ex);
-            return next(new ApiError(`An internal issue occured while trying to fetch connections`));
-        }
+    private getConnectionTypes(_req: Request, res: Response<Record<string, GetConnectionTypeResponseItem>>) {
+        return res.send(this.connMan.getConnectionTypesProvisioningDetails());
     }
 
-    private async getConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
-        try {
-            const connection = await this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
-            if (!connection) {
-                return next(new ApiError("Connection does not exist", ErrCode.NotFound));
-            }
-            if (!connection.getProvisionerDetails)  {
-                return next(new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation));
-            }
-            return res.send(connection.getProvisionerDetails());
-        } catch (ex) {
-            log.warn(`Failed to fetch connections for ${req.params.roomId}`, ex);
-            return next(new ApiError(`An internal issue occured while trying to fetch connections`));
+    private getConnections(req: Request<{roomId: string}>, res: Response<GetConnectionsResponseItem[]>) {
+        const connections = this.connMan.getAllConnectionsForRoom(req.params.roomId);
+        const details = connections.map(c => c.getProvisionerDetails?.()).filter(c => !!c) as GetConnectionsResponseItem[];
+        return res.send(details);
+    }
+
+    private getConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<GetConnectionsResponseItem>) {
+        const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
+        if (!connection) {
+            throw new ApiError("Connection does not exist", ErrCode.NotFound);
         }
+        if (!connection.getProvisionerDetails)  {
+            throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
+        }
+        return res.send(connection.getProvisionerDetails());
     }
 
     private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response, next: NextFunction) {

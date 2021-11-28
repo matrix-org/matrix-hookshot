@@ -13,8 +13,7 @@ import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
-import { ApiError } from "../provisioning/api";
-import { stat } from "fs";
+import { ApiError, ErrCode } from "../provisioning/api";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
@@ -29,18 +28,18 @@ export interface JiraProjectConnectionState {
 function validateJiraConnectionState(state: JiraProjectConnectionState) {
     const {url, commandPrefix, events} = state as JiraProjectConnectionState;
     if (url === undefined) {
-        throw new ApiError("Expected a 'url' property", 400);
+        throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
     }
     if (commandPrefix) {
         if (typeof commandPrefix !== "string") {
-            throw new ApiError("Expected 'commandPrefix' to be a string", 400);
+            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
         }
         if (commandPrefix.length < 2 || commandPrefix.length > 24) {
-            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", 400);
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
         }
     }
     if (events?.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
-        throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, 400);
+        throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, ErrCode.BadValue);
     }
     return {url, commandPrefix, events};
 }
@@ -158,6 +157,16 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     public get uniqueId() {
         return `${this.roomId}/${JiraProjectConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "jira",
+            eventType: JiraProjectConnection.CanonicalEventType,
+            type: "JiraProject",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: botUserId,
+        }
     }
 
     public getProvisionerDetails() {

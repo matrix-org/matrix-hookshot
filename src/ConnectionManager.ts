@@ -13,7 +13,7 @@ import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
-import { ApiError } from "./provisioning/api";
+import { ApiError, GetConnectionTypeResponseItem } from "./provisioning/api";
 import { UserTokenStore } from "./UserTokenStore";
 
 const log = new LogWrapper("ConnectionManager");
@@ -288,5 +288,13 @@ export class ConnectionManager {
         await connection.onRemove?.();
         const connectionIndex = this.connections.indexOf(connection);
         this.connections.splice(connectionIndex, 1);
+    }
+
+    public getConnectionTypesProvisioningDetails(): {[eventType: string]: GetConnectionTypeResponseItem} {
+        const results: {[eventType: string]: GetConnectionTypeResponseItem} = {};
+        // TODO: Do this dynamically.
+        const jiraProject = JiraProjectConnection.getProvisionerDetails(this.as.botUserId);
+        results[jiraProject.eventType] = jiraProject;
+        return results;
     }
 }
