@@ -119,13 +119,13 @@ export class Webhooks extends EventEmitter {
     }
 
     private async onGitHubPayload({id, name, payload}: EmitterWebhookEvent) {
-        log.info(`Got GitHub webhook event ${id} ${name}`);
-        console.log(payload);
-        log.debug("Payload:", payload);
         const action = (payload as unknown as {action: string|undefined}).action;
+        const eventName =  `github.${name}${action ? `.${action}` : ""}`;
+        log.info(`Got GitHub webhook event ${id} ${eventName}`);
+        log.debug("Payload:", payload);
         try {
             await this.queue.push({
-                eventName: `github.${name}${action ? `.${action}` : ""}`,
+                eventName,
                 sender: "Webhooks",
                 data: payload,
             });

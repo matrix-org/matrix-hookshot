@@ -524,19 +524,19 @@ export class Bridge {
             }
         }
 
-        for (const roomId of joinedRooms) {
+        await Promise.all(joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
             let connections: IConnection[];
             try {
                 connections = await connManager.createConnectionsForRoomId(roomId);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
-                continue;
+                return;
             }
             if (connections.length) {
                 log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
                 connManager.push(...connections);
-                continue;
+                return;
             }
 
             // TODO: Refactor this to be a connection
@@ -550,7 +550,7 @@ export class Bridge {
                     );
                     if (!accountData) {
                         log.debug(`Room ${roomId} has no connections and is not an admin room`);
-                        continue;
+                        return;
                     } else {
                         // Upgrade the room
                         await this.as.botClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
@@ -579,7 +579,7 @@ export class Bridge {
             } catch (ex) {
                 log.error(`Failed to setup admin room ${roomId}:`, ex);
             }
-        }
+        }));
 
         // Handle spaces
         for (const discussion of connManager.getAllConnectionsOfType(GitHubDiscussionSpace)) {

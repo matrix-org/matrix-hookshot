@@ -113,27 +113,28 @@ export class GitHubDiscussionConnection implements IConnection {
     }
 
     public get repo() {
-        return this.state.repo;
+        return this.state.repo.toLowerCase();
     }
 
     public get owner() {
-        return this.state.owner;
+        return this.state.owner.toLowerCase();
     }
 
     public toString() {
         return `GitHubDiscussion ${this.owner}/${this.repo}#${this.state.discussion}`;
     }
 
-    public onDiscussionCommentCreated(data: DiscussionCommentCreatedEvent) {
+    public async onDiscussionCommentCreated(data: DiscussionCommentCreatedEvent) {
         if (this.sentEvents.has(data.comment.node_id)) {
             return;
         }
+        const intent = await getIntentForUser(data.comment.user, this.as);
         return this.messageClient.sendMatrixMessage(this.roomId, {
             body: data.comment.body,
             formatted_body: md.render(data.comment.body),
             msgtype: 'm.text',
             external_url: data.comment.html_url,
             'uk.half-shot.matrix-hookshot.github.discussion.comment_id': data.comment.id,
-        });
+        }, 'm.room.message', intent.userId);
     }
 }
