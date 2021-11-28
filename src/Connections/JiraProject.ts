@@ -165,6 +165,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             service: "jira",
             eventType: JiraProjectConnection.CanonicalEventType,
             type: "JiraProject",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: this.as.botUserId,
             id: this.uniqueId,
             config: {
                 ...this.state,
