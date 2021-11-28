@@ -11,7 +11,7 @@ import { GitHubProjectConnection } from "./Connections/GithubProject";
 import { GitHubRepoConnection } from "./Connections/GithubRepo";
 import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
-import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace } from "./Connections";
+import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
@@ -128,6 +128,7 @@ export class Bridge {
                     route: "/v1/jira",
                     router: new JiraProvisionerRouter(this.config.jira, this.tokenStore).getRouter(),
                 });
+                this.connectionManager.registerProvisioningConnection(JiraProjectConnection);
             }
             if (this.config.github) {
                 routers.push({

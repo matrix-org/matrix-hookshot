@@ -20,6 +20,7 @@ const log = new LogWrapper("ConnectionManager");
 
 export class ConnectionManager {
     private connections: IConnection[] = [];
+    public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
 
     constructor(
         private readonly as: Appservice,
@@ -290,11 +291,11 @@ export class ConnectionManager {
         this.connections.splice(connectionIndex, 1);
     }
 
-    public getConnectionTypesProvisioningDetails(): {[eventType: string]: GetConnectionTypeResponseItem} {
-        const results: {[eventType: string]: GetConnectionTypeResponseItem} = {};
-        // TODO: Do this dynamically.
-        const jiraProject = JiraProjectConnection.getProvisionerDetails(this.as.botUserId);
-        results[jiraProject.eventType] = jiraProject;
-        return results;
+    public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {
+        const details = connType.getProvisionerDetails(this.as.botUserId);
+        if (this.enabledForProvisioning[details.type]) {
+            throw Error(`Type "${details.type}" already registered for provisioning`);
+        }
+        this.enabledForProvisioning[details.type] = details;
     }
 }

@@ -2,6 +2,7 @@
 import { Response } from "express";
 
 export interface GetConnectionTypeResponseItem {
+    eventType: string;
     type: string;
     service: string;
     botUserId: string;

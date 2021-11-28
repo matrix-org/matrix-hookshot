@@ -158,7 +158,7 @@ export class Provisioner {
     }
 
     private getConnectionTypes(_req: Request, res: Response<Record<string, GetConnectionTypeResponseItem>>) {
-        return res.send(this.connMan.getConnectionTypesProvisioningDetails());
+        return res.send(this.connMan.enabledForProvisioning);
     }
 
     private getConnections(req: Request<{roomId: string}>, res: Response<GetConnectionsResponseItem[]>) {
