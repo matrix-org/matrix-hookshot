@@ -3,7 +3,7 @@ import { Application, default as express, NextFunction, Request, Response, Route
 import { ConnectionManager } from "../ConnectionManager";
 import LogWrapper from "../LogWrapper";
 import { Server } from "http";
-import { ApiError, GetConnectionsResponseItem } from "./api";
+import { ApiError, ErrCode, GetConnectionsResponseItem } from "./api";
 import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 
 const log = new LogWrapper("Provisioner");
@@ -72,19 +72,19 @@ export class Provisioner {
         if (req.headers.authorization === `Bearer ${this.config.secret}`) {
             return next();
         }
-        throw new ApiError("Unauthorized", 401);
+        throw new ApiError("Unauthorized", ErrCode.BadToken);
     }
 
     private checkRoomId(req: Request<{roomId: string}>, _res: Response, next: NextFunction) {
         if (!req.params.roomId || !ROOM_ID_VALIDATOR.exec(req.params.roomId)) {
-            throw new ApiError("Invalid roomId", 400);
+            throw new ApiError("Invalid roomId", ErrCode.BadValue);
         }
         next();
     }
 
     private checkUserId(req: Request, _res: Response, next: NextFunction) {
         if (typeof req.query.userId !== "string" || !USER_ID_VALIDATOR.exec(req.query.userId)) {
-            throw new ApiError("Invalid userId", 400);
+            throw new ApiError("Invalid userId", ErrCode.BadValue);
         }
         next();
     }
@@ -98,10 +98,9 @@ export class Provisioner {
             return;
         }
         if (err instanceof ApiError) {
-            console.log("BIBBLE", err.statusCode, err.errorMessage);
-            res.status(err.statusCode).send({error: err.errorMessage});
+            err.apply(res);
         } else {
-            res.status(500).send({error: "An internal error occured."});
+            new ApiError("An internal error occured").apply(res);
         }
     }
 
@@ -112,14 +111,14 @@ export class Provisioner {
         try {
             const membership = await this.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", userId) as MembershipEventContent;
             if (membership.membership !== "join") {
-                return next(new ApiError("User is not joined to the room.", 403));
+                return next(new ApiError("User is not joined to the room.", ErrCode.NotInRoom));
             }
         } catch (ex) {
             if (ex.body.errcode === "M_NOT_FOUND") {
-                return next(new ApiError("User is not joined to the room.", 403));
+                return next(new ApiError("User is not joined to the room.", ErrCode.NotInRoom));
             }
             log.warn(`Failed to find member event for ${req.query.userId} in room ${roomId}`, ex);
-            return next(new ApiError(`Could not determine if the user is in the room.`, 403));
+            return next(new ApiError(`Could not determine if the user is in the room.`, ErrCode.NotInRoom));
         }
         if (requiredPermission === "read") {
             return next();
@@ -129,7 +128,7 @@ export class Provisioner {
             pls = await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "") as PowerLevelsEventContent;
         } catch (ex) {
             log.warn(`Failed to find PL event for room ${req.params.roomId}`, ex);
-            return next(new ApiError(`Could not get power levels for ${req.params.roomId}. Is the bot invited?`, 403));
+            return next(new ApiError(`Could not get power levels for ${req.params.roomId}. Is the bot invited?`, ErrCode.NotInRoom));
         }
 
         // TODO: Decide what PL consider "write" permissions
@@ -139,14 +138,14 @@ export class Provisioner {
         
         // Check the bot's permissions
         if (botPl < requiredPl) {
-            return next(new ApiError(`Bot has a PL of ${botPl} but needs at least ${requiredPl}.`, 403));
+            return next(new ApiError(`Bot has a PL of ${botPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenBot));
         }
 
         // Now check the users
         if (userPl >= requiredPl) {
             next();
         } else {
-            return next(new ApiError(`User has a PL of ${userPl} but needs at least ${requiredPl}.`, 403));
+            return next(new ApiError(`User has a PL of ${userPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenUser));
         }
     }
 
@@ -169,10 +168,10 @@ export class Provisioner {
         try {
             const connection = await this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
             if (!connection) {
-                return next(new ApiError("Connection does not exist", 404));
+                return next(new ApiError("Connection does not exist", ErrCode.NotFound));
             }
             if (!connection.getProvisionerDetails)  {
-                return next(new ApiError("Connection type does not support updates", 400));
+                return next(new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation));
             }
             return res.send(connection.getProvisionerDetails());
         } catch (ex) {
@@ -195,10 +194,10 @@ export class Provisioner {
     private async patchConnection(req: Request<{roomId: string, connectionId: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
         const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
         if (!connection) {
-            return next(new ApiError("Connection does not exist", 404));
+            return next(new ApiError("Connection does not exist", ErrCode.NotFound));
         }
         if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
-            return next(new ApiError("Connection type does not support updates", 400));
+            return next(new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation));
         }
         try {
             await connection.provisionerUpdateConfig(req.query.userId, req.body);
@@ -211,10 +210,10 @@ export class Provisioner {
     private async deleteConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<{ok: true}>, next: NextFunction) {
         const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
         if (!connection) {
-            return next(new ApiError("Connection does not exist", 404));
+            return next(new ApiError("Connection does not exist", ErrCode.NotFound));
         }
         if (!connection.onRemove) {
-            return next(new ApiError("Connection does not support removal", 400));
+            return next(new ApiError("Connection does not support removal", ErrCode.UnsupportedOperation));
         }
         try {
             await this.connMan.removeConnection(req.params.roomId, req.params.connectionId);
