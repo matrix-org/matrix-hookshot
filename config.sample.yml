@@ -9,9 +9,6 @@ bridge:
   port: 9993
   bindAddress: 127.0.0.1
 github:
-  # (Optional) Configure this to enable GitHub support
-  #
-  installationId: 6854059
   auth:
     id: 123
     privateKeyFile: github-key.pem

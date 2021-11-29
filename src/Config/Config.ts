@@ -20,7 +20,6 @@ export interface BridgeConfigGitHub {
         // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
-    installationId: number|string;
 }
 
 export interface GitLabInstance {

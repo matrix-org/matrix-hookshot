@@ -33,7 +33,6 @@ export class GithubInstance {
         const auth = {
             appId: parseInt(this.config.auth.id as string, 10),
             privateKey: await fs.readFile(this.config.auth.privateKeyFile, "utf-8"),
-            installationId: parseInt(this.config.installationId as string, 10),
         };
 
         this.internalOctokit = new Octokit({
@@ -43,10 +42,23 @@ export class GithubInstance {
         });
 
         try {
+            const installation = (await this.octokit.apps.listInstallations()).data[0];
+            if (!installation) {
+                throw Error("App has no installations, cannot continue. Please ensure you've installed the app somewhere (https://github.com/settings/installations)");
+            }
+            log.info(`Using installation ${installation.id} (${installation.app_slug})`)
+            this.internalOctokit = new Octokit({
+                authStrategy: createAppAuth,
+                auth: {
+                    ...auth,
+                    installationId: installation.id,
+                },
+                userAgent: USER_AGENT,
+            });
             await this.octokit.rateLimit.get();
             log.info("Auth check success");
         } catch (ex) {
-            log.info("Auth check failed:", ex);
+            log.warn("Auth check failed:", ex);
             throw Error("Attempting to verify GitHub authentication configration failed");
         }
     }
