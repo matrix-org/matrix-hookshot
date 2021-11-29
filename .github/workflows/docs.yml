@@ -2,10 +2,10 @@ name: Build docs
 
 on:
   push:
-    branches:
-      - main
 
-  workflow_dispatch:
+env:
+  # Only push if this is main, otherwise we just want to build
+  PUSH: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:
   deploy:
@@ -22,6 +22,7 @@ jobs:
 
       - name: Deploy latest
         uses: peaceiris/actions-gh-pages@v3
+        if: env.PUSH
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           keep_files: true
