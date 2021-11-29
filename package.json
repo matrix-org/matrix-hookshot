@@ -5,7 +5,7 @@
   "main": "lib/app.js",
   "repository": "https://github.com/Half-Shot/matrix-hookshot",
   "author": "Half-Shot",
-  "license": "MIT",
+  "license": "Apache2",
   "private": false,
   "napi": {
     "name": "matrix-hookshot-rs"
