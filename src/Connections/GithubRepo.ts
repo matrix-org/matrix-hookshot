@@ -245,7 +245,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         });
     }
 
-    @botCommand("workflow run", "Run a workflow", ["name"], ["args", "ref"], true)
+    @botCommand("workflow run", "Run a GitHub Actions workflow. Args should be specified in \"key=value,key2='value 2'\" format.", ["name"], ["args", "ref"], true)
     public async onWorkflowRun(userId: string, name: string, args?: string, ref?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
