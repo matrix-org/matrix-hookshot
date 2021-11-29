@@ -178,8 +178,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
-    // @ts-ignore
-    private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new NotLoggedInError();
@@ -203,11 +202,11 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     @botCommand("assign", "Assign an issue to a user", ["number", "...users"], [], true)
-    // @ts-ignore
-    private async onAssign(userId: string, number: string, ...users: string[]) {
+    public async onAssign(userId: string, number: string, ...users: string[]) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            return this.as.botIntent.sendText(this.roomId, "You must login to assign an issue", "m.notice");
+            await this.as.botIntent.sendText(this.roomId, "You must login to assign an issue", "m.notice");
+            return;
         }
 
         if (users.length === 1) {
@@ -223,11 +222,11 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     @botCommand("close", "Close an issue", ["number"], ["comment"], true)
-    // @ts-ignore
-    private async onClose(userId: string, number: string, comment?: string) {
+    public async onClose(userId: string, number: string, comment?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            return this.as.botIntent.sendText(this.roomId, "You must login to close an issue", "m.notice");
+            await this.as.botIntent.sendText(this.roomId, "You must login to close an issue", "m.notice");
+            return;
         }
 
         if (comment) {
@@ -245,6 +244,48 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             issue_number: parseInt(number, 10),
             state: "closed",
         });
+    }
+
+    @botCommand("workflow run", "Run a workflow", ["name"], ["args", "ref"], true)
+    public async onWorkflowRun(userId: string, name: string, args?: string, ref?: string) {
+        const octokit = await this.tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            await this.as.botIntent.sendText(this.roomId, "You must login to close an issue", "m.notice");
+            return;
+        }
+        const workflowArgs: Record<string, string> = {};
+        if (args) {
+            args.split(',').forEach((arg) => { const [key,value] = arg.split('='); workflowArgs[key] = value || "" });
+        }
+
+        const workflows = await octokit.actions.listRepoWorkflows({
+            repo: this.state.repo,
+            owner: this.state.org,
+        });
+
+        const workflow = workflows.data.workflows.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
+        if (!workflow) {
+            const workflowNames = workflows.data.workflows.map(w => w.name).join(', ');
+            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}`, "m.notice");
+            return;
+        }
+        if (!ref) {
+            ref = (await octokit.repos.get({
+                repo: this.state.repo,
+                owner: this.state.org,
+            })).data.default_branch;
+        }
+        
+
+        await octokit.actions.createWorkflowDispatch({
+            repo: this.state.repo,
+            owner: this.state.org,
+            workflow_id: workflow.id,
+            ref,
+            inputs: workflowArgs,
+        });
+
+        await this.as.botIntent.sendText(this.roomId, `Workflow started`, "m.notice");
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
