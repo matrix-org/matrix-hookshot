@@ -148,7 +148,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        private readonly state: GitHubRepoConnectionState,
+        private state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly stateKey: string) {
             super(
@@ -168,6 +168,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return this.state.repo.toLowerCase();
     }
 
+    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        const state = stateEv.content as GitHubRepoConnectionState;
+        this.state = state;
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
