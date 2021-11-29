@@ -5,6 +5,7 @@ import { Octokit } from "@octokit/rest";
 import { ReposGetResponseData } from "../Github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
+import { GithubInstance } from "../Github/GithubInstance";
 
 const log = new LogWrapper("GitHubDiscussionSpace");
 
@@ -27,7 +28,7 @@ export class GitHubDiscussionSpace implements IConnection {
 
     static readonly QueryRoomRegex = /#github_disc_(.+)_(.+):.*/;
 
-    static async onQueryRoom(result: RegExpExecArray, opts: {octokit: Octokit, as: Appservice}): Promise<Record<string, unknown>> {
+    static async onQueryRoom(result: RegExpExecArray, opts: {githubInstance: GithubInstance, as: Appservice}): Promise<Record<string, unknown>> {
         if (!result || result.length < 2) {
             log.error(`Invalid alias pattern '${result}'`);
             throw Error("Could not find issue");
@@ -37,9 +38,10 @@ export class GitHubDiscussionSpace implements IConnection {
 
         log.info(`Fetching ${owner}/${repo}`);
         let repoRes: ReposGetResponseData;
+        const octokit = opts.githubInstance.getOctokitForRepo(owner, repo);
         try {
             // TODO: Determine if the repo has discussions?
-            repoRes = (await opts.octokit.repos.get({
+            repoRes = (await octokit.repos.get({
                 owner,
                 repo,
             })).data;
@@ -58,7 +60,7 @@ export class GitHubDiscussionSpace implements IConnection {
         // URL hack so we don't need to fetch the repo itself.
         let avatarUrl = undefined;
         try {
-            const profile = await opts.octokit.users.getByUsername({
+            const profile = await octokit.users.getByUsername({
                 username: owner,
             });
             if (profile.data.avatar_url) {

@@ -14,6 +14,9 @@ export type IssuesListAssigneesResponseData = Endpoints["GET /repos/{owner}/{rep
 export type PullsGetResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls"]["response"]["data"];
 export type PullGetResponseData = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}"]["response"]["data"];
 export type DiscussionDataType = Endpoints["GET /repos/{owner}/{repo}/pulls/{pull_number}"]["response"]["data"];
+export type InstallationDataType = Endpoints["GET /app/installations/{installation_id}"]["response"]["data"];
+export type CreateInstallationAccessTokenDataType = Endpoints["POST /app/installations/{installation_id}/access_tokens"]["response"]["data"];
+
 /* eslint-disable camelcase */
 export interface GitHubUserNotification {
     id: string;

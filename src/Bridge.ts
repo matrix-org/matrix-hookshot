@@ -20,7 +20,7 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
+import { GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
 import { ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
@@ -29,6 +29,7 @@ import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
 import { OAuthRequest } from "./WebhookTypes";
+import { promises as fs } from "fs";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -84,7 +85,7 @@ export class Bridge {
         }
 
         if (this.config.github) {
-            this.github = new GithubInstance(this.config.github);
+            this.github = new GithubInstance(this.config.github.auth.id, await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'));
             await this.github.start();
         }
 
@@ -158,6 +159,20 @@ export class Bridge {
                 issue: data.issue,
             };
         }
+
+
+        this.queue.on<GitHubWebhookTypes.InstallationCreatedEvent>("github.installation.created", async (data) => {
+            this.github?.onInstallationCreated(data.data);
+        });
+        this.queue.on<GitHubWebhookTypes.InstallationUnsuspendEvent>("github.installation.unsuspend", async (data) => {
+            this.github?.onInstallationCreated(data.data);
+        });
+        this.queue.on<GitHubWebhookTypes.InstallationDeletedEvent>("github.installation.deleted", async (data) => {
+            this.github?.onInstallationRemoved(data.data);
+        });
+        this.queue.on<GitHubWebhookTypes.InstallationSuspendEvent>("github.installation.suspend", async (data) => {
+            this.github?.onInstallationRemoved(data.data);
+        });
 
         this.bindHandlerToQueue<GitHubWebhookTypes.IssueCommentCreatedEvent, GitHubIssueConnection>(
             "github.issue_comment.created",
@@ -401,6 +416,7 @@ export class Bridge {
             await this.tokenStore.storeUserToken("jira", adminRoom.userId, JSON.stringify(msg.data));
             await adminRoom.sendNotice(`Logged into Jira`);
         });
+
         this.bindHandlerToQueue<GenericWebhookEvent, GenericHookConnection>(
             "generic-webhook.event",
             (data) => connManager.getConnectionsForGenericWebhook(data.hookId), 
@@ -693,7 +709,7 @@ export class Bridge {
                     tokenStore: this.tokenStore,
                     messageClient: this.messageClient,
                     commentProcessor: this.commentProcessor,
-                    octokit: this.github.octokit,
+                    githubInstance: this.github,
                 });
             } catch (ex) {
                 log.error(`Could not handle alias with GitHubIssueConnection`, ex);
@@ -708,7 +724,7 @@ export class Bridge {
             }
             try {
                 return await GitHubDiscussionSpace.onQueryRoom(res, {
-                    octokit: this.github.octokit,
+                    githubInstance: this.github,
                     as: this.as,
                 });
             } catch (ex) {
@@ -728,7 +744,7 @@ export class Bridge {
                     tokenStore: this.tokenStore,
                     messageClient: this.messageClient,
                     commentProcessor: this.commentProcessor,
-                    octokit: this.github.octokit,
+                    githubInstance: this.github,
                 });
             } catch (ex) {
                 log.error(`Could not handle alias with GitHubRepoConnection`, ex);
@@ -743,7 +759,7 @@ export class Bridge {
             }
             try {
                 return await GitHubUserSpace.onQueryRoom(res, {
-                    octokit: this.github.octokit,
+                    githubInstance: this.github,
                     as: this.as,
                 });
             } catch (ex) {

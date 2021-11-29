@@ -8,15 +8,14 @@ import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestO
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
-import { RequestError } from "@octokit/types";
-import { Octokit } from "@octokit/rest";
 import { ReposGetResponseData } from "../Github/Types";
 import { UserTokenStore } from "../UserTokenStore";
-import axios, { Axios, AxiosError } from "axios";
+import axios, { AxiosError } from "axios";
 import emoji from "node-emoji";
 import LogWrapper from "../LogWrapper";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
+import { GithubInstance } from "../Github/GithubInstance";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -25,7 +24,7 @@ interface IQueryRoomOpts {
     tokenStore: UserTokenStore;
     commentProcessor: CommentProcessor;
     messageClient: MessageSenderClient;
-    octokit: Octokit;
+    githubInstance: GithubInstance;
 }
 
 export interface GitHubRepoConnectionState {
@@ -83,8 +82,9 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
         log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
         let repoRes: ReposGetResponseData;
+        const octokit = opts.githubInstance.getOctokitForRepo(owner, repo);
         try {
-            repoRes = (await opts.octokit.repos.get({
+            repoRes = (await octokit.repos.get({
                 owner,
                 repo,
             })).data;
@@ -97,7 +97,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const orgRepoName = repoRes.url.substr("https://api.github.com/repos/".length);
         let avatarUrl = undefined;
         try {
-            const profile = await opts.octokit.users.getByUsername({
+            const profile = await octokit.users.getByUsername({
                 username: owner,
             });
             if (profile.data.avatar_url) {

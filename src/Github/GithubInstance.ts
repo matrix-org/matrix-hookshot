@@ -1,22 +1,33 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { createTokenAuth } from "@octokit/auth-token";
 import { Octokit } from "@octokit/rest";
-import { promises as fs } from "fs";
-import { BridgeConfigGitHub } from "../Config/Config";
 import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
+import * as GitHubWebhookTypes from "@octokit/webhooks-types";
+import { InstallationDataType } from "./Types";
+import e from "express";
 
 const log = new LogWrapper("GithubInstance");
 
 const USER_AGENT = "matrix-hookshot v0.0.1";
+
+interface Installation {
+    account: {
+        login?: string;
+    } | null; 
+    id: number;
+    repository_selection: "selected"|"all";
+    matchesRepository: string[];
+}
+
 export class GithubInstance {
     private internalOctokit!: Octokit;
 
-    public get octokit() {
-        return this.internalOctokit;
-    }
+    private readonly installationsCache = new Map<number, Installation>();
 
-    constructor (private config: BridgeConfigGitHub) { }
+    constructor (private readonly appId: number|string, private readonly privateKey: string) {
+        this.appId = parseInt(appId as string, 10);
+    }
 
     public static createUserOctokit(token: string) {
         return new Octokit({
@@ -28,11 +39,34 @@ export class GithubInstance {
         });
     }
 
+    public getOctokitForRepo(orgName: string, repoName?: string) {
+        const targetName = (repoName ? `${orgName}/${repoName}` : orgName).toLowerCase();
+        for (const install of this.installationsCache.values()) {
+            if (install.matchesRepository.includes(targetName) || install.matchesRepository.includes(`${targetName.split('/')[0]}/*`)) {
+                return this.createOctokitForInstallation(install.id);
+            }
+        }
+        // TODO: Refresh cache?
+        throw Error(`No installation found to handle ${targetName}`);
+    }
+
+    private createOctokitForInstallation(installationId: number) {
+        return new Octokit({
+            authStrategy: createAppAuth,
+            auth: {
+                appId: this.appId,
+                privateKey: this.privateKey,
+                installationId,
+            },
+            userAgent: USER_AGENT,
+        });
+    }
+
     public async start() {
         // TODO: Make this generic.
         const auth = {
-            appId: parseInt(this.config.auth.id as string, 10),
-            privateKey: await fs.readFile(this.config.auth.privateKeyFile, "utf-8"),
+            appId: this.appId,
+            privateKey: this.privateKey,
         };
 
         this.internalOctokit = new Octokit({
@@ -41,26 +75,45 @@ export class GithubInstance {
             userAgent: USER_AGENT,
         });
 
-        try {
-            const installation = (await this.octokit.apps.listInstallations()).data[0];
-            if (!installation) {
-                throw Error("App has no installations, cannot continue. Please ensure you've installed the app somewhere (https://github.com/settings/installations)");
+        let installPageSize = 100;
+        let page = 1;
+        do {
+            const installations = await this.internalOctokit.apps.listInstallations({ per_page: 100, page: page++ });
+            for (const install of installations.data) {
+                await this.addInstallation(install);
             }
-            log.info(`Using installation ${installation.id} (${installation.app_slug})`)
-            this.internalOctokit = new Octokit({
-                authStrategy: createAppAuth,
-                auth: {
-                    ...auth,
-                    installationId: installation.id,
-                },
-                userAgent: USER_AGENT,
-            });
-            await this.octokit.rateLimit.get();
-            log.info("Auth check success");
-        } catch (ex) {
-            log.warn("Auth check failed:", ex);
-            throw Error("Attempting to verify GitHub authentication configration failed");
+            installPageSize = installations.data.length;
+        } while(installPageSize === 100)
+
+        log.info(`Found ${this.installationsCache.size} installations`);
+    }
+
+    private async addInstallation(install: InstallationDataType, repos?: {full_name: string}[]) {
+        let matchesRepository: string[] = [];
+        if (install.repository_selection === "all") {
+            matchesRepository = [`${install.account?.login}/*`.toLowerCase()];
+        } else if (repos) {
+            matchesRepository = repos.map(r => r.full_name.toLowerCase());
+        } else {
+            const installOctokit = this.createOctokitForInstallation(install.id);
+            const repos = await installOctokit.apps.listReposAccessibleToInstallation({ per_page: 100 });
+            matchesRepository.push(...repos.data.repositories.map(r => r.full_name.toLowerCase()));
         }
+        this.installationsCache.set(install.id, {
+            account: install.account,
+            id: install.id,
+            repository_selection: install.repository_selection,
+            matchesRepository,
+        });
+
+    }
+
+    public onInstallationCreated(data: GitHubWebhookTypes.InstallationCreatedEvent|GitHubWebhookTypes.InstallationUnsuspendEvent) {
+        this.addInstallation(data.installation as InstallationDataType, data.repositories);
+    }
+
+    public onInstallationRemoved(data: GitHubWebhookTypes.InstallationDeletedEvent|GitHubWebhookTypes.InstallationSuspendEvent) {
+        this.installationsCache.delete(data.installation.id);
     }
 }
 
