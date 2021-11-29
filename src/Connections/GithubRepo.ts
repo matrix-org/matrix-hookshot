@@ -289,7 +289,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         } catch (ex) {
             const httpError = ex as AxiosError;
             if (httpError.response?.data) {
-                throw new CommandError(httpError.response?.data.message, ${httpError.response?.data.message});
+                throw new CommandError(httpError.response?.data.message, httpError.response?.data.message);
             }
             throw ex;
         }
