@@ -2,8 +2,8 @@ import axios from "axios";
 import { Router, Request, Response } from "express";
 import { BridgeConfigJira } from "../Config/Config";
 import LogWrapper from "../LogWrapper";
-import { MessageQueue } from "../MessageQueue/MessageQueue";
-import { OAuthRequest } from "../Webhooks";
+import { MessageQueue } from "../MessageQueue";
+import { OAuthRequest } from "../WebhookTypes";
 import { JiraOAuthResult } from "./Types";
 
 const log = new LogWrapper("JiraRouter");

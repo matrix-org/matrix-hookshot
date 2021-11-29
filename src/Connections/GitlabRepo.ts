@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice } from "matrix-bot-sdk";
-import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
+import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";

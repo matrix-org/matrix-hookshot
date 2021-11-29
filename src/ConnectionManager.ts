@@ -43,7 +43,6 @@ export class ConnectionManager {
         // NOTE: Double loop
         for (const connection of connections) {
             if (!this.connections.find((c) => c === connection)) {
-                console.log("PUSH!");
                 this.connections.push(connection);
             }
         }

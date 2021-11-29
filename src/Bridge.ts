@@ -1,26 +1,26 @@
+import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
+import { GenericHookConnection } from "./Connections";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
-import { GitHubIssueConnection } from "./Connections/GithubIssue";
-import { GitHubProjectConnection } from "./Connections/GithubProject";
-import { GitHubRepoConnection } from "./Connections/GithubRepo";
-import { GitLabIssueConnection } from "./Connections/GitlabIssue";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
-import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection } from "./Connections";
+import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
+import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
-import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
+import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { OAuthRequest, GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
+import { GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent,} from "./Webhooks";
 import { ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
@@ -28,9 +28,7 @@ import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher"
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
-import { JiraOAuthResult } from "./Jira/Types";
-import { AdminAccountData } from "./AdminRoomCommandHandler";
-import { GenericHookConnection } from "./Connections";
+import { OAuthRequest } from "./WebhookTypes";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -309,7 +307,7 @@ export class Bridge {
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection>(
             "gitlab.note.created",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid), 
+            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.issue.iid), 
             (c, data) => c.onCommentCreated(data),
         );
 
