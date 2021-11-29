@@ -8,7 +8,7 @@ on:
 env:
   DOCKER_NAMESPACE: halfshot
   PLATFORMS: linux/amd64
-  # Only push if this is develop, otherwise we just want to build
+  # Only push if this is main, otherwise we just want to build
   PUSH: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:

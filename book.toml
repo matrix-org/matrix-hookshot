@@ -1,0 +1,6 @@
+[book]
+authors = ["Half-Shot <me@half-shot.uk>"]
+language = "en"
+multilingual = false
+src = "docs"
+title = "Matrix Hookshot"
