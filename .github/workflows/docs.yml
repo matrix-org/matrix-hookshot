@@ -3,10 +3,6 @@ name: Build docs
 on:
   push:
 
-env:
-  # Only push if this is main, otherwise we just want to build
-  PUSH: ${{ github.ref == 'refs/heads/main' }}
-
 jobs:
   deploy:
     runs-on: ubuntu-20.04
@@ -22,7 +18,8 @@ jobs:
 
       - name: Deploy latest
         uses: peaceiris/actions-gh-pages@v3
-        if: env.PUSH
+        # Only push if this is main, otherwise we just want to build
+        if: github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           keep_files: true
