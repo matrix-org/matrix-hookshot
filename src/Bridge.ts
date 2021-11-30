@@ -581,44 +581,28 @@ export class Bridge {
         log.debug("Content:", JSON.stringify(event));
         const adminRoom = this.adminRooms.get(roomId);
 
-        if (adminRoom) {
-            if (adminRoom.userId !== event.sender) {
-                return;
-            }
-
-            const replyProcessor = new RichRepliesPreprocessor(true);
-            const processedReply = await replyProcessor.processEvent(event, this.as.botClient);
-
-            if (processedReply) {
-                const metadata: IRichReplyMetadata = processedReply.mx_richreply;
-                log.info(`Handling reply to ${metadata.parentEventId} for ${adminRoom.userId}`);
-                // This might be a reply to a notification
+        if (!adminRoom) {
+            let handled = false;
+            for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
                 try {
-                    const ev = metadata.realEvent;
-                    const splitParts: string[] = ev.content["uk.half-shot.matrix-hookshot.github.repo"]?.name.split("/");
-                    const issueNumber = ev.content["uk.half-shot.matrix-hookshot.github.issue"]?.number;
-                    if (splitParts && issueNumber) {
-                        log.info(`Handling reply for ${splitParts}${issueNumber}`);
-                        const connections = this.connectionManager.getConnectionsForGithubIssue(splitParts[0], splitParts[1], issueNumber);
-                        await Promise.all(connections.map(async c => {
-                            if (c instanceof GitHubIssueConnection) {
-                                return c.onMatrixIssueComment(processedReply);
-                            }
-                        }));
-                    } else {
-                        log.info("Missing parts!:", splitParts, issueNumber);
+                    if (connection.onMessageEvent) {
+                        handled = await connection.onMessageEvent(event);
                     }
                 } catch (ex) {
-                    await adminRoom.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
-                    log.error("Reply event could not be handled:", ex);
+                    log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
                 }
-                return;
             }
-
-            const command = event.content.body;
-            if (command) {
-                await adminRoom.handleCommand(event.event_id, command);
+            if (!handled) {
+                // Divert to the setup room code if we didn't match any of these
+                try {
+                    await (
+                        new SetupConnection(roomId, this.as, this.tokenStore, this.github, !!this.config.jira)
+                    ).onMessageEvent(event);
+                } catch (ex) {
+                    log.warn(`Setup connection failed to handle:`, ex);
+                }
             }
+            return;
         }
 
         for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
