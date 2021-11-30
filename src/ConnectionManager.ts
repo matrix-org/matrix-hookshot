@@ -60,7 +60,7 @@ export class ConnectionManager {
             if (!this.github) {
                 throw Error('GitHub is not configured');
             }
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey);
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey, this.github);
         }
 
         if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
@@ -129,7 +129,6 @@ export class ConnectionManager {
         }
 
         if (JiraProjectConnection.EventTypes.includes(state.type)) {
-            console.log("WOOF", state);
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
