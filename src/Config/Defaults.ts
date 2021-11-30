@@ -70,6 +70,7 @@ export const DefaultConfig = new BridgeConfig({
     },
     generic: {
         enabled: false,
+        urlPrefix: "https://example.com/mywebhookspath/",
         allowJsTransformationFunctions: false,
     }
 }, {});

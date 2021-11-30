@@ -30,6 +30,7 @@ import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
 import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
+import { SetupConnection } from "./Connections/SetupConnection";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -264,15 +265,9 @@ export class Bridge {
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.merge",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
-            (c, data) => c.onMergeRequestReviewed(data),
+            (c, data) => c.onMergeRequestMerged(data),
         );
-    
-        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
-            "gitlab.merge_request.merge",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
-            (c, data) => c.onMergeRequestReviewed(data),
-        );
-    
+
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.approved",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
@@ -561,7 +556,6 @@ export class Bridge {
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
         }
-        // This is a group room, don't add the admin settings and just sit in the room.
     }
 
     private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
@@ -596,7 +590,7 @@ export class Bridge {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
-                        new SetupConnection(roomId, this.as, this.tokenStore, this.github, !!this.config.jira)
+                        new SetupConnection(roomId, this.as, this.tokenStore, this.github, !!this.config.jira, this.config.generic)
                     ).onMessageEvent(event);
                 } catch (ex) {
                     log.warn(`Setup connection failed to handle:`, ex);
@@ -605,15 +599,44 @@ export class Bridge {
             return;
         }
 
-        for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+        if (adminRoom.userId !== event.sender) {
+            return;
+        }
+
+        const replyProcessor = new RichRepliesPreprocessor(true);
+        const processedReply = await replyProcessor.processEvent(event, this.as.botClient);
+
+        if (processedReply) {
+            const metadata: IRichReplyMetadata = processedReply.mx_richreply;
+            log.info(`Handling reply to ${metadata.parentEventId} for ${adminRoom.userId}`);
+            // This might be a reply to a notification
             try {
-                if (connection.onMessageEvent) {
-                    await connection.onMessageEvent(event);
+                const ev = metadata.realEvent;
+                const splitParts: string[] = ev.content["uk.half-shot.matrix-hookshot.github.repo"]?.name.split("/");
+                const issueNumber = ev.content["uk.half-shot.matrix-hookshot.github.issue"]?.number;
+                if (splitParts && issueNumber) {
+                    log.info(`Handling reply for ${splitParts}${issueNumber}`);
+                    const connections = this.connectionManager.getConnectionsForGithubIssue(splitParts[0], splitParts[1], issueNumber);
+                    await Promise.all(connections.map(async c => {
+                        if (c instanceof GitHubIssueConnection) {
+                            return c.onMatrixIssueComment(processedReply);
+                        }
+                    }));
+                } else {
+                    log.info("Missing parts!:", splitParts, issueNumber);
                 }
             } catch (ex) {
-                log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
+                await adminRoom.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
+                log.error("Reply event could not be handled:", ex);
             }
+            return;
         }
+
+        const command = event.content.body;
+        if (command) {
+            await adminRoom.handleCommand(event.event_id, command);
+        }
+
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {

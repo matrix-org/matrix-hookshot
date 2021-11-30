@@ -52,8 +52,9 @@ export interface BridgeConfigJira {
     };
 }
 
-interface BridgeGenericWebhooksConfig {
+export interface BridgeGenericWebhooksConfig {
     enabled: boolean;
+    urlPrefix: string;
     allowJsTransformationFunctions?: boolean;
 }
 
