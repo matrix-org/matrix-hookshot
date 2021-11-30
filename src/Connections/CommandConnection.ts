@@ -21,7 +21,7 @@ export abstract class CommandConnection {
         const { error, handled, humanError } = await handleCommand(ev.sender, ev.content.body, this.botCommands, this, this.commandPrefix);
         if (!handled) {
             // Not for us.
-            return;
+            return false;
         }
         if (error) {
             await this.botClient.sendEvent(this.roomId, "m.reaction", {
@@ -36,7 +36,7 @@ export abstract class CommandConnection {
                 body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command",
             });
             log.warn(`Failed to handle command:`, error);
-            return;
+            return true;
         }
         await this.botClient.sendEvent(this.roomId, "m.reaction", {
             "m.relates_to": {
@@ -45,6 +45,7 @@ export abstract class CommandConnection {
                 key: "✅",
             }
         });
+        return true;
     }
 
     @botCommand("help", "This help text")

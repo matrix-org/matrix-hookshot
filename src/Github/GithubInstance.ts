@@ -39,15 +39,24 @@ export class GithubInstance {
         });
     }
 
-    public getOctokitForRepo(orgName: string, repoName?: string) {
+    public getSafeOctokitForRepo(orgName: string, repoName?: string) {
         const targetName = (repoName ? `${orgName}/${repoName}` : orgName).toLowerCase();
+        console.log([...this.installationsCache.values()]);
         for (const install of this.installationsCache.values()) {
             if (install.matchesRepository.includes(targetName) || install.matchesRepository.includes(`${targetName.split('/')[0]}/*`)) {
                 return this.createOctokitForInstallation(install.id);
             }
         }
+        return null;
+    }
+
+    public getOctokitForRepo(orgName: string, repoName?: string) {
+        const res = this.getSafeOctokitForRepo(orgName, repoName);
+        if (res) {
+            return res;
+        }
         // TODO: Refresh cache?
-        throw Error(`No installation found to handle ${targetName}`);
+        throw Error(`No installation found to handle ${orgName}/${repoName}`);
     }
 
     private createOctokitForInstallation(installationId: number) {
