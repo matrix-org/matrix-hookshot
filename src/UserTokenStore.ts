@@ -3,7 +3,6 @@ import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
-import JiraApi from 'jira-client';
 import LogWrapper from "./LogWrapper";
 import { JiraClient } from "./Jira/Client";
 import { JiraOAuthResult } from "./Jira/Types";

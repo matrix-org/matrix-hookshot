@@ -7,13 +7,13 @@ import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
 import { generateJiraWebLinkFromIssue } from "../Jira";
-import { JiraIssue, JiraProject } from "../Jira/Types";
+import { JiraProject } from "../Jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
-import { start } from "repl";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
+import JiraApi from "jira-client";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
@@ -159,11 +159,14 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         if (!jiraClient) {
             throw new NotLoggedInError();
         }
-        const resource = (await jiraClient.getAccessibleResources()).find((r) => new URL(r.url).origin === this.instanceOrigin);
-        if (!resource) {
-            throw new CommandError("No-resource", "You do not have permission to create issues for this JIRA org");
+        if (!this.projectUrl) {
+            throw new CommandError("No-resource-origin", "Room is configured with an ID and not a URL, cannot determine correct JIRA client");
         }
-        return jiraClient.getClientForResource(resource);
+        const jiraProjectClient = await jiraClient.getClientForUrl(this.projectUrl);
+        if (!jiraProjectClient) {
+            throw new CommandError("No-resource", "You do not have permission to manage issues for this JIRA org");
+        }
+        return jiraProjectClient;
     }
 
     @botCommand("create", "Create an issue for this project", ["type", "title"], ["description", "labels"], true)
@@ -183,7 +186,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             throw new CommandError("invalid-issuetype", `You must specify a valid issue type (one of ${content}). E.g. ${this.commandPrefix} create ${project.issueTypes[0].name}`);
         }
         log.info(`Creating new issue on behalf of ${userId}`);
-        let result: any;
+        let result: JiraApi.JsonResponse;
         try {
             result = await api.addNewIssue({
                 //update: {},

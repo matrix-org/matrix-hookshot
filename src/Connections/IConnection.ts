@@ -13,9 +13,10 @@ export interface IConnection {
     onEvent?: (ev: MatrixEvent<unknown>) => Promise<void>;
 
     /**
-     * When a room gets a message event
+     * When a room gets a message event.
+     * @returns Was the message handled
      */
-    onMessageEvent?: (ev: MatrixEvent<MatrixMessageContent>) => Promise<void>;
+    onMessageEvent?: (ev: MatrixEvent<MatrixMessageContent>) => Promise<boolean>;
 
     onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
 
