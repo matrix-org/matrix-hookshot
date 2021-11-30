@@ -5,7 +5,6 @@ import markdown from "markdown-it";
 import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
 import { CommentProcessor } from "../CommentProcessor";
-import { Octokit } from "@octokit/rest";
 import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
@@ -31,7 +30,7 @@ interface IQueryRoomOpts {
     tokenStore: UserTokenStore;
     commentProcessor: CommentProcessor;
     messageClient: MessageSenderClient;
-    octokit: Octokit;
+    githubInstance: GithubInstance;
 }
 
 /**
@@ -61,8 +60,9 @@ export class GitHubIssueConnection implements IConnection {
 
         log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
         let issue: IssuesGetResponseData;
+        const octokit = opts.githubInstance.getOctokitForRepo(owner, repo);
         try {
-            issue = (await opts.octokit.issues.get({
+            issue = (await octokit.issues.get({
                 owner,
                 repo,
                 issue_number: issueNumber,
@@ -78,7 +78,7 @@ export class GitHubIssueConnection implements IConnection {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
         let avatarUrl = undefined;
         try {
-            const profile = await opts.octokit.users.getByUsername({
+            const profile = await octokit.users.getByUsername({
                 username: owner,
             });
             if (profile.data.avatar_url) {
@@ -200,7 +200,7 @@ export class GitHubIssueConnection implements IConnection {
 
     public async syncIssueState() {
         log.debug("Syncing issue state for", this.roomId);
-        const issue = await this.github.octokit.issues.get({
+        const issue = await this.github.getOctokitForRepo(this.org, this.repo).issues.get({
             owner: this.state.org,
             repo: this.state.repo,
             issue_number: this.issueNumber,
@@ -231,7 +231,7 @@ export class GitHubIssueConnection implements IConnection {
         }
 
         if (this.state.comments_processed !== issue.data.comments) {
-            const comments = (await this.github.octokit.issues.listComments({
+            const comments = (await this.github.getOctokitForRepo(this.org, this.repo).issues.listComments({
                 owner: this.state.org,
                 repo: this.state.repo,
                 issue_number: this.issueNumber,

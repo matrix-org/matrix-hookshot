@@ -1,7 +1,7 @@
 import { BridgeConfig } from "./Config/Config";
 import { Application, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
-import { MessageQueue, createMessageQueue } from "./MessageQueue/MessageQueue";
+import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import { Server } from "http";
@@ -10,15 +10,12 @@ import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import JiraRouter from "./Jira/Router";
+import { OAuthRequest } from "./WebhookTypes";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface GenericWebhookEvent {
     hookData: Record<string, unknown>;
     hookId: string;
-}
-
-export interface OAuthRequest {
-    state: string;
 }
 
 export interface GitHubOAuthTokens {

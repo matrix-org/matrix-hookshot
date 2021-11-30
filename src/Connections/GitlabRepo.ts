@@ -1,19 +1,20 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { IConnection } from "./IConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice } from "matrix-bot-sdk";
-import { BotCommands, handleCommand, botCommand, compileBotCommands } from "../BotCommands";
+import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent } from "../Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookTagPushEvent } from "../Gitlab/WebhookTypes";
+import { CommandConnection } from "./CommandConnection";
 
 export interface GitLabRepoConnectionState {
     instance: string;
     path: string;
-    state: string;
+    ignoreHooks?: string[],
+    commandPrefix?: string;
 }
 
 const log = new LogWrapper("GitLabRepoConnection");
@@ -22,7 +23,7 @@ const md = new markdown();
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitLabRepoConnection implements IConnection {
+export class GitLabRepoConnection extends CommandConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
 
@@ -32,12 +33,21 @@ export class GitLabRepoConnection implements IConnection {
     ];
     
     static botCommands: BotCommands;
+    static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
 
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
-        private readonly state: GitLabRepoConnectionState,
+        private state: GitLabRepoConnectionState,
+        private readonly stateKey: string,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance) {
+            super(
+                roomId,
+                as.botClient,
+                GitLabRepoConnection.botCommands,
+                GitLabRepoConnection.helpMessage,
+                "!gl"
+            )
             if (!state.path || !state.instance) {
                 throw Error('Invalid state, missing `path` or `instance`');
             }
@@ -47,37 +57,17 @@ export class GitLabRepoConnection implements IConnection {
         return this.state.path?.toString();
     }
 
-
-    public isInterestedInStateEvent() {
-        return false;
+    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        const state = stateEv.content as GitLabRepoConnectionState;
+        this.state = state;
     }
 
-    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        const { error, handled } = await handleCommand(ev.sender, ev.content.body, GitLabRepoConnection.botCommands, this);
-        if (!handled) {
-            // Not for us.
-            return;
-        }
-        if (error) {
-            log.error(error);
-            await this.as.botIntent.sendEvent(this.roomId,{
-                msgtype: "m.notice",
-                body: "Failed to handle command",
-            });
-            return;
-        }
-        await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
-            "m.relates_to": {
-                rel_type: "m.annotation",
-                event_id: ev.event_id,
-                key: "✅",
-            }
-        });
+    public isInterestedInStateEvent(eventType: string, stateKey: string) {
+        return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
     @botCommand("gl create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
-    // @ts-ignore
-    private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
@@ -100,8 +90,7 @@ export class GitLabRepoConnection implements IConnection {
     }
 
     @botCommand("gl close", "Close an issue", ["number"], ["comment"], true)
-    // @ts-ignore
-    private async onClose(userId: string, number: string) {
+    public async onClose(userId: string, number: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
             await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
@@ -115,14 +104,21 @@ export class GitLabRepoConnection implements IConnection {
         });
     }
 
-    public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+    private validateMREvent(event: IGitLabWebhookMREvent) {
         if (!event.object_attributes) {
             throw Error('No merge_request content!');
         }
         if (!event.project) {
             throw Error('No repository content!');
         }
+    }
+
+    public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
+        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        if (this.shouldSkipHook('merge_request.open')) {
+            return;
+        }
+        this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.as.botIntent.sendEvent(this.roomId, {
@@ -133,12 +129,80 @@ export class GitLabRepoConnection implements IConnection {
         });
     }
 
+    public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
+        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        if (this.shouldSkipHook('merge_request.merge')) {
+            return;
+        }
+        this.validateMREvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = `**${event.user.username}** merged MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
+        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`)) {
+            return;
+        }
+        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        this.validateMREvent(event);
+        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
+            // Not interested.
+            return;
+        }
+        const emojiForReview = {
+            'approved': '✅',
+            'unapproved': '🔴'
+        }[event.object_attributes.action];
+        const orgRepoName = event.project.path_with_namespace;
+        const content = `**${event.user.username}** ${emojiForReview} ${event.object_attributes.action} MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
+        log.info(`onGitLabTagPush ${this.roomId} ${this.instance}/${this.path} ${event.ref}`);
+        if (this.shouldSkipHook('tag_push')) {
+            return;
+        }
+        const tagname = event.ref.replace("refs/tags/", "");
+        const url = `${event.project.homepage}/-/tree/${tagname}`;
+        const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
     public toString() {
-        return `GitHubRepo`;
+        return `GitLabRepo ${this.instance}/${this.path}`;
+    }
+
+    private shouldSkipHook(...hookName: string[]) {
+        if (this.state.ignoreHooks) {
+            for (const name of hookName) {
+                if (this.state.ignoreHooks?.includes(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 
 // Typescript doesn't understand Prototypes very well yet.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const res = compileBotCommands(GitLabRepoConnection.prototype as any);
+const res = compileBotCommands(GitLabRepoConnection.prototype as any, CommandConnection.prototype as any);
+GitLabRepoConnection.helpMessage = res.helpMessage;
 GitLabRepoConnection.botCommands = res.botCommands;

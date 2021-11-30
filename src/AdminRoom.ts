@@ -19,6 +19,7 @@ import { ProjectsListResponseData } from "./Github/Types";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { JiraBotCommands } from "./Jira/AdminCommands";
 import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
+import { CommandError } from "./errors";
 
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
@@ -137,10 +138,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
-    // @ts-ignore - property is used
-    private async setGHPersonalAccessToken(accessToken: string) {
+    public async setGHPersonalAccessToken(accessToken: string) {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
         let me;
         try {
@@ -156,10 +156,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github hastoken", "Check if you have a token stored for GitHub")
-    // @ts-ignore - property is used
-    private async hasPersonalToken() {
+    public async hasPersonalToken() {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
         const result = await this.tokenStore.getUserToken("github", this.userId);
         if (result === null) {
@@ -170,10 +169,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github startoauth", "Start the OAuth process with GitHub")
-    // @ts-ignore - property is used
-    private async beginOAuth() {
+    public async beginOAuth() {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
         // If this is already set, calling this command will invalidate the previous session.
         this.pendingOAuthState = uuid();

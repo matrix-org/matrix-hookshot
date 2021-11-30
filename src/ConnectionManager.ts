@@ -43,7 +43,6 @@ export class ConnectionManager {
         // NOTE: Double loop
         for (const connection of connections) {
             if (!this.connections.find((c) => c === connection)) {
-                console.log("PUSH!");
                 this.connections.push(connection);
             }
         }
@@ -110,7 +109,7 @@ export class ConnectionManager {
             if (!instance) {
                 throw Error('Instance name not recognised');
             }
-            return new GitLabRepoConnection(roomId, this.as, state.content, this.tokenStore, instance);
+            return new GitLabRepoConnection(roomId, this.as, state.content, state.stateKey, this.tokenStore, instance);
         }
 
         if (GitLabIssueConnection.EventTypes.includes(state.type)) {

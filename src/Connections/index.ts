@@ -4,7 +4,8 @@ export * from "./GithubIssue";
 export * from "./GithubProject";
 export * from "./GithubRepo";
 export * from "./GithubUserSpace";
-
 export * from "./GitlabIssue";
 export * from "./GitlabRepo";
+export * from "./JiraProject";
+export * from "./GenericHook"
 export * from "./IConnection";

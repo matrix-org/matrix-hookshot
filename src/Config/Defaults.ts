@@ -35,7 +35,6 @@ export const DefaultConfig = new BridgeConfig({
         avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d"
     },
     github: {
-        installationId: 6854059,
         auth: {
             id: 123,
             privateKeyFile: "github-key.pem",
