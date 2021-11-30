@@ -7,15 +7,15 @@ import { IConnection } from "./IConnection";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
-import { NotLoggedInError } from "../errors";
-import { Octokit } from "@octokit/rest";
+import { CommandError, NotLoggedInError } from "../errors";
 import { ReposGetResponseData } from "../Github/Types";
 import { UserTokenStore } from "../UserTokenStore";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import emoji from "node-emoji";
 import LogWrapper from "../LogWrapper";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
+import { GithubInstance } from "../Github/GithubInstance";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -24,7 +24,7 @@ interface IQueryRoomOpts {
     tokenStore: UserTokenStore;
     commentProcessor: CommentProcessor;
     messageClient: MessageSenderClient;
-    octokit: Octokit;
+    githubInstance: GithubInstance;
 }
 
 export interface GitHubRepoConnectionState {
@@ -82,8 +82,9 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
         log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
         let repoRes: ReposGetResponseData;
+        const octokit = opts.githubInstance.getOctokitForRepo(owner, repo);
         try {
-            repoRes = (await opts.octokit.repos.get({
+            repoRes = (await octokit.repos.get({
                 owner,
                 repo,
             })).data;
@@ -96,7 +97,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const orgRepoName = repoRes.url.substr("https://api.github.com/repos/".length);
         let avatarUrl = undefined;
         try {
-            const profile = await opts.octokit.users.getByUsername({
+            const profile = await octokit.users.getByUsername({
                 username: owner,
             });
             if (profile.data.avatar_url) {
@@ -148,7 +149,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        private readonly state: GitHubRepoConnectionState,
+        private state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly stateKey: string) {
             super(
@@ -172,13 +173,17 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return `${this.roomId}/${GitHubRepoConnection.CanonicalEventType}/${this.stateKey}`;
     }
 
+    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        const state = stateEv.content as GitHubRepoConnectionState;
+        this.state = state;
+    }
+
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
-    // @ts-ignore
-    private async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new NotLoggedInError();
@@ -202,11 +207,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     @botCommand("assign", "Assign an issue to a user", ["number", "...users"], [], true)
-    // @ts-ignore
-    private async onAssign(userId: string, number: string, ...users: string[]) {
+    public async onAssign(userId: string, number: string, ...users: string[]) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            return this.as.botIntent.sendText(this.roomId, "You must login to assign an issue", "m.notice");
+            throw new NotLoggedInError();
         }
 
         if (users.length === 1) {
@@ -222,11 +226,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     @botCommand("close", "Close an issue", ["number"], ["comment"], true)
-    // @ts-ignore
-    private async onClose(userId: string, number: string, comment?: string) {
+    public async onClose(userId: string, number: string, comment?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            return this.as.botIntent.sendText(this.roomId, "You must login to close an issue", "m.notice");
+            throw new NotLoggedInError();
         }
 
         if (comment) {
@@ -244,6 +247,58 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             issue_number: parseInt(number, 10),
             state: "closed",
         });
+    }
+
+    @botCommand("workflow run", "Run a GitHub Actions workflow. Args should be specified in \"key=value,key2='value 2'\" format.", ["name"], ["args", "ref"], true)
+    public async onWorkflowRun(userId: string, name: string, args?: string, ref?: string) {
+        const octokit = await this.tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            throw new NotLoggedInError();
+        }
+        const workflowArgs: Record<string, string> = {};
+        if (args) {
+            args.split(',').forEach((arg) => { const [key,value] = arg.split('='); workflowArgs[key] = value || "" });
+        }
+
+        const workflows = await octokit.actions.listRepoWorkflows({
+            repo: this.state.repo,
+            owner: this.state.org,
+        });
+
+        const workflow = workflows.data.workflows.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
+        if (!workflow) {
+            const workflowNames = workflows.data.workflows.map(w => w.name).join(', ');
+            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}`, "m.notice");
+            return;
+        }
+        try {
+            if (!ref) {
+                ref = (await octokit.repos.get({
+                    repo: this.state.repo,
+                    owner: this.state.org,
+                })).data.default_branch;
+            }
+        } catch (ex) {
+            throw new CommandError(ex.message, `Could not determine default ref (maybe pass one in)`);
+        }
+
+        try {
+            await octokit.actions.createWorkflowDispatch({
+                repo: this.state.repo,
+                owner: this.state.org,
+                workflow_id: workflow.id,
+                ref,
+                inputs: workflowArgs,
+            });
+        } catch (ex) {
+            const httpError = ex as AxiosError;
+            if (httpError.response?.data) {
+                throw new CommandError(httpError.response?.data.message, httpError.response?.data.message);
+            }
+            throw ex;
+        }
+
+        await this.as.botIntent.sendText(this.roomId, `Workflow started`, "m.notice");
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {

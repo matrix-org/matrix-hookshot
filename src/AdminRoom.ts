@@ -1,26 +1,25 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Intent } from "matrix-bot-sdk";
-import { UserTokenStore } from "./UserTokenStore";
-import { BridgeConfig } from "./Config/Config";
-import {v4 as uuid} from "uuid";
-import qs from "querystring";
-import LogWrapper from "./LogWrapper";
 import "reflect-metadata";
-import markdown from "markdown-it";
-import { FormatUtil } from "./FormatUtil";
-import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
-import { GitLabClient } from "./Gitlab/Client";
-import { GetUserResponse } from "./Gitlab/Types";
-import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
-import { MatrixMessageContent } from "./MatrixEvent";
-import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
-import { Endpoints } from "@octokit/types";
-import { ProjectsListResponseData } from "./Github/Types";
-import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
-import { JiraBotCommands } from "./Jira/AdminCommands";
 import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
+import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
+import { BridgeConfig } from "./Config/Config";
+import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
+import { CommandError } from "./errors";
+import { Endpoints } from "@octokit/types";
+import { FormatUtil } from "./FormatUtil";
+import { GetUserResponse } from "./Gitlab/Types";
 import { GitHubBotCommands } from "./Github/AdminCommands";
-
+import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
+import { GitLabClient } from "./Gitlab/Client";
+import { Intent } from "matrix-bot-sdk";
+import { JiraBotCommands } from "./Jira/AdminCommands";
+import { MatrixMessageContent } from "./MatrixEvent";
+import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
+import { ProjectsListResponseData } from "./Github/Types";
+import { UserTokenStore } from "./UserTokenStore";
+import {v4 as uuid} from "uuid";
+import LogWrapper from "./LogWrapper";
+import markdown from "markdown-it";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -138,10 +137,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
-    // @ts-ignore - property is used
-    private async setGHPersonalAccessToken(accessToken: string) {
+    public async setGHPersonalAccessToken(accessToken: string) {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
         let me;
         try {
@@ -157,10 +155,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github hastoken", "Check if you have a token stored for GitHub")
-    // @ts-ignore - property is used
-    private async hasPersonalToken() {
+    public async hasPersonalToken() {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
         const result = await this.tokenStore.getUserToken("github", this.userId);
         if (result === null) {

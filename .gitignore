@@ -10,3 +10,5 @@ public/
 .idea
 # Added by cargo
 /target
+
+book

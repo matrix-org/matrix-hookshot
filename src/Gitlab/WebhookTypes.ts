@@ -26,6 +26,7 @@ export interface IGitlabRepository {
 export interface IGitlabProject {
     path_with_namespace: string;
     web_url: string;
+    homepage: string;
 }
 
 export interface IGitlabIssue {
@@ -39,6 +40,11 @@ export interface IGitlabMergeRequest {
     iid: number;
     author_id: number;
     state: 'opened'|'closed'|'merged';
+
+}
+
+export interface IGitLabMergeRequestObjectAttributes extends IGitlabMergeRequest {
+    action: "open"|"close"|"reopen"|"approved"|"unapproved"|"merge";
 }
 
 export interface IGitLabWebhookMREvent {
@@ -46,8 +52,26 @@ export interface IGitLabWebhookMREvent {
     user: IGitlabUser;
     project: IGitlabProject;
     repository: IGitlabRepository;
-    object_attributes: IGitlabMergeRequest;
+    object_attributes: IGitLabMergeRequestObjectAttributes;
 }
+
+export interface IGitLabWebhookTagPushEvent {
+    object_kind: "tag_push";
+    user_id: number;
+    ref: string;
+    user_name: string;
+    /**
+     * Commit hash before push
+     */
+    before: string;
+    /**
+     * Commit hash after push
+     */
+    after: string;
+    project: IGitlabProject;
+    repository: IGitlabRepository;
+}
+
 
 export interface IGitLabWebhookNoteEvent {
     user: IGitlabUser;

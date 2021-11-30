@@ -1,9 +1,9 @@
 import { IConnection } from "./IConnection";
 import { Appservice, Space } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { Octokit } from "@octokit/rest";
 import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
+import { GithubInstance } from "../Github/GithubInstance";
 
 const log = new LogWrapper("GitHubOwnerSpace");
 
@@ -25,7 +25,7 @@ export class GitHubUserSpace implements IConnection {
 
     static readonly QueryRoomRegex = /#github_(.+):.*/;
 
-    static async onQueryRoom(result: RegExpExecArray, opts: {octokit: Octokit, as: Appservice}): Promise<Record<string, unknown>> {
+    static async onQueryRoom(result: RegExpExecArray, opts: {githubInstance: GithubInstance, as: Appservice}): Promise<Record<string, unknown>> {
         if (!result || result.length < 1) {
             log.error(`Invalid alias pattern '${result}'`);
             throw Error("Could not find issue");
@@ -37,9 +37,10 @@ export class GitHubUserSpace implements IConnection {
         let state: GitHubUserSpaceConnectionState;
         let avatarUrl: string|undefined;
         let name: string;
+        const octokit = opts.githubInstance.getOctokitForRepo(username);
         try {
             // TODO: Determine if the repo has discussions?
-            const userRes = (await opts.octokit.users.getByUsername({
+            const userRes = (await octokit.users.getByUsername({
                 username,
             })).data;
             if (!userRes) {

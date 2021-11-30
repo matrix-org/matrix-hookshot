@@ -1,6 +1,6 @@
 import { NotificationsDisableEvent, NotificationsEnableEvent } from "../Webhooks";
 import LogWrapper from "../LogWrapper";
-import { createMessageQueue, MessageQueue, MessageQueueMessage } from "../MessageQueue/MessageQueue";
+import { createMessageQueue, MessageQueue, MessageQueueMessage } from "../MessageQueue";
 import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";

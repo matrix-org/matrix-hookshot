@@ -11,7 +11,6 @@ bridge:
 github:
   # (Optional) Configure this to enable GitHub support
   #
-  installationId: 6854059
   auth:
     id: 123
     privateKeyFile: github-key.pem

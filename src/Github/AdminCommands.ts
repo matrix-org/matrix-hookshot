@@ -1,6 +1,7 @@
 import qs from "querystring";
 import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler"
 import { botCommand } from "../BotCommands";
+import { CommandError } from "../errors";
 
 
 export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, state: string) {
@@ -17,15 +18,11 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
     @botCommand("github login", "Login to GitHub")
     public async loginCommand() {
         if (!this.config.github) {
-            return this.sendNotice(`The bridge is not configured with GitHub OAuth support`);
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
         const state = this.tokenStore.createStateForOAuth(this.userId);
-        if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
-        }
         return this.sendNotice(`To login, open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge`);
     }
-
 
     @botCommand("github startoauth", "Start the OAuth process with GitHub")
     public async beginOAuth() {

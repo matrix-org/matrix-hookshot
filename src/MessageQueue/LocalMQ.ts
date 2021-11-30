@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./MessageQueue";
+import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./Types";
 import micromatch from "micromatch";
 import {v4 as uuid} from "uuid";
 
