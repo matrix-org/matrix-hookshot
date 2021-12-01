@@ -47,6 +47,10 @@ export enum ErrCode {
      * The secret token provided to the API was invalid or not given.
      */
     BadToken = "HS_BAD_TOKEN",
+    /**
+     * The requested feature is not enabled in the bridge.
+     */
+    DisabledFeature = "HS_DISABLED_FEATURE",
 }
 
 const ErrCodeToStatusCode: Record<ErrCode, number> = {
@@ -58,6 +62,7 @@ const ErrCodeToStatusCode: Record<ErrCode, number> = {
     HS_NOT_IN_ROOM: 403,
     HS_BAD_VALUE: 400,
     HS_BAD_TOKEN: 401,
+    HS_DISABLED_FEATURE: 500,
 }
 
 export class ApiError extends Error {

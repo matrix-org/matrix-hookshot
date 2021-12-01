@@ -1,5 +1,5 @@
 
-import axios from 'axios';
+import axios, { Method } from 'axios';
 import JiraApi, { SearchUserOptions } from 'jira-client';
 import QuickLRU from "@alloc/quick-lru";
 import { JiraAccount, JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject } from './Types';
@@ -10,9 +10,35 @@ const log = new LogWrapper("JiraClient");
 const ACCESSIBLE_RESOURCE_CACHE_LIMIT = 100;
 const ACCESSIBLE_RESOURCE_CACHE_TTL_MS = 60000;
 
+interface JiraProjectSearchResponse {
+    nextPage: string;
+    maxResults: number;
+    startAt: number;
+    isLast: boolean;
+    values: JiraProject[];
+}
+
 export class HookshotJiraApi extends JiraApi {
-    constructor(private options: JiraApi.JiraApiOptions) {
+    constructor(private options: JiraApi.JiraApiOptions, private readonly res: JiraAPIAccessibleResource) {
         super(options);
+    }
+
+    public get resource() {
+        return this.res;
+    }
+
+    private async apiRequest<T>(path: string, method?: Method, data?: undefined): Promise<T>
+    private async apiRequest<T, R>(path: string, method: Method, data?: R): Promise<T> {
+        const url = `https://api.atlassian.com/${this.options.base}${path}`;
+        const res = await axios.request<T>({ url,
+            method: method || "GET",
+            data,
+            headers: {
+                Authorization: `Bearer ${this.options.bearer}`
+            },
+            responseType: 'json',
+        });
+        return res.data;
     }
 
     async getProject(projectIdOrKey: string): Promise<JiraProject> {
@@ -20,13 +46,17 @@ export class HookshotJiraApi extends JiraApi {
     }
 
     async getIssue(issueIdOrKey: string): Promise<JiraIssue> {
-        const res = await axios.get<JiraIssue>(`https://api.atlassian.com/${this.options.base}/rest/api/3/issue/${issueIdOrKey}`, {
-            headers: {
-                Authorization: `Bearer ${this.options.bearer}`
-            },
-            responseType: 'json',
-        });
-        return res.data;
+        return this.apiRequest<JiraIssue>(`/rest/api/3/issue/${issueIdOrKey}`);
+    }
+
+    async * getAllProjects(status = "live"): AsyncIterable<JiraProject> {
+        let response;
+        let startAt = 0;
+        do {
+            response = await this.apiRequest<JiraProjectSearchResponse>(`/rest/api/3/project/search?startAt=${startAt}&status=${status}`);
+            yield* response.values;
+            startAt += response.maxResults;
+        } while(!response.isLast)
     }
 
     async searchUsers(opts: SearchUserOptions): Promise<JiraAccount[]> {
@@ -102,6 +132,14 @@ export class JiraClient {
         return this.getClientForResource(resource);
     }
 
+    async getClientForName(name: string) {
+        const resource = (await this.getAccessibleResources()).find((r) => r.name === name);
+        if (!resource) {
+            return null;
+        } 
+        return this.getClientForResource(resource);
+    }
+
     async getClientForResource(res: JiraAPIAccessibleResource) {
         // Check token age
         await this.checkTokenAge();
@@ -112,6 +150,6 @@ export class JiraClient {
             apiVersion: '3',
             strictSSL: true,
             bearer: this.bearer,
-        });
+        }, res);
     }
 }
