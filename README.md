@@ -8,7 +8,25 @@ matrix-hookshot
 
 A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.
 
+## Featureset
+
+This bridge bridges:
+
+- GitHub
+  - Webhooks (new issues, pull requests, releases etc)
+  - Commands (create issues, assign issues, start workflows etc)
+- GitLab
+  - Webhooks (new issues, merge requests etc)
+  - Commands
+- Jira
+  - Webhooks (new issues, issue changes)
+  - Commands (create new issues)
+- Generic webhooks
+  - Webhooks (via GET, PUT or POST with optional transformation functions)
+
 ## Setup
+
+[See the setup guide](https://half-shot.github.io/matrix-hookshot/setup.html)
 
 This bridge requires at least Node 12, and Rust installed. If you do not have rust, https://rustup.rs/ is the quickest way to get it.
 
