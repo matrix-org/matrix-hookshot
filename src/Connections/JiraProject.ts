@@ -66,10 +66,28 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
         commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore): Promise<JiraProjectConnection> {
-        const validateData = validateJiraConnectionState(data);
-        const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, validateData.url, data);
-        log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
-        return new JiraProjectConnection(roomId, as, data, validateData.url, commentProcessor, messageClient, tokenStore);
+        const validData = validateJiraConnectionState(data);
+        const jiraClient = await tokenStore.getJiraForUser(userId);
+        if (!jiraClient) {
+            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+        }
+        const jiraResourceClient = await jiraClient.getClientForUrl(new URL(validData.url));
+        if (!jiraResourceClient) {
+            throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
+        }
+        const connection = new JiraProjectConnection(roomId, as, data, validData.url, commentProcessor, messageClient, tokenStore);
+        if (!connection.projectKey) {
+            throw Error('Expected projectKey to be defined');
+        }
+        try {
+            // Just need to check that the user can access this.
+            await jiraResourceClient.getProject(connection.projectKey);
+            const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, validData.url, data);
+            log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
+            return connection;
+        } catch (ex) {
+            throw new ApiError("User cannot open this project", ErrCode.ForbiddenUser);
+        }
     }
 
     public get connectionId() {
