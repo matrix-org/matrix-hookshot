@@ -51,7 +51,16 @@ export class ConnectionManager {
         // Already exists, noop.
     }
 
-    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
+    /**
+     * Used by the provisioner API to create new connections on behalf of users.
+     * Connections are created asyncronously here and so even if the promise resolves, it may take a while for the connection to appear.
+     * @param roomId The target Matrix room.
+     * @param userId The requesting Matrix user.
+     * @param type The type of room (corresponds to the event type of the connection)
+     * @param data The data corresponding to the connection state. This will be validated.
+     * @returns The eventId of the new state event corresponding to the connection
+     */
+    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<string> {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
         const existingConnections = await this.getAllConnectionsForRoom(roomId);
         if (JiraProjectConnection.EventTypes.includes(type)) {
@@ -62,9 +71,8 @@ export class ConnectionManager {
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
-            const connection = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
-            this.connections.push(connection);
-            return connection;
+            return JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
+        }
         if (GitHubRepoConnection.EventTypes.includes(type)) {
             if (existingConnections.find(c => c instanceof GitHubRepoConnection)) {
                 // TODO: Support this.

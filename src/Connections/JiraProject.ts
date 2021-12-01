@@ -65,7 +65,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore): Promise<JiraProjectConnection> {
+        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore): Promise<string> {
         const validData = validateJiraConnectionState(data);
         const jiraClient = await tokenStore.getJiraForUser(userId);
         if (!jiraClient) {
@@ -82,12 +82,12 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         try {
             // Just need to check that the user can access this.
             await jiraResourceClient.getProject(connection.projectKey);
-            const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, validData.url, data);
-            log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
-            return connection;
         } catch (ex) {
             throw new ApiError("User cannot open this project", ErrCode.ForbiddenUser);
         }
+        const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, validData.url, data);
+        log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
+        return eventId;
     }
 
     public get connectionId() {
@@ -190,11 +190,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     public getProvisionerDetails() {
         return {
-            service: "jira",
-            eventType: JiraProjectConnection.CanonicalEventType,
-            type: "JiraProject",
-            // TODO: Add ability to configure the bot per connnection type.
-            botUserId: this.as.botUserId,
+            ...JiraProjectConnection.getProvisionerDetails(this.as.botUserId),
             id: this.uniqueId,
             config: {
                 ...this.state,

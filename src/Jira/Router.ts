@@ -1,6 +1,6 @@
 import { BridgeConfigJira } from "../Config/Config";
 import { generateJiraURL } from "./AdminCommands";
-import { JiraOAuthResult, JiraProject } from "./Types";
+import { JiraOAuthResult } from "./Types";
 import { MessageQueue } from "../MessageQueue";
 import { OAuthRequest } from "../WebhookTypes";
 import { Router, Request, Response, NextFunction } from "express";
