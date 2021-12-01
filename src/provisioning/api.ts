@@ -51,6 +51,10 @@ export enum ErrCode {
      * The requested feature is not enabled in the bridge.
      */
     DisabledFeature = "HS_DISABLED_FEATURE",
+    /**
+     * The operation action requires an additional action from the requestor.
+     */
+    AdditionalActionRequired = "HS_ADDITIONAL_ACTION_REQUIRED",
 }
 
 const ErrCodeToStatusCode: Record<ErrCode, number> = {
@@ -63,17 +67,27 @@ const ErrCodeToStatusCode: Record<ErrCode, number> = {
     HS_BAD_VALUE: 400,
     HS_BAD_TOKEN: 401,
     HS_DISABLED_FEATURE: 500,
+    HS_ADDITIONAL_ACTION_REQUIRED: 400,
 }
 
 export class ApiError extends Error {
-    constructor(public readonly error: string, public readonly errcode = ErrCode.Unknown, public readonly statusCode = ErrCodeToStatusCode[errcode]) {
+    constructor(
+        public readonly error: string,
+        public readonly errcode = ErrCode.Unknown,
+        public readonly statusCode = -1,
+        public readonly additionalContent: Record<string, unknown> = {},
+    ) {
         super(`API error ${errcode}: ${error}`);
+        if (statusCode === -1) {
+            this.statusCode = ErrCodeToStatusCode[errcode];
+        }
     }
 
     get jsonBody() {
         return {
             errcode: this.errcode,
             error: this.error,
+            ...this.additionalContent,
         }
     }
 

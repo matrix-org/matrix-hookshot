@@ -118,7 +118,11 @@ export class GitHubProvisionerRouter {
         const page = req.query.page ? parseInt(req.query.page) : 1;
         const perPage = req.query.perPage ? parseInt(req.query.perPage) : 10;
         try {
-            const orgRes = await octokit.repos.listForAuthenticatedUser({page, per_page: perPage, type: "member"});
+            const orgRes = await octokit.repos.listForAuthenticatedUser({
+                page,
+                per_page: perPage,
+                affiliation: "organization_member"
+            });
             for (const repo of orgRes.data) {
                 repositories.push({
                     name: repo.name,

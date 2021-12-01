@@ -36,6 +36,7 @@ export const DefaultConfig = new BridgeConfig({
     },
     github: {
         auth: {
+            name: 'my-app-name',
             id: 123,
             privateKeyFile: "github-key.pem",
         },

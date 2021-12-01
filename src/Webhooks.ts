@@ -57,6 +57,8 @@ export class Webhooks extends EventEmitter {
             this.ghWebhooks.onAny(e => this.onGitHubPayload(e));
         }
 
+        // TODO: Move these
+        this.expressApp.get("/oauth", this.onGitHubGetOauth.bind(this));
         this.expressApp.all(
             '/:hookId',
             express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
@@ -67,7 +69,6 @@ export class Webhooks extends EventEmitter {
             verify: this.verifyRequest.bind(this),
         }));
         this.expressApp.post("/", this.onPayload.bind(this));
-        this.expressApp.get("/oauth", this.onGitHubGetOauth.bind(this));
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
             this.expressApp.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
@@ -202,23 +203,30 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    public async onGitHubGetOauth(req: Request, res: Response) {
-        log.info("Got new oauth request");
+    public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string}> , res: Response) {
+        log.info(`Got new oauth request for ${req.query.state}`);
         try {
             if (!this.config.github || !this.config.github.oauth) {
-                res.status(500).send(`<p>Bridge is not configured with OAuth support</p>`);
-                throw Error("Got GitHub oauth request but github was not configured!");
+                return res.status(500).send(`<p>Bridge is not configured with OAuth support</p>`);
+            }
+            if (req.query.error) {
+                return res.status(500).send(`<p><b>GitHub Error</b>: ${req.query.error} ${req.query.error_description}</p>`);
+            }
+            if (!req.query.state) {
+                return res.status(400).send(`<p>Missing state</p>`);
+            }
+            if (!req.query.code) {
+                return res.status(400).send(`<p>Missing code</p>`);
             }
             const exists = await this.queue.pushWait<OAuthRequest, boolean>({
-                eventName: "oauth.response",
+                eventName: "github.oauth.response",
                 sender: "GithubWebhooks",
                 data: {
-                    state: req.query.state as string,
+                    state: req.query.state,
                 },
             });
             if (!exists) {
-                res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
-                return;
+                return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
             }
             const accessTokenRes = await axios.post(`https://github.com/login/oauth/access_token?${qs.encode({
                 client_id: this.config.github.oauth.client_id,
@@ -230,14 +238,14 @@ export class Webhooks extends EventEmitter {
             // eslint-disable-next-line camelcase
             const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
             await this.queue.push<GitHubOAuthTokens>({
-                eventName: "oauth.tokens",
+                eventName: "github.oauth.tokens",
                 sender: "GithubWebhooks",
                 data: { state: req.query.state as string, ... result },
             });
-            res.send(`<p> Your account has been bridged </p>`);
+            return res.send(`<p> Your account has been bridged </p>`);
         } catch (ex) {
             log.error("Failed to handle oauth request:", ex);
-            res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+            return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
         }
     }
 

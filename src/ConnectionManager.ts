@@ -65,6 +65,16 @@ export class ConnectionManager {
             const connection = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
             this.connections.push(connection);
             return connection;
+        if (GitHubRepoConnection.EventTypes.includes(type)) {
+            if (existingConnections.find(c => c instanceof GitHubRepoConnection)) {
+                // TODO: Support this.
+                throw Error("Cannot support multiple connections of the same type yet");
+            }
+            if (!this.config.github || !this.config.github.oauth || !this.github) {
+                throw Error('GitHub is not configured');
+            }
+            return GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github);
+        }
         if (GenericHookConnection.EventTypes.includes(type)) {
             if (!this.config.generic) {
                 throw Error('Generic hook support not supported');

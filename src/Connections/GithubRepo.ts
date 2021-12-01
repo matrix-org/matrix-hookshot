@@ -18,6 +18,7 @@ import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from ".";
 import { BridgeConfigGitHub } from "../Config/Config";
+import { ApiError, ErrCode } from "../provisioning/api";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -32,7 +33,7 @@ interface IQueryRoomOpts {
 export interface GitHubRepoConnectionState {
     org: string;
     repo: string;
-    ignoreHooks?: string[],
+    ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     showIssueRoomLink?: boolean;
 }
@@ -54,14 +55,113 @@ const ALLOWED_REACTIONS = {
     "👐": "open",
 }
 
+
+type AllowedEventsNames = 
+    "issue.changed" |
+    "issue.created" |
+    "issue.edited" |
+    "issue" | 
+    "pull_request.closed" |
+    "pull_request.merged" |
+    "pull_request.opened" |
+    "pull_request.ready_for_review" |
+    "pull_request.reviewed" |
+    "pull_request" |
+    "release.created" |
+    "release";
+
+const AllowedEvents: AllowedEventsNames[] = [
+    "issue.changed" ,
+    "issue.created" ,
+    "issue.edited" ,
+    "issue" ,
+    "pull_request.closed" ,
+    "pull_request.merged" ,
+    "pull_request.opened" ,
+    "pull_request.ready_for_review" ,
+    "pull_request.reviewed" ,
+    "pull_request" ,
+    "release.created" ,
+    "release",
+];
+
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
 }
+
+function validateState(state: Record<string, unknown>): GitHubRepoConnectionState {
+    if (typeof state.org !== "string") {
+        throw new ApiError("Expected a 'org' property", ErrCode.BadValue);
+    }
+    if (typeof state.repo !== "string") {
+        throw new ApiError("Expected a 'org' property", ErrCode.BadValue);
+    }
+    const res: GitHubRepoConnectionState = {
+        org: state.org,
+        repo: state.repo,
+    }
+    if (state.commandPrefix) {
+        if (typeof state.commandPrefix !== "string") {
+            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
+        }
+        if (state.commandPrefix.length < 2 || state.commandPrefix.length > 24) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
+        }
+        res.commandPrefix = state.commandPrefix;
+    }
+    if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
+        if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
+            throw new ApiError(`'events' can only contain ${AllowedEvents.join(", ")}`, ErrCode.BadValue);
+        }
+        res.ignoreHooks = state.ignoreHooks;
+    }
+    return res;
+}
+
 
 /**
  * Handles rooms connected to a github repo.
  */
 export class GitHubRepoConnection extends CommandConnection implements IConnection {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
+        tokenStore: UserTokenStore, githubInstance: GithubInstance, config: BridgeConfigGitHub): Promise<string> {
+        const validData = validateState(data);
+        const octokit = await tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+        }
+        const me = await octokit.users.getAuthenticated();
+        let permissionLevel;
+        try {
+            const repo = await octokit.repos.getCollaboratorPermissionLevel({owner: validData.org, repo: validData.repo, username: me.data.login });
+            permissionLevel = repo.data.permission;
+        } catch (ex) {
+            throw new ApiError("Could not determine if the user has access to this repository, does the repository exist?", ErrCode.ForbiddenUser);
+        }
+
+        octokit.apps.addRepoToInstallationForAuthenticatedUser()
+
+        if (permissionLevel !== "admin" && permissionLevel !== "write") {
+            throw new ApiError("You must at least have write permissions to bridge this repository", ErrCode.ForbiddenUser);
+        }
+        const appOctokit = await githubInstance.getSafeOctokitForRepo(validData.org, validData.repo);
+        if (!appOctokit) {
+            throw new ApiError(
+                "You need to add a GitHub App to this organisation / repository before you can bridge it. Open the link to add the app, and then retry this request",
+                ErrCode.AdditionalActionRequired,
+                -1,
+                {
+                    // E.g. https://github.com/apps/matrix-bridge/installations/new
+                    installUrl: `https://github.com/apps/${config.auth.name}/installations/new`,
+                }
+            );
+        }
+        const stateKey = `${validData.org}/${validData.repo}`;
+        const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, GitHubRepoConnection.CanonicalEventType, stateKey, data);
+        log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
+        return eventId;
+    }
+
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.repository";
 
@@ -180,6 +280,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public get connectionId() {
+        return `${this.roomId}/${GitHubRepoConnection.CanonicalEventType}/${this.stateKey}`;
+    }
+
+    public get uniqueId() {
         return `${this.roomId}/${GitHubRepoConnection.CanonicalEventType}/${this.stateKey}`;
     }
 
@@ -571,7 +675,7 @@ ${event.release.body}`;
         return `GitHubRepo ${this.org}/${this.repo}`;
     }
 
-    private shouldSkipHook(...hookName: string[]) {
+    private shouldSkipHook(...hookName: AllowedEventsNames[]) {
         if (this.state.ignoreHooks) {
             for (const name of hookName) {
                 if (this.state.ignoreHooks?.includes(name)) {
@@ -580,6 +684,26 @@ ${event.release.body}`;
             }
         }
         return false;
+    }
+
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "github",
+            eventType: GitHubRepoConnection.CanonicalEventType,
+            type: "JiraProject",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: botUserId,
+        }
+    }
+
+    public getProvisionerDetails() {
+        return {
+            ...GitHubRepoConnection.getProvisionerDetails(this.as.botUserId),
+            id: this.uniqueId,
+            config: {
+                ...this.state,
+            },
+        }
     }
 }
 

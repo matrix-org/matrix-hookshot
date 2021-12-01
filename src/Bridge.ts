@@ -319,24 +319,23 @@ export class Bridge {
             await this.notifProcessor.onUserEvents(msg.data, adminRoom);
         });
 
-        this.queue.on<OAuthRequest>("oauth.response", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
+        this.queue.on<OAuthRequest>("github.oauth.response", async (msg) => {
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
             await this.queue.push<boolean>({
-                data: !!(adminRoom),
+                data: !!userId,
                 sender: "Bridge",
                 messageId: msg.messageId,
-                eventName: "response.oauth.response",
+                eventName: "response.github.oauth.response",
             });
         });
 
         this.queue.on<GitHubOAuthTokens>("oauth.tokens", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
-            if (!adminRoom) {
-                log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
+            if (!userId) {
+                log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
                 return;
             }
-            adminRoom.clearOauthState();
-            await this.tokenStore.storeUserToken("github", adminRoom.userId, msg.data.access_token);
+            await this.tokenStore.storeUserToken("github", userId, msg.data.access_token);
         });
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection>(
