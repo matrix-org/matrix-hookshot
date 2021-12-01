@@ -5,7 +5,6 @@ import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { InstallationDataType } from "./Types";
-import e from "express";
 
 const log = new LogWrapper("GithubInstance");
 
@@ -41,7 +40,6 @@ export class GithubInstance {
 
     public getSafeOctokitForRepo(orgName: string, repoName?: string) {
         const targetName = (repoName ? `${orgName}/${repoName}` : orgName).toLowerCase();
-        console.log([...this.installationsCache.values()]);
         for (const install of this.installationsCache.values()) {
             if (install.matchesRepository.includes(targetName) || install.matchesRepository.includes(`${targetName.split('/')[0]}/*`)) {
                 return this.createOctokitForInstallation(install.id);

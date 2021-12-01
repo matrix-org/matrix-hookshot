@@ -12,6 +12,7 @@ module.exports = {
     rules: {
         "@typescript-eslint/explicit-module-boundary-types": "off",
         "camelcase": ["error", { "properties": "never", "ignoreDestructuring": true }],
+        "no-console": "error"
     },
     "env": {
         "node": true,

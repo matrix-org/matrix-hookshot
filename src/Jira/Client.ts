@@ -77,7 +77,6 @@ export class JiraClient {
     }
 
     async checkTokenAge() {
-        console.log("checkTokenAge:", this.oauth2State);
         if (this.oauth2State.expires_in + 60000 > Date.now()) {
             return;
         }

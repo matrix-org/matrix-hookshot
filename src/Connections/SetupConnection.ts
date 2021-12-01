@@ -64,7 +64,7 @@ export class SetupConnection extends CommandConnection {
         if (!res) {
             throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid");
         }
-        const [_, org, repo] = res;
+        const [org, repo] = res;
         let resultRepo
         try {
             resultRepo = await octokit.repos.get({owner: org, repo});
