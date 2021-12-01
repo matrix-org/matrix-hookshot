@@ -47,6 +47,9 @@ export const DefaultConfig = new BridgeConfig({
         webhook: {
             secret: "secrettoken",
         },
+        defaultOptions: {
+            showIssueRoomLink: false,
+        }
     },
     gitlab: {
         instances: {
@@ -70,6 +73,7 @@ export const DefaultConfig = new BridgeConfig({
     },
     generic: {
         enabled: false,
+        urlPrefix: "https://example.com/mywebhookspath/",
         allowJsTransformationFunctions: false,
     }
 }, {});
@@ -140,6 +144,7 @@ async function renderRegistrationFile(configPath?: string) {
             rooms: [],
         },
     };
+    // eslint-disable-next-line no-console
     console.log(YAML.stringify(obj));
 }
 
@@ -147,9 +152,11 @@ async function renderRegistrationFile(configPath?: string) {
 // Can be called directly
 if (require.main === module) {
     if (process.argv[2] === '--config') {
+        // eslint-disable-next-line no-console
         console.log(renderDefaultConfig());
     } else if (process.argv[2] === '--registration') {
         renderRegistrationFile(process.argv[3]).catch(ex => {
+            // eslint-disable-next-line no-console
             console.error(ex);
             process.exit(1);
         });

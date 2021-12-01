@@ -179,8 +179,10 @@ export class GitLabIssueConnection implements IConnection {
         if (ev.content.body === '!sync') {
             // Sync data.
            // return this.syncIssueState();
+           return true;
         }
         await this.onMatrixIssueComment(ev);
+        return true;
     }
 
     public toString() {

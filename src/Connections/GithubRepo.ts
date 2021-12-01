@@ -16,6 +16,8 @@ import LogWrapper from "../LogWrapper";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
+import { GitHubIssueConnection } from ".";
+import { BridgeConfigGitHub } from "../Config/Config";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -32,6 +34,7 @@ export interface GitHubRepoConnectionState {
     repo: string;
     ignoreHooks?: string[],
     commandPrefix?: string;
+    showIssueRoomLink?: boolean;
 }
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
@@ -151,7 +154,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         private readonly as: Appservice,
         private state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
-        private readonly stateKey: string) {
+        private readonly stateKey: string,
+        private readonly githubInstance: GithubInstance,
+        private readonly config: BridgeConfigGitHub,
+        ) {
             super(
                 roomId,
                 as.botClient,
@@ -163,6 +169,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     public get org() {
         return this.state.org.toLowerCase();
+    }
+
+    private get showIssueRoomLink() {
+        return this.state.showIssueRoomLink === undefined ? (this.config.defaultOptions?.showIssueRoomLink || false) : this.state.showIssueRoomLink;
     }
 
     public get repo() {
@@ -311,7 +321,15 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const orgRepoName = event.repository.full_name;
 
         let message = `${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
-        message = message + (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
+        message += (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
+        if (this.showIssueRoomLink) {
+            const appInstance = await this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
+            if (appInstance) {
+                message += ` [Issue Room](https://matrix.to/#/${this.as.getAlias(GitHubIssueConnection.generateAliasLocalpart(this.org, this.repo, event.issue.number))})`;
+            } else {
+                log.warn(`Cannot show issue room link, no app install for ${orgRepoName}`);
+            }
+        }
         const content = emoji.emojify(message);
         const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
         await this.as.botIntent.sendEvent(this.roomId, {

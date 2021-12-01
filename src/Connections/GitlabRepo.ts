@@ -46,7 +46,7 @@ export class GitLabRepoConnection extends CommandConnection {
                 as.botClient,
                 GitLabRepoConnection.botCommands,
                 GitLabRepoConnection.helpMessage,
-                "!gl"
+                state.commandPrefix || "!gl"
             )
             if (!state.path || !state.instance) {
                 throw Error('Invalid state, missing `path` or `instance`');
@@ -66,7 +66,7 @@ export class GitLabRepoConnection extends CommandConnection {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
-    @botCommand("gl create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
+    @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
@@ -89,7 +89,7 @@ export class GitLabRepoConnection extends CommandConnection {
         });
     }
 
-    @botCommand("gl close", "Close an issue", ["number"], ["comment"], true)
+    @botCommand("close", "Close an issue", ["number"], ["comment"], true)
     public async onClose(userId: string, number: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {

@@ -100,12 +100,13 @@ export class GitHubDiscussionConnection implements IConnection {
         if (octokit === null) {
             // TODO: Use Reply - Also mention user.
             await this.as.botClient.sendNotice(this.roomId, `${ev.sender}: Cannot send comment, you are not logged into GitHub`);
-            return;
+            return true;
         }
         const qlClient = new GithubGraphQLClient(octokit);
         const commentId = await qlClient.addDiscussionComment(this.state.internalId, ev.content.body);
         log.info(`Sent ${commentId} for ${ev.event_id} (${ev.sender})`);
         this.sentEvents.add(commentId);
+        return true;
     }
 
     public get discussionNumber() {

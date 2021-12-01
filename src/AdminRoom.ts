@@ -173,6 +173,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
+        if (!this.config.github.oauth) {
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub OAuth support");
+        }
         // If this is already set, calling this command will invalidate the previous session.
         this.pendingOAuthState = uuid();
         const q = qs.stringify({

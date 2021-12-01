@@ -1,7 +1,6 @@
 import { IConnection } from "./IConnection";
 import { Appservice, Space } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { Octokit } from "@octokit/rest";
 import { ReposGetResponseData } from "../Github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";

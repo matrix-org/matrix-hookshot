@@ -5,7 +5,6 @@ import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { InstallationDataType } from "./Types";
-import e from "express";
 
 const log = new LogWrapper("GithubInstance");
 
@@ -39,15 +38,23 @@ export class GithubInstance {
         });
     }
 
-    public getOctokitForRepo(orgName: string, repoName?: string) {
+    public getSafeOctokitForRepo(orgName: string, repoName?: string) {
         const targetName = (repoName ? `${orgName}/${repoName}` : orgName).toLowerCase();
         for (const install of this.installationsCache.values()) {
             if (install.matchesRepository.includes(targetName) || install.matchesRepository.includes(`${targetName.split('/')[0]}/*`)) {
                 return this.createOctokitForInstallation(install.id);
             }
         }
+        return null;
+    }
+
+    public getOctokitForRepo(orgName: string, repoName?: string) {
+        const res = this.getSafeOctokitForRepo(orgName, repoName);
+        if (res) {
+            return res;
+        }
         // TODO: Refresh cache?
-        throw Error(`No installation found to handle ${targetName}`);
+        throw Error(`No installation found to handle ${orgName}/${repoName}`);
     }
 
     private createOctokitForInstallation(installationId: number) {

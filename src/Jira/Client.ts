@@ -4,7 +4,9 @@ import JiraApi, { SearchUserOptions } from 'jira-client';
 import QuickLRU from "@alloc/quick-lru";
 import { JiraAccount, JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject } from './Types';
 import { BridgeConfigJira } from '../Config/Config';
+import LogWrapper from '../LogWrapper';
 
+const log = new LogWrapper("JiraClient");
 const ACCESSIBLE_RESOURCE_CACHE_LIMIT = 100;
 const ACCESSIBLE_RESOURCE_CACHE_TTL_MS = 60000;
 
@@ -13,11 +15,11 @@ export class HookshotJiraApi extends JiraApi {
         super(options);
     }
 
-    async getProject(projectIdOrKey: string) {
+    async getProject(projectIdOrKey: string): Promise<JiraProject> {
         return await super.getProject(projectIdOrKey) as JiraProject;
     }
 
-    async getIssue(issueIdOrKey: string) {
+    async getIssue(issueIdOrKey: string): Promise<JiraIssue> {
         const res = await axios.get<JiraIssue>(`https://api.atlassian.com/${this.options.base}/rest/api/3/issue/${issueIdOrKey}`, {
             headers: {
                 Authorization: `Bearer ${this.options.bearer}`
@@ -60,6 +62,7 @@ export class JiraClient {
             // Existing failed promise, break out and try again.
             JiraClient.resourceCache.delete(this.bearer);
         }
+        await this.checkTokenAge();
         const promise = (async () => {
             const res = await axios.get(`https://api.atlassian.com/oauth/token/accessible-resources`, {
                 headers: {
@@ -77,23 +80,24 @@ export class JiraClient {
         if (this.oauth2State.expires_in + 60000 > Date.now()) {
             return;
         }
+        log.info(`Refreshing oauth token`);
         // Refresh the token
-        const res = await axios.post<unknown, JiraOAuthResult>(`https://api.atlassian.com/oauth/token`, {
+        const res = await axios.post(`https://api.atlassian.com/oauth/token`, {
             grant_type: "refresh_token",
             client_id: this.config.oauth.client_id,
             client_secret: this.config.oauth.client_secret,
             refresh_token: this.oauth2State.refresh_token,
         });
-        res.expires_in += Date.now() + (res.expires_in * 1000);
-        this.oauth2State = res;
+        const data = res.data as JiraOAuthResult;
+        data.expires_in += Date.now() + (data.expires_in * 1000);
+        this.oauth2State = data;
+        this.onTokenRefreshed(this.oauth2State);
     }
 
-    async getClientForName(name: string) {
-        const resources = await this.getAccessibleResources();
-        const resource = resources.find((res) => res.name === name);
-        await this.checkTokenAge();
+    async getClientForUrl(url: URL) {
+        const resource = (await this.getAccessibleResources()).find((r) => new URL(r.url).origin === url.origin);
         if (!resource) {
-            throw Error('User does not have access to this resource');
+            return null;
         } 
         return this.getClientForResource(resource);
     }
