@@ -223,8 +223,9 @@ a new JIRA connection.
 ```json5
 {
     "loggedIn": true,
-    "instances": {
-        "name": "acme",
-        "url": "https://acme.atlassian.net"
+    "projects": {
+        "key": "PLAY",
+        "name": "Jira Playground",
+        "id": "10015"
     }
 }
