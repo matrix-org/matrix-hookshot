@@ -1,5 +1,4 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Appservice } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
@@ -18,7 +17,8 @@ const md = new markdown();
 const log = new LogWrapper("SetupConnection");
 
 /**
- * Handles setting up a room
+ * Handles setting up a room with connections. This connection is "virtual" in that it has
+ * no state, and is only invoked when messages from other clients fall through.
  */
 export class SetupConnection extends CommandConnection {
     
@@ -36,7 +36,7 @@ export class SetupConnection extends CommandConnection {
                 as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,
-                "!setup",
+                "!hookshot",
             )
     }
 
