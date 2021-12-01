@@ -4,15 +4,15 @@ import { IAppserviceRegistration } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey } from "./Decorators";
 
-export interface BridgeConfigGitHub {
+interface BridgeConfigGitHubYAML {
     auth: {
         id: number|string;
         privateKeyFile: string;
     };
     webhook: {
         secret: string;
-    },
-    oauth: {
+    };
+    oauth?: {
         // eslint-disable-next-line camelcase
         client_id: string;
         // eslint-disable-next-line camelcase
@@ -20,6 +20,41 @@ export interface BridgeConfigGitHub {
         // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
+    defaultOptions?: {
+        showIssueRoomLink: false;
+    }
+}
+
+export class BridgeConfigGitHub {
+    @configKey("Authentication for the GitHub App.", false)
+    auth: {
+        id: number|string;
+        privateKeyFile: string;
+    };
+    @configKey("Webhook settings for the GitHub app.", false)
+    webhook: {
+        secret: string;
+    };
+    @configKey("Settings for allowing users to sign in via OAuth.", true)
+    oauth?: {
+        // eslint-disable-next-line camelcase
+        client_id: string;
+        // eslint-disable-next-line camelcase
+        client_secret: string;
+        // eslint-disable-next-line camelcase
+        redirect_uri: string;
+    };
+    @configKey("Default options for GitHub connections.", true)
+    defaultOptions?: {
+        showIssueRoomLink: false;
+    };
+
+    constructor(yaml: BridgeConfigGitHubYAML) {
+        this.auth = yaml.auth;
+        this.webhook = yaml.webhook;
+        this.oauth = yaml.oauth;
+        this.defaultOptions = yaml.defaultOptions;
+    }
 }
 
 export interface GitLabInstance {
@@ -140,7 +175,7 @@ export class BridgeConfig {
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
-        this.github = configData.github;
+        this.github = configData.github && new BridgeConfigGitHub(configData.github);
         if (this.github?.auth && env["GITHUB_PRIVATE_KEY_FILE"]) {
             this.github.auth.privateKeyFile = env["GITHUB_PRIVATE_KEY_FILE"];
         }

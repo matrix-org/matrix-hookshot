@@ -47,6 +47,9 @@ export const DefaultConfig = new BridgeConfig({
         webhook: {
             secret: "secrettoken",
         },
+        defaultOptions: {
+            showIssueRoomLink: false,
+        }
     },
     gitlab: {
         instances: {

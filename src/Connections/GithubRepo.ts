@@ -17,6 +17,7 @@ import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from ".";
+import { BridgeConfigGitHub } from "../Config/Config";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -154,7 +155,9 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         private state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly stateKey: string,
-        private readonly githubInstance: GithubInstance) {
+        private readonly githubInstance: GithubInstance,
+        private readonly config: BridgeConfigGitHub,
+        ) {
             super(
                 roomId,
                 as.botClient,
@@ -169,7 +172,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     private get showIssueRoomLink() {
-        return this.state.showIssueRoomLink === false ? false : true;
+        return this.state.showIssueRoomLink === undefined ? (this.config.defaultOptions?.showIssueRoomLink || false) : this.state.showIssueRoomLink;
     }
 
     public get repo() {
