@@ -76,7 +76,6 @@ interface JiraAccountStatus {
     instances?: {
         name: string;
         url: string;
-        id: string;
     }[]
 }
 interface JiraProjectsListing {
@@ -115,7 +114,6 @@ export class JiraProvisionerRouter {
                 instances.push({
                     url: resource.url,
                     name: resource.name,
-                    id: resource.id,
                 });
             }
         } catch (ex) {

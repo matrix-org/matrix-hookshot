@@ -190,7 +190,41 @@ the bridge will be granted access.
 ### Response
 
 ```json5
-[{
+{
     "url": "https://auth.atlassian.com/authorize?..."
-}]
+}
 ```
+
+### GET /jira/v1/account?userId={userId}
+
+
+Request the status of the users account. This will return a `loggedIn` value to determine if the
+bridge has a JIRA identity stored for the user, and any instances they have access to. Note that if a 
+user does not have access to an instance, they can authenticate again to gain access to it (if they are able
+to consent).
+### Response
+
+```json5
+{
+    "loggedIn": true,
+    "instances": {
+        "name": "acme",
+        "url": "https://acme.atlassian.net"
+    }
+}
+```
+
+### GET /jira/v1/instances/{instanceName}/projects?userId={userId}
+
+Request a list of all projects a user can see in a given instance. The `url` value of a project can be given to create
+a new JIRA connection.
+### Response
+
+```json5
+{
+    "loggedIn": true,
+    "instances": {
+        "name": "acme",
+        "url": "https://acme.atlassian.net"
+    }
+}
