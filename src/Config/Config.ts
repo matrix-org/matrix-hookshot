@@ -6,7 +6,6 @@ import { configKey } from "./Decorators";
 
 interface BridgeConfigGitHubYAML {
     auth: {
-        name: string;
         id: number|string;
         privateKeyFile: string;
     };
@@ -29,7 +28,6 @@ interface BridgeConfigGitHubYAML {
 export class BridgeConfigGitHub {
     @configKey("Authentication for the GitHub App.", false)
     auth: {
-        name: string;
         id: number|string;
         privateKeyFile: string;
     };

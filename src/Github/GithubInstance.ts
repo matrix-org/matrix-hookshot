@@ -23,9 +23,14 @@ export class GithubInstance {
     private internalOctokit!: Octokit;
 
     private readonly installationsCache = new Map<number, Installation>();
+    private internalAppName?: string;
 
     constructor (private readonly appId: number|string, private readonly privateKey: string) {
         this.appId = parseInt(appId as string, 10);
+    }
+
+    public get appName() {
+        return this.internalAppName;
     }
 
     public static createUserOctokit(token: string) {
@@ -76,11 +81,16 @@ export class GithubInstance {
             privateKey: this.privateKey,
         };
 
+
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
             userAgent: USER_AGENT,
         });
+
+
+        const appDetails = await this.internalOctokit.apps.getAuthenticated();
+        this.internalAppName = appDetails.data.name;
 
         let installPageSize = 100;
         let page = 1;

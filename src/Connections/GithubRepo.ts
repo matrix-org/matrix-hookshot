@@ -139,8 +139,6 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             throw new ApiError("Could not determine if the user has access to this repository, does the repository exist?", ErrCode.ForbiddenUser);
         }
 
-        octokit.apps.addRepoToInstallationForAuthenticatedUser()
-
         if (permissionLevel !== "admin" && permissionLevel !== "write") {
             throw new ApiError("You must at least have write permissions to bridge this repository", ErrCode.ForbiddenUser);
         }
@@ -152,7 +150,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 -1,
                 {
                     // E.g. https://github.com/apps/matrix-bridge/installations/new
-                    installUrl: `https://github.com/apps/${config.auth.name}/installations/new`,
+                    installUrl: `https://github.com/apps/${githubInstance.appName}/installations/new`,
                 }
             );
         }
