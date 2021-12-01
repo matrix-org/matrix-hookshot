@@ -57,10 +57,10 @@ export class ConnectionManager {
         }
 
         if (GitHubRepoConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
+            if (!this.github || !this.config.github) {
                 throw Error('GitHub is not configured');
             }
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey, this.github);
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey, this.github, this.config.github);
         }
 
         if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
