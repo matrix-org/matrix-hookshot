@@ -416,7 +416,7 @@ export class Bridge {
         );
     
         this.queue.on<OAuthRequest>("jira.oauth.response", async (msg) => {
-            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             await this.queue.push<boolean>({
                 data: !!(userId),
                 sender: "Bridge",
@@ -425,13 +425,17 @@ export class Bridge {
             });
         });
 
-        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async (msg) => {
-            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
-            if (!userId) {
-                log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
+        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async ({data}) => {
+            if (!data.state) {
+                log.warn("Missing `state` on `jira.oauth.tokens` event. This shouldn't happen!");
                 return;
             }
-            await this.tokenStore.storeUserToken("jira", userId, JSON.stringify(msg.data));
+            const userId = this.tokenStore.getUserIdForOAuthState(data.state);
+            if (!userId) {
+                log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
+                return;
+            }
+            await this.tokenStore.storeUserToken("jira", userId, JSON.stringify(data));
 
             // Some users won't have an admin room and would have gone through provisioning.
             const adminRoom = this.adminRooms.get(userId);

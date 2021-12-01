@@ -20,6 +20,9 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
         }
+        if (!this.config.github.oauth) {
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub OAuth support");
+        }
         const state = this.tokenStore.createStateForOAuth(this.userId);
         return this.sendNotice(`To login, open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge`);
     }

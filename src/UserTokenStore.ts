@@ -134,13 +134,15 @@ export class UserTokenStore {
         return state;
     }
 
-    public getUserIdForOAuthState(state: string) {
+    public getUserIdForOAuthState(state: string, remove = true) {
         const result = this.oauthSessionStore.get(state);
         if (!result) {
             return null;
         }
-        clearTimeout(result.timeout);
-        this.oauthSessionStore.delete(state);
+        if (remove) {
+            clearTimeout(result.timeout);
+            this.oauthSessionStore.delete(state);
+        }
         return result.userId;
     }
 }
