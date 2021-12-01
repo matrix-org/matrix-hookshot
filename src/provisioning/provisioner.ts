@@ -93,6 +93,7 @@ export class Provisioner {
         next();
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private onError(err: unknown, _req: Request, res: Response, _next: NextFunction) {
         if (!err) {
             return;
@@ -181,8 +182,11 @@ export class Provisioner {
     private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response, next: NextFunction) {
         // Need to figure out which connections are available
         try {
-            const connection = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
-            return res.send(connection.getProvisionerDetails ? connection.getProvisionerDetails() : {});
+            if (!req.body || typeof req.body !== "object") {
+                throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
+            }
+            const eventId = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
+            return res.status(202).send({eventId});
         } catch (ex) {
             log.warn(`Failed to create connection for ${req.params.roomId}`, ex);
             return next(ex);

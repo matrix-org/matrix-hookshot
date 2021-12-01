@@ -65,6 +65,11 @@ export class ConnectionManager {
             const connection = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
             this.connections.push(connection);
             return connection;
+        if (GenericHookConnection.EventTypes.includes(type)) {
+            if (!this.config.generic) {
+                throw Error('Generic hook support not supported');
+            }
+            return GenericHookConnection.provisionConnection(roomId, this.as, data, this.config.generic);
         }
         throw new ApiError(`Connection type not known`);
     }
@@ -169,7 +174,8 @@ export class ConnectionManager {
                 acctData,
                 state.stateKey,
                 this.messageClient,
-                this.config.generic.allowJsTransformationFunctions
+                this.config.generic,
+                this.as.botUserId,
             );
         }
         return;
