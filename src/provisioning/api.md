@@ -178,6 +178,69 @@ the bridge will be granted access.
 }]
 ```
 
+### GET /github/v1/account?userId={userId}
+
+Request the status of the users account. This will return a `loggedIn` value to determine if the
+bridge has a GitHub identity stored for the user, and any organisations they have access to.
+
+### Response
+
+```json5
+{
+    "loggedIn": true,
+    "organisations": {
+        "name": "half-shot",
+        "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4"
+    }
+}
+```
+
+### GET /github/v1/orgs/{orgName}/repositories?userId={userId}&page={page}&perPage={perPage}
+
+Request a list of all repositories a user is a member of in the given org. The `owner` and `name` value of a repository can be given to create a new GitHub connection.
+
+This request is paginated, and `page` sets the page (defaults to `1`) while `perPage` (defaults to `10`) sets the number of entries per page.
+
+This request can be retried until the number of entries is less than the value of `perPage`.
+
+### Response
+
+```json5
+{
+    "loggedIn": true,
+    "repositories": {
+        "name": "matrix-hookshot",
+        "owner": "half-shot",
+        "fullName": "half-shot/matrix-hookshot",
+        "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
+        "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
+    }
+}
+```
+
+### GET /github/v1/repositories?userId={userId}&page={page}&perPage={perPage}
+
+Request a list of all repositories a user is a member of (including those not belonging to an org). The `owner` and `name` value of a repository can be given to create a new GitHub connection.
+
+This request is paginated, and `page` sets the page (defaults to `1`) while `perPage` (defaults to `10`) sets the number of entries per page.
+
+This request can be retried until the number of entries is less than the value of `perPage`.
+
+### Response
+
+```json5
+{
+    "loggedIn": true,
+    "repositories": {
+        "name": "matrix-hookshot",
+        "owner": "half-shot",
+        "fullName": "half-shot/matrix-hookshot",
+        "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
+        "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
+    }
+}
+```
+
 ## JIRA
 
 
@@ -229,3 +292,4 @@ a new JIRA connection.
         "id": "10015"
     }
 }
+```

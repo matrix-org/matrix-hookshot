@@ -133,7 +133,7 @@ export class Bridge {
             }
             if (this.config.github) {
                 routers.push({
-                    route: "/v1/jira",
+                    route: "/v1/github",
                     router: new GitHubProvisionerRouter(this.config.github, this.tokenStore).getRouter(),
                 });
             }
