@@ -62,6 +62,18 @@ You can quickly setup a redis by either installing it from your system package m
 `docker run --name github-bridge-redis -p 6379:6379 -d redis`
 
 in Docker.
+
+## Documentation
+
+Documentation can be found on [GitHub Pages](https://matrix-org.github.io/matrix-appservice-irc).
+
+You can build the documentaion yourself by:
+```sh
+# cargo install mdbook
+mdbook build
+sensible-browser book/index.html
+```
+
 ## Contact
 
 TODO...
