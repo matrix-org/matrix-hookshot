@@ -6,8 +6,18 @@ import { Script, createContext } from "vm";
 import { MatrixEvent } from "../MatrixEvent";
 
 export interface GenericHookConnectionState {
+    /**
+     * This is ONLY used for display purposes.
+     */
     hookId: string;
     transformationFunction?: string;
+}
+
+export interface GenericHookAccountData {
+    /**
+     * This is where the true hook ID is kept.
+     */
+    hookId: string;
 }
 
 const log = new LogWrapper("GenericHookConnection");
@@ -28,13 +38,14 @@ export class GenericHookConnection implements IConnection {
     ];
 
     public get hookId() {
-        return this.state.hookId;
+        return this.accountData.hookId;
     }
 
     private transformationFunction?: Script;
 
     constructor(public readonly roomId: string,
-        private state: GenericHookConnectionState,
+        state: GenericHookConnectionState,
+        private readonly accountData: GenericHookAccountData,
         private readonly stateKey: string,
         private messageClient: MessageSenderClient,
         private readonly allowJSTransformation: boolean = false) {
@@ -63,11 +74,28 @@ export class GenericHookConnection implements IConnection {
         }
     }
 
+    public transformHookData(data: Record<string, unknown>): string {
+        // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
+        let msg = "";
+        if (typeof data.username === "string") {
+            // Create a matrix user for this person
+            msg = `**${data.username}**: `
+        }
+        if (typeof data.text === "string") {
+            msg = data.text;
+        } else {
+            msg = `Recieved webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
+        }
+
+        // TODO: Transform Slackdown into markdown.
+        return msg;
+    }
+
     public async onGenericHook(data: Record<string, unknown>) {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: string;
         if (!this.transformationFunction) {
-            content = `Recieved webhook data:\n\n\`\`\`${JSON.stringify(data)}\`\`\``;
+            content = this.transformHookData(data);
         } else {
             try {
                 const context = createContext({data});

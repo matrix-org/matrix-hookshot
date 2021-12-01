@@ -205,7 +205,8 @@ export class Webhooks extends EventEmitter {
     public async onGitHubGetOauth(req: Request, res: Response) {
         log.info("Got new oauth request");
         try {
-            if (!this.config.github) {
+            if (!this.config.github || !this.config.github.oauth) {
+                res.status(500).send(`<p>Bridge is not configured with OAuth support</p>`);
                 throw Error("Got GitHub oauth request but github was not configured!");
             }
             const exists = await this.queue.pushWait<OAuthRequest, boolean>({

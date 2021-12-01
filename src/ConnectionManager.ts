@@ -8,6 +8,7 @@ import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
+import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
@@ -15,6 +16,7 @@ import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
 import { ApiError, GetConnectionTypeResponseItem } from "./provisioning/api";
 import { UserTokenStore } from "./UserTokenStore";
+import {v4 as uuid} from "uuid";
 
 const log = new LogWrapper("ConnectionManager");
 
@@ -74,10 +76,10 @@ export class ConnectionManager {
         }
 
         if (GitHubRepoConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
+            if (!this.github || !this.config.github) {
                 throw Error('GitHub is not configured');
             }
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey);
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey, this.github, this.config.github);
         }
 
         if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
@@ -153,9 +155,18 @@ export class ConnectionManager {
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
+            // Generic hooks store the hookId in the account data
+            let acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData|null>(GenericHookConnection.CanonicalEventType, roomId);
+            if (!acctData) {
+                log.info(`hookId for ${roomId} not set, setting`);
+                acctData = { hookId: uuid() };
+                await this.as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, acctData);
+                await this.as.botClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, state.stateKey, {...state.content, hookId: acctData.hookId });
+            }
             return new GenericHookConnection(
                 roomId,
                 state.content,
+                acctData,
                 state.stateKey,
                 this.messageClient,
                 this.config.generic.allowJsTransformationFunctions

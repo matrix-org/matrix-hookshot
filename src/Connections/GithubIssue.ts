@@ -47,6 +47,10 @@ export class GitHubIssueConnection implements IConnection {
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
 
+    static generateAliasLocalpart(org: string, repo: string, issueNo: string|number) {
+        return `github_${org}_${repo}_${issueNo}`;
+    }
+
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
         const parts = result?.slice(1);
         if (!parts) {
@@ -327,9 +331,11 @@ export class GitHubIssueConnection implements IConnection {
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
         if (ev.content.body === '!sync') {
             // Sync data.
-            return this.syncIssueState();
+            await this.syncIssueState();
+            return true;
         }
         await this.onMatrixIssueComment(ev);
+        return true;
     }
 
     public toString() {
