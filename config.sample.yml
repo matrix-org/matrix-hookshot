@@ -14,7 +14,6 @@ github:
   auth:
     # Authentication for the GitHub App.
     #
-    name: my-app-name
     id: 123
     privateKeyFile: github-key.pem
   webhook:
