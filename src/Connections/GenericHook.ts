@@ -62,9 +62,6 @@ export class GenericHookConnection implements IConnection {
         return this.accountData.hookId;
     }
 
-    public get uniqueId() {
-        return `${this.roomId}/${GenericHookConnection.CanonicalEventType}/${this.stateKey}`;
-    }
 
 
     private transformationFunction?: Script;
@@ -82,7 +79,7 @@ export class GenericHookConnection implements IConnection {
         }
 
     public get connectionId() {
-        return `${this.roomId}/${GenericHookConnection.CanonicalEventType}/${this.stateKey}`;
+        return `${GenericHookConnection.CanonicalEventType}-${this.stateKey}`;
     }
     
 
@@ -165,7 +162,7 @@ export class GenericHookConnection implements IConnection {
         const url = `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`;
         return {
             ...GenericHookConnection.getProvisionerDetails(this.botUserId),
-            id: this.uniqueId,
+            id: this.connectionId,
             config: {
                 transformationFunction: this.transformationFunction,
                 hookId: this.hookId,

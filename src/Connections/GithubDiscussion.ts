@@ -126,7 +126,7 @@ export class GitHubDiscussionConnection implements IConnection {
     }
 
     public get connectionId() {
-        return `${this.roomId}/${GitHubDiscussionConnection.CanonicalEventType}/${this.stateKey}`;
+        return `${GitHubDiscussionConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     public async onDiscussionCommentCreated(data: DiscussionCommentCreatedEvent) {

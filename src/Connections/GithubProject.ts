@@ -23,7 +23,7 @@ export class GitHubProjectConnection implements IConnection {
     ];
 
     public get connectionId() {
-        return `${this.roomId}/${GitHubProjectConnection.CanonicalEventType}/${this.stateKey}`;
+        return `${GitHubProjectConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {

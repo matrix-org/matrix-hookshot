@@ -73,7 +73,7 @@ export class Provisioner {
         this.expressApp.use(this.onError);
     }
 
-    private checkAuth(req: Request, res: Response, next: NextFunction) {
+    private checkAuth(req: Request, _res: Response, next: NextFunction) {
         if (req.headers.authorization === `Bearer ${this.config.secret}`) {
             return next();
         }
@@ -195,35 +195,35 @@ export class Provisioner {
     }
 
     private async patchConnection(req: Request<{roomId: string, connectionId: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
-        const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
-        if (!connection) {
-            return next(new ApiError("Connection does not exist", ErrCode.NotFound));
-        }
-        if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
-            return next(new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation));
-        }
         try {
+            const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
+            if (!connection) {
+                return next(new ApiError("Connection does not exist", ErrCode.NotFound));
+            }
+            if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
+                return next(new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation));
+            }
             await connection.provisionerUpdateConfig(req.query.userId, req.body);
+            res.send(connection.getProvisionerDetails());
         } catch (ex) {
             next(ex);
         }
-        res.send(connection.getProvisionerDetails());
     }
 
     private async deleteConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<{ok: true}>, next: NextFunction) {
-        const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
-        if (!connection) {
-            return next(new ApiError("Connection does not exist", ErrCode.NotFound));
-        }
-        if (!connection.onRemove) {
-            return next(new ApiError("Connection does not support removal", ErrCode.UnsupportedOperation));
-        }
         try {
+            const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
+            if (!connection) {
+                return next(new ApiError("Connection does not exist", ErrCode.NotFound));
+            }
+            if (!connection.onRemove) {
+                return next(new ApiError("Connection does not support removal", ErrCode.UnsupportedOperation));
+            }
             await this.connMan.removeConnection(req.params.roomId, req.params.connectionId);
+            res.send({ok: true});
         } catch (ex) {
             return next(ex);
         }
-        res.send({ok: true});
     }
 
     public listen() {

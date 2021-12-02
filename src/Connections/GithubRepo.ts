@@ -278,11 +278,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public get connectionId() {
-        return `${this.roomId}/${GitHubRepoConnection.CanonicalEventType}/${this.stateKey}`;
-    }
-
-    public get uniqueId() {
-        return `${this.roomId}/${GitHubRepoConnection.CanonicalEventType}/${this.stateKey}`;
+        return `${GitHubRepoConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
@@ -697,7 +693,7 @@ ${event.release.body}`;
     public getProvisionerDetails() {
         return {
             ...GitHubRepoConnection.getProvisionerDetails(this.as.botUserId),
-            id: this.uniqueId,
+            id: this.connectionId,
             config: {
                 ...this.state,
             },

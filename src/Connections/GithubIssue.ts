@@ -157,7 +157,7 @@ export class GitHubIssueConnection implements IConnection {
     }
 
     public get connectionId() {
-        return `${this.roomId}/${GitHubIssueConnection.CanonicalEventType}/${this.stateKey}`;
+        return `${GitHubIssueConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
 

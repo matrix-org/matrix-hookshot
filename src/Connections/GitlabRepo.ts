@@ -58,7 +58,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public get connectionId() {
-        return `${this.roomId}/${GitLabRepoConnection.CanonicalEventType}/${this.stateKey}`;
+        return `${GitLabRepoConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {

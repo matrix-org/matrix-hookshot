@@ -91,7 +91,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     }
 
     public get connectionId() {
-        return `${this.roomId}-${JiraProjectConnection.CanonicalEventType}-${this.stateKey}`;
+        return `${JiraProjectConnection.CanonicalEventType}-${this.stateKey}`;
     }
     
     public get projectId() {
@@ -174,10 +174,6 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         });
     }
 
-    public get uniqueId() {
-        return `${this.roomId}/${JiraProjectConnection.CanonicalEventType}/${this.stateKey}`;
-    }
-
     public static getProvisionerDetails(botUserId: string) {
         return {
             service: "jira",
@@ -191,7 +187,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     public getProvisionerDetails() {
         return {
             ...JiraProjectConnection.getProvisionerDetails(this.as.botUserId),
-            id: this.uniqueId,
+            id: this.connectionId,
             config: {
                 ...this.state,
             },

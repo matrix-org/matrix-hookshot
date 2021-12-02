@@ -130,7 +130,7 @@ export class GitHubDiscussionSpace implements IConnection {
     }
 
     public get connectionId() {
-        return `${this.roomId}/${GitHubDiscussionSpace.CanonicalEventType}/${this.stateKey}`;
+        return `${GitHubDiscussionSpace.CanonicalEventType}-${this.stateKey}`;
     }
 
     constructor(public readonly space: Space,
