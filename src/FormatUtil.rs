@@ -87,7 +87,7 @@ pub fn format_labels(ctx: CallContext) -> Result<JsObject, NapiError> {
         html.push_str("<span");
         match label.color {
             Some(color) => {
-                write!(html, " data-mx-bg-color=\"{}\"", color).unwrap();
+                write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
                 // Determine the constrast
                 let color_rgb = parse_rgb(color)?;
                 let contrast_color;
