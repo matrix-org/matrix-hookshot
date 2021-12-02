@@ -25,7 +25,9 @@
     "start:webhooks": "node --require source-map-support/register lib/App/GithubWebhookApp.js",
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
     "test": "mocha -r ts-node/register tests/*.ts  tests/**/*.ts",
-    "lint": "eslint -c .eslintrc.js src/**/*.ts",
+    "lint": "yarn run lint:js && yarn run lint:rs",
+    "lint:js": "eslint -c .eslintrc.js src/**/*.ts",
+    "lint:rs": "cargo fmt --all -- --check",
     "generate-default-config": "node lib/Config/Defaults.js --config > config.sample.yml"
   },
   "dependencies": {

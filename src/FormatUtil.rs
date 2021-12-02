@@ -1,8 +1,8 @@
 use crate::Jira;
 use crate::Jira::types::{JiraIssue, JiraIssueLight};
 use contrast;
-use md5::{Md5, Digest};
-use napi::{CallContext, Env, Error as NapiError, JsObject, JsUnknown, Status, JsString};
+use md5::{Digest, Md5};
+use napi::{CallContext, Env, Error as NapiError, JsObject, JsString, JsUnknown, Status};
 use rgb::RGB;
 use std::fmt::Write;
 
