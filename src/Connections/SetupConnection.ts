@@ -33,6 +33,8 @@ export class SetupConnection extends CommandConnection {
         private readonly webhooksConfig?: BridgeGenericWebhooksConfig) {
             super(
                 roomId,
+                "",
+                "",
                 as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,

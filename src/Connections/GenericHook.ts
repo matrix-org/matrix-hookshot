@@ -8,6 +8,7 @@ import { Appservice } from "matrix-bot-sdk";
 import { v4 as uuid} from "uuid";
 import { BridgeGenericWebhooksConfig } from "../Config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
+import { BaseConnection } from "./BaseConnection";
 export interface GenericHookConnectionState {
     /**
      * This is ONLY used for display purposes.
@@ -31,7 +32,7 @@ const TRANSFORMATION_TIMEOUT_MS = 2000;
 /**
  * Handles rooms connected to a github repo.
  */
-export class GenericHookConnection implements IConnection {
+export class GenericHookConnection extends BaseConnection implements IConnection {
 
     static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeGenericWebhooksConfig): Promise<string> {
         if (data.transformationFunction) {
@@ -66,22 +67,19 @@ export class GenericHookConnection implements IConnection {
 
     private transformationFunction?: Script;
 
-    constructor(public readonly roomId: string,
+    constructor(roomId: string,
         state: GenericHookConnectionState,
         private readonly accountData: GenericHookAccountData,
-        private readonly stateKey: string,
+        stateKey: string,
         private readonly messageClient: MessageSenderClient,
         private readonly config: BridgeGenericWebhooksConfig,
         private readonly botUserId: string) {
+            super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
             if (state.transformationFunction && config.allowJsTransformationFunctions) {
                 this.transformationFunction = new Script(state.transformationFunction);
             }
         }
 
-    public get connectionId() {
-        return `${GenericHookConnection.CanonicalEventType}-${this.stateKey}`;
-    }
-    
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GenericHookConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;

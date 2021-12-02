@@ -252,12 +252,14 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         private readonly as: Appservice,
         private state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
-        private readonly stateKey: string,
+        stateKey: string,
         private readonly githubInstance: GithubInstance,
         private readonly config: BridgeConfigGitHub,
         ) {
             super(
                 roomId,
+                stateKey,
+                GitHubRepoConnection.CanonicalEventType,
                 as.botClient,
                 GitHubRepoConnection.botCommands,
                 GitHubRepoConnection.helpMessage,
@@ -275,10 +277,6 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     public get repo() {
         return this.state.repo.toLowerCase();
-    }
-
-    public get connectionId() {
-        return `${GitHubRepoConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {

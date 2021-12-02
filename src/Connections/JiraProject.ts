@@ -89,10 +89,6 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
         return eventId;
     }
-
-    public get connectionId() {
-        return `${JiraProjectConnection.CanonicalEventType}-${this.stateKey}`;
-    }
     
     public get projectId() {
         return this.state.id;
@@ -131,12 +127,14 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     constructor(roomId: string,
         private readonly as: Appservice,
         private state: JiraProjectConnectionState,
-        private readonly stateKey: string,
+        stateKey: string,
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly tokenStore: UserTokenStore,) {
             super(
                 roomId,
+                stateKey,
+                JiraProjectConnection.CanonicalEventType,
                 as.botClient,
                 JiraProjectConnection.botCommands,
                 JiraProjectConnection.helpMessage,

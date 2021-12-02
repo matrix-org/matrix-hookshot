@@ -1,7 +1,8 @@
 use crate::Jira;
 use crate::Jira::types::{JiraIssue, JiraIssueLight};
 use contrast;
-use napi::{CallContext, Env, Error as NapiError, JsObject, JsUnknown, Status};
+use md5::{Md5, Digest};
+use napi::{CallContext, Env, Error as NapiError, JsObject, JsUnknown, Status, JsString};
 use rgb::RGB;
 use std::fmt::Write;
 
@@ -19,6 +20,7 @@ pub fn get_module(env: Env) -> Result<JsObject, NapiError> {
         get_partial_body_for_jira_issue,
     )?;
     root_module.create_named_method("format_labels", format_labels)?;
+    root_module.create_named_method("hash_id", hash_id)?;
     Ok(root_module)
 }
 
@@ -155,4 +157,14 @@ pub fn get_partial_body_for_jira_issue(ctx: CallContext) -> Result<JsObject, Nap
     body.set_named_property("uk.half-shot.matrix-hookshot.jira.issue", jira_issue_result)?;
     body.set_named_property("uk.half-shot.matrix-hookshot.jira.project", jira_project)?;
     Ok(body)
+}
+
+/// Generate a URL for a given Jira Issue object.
+#[js_function(1)]
+pub fn hash_id(ctx: CallContext) -> Result<JsString, NapiError> {
+    let id = ctx.get::<JsString>(0)?;
+    let mut hasher = Md5::new();
+    hasher.input(id.into_utf8()?.as_str()?);
+    let result = hex::encode(hasher.result());
+    ctx.env.create_string_from_std(result)
 }

@@ -101,4 +101,7 @@ describe("FormatUtilTest", () => {
                 },
         });
     });
+    it("should hash an ID", () => {
+        expect(FormatUtil.hashId("foobar")).to.equal('3858f62230ac3c915f300c664312c63f');
+    });
 });

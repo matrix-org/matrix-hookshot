@@ -11,6 +11,7 @@ import markdown from "markdown-it";
 import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../Github/GithubInstance";
 import LogWrapper from "../LogWrapper";
+import { BaseConnection } from "./BaseConnection";
 export interface GitHubDiscussionConnectionState {
     owner: string;
     repo: string;
@@ -26,7 +27,7 @@ const md = new markdown();
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubDiscussionConnection implements IConnection {
+export class GitHubDiscussionConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.discussion";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.discussion";
 
@@ -81,14 +82,14 @@ export class GitHubDiscussionConnection implements IConnection {
         return new GitHubDiscussionConnection(roomId, as, state, '', tokenStore, commentProcessor, messageClient);
     }
 
-    constructor(public readonly roomId: string,
+    constructor(roomId: string,
         private readonly as: Appservice,
         private state: GitHubDiscussionConnectionState,
-        private readonly stateKey: string,
+        stateKey: string,
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient) {
-        
+            super(roomId, stateKey, GitHubDiscussionConnection.CanonicalEventType);
         }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -123,10 +124,6 @@ export class GitHubDiscussionConnection implements IConnection {
 
     public toString() {
         return `GitHubDiscussion ${this.owner}/${this.repo}#${this.state.discussion}`;
-    }
-
-    public get connectionId() {
-        return `${GitHubDiscussionConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     public async onDiscussionCommentCreated(data: DiscussionCommentCreatedEvent) {

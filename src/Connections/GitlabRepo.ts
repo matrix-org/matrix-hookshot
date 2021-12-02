@@ -35,14 +35,16 @@ export class GitLabRepoConnection extends CommandConnection {
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
 
-    constructor(public readonly roomId: string,
-        private readonly stateKey: string,
+    constructor(roomId: string,
+        stateKey: string,
         private readonly as: Appservice,
         private state: GitLabRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance) {
             super(
                 roomId,
+                stateKey,
+                GitLabRepoConnection.CanonicalEventType,
                 as.botClient,
                 GitLabRepoConnection.botCommands,
                 GitLabRepoConnection.helpMessage,
@@ -55,10 +57,6 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public get path() {
         return this.state.path?.toString();
-    }
-
-    public get connectionId() {
-        return `${GitLabRepoConnection.CanonicalEventType}-${this.stateKey}`;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {

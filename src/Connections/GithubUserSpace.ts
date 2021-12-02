@@ -4,6 +4,7 @@ import LogWrapper from "../LogWrapper";
 import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
 import { GithubInstance } from "../Github/GithubInstance";
+import { BaseConnection } from "./BaseConnection";
 
 const log = new LogWrapper("GitHubOwnerSpace");
 
@@ -15,7 +16,7 @@ export interface GitHubUserSpaceConnectionState {
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubUserSpace implements IConnection {
+export class GitHubUserSpace extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.user.space";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.user.space";
 
@@ -124,17 +125,11 @@ export class GitHubUserSpace implements IConnection {
         };
     }
 
-    get roomId() {
-        return this.space.roomId;
-    }
-
-    public get connectionId() {
-        return `${GitHubUserSpace.CanonicalEventType}-${this.stateKey}`;
-    }
-
     constructor(public readonly space: Space,
         private state: GitHubUserSpaceConnectionState,
-        private readonly stateKey: string) {}
+        stateKey: string) {
+            super(space.roomId, stateKey, GitHubUserSpace.CanonicalEventType);
+        }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubUserSpace.EventTypes.includes(eventType) && this.stateKey === stateKey;

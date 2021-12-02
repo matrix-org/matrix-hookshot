@@ -12,6 +12,7 @@ import axios from "axios";
 import { GithubInstance } from "../Github/GithubInstance";
 import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData} from "../Github/Types";
 import { IssuesEditedEvent, IssueCommentCreatedEvent } from "@octokit/webhooks-types";
+import { BaseConnection } from "./BaseConnection";
 
 export interface GitHubIssueConnectionState {
     org: string;
@@ -36,7 +37,7 @@ interface IQueryRoomOpts {
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubIssueConnection implements IConnection {
+export class GitHubIssueConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.issue";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.bridge";
 
@@ -131,14 +132,16 @@ export class GitHubIssueConnection implements IConnection {
         };
     }
 
-    constructor(public readonly roomId: string,
+    constructor(roomId: string,
         private readonly as: Appservice,
         private state: GitHubIssueConnectionState,
-        private readonly stateKey: string,
+        stateKey: string,
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
-        private github: GithubInstance) { }
+        private github: GithubInstance) {
+            super(roomId, stateKey, GitHubIssueConnection.CanonicalEventType);
+        }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
@@ -155,11 +158,6 @@ export class GitHubIssueConnection implements IConnection {
     public get repo() {
         return this.state.repo.toLowerCase();
     }
-
-    public get connectionId() {
-        return `${GitHubIssueConnection.CanonicalEventType}-${this.stateKey}`;
-    }
-
 
     public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
         return this.onCommentCreated({
