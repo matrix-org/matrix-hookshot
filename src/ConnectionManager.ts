@@ -44,7 +44,7 @@ export class ConnectionManager {
     public push(...connections: IConnection[]) {
         // NOTE: Double loop
         for (const connection of connections) {
-            if (!this.connections.find((c) => c === connection)) {
+            if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
                 this.connections.push(connection);
             }
         }
@@ -204,7 +204,7 @@ export class ConnectionManager {
         const connections: IConnection[] = [];
         for (const event of state) {
             const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-            if (conn) { connections.push(conn); }
+            if (conn) { this.push(conn); }
         }
         return connections;
     }

@@ -12,6 +12,6 @@ export abstract class BaseConnection {
     }
 
     public get connectionId(): string {
-        return FormatUtil.hashId(`${this.canonicalStateType}/${this.stateKey}`);
+        return FormatUtil.hashId(`${this.roomId}/${this.canonicalStateType}/${this.stateKey}`);
     }
 }

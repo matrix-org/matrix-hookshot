@@ -3,8 +3,14 @@ import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 
 export interface IConnection {
+    /**
+     * The roomId that this connection serves.
+     */
     roomId: string;
 
+    /**
+     * The unique connection ID. This is a opaque hash of the roomId, connection type and state key.
+     */
     get connectionId(): string;
     /**
      * When a room gets an update to it's state.
