@@ -159,7 +159,7 @@ Some services have specific APIs for additional functionality, like OAuth.
 ## GitHub
 
 
-### GET /github/v1/oauth?userId={userId}
+### GET /v1/github/oauth?userId={userId}
 
 
 Request an OAuth url for the given user. Once the user has completed the steps in the OAuth process,
@@ -173,7 +173,7 @@ the bridge will be granted access.
 }]
 ```
 
-### GET /github/v1/account?userId={userId}
+### GET /v1/github/account?userId={userId}
 
 Request the status of the users account. This will return a `loggedIn` value to determine if the
 bridge has a GitHub identity stored for the user, and any organisations they have access to.
@@ -183,14 +183,14 @@ bridge has a GitHub identity stored for the user, and any organisations they hav
 ```json5
 {
     "loggedIn": true,
-    "organisations": {
+    "organisations": [
         "name": "half-shot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4"
-    }
+    ]
 }
 ```
 
-### GET /github/v1/orgs/{orgName}/repositories?userId={userId}&page={page}&perPage={perPage}
+### GET /v1/github/orgs/{orgName}/repositories?userId={userId}&page={page}&perPage={perPage}
 
 Request a list of all repositories a user is a member of in the given org. The `owner` and `name` value of a repository can be given to create a new GitHub connection.
 
@@ -203,17 +203,17 @@ This request can be retried until the number of entries is less than the value o
 ```json5
 {
     "loggedIn": true,
-    "repositories": {
+    "repositories": [
         "name": "matrix-hookshot",
         "owner": "half-shot",
         "fullName": "half-shot/matrix-hookshot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
         "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
-    }
+    ]
 }
 ```
 
-### GET /github/v1/repositories?userId={userId}&page={page}&perPage={perPage}
+### GET /v1/github/repositories?userId={userId}&page={page}&perPage={perPage}
 
 Request a list of all repositories a user is a member of (including those not belonging to an org). The `owner` and `name` value of a repository can be given to create a new GitHub connection.
 
@@ -226,20 +226,20 @@ This request can be retried until the number of entries is less than the value o
 ```json5
 {
     "loggedIn": true,
-    "repositories": {
+    "repositories": [
         "name": "matrix-hookshot",
         "owner": "half-shot",
         "fullName": "half-shot/matrix-hookshot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
         "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
-    }
+    ]
 }
 ```
 
 ## JIRA
 
 
-### GET /jira/v1/oauth?userId={userId}
+### GET /v1/jira/oauth?userId={userId}
 
 
 Request an OAuth url for the given user. Once the user has completed the steps in the OAuth process,
@@ -253,7 +253,7 @@ the bridge will be granted access.
 }
 ```
 
-### GET /jira/v1/account?userId={userId}
+### GET /v1/jira/account?userId={userId}
 
 
 Request the status of the users account. This will return a `loggedIn` value to determine if the
@@ -265,14 +265,14 @@ to consent).
 ```json5
 {
     "loggedIn": true,
-    "instances": {
+    "instances": [
         "name": "acme",
         "url": "https://acme.atlassian.net"
-    }
+    ]
 }
 ```
 
-### GET /jira/v1/instances/{instanceName}/projects?userId={userId}
+### GET /v1/jira/instances/{instanceName}/projects?userId={userId}
 
 Request a list of all projects a user can see in a given instance. The `url` value of a project can be given to create
 a new JIRA connection.
@@ -281,10 +281,10 @@ a new JIRA connection.
 ```json5
 {
     "loggedIn": true,
-    "projects": {
+    "projects": [
         "key": "PLAY",
         "name": "Jira Playground",
         "id": "10015"
-    }
+    ]
 }
 ```
