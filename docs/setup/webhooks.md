@@ -2,6 +2,10 @@
 
 Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol.
 
+## Features
+
+The webhook connection supports sending messages into a single Matrix room, by hitting an API endpoint.
+
 ## Configuration
 
 You will need to add the following configuration to the config file.
@@ -28,12 +32,24 @@ To add a webhook to your room:
   - Say `!setup webhook`
   - The bot will respond with the webhook URL to be sent to services.
 
-## JS Transformations
+## Endpoint options
 
-This bridge support creating small JS snippets to translate an incoming webhook payload into a message for the room, giving
+The webhook endpoint can handle a `GET`,`POST` or `PUT` request.
+
+If the request is a `GET` request, the query parameters are assumed to be the body.
+otherwise, the body of the request should be a JSON payload.
+
+If the body contains a `text` key, then that key will be used as a message body in Matrix.
+If the body *also* contains a `username` key, then the message will be prepended by the given username.
+
+Otherwise, the full JSON payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
+
+## JavaScript Transformations
+
+This bridge support creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.
 
-The input is parsed and exectuted within a seperate JS Virtual Machine context, and is limited to an execution time of 2 seconds.
+The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
 With that said, the feature is disabled by default and `allowJsTransformationFunctions` must be enabled in the config.
 
 The code snippets can be edited by editing the Matrix state event corresponding to this connection (with a state type of `uk.half-shot.matrix-hookshot.generic.hook`).
@@ -48,6 +64,8 @@ The scripts have a very minimal API. The execution environment will contain a `d
 of the incoming request (JSON will be parsed into an `Object`). Scripts are executed syncronously and a variable `result`
 is expected to be set in the execution, which will be used as the text value for the script. `result` will be automatically
 transformed by a Markdown parser.
+
+If the script contains errors or is otherwise unable to work, the bridge will send an error to the room.
 
 ### Example script
 
