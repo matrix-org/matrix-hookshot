@@ -30,6 +30,7 @@ export class Provisioner {
         this.expressApp = express();
         this.expressApp.get("/v1/health", this.getHealth);
         this.expressApp.use(this.checkAuth.bind(this));
+        this.expressApp.use(express.json());
         // Room Routes
         this.expressApp.get(
             "/v1/connectiontypes",

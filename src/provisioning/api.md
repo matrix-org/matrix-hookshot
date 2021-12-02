@@ -284,7 +284,7 @@ a new JIRA connection.
     "projects": [
         "key": "PLAY",
         "name": "Jira Playground",
-        "id": "10015"
+        "url": "https://acme.atlassian.net/projects/PLAY"
     ]
 }
 ```
