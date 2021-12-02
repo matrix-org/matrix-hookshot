@@ -15,6 +15,7 @@ export interface GitLabRepoConnectionState {
     path: string;
     ignoreHooks?: string[],
     commandPrefix?: string;
+    pushTagsRegex?: string,
 }
 
 const log = new LogWrapper("GitLabRepoConnection");
@@ -175,6 +176,11 @@ export class GitLabRepoConnection extends CommandConnection {
             return;
         }
         const tagname = event.ref.replace("refs/tags/", "");
+        if (this.state.pushTagsRegex) {
+            if (!tagname.match(this.state.pushTagsRegex)) {
+                return;
+            }
+        }
         const url = `${event.project.homepage}/-/tree/${tagname}`;
         const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
         await this.as.botIntent.sendEvent(this.roomId, {
