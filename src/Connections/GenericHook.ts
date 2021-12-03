@@ -21,9 +21,10 @@ export interface GenericHookConnectionState {
     transformationFunction?: string;
 }
 
+/** */
 export interface GenericHookAccountData {
     /**
-     * This is where the true hook ID is kept. Each hook ID maps to a state_key
+     * This is where the true hook ID is kept. Each hook ID maps to a state_key.
      */
     [hookId: string]: string;
 }
@@ -73,9 +74,13 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @param as 
      * @param connection 
      */
-    static async ensureRoomAccountData(roomId: string, as: Appservice, hookId: string, stateKey: string) {
+    static async ensureRoomAccountData(roomId: string, as: Appservice, hookId: string, stateKey: string, remove = false) {
         const data = await as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
-        if (data[hookId] !== stateKey) {
+        if (remove && data[hookId] === stateKey) {
+            delete data[hookId];
+            await as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, data);
+        }
+        if (!remove && data[hookId] !== stateKey) {
             data[hookId] = stateKey;
             await as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, data);
         }
@@ -230,6 +235,19 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 url,
             },
         }
+    }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GenericHookConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, this.hookId, this.stateKey, true);
     }
 
     public toString() {

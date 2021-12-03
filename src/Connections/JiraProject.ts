@@ -340,6 +340,18 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     public toString() {
         return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
     }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+    }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

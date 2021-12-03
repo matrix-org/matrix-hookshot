@@ -709,7 +709,7 @@ export class Bridge {
         }
     }
 
-    private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
+    private async onRoomEvent(roomId: string, event: MatrixEvent<Record<string, unknown>>) {
         if (!this.connectionManager) {
             // Not ready yet.
             return;
@@ -719,7 +719,9 @@ export class Bridge {
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {
                 try {
-                    if (connection?.onStateUpdate) {
+                    if (event.content.disabled === true) {
+                        await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
+                    } else if (connection?.onStateUpdate) {
                         connection.onStateUpdate(event);
                     }
                 } catch (ex) {
