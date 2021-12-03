@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IStorageProvider, IAppserviceStorageProvider } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -36,6 +36,28 @@ import { promises as fs } from "fs";
 import { SetupConnection } from "./Connections/SetupConnection";
 const log = new LogWrapper("Bridge");
 
+export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
+    return new Appservice({
+        homeserverName: config.bridge.domain,
+        homeserverUrl: config.bridge.url,
+        port: config.bridge.port,
+        bindAddress: config.bridge.bindAddress,
+        registration: {
+            ...registration,
+            namespaces: {
+                // Support multiple users
+                users: [{
+                    regex: '(' + registration.namespaces.users.map((r) => r.regex).join(')|(') + ')',
+                    exclusive: true,
+                }],
+                aliases: registration.namespaces.aliases,
+                rooms: registration.namespaces.rooms,
+            }
+        },
+        storage: storage,
+    });
+}
+
 export class Bridge {
     private readonly as: Appservice;
     private readonly storage: IBridgeStorageProvider;
@@ -61,14 +83,7 @@ export class Bridge {
             log.info('Initialising memory storage');
             this.storage = new MemoryStorageProvider();
         }
-        this.as = new Appservice({
-            homeserverName: this.config.bridge.domain,
-            homeserverUrl: this.config.bridge.url,
-            port: this.config.bridge.port,
-            bindAddress: this.config.bridge.bindAddress,
-            registration: this.registration,
-            storage: this.storage,
-        });
+        this.as = getAppservice(this.config, this.registration, this.storage);
         this.queue = createMessageQueue(this.config);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
@@ -131,11 +146,15 @@ export class Bridge {
                 });
                 this.connectionManager.registerProvisioningConnection(JiraProjectConnection);
             }
-            if (this.config.github) {
+            if (this.config.github && this.github) {
                 routers.push({
                     route: "/v1/github",
-                    router: new GitHubProvisionerRouter(this.config.github, this.tokenStore).getRouter(),
+                    router: new GitHubProvisionerRouter(this.config.github, this.tokenStore, this.github).getRouter(),
                 });
+                this.connectionManager.registerProvisioningConnection(GitHubRepoConnection);
+            }
+            if (this.config.generic) {
+                this.connectionManager.registerProvisioningConnection(GenericHookConnection);
             }
             this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent, routers);
         }
@@ -320,7 +339,7 @@ export class Bridge {
         });
 
         this.queue.on<OAuthRequest>("github.oauth.response", async (msg) => {
-            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             await this.queue.push<boolean>({
                 data: !!userId,
                 sender: "Bridge",
@@ -896,12 +915,6 @@ export class Bridge {
                 await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
             }
         });
-        // adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
-        //     const connection = await GitHubDiscussionConnection.createDiscussionRoom(
-        //         this.as, adminRoom.userId, owner, repo, discussions, this.tokenStore, this.commentProcessor, this.messageClient,
-        //     );
-        //     this.connections.push(connection);
-        // });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
             const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {

@@ -90,6 +90,7 @@ export interface BridgeConfigJira {
 export interface BridgeGenericWebhooksConfig {
     enabled: boolean;
     urlPrefix: string;
+    userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
 }
 

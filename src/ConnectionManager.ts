@@ -193,7 +193,7 @@ export class ConnectionManager {
                 state.stateKey,
                 this.messageClient,
                 this.config.generic,
-                this.as.botUserId,
+                this.as,
             );
         }
         return;

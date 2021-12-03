@@ -11,9 +11,13 @@ import { ApiError, ErrCode } from "../provisioning/api";
 import { BaseConnection } from "./BaseConnection";
 export interface GenericHookConnectionState {
     /**
-     * This is ONLY used for display purposes.
+     * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
      */
     hookId: string;
+    /**
+     * The name given in the provisioning UI and displaynames.
+     */
+    name?: string;
     transformationFunction?: string;
 }
 
@@ -63,17 +67,16 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return this.accountData.hookId;
     }
 
-
-
     private transformationFunction?: Script;
+    private cachedDisplayname?: string;
 
     constructor(roomId: string,
-        state: GenericHookConnectionState,
+        private readonly state: GenericHookConnectionState,
         private readonly accountData: GenericHookAccountData,
         stateKey: string,
         private readonly messageClient: MessageSenderClient,
         private readonly config: BridgeGenericWebhooksConfig,
-        private readonly botUserId: string) {
+        private readonly as: Appservice) {
             super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
             if (state.transformationFunction && config.allowJsTransformationFunctions) {
                 this.transformationFunction = new Script(state.transformationFunction);
@@ -85,6 +88,39 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return GenericHookConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
+    public getUserId() {
+        if (!this.config.userIdPrefix) {
+            return this.as.botUserId;
+        }
+        const [, domain] = this.as.botUserId.split(':');
+        const name = this.state.name &&
+             this.state.name.replace(/[A-Z]/g, (s) => s.toLowerCase()).replace(/([^a-z0-9\-.=_]+)/g, '');
+        return `@${this.config.userIdPrefix}${name || 'bot'}:${domain}`;
+    }
+
+    public async ensureDisplayname() {
+        if (!this.state.name) {
+            return;
+        }
+        const sender = this.getUserId();
+        const intent = this.as.getIntentForUserId(sender);
+        const expectedDisplayname = `${this.state.name} (Webhook)`;
+
+        try {
+            if (this.cachedDisplayname !== expectedDisplayname) {
+                this.cachedDisplayname = (await intent.underlyingClient.getUserProfile(sender)).displayname;
+            }
+        } catch (ex) {
+            // Couldn't fetch, probably not set.
+            await intent.ensureRegistered();
+            this.cachedDisplayname = undefined;
+        }
+        if (this.cachedDisplayname !== expectedDisplayname) {
+            await intent.underlyingClient.setDisplayName(`${this.state.name} (Webhook)`);
+            this.cachedDisplayname = expectedDisplayname;
+        }
+    }
+
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         const state = stateEv.content as GenericHookConnectionState;
         if (state.transformationFunction && this.config.allowJsTransformationFunctions) {
@@ -94,6 +130,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + ex);
             }
         }
+        this.state.name = state.name;
     }
 
     public transformHookData(data: Record<string, unknown>): string {
@@ -136,13 +173,16 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             }
         }
 
+        const sender = this.getUserId();
+        await this.ensureDisplayname();
+
         return this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
             "uk.half-shot.webhook_data": data,
-        });
+        }, 'm.room.message', sender);
 
     }
 
@@ -159,11 +199,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     public getProvisionerDetails() {
         const url = `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`;
         return {
-            ...GenericHookConnection.getProvisionerDetails(this.botUserId),
+            ...GenericHookConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
             config: {
                 transformationFunction: this.transformationFunction,
                 hookId: this.hookId,
+                name: this.state.name,
                 url,
             },
         }
