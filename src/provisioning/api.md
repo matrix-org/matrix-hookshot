@@ -183,10 +183,10 @@ bridge has a GitHub identity stored for the user, and any organisations they hav
 ```json5
 {
     "loggedIn": true,
-    "organisations": [
+    "organisations":[{
         "name": "half-shot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4"
-    ]
+    }]
 }
 ```
 
@@ -203,13 +203,13 @@ This request can be retried until the number of entries is less than the value o
 ```json5
 {
     "loggedIn": true,
-    "repositories": [
+    "repositories":[{
         "name": "matrix-hookshot",
         "owner": "half-shot",
         "fullName": "half-shot/matrix-hookshot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
         "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
-    ]
+    }]
 }
 ```
 
@@ -226,13 +226,13 @@ This request can be retried until the number of entries is less than the value o
 ```json5
 {
     "loggedIn": true,
-    "repositories": [
+    "repositories":[{
         "name": "matrix-hookshot",
         "owner": "half-shot",
         "fullName": "half-shot/matrix-hookshot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
         "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
-    ]
+    }]
 }
 ```
 
@@ -265,10 +265,10 @@ to consent).
 ```json5
 {
     "loggedIn": true,
-    "instances": [
+    "instances":[{
         "name": "acme",
         "url": "https://acme.atlassian.net"
-    ]
+    }]
 }
 ```
 
@@ -281,10 +281,10 @@ a new JIRA connection.
 ```json5
 {
     "loggedIn": true,
-    "projects": [
+    "projects":[{
         "key": "PLAY",
         "name": "Jira Playground",
         "url": "https://acme.atlassian.net/projects/PLAY"
-    ]
+    }]
 }
 ```
