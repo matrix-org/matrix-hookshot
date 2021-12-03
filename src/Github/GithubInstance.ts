@@ -132,6 +132,11 @@ export class GithubInstance {
     public onInstallationRemoved(data: GitHubWebhookTypes.InstallationDeletedEvent|GitHubWebhookTypes.InstallationSuspendEvent) {
         this.installationsCache.delete(data.installation.id);
     }
+
+    public get newInstallationUrl() {
+        // E.g. https://github.com/apps/matrix-bridge/installations/new
+        return `https://github.com/apps/${this.appName}/installations/new`;
+    }
 }
 
 export class GithubGraphQLClient {

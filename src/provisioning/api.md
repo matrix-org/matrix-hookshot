@@ -169,7 +169,8 @@ the bridge will be granted access.
 
 ```json5
 [{
-    "url": "https://github.com/login/oauth/authorize?..."
+    "user_url": "https://github.com/login/oauth/authorize?...",
+    "org_url": "https://github.com/apps/matrix-bridge/installations/new",
 }]
 ```
 
@@ -279,12 +280,9 @@ a new JIRA connection.
 ### Response
 
 ```json5
-{
-    "loggedIn": true,
-    "projects":[{
-        "key": "PLAY",
-        "name": "Jira Playground",
-        "url": "https://acme.atlassian.net/projects/PLAY"
-    }]
-}
+[{
+    "key": "PLAY",
+    "name": "Jira Playground",
+    "url": "https://acme.atlassian.net/projects/PLAY"
+}]
 ```

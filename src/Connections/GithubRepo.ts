@@ -150,7 +150,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 -1,
                 {
                     // E.g. https://github.com/apps/matrix-bridge/installations/new
-                    installUrl: `https://github.com/apps/${githubInstance.appName}/installations/new`,
+                    installUrl: githubInstance.newInstallationUrl,
                 }
             );
         }
@@ -682,7 +682,7 @@ ${event.release.body}`;
         return {
             service: "github",
             eventType: GitHubRepoConnection.CanonicalEventType,
-            type: "JiraProject",
+            type: "GithubRepo",
             // TODO: Add ability to configure the bot per connnection type.
             botUserId: botUserId,
         }
