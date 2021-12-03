@@ -70,7 +70,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             hookId,
         };
         const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config, as);
-        await GenericHookConnection.ensureRoomAccountData(roomId, as, hookId, validState.name);
         return {
             connection,
             stateEventContent: validState,

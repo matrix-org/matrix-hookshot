@@ -14,7 +14,7 @@ import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
-import { ApiError, GetConnectionTypeResponseItem } from "./provisioning/api";
+import { ApiError, ErrCode, GetConnectionTypeResponseItem } from "./provisioning/api";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 
@@ -92,6 +92,13 @@ export class ConnectionManager {
                 throw Error('Generic hook support not supported');
             }
             const res = await GenericHookConnection.provisionConnection(roomId, this.as, data, this.config.generic, this.messageClient);
+            const existing = this.getAllConnectionsOfType(GenericHookConnection).find(c => c.stateKey === res.connection.stateKey);
+            if (existing) {
+                throw new ApiError("A generic webhook with this name already exists", ErrCode.ConflictingConnection, -1, {
+                    existingConnection: existing.getProvisionerDetails()
+                });
+            }
+            await GenericHookConnection.ensureRoomAccountData(roomId, this.as, res.connection.hookId, res.connection.stateKey);
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
             this.push(res.connection);
             return res.connection;
@@ -215,8 +222,12 @@ export class ConnectionManager {
         const state = await this.as.botClient.getRoomState(roomId);
         const connections: IConnection[] = [];
         for (const event of state) {
-            const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-            if (conn) { this.push(conn); }
+            try {
+                const conn = await this.createConnectionForState(roomId, new StateEvent(event));
+                if (conn) { this.push(conn); }
+            } catch (ex) {
+                log.warn(`Failed to create connection for ${roomId}:`, ex);
+            }
         }
         return connections;
     }

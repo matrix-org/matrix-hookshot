@@ -55,6 +55,10 @@ export enum ErrCode {
      * The operation action requires an additional action from the requestor.
      */
     AdditionalActionRequired = "HS_ADDITIONAL_ACTION_REQUIRED",
+    /**
+     * A connection with similar configuration exists
+     */
+    ConflictingConnection =  "HS_CONFLICTING_CONNECTION",
 }
 
 const ErrCodeToStatusCode: Record<ErrCode, number> = {
@@ -68,6 +72,7 @@ const ErrCodeToStatusCode: Record<ErrCode, number> = {
     HS_BAD_TOKEN: 401,
     HS_DISABLED_FEATURE: 500,
     HS_ADDITIONAL_ACTION_REQUIRED: 400,
+    HS_CONFLICTING_CONNECTION: 409,
 }
 
 export class ApiError extends Error {
