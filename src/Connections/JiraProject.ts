@@ -65,7 +65,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore): Promise<string> {
+        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore) {
         const validData = validateJiraConnectionState(data);
         const jiraClient = await tokenStore.getJiraForUser(userId);
         if (!jiraClient) {
@@ -85,9 +85,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         } catch (ex) {
             throw new ApiError("User cannot open this project", ErrCode.ForbiddenUser);
         }
-        const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, validData.url, data);
-        log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
-        return eventId;
+        log.info(`Created connection via provisionConnection ${connection.toString()}`);
+        return {stateEventContent: validData, connection};
     }
     
     public get projectId() {

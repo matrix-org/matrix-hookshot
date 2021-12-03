@@ -38,7 +38,11 @@ const TRANSFORMATION_TIMEOUT_MS = 2000;
  */
 export class GenericHookConnection extends BaseConnection implements IConnection {
 
-    static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeGenericWebhooksConfig): Promise<string> {
+    static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeGenericWebhooksConfig, messageClient: MessageSenderClient) {
+        const hookId = uuid();
+        const validState: GenericHookConnectionState = {
+            hookId,
+        };
         if (data.transformationFunction) {
             if (!config.allowJsTransformationFunctions) {
                 throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
@@ -46,13 +50,21 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             if (typeof data.transformationFunction !== "string") {
                 throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
             }
+            validState.transformationFunction = data.transformationFunction;
         }
-        const hookId = uuid();
+        if (!data.name) {
+            throw new ApiError('Missing name', ErrCode.BadValue);
+        }
+        if (typeof data.name !== "string" || data.name.length < 3 || data.name.length > 64) {
+            throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
+        }
+        validState.name = data.name;
+        const connection = new GenericHookConnection(roomId, validState, {hookId}, hookId, messageClient, config, as);
         await as.botClient.setRoomAccountData(roomId, GenericHookConnection.CanonicalEventType, {hookId}); 
-        return as.botClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, hookId, {
-            ...(data.transformationFunction ? { transformationFunction: data.transformationFunction} : undefined),
-            hookId,
-        });
+        return {
+            connection,
+            stateEventContent: validState,
+        }
     }
 
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.generic.hook";

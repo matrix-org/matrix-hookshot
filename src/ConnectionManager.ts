@@ -42,7 +42,6 @@ export class ConnectionManager {
      * @param connection The connection instance to push.
      */
     public push(...connections: IConnection[]) {
-        // NOTE: Double loop
         for (const connection of connections) {
             if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
                 this.connections.push(connection);
@@ -53,14 +52,13 @@ export class ConnectionManager {
 
     /**
      * Used by the provisioner API to create new connections on behalf of users.
-     * Connections are created asyncronously here and so even if the promise resolves, it may take a while for the connection to appear.
      * @param roomId The target Matrix room.
      * @param userId The requesting Matrix user.
      * @param type The type of room (corresponds to the event type of the connection)
      * @param data The data corresponding to the connection state. This will be validated.
-     * @returns The eventId of the new state event corresponding to the connection
+     * @returns The resulting connection.
      */
-    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<string> {
+    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
         const existingConnections = await this.getAllConnectionsForRoom(roomId);
         if (JiraProjectConnection.EventTypes.includes(type)) {
@@ -71,7 +69,10 @@ export class ConnectionManager {
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
-            return JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
+            const res = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
         }
         if (GitHubRepoConnection.EventTypes.includes(type)) {
             if (existingConnections.find(c => c instanceof GitHubRepoConnection)) {
@@ -81,13 +82,19 @@ export class ConnectionManager {
             if (!this.config.github || !this.config.github.oauth || !this.github) {
                 throw Error('GitHub is not configured');
             }
-            return GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github);
+            const res = await GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github);
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
         }
         if (GenericHookConnection.EventTypes.includes(type)) {
             if (!this.config.generic) {
                 throw Error('Generic hook support not supported');
             }
-            return GenericHookConnection.provisionConnection(roomId, this.as, data, this.config.generic);
+            const res = await GenericHookConnection.provisionConnection(roomId, this.as, data, this.config.generic, this.messageClient);
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
         }
         throw new ApiError(`Connection type not known`);
     }

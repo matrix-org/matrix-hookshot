@@ -178,10 +178,8 @@ export class GitLabRepoConnection extends CommandConnection {
             return;
         }
         const tagname = event.ref.replace("refs/tags/", "");
-        if (this.state.pushTagsRegex) {
-            if (!tagname.match(this.state.pushTagsRegex)) {
-                return;
-            }
+        if (this.state.pushTagsRegex && !tagname.match(this.state.pushTagsRegex)) {
+            return;
         }
         const url = `${event.project.homepage}/-/tree/${tagname}`;
         const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;

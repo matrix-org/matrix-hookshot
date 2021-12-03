@@ -78,7 +78,6 @@ Request details of a single connection. The `{roomId}` parameter is the target M
 
 ```json5
 {
-
     "type": "JiraProject", // The name of the connection
     "eventType": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
     "id": "opaque-unique-id", // An opaque ID used to refer to this connection. Should **NOT** be assumed to be stable.
@@ -92,11 +91,10 @@ Request details of a single connection. The `{roomId}` parameter is the target M
 
 ## PUT /v1/{roomId}/connections/{type}
 
-Create a new connection of a given type. The type refers to the `IConnection.CanonicalEventType`. The `{roomId}` parameter is the target Matrix room.
+Create a new connection of a given type. The type refers to the `eventType` (`IConnection.CanonicalEventType`). The `{roomId}` parameter is the target Matrix room.
 
 The body of the request is the configuration for the connection, which will be the "ConnectionState" interface for each connection.
 
-The request will respond with a `202` on success, as the connection creation process is asyncronous (being driven by Matrix state).
 
 ### Request body
 ```json5
@@ -108,8 +106,14 @@ The request will respond with a `202` on success, as the connection creation pro
 
 ```json5
 {
-    // The eventId of the state event that describes the connection.
-    "eventId": "!abc:def"
+    "type": "JiraProject", // The name of the connection
+    "eventType": "uk.half-shot.matrix-hookshot.jira.project", // Corresponds to the state type in the connection
+    "id": "opaque-unique-id", // An opaque ID used to refer to this connection. Should **NOT** be assumed to be stable.
+    "service": "jira", // or github, webhook. A human-readable service name to make things look pretty
+    "botUserId": "@hookshot:yourdomain.com", // The bot mxid for the service. Currently this is the sender_localpart, but may change in the future.
+    "config": {
+        // ... connection specific details, can be configured.
+    }
 }
 ```
 

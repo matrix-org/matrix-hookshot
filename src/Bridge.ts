@@ -348,7 +348,7 @@ export class Bridge {
             });
         });
 
-        this.queue.on<GitHubOAuthTokens>("oauth.tokens", async (msg) => {
+        this.queue.on<GitHubOAuthTokens>("github.oauth.tokens", async (msg) => {
             const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
             if (!userId) {
                 log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");

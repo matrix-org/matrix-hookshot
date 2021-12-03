@@ -124,7 +124,7 @@ function validateState(state: Record<string, unknown>): GitHubRepoConnectionStat
  */
 export class GitHubRepoConnection extends CommandConnection implements IConnection {
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        tokenStore: UserTokenStore, githubInstance: GithubInstance, config: BridgeConfigGitHub): Promise<string> {
+        tokenStore: UserTokenStore, githubInstance: GithubInstance, config: BridgeConfigGitHub) {
         const validData = validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
@@ -154,10 +154,11 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 }
             );
         }
-        const stateKey = `${validData.org}/${validData.repo}`;
-        const eventId = await as.botIntent.underlyingClient.sendStateEvent(roomId, GitHubRepoConnection.CanonicalEventType, stateKey, data);
-        log.info(`Created connection via provisionConnection for ${roomId} (${eventId})`);
-        return eventId;
+        const stateEventKey = `${validData.org}/${validData.repo}`;
+        return {
+            stateEventContent: validData,
+            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, stateEventKey, githubInstance, config),
+        }
     }
 
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.repository";

@@ -186,8 +186,11 @@ export class Provisioner {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
-            const eventId = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
-            return res.status(202).send({eventId});
+            const connection = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
+            if (!connection.getProvisionerDetails) {
+                throw new Error('Connection supported provisioning but not getProvisionerDetails');
+            }
+            res.send(connection.getProvisionerDetails());
         } catch (ex) {
             log.warn(`Failed to create connection for ${req.params.roomId}`, ex);
             return next(ex);
