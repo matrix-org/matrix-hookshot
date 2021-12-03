@@ -113,6 +113,20 @@ export class Provisioner {
     private async checkUserPermission(requiredPermission: "read"|"write", req: Request<{roomId: string}, unknown, unknown, {userId: string}>, res: Response, next: NextFunction) {
         const userId = req.query.userId;
         const roomId = req.params.roomId;
+        try {
+            const membership = await this.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", this.intent.userId) as MembershipEventContent;
+            if (membership.membership === "invite") {
+                await this.intent.underlyingClient.joinRoom(roomId);
+            } else if (membership.membership !== "join") {
+                return next(new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom));
+            }
+        } catch (ex) {
+            if (ex.body.errcode === "M_NOT_FOUND") {
+                return next(new ApiError("User is not joined to the room.", ErrCode.NotInRoom));
+            }
+            log.warn(`Failed to find member event for ${req.query.userId} in room ${roomId}`, ex);
+            return next(new ApiError(`Could not determine if the user is in the room.`, ErrCode.NotInRoom));
+        }
         // If the user just wants to read, just ensure they are in the room.
         try {
             const membership = await this.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", userId) as MembershipEventContent;

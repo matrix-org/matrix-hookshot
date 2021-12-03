@@ -9,7 +9,7 @@ import markdownit from "markdown-it";
 import { generateJiraWebLinkFromIssue } from "../Jira";
 import { JiraProject } from "../Jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
-import { MatrixMessageContent } from "../MatrixEvent";
+import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
@@ -102,6 +102,10 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         return parts ? parts[parts.length - 1] : undefined;
     }
 
+    public toString() {
+        return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
+    }
+
     public isInterestedInHookEvent(eventName: string) {
         return !this.state.events || this.state.events?.includes(eventName as JiraAllowedEventsNames);
     }
@@ -151,6 +155,11 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return JiraProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
+    }
+
+    public async onStateUpdate(event: MatrixEvent<unknown>) {
+        const validatedConfig = validateJiraConnectionState(event.content as JiraProjectConnectionState);
+        this.state = validatedConfig;
     }
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {
@@ -337,10 +346,6 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         await api.updateAssigneeWithId(issueKey, searchForUser[0].accountId);
     }
 
-    public toString() {
-        return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
-    }
-
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
@@ -351,6 +356,11 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey);
             await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = validateJiraConnectionState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
     }
 }
 

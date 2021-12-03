@@ -13,11 +13,11 @@ export interface GenericHookConnectionState {
     /**
      * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
      */
-    hookId: string;
+    hookId?: string;
     /**
      * The name given in the provisioning UI and displaynames.
      */
-    name?: string;
+    name: string;
     transformationFunction?: string;
 }
 
@@ -39,29 +39,38 @@ const TRANSFORMATION_TIMEOUT_MS = 2000;
  */
 export class GenericHookConnection extends BaseConnection implements IConnection {
 
+    static validateState(state: Record<string, unknown>, allowJsTransformationFunctions: boolean): GenericHookConnectionState {
+        const {name, transformationFunction} = state;
+        let transformationFunctionResult: string|undefined;
+        if (transformationFunction) {
+            if (!allowJsTransformationFunctions) {
+                throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
+            }
+            if (typeof transformationFunction !== "string") {
+                throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
+            }
+            transformationFunctionResult = transformationFunction;
+        }
+        if (!name) {
+            throw new ApiError('Missing name', ErrCode.BadValue);
+        }
+        if (typeof name !== "string" || name.length < 3 || name.length > 64) {
+            throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
+        }
+        return {
+            name,
+            ...(transformationFunctionResult && {transformationFunction: transformationFunctionResult}),
+        };
+    }
+
     static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeGenericWebhooksConfig, messageClient: MessageSenderClient) {
         const hookId = uuid();
         const validState: GenericHookConnectionState = {
+            ...GenericHookConnection.validateState(data, config.allowJsTransformationFunctions || false),
             hookId,
         };
-        if (data.transformationFunction) {
-            if (!config.allowJsTransformationFunctions) {
-                throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
-            }
-            if (typeof data.transformationFunction !== "string") {
-                throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
-            }
-            validState.transformationFunction = data.transformationFunction;
-        }
-        if (!data.name) {
-            throw new ApiError('Missing name', ErrCode.BadValue);
-        }
-        if (typeof data.name !== "string" || data.name.length < 3 || data.name.length > 64) {
-            throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
-        }
-        validState.name = data.name;
-        const connection = new GenericHookConnection(roomId, validState, hookId, data.name, messageClient, config, as);
-        await GenericHookConnection.ensureRoomAccountData(roomId, as, hookId, data.name);
+        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config, as);
+        await GenericHookConnection.ensureRoomAccountData(roomId, as, hookId, validState.name);
         return {
             connection,
             stateEventContent: validState,
@@ -98,7 +107,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     private cachedDisplayname?: string;
 
     constructor(roomId: string,
-        private readonly state: GenericHookConnectionState,
+        private state: GenericHookConnectionState,
         public readonly hookId: string,
         stateKey: string,
         private readonly messageClient: MessageSenderClient,
@@ -149,15 +158,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        const state = stateEv.content as GenericHookConnectionState;
-        if (state.transformationFunction && this.config.allowJsTransformationFunctions) {
+        const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>, this.config.allowJsTransformationFunctions || false);
+        if (validatedConfig.transformationFunction) {
             try {
-                this.transformationFunction = new Script(state.transformationFunction);
+                this.transformationFunction = new Script(validatedConfig.transformationFunction);
             } catch (ex) {
                 await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + ex);
             }
         }
-        this.state.name = state.name;
+        this.state = validatedConfig;
     }
 
     public transformHookData(data: Record<string, unknown>): string {
@@ -248,6 +257,16 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
         await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, this.hookId, this.stateKey, true);
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = GenericHookConnection.validateState(config, this.config.allowJsTransformationFunctions || false);
+        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey, 
+            {
+                ...validatedConfig,
+                hookId: this.hookId
+            }
+        );
     }
 
     public toString() {
