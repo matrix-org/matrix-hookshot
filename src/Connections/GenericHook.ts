@@ -23,9 +23,9 @@ export interface GenericHookConnectionState {
 
 export interface GenericHookAccountData {
     /**
-     * This is where the true hook ID is kept.
+     * This is where the true hook ID is kept. Each hook ID maps to a state_key
      */
-    hookId: string;
+    [hookId: string]: string;
 }
 
 const log = new LogWrapper("GenericHookConnection");
@@ -59,11 +59,28 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
         }
         validState.name = data.name;
-        const connection = new GenericHookConnection(roomId, validState, {hookId}, hookId, messageClient, config, as);
-        await as.botClient.setRoomAccountData(roomId, GenericHookConnection.CanonicalEventType, {hookId}); 
+        const connection = new GenericHookConnection(roomId, validState, hookId, data.name, messageClient, config, as);
+        await GenericHookConnection.ensureRoomAccountData(roomId, as, connection);
         return {
             connection,
             stateEventContent: validState,
+        }
+    }
+
+    /**
+     * This function ensures the account data for a room contains all the hookIds for the various state events.
+     * @param roomId 
+     * @param as 
+     * @param connection 
+     */
+    static async ensureRoomAccountData(roomId: string, as: Appservice, connection: GenericHookConnection) {
+        const data = await as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
+        if (data[connection.hookId] === connection.stateKey) {
+            // All good.
+            return;
+        } else {
+            data[connection.hookId] = connection.stateKey;
+            await as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, data);
         }
     }
 
@@ -75,16 +92,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         GenericHookConnection.LegacyCanonicalEventType,
     ];
 
-    public get hookId() {
-        return this.accountData.hookId;
-    }
-
     private transformationFunction?: Script;
     private cachedDisplayname?: string;
 
     constructor(roomId: string,
         private readonly state: GenericHookConnectionState,
-        private readonly accountData: GenericHookAccountData,
+        public readonly hookId: string,
         stateKey: string,
         private readonly messageClient: MessageSenderClient,
         private readonly config: BridgeGenericWebhooksConfig,

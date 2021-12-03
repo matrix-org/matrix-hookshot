@@ -185,23 +185,29 @@ export class ConnectionManager {
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
-            // Generic hooks store the hookId in the account data
-            let acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData|null>(GenericHookConnection.CanonicalEventType, roomId);
-            if (!acctData) {
-                log.info(`hookId for ${roomId} not set, setting`);
-                acctData = { hookId: uuid() };
-                await this.as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, acctData);
-                await this.as.botClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, state.stateKey, {...state.content, hookId: acctData.hookId });
+            if (!this.config.generic) {
+                throw Error('Generic webhooks are not configured');
             }
-            return new GenericHookConnection(
+            // Generic hooks store the hookId in the account data
+            const acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
+            let hookId = acctData[state.stateKey];
+            if (!hookId) {
+                hookId = uuid();
+                log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
+            }
+
+            const conn = new GenericHookConnection(
                 roomId,
                 state.content,
-                acctData,
+                hookId,
                 state.stateKey,
                 this.messageClient,
                 this.config.generic,
                 this.as,
             );
+            await GenericHookConnection.ensureRoomAccountData(roomId, this.as, conn);
+            return conn;
+            
         }
         return;
     }
