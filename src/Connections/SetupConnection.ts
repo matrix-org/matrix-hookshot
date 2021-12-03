@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 import { Appservice } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+import { MatrixMessageContent } from "../MatrixEvent";
 import LogWrapper from "../LogWrapper";
 import { CommandConnection } from "./CommandConnection";
 import { GenericHookConnection, GitHubRepoConnection, GitHubRepoConnectionState, JiraProjectConnection, JiraProjectConnectionState } from ".";
@@ -138,8 +138,8 @@ export class SetupConnection extends CommandConnection {
         }
         const hookId = uuid();
         const url = `${this.webhooksConfig.urlPrefix}${this.webhooksConfig.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
-        await this.as.botClient.setRoomAccountData(this.roomId, GenericHookConnection.CanonicalEventType, {[hookId]: name});
-        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, hookId, {hookId, name});
+        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
+        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. Please configure your webhook source to use \`${url}\``));
     }
 }

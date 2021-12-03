@@ -581,7 +581,7 @@ export class Bridge {
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>) {
         this.queue.on<EventType>(event, (msg) => {
             const connections = connectionFetcher.bind(this)(msg.data);
-            log.debug(`${event} for ${connections.map(c => c.toString()).join(', ')}`);
+            log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
             connections.forEach(async (c) => {
                 try {
                     await handler(c, msg.data);

@@ -190,13 +190,15 @@ export class ConnectionManager {
             }
             // Generic hooks store the hookId in the account data
             const acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
-            let hookId = acctData[state.stateKey];
+            // hookId => stateKey
+            let hookId = Object.entries(acctData).find(([, v]) => v === state.stateKey)?.[0];
             if (!hookId) {
                 hookId = uuid();
                 log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
+                await GenericHookConnection.ensureRoomAccountData(roomId, this.as, hookId, state.stateKey);
             }
 
-            const conn = new GenericHookConnection(
+            return new GenericHookConnection(
                 roomId,
                 state.content,
                 hookId,
@@ -205,9 +207,6 @@ export class ConnectionManager {
                 this.config.generic,
                 this.as,
             );
-            await GenericHookConnection.ensureRoomAccountData(roomId, this.as, conn);
-            return conn;
-            
         }
         return;
     }

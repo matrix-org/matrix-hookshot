@@ -60,7 +60,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         validState.name = data.name;
         const connection = new GenericHookConnection(roomId, validState, hookId, data.name, messageClient, config, as);
-        await GenericHookConnection.ensureRoomAccountData(roomId, as, connection);
+        await GenericHookConnection.ensureRoomAccountData(roomId, as, hookId, data.name);
         return {
             connection,
             stateEventContent: validState,
@@ -73,13 +73,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @param as 
      * @param connection 
      */
-    static async ensureRoomAccountData(roomId: string, as: Appservice, connection: GenericHookConnection) {
+    static async ensureRoomAccountData(roomId: string, as: Appservice, hookId: string, stateKey: string) {
         const data = await as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
-        if (data[connection.hookId] === connection.stateKey) {
-            // All good.
-            return;
-        } else {
-            data[connection.hookId] = connection.stateKey;
+        if (data[hookId] !== stateKey) {
+            data[hookId] = stateKey;
             await as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, data);
         }
     }
