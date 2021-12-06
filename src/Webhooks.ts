@@ -11,19 +11,12 @@ import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webho
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./Jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
+import { GitHubOAuthTokenResponse } from "./Github/Types";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface GenericWebhookEvent {
     hookData: Record<string, unknown>;
     hookId: string;
-}
-
-export interface GitHubOAuthTokens {
-    // eslint-disable-next-line camelcase
-    access_token: string;
-    // eslint-disable-next-line camelcase
-    token_type: string;
-    state: string;
 }
 
 export interface NotificationsEnableEvent {
@@ -236,11 +229,14 @@ export class Webhooks extends EventEmitter {
                 state: req.query.state as string,
             })}`);
             // eslint-disable-next-line camelcase
-            const result = qs.parse(accessTokenRes.data) as { access_token: string, token_type: string };
-            await this.queue.push<GitHubOAuthTokens>({
+            const result = qs.parse(accessTokenRes.data) as GitHubOAuthTokenResponse|{error: string, error_description: string, error_uri: string};
+            if ("error" in result) {
+                return res.status(500).send(`<p><b>GitHub Error</b>: ${result.error} ${result.error_description}</p>`);
+            }
+            await this.queue.push<GitHubOAuthTokenResponse>({
                 eventName: "github.oauth.tokens",
                 sender: "GithubWebhooks",
-                data: { state: req.query.state as string, ... result },
+                data: { ...result, state: req.query.state as string },
             });
             return res.send(`<p> Your account has been bridged </p>`);
         } catch (ex) {

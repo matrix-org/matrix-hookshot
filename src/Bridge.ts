@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IStorageProvider, IAppserviceStorageProvider } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -20,8 +20,8 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
-import { ProjectsGetResponseData } from "./Github/Types";
+import { NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
+import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
@@ -348,13 +348,19 @@ export class Bridge {
             });
         });
 
-        this.queue.on<GitHubOAuthTokens>("github.oauth.tokens", async (msg) => {
+        this.queue.on<GitHubOAuthTokenResponse>("github.oauth.tokens", async (msg) => {
             const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
             if (!userId) {
                 log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
                 return;
             }
-            await this.tokenStore.storeUserToken("github", userId, msg.data.access_token);
+            await this.tokenStore.storeUserToken("github", userId, JSON.stringify({
+                access_token: msg.data.access_token,
+                expires_in: msg.data.expires_in && ((parseInt(msg.data.expires_in) * 1000) + Date.now()),
+                token_type: msg.data.token_type,
+                refresh_token: msg.data.refresh_token,
+                refresh_token_expires_in: msg.data.refresh_token_expires_in && ((parseInt(msg.data.refresh_token_expires_in) * 1000)  + Date.now()),
+            } as GitHubOAuthToken));
         });
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection>(

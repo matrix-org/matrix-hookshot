@@ -40,3 +40,22 @@ export interface GitHubUserNotification {
     // Not quite the right type but good nuff.
     repository: ReposGetResponseData;
 }
+
+export interface GitHubOAuthTokenResponse {
+    state: string;
+    access_token: string;
+    expires_in?: string;
+    refresh_token?: string;
+    refresh_token_expires_in?: string;
+    scope: string;
+    token_type: 'bearer'|'pat';
+}
+
+export interface GitHubOAuthToken {
+    access_token: string;
+    expires_in?: number;
+    refresh_token?: string;
+    refresh_token_expires_in?: number;
+    scope?: string;
+    token_type: 'bearer'|'pat';
+}

@@ -9,6 +9,7 @@ import { GithubInstance } from "./GithubInstance";
 const log = new LogWrapper("GitHubProvisionerRouter");
 interface GitHubAccountStatus {
     loggedIn: boolean;
+    username?: string;
     organisations?: {
         name: string;
         avatarUrl: string;
@@ -25,6 +26,7 @@ interface GitHubRepoItem {
 interface GitHubRepoResponse {
     page: number;
     repositories: GitHubRepoItem[];
+    changeSelectionUrl?: string;
 }
 
 export class GitHubProvisionerRouter {
@@ -73,6 +75,7 @@ export class GitHubProvisionerRouter {
         }
         return res.send({
             loggedIn: true,
+            username: await (await octokit.users.getAuthenticated()).data.login,
             organisations,
         })
     }
@@ -120,12 +123,14 @@ export class GitHubProvisionerRouter {
         const page = req.query.page ? parseInt(req.query.page) : 1;
         const perPage = req.query.perPage ? parseInt(req.query.perPage) : 10;
         try {
-            const orgRes = await octokit.repos.listForAuthenticatedUser({
+            const userRes = await octokit.users.getAuthenticated();
+            const userInstallation = await this.githubInstance.appOctokit.apps.getUserInstallation({username: userRes.data.login});
+            const orgRes = await octokit.apps.listInstallationReposForAuthenticatedUser({
                 page,
+                installation_id: userInstallation.data.id,
                 per_page: perPage,
-                affiliation: "organization_member"
             });
-            for (const repo of orgRes.data) {
+            for (const repo of orgRes.data.repositories) {
                 repositories.push({
                     name: repo.name,
                     owner: repo.owner.login,
@@ -138,6 +143,7 @@ export class GitHubProvisionerRouter {
             return res.send({
                 page,
                 repositories,
+                ...(orgRes.data.repository_selection === 'selected' && {changeSelectionUrl: `https://github.com/settings/installations/${userInstallation.data.id}`})
             });
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${req.query.userId}`, ex);

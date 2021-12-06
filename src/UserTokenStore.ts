@@ -8,6 +8,7 @@ import { JiraClient } from "./Jira/Client";
 import { JiraOAuthResult } from "./Jira/Types";
 import { BridgeConfig } from "./Config/Config";
 import { v4 as uuid } from "uuid";
+import { GitHubOAuthToken } from "./Github/Types";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -95,11 +96,46 @@ export class UserTokenStore {
 
     public async getOctokitForUser(userId: string) {
         // TODO: Move this somewhere else.
-        const senderToken = await this.getUserToken("github", userId);
-        if (!senderToken) {
+        const storeTokenResponse = await this.getUserToken("github", userId);
+        if (!storeTokenResponse) {
             return null;
         }
-        return GithubInstance.createUserOctokit(senderToken);
+
+        let senderToken: GitHubOAuthToken;
+        if (!storeTokenResponse.startsWith('{')) {
+            // Old style token
+            senderToken = { access_token: storeTokenResponse, token_type: 'pat' };
+        } else {
+            senderToken = JSON.parse(storeTokenResponse);
+        }
+        const date = Date.now();
+        if (senderToken.expires_in && senderToken.expires_in < date) {
+            log.info(`GitHub access token for ${userId} has expired ${senderToken.expires_in} < ${date}, attempting refresh`);
+            if (!this.config.github?.oauth) {
+                throw Error('GitHub oauth not configured, cannot refresh token');
+            }
+            if (senderToken.refresh_token && senderToken.refresh_token_expires_in && senderToken?.refresh_token_expires_in > date) {
+                // Needs a refresh.
+                const refreshResult = await GithubInstance.refreshAccessToken(
+                    senderToken.refresh_token, 
+                    this.config.github?.oauth?.client_id,
+                    this.config.github?.oauth?.client_secret,
+                );
+                senderToken = {
+                    access_token: refreshResult.access_token,
+                    expires_in: refreshResult.expires_in && ((parseInt(refreshResult.expires_in) * 1000) + date),
+                    token_type: refreshResult.token_type,
+                    refresh_token: refreshResult.refresh_token,
+                    refresh_token_expires_in: refreshResult.refresh_token_expires_in && ((parseInt(refreshResult.refresh_token_expires_in) * 1000)  + date),
+                } as GitHubOAuthToken;
+                await this.storeUserToken("github", userId, JSON.stringify(senderToken));
+                
+            } else {
+                log.error(`GitHub access token for ${userId} has expired, and the refresh token is stale or not given`);
+                throw Error('Token is expired, cannot refresh');
+            }
+        }
+        return GithubInstance.createUserOctokit(senderToken.access_token);
     }
 
     public async getGitLabForUser(userId: string, instanceUrl: string) {

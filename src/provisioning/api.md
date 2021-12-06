@@ -222,6 +222,8 @@ This request can be retried until the number of entries is less than the value o
 
 Request a list of all repositories a user is a member of (including those not belonging to an org). The `owner` and `name` value of a repository can be given to create a new GitHub connection.
 
+If the user has only allowed a subset of repositories to be bridged, `changeSelectionUrl` will be defined and can be used to expand the search query.
+
 This request is paginated, and `page` sets the page (defaults to `1`) while `perPage` (defaults to `10`) sets the number of entries per page.
 
 This request can be retried until the number of entries is less than the value of `perPage`.
@@ -231,6 +233,7 @@ This request can be retried until the number of entries is less than the value o
 ```json5
 {
     "loggedIn": true,
+    "changeSelectionUrl": "https://github.com/settings/installations/12345",
     "repositories":[{
         "name": "matrix-hookshot",
         "owner": "half-shot",

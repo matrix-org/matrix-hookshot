@@ -15,7 +15,7 @@ import { Intent } from "matrix-bot-sdk";
 import { JiraBotCommands } from "./Jira/AdminCommands";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
-import { ProjectsListResponseData } from "./Github/Types";
+import { GitHubOAuthToken, ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import LogWrapper from "./LogWrapper";
@@ -134,37 +134,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("help", "This help text")
     public async helpCommand() {
         return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage());
-    }
-
-    @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
-    public async setGHPersonalAccessToken(accessToken: string) {
-        if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
-        }
-        let me;
-        try {
-            const octokit = GithubInstance.createUserOctokit(accessToken);
-            me = await octokit.users.getAuthenticated();
-        } catch (ex) {
-            log.error("Failed to auth with GitHub", ex);
-            await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
-            return;
-        }
-        await this.sendNotice(`Connected as ${me.data.login}. Token stored`);
-        await this.tokenStore.storeUserToken("github", this.userId, accessToken);
-    }
-
-    @botCommand("github hastoken", "Check if you have a token stored for GitHub")
-    public async hasPersonalToken() {
-        if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
-        }
-        const result = await this.tokenStore.getUserToken("github", this.userId);
-        if (result === null) {
-            await this.sendNotice("You do not currently have a token stored");
-            return;
-        }
-        await this.sendNotice("A token is stored for your GitHub account.");
     }
 
     @botCommand("github notifications toggle", "Toggle enabling/disabling GitHub notifications in this room")
@@ -377,8 +346,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceName', 'accessToken'])
-    // @ts-ignore - property is used
-    private async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
+    public async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
         let me: GetUserResponse;
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
@@ -393,16 +361,14 @@ export class AdminRoom extends AdminRoomCommandHandler {
             client.issues
         } catch (ex) {
             log.error("Gitlab auth error:", ex);
-            await this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
-            return;
+            return this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
         }
         await this.sendNotice(`Connected as ${me.username}. Token stored`);
-        await this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
+        return this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
     }
 
     @botCommand("gitlab hastoken", "Check if you have a token stored for GitLab", ["instanceName"])
-    // @ts-ignore - property is used
-    private async gitlabHasPersonalToken(instanceName: string) {
+    public async gitlabHasPersonalToken(instanceName: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
@@ -412,10 +378,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
         const result = await this.tokenStore.getUserToken("gitlab", this.userId, instance.url);
         if (result === null) {
-            await this.sendNotice("You do not currently have a token stored");
-            return;
+            return this.sendNotice("You do not currently have a token stored");
         }
-        await this.sendNotice("A token is stored for your GitLab account.");
+        return this.sendNotice("A token is stored for your GitLab account.");
     }
 
     @botCommand("gitlab notifications toggle", "Toggle enabling/disabling GitHub notifications in this room", ["instanceName"])

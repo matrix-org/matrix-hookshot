@@ -1,7 +1,6 @@
 import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import qs from "querystring";
-import {v4 as uuid} from "uuid";
 import { JiraAPIAccessibleResource } from "./Types";
 import LogWrapper from "../LogWrapper";
 
