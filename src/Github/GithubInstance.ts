@@ -23,14 +23,14 @@ export class GithubInstance {
     private internalOctokit!: Octokit;
 
     private readonly installationsCache = new Map<number, Installation>();
-    private internalAppName?: string;
+    private internalAppSlug?: string;
 
     constructor (private readonly appId: number|string, private readonly privateKey: string) {
         this.appId = parseInt(appId as string, 10);
     }
 
-    public get appName() {
-        return this.internalAppName;
+    public get appSlug() {
+        return this.internalAppSlug;
     }
 
     public static createUserOctokit(token: string) {
@@ -90,7 +90,7 @@ export class GithubInstance {
 
 
         const appDetails = await this.internalOctokit.apps.getAuthenticated();
-        this.internalAppName = appDetails.data.name;
+        this.internalAppSlug = appDetails.data.slug;
 
         let installPageSize = 100;
         let page = 1;
@@ -135,7 +135,7 @@ export class GithubInstance {
 
     public get newInstallationUrl() {
         // E.g. https://github.com/apps/matrix-bridge/installations/new
-        return `https://github.com/apps/${this.appName}/installations/new`;
+        return `https://github.com/apps/${this.appSlug}/installations/new`;
     }
 }
 
