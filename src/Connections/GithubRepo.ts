@@ -423,7 +423,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        const content = emoji.emojify(`**${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review (${event.pull_request.title})`);
+        const content = emoji.emojify(`**${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review "${event.pull_request.title}"`);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -456,7 +456,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             // We don't recongnise this state, run away!
             return;
         }
-        const content = emoji.emojify(`**${event.sender.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) (${event.pull_request.title})`);
+        const content = emoji.emojify(`**${event.sender.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
