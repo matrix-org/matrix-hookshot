@@ -62,16 +62,16 @@ export class GitHubProvisionerRouter {
         const page = req.query.page ? parseInt(req.query.page) : 1;
         const perPage = req.query.perPage ? parseInt(req.query.perPage) : 10;
         try {
-            const orgRes = await octokit.orgs.listForAuthenticatedUser({page, per_page: perPage});
-            for (const org of orgRes.data) {
+            const installs = await octokit.apps.listInstallationsForAuthenticatedUser({page: page, per_page: perPage});
+            for (const install of installs.data.installations) {
                 organisations.push({
-                    name: org.login,
-                    avatarUrl: org.avatar_url,
+                    name: install.account!.login!, // org or user name
+                    avatarUrl: install.account!.avatar_url!,
                 });
             }
         } catch (ex) {
             log.warn(`Failed to fetch orgs for GitHub user ${req.query.userId}`, ex);
-            return next( new ApiError("Could not fetch orgs for GitHub user", ErrCode.Unknown));
+            return next( new ApiError("Could not fetch orgs for GitHub user", ErrCode.AdditionalActionRequired));
         }
         return res.send({
             loggedIn: true,
@@ -86,13 +86,42 @@ export class GitHubProvisionerRouter {
             // TODO: Better error?
             return next(new ApiError("Not logged in", ErrCode.ForbiddenUser));
         }
-    
+
+        const ownSelf = await octokit.users.getAuthenticated();
+
         const repositories = [];
         const page = req.query.page ? parseInt(req.query.page) : 1;
         const perPage = req.query.perPage ? parseInt(req.query.perPage) : 10;
         try {
-            const orgRes = await octokit.repos.listForOrg({org: req.params.orgName, page, per_page: perPage});
-            for (const repo of orgRes.data) {
+            let changeInstallUrl: string | undefined = undefined;
+            let reposPromise;
+
+            if (ownSelf.data.login === req.params.orgName) {
+                const userInstallation = await this.githubInstance.appOctokit.apps.getUserInstallation({username: ownSelf.data.login});
+                reposPromise = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                    page,
+                    installation_id: userInstallation.data.id,
+                    per_page: perPage,
+                });
+                if (userInstallation.data.repository_selection === 'selected') {
+                    changeInstallUrl = `https://github.com/settings/installations/${userInstallation.data.id}`;
+                }
+            } else {
+                const orgInstallation = await this.githubInstance.appOctokit.apps.getOrgInstallation({org: req.params.orgName});
+
+                // Github will error if the authed user tries to list repos of a disallowed installation, even
+                // if we got the installation ID from the app's instance.
+                reposPromise = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                    page,
+                    installation_id: orgInstallation.data.id,
+                    per_page: perPage,
+                });
+                if (orgInstallation.data.repository_selection === 'selected') {
+                    changeInstallUrl = `https://github.com/organizations/${req.params.orgName}/settings/installations/${orgInstallation.data.id}`;
+                }
+            }
+            const reposRes = await reposPromise;
+            for (const repo of reposRes.data.repositories) {
                 repositories.push({
                     name: repo.name,
                     owner: repo.owner.login,
@@ -101,14 +130,15 @@ export class GitHubProvisionerRouter {
                     avatarUrl: repo.owner.avatar_url,
                 });
             }
-        
+
             return res.send({
                 page,
                 repositories,
+                changeSelectionUrl: changeInstallUrl,
             });
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${req.params.orgName} / ${req.query.userId}`, ex);
-            return next(new ApiError("Could not fetch accessible repos for GitHub org", ErrCode.Unknown));
+            return next(new ApiError("Could not fetch accessible repos for GitHub org", ErrCode.AdditionalActionRequired));
         }
     }
 
@@ -118,7 +148,7 @@ export class GitHubProvisionerRouter {
             // TODO: Better error?
             return next(new ApiError("Not logged in", ErrCode.ForbiddenUser));
         }
-    
+
         const repositories = [];
         const page = req.query.page ? parseInt(req.query.page) : 1;
         const perPage = req.query.perPage ? parseInt(req.query.perPage) : 10;
@@ -139,7 +169,7 @@ export class GitHubProvisionerRouter {
                     avatarUrl: repo.owner.avatar_url,
                 });
             }
-        
+
             return res.send({
                 page,
                 repositories,
@@ -147,7 +177,7 @@ export class GitHubProvisionerRouter {
             });
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${req.query.userId}`, ex);
-            return next(new ApiError("Could not fetch accessible repos for GitHub user", ErrCode.Unknown));
+            return next(new ApiError("Could not fetch accessible repos for GitHub user", ErrCode.AdditionalActionRequired));
         }
     }
 }
