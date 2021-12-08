@@ -2,6 +2,7 @@ import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
 import { ProjectsGetResponseData } from "../Github/Types";
+import { BaseConnection } from "./BaseConnection";
 
 export interface GitHubProjectConnectionState {
     // eslint-disable-next-line camelcase
@@ -13,7 +14,7 @@ const log = new LogWrapper("GitHubProjectConnection");
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubProjectConnection implements IConnection {
+export class GitHubProjectConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.project";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.project";
 
@@ -57,7 +58,9 @@ export class GitHubProjectConnection implements IConnection {
     constructor(public readonly roomId: string,
         as: Appservice,
         private state: GitHubProjectConnectionState,
-        private stateKey: string) { }
+        stateKey: string) {
+            super(roomId, stateKey, GitHubProjectConnection.CanonicalEventType);
+        }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;

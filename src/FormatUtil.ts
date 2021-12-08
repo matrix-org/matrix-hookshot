@@ -98,4 +98,8 @@ export class FormatUtil {
     public static getPartialBodyForJiraIssue(issue: JiraIssue) {
         return format_util.get_partial_body_for_jira_issue(issue);
     }
+
+    public static hashId(id: string) {
+        return format_util.hash_id(id);
+    }
 }

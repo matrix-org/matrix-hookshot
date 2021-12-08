@@ -1,7 +1,6 @@
 import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import qs from "querystring";
-import {v4 as uuid} from "uuid";
 import { JiraAPIAccessibleResource } from "./Types";
 import LogWrapper from "../LogWrapper";
 
@@ -20,6 +19,19 @@ const JiraOAuthScopes = [
     "offline_access",
 ];
 
+export function generateJiraURL(clientId: string, redirectUri: string, state: string) {
+    const options = {
+        audience: "api.atlassian.com",
+        client_id: clientId,
+        scope: JiraOAuthScopes.join(" "),
+        redirect_uri: redirectUri,
+        state: state,
+        response_type: "code",
+        prompt: "consent",
+    };
+    return `https://auth.atlassian.com/authorize?${qs.stringify(options)}`;
+}
+
 export class JiraBotCommands extends AdminRoomCommandHandler {
     @botCommand("jira login", "Login to JIRA")
     public async loginCommand() {
@@ -27,18 +39,9 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
             this.sendNotice(`Bot is not configured with JIRA OAuth support`);
             return;
         }
-        this.pendingJiraOAuthState = uuid();
-        const options = {
-            audience: "api.atlassian.com",
-            client_id: this.config.jira.oauth.client_id,
-            scope: JiraOAuthScopes.join(" "),
-            redirect_uri: this.config.jira.oauth.redirect_uri,
-            state: this.pendingJiraOAuthState,
-            response_type: "code",
-            prompt: "consent",
-        };
-        const url = `https://auth.atlassian.com/authorize?${qs.stringify(options)}`;
-        await this.sendNotice(`To login, open ${url} and follow the steps`);
+        const cfg = this.config.jira.oauth;
+        const state = this.tokenStore.createStateForOAuth(this.userId);
+        await this.sendNotice(`To login, open ${generateJiraURL(cfg.client_id, cfg.redirect_uri, state)} to link your account to the bridge`);
     }
 
     @botCommand("jira whoami", "Determine JIRA identity")

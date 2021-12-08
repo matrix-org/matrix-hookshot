@@ -90,6 +90,7 @@ export interface BridgeConfigJira {
 export interface BridgeGenericWebhooksConfig {
     enabled: boolean;
     urlPrefix: string;
+    userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
 }
 
@@ -132,6 +133,11 @@ interface BridgeConfigBot {
     avatar?: string;
 }
 
+export interface BridgeConfigProvisioning {
+    bindAddress?: string;
+    port: number;
+    secret: string;
+}
 
 interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
@@ -139,6 +145,7 @@ interface BridgeConfigRoot {
     generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
+    provisioning?: BridgeConfigProvisioning;
     jira?: BridgeConfigJira;
     logging: BridgeConfigLogging;
     passFile: string;
@@ -171,6 +178,8 @@ export class BridgeConfig {
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;
+    @configKey("Provisioning API for integration managers", true)
+    public readonly provisioning?: BridgeConfigProvisioning;
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
@@ -186,6 +195,7 @@ export class BridgeConfig {
         this.jira = configData.jira;
         this.generic = configData.generic;
         this.webhook = configData.webhook;
+        this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         assert.ok(this.webhook);
         this.queue = configData.queue || {

@@ -1,17 +1,26 @@
-import axios from "axios";
-import { Router, Request, Response } from "express";
 import { BridgeConfigJira } from "../Config/Config";
-import LogWrapper from "../LogWrapper";
+import { generateJiraURL } from "./AdminCommands";
+import { JiraOAuthResult } from "./Types";
 import { MessageQueue } from "../MessageQueue";
 import { OAuthRequest } from "../WebhookTypes";
-import { JiraOAuthResult } from "./Types";
+import { Router, Request, Response, NextFunction } from "express";
+import { UserTokenStore } from "../UserTokenStore";
+import axios from "axios";
+import LogWrapper from "../LogWrapper";
+import { ApiError, ErrCode } from "../provisioning/api";
+import { HookshotJiraApi } from "./Client";
 
 const log = new LogWrapper("JiraRouter");
 
-export default class JiraRouter {
+interface OAuthQuery {
+    state: string;
+    code: string;
+}
+
+export class JiraWebhooksRouter {
     constructor(private readonly config: BridgeConfigJira, private readonly queue: MessageQueue) { }
 
-    private async onOAuth(req: Request, res: Response) {
+    private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQuery>, res: Response<string|{error: string}>) {
         if (typeof req.query.state !== "string") {
             return res.status(400).send({error: "Missing 'state' parameter"});
         }
@@ -58,5 +67,98 @@ export default class JiraRouter {
         const router = Router();
         router.get("/oauth", this.onOAuth.bind(this));
         return router;
+    }
+}
+
+
+interface JiraAccountStatus {
+    loggedIn: boolean;
+    instances?: {
+        name: string;
+        url: string;
+    }[]
+}
+interface JiraProjectsListing {
+    name: string;
+    key: string;
+    url: string;
+}
+
+export class JiraProvisionerRouter {
+    constructor(private readonly config: BridgeConfigJira, private readonly tokenStore: UserTokenStore) { }
+
+    public getRouter() {
+        const router = Router();
+        router.get("/oauth", this.onOAuth.bind(this));
+        router.get("/account", this.onGetAccount.bind(this));
+        router.get("/instances/:instanceName/projects", this.onGetInstanceProjects.bind(this));
+        return router;
+    }
+
+    private onOAuth(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<{url: string}>) {
+        res.send({
+            url: generateJiraURL(this.config.oauth.client_id, this.config.oauth.redirect_uri, this.tokenStore.createStateForOAuth(req.query.userId))
+        });
+    }
+
+    private async onGetAccount(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<JiraAccountStatus>, next: NextFunction) {
+        const jiraUser = await this.tokenStore.getJiraForUser(req.query.userId);
+        if (!jiraUser) {
+            return res.send({
+                loggedIn: false,
+            });
+        }
+        const instances = [];
+        try {
+            for (const resource of await jiraUser.getAccessibleResources()) {
+                instances.push({
+                    url: resource.url,
+                    name: resource.name,
+                });
+            }
+        } catch (ex) {
+            log.warn(`Failed to fetch accessible resources for ${req.query.userId}`, ex);
+            return next( new ApiError("Could not fetch accessible resources for JIRA user", ErrCode.Unknown));
+        }
+        return res.send({
+            loggedIn: true,
+            instances: instances
+        })
+    }
+
+    private async onGetInstanceProjects(req: Request<{instanceName: string}, undefined, undefined, {userId: string}>, res: Response<JiraProjectsListing[]>, next: NextFunction) {
+        const jiraUser = await this.tokenStore.getJiraForUser(req.query.userId);
+        if (!jiraUser) {
+            // TODO: Better error?
+            return next( new ApiError("Not logged in", ErrCode.ForbiddenUser));
+        }
+    
+        let resClient: HookshotJiraApi|null;
+        try {
+            resClient = await jiraUser.getClientForName(req.params.instanceName);
+        } catch (ex) {
+            log.warn(`Failed to fetch client for ${req.params.instanceName} for ${req.query.userId}`, ex);
+            return next( new ApiError("Could not fetch accessible resources for JIRA user", ErrCode.Unknown));
+        }
+        if (!resClient) {
+            return next( new ApiError("Instance not known or not accessible to this user", ErrCode.ForbiddenUser));
+        }
+    
+        const projects = [];
+        try {
+            for await (const project of resClient.getAllProjects()) {
+                projects.push({
+                    key: project.key,
+                    name: project.name,
+                    // Technically not the real URL, but good enough for hookshot!
+                    url: `${resClient.resource.url}/projects/${project.key}`,
+                });
+            }
+        } catch (ex) {
+            log.warn(`Failed to fetch accessible projects for ${req.params.instanceName} / ${req.query.userId}`, ex);
+            return next( new ApiError("Could not fetch accessible projects for JIRA user", ErrCode.Unknown));
+        }
+        
+        return res.send(projects);
     }
 }

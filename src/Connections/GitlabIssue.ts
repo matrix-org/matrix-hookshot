@@ -9,6 +9,7 @@ import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { getIntentForUser } from "../IntentUtils";
+import { BaseConnection } from "./BaseConnection";
 
 export interface GitLabIssueConnectionState {
     instance: string;
@@ -32,7 +33,7 @@ const log = new LogWrapper("GitLabIssueConnection");
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitLabIssueConnection implements IConnection {
+export class GitLabIssueConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.issue";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.issue";
 
@@ -86,16 +87,17 @@ export class GitLabIssueConnection implements IConnection {
         return this.instance.url;
     }
 
-    constructor(public readonly roomId: string,
+    constructor(roomId: string,
         private readonly as: Appservice,
         private state: GitLabIssueConnectionState,
-        private readonly stateKey: string,
+        stateKey: string,
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
         private instance: GitLabInstance,) {
+            super(roomId, stateKey, GitLabIssueConnection.CanonicalEventType);
         }
-
+    
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitLabIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }

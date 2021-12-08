@@ -1,9 +1,10 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MatrixEventContent, MatrixMessageContent } from "./MatrixEvent";
-import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";
 import LogWrapper from "./LogWrapper";
 import { v4 as uuid } from "uuid";
+import { getAppservice } from "./Bridge";
 export interface IMatrixSendMessage {
     sender: string|null;
     type: string;
@@ -22,13 +23,7 @@ export class MatrixSender {
     private as: Appservice;
     constructor(private config: BridgeConfig, registration: IAppserviceRegistration) {
         this.mq = createMessageQueue(this.config);
-        this.as = new Appservice({
-            homeserverName: this.config.bridge.domain,
-            homeserverUrl: this.config.bridge.url,
-            port: 0,
-            bindAddress: "",
-            registration,
-        });
+        this.as = getAppservice(config, registration, new MemoryStorageProvider());
     }
 
     public listen() {

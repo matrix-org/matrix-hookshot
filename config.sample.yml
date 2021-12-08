@@ -53,11 +53,18 @@ generic:
   enabled: false
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
+  userIdPrefix: webhooks_
 webhook:
   # HTTP webhook listener options
   #
   port: 9000
   bindAddress: 0.0.0.0
+provisioning:
+  # (Optional) Provisioning API for integration managers
+  #
+  bindAddress: 127.0.0.1
+  port: 9001
+  secret: "!secretToken"
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate

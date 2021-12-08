@@ -75,6 +75,12 @@ export const DefaultConfig = new BridgeConfig({
         enabled: false,
         urlPrefix: "https://example.com/mywebhookspath/",
         allowJsTransformationFunctions: false,
+        userIdPrefix: "webhooks_",
+    },
+    provisioning: {
+        bindAddress: "127.0.0.1",
+        port: 9001,
+        secret: "!secretToken"
     }
 }, {});
 

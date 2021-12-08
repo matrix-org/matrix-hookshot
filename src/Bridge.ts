@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -20,18 +20,43 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { GitHubOAuthTokens, NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
-import { ProjectsGetResponseData } from "./Github/Types";
+import { NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
+import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import LogWrapper from "./LogWrapper";
+import { Provisioner } from "./provisioning/provisioner";
+import { JiraProvisionerRouter } from "./Jira/Router";
+import { GitHubProvisionerRouter } from "./Github/Router";
 import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
 import { SetupConnection } from "./Connections/SetupConnection";
 const log = new LogWrapper("Bridge");
+
+export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
+    return new Appservice({
+        homeserverName: config.bridge.domain,
+        homeserverUrl: config.bridge.url,
+        port: config.bridge.port,
+        bindAddress: config.bridge.bindAddress,
+        registration: {
+            ...registration,
+            namespaces: {
+                // Support multiple users
+                users: [{
+                    regex: '(' + registration.namespaces.users.map((r) => r.regex).join(')|(') + ')',
+                    exclusive: true,
+                }],
+                aliases: registration.namespaces.aliases,
+                rooms: registration.namespaces.rooms,
+            }
+        },
+        storage: storage,
+    });
+}
 
 export class Bridge {
     private readonly as: Appservice;
@@ -46,6 +71,7 @@ export class Bridge {
     private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
+    private provisioningApi?: Provisioner;
 
     private ready = false;
 
@@ -57,14 +83,7 @@ export class Bridge {
             log.info('Initialising memory storage');
             this.storage = new MemoryStorageProvider();
         }
-        this.as = new Appservice({
-            homeserverName: this.config.bridge.domain,
-            homeserverUrl: this.config.bridge.url,
-            port: this.config.bridge.port,
-            bindAddress: this.config.bridge.bindAddress,
-            registration: this.registration,
-            storage: this.storage,
-        });
+        this.as = getAppservice(this.config, this.registration, this.storage);
         this.queue = createMessageQueue(this.config);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
@@ -75,12 +94,14 @@ export class Bridge {
     public stop() {
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
+        if (this.widgetApi) this.widgetApi.stop();
+        if (this.provisioningApi) this.provisioningApi.stop();
     }
 
     public async start() {
         log.info('Starting up');
 
-        if (!this.config.github && !this.config.gitlab) {
+        if (!this.config.github && !this.config.gitlab && !this.config.jira) {
             log.error("You haven't configured support for GitHub or GitLab!");
             throw Error('Bridge cannot start -- no connectors are configured');
         }
@@ -115,6 +136,28 @@ export class Bridge {
         await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.github);
+    
+        if (this.config.provisioning) {
+            const routers = [];
+            if (this.config.jira) {
+                routers.push({
+                    route: "/v1/jira",
+                    router: new JiraProvisionerRouter(this.config.jira, this.tokenStore).getRouter(),
+                });
+                this.connectionManager.registerProvisioningConnection(JiraProjectConnection);
+            }
+            if (this.config.github && this.github) {
+                routers.push({
+                    route: "/v1/github",
+                    router: new GitHubProvisionerRouter(this.config.github, this.tokenStore, this.github).getRouter(),
+                });
+                this.connectionManager.registerProvisioningConnection(GitHubRepoConnection);
+            }
+            if (this.config.generic) {
+                this.connectionManager.registerProvisioningConnection(GenericHookConnection);
+            }
+            this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent, routers);
+        }
 
         this.as.on("query.room", async (roomAlias, cb) => {
             try {
@@ -295,24 +338,29 @@ export class Bridge {
             await this.notifProcessor.onUserEvents(msg.data, adminRoom);
         });
 
-        this.queue.on<OAuthRequest>("oauth.response", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
+        this.queue.on<OAuthRequest>("github.oauth.response", async (msg) => {
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             await this.queue.push<boolean>({
-                data: !!(adminRoom),
+                data: !!userId,
                 sender: "Bridge",
                 messageId: msg.messageId,
-                eventName: "response.oauth.response",
+                eventName: "response.github.oauth.response",
             });
         });
 
-        this.queue.on<GitHubOAuthTokens>("oauth.tokens", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.oauthState === msg.data.state);
-            if (!adminRoom) {
-                log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
+        this.queue.on<GitHubOAuthTokenResponse>("github.oauth.tokens", async (msg) => {
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
+            if (!userId) {
+                log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
                 return;
             }
-            adminRoom.clearOauthState();
-            await this.tokenStore.storeUserToken("github", adminRoom.userId, msg.data.access_token);
+            await this.tokenStore.storeUserToken("github", userId, JSON.stringify({
+                access_token: msg.data.access_token,
+                expires_in: msg.data.expires_in && ((parseInt(msg.data.expires_in) * 1000) + Date.now()),
+                token_type: msg.data.token_type,
+                refresh_token: msg.data.refresh_token,
+                refresh_token_expires_in: msg.data.refresh_token_expires_in && ((parseInt(msg.data.refresh_token_expires_in) * 1000)  + Date.now()),
+            } as GitHubOAuthToken));
         });
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection>(
@@ -392,24 +440,32 @@ export class Bridge {
         );
     
         this.queue.on<OAuthRequest>("jira.oauth.response", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.jiraOAuthState === msg.data.state);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             await this.queue.push<boolean>({
-                data: !!(adminRoom),
+                data: !!(userId),
                 sender: "Bridge",
                 messageId: msg.messageId,
                 eventName: "response.jira.oauth.response",
             });
         });
 
-        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async (msg) => {
-            const adminRoom = [...this.adminRooms.values()].find((r) => r.jiraOAuthState === msg.data.state);
-            if (!adminRoom) {
-                log.warn("Could not find admin room for successful tokens request. This shouldn't happen!");
+        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async ({data}) => {
+            if (!data.state) {
+                log.warn("Missing `state` on `jira.oauth.tokens` event. This shouldn't happen!");
                 return;
             }
-            adminRoom.clearJiraOauthState();
-            await this.tokenStore.storeUserToken("jira", adminRoom.userId, JSON.stringify(msg.data));
-            await adminRoom.sendNotice(`Logged into Jira`);
+            const userId = this.tokenStore.getUserIdForOAuthState(data.state);
+            if (!userId) {
+                log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
+                return;
+            }
+            await this.tokenStore.storeUserToken("jira", userId, JSON.stringify(data));
+
+            // Some users won't have an admin room and would have gone through provisioning.
+            const adminRoom = this.adminRooms.get(userId);
+            if (adminRoom) {
+                await adminRoom.sendNotice(`Logged into Jira`);
+            }
         });
 
         this.bindHandlerToQueue<GenericWebhookEvent, GenericHookConnection>(
@@ -520,6 +576,9 @@ export class Bridge {
         if (this.config.widgets) {
             await this.widgetApi.start(this.config.widgets.port);
         }
+        if (this.provisioningApi) {
+            await this.provisioningApi.listen();
+        }
         await this.as.begin();
         log.info("Started bridge");
         this.ready = true;
@@ -528,7 +587,7 @@ export class Bridge {
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>) {
         this.queue.on<EventType>(event, (msg) => {
             const connections = connectionFetcher.bind(this)(msg.data);
-            log.debug(`${event} for ${connections.map(c => c.toString()).join(', ')}`);
+            log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
             connections.forEach(async (c) => {
                 try {
                     await handler(c, msg.data);
@@ -656,7 +715,7 @@ export class Bridge {
         }
     }
 
-    private async onRoomEvent(roomId: string, event: MatrixEvent<unknown>) {
+    private async onRoomEvent(roomId: string, event: MatrixEvent<Record<string, unknown>>) {
         if (!this.connectionManager) {
             // Not ready yet.
             return;
@@ -666,7 +725,9 @@ export class Bridge {
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {
                 try {
-                    if (connection?.onStateUpdate) {
+                    if (event.content.disabled === true) {
+                        await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
+                    } else if (connection?.onStateUpdate) {
                         connection.onStateUpdate(event);
                     }
                 } catch (ex) {
@@ -862,12 +923,6 @@ export class Bridge {
                 await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
             }
         });
-        // adminRoom.on("open.discussion", async (owner: string, repo: string, discussions: Discussion) => {
-        //     const connection = await GitHubDiscussionConnection.createDiscussionRoom(
-        //         this.as, adminRoom.userId, owner, repo, discussions, this.tokenStore, this.commentProcessor, this.messageClient,
-        //     );
-        //     this.connections.push(connection);
-        // });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
             const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {

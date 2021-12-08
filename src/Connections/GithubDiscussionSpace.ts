@@ -5,6 +5,7 @@ import { ReposGetResponseData } from "../Github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
 import { GithubInstance } from "../Github/GithubInstance";
+import { BaseConnection } from "./BaseConnection";
 
 const log = new LogWrapper("GitHubDiscussionSpace");
 
@@ -16,7 +17,7 @@ export interface GitHubDiscussionSpaceConnectionState {
 /**
  * Handles rooms connected to a github repo.
  */
-export class GitHubDiscussionSpace implements IConnection {
+export class GitHubDiscussionSpace extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.discussion.space";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.discussion.space";
 
@@ -125,13 +126,11 @@ export class GitHubDiscussionSpace implements IConnection {
         };
     }
 
-    get roomId() {
-        return this.space.roomId;
-    }
-
     constructor(public readonly space: Space,
         private state: GitHubDiscussionSpaceConnectionState,
-        private readonly stateKey: string) {}
+        stateKey: string) {
+            super(space.roomId, stateKey, GitHubDiscussionSpace.CanonicalEventType)
+        }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubDiscussionSpace.EventTypes.includes(eventType) && this.stateKey === stateKey;

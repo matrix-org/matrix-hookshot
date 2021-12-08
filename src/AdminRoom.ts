@@ -1,26 +1,25 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Intent } from "matrix-bot-sdk";
-import { UserTokenStore } from "./UserTokenStore";
-import { BridgeConfig } from "./Config/Config";
-import {v4 as uuid} from "uuid";
-import qs from "querystring";
-import LogWrapper from "./LogWrapper";
 import "reflect-metadata";
-import markdown from "markdown-it";
-import { FormatUtil } from "./FormatUtil";
-import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
-import { GitLabClient } from "./Gitlab/Client";
-import { GetUserResponse } from "./Gitlab/Types";
-import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
-import { MatrixMessageContent } from "./MatrixEvent";
-import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
-import { Endpoints } from "@octokit/types";
-import { ProjectsListResponseData } from "./Github/Types";
-import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
-import { JiraBotCommands } from "./Jira/AdminCommands";
 import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
+import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
+import { BridgeConfig } from "./Config/Config";
+import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 import { CommandError } from "./errors";
-
+import { Endpoints } from "@octokit/types";
+import { FormatUtil } from "./FormatUtil";
+import { GetUserResponse } from "./Gitlab/Types";
+import { GitHubBotCommands } from "./Github/AdminCommands";
+import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
+import { GitLabClient } from "./Gitlab/Client";
+import { Intent } from "matrix-bot-sdk";
+import { JiraBotCommands } from "./Jira/AdminCommands";
+import { MatrixMessageContent } from "./MatrixEvent";
+import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
+import { GitHubOAuthToken, ProjectsListResponseData } from "./Github/Types";
+import { UserTokenStore } from "./UserTokenStore";
+import {v4 as uuid} from "uuid";
+import LogWrapper from "./LogWrapper";
+import markdown from "markdown-it";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -135,56 +134,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("help", "This help text")
     public async helpCommand() {
         return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage());
-    }
-
-    @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
-    public async setGHPersonalAccessToken(accessToken: string) {
-        if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
-        }
-        let me;
-        try {
-            const octokit = GithubInstance.createUserOctokit(accessToken);
-            me = await octokit.users.getAuthenticated();
-        } catch (ex) {
-            log.error("Failed to auth with GitHub", ex);
-            await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
-            return;
-        }
-        await this.sendNotice(`Connected as ${me.data.login}. Token stored`);
-        await this.tokenStore.storeUserToken("github", this.userId, accessToken);
-    }
-
-    @botCommand("github hastoken", "Check if you have a token stored for GitHub")
-    public async hasPersonalToken() {
-        if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
-        }
-        const result = await this.tokenStore.getUserToken("github", this.userId);
-        if (result === null) {
-            await this.sendNotice("You do not currently have a token stored");
-            return;
-        }
-        await this.sendNotice("A token is stored for your GitHub account.");
-    }
-
-    @botCommand("github startoauth", "Start the OAuth process with GitHub")
-    public async beginOAuth() {
-        if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
-        }
-        if (!this.config.github.oauth) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub OAuth support");
-        }
-        // If this is already set, calling this command will invalidate the previous session.
-        this.pendingOAuthState = uuid();
-        const q = qs.stringify({
-            client_id: this.config.github.oauth.client_id,
-            redirect_uri: this.config.github.oauth.redirect_uri,
-            state: this.pendingOAuthState,
-        });
-        const url = `https://github.com/login/oauth/authorize?${q}`;
-        await this.sendNotice(`You should follow ${url} to link your account to the bridge`);
     }
 
     @botCommand("github notifications toggle", "Toggle enabling/disabling GitHub notifications in this room")
@@ -397,8 +346,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceName', 'accessToken'])
-    // @ts-ignore - property is used
-    private async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
+    public async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
         let me: GetUserResponse;
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
@@ -413,16 +361,14 @@ export class AdminRoom extends AdminRoomCommandHandler {
             client.issues
         } catch (ex) {
             log.error("Gitlab auth error:", ex);
-            await this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
-            return;
+            return this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
         }
         await this.sendNotice(`Connected as ${me.username}. Token stored`);
-        await this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
+        return this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
     }
 
     @botCommand("gitlab hastoken", "Check if you have a token stored for GitLab", ["instanceName"])
-    // @ts-ignore - property is used
-    private async gitlabHasPersonalToken(instanceName: string) {
+    public async gitlabHasPersonalToken(instanceName: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
@@ -432,10 +378,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
         const result = await this.tokenStore.getUserToken("gitlab", this.userId, instance.url);
         if (result === null) {
-            await this.sendNotice("You do not currently have a token stored");
-            return;
+            return this.sendNotice("You do not currently have a token stored");
         }
-        await this.sendNotice("A token is stored for your GitLab account.");
+        return this.sendNotice("A token is stored for your GitLab account.");
     }
 
     @botCommand("gitlab notifications toggle", "Toggle enabling/disabling GitHub notifications in this room", ["instanceName"])
@@ -626,6 +571,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const res = compileBotCommands(AdminRoom.prototype as any, JiraBotCommands.prototype as any);
+const res = compileBotCommands(AdminRoom.prototype as any, GitHubBotCommands.prototype as any, JiraBotCommands.prototype as any);
 AdminRoom.helpMessage = res.helpMessage;
 AdminRoom.botCommands = res.botCommands;

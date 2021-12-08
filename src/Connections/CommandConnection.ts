@@ -2,16 +2,25 @@ import { botCommand, BotCommands, handleCommand } from "../BotCommands";
 import LogWrapper from "../LogWrapper";
 import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
+import { BaseConnection } from "./BaseConnection";
 const log = new LogWrapper("CommandConnection");
 
-export abstract class CommandConnection {
+/**
+ * Connection class that handles commands for a given connection. Should be used
+ * by connections expecting to handle user input.
+ */
+export abstract class CommandConnection extends BaseConnection {
     constructor(
-        public readonly roomId: string,
+        roomId: string,
+        stateKey: string,
+        canonicalStateType: string,
         private readonly botClient: MatrixClient,
         private readonly botCommands: BotCommands,
         private readonly helpMessage: (prefix: string) => MatrixMessageContent,
         protected readonly stateCommandPrefix: string,
-    ) { }  
+    ) {
+        super(roomId, stateKey, canonicalStateType);
+    }  
 
     protected get commandPrefix() {
         return this.stateCommandPrefix + " ";

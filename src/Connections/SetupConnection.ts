@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 import { Appservice } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+import { MatrixMessageContent } from "../MatrixEvent";
 import LogWrapper from "../LogWrapper";
 import { CommandConnection } from "./CommandConnection";
 import { GenericHookConnection, GitHubRepoConnection, GitHubRepoConnectionState, JiraProjectConnection, JiraProjectConnectionState } from ".";
@@ -30,9 +30,11 @@ export class SetupConnection extends CommandConnection {
         private readonly tokenStore: UserTokenStore,
         private readonly githubInstance?: GithubInstance,
         private readonly jiraEnabled?: boolean,
-        private readonly webhooksConfig?: BridgeGenericWebhooksConfig) {
+        private readonly webhooksConfig?: BridgeGenericWebhooksConfig,) {
             super(
                 roomId,
+                "",
+                "",
                 as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,
@@ -40,18 +42,13 @@ export class SetupConnection extends CommandConnection {
             )
     }
 
-    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        // Just check if the user has enough PL to change state
-        if (!await this.as.botClient.userHasPowerLevelFor(ev.sender, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
-        }
-        return super.onMessageEvent(ev);
-    }
-
     @botCommand("github repo", "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this)", ["url"], [], true)
     public async onGitHubRepo(userId: string, url: string) {
         if (!this.githubInstance) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
         }
         if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
             throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
@@ -92,6 +89,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.jiraEnabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira");
         }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
+        }
         if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
             throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
         }
@@ -122,18 +122,24 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project '${jiraProject.name}' (${jiraProject.key})`);
     }
 
-    @botCommand("webhook", "Create a inbound webhook")
-    public async onWebhook() {
+    @botCommand("webhook", "Create a inbound webhook", ["name"], [], true)
+    public async onWebhook(userId: string, name: string) {
         if (!this.webhooksConfig?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
         }
         if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
             throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
         }
+        if (!name || name.length < 3 || name.length > 64) {
+            throw new CommandError("Bad webhook name", "The bridge is not configured to support webhooks");
+        }
         const hookId = uuid();
         const url = `${this.webhooksConfig.urlPrefix}${this.webhooksConfig.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
-        await this.as.botClient.setRoomAccountData(this.roomId, GenericHookConnection.CanonicalEventType, {hookId});
-        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, hookId, {hookId});
+        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
+        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. Please configure your webhook source to use \`${url}\``));
     }
 }

@@ -9,10 +9,11 @@ import markdownit from "markdown-it";
 import { generateJiraWebLinkFromIssue } from "../Jira";
 import { JiraProject } from "../Jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
-import { MatrixMessageContent } from "../MatrixEvent";
+import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
+import { ApiError, ErrCode } from "../provisioning/api";
 import JiraApi from "jira-client";
 
 type JiraAllowedEventsNames = "issue.created";
@@ -23,6 +24,25 @@ export interface JiraProjectConnectionState {
     url?: string;
     events?: JiraAllowedEventsNames[],
     commandPrefix?: string;
+}
+
+function validateJiraConnectionState(state: JiraProjectConnectionState) {
+    const {url, commandPrefix, events} = state as JiraProjectConnectionState;
+    if (url === undefined) {
+        throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
+    }
+    if (commandPrefix) {
+        if (typeof commandPrefix !== "string") {
+            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
+        }
+        if (commandPrefix.length < 2 || commandPrefix.length > 24) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
+        }
+    }
+    if (events?.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
+        throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, ErrCode.BadValue);
+    }
+    return {url, commandPrefix, events};
 }
 
 const log = new LogWrapper("JiraProjectConnection");
@@ -44,8 +64,29 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static getTopicString(authorName: string, state: string) {
-        `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
+        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore) {
+        const validData = validateJiraConnectionState(data);
+        const jiraClient = await tokenStore.getJiraForUser(userId);
+        if (!jiraClient) {
+            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+        }
+        const jiraResourceClient = await jiraClient.getClientForUrl(new URL(validData.url));
+        if (!jiraResourceClient) {
+            throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
+        }
+        const connection = new JiraProjectConnection(roomId, as, data, validData.url, commentProcessor, messageClient, tokenStore);
+        if (!connection.projectKey) {
+            throw Error('Expected projectKey to be defined');
+        }
+        try {
+            // Just need to check that the user can access this.
+            await jiraResourceClient.getProject(connection.projectKey);
+        } catch (ex) {
+            throw new ApiError("User cannot open this project", ErrCode.ForbiddenUser);
+        }
+        log.info(`Created connection via provisionConnection ${connection.toString()}`);
+        return {stateEventContent: validData, connection};
     }
     
     public get projectId() {
@@ -59,6 +100,10 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     public get projectKey() {
         const parts =  this.projectUrl?.pathname.split('/');
         return parts ? parts[parts.length - 1] : undefined;
+    }
+
+    public toString() {
+        return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
     }
 
     public isInterestedInHookEvent(eventName: string) {
@@ -85,12 +130,14 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     constructor(roomId: string,
         private readonly as: Appservice,
         private state: JiraProjectConnectionState,
-        private readonly stateKey: string,
+        stateKey: string,
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly tokenStore: UserTokenStore,) {
             super(
                 roomId,
+                stateKey,
+                JiraProjectConnection.CanonicalEventType,
                 as.botClient,
                 JiraProjectConnection.botCommands,
                 JiraProjectConnection.helpMessage,
@@ -108,6 +155,11 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return JiraProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
+    }
+
+    public async onStateUpdate(event: MatrixEvent<unknown>) {
+        const validatedConfig = validateJiraConnectionState(event.content as JiraProjectConnectionState);
+        this.state = validatedConfig;
     }
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {
@@ -128,6 +180,26 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         });
     }
 
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "jira",
+            eventType: JiraProjectConnection.CanonicalEventType,
+            type: "JiraProject",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: botUserId,
+        }
+    }
+
+    public getProvisionerDetails() {
+        return {
+            ...JiraProjectConnection.getProvisionerDetails(this.as.botUserId),
+            id: this.connectionId,
+            config: {
+                ...this.state,
+            },
+        }
+    }
+    
     public async onJiraIssueUpdated(data: JiraIssueUpdatedEvent) {
         log.info(`onJiraIssueUpdated ${this.roomId} ${this.projectId} ${data.issue.id}`);
         const url = generateJiraWebLinkFromIssue(data.issue);
@@ -274,8 +346,21 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         await api.updateAssigneeWithId(issueKey, searchForUser[0].accountId);
     }
 
-    public toString() {
-        return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = validateJiraConnectionState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
     }
 }
 

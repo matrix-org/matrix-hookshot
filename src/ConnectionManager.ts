@@ -7,14 +7,14 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
-import { GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection } from "./Connections";
-import { GenericHookAccountData, GenericHookConnection } from "./Connections/GenericHook";
-import { JiraProjectConnection } from "./Connections/JiraProject";
+import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
+import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
+import { ApiError, ErrCode, GetConnectionTypeResponseItem } from "./provisioning/api";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 
@@ -22,6 +22,7 @@ const log = new LogWrapper("ConnectionManager");
 
 export class ConnectionManager {
     private connections: IConnection[] = [];
+    public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
 
     constructor(
         private readonly as: Appservice,
@@ -41,17 +42,71 @@ export class ConnectionManager {
      * @param connection The connection instance to push.
      */
     public push(...connections: IConnection[]) {
-        // NOTE: Double loop
         for (const connection of connections) {
-            if (!this.connections.find((c) => c === connection)) {
+            if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
                 this.connections.push(connection);
             }
         }
         // Already exists, noop.
     }
 
+    /**
+     * Used by the provisioner API to create new connections on behalf of users.
+     * @param roomId The target Matrix room.
+     * @param userId The requesting Matrix user.
+     * @param type The type of room (corresponds to the event type of the connection)
+     * @param data The data corresponding to the connection state. This will be validated.
+     * @returns The resulting connection.
+     */
+    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
+        log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
+        const existingConnections = await this.getAllConnectionsForRoom(roomId);
+        if (JiraProjectConnection.EventTypes.includes(type)) {
+            if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
+                // TODO: Support this.
+                throw Error("Cannot support multiple connections of the same type yet");
+            }
+            if (!this.config.jira) {
+                throw Error('JIRA is not configured');
+            }
+            const res = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
+        }
+        if (GitHubRepoConnection.EventTypes.includes(type)) {
+            if (existingConnections.find(c => c instanceof GitHubRepoConnection)) {
+                // TODO: Support this.
+                throw Error("Cannot support multiple connections of the same type yet");
+            }
+            if (!this.config.github || !this.config.github.oauth || !this.github) {
+                throw Error('GitHub is not configured');
+            }
+            const res = await GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github);
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GitHubRepoConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
+        }
+        if (GenericHookConnection.EventTypes.includes(type)) {
+            if (!this.config.generic) {
+                throw Error('Generic hook support not supported');
+            }
+            const res = await GenericHookConnection.provisionConnection(roomId, this.as, data, this.config.generic, this.messageClient);
+            const existing = this.getAllConnectionsOfType(GenericHookConnection).find(c => c.stateKey === res.connection.stateKey);
+            if (existing) {
+                throw new ApiError("A generic webhook with this name already exists", ErrCode.ConflictingConnection, -1, {
+                    existingConnection: existing.getProvisionerDetails()
+                });
+            }
+            await GenericHookConnection.ensureRoomAccountData(roomId, this.as, res.connection.hookId, res.connection.stateKey);
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
+        }
+        throw new ApiError(`Connection type not known`);
+    }
+
     public async createConnectionForState(roomId: string, state: StateEvent<any>) {
-        log.debug(`Looking to create connection for ${roomId} ${state.type}`);
         if (state.content.disabled === true) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
@@ -110,7 +165,7 @@ export class ConnectionManager {
             if (!instance) {
                 throw Error('Instance name not recognised');
             }
-            return new GitLabRepoConnection(roomId, this.as, state.content, state.stateKey, this.tokenStore, instance);
+            return new GitLabRepoConnection(roomId, state.stateKey, this.as, state.content, this.tokenStore, instance);
         }
 
         if (GitLabIssueConnection.EventTypes.includes(state.type)) {
@@ -137,21 +192,27 @@ export class ConnectionManager {
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
-            // Generic hooks store the hookId in the account data
-            let acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData|null>(GenericHookConnection.CanonicalEventType, roomId);
-            if (!acctData) {
-                log.info(`hookId for ${roomId} not set, setting`);
-                acctData = { hookId: uuid() };
-                await this.as.botClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, acctData);
-                await this.as.botClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, state.stateKey, {...state.content, hookId: acctData.hookId });
+            if (!this.config.generic) {
+                throw Error('Generic webhooks are not configured');
             }
+            // Generic hooks store the hookId in the account data
+            const acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
+            // hookId => stateKey
+            let hookId = Object.entries(acctData).find(([, v]) => v === state.stateKey)?.[0];
+            if (!hookId) {
+                hookId = uuid();
+                log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
+                await GenericHookConnection.ensureRoomAccountData(roomId, this.as, hookId, state.stateKey);
+            }
+
             return new GenericHookConnection(
                 roomId,
                 state.content,
-                acctData,
+                hookId,
                 state.stateKey,
                 this.messageClient,
-                this.config.generic.allowJsTransformationFunctions
+                this.config.generic,
+                this.as,
             );
         }
         return;
@@ -161,8 +222,12 @@ export class ConnectionManager {
         const state = await this.as.botClient.getRoomState(roomId);
         const connections: IConnection[] = [];
         for (const event of state) {
-            const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-            if (conn) { connections.push(conn); }
+            try {
+                const conn = await this.createConnectionForState(roomId, new StateEvent(event));
+                if (conn) { this.push(conn); }
+            } catch (ex) {
+                log.warn(`Failed to create connection for ${roomId}:`, ex);
+            }
         }
         return connections;
     }
@@ -239,7 +304,6 @@ export class ConnectionManager {
     }
 
     public getConnectionsForJiraProject(project: JiraProject, eventName: string): JiraProjectConnection[] {
-        console.log(this.connections);
         return this.connections.filter((c) => 
             (c instanceof JiraProjectConnection &&
                 c.interestedInProject(project) &&
@@ -266,5 +330,34 @@ export class ConnectionManager {
 
     public getInterestedForRoomState(roomId: string, eventType: string, stateKey: string): IConnection[] {
         return this.connections.filter(c => c.roomId === roomId && c.isInterestedInStateEvent(eventType, stateKey));
+    }
+
+    public getConnectionById(roomId: string, connectionId: string) {
+        return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
+    }
+
+    public async removeConnection(roomId: string, connectionId: string) {
+        const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId);
+        if (!connection) {
+            throw Error("Connection not found");
+        }
+        if (!connection.onRemove) {
+            throw Error("Connection doesn't support removal, and so cannot be safely removed");
+        }
+        await connection.onRemove?.();
+        const connectionIndex = this.connections.indexOf(connection);
+        this.connections.splice(connectionIndex, 1);
+        if (this.getAllConnectionsForRoom(roomId).length === 0) {
+            log.info(`No more connections in ${roomId}, leaving room`);
+            await this.as.botIntent.leaveRoom(roomId);
+        }
+    }
+
+    public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {
+        const details = connType.getProvisionerDetails(this.as.botUserId);
+        if (this.enabledForProvisioning[details.type]) {
+            throw Error(`Type "${details.type}" already registered for provisioning`);
+        }
+        this.enabledForProvisioning[details.type] = details;
     }
 }

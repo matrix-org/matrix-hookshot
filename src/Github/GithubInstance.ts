@@ -4,12 +4,15 @@ import { Octokit } from "@octokit/rest";
 import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import { InstallationDataType } from "./Types";
+import { GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
+import axios from "axios";
+import qs from "querystring";
 
 const log = new LogWrapper("GithubInstance");
 
 const USER_AGENT = "matrix-hookshot v0.0.1";
-
+const INSTALL_CACHE_MAX_AGE = 15 * 60000;
+const INSTALL_CACHE_MAX_SIZE = 1000;
 interface Installation {
     account: {
         login?: string;
@@ -21,12 +24,24 @@ interface Installation {
 
 export class GithubInstance {
     private internalOctokit!: Octokit;
-
     private readonly installationsCache = new Map<number, Installation>();
+    private internalAppSlug?: string;
 
     constructor (private readonly appId: number|string, private readonly privateKey: string) {
         this.appId = parseInt(appId as string, 10);
     }
+
+    public get appSlug() {
+        return this.internalAppSlug;
+    }
+
+    public get appOctokit() {
+        if (!this.internalOctokit) {
+            throw Error('Instance is not ready yet');
+        }
+        return this.internalOctokit;
+    }
+
 
     public static createUserOctokit(token: string) {
         return new Octokit({
@@ -36,6 +51,16 @@ export class GithubInstance {
             auth: null,
             userAgent: USER_AGENT,
         });
+    }
+
+    public static async refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string): Promise<GitHubOAuthTokenResponse> {
+        const accessTokenRes = await axios.post(`https://github.com/login/oauth/access_token?${qs.encode({
+            client_id: clientId,
+            client_secret: clientSecret,
+            refresh_token: refreshToken,
+            grant_type: 'refresh_token',
+        })}`);
+        return accessTokenRes.data;
     }
 
     public getSafeOctokitForRepo(orgName: string, repoName?: string) {
@@ -76,11 +101,16 @@ export class GithubInstance {
             privateKey: this.privateKey,
         };
 
+
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
             userAgent: USER_AGENT,
         });
+
+
+        const appDetails = await this.internalOctokit.apps.getAuthenticated();
+        this.internalAppSlug = appDetails.data.slug;
 
         let installPageSize = 100;
         let page = 1;
@@ -112,7 +142,6 @@ export class GithubInstance {
             repository_selection: install.repository_selection,
             matchesRepository,
         });
-
     }
 
     public onInstallationCreated(data: GitHubWebhookTypes.InstallationCreatedEvent|GitHubWebhookTypes.InstallationUnsuspendEvent) {
@@ -121,6 +150,11 @@ export class GithubInstance {
 
     public onInstallationRemoved(data: GitHubWebhookTypes.InstallationDeletedEvent|GitHubWebhookTypes.InstallationSuspendEvent) {
         this.installationsCache.delete(data.installation.id);
+    }
+
+    public get newInstallationUrl() {
+        // E.g. https://github.com/apps/matrix-bridge/installations/new
+        return `https://github.com/apps/${this.appSlug}/installations/new`;
     }
 }
 

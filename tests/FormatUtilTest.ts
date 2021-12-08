@@ -71,15 +71,15 @@ describe("FormatUtilTest", () => {
         });
     });
     it("should correctly format one detailed label", () => {
-        expect(FormatUtil.formatLabels([{name: "foo", color: '#FFFFFF', description: 'My label'}])).to.deep.equal({
+        expect(FormatUtil.formatLabels([{name: "foo", color: 'FFFFFF', description: 'My label'}])).to.deep.equal({
             plain: "foo",
             html: "<span data-mx-bg-color=\"#FFFFFF\" data-mx-color=\"#000000\" title=\"My label\">foo</span>"
         });
     });
     it("should correctly format many detailed labels", () => {
         expect(FormatUtil.formatLabels([
-            {name: "foo", color: '#FFFFFF', description: 'My label'},
-            {name: "bar", color: '#AACCEE', description: 'My other label'},
+            {name: "foo", color: 'FFFFFF', description: 'My label'},
+            {name: "bar", color: 'AACCEE', description: 'My other label'},
         ])).to.deep.equal({
             plain: "foo, bar",
             html: "<span data-mx-bg-color=\"#FFFFFF\" data-mx-color=\"#000000\" title=\"My label\">foo</span> "
@@ -100,5 +100,8 @@ describe("FormatUtilTest", () => {
                     "key": "TEST",
                 },
         });
+    });
+    it("should hash an ID", () => {
+        expect(FormatUtil.hashId("foobar")).to.equal('3858f62230ac3c915f300c664312c63f');
     });
 });
