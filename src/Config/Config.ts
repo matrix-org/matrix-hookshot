@@ -197,6 +197,7 @@ export class BridgeConfig {
         this.webhook = configData.webhook;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
+        this.bot = configData.bot;
         assert.ok(this.webhook);
         this.queue = configData.queue || {
             monolithic: true,
