@@ -19,8 +19,18 @@ interface IMinimalIssue {
     number: number;
     title: string;
     repository_url: string;
-    pull_request?: any;
 }
+
+interface IMinimalPR {
+    html_url: string;
+    id: number;
+    number: number;
+    title: string;
+    user: {
+        login: string;
+    };
+}
+
 
 export interface ILabel {
     color?: string,
@@ -65,11 +75,24 @@ export class FormatUtil {
                 id: issue.id,
                 number: issue.number,
                 title: issue.title,
-                is_pull_request: !!issue.pull_request,
                 url: issue.html_url,
             },
         };
     }
+
+    public static getPartialBodyForGitHubPR(repo: IMinimalRepository, issue: IMinimalPR) {
+        return {
+            ...FormatUtil.getPartialBodyForRepo(repo),
+            "external_url": issue.html_url,
+            "uk.half-shot.matrix-hookshot.github.pull_request": {
+                id: issue.id,
+                number: issue.number,
+                title: issue.title,
+                url: issue.html_url,
+            },
+        };
+    }
+
 
     public static getPartialBodyForComment(comment: {id: number, html_url: string},
                                            repo?: IMinimalRepository,

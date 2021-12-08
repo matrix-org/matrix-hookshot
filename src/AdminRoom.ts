@@ -475,21 +475,15 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     public async handleCommand(eventId: string, command: string) {
-        const { error, handled } = await handleCommand(this.userId, command, AdminRoom.botCommands, this);
-        if (!handled) {
+        const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this);
+        if (!result.handled) {
             return this.sendNotice("Command not understood");
         }
-        if (error) {
-            return this.sendNotice("Failed to handle command:" + error);
+        
+        if ("error" in result) {
+            return this.sendNotice(`Failed to handle command: ${result.error}`);
         }
         return null;
-        // return this.botIntent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
-        //     "m.relates_to": {
-        //         rel_type: "m.annotation",
-        //         event_id: event_id,
-        //         key: "✅",
-        //     }
-        // });
     }
 
     public async getBridgeState(): Promise<BridgeRoomState> {

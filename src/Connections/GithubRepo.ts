@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, IRichReplyMetadata } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
@@ -55,6 +55,10 @@ const ALLOWED_REACTIONS = {
     "👐": "open",
 }
 
+const EMOJI_TO_REVIEW_STATE = {
+    '✅✔️☑️': 'APPROVE',
+    '🔴🚫⛔️': 'REQUEST_CHANGES',
+};
 
 type AllowedEventsNames = 
     "issue.changed" |
@@ -94,7 +98,7 @@ function validateState(state: Record<string, unknown>): GitHubRepoConnectionStat
         throw new ApiError("Expected a 'org' property", ErrCode.BadValue);
     }
     if (typeof state.repo !== "string") {
-        throw new ApiError("Expected a 'org' property", ErrCode.BadValue);
+        throw new ApiError("Expected a 'repo' property", ErrCode.BadValue);
     }
     const res: GitHubRepoConnectionState = {
         org: state.org,
@@ -289,6 +293,56 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
+
+    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, reply?: IRichReplyMetadata) {
+        if (await super.onMessageEvent(ev)) {
+            return true;
+        }
+        if (!reply) {
+            return false;
+        }
+        const body = ev.content.body?.trim();
+        const repoInfo = reply.realEvent.content["uk.half-shot.matrix-hookshot.github.repo"];
+        const pullRequestId = reply.realEvent.content["uk.half-shot.matrix-hookshot.github.pull_request"]?.number;
+        // Emojis can be multi-byte, so make sure we split properly
+        const reviewKey = Object.keys(EMOJI_TO_REVIEW_STATE).find(
+            (k) => k.includes(
+                body.split(' ')[0]
+            )
+        );
+        // Typescript is dumb.
+        // @ts-ignore - property is used
+        const reviewEvent = reviewKey && EMOJI_TO_REVIEW_STATE[reviewKey];
+        if (body && repoInfo && pullRequestId  && reviewEvent) {
+            log.info(`Handling reply to PR ${pullRequestId}`);
+            const [org, owner] = repoInfo.name.split('/');
+            const octokit = await this.tokenStore.getOctokitForUser(ev.sender);
+            try {
+                await octokit?.pulls.createReview({
+                    pull_number: pullRequestId,
+                    owner: org,
+                    repo: owner,
+                    body: body.substr(1).trim(),
+                    event: reviewEvent,
+                });
+            } catch (ex) {
+                await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+                    "m.relates_to": {
+                        rel_type: "m.annotation",
+                        event_id: ev.event_id,
+                        key: "⛔",
+                    }
+                });
+                await this.as.botClient.sendEvent(this.roomId, 'm.room.message', {
+                    msgtype: "m.notice",
+                    body: `Failed to submit review: ${ex.message}`,
+                });
+            }
+        }
+        return true;
+        
+    }
+
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
@@ -304,13 +358,9 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             labels: labelsNames,
         });
 
-        const content = `Created issue #${res.data.number}: [${res.data.html_url}](${res.data.html_url})`;
-        return this.as.botIntent.sendEvent(this.roomId,{
-            msgtype: "m.notice",
-            body: content,
-            formatted_body: md.render(content),
-            format: "org.matrix.custom.html"
-        });
+        return {
+            reaction: `Issue #${res.data.number}`,
+        }
     }
 
     @botCommand("assign", "Assign an issue to a user", ["number", "...users"], [], true)
@@ -500,8 +550,13 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.draft ? 'drafted' : 'opened';
-        const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
-        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
+        const diff = await axios.get<string>(event.pull_request.diff_url);
+        let diffContent = '';
+        if (diff.data.split('/n').length <= 50) {
+            diffContent = "```diff\n" + diff + "\n```";
+        }
+        const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`) + "\n\n" + diffContent;
+        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));  
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: ""),
@@ -509,6 +564,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+            ...FormatUtil.getPartialBodyForGitHubPR(event.repository, event.pull_request),
         });
     }
 

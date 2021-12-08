@@ -27,12 +27,13 @@ export abstract class CommandConnection extends BaseConnection {
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
-        const { error, handled, humanError } = await handleCommand(ev.sender, ev.content.body, this.botCommands, this, this.commandPrefix);
-        if (!handled) {
+        const commandResult = await handleCommand(ev.sender, ev.content.body, this.botCommands, this, this.commandPrefix);
+        if (commandResult.handled !== true) {
             // Not for us.
             return false;
         }
-        if (error) {
+        if ("error" in commandResult) {
+            const { humanError, error} = commandResult;
             await this.botClient.sendEvent(this.roomId, "m.reaction", {
                 "m.relates_to": {
                     rel_type: "m.annotation",
@@ -46,15 +47,17 @@ export abstract class CommandConnection extends BaseConnection {
             });
             log.warn(`Failed to handle command:`, error);
             return true;
+        } else {
+            const reaction = commandResult.result.reaction || '✅';
+            await this.botClient.sendEvent(this.roomId, "m.reaction", {
+                "m.relates_to": {
+                    rel_type: "m.annotation",
+                    event_id: ev.event_id,
+                    key: reaction,
+                }
+            });
+            return true;
         }
-        await this.botClient.sendEvent(this.roomId, "m.reaction", {
-            "m.relates_to": {
-                rel_type: "m.annotation",
-                event_id: ev.event_id,
-                key: "✅",
-            }
-        });
-        return true;
     }
 
     @botCommand("help", "This help text")
