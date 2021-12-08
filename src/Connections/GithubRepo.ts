@@ -36,6 +36,10 @@ export interface GitHubRepoConnectionState {
     ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     showIssueRoomLink?: boolean;
+    prDiff?: {
+        enabled: boolean;
+        maxLines: number;
+    }
 }
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
@@ -550,17 +554,23 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.draft ? 'drafted' : 'opened';
-        const diff = await axios.get<string>(event.pull_request.diff_url);
         let diffContent = '';
-        if (diff.data.split('/n').length <= 50) {
-            diffContent = "```diff\n" + diff + "\n```";
+        let diffContentHtml = '';
+        if (this.state.prDiff?.enabled) {
+            const maxDiffLen = this.state.prDiff.maxLines || 30;
+            const diff = await axios.get<string>(event.pull_request.diff_url, { responseType: 'text'});
+            if (diff.data.split('/n').length <= maxDiffLen) {
+                // Markdown renderer wasn't handling this well, so for now hack around ourselves
+                diffContent = "\n``` diff\n" + diff.data + "\n```";
+                diffContentHtml = `\n<pre><code class="language-diff">${diff.data}\n</code></pre>`;
+            }
         }
-        const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`) + "\n\n" + diffContent;
+        const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
         const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));  
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: ""),
-            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: "") + diffContent,
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: "") + diffContentHtml,
             format: "org.matrix.custom.html",
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
@@ -677,7 +687,6 @@ ${event.release.body}`;
             return;
         }
         if (evt.type === 'm.reaction') {
-            // eslint-disable-next-line camelcase
             const {event_id, key} = (evt.content as MatrixReactionContent)["m.relates_to"];
             const ev = await this.as.botClient.getEvent(this.roomId, event_id);
             const issueContent = ev.content["uk.half-shot.matrix-hookshot.github.issue"];
