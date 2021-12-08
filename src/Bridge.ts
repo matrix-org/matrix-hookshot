@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider, EventKind } from "matrix-bot-sdk";
 import { BridgeConfig, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -72,6 +72,7 @@ export class Bridge {
     private adminRooms: Map<string, AdminRoom> = new Map();
     private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
     private provisioningApi?: Provisioner;
+    private replyProcessor = new RichRepliesPreprocessor(true);
 
     private ready = false;
 
@@ -632,6 +633,8 @@ export class Bridge {
         }
         log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
         log.debug("Content:", JSON.stringify(event));
+        const processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
+        const processedReplyMetadata: IRichReplyMetadata = processedReply?.mx_richreply;
         const adminRoom = this.adminRooms.get(roomId);
 
         if (!adminRoom) {
@@ -639,7 +642,7 @@ export class Bridge {
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
                 try {
                     if (connection.onMessageEvent) {
-                        handled = await connection.onMessageEvent(event);
+                        handled = await connection.onMessageEvent(event, processedReplyMetadata);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
@@ -662,15 +665,11 @@ export class Bridge {
             return;
         }
 
-        const replyProcessor = new RichRepliesPreprocessor(true);
-        const processedReply = await replyProcessor.processEvent(event, this.as.botClient);
-
         if (processedReply) {
-            const metadata: IRichReplyMetadata = processedReply.mx_richreply;
-            log.info(`Handling reply to ${metadata.parentEventId} for ${adminRoom.userId}`);
+            log.info(`Handling reply to ${processedReplyMetadata.parentEventId} for ${adminRoom.userId}`);
             // This might be a reply to a notification
             try {
-                const ev = metadata.realEvent;
+                const ev = processedReplyMetadata.realEvent;
                 const splitParts: string[] = ev.content["uk.half-shot.matrix-hookshot.github.repo"]?.name.split("/");
                 const issueNumber = ev.content["uk.half-shot.matrix-hookshot.github.issue"]?.number;
                 if (splitParts && issueNumber) {

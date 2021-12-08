@@ -15,8 +15,8 @@ export function botCommand(prefix: string, help: string, requiredArgs: string[] 
         includeUserId,
     });
 }
-
-type BotCommandFunction = (...args: string[]) => Promise<{status: boolean}>;
+type BotCommandResult = {status: boolean, reaction?: string};
+type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
 
 export type BotCommands = {[prefix: string]: {
     fn: BotCommandFunction,
@@ -56,7 +56,8 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
     }
 }
 
-export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: unknown, prefix?: string): Promise<{error?: string, handled?: boolean, humanError?: string}> {
+export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: unknown, prefix?: string)
+: Promise<{handled: false}|{handled: true, result: BotCommandResult}|{handled: true, error: string, humanError?: string}> {
     if (prefix) {
         if (!command.startsWith(prefix)) {
             return {handled: false};
@@ -70,15 +71,15 @@ export async function handleCommand(userId: string, command: string, botCommands
         const command = botCommands[prefix];
         if (command) {
             if (command.requiredArgs.length > parts.length - i) {
-                return {error: "Missing args"};
+                return {handled: true, error: "Missing args"};
             }
             const args = parts.slice(i);
             if (command.includeUserId) {
                 args.splice(0,0, userId);
             }
             try {
-                await botCommands[prefix].fn.apply(obj,  args);
-                return {handled: true};
+                const result = await botCommands[prefix].fn.apply(obj,  args);
+                return {handled: true, result};
             } catch (ex) {
                 const commandError = ex as CommandError;
                 return {handled: true, error: commandError.message, humanError: commandError.humanError};

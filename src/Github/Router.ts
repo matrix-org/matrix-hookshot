@@ -12,7 +12,7 @@ interface GitHubAccountStatus {
     username?: string;
     organisations?: {
         name: string;
-        avatarUrl: string;
+        avatarUrl?: string;
     }[]
 }
 interface GitHubRepoItem {
@@ -64,10 +64,14 @@ export class GitHubProvisionerRouter {
         try {
             const installs = await octokit.apps.listInstallationsForAuthenticatedUser({page: page, per_page: perPage});
             for (const install of installs.data.installations) {
-                organisations.push({
-                    name: install.account!.login!, // org or user name
-                    avatarUrl: install.account!.avatar_url!,
-                });
+                if (install.account) {
+                    organisations.push({
+                        name: install.account.login || "No name", // org or user name
+                        avatarUrl: install.account.avatar_url,
+                    });
+                } else {
+                    log.debug(`Skipping install ${install.id}, has no attached account`);
+                }
             }
         } catch (ex) {
             log.warn(`Failed to fetch orgs for GitHub user ${req.query.userId}`, ex);
