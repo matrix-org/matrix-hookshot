@@ -178,7 +178,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (typeof data.text === "string") {
             msg += data.text;
         } else {
-            msg += `Recieved webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
+            msg += `Received webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
         }
 
         // TODO: Transform Slackdown into markdown.
@@ -199,12 +199,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                     filename: `generic-hook.${this.hookId}`,
                 });
                 if (context.result) {
-                    content = `Recieved webhook: ${context.result}`;
+                    content = `Received webhook: ${context.result}`;
                 } else {
                     content = `No content`;
                 }
             } catch (ex) {
-                content = `Webhook recieved but failed to process via transformation function`;
+                content = `Webhook received but failed to process via transformation function`;
             }
         }
 
