@@ -47,12 +47,26 @@ export interface IGitLabMergeRequestObjectAttributes extends IGitlabMergeRequest
     action: "open"|"close"|"reopen"|"approved"|"unapproved"|"merge";
 }
 
+export interface IGitLabLabel {
+    id: number;
+    title: string;
+    color: string;
+    project_id: number;
+    created_at: string;
+    updated_at: string;
+    template: boolean;
+    description: string;
+    type: "ProjectLabel"|"GroupLabel";
+    group_id: number;
+}
+
 export interface IGitLabWebhookMREvent {
     object_kind: "merge_request";
     user: IGitlabUser;
     project: IGitlabProject;
     repository: IGitlabRepository;
     object_attributes: IGitLabMergeRequestObjectAttributes;
+    labels: IGitLabLabel[];
 }
 
 export interface IGitLabWebhookTagPushEvent {
