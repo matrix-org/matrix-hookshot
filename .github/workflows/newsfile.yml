@@ -10,10 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with: # Needed for comparison
+          fetch-depth: 0
       - uses: actions/setup-python@v1
         with:
           python-version: '3.9'
       - run: pip install towncrier==19.2.0
       - name: ":newspaper: Newsfile"
-        working-directory: /home/runner/work/matrix-hookshot/matrix-hookshot
-        run: python3 -m towncrier.check --compare-with=main
+        run: python3 -m towncrier.check --compare-with=origin/main
