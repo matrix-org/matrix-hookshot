@@ -30,10 +30,6 @@ github:
     # (Optional) Default options for GitHub connections.
     #
     showIssueRoomLink: false
-  userIdPrefix:
-    # (Optional) The userId prefix for ghost users. Defaults to _github_. Ensure this matches your registration file
-    #
-    _github_
 gitlab:
   # (Optional) Configure this to enable GitLab support
   #
@@ -42,7 +38,6 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
-  userIdPrefix: _gitlab_
 jira:
   # (Optional) Configure this to enable Jira support
   #
