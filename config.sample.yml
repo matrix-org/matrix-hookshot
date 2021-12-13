@@ -30,6 +30,10 @@ github:
     # (Optional) Default options for GitHub connections.
     #
     showIssueRoomLink: false
+  userIdPrefix:
+    # (Optional) The userId prefix for ghost users. Defaults to _github_. Ensure this matches your registration file
+    #
+    _github_
 gitlab:
   # (Optional) Configure this to enable GitLab support
   #
@@ -38,6 +42,7 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+  userIdPrefix: _gitlab_
 jira:
   # (Optional) Configure this to enable Jira support
   #
@@ -70,6 +75,11 @@ passFile:
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
   #
   passkey.pem
+bot:
+  # (Optional) Define profile information for the bot user
+  #
+  displayname: GitHub Bot
+  avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
 queue:
   # (Optional) Message queue / cache configuration options for large scale deployments
   #
