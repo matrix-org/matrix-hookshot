@@ -1,0 +1,20 @@
+name: Newsfile
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with: # Needed for comparison
+          fetch-depth: 0
+      - uses: actions/setup-python@v1
+        with:
+          python-version: '3.9'
+      - run: pip install towncrier==19.2.0
+      - name: ":newspaper: Newsfile"
+        run: python3 -m towncrier.check --compare-with=origin/main
