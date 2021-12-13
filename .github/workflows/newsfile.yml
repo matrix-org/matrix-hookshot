@@ -16,4 +16,4 @@ jobs:
       - run: pip install towncrier==19.2.0
       - name: ":newspaper: Newsfile"
         working-directory: /home/runner/work/matrix-hookshot/matrix-hookshot
-        run: python3 -m towncrier.check --compare-with=origin/main
+        run: python3 -m towncrier.check --compare-with=main
