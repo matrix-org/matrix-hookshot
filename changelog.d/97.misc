@@ -1,0 +1,1 @@
+CI jobs now report the diff between the generated config and the in-tree sample config.

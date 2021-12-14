@@ -37,9 +37,8 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16
-      - run: yarn
-      - run: node lib/Config/Defaults.js --config > expected-config.sample.yml 
-      - run: cmp --silent config.sample.yml expected-config.sample.yml
+      - run: yarn --ignore-scripts && yarn build:app
+      - run: node lib/Config/Defaults.js --config | diff config.sample.yml - 
   test:
     runs-on: ubuntu-latest
     strategy:
