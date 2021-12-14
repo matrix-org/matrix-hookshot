@@ -1,1 +1,1 @@
-Add support for JIRA
+Add support for JIRA.
