@@ -120,7 +120,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.open') || this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -136,7 +136,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.merge') || this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -151,7 +151,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`) || this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);

@@ -292,8 +292,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        const state = stateEv.content as GitHubRepoConnectionState;
-        this.state = state;
+        this.state = stateEv.content as GitHubRepoConnectionState;
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -466,7 +465,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
-        if (this.shouldSkipHook('issue.created', 'issue') || this.matchesLabelFilter(event.issue)) {
+        if (this.shouldSkipHook('issue.created', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
@@ -501,7 +500,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onIssueStateChange(event: IssuesEditedEvent|IssuesReopenedEvent|IssuesClosedEvent) {
-        if (this.shouldSkipHook('issue.changed', 'issue') || this.matchesLabelFilter(event.issue)) {
+        if (this.shouldSkipHook('issue.changed', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
@@ -525,7 +524,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onIssueEdited(event: IssuesEditedEvent) {
-        if (this.shouldSkipHook('issue.edited', 'issue') || this.matchesLabelFilter(event.issue)) {
+        if (this.shouldSkipHook('issue.edited', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         if (!event.issue) {
@@ -545,7 +544,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPROpened(event: PullRequestOpenedEvent) {
-        if (this.shouldSkipHook('pull_request.opened', 'pull_request') || this.matchesLabelFilter(event.pull_request)) {
+        if (this.shouldSkipHook('pull_request.opened', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPROpened ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -582,7 +581,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPRReadyForReview(event: PullRequestReadyForReviewEvent) {
-        if (this.shouldSkipHook('pull_request.ready_for_review', 'pull_request') || this.matchesLabelFilter(event.pull_request)) {
+        if (this.shouldSkipHook('pull_request.ready_for_review', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -605,7 +604,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {
-        if (this.shouldSkipHook('pull_request.reviewed', 'pull_request') || this.matchesLabelFilter(event.pull_request)) {
+        if (this.shouldSkipHook('pull_request.reviewed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -638,7 +637,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPRClosed(event: PullRequestClosedEvent) {
-        if (this.shouldSkipHook('pull_request.closed', 'pull_request') || this.matchesLabelFilter(event.pull_request)) {
+        if (this.shouldSkipHook('pull_request.closed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRClosed ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
