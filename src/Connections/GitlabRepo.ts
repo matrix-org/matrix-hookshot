@@ -16,6 +16,8 @@ export interface GitLabRepoConnectionState {
     ignoreHooks?: string[],
     commandPrefix?: string;
     pushTagsRegex?: string,
+    includingLabels?: string[];
+    excludingLabels?: string[];
 }
 
 const log = new LogWrapper("GitLabRepoConnection");
@@ -118,7 +120,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.open')) {
+        if (this.shouldSkipHook('merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -134,7 +136,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.merge')) {
+        if (this.shouldSkipHook('merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -149,7 +151,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`)) {
+        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
@@ -193,6 +195,19 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public toString() {
         return `GitLabRepo ${this.instance}/${this.path}`;
+    }
+
+    public matchesLabelFilter(itemWithLabels: {labels?: {title: string}[]}): boolean {
+        const labels = itemWithLabels.labels?.map(l => l.title) || [];
+        if (this.state.excludingLabels?.length) {
+            if (this.state.excludingLabels.find(l => labels.includes(l))) {
+                return false;
+            }
+        }
+        if (this.state.includingLabels?.length) {
+            return !!this.state.includingLabels.find(l => labels.includes(l));
+        }
+        return true;
     }
 
     private shouldSkipHook(...hookName: string[]) {

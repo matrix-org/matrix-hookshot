@@ -719,7 +719,7 @@ export class Bridge {
             // Not ready yet.
             return;
         }
-        if (event.state_key) {
+        if (event.state_key !== undefined) {
             // A state update, hurrah!
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {

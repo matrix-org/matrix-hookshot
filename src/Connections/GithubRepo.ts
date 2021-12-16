@@ -19,6 +19,7 @@ import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from ".";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
+import { Issue } from "@octokit/webhooks-types"
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -39,7 +40,9 @@ export interface GitHubRepoConnectionState {
     prDiff?: {
         enabled: boolean;
         maxLines: number;
-    }
+    },
+    includingLabels?: string[];
+    excludingLabels?: string[];
 }
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
@@ -289,8 +292,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        const state = stateEv.content as GitHubRepoConnectionState;
-        this.state = state;
+        this.state = stateEv.content as GitHubRepoConnectionState;
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -463,7 +465,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
-        if (this.shouldSkipHook('issue.created', 'issue')) {
+        if (this.shouldSkipHook('issue.created', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
@@ -498,7 +500,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onIssueStateChange(event: IssuesEditedEvent|IssuesReopenedEvent|IssuesClosedEvent) {
-        if (this.shouldSkipHook('issue.changed', 'issue')) {
+        if (this.shouldSkipHook('issue.changed', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
@@ -522,7 +524,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onIssueEdited(event: IssuesEditedEvent) {
-        if (this.shouldSkipHook('issue.edited', 'issue')) {
+        if (this.shouldSkipHook('issue.edited', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         if (!event.issue) {
@@ -542,7 +544,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPROpened(event: PullRequestOpenedEvent) {
-        if (this.shouldSkipHook('pull_request.opened', 'pull_request')) {
+        if (this.shouldSkipHook('pull_request.opened', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPROpened ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -579,7 +581,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPRReadyForReview(event: PullRequestReadyForReviewEvent) {
-        if (this.shouldSkipHook('pull_request.ready_for_review', 'pull_request')) {
+        if (this.shouldSkipHook('pull_request.ready_for_review', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -602,7 +604,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {
-        if (this.shouldSkipHook('pull_request.reviewed', 'pull_request')) {
+        if (this.shouldSkipHook('pull_request.reviewed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -635,7 +637,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
     public async onPRClosed(event: PullRequestClosedEvent) {
-        if (this.shouldSkipHook('pull_request.closed', 'pull_request')) {
+        if (this.shouldSkipHook('pull_request.closed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRClosed ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -774,6 +776,19 @@ ${event.release.body}`;
             await this.as.botClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey);
             await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
+    }
+
+    public matchesLabelFilter(itemWithLabels: {labels?: {name: string}[]}): boolean {
+        const labels = itemWithLabels.labels?.map(l => l.name) || [];
+        if (this.state.excludingLabels?.length) {
+            if (this.state.excludingLabels.find(l => labels.includes(l))) {
+                return false;
+            }
+        }
+        if (this.state.includingLabels?.length) {
+            return !!this.state.includingLabels.find(l => labels.includes(l));
+        }
+        return true;
     }
 }
 
