@@ -11,5 +11,7 @@
 - [Authenticating](./auth.md)
 - [Room Configuration](./room_configuration.md)
   - [GitHub Repo](./room_configuration/github_repo.md)
-- [Provisioning](./provisioning.md)
 - [Metrics](./metrics.md)
+- [Advanced](./provisioning.md)
+  - [Provisioning](./advanced/provisioning.md)
+  - [Workers](./advanced/workers.md)
