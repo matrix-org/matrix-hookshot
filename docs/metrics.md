@@ -1,0 +1,55 @@
+Prometheus Metrics
+==================
+
+Below is the generated list of prometheus metrics for hookshot.
+
+## hookshot
+| Metric | Help | Labels |
+|--------|------|--------|
+| hookshot_webhooks_http_request | Number of requests made to the hookshot webhooks handler | path, method |
+| hookshot_provisioning_http_request | Number of requests made to the hookshot webhooks handler | path, method |
+| hookshot_queue_event_pushes | Number of events pushed through the queue | event |
+| hookshot_notifications_push | Number of notifications pushed | service |
+| hookshot_notifications_service_up | Is the notification service up or down | service |
+| hookshot_notifications_watchers | Number of notifications watchers running | service |
+## matrix
+| Metric | Help | Labels |
+|--------|------|--------|
+| matrix_api_calls | The number of Matrix client API calls made | method |
+| matrix_api_calls_failed | The number of Matrix client API calls which failed | method |
+| matrix_appservice_events | The number of events sent over the AS API |  |
+## process
+| Metric | Help | Labels |
+|--------|------|--------|
+| process_cpu_user_seconds_total | Total user CPU time spent in seconds. |  |
+| process_cpu_system_seconds_total | Total system CPU time spent in seconds. |  |
+| process_cpu_seconds_total | Total user and system CPU time spent in seconds. |  |
+| process_start_time_seconds | Start time of the process since unix epoch in seconds. |  |
+| process_resident_memory_bytes | Resident memory size in bytes. |  |
+| process_virtual_memory_bytes | Virtual memory size in bytes. |  |
+| process_heap_bytes | Process heap size in bytes. |  |
+| process_open_fds | Number of open file descriptors. |  |
+| process_max_fds | Maximum number of open file descriptors. |  |
+## nodejs
+| Metric | Help | Labels |
+|--------|------|--------|
+| nodejs_eventloop_lag_seconds | Lag of event loop in seconds. |  |
+| nodejs_eventloop_lag_min_seconds | The minimum recorded event loop delay. |  |
+| nodejs_eventloop_lag_max_seconds | The maximum recorded event loop delay. |  |
+| nodejs_eventloop_lag_mean_seconds | The mean of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_stddev_seconds | The standard deviation of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_p50_seconds | The 50th percentile of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_p90_seconds | The 90th percentile of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_p99_seconds | The 99th percentile of the recorded event loop delays. |  |
+| nodejs_active_handles | Number of active libuv handles grouped by handle type. Every handle type is C++ class name. | type |
+| nodejs_active_handles_total | Total number of active handles. |  |
+| nodejs_active_requests | Number of active libuv requests grouped by request type. Every request type is C++ class name. | type |
+| nodejs_active_requests_total | Total number of active requests. |  |
+| nodejs_heap_size_total_bytes | Process heap size from Node.js in bytes. |  |
+| nodejs_heap_size_used_bytes | Process heap size used from Node.js in bytes. |  |
+| nodejs_external_memory_bytes | Node.js external memory size in bytes. |  |
+| nodejs_heap_space_size_total_bytes | Process heap space size total from Node.js in bytes. | space |
+| nodejs_heap_space_size_used_bytes | Process heap space size used from Node.js in bytes. | space |
+| nodejs_heap_space_size_available_bytes | Process heap space size available from Node.js in bytes. | space |
+| nodejs_version_info | Node.js version info. | version, major, minor, patch |
+| nodejs_gc_duration_seconds | Garbage collection duration by kind, one of major, minor, incremental or weakcb. | kind |
