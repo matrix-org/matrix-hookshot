@@ -81,6 +81,11 @@ export const DefaultConfig = new BridgeConfig({
         bindAddress: "127.0.0.1",
         port: 9001,
         secret: "!secretToken"
+    },
+    metrics: {
+        enabled: true,
+        bindAddress: "127.0.0.1",
+        port: 9002,
     }
 }, {});
 

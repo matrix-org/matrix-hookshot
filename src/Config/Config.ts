@@ -139,6 +139,13 @@ export interface BridgeConfigProvisioning {
     secret: string;
 }
 
+export interface BridgeConfigMetrics {
+    enabled: boolean;
+    bindAddress?: string;
+    port?: number;
+}
+
+
 interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
@@ -152,6 +159,7 @@ interface BridgeConfigRoot {
     queue: BridgeConfigQueue;
     webhook: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfig;
+    metrics?: BridgeConfigMetrics;
 }
 
 export class BridgeConfig {
@@ -180,6 +188,8 @@ export class BridgeConfig {
     public readonly widgets?: BridgeWidgetConfig;
     @configKey("Provisioning API for integration managers", true)
     public readonly provisioning?: BridgeConfigProvisioning;
+    @configKey("Prometheus metrics support", true)
+    public readonly metrics?: BridgeConfigMetrics;
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
@@ -198,6 +208,7 @@ export class BridgeConfig {
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
+        this.metrics = configData.metrics;
         assert.ok(this.webhook);
         this.queue = configData.queue || {
             monolithic: true,
