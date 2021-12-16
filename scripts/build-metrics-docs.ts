@@ -5,11 +5,12 @@ import { register } from "prom-client";
 // This is just used to ensure we create a singleton.
 Metrics.getMetrics();
 
-const anyRegister = register as any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const anyRegister = register as any as {_metrics: {[metricName: string]: {labelNames: string[], name: string, help: string}}};
 
 const categories: {[title: string]: {name: string, labels: string[], help: string}[]} = {};
 
-Object.entries(anyRegister._metrics as {[metricName: string]: {labelNames: string[], name: string, help: string}}).map(
+Object.entries(anyRegister._metrics).map(
     ([key, value]) => {
         const [categoryName] = key.split('_');
         categories[categoryName] = categories[categoryName] || [];
