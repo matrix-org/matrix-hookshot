@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">2.</strong> Features</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">3.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">3.1.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">3.2.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">3.3.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">3.4.</strong> Webhooks</a></li></ol></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">2.</strong> Features</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">3.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">3.1.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">3.2.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">3.3.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">3.4.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -150,6 +150,58 @@
 <div style="break-before: page; page-break-before: always;"></div><h1 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="jira"><a class="header" href="#jira">JIRA</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="webhooks"><a class="header" href="#webhooks">Webhooks</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="prometheus-metrics"><a class="header" href="#prometheus-metrics">Prometheus Metrics</a></h1>
+<p>Below is the generated list of prometheus metrics for hookshot.</p>
+<h2 id="hookshot"><a class="header" href="#hookshot">hookshot</a></h2>
+<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
+<tr><td>hookshot_webhooks_http_request</td><td>Number of requests made to the hookshot webhooks handler</td><td>path, method</td></tr>
+<tr><td>hookshot_provisioning_http_request</td><td>Number of requests made to the hookshot webhooks handler</td><td>path, method</td></tr>
+<tr><td>hookshot_queue_event_pushes</td><td>Number of events pushed through the queue</td><td>event</td></tr>
+<tr><td>hookshot_notifications_push</td><td>Number of notifications pushed</td><td>service</td></tr>
+<tr><td>hookshot_notifications_service_up</td><td>Is the notification service up or down</td><td>service</td></tr>
+<tr><td>hookshot_notifications_watchers</td><td>Number of notifications watchers running</td><td>service</td></tr>
+</tbody></table>
+<h2 id="matrix"><a class="header" href="#matrix">matrix</a></h2>
+<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
+<tr><td>matrix_api_calls</td><td>The number of Matrix client API calls made</td><td>method</td></tr>
+<tr><td>matrix_api_calls_failed</td><td>The number of Matrix client API calls which failed</td><td>method</td></tr>
+<tr><td>matrix_appservice_events</td><td>The number of events sent over the AS API</td><td></td></tr>
+</tbody></table>
+<h2 id="process"><a class="header" href="#process">process</a></h2>
+<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
+<tr><td>process_cpu_user_seconds_total</td><td>Total user CPU time spent in seconds.</td><td></td></tr>
+<tr><td>process_cpu_system_seconds_total</td><td>Total system CPU time spent in seconds.</td><td></td></tr>
+<tr><td>process_cpu_seconds_total</td><td>Total user and system CPU time spent in seconds.</td><td></td></tr>
+<tr><td>process_start_time_seconds</td><td>Start time of the process since unix epoch in seconds.</td><td></td></tr>
+<tr><td>process_resident_memory_bytes</td><td>Resident memory size in bytes.</td><td></td></tr>
+<tr><td>process_virtual_memory_bytes</td><td>Virtual memory size in bytes.</td><td></td></tr>
+<tr><td>process_heap_bytes</td><td>Process heap size in bytes.</td><td></td></tr>
+<tr><td>process_open_fds</td><td>Number of open file descriptors.</td><td></td></tr>
+<tr><td>process_max_fds</td><td>Maximum number of open file descriptors.</td><td></td></tr>
+</tbody></table>
+<h2 id="nodejs"><a class="header" href="#nodejs">nodejs</a></h2>
+<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
+<tr><td>nodejs_eventloop_lag_seconds</td><td>Lag of event loop in seconds.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_min_seconds</td><td>The minimum recorded event loop delay.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_max_seconds</td><td>The maximum recorded event loop delay.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_mean_seconds</td><td>The mean of the recorded event loop delays.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_stddev_seconds</td><td>The standard deviation of the recorded event loop delays.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_p50_seconds</td><td>The 50th percentile of the recorded event loop delays.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_p90_seconds</td><td>The 90th percentile of the recorded event loop delays.</td><td></td></tr>
+<tr><td>nodejs_eventloop_lag_p99_seconds</td><td>The 99th percentile of the recorded event loop delays.</td><td></td></tr>
+<tr><td>nodejs_active_handles</td><td>Number of active libuv handles grouped by handle type. Every handle type is C++ class name.</td><td>type</td></tr>
+<tr><td>nodejs_active_handles_total</td><td>Total number of active handles.</td><td></td></tr>
+<tr><td>nodejs_active_requests</td><td>Number of active libuv requests grouped by request type. Every request type is C++ class name.</td><td>type</td></tr>
+<tr><td>nodejs_active_requests_total</td><td>Total number of active requests.</td><td></td></tr>
+<tr><td>nodejs_heap_size_total_bytes</td><td>Process heap size from Node.js in bytes.</td><td></td></tr>
+<tr><td>nodejs_heap_size_used_bytes</td><td>Process heap size used from Node.js in bytes.</td><td></td></tr>
+<tr><td>nodejs_external_memory_bytes</td><td>Node.js external memory size in bytes.</td><td></td></tr>
+<tr><td>nodejs_heap_space_size_total_bytes</td><td>Process heap space size total from Node.js in bytes.</td><td>space</td></tr>
+<tr><td>nodejs_heap_space_size_used_bytes</td><td>Process heap space size used from Node.js in bytes.</td><td>space</td></tr>
+<tr><td>nodejs_heap_space_size_available_bytes</td><td>Process heap space size available from Node.js in bytes.</td><td>space</td></tr>
+<tr><td>nodejs_version_info</td><td>Node.js version info.</td><td>version, major, minor, patch</td></tr>
+<tr><td>nodejs_gc_duration_seconds</td><td>Garbage collection duration by kind, one of major, minor, incremental or weakcb.</td><td>kind</td></tr>
+</tbody></table>
 
                     </main>
 
