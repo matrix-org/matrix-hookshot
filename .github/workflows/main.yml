@@ -49,7 +49,7 @@ jobs:
         with:
           node-version: 16
       - run: yarn --ignore-scripts
-      - run: yarn ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
+      - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
   
   test:
     runs-on: ubuntu-latest
