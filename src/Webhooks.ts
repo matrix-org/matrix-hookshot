@@ -12,6 +12,7 @@ import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./Jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
 import { GitHubOAuthTokenResponse } from "./Github/Types";
+import Metrics from "./Metrics";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface GenericWebhookEvent {
@@ -43,6 +44,10 @@ export class Webhooks extends EventEmitter {
     constructor(private config: BridgeConfig) {
         super();
         this.expressApp = express();
+        this.expressApp.use((req, _res, next) => {
+            Metrics.webhooksHttpRequest.inc({path: req.path, method: req.method});
+            next();
+        });
         if (this.config.github?.webhook.secret) {
             this.ghWebhooks = new OctokitWebhooks({
                 secret: config.github?.webhook.secret as string,

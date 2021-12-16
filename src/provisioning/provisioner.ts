@@ -5,6 +5,7 @@ import LogWrapper from "../LogWrapper";
 import { Server } from "http";
 import { ApiError, ErrCode, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
 import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import Metrics from "../Metrics";
 
 const log = new LogWrapper("Provisioner");
 
@@ -28,6 +29,10 @@ export class Provisioner {
             throw Error('Missing port in provisioning config');
         }
         this.expressApp = express();
+        this.expressApp.use((req, _res, next) => {
+            Metrics.provisioningHttpRequest.inc({path: req.path, method: req.method});
+            next();
+        });
         this.expressApp.get("/v1/health", this.getHealth);
         this.expressApp.use(this.checkAuth.bind(this));
         this.expressApp.use(express.json());

@@ -7,7 +7,7 @@ import { GitHubWatcher } from "./GitHubWatcher";
 import { GitHubUserNotification } from "../Github/Types";
 import { GitLabWatcher } from "./GitLabWatcher";
 import { BridgeConfig } from "../Config/Config";
-
+import Metrics from "../Metrics";
 export interface UserNotificationsEvent {
     roomId: string;
     lastReadTs: number;
@@ -59,6 +59,7 @@ export class UserNotificationWatcher {
             this.userIntervals.delete(key);
             log.info(`Removed ${key} from the notif queue`);
         }
+        Metrics.notificationsWatchers.set({service: type}, this.userIntervals.size);
     }
 
     private onFetchFailure(task: NotificationWatcherTask) {
@@ -89,6 +90,7 @@ Check your token is still valid, and then turn notifications back on.`, "m.notic
             this.queue.push<UserNotificationsEvent>(payload);
         });
         this.userIntervals.set(key, task);
+        Metrics.notificationsWatchers.set({service: data.type}, this.userIntervals.size);
         log.info(`Inserted ${key} into the notif queue`);
     }
 }

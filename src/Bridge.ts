@@ -34,6 +34,7 @@ import { GitHubProvisionerRouter } from "./Github/Router";
 import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
 import { SetupConnection } from "./Connections/SetupConnection";
+import Metrics from "./Metrics";
 const log = new LogWrapper("Bridge");
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
@@ -94,6 +95,7 @@ export class Bridge {
 
     public stop() {
         this.as.stop();
+        Metrics.stop();
         if (this.queue.stop) this.queue.stop();
         if (this.widgetApi) this.widgetApi.stop();
         if (this.provisioningApi) this.provisioningApi.stop();
@@ -178,6 +180,7 @@ export class Bridge {
         });
 
         this.as.on("room.event", async (roomId, event) => {
+            Metrics.matrixAppserviceEvents.inc();
             return this.onRoomEvent(roomId, event);
         });
 
@@ -579,6 +582,9 @@ export class Bridge {
         }
         if (this.provisioningApi) {
             await this.provisioningApi.listen();
+        }
+        if (this.config.metrics?.enabled) {
+            Metrics.start(this.config.metrics, this.as);
         }
         await this.as.begin();
         log.info("Started bridge");

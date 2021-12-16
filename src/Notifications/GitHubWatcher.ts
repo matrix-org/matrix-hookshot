@@ -6,7 +6,7 @@ import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { RequestError } from "@octokit/request-error";
 import { GitHubUserNotification } from "../Github/Types";
 import { OctokitResponse } from "@octokit/types";
-
+import Metrics from "../Metrics";
 const log = new LogWrapper("GitHubWatcher");
 
 const GH_API_THRESHOLD = 50;
@@ -27,6 +27,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             this.globalRetryIn = Date.now() + GH_API_RETRY_IN;
         }
         log.warn(`API Failure limit reached, holding off new requests for ${GH_API_RETRY_IN / 1000}s`);
+        Metrics.notificationsServiceUp.set({service: "github"}, 0);
     }
 
     private octoKit: Octokit;
@@ -80,6 +81,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             response = await this.octoKit.request(
                 `/notifications?participating=${this.participating}${since}`,
             );
+            Metrics.notificationsServiceUp.set({service: "github"}, 1);
             // We were succesful, clear any timeouts.
             GitHubWatcher.globalRetryIn = 0;
             // To avoid a bouncing issue, gradually reduce the failure count.
@@ -129,6 +131,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                 // We still push
             }
             log.debug(`Pushing ${rawEvent.id}`);
+            Metrics.notificationsPush.inc({service: "github"});
             this.emit("new_events", {
                 eventName: "notifications.user.events",
                 data: {

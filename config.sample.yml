@@ -75,6 +75,12 @@ bot:
   #
   displayname: GitHub Bot
   avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+metrics:
+  # (Optional) Prometheus metrics support
+  #
+  enabled: true
+  bindAddress: 127.0.0.1
+  port: 9002
 queue:
   # (Optional) Message queue / cache configuration options for large scale deployments
   #

@@ -2,6 +2,7 @@ import { EventEmitter } from "events";
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./Types";
 import micromatch from "micromatch";
 import {v4 as uuid} from "uuid";
+import Metrics from "../Metrics";
 
 export class LocalMQ extends EventEmitter implements MessageQueue {
     private subs: Set<string>;
@@ -19,6 +20,7 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
     }
 
     public async push<T>(message: MessageQueueMessage<T>) {
+        Metrics.messageQueuePushes.inc({event: message.eventName});
         if (!micromatch.match([...this.subs], message.eventName)) {
             return;
         }
