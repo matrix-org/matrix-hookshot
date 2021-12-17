@@ -1,7 +1,6 @@
 # Summary
 
 - [Hookshot](./hookshot.md)
-- [Features](./features.md)
 - [Setup](./setup.md)
   - [Sample Configuration](./setup/sample-configuration.md)
   - [GitHub](./setup/github.md)
@@ -12,6 +11,6 @@
 - [Room Configuration](./room_configuration.md)
   - [GitHub Repo](./room_configuration/github_repo.md)
 - [Metrics](./metrics.md)
-- [Advanced](./provisioning.md)
+- [Advanced](./advanced/provisioning.md)
   - [Provisioning](./advanced/provisioning.md)
   - [Workers](./advanced/workers.md)
