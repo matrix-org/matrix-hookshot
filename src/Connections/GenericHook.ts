@@ -198,6 +198,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                     eval: false,
                     timeout: TRANSFORMATION_TIMEOUT_MS,
                 });
+                vm.setGlobal('data', data);
                 vm.run(this.transformationFunction);
                 content = vm.getGlobal('result');
                 if (typeof content === "string") {
@@ -219,7 +220,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            "uk.half-shot.webhook_data": data,
+            "uk.half-shot.hookshot.webhook_data": data,
         }, 'm.room.message', sender);
 
     }
