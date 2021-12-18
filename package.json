@@ -25,7 +25,7 @@
     "start:app": "node --require source-map-support/register lib/App/BridgeApp.js",
     "start:webhooks": "node --require source-map-support/register lib/App/GithubWebhookApp.js",
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
-    "test": "mocha -r ts-node/register tests/*.ts  tests/**/*.ts",
+    "test": "mocha -r ts-node/register tests/init.ts tests/*.ts  tests/**/*.ts",
     "lint": "yarn run lint:js && yarn run lint:rs",
     "lint:js": "eslint -c .eslintrc.js src/**/*.ts",
     "lint:rs": "cargo fmt --all -- --check",
@@ -53,6 +53,7 @@
     "source-map-support": "^0.5.21",
     "string-argv": "^0.3.1",
     "uuid": "^8.3.2",
+    "vm2": "^3.9.5",
     "winston": "^3.3.3",
     "yaml": "^1.10.2"
   },

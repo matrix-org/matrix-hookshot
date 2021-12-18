@@ -2,7 +2,7 @@ import { IConnection } from "./IConnection";
 import LogWrapper from "../LogWrapper";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { Script, createContext } from "vm";
+import { VMScript as Script, NodeVM } from "vm2";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice } from "matrix-bot-sdk";
 import { v4 as uuid} from "uuid";
@@ -32,7 +32,7 @@ export interface GenericHookAccountData {
 const log = new LogWrapper("GenericHookConnection");
 const md = new markdownit();
 
-const TRANSFORMATION_TIMEOUT_MS = 2000;
+const TRANSFORMATION_TIMEOUT_MS = 500;
 
 /**
  * Handles rooms connected to a github repo.
@@ -104,7 +104,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     private transformationFunction?: Script;
     private cachedDisplayname?: string;
-
     constructor(roomId: string,
         private state: GenericHookConnectionState,
         public readonly hookId: string,
@@ -192,18 +191,23 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             content = this.transformHookData(data);
         } else {
             try {
-                const context = createContext({data});
-                this.transformationFunction.runInContext(context, {
+                const vm = new NodeVM({
+                    console: 'off',
+                    wrapper: 'none',
+                    wasm: false,
+                    eval: false,
                     timeout: TRANSFORMATION_TIMEOUT_MS,
-                    breakOnSigint: true,
-                    filename: `generic-hook.${this.hookId}`,
                 });
-                if (context.result) {
-                    content = `Received webhook: ${context.result}`;
+                vm.setGlobal('data', data);
+                vm.run(this.transformationFunction);
+                content = vm.getGlobal('result');
+                if (typeof content === "string") {
+                    content = `Received webhook: ${content}`;
                 } else {
                     content = `No content`;
                 }
             } catch (ex) {
+                log.warn(`Failed to run transformation function`, ex);
                 content = `Webhook received but failed to process via transformation function`;
             }
         }
@@ -216,7 +220,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            "uk.half-shot.webhook_data": data,
+            "uk.half-shot.hookshot.webhook_data": data,
         }, 'm.room.message', sender);
 
     }
