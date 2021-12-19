@@ -13,6 +13,7 @@ import { JiraWebhooksRouter } from "./Jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
 import { GitHubOAuthTokenResponse } from "./Github/Types";
 import Metrics from "./Metrics";
+import { FigmaWebhooksRouter } from "./figma/router";
 const log = new LogWrapper("GithubWebhooks");
 
 export interface GenericWebhookEvent {
@@ -70,6 +71,9 @@ export class Webhooks extends EventEmitter {
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
             this.expressApp.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
+        }
+        if (this.config.figma) {
+            this.expressApp.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
         }
         this.queue = createMessageQueue(config);
     }

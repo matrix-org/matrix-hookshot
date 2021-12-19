@@ -73,6 +73,13 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
+export interface BridgeConfigFigma {
+    instances: {
+        name: string,
+        webhookPasscode: string;
+    }[];
+}
+
 export interface BridgeConfigJira {
     webhook: {
         secret: string;
@@ -149,6 +156,7 @@ export interface BridgeConfigMetrics {
 interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
+    figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
@@ -190,6 +198,8 @@ export class BridgeConfig {
     public readonly provisioning?: BridgeConfigProvisioning;
     @configKey("Prometheus metrics support", true)
     public readonly metrics?: BridgeConfigMetrics;
+    @configKey("Prometheus metrics support", true)
+    public readonly figma?: BridgeConfigFigma;
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
@@ -204,6 +214,7 @@ export class BridgeConfig {
         this.gitlab = configData.gitlab;
         this.jira = configData.jira;
         this.generic = configData.generic;
+        this.figma = configData.figma;
         this.webhook = configData.webhook;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;

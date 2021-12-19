@@ -142,6 +142,27 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. Please configure your webhook source to use \`${url}\``));
     }
+
+    @botCommand("figma file", "Create a inbound webhook", ["instance", "url"], [], true)
+    public async onFigma(userId: string, name: string) {
+        if (!this.webhooksConfig?.enabled) {
+            throw new CommandError("not-configured", "The bridge is not configured to support webhooks");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
+        }
+        if (!name || name.length < 3 || name.length > 64) {
+            throw new CommandError("Bad webhook name", "The bridge is not configured to support webhooks");
+        }
+        const hookId = uuid();
+        const url = `${this.webhooksConfig.urlPrefix}${this.webhooksConfig.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
+        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
+        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. Please configure your webhook source to use \`${url}\``));
+    }
 }
 
 // Typescript doesn't understand Prototypes very well yet.

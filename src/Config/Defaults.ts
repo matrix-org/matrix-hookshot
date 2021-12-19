@@ -77,6 +77,12 @@ export const DefaultConfig = new BridgeConfig({
         allowJsTransformationFunctions: false,
         userIdPrefix: "webhooks_",
     },
+    figma: {
+        instances: [{
+            name: "your-instance",
+            webhookPasscode: "some-secret",
+        }]
+    },
     provisioning: {
         bindAddress: "127.0.0.1",
         port: 9001,

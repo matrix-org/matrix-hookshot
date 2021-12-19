@@ -17,6 +17,7 @@ import { MessageSenderClient } from "./MatrixSender";
 import { ApiError, ErrCode, GetConnectionTypeResponseItem } from "./provisioning/api";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
+import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
 
 const log = new LogWrapper("ConnectionManager");
 
@@ -191,6 +192,13 @@ export class ConnectionManager {
             return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient, this.tokenStore);
         }
 
+        if (FigmaFileConnection.EventTypes.includes(state.type)) {
+            if (this.config.figma) {
+                throw Error('Figma is not configured');
+            }
+            return new FigmaFileConnection(roomId, state.stateKey, state.content, this.as.botClient);
+        }
+
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
             if (!this.config.generic) {
                 throw Error('Generic webhooks are not configured');
@@ -313,6 +321,10 @@ export class ConnectionManager {
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {
         return this.connections.filter((c) => (c instanceof GenericHookConnection && c.hookId === hookId)) as GenericHookConnection[];
+    }
+
+    public getForFigmaFile(fileKey: string): FigmaFileConnection[] {
+        return this.connections.filter((c) => (c instanceof FigmaFileConnection && c.fileId === fileKey)) as FigmaFileConnection[];
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

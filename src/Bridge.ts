@@ -35,6 +35,8 @@ import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
 import { SetupConnection } from "./Connections/SetupConnection";
 import Metrics from "./Metrics";
+import { FigmaPayload } from "./figma/types";
+import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
 const log = new LogWrapper("Bridge");
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
@@ -193,6 +195,7 @@ export class Bridge {
         this.queue.subscribe("github.*");
         this.queue.subscribe("gitlab.*");
         this.queue.subscribe("jira.*");
+        this.queue.subscribe("figma.*");
 
         const validateRepoIssue = (data: GitHubWebhookTypes.IssuesEvent|GitHubWebhookTypes.IssueCommentEvent) => {
             if (!data.repository || !data.issue) {
@@ -477,6 +480,12 @@ export class Bridge {
             (data) => connManager.getConnectionsForGenericWebhook(data.hookId), 
             (c, data) => c.onGenericHook(data.hookData),
         );
+
+        this.bindHandlerToQueue<FigmaPayload, FigmaFileConnection>(
+            "figma.payload",
+            (data) => connManager.getForFigmaFile(data.file_key),
+            (c, data) => c.handleNewComment(data),
+        )
 
         // Fetch all room state
         let joinedRooms: string[]|undefined;
