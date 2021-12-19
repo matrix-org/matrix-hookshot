@@ -37,8 +37,8 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16
-      - run: yarn --ignore-scripts && yarn build:app
-      - run: node lib/Config/Defaults.js --config | diff config.sample.yml - 
+      - run: yarn --ignore-scripts
+      - run: yarn --silent ts-node src/Config/Defaults.ts --config | diff config.sample.yml - 
 
   metrics-docs:
     runs-on: ubuntu-latest
