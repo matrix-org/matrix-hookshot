@@ -3,7 +3,7 @@ import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey } from "./Decorators";
-import { BridgeConfigListener } from "../ListenerService";
+import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 
 interface BridgeConfigGitHubYAML {
     auth: {
@@ -158,7 +158,7 @@ interface BridgeConfigRoot {
     logging: BridgeConfigLogging;
     passFile: string;
     queue: BridgeConfigQueue;
-    webhook: BridgeConfigWebhook;
+    webhook?: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfig;
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
@@ -167,8 +167,6 @@ interface BridgeConfigRoot {
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
-    @configKey("HTTP webhook listener options")
-    public readonly webhook: BridgeConfigWebhook;
     @configKey("Message queue / cache configuration options for large scale deployments", true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
@@ -193,7 +191,9 @@ export class BridgeConfig {
     @configKey("Prometheus metrics support", true)
     public readonly metrics?: BridgeConfigMetrics;
 
-    @configKey("Listeners configuration", true)
+    @configKey(`HTTP Listener configuration.
+Bind resource endpoints to ports and addresses.
+'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
@@ -209,12 +209,10 @@ export class BridgeConfig {
         this.gitlab = configData.gitlab;
         this.jira = configData.jira;
         this.generic = configData.generic;
-        this.webhook = configData.webhook;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
         this.metrics = configData.metrics;
-        assert.ok(this.webhook);
         this.queue = configData.queue || {
             monolithic: true,
         };
@@ -232,12 +230,11 @@ export class BridgeConfig {
         this.listeners = configData.listeners || [];
 
         // For legacy reasons, copy across the per-service listener config into the listeners array.
-
-        if (this.webhook.port) {
+        if (configData.webhook?.port) {
             this.listeners.push({
                 resources: ['webhooks'],
-                port: this.webhook.port,
-                bindAddress: this.webhook.bindAddress,
+                port: configData.webhook.port,
+                bindAddress: configData.webhook.bindAddress,
             })
         }
 
