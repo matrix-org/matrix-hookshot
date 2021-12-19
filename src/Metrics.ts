@@ -1,13 +1,11 @@
 import { Appservice, FunctionCallContext, METRIC_MATRIX_CLIENT_FAILED_FUNCTION_CALL, METRIC_MATRIX_CLIENT_SUCCESSFUL_FUNCTION_CALL } from "matrix-bot-sdk";
 import { collectDefaultMetrics, Counter, Gauge, register, Registry } from "prom-client";
-import { BridgeConfigMetrics } from "./Config/Config";
-import { Response, default as expressApp } from "express";
+import { Response, Router } from "express";
 import LogWrapper from "./LogWrapper";
-import { Server } from "http";
 const log = new LogWrapper("Metrics");
 
 export class Metrics {
-    private httpServer?: Server;
+    public readonly expressRouter = Router();
 
     public readonly webhooksHttpRequest = new Counter({ name: "hookshot_webhooks_http_request", help: "Number of requests made to the hookshot webhooks handler", labelNames: ["path", "method"], registers: [this.registry]});
     public readonly provisioningHttpRequest = new Counter({ name: "hookshot_provisioning_http_request", help: "Number of requests made to the hookshot webhooks handler", labelNames: ["path", "method"], registers: [this.registry]});
@@ -24,6 +22,7 @@ export class Metrics {
     public readonly matrixAppserviceEvents = new Counter({ name: "matrix_appservice_events", help: "The number of events sent over the AS API", labelNames: [], registers: [this.registry]});
 
     constructor(private registry: Registry = register) {
+        this.expressRouter.get('/metrics', this.metricsFunc.bind(this));
         collectDefaultMetrics({
             register: this.registry
         })
@@ -78,26 +77,6 @@ export class Metrics {
             log.error('Failed to fetch metrics: ', err);
             res.status(500).send('Could not fetch metrics due to an error');
         });
-    }
-
-    public start(config: BridgeConfigMetrics, as?: Appservice) {
-        if (!config.port) {
-            if (!as) {
-                throw Error("No metric port defined in config, and service doesn't run a appservice");
-            }
-            as.expressAppInstance.get('/metrics', this.metricsFunc.bind(this));
-            return;
-        }
-        const app = expressApp();
-        app.get('/metrics', this.metricsFunc.bind(this));
-        this.httpServer = app.listen(config.port, config.bindAddress || "127.0.0.1");
-    }
-
-    public async stop() {
-        if (!this.httpServer) {
-            return;
-        }
-        return new Promise<void>((res, rej) => this.httpServer?.close(err => err ? rej(err) : res()));
     }
 }
 

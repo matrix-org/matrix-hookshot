@@ -1,5 +1,5 @@
 import { BridgeConfig } from "./Config/Config";
-import { Application, default as express, Request, Response } from "express";
+import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import LogWrapper from "./LogWrapper";
@@ -37,14 +37,12 @@ export interface NotificationsDisableEvent {
 }
 
 export class Webhooks extends EventEmitter {
-    private expressApp: Application;
+    public readonly expressRouter = Router();
     private queue: MessageQueue;
-    private server?: Server;
     private ghWebhooks?: OctokitWebhooks;
     constructor(private config: BridgeConfig) {
         super();
-        this.expressApp = express();
-        this.expressApp.use((req, _res, next) => {
+        this.expressRouter.use((req, _res, next) => {
             Metrics.webhooksHttpRequest.inc({path: req.path, method: req.method});
             next();
         });
@@ -56,39 +54,27 @@ export class Webhooks extends EventEmitter {
         }
 
         // TODO: Move these
-        this.expressApp.get("/oauth", this.onGitHubGetOauth.bind(this));
-        this.expressApp.all(
+        this.expressRouter.get("/oauth", this.onGitHubGetOauth.bind(this));
+        this.expressRouter.all(
             '/:hookId',
             express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
             this.onGenericPayload.bind(this),
         );
 
-        this.expressApp.use(express.json({
+        this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),
         }));
-        this.expressApp.post("/", this.onPayload.bind(this));
+        this.expressRouter.post("/", this.onPayload.bind(this));
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
-            this.expressApp.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
+            this.expressRouter.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
         }
         this.queue = createMessageQueue(config);
-    }
-
-    public listen() {
-        const bindAddr = this.config.webhook.bindAddress || "0.0.0.0";
-        this.server = this.expressApp.listen(
-            this.config.webhook.port,
-            bindAddr,
-        );
-        log.info(`Listening on http://${bindAddr}:${this.config.webhook.port}`);
     }
 
     public stop() {
         if (this.queue.stop) {
             this.queue.stop();
-        } 
-        if (this.server) {
-            this.server.close();
         }
     }
 

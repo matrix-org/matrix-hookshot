@@ -1,8 +1,7 @@
 import { BridgeConfigProvisioning } from "../Config/Config";
-import { Application, default as express, NextFunction, Request, Response, Router } from "express";
+import { Router, default as express, NextFunction, Request, Response } from "express";
 import { ConnectionManager } from "../ConnectionManager";
 import LogWrapper from "../LogWrapper";
-import { Server } from "http";
 import { ApiError, ErrCode, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
 import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
@@ -15,8 +14,7 @@ const USER_ID_VALIDATOR = /@.+:.+/;
 
 
 export class Provisioner {
-    private expressApp: Application;
-    private server?: Server;
+    public readonly expressRouter: Router = Router();
     constructor(
         private readonly config: BridgeConfigProvisioning,
         private readonly connMan: ConnectionManager,
@@ -28,54 +26,53 @@ export class Provisioner {
         if (!this.config.port) {
             throw Error('Missing port in provisioning config');
         }
-        this.expressApp = express();
-        this.expressApp.use((req, _res, next) => {
+        this.expressRouter.use((req, _res, next) => {
             Metrics.provisioningHttpRequest.inc({path: req.path, method: req.method});
             next();
         });
-        this.expressApp.get("/v1/health", this.getHealth);
-        this.expressApp.use(this.checkAuth.bind(this));
-        this.expressApp.use(express.json());
+        this.expressRouter.get("/v1/health", this.getHealth);
+        this.expressRouter.use(this.checkAuth.bind(this));
+        this.expressRouter.use(express.json());
         // Room Routes
-        this.expressApp.get(
+        this.expressRouter.get(
             "/v1/connectiontypes",
             this.getConnectionTypes.bind(this),
         );
-        this.expressApp.use(this.checkUserId.bind(this));
+        this.expressRouter.use(this.checkUserId.bind(this));
         additionalRoutes.forEach(route => {
-            this.expressApp.use(route.route, route.router);
+            this.expressRouter.use(route.route, route.router);
         });
-        this.expressApp.get<{roomId: string}, unknown, unknown, {userId: string}>(
+        this.expressRouter.get<{roomId: string}, unknown, unknown, {userId: string}>(
             "/v1/:roomId/connections",
             this.checkRoomId.bind(this),
             (...args) => this.checkUserPermission("read", ...args),
             this.getConnections.bind(this),
         );
-        this.expressApp.get<{roomId: string, connectionId: string}, unknown, unknown, {userId: string}>(
+        this.expressRouter.get<{roomId: string, connectionId: string}, unknown, unknown, {userId: string}>(
             "/v1/:roomId/connections/:connectionId",
             this.checkRoomId.bind(this),
             (...args) => this.checkUserPermission("read", ...args),
             this.getConnection.bind(this),
         );
-        this.expressApp.put<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>(
+        this.expressRouter.put<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>(
             "/v1/:roomId/connections/:type",
             this.checkRoomId.bind(this),
             (...args) => this.checkUserPermission("write", ...args),
             this.putConnection.bind(this),
         );
-        this.expressApp.patch<{roomId: string, connectionId: string}, unknown, Record<string, unknown>, {userId: string}>(
+        this.expressRouter.patch<{roomId: string, connectionId: string}, unknown, Record<string, unknown>, {userId: string}>(
             "/v1/:roomId/connections/:connectionId",
             this.checkRoomId.bind(this),
             (...args) => this.checkUserPermission("write", ...args),
             this.patchConnection.bind(this),
         );
-        this.expressApp.delete<{roomId: string, connectionId: string}, unknown, unknown, {userId: string}>(
+        this.expressRouter.delete<{roomId: string, connectionId: string}, unknown, unknown, {userId: string}>(
             "/v1/:roomId/connections/:connectionId",
             this.checkRoomId.bind(this),
             (...args) => this.checkUserPermission("write", ...args),
             this.deleteConnection.bind(this),
         );
-        this.expressApp.use(this.onError);
+        this.expressRouter.use(this.onError);
     }
 
     private checkAuth(req: Request, _res: Response, next: NextFunction) {
@@ -245,21 +242,6 @@ export class Provisioner {
             res.send({ok: true});
         } catch (ex) {
             return next(ex);
-        }
-    }
-
-    public listen() {
-        const bindAddr = this.config.bindAddress || "0.0.0.0";
-        this.server = this.expressApp.listen(
-            this.config.port,
-            bindAddr,
-        );
-        log.info(`Listening on http://${bindAddr}:${this.config.port}`);
-    }
-
-    public stop() {
-        if (this.server) {
-            this.server.close();
         }
     }
 }
