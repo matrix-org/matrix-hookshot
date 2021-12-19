@@ -8,7 +8,7 @@ import LogWrapper from "../LogWrapper";
 const log = new LogWrapper("FigmaFileConnection");
 
 export interface FigmaFileConnectionState {
-    fileId: string;
+    fileId?: string;
 }
 
 const md = markdownit();
@@ -70,7 +70,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
                 "format": "org.matrix.custom.html"
             };
         }
-        content["uk.half-shot.matrix-figma.comment_id"] = payload.comment_id;
+        content["uk.half-shot.matrix-hookshot.figma.comment_id"] = payload.comment_id;
         const eventId = await this.client.sendMessage(this.roomId, content);
         this.commentIdToEvent.set(payload.comment_id, {
             ...content,

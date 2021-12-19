@@ -1,6 +1,6 @@
 export interface FigmaPayload {
-    comment: [ { text: string, } ],
     comment_id: string,
+    comment: [ { text: string, } ],
     created_at: string,
     event_type: string,
     file_key: string,

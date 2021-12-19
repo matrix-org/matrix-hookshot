@@ -667,7 +667,7 @@ export class Bridge {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
-                        new SetupConnection(roomId, this.as, this.tokenStore, this.github, !!this.config.jira, this.config.generic)
+                        new SetupConnection(roomId, this.as, this.tokenStore, this.config, this.github)
                     ).onMessageEvent(event);
                 } catch (ex) {
                     log.warn(`Setup connection failed to handle:`, ex);

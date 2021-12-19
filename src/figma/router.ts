@@ -1,6 +1,6 @@
 import { BridgeConfigFigma } from "../Config/Config";
 import { MessageQueue } from "../MessageQueue";
-import { Request, Response, Router } from "express";
+import { Request, Response, Router, json } from "express";
 import { FigmaPayload } from "./types";
 import LogWrapper from "../LogWrapper";
 
@@ -31,6 +31,7 @@ export class FigmaWebhooksRouter {
 
     public getRouter() {
         const router = Router();
+        router.use(json())
         router.get("/webhook", this.onWebhook.bind(this));
         return router;
     }
