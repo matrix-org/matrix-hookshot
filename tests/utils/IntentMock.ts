@@ -1,7 +1,14 @@
+export class MatrixClientMock {
+    async setDisplayName() {
+        return;
+    }
+}
+
 export class IntentMock {
+    public readonly underlyingClient = new MatrixClientMock();
     public sentEvents: {roomId: string, content: any}[] = [];
 
-    static create(){
+    static create(userId?: string){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new this() as any;
     }
@@ -21,5 +28,9 @@ export class IntentMock {
             roomId,
             content,
         });
+    }
+
+    async ensureRegistered() {
+        return true;
     }
 }
