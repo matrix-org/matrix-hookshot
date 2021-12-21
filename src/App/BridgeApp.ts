@@ -5,6 +5,7 @@ import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
 import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
+import { ListenerService } from "../ListenerService";
 
 LogWrapper.configureLogging("debug");
 const log = new LogWrapper("App");
@@ -14,24 +15,27 @@ async function start() {
     const registrationFile = process.argv[3] || "./registration.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
+    const listener = new ListenerService(config.listeners);
     LogWrapper.configureLogging(config.logging.level);
 
     if (config.queue.monolithic) {
         const webhookHandler = new Webhooks(config);
-        webhookHandler.listen();
+        listener.bindResource('webhooks', webhookHandler.expressRouter);
         const matrixSender = new MatrixSender(config, registration);
         matrixSender.listen();
         const userNotificationWatcher = new UserNotificationWatcher(config);
         userNotificationWatcher.start();
     }
 
-    const bridgeApp = new Bridge(config, registration);
+    const bridgeApp = new Bridge(config, registration, listener);
 
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");
+        listener.stop();
         bridgeApp.stop();
     });
     await bridgeApp.start();
+    listener.start();
 }
 
 start().catch((ex) => {

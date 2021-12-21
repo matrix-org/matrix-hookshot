@@ -35,6 +35,7 @@ import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
 import { SetupConnection } from "./Connections/SetupConnection";
 import Metrics from "./Metrics";
+import { ListenerService } from "./ListenerService";
 const log = new LogWrapper("Bridge");
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
@@ -77,7 +78,7 @@ export class Bridge {
 
     private ready = false;
 
-    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) {
+    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration, private readonly listener: ListenerService) {
         if (this.config.queue.host && this.config.queue.port) {
             log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
             this.storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
@@ -95,10 +96,7 @@ export class Bridge {
 
     public stop() {
         this.as.stop();
-        Metrics.stop();
         if (this.queue.stop) this.queue.stop();
-        if (this.widgetApi) this.widgetApi.stop();
-        if (this.provisioningApi) this.provisioningApi.stop();
     }
 
     public async start() {
@@ -578,13 +576,13 @@ export class Bridge {
         }
 
         if (this.config.widgets) {
-            await this.widgetApi.start(this.config.widgets.port);
+            this.listener.bindResource('widgets', this.widgetApi.expressRouter);
         }
         if (this.provisioningApi) {
-            await this.provisioningApi.listen();
+            this.listener.bindResource('provisioning', this.provisioningApi.expressRouter);
         }
         if (this.config.metrics?.enabled) {
-            Metrics.start(this.config.metrics, this.as);
+            this.listener.bindResource('metrics', Metrics.expressRouter);
         }
         await this.as.begin();
         log.info("Started bridge");

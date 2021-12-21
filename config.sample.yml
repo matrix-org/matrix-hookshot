@@ -54,16 +54,9 @@ generic:
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   userIdPrefix: webhooks_
-webhook:
-  # HTTP webhook listener options
-  #
-  port: 9000
-  bindAddress: 0.0.0.0
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
-  bindAddress: 127.0.0.1
-  port: 9001
   secret: "!secretToken"
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
@@ -79,8 +72,6 @@ metrics:
   # (Optional) Prometheus metrics support
   #
   enabled: true
-  bindAddress: 127.0.0.1
-  port: 9002
 queue:
   # (Optional) Message queue / cache configuration options for large scale deployments
   #
@@ -91,4 +82,19 @@ logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
   level: info
+listeners:
+  # (Optional) HTTP Listener configuration.
+  # Bind resource endpoints to ports and addresses.
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  #
+  - port: 9000
+    bindAddress: 0.0.0.0
+    resources:
+      - webhooks
+      - widgets
+  - port: 9001
+    bindAddress: 127.0.0.1
+    resources:
+      - metrics
+      - provisioning
 

@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey } from "./Decorators";
+import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 
 interface BridgeConfigGitHubYAML {
@@ -92,10 +93,11 @@ export interface BridgeGenericWebhooksConfig {
 }
 
 interface BridgeWidgetConfig {
-    port: number;
+    port?: number;
     addToAdminRooms: boolean;
     publicUrl: string;
 }
+
 
 interface BridgeConfigBridge {
     domain: string;
@@ -111,8 +113,8 @@ interface BridgeConfigBridge {
 }
 
 interface BridgeConfigWebhook {
-    port: number;
-    bindAddress: string;
+    port?: number;
+    bindAddress?: string;
 }
 
 interface BridgeConfigQueue {
@@ -132,7 +134,7 @@ interface BridgeConfigBot {
 
 export interface BridgeConfigProvisioning {
     bindAddress?: string;
-    port: number;
+    port?: number;
     secret: string;
 }
 
@@ -141,7 +143,6 @@ export interface BridgeConfigMetrics {
     bindAddress?: string;
     port?: number;
 }
-
 
 interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
@@ -154,16 +155,15 @@ interface BridgeConfigRoot {
     logging: BridgeConfigLogging;
     passFile: string;
     queue: BridgeConfigQueue;
-    webhook: BridgeConfigWebhook;
+    webhook?: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfig;
     metrics?: BridgeConfigMetrics;
+    listeners?: BridgeConfigListener[];
 }
 
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
-    @configKey("HTTP webhook listener options")
-    public readonly webhook: BridgeConfigWebhook;
     @configKey("Message queue / cache configuration options for large scale deployments", true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
@@ -188,6 +188,11 @@ export class BridgeConfig {
     @configKey("Prometheus metrics support", true)
     public readonly metrics?: BridgeConfigMetrics;
 
+    @configKey(`HTTP Listener configuration.
+ Bind resource endpoints to ports and addresses.
+ 'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
+    public readonly listeners: BridgeConfigListener[];
+
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
@@ -201,12 +206,10 @@ export class BridgeConfig {
         this.gitlab = configData.gitlab;
         this.jira = configData.jira;
         this.generic = configData.generic;
-        this.webhook = configData.webhook;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
         this.metrics = configData.metrics;
-        assert.ok(this.webhook);
         this.queue = configData.queue || {
             monolithic: true,
         };
@@ -218,6 +221,41 @@ export class BridgeConfig {
             this.queue.monolithic = false;
             this.queue.host = env.CFG_QUEUE_HOST;
             this.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
+        }
+
+        // Listeners is a bit special
+        this.listeners = configData.listeners || [];
+
+        // For legacy reasons, copy across the per-service listener config into the listeners array.
+        if (configData.webhook?.port) {
+            this.listeners.push({
+                resources: ['webhooks'],
+                port: configData.webhook.port,
+                bindAddress: configData.webhook.bindAddress,
+            })
+        }
+
+        if (this.provisioning?.port) {
+            this.listeners.push({
+                resources: ['provisioning'],
+                port: this.provisioning.port,
+                bindAddress: this.provisioning.bindAddress,
+            })
+        }
+        
+        if (this.metrics?.port) {
+            this.listeners.push({
+                resources: ['metrics'],
+                port: this.metrics.port,
+                bindAddress: this.metrics.bindAddress,
+            })
+        }
+        
+        if (this.widgets?.port) {
+            this.listeners.push({
+                resources: ['widgets'],
+                port: this.widgets.port,
+            })
         }
 
     }
