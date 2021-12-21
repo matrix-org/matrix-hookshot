@@ -3,8 +3,9 @@ Workers
 
 Hookshot supports running in a worker configuration, using Redis as the middleman process to handle traffic between processes.
 
-This feature is **experimental** and should only be used when you are reaching natural limits in the monolith process.
-
+<section class="warning">
+This feature is <b>experimental</b> and should only be used when you are reaching natural limits in the monolith process.
+</section>
 
 ## Running in multi-process mode
 

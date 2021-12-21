@@ -7,7 +7,7 @@ namespaces:
     - regex: "@_github_.*:foobar" # Where foobar is your homeserver's domain
       exclusive: true
   aliases:
-    - regex: "#github_.+_.+_\\d+:foobar"  # Where foobar is your homeserver's domain
+    - regex: "#github_.+:foobar"  # Where foobar is your homeserver's domain
       exclusive: true
 
 sender_localpart: hookshot

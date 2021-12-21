@@ -46,6 +46,11 @@ Otherwise, the full JSON payload will be sent to the room. This can be adapted i
 
 ## JavaScript Transformations
 
+<section class="notice">
+Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
+in your room to prevent users from tampering with the script.
+</section>
+
 This bridge support creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.
 
