@@ -58,16 +58,29 @@ Copy `registration.sample.yml` into `registration.yml` and fill in:
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html)
 
-### Webhooks configuration
+### Listeners configuration
 
-You will need to configure the webhooks listener at a minimum to make the bridge functional.
-To do this, ensure that your configuration for `webhook` is correct:
+You will need to configure some listeners to make the bridge functional.
 
 ```yaml
-webhook:
-  port: 5061
-  host: 0.0.0.0
+  # (Optional) HTTP Listener configuration.
+  # Bind resource endpoints to ports and addresses.
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  #
+  - port: 9000
+    bindAddress: 0.0.0.0
+    resources:
+      - webhooks
+      - widgets
+  - port: 9001
+    bindAddress: 127.0.0.1
+    resources:
+      - metrics
+      - provisioning
 ```
+
+At a minimum, you should bind the `webooks` resource to a port and address. You can have multiple resources on the same
+port, or one on each.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
 is reccomended to factor hookshot into your load balancer configuration, but currrently this process is left as an

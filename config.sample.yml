@@ -84,8 +84,8 @@ logging:
   level: info
 listeners:
   # (Optional) HTTP Listener configuration.
-  #Bind resource endpoints to ports and addresses.
-  #'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  # Bind resource endpoints to ports and addresses.
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
   #
   - port: 9000
     bindAddress: 0.0.0.0

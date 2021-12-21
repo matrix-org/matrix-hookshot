@@ -189,8 +189,8 @@ export class BridgeConfig {
     public readonly metrics?: BridgeConfigMetrics;
 
     @configKey(`HTTP Listener configuration.
-Bind resource endpoints to ports and addresses.
-'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
+ Bind resource endpoints to ports and addresses.
+ 'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
