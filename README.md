@@ -30,7 +30,7 @@ This bridge bridges:
 
 ## Documentation
 
-Documentation can be found on [GitHub Pages](https://matrix-org.github.io/matrix-appservice-irc).
+Documentation can be found on [GitHub Pages](https://half-shot.github.io/matrix-hookshot).
 
 You can build the documentaion yourself by:
 ```sh
