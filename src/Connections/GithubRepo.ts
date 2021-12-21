@@ -31,9 +31,7 @@ interface IQueryRoomOpts {
     githubInstance: GithubInstance;
 }
 
-export interface GitHubRepoConnectionState {
-    org: string;
-    repo: string;
+export interface GitHubRepoConnectionOptions {
     ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     showIssueRoomLink?: boolean;
@@ -44,6 +42,11 @@ export interface GitHubRepoConnectionState {
     includingLabels?: string[];
     excludingLabels?: string[];
 }
+export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions{
+    org: string;
+    repo: string;
+}
+
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
     "👍": "+1",

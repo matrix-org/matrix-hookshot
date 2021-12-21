@@ -3,6 +3,7 @@ import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey } from "./Decorators";
+import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 
 interface BridgeConfigGitHubYAML {
     auth: {
@@ -20,9 +21,7 @@ interface BridgeConfigGitHubYAML {
         // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
-    defaultOptions?: {
-        showIssueRoomLink: false;
-    }
+    defaultOptions?: GitHubRepoConnectionOptions;
 }
 
 export class BridgeConfigGitHub {
@@ -45,9 +44,7 @@ export class BridgeConfigGitHub {
         redirect_uri: string;
     };
     @configKey("Default options for GitHub connections.", true)
-    defaultOptions?: {
-        showIssueRoomLink: false;
-    };
+    defaultOptions?: GitHubRepoConnectionOptions;
 
     constructor(yaml: BridgeConfigGitHubYAML) {
         this.auth = yaml.auth;
