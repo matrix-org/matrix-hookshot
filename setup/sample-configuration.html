@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>JIRA - Matrix Hookshot</title>
+        <title>Sample Configuration - Matrix Hookshot</title>
                 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html" class="active"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html" class="active"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -121,7 +121,7 @@
                                                                         <a href="https://github.com/half-shot/matrix-hookshot" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/setup/jira.md" title="Suggest an edit" aria-label="Suggest an edit">
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/setup/sample-configuration.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
                         
@@ -150,18 +150,115 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="jira"><a class="header" href="#jira">JIRA</a></h1>
-<p>TODO</p>
+                        <h1 id="sample-configuration"><a class="header" href="#sample-configuration">Sample Configuration</a></h1>
+<p>Below is a sample bridge configuration file. The configuration file 
+can be tweaked to change the behaviour of your bridge. A bridge of the server is 
+required to apply any changes made to this file.</p>
+<pre><code class="language-yaml"># This is an example configuration file
+
+bridge:
+  # Basic homeserver configuration
+  #
+  domain: example.com
+  url: http://localhost:8008
+  mediaUrl: http://example.com
+  port: 9993
+  bindAddress: 127.0.0.1
+github:
+  # (Optional) Configure this to enable GitHub support
+  #
+  auth:
+    # Authentication for the GitHub App.
+    #
+    id: 123
+    privateKeyFile: github-key.pem
+  webhook:
+    # Webhook settings for the GitHub app.
+    #
+    secret: secrettoken
+  oauth:
+    # (Optional) Settings for allowing users to sign in via OAuth.
+    #
+    client_id: foo
+    client_secret: bar
+    redirect_uri: https://example.com/bridge_oauth/
+  defaultOptions:
+    # (Optional) Default options for GitHub connections.
+    #
+    showIssueRoomLink: false
+gitlab:
+  # (Optional) Configure this to enable GitLab support
+  #
+  instances:
+    gitlab.com:
+      url: https://gitlab.com
+  webhook:
+    secret: secrettoken
+jira:
+  # (Optional) Configure this to enable Jira support
+  #
+  webhook:
+    secret: secrettoken
+  oauth:
+    client_id: foo
+    client_secret: bar
+    redirect_uri: https://example.com/bridge_oauth/
+generic:
+  # (Optional) Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
+  #
+  enabled: false
+  urlPrefix: https://example.com/mywebhookspath/
+  allowJsTransformationFunctions: false
+  userIdPrefix: webhooks_
+webhook:
+  # HTTP webhook listener options
+  #
+  port: 9000
+  bindAddress: 0.0.0.0
+provisioning:
+  # (Optional) Provisioning API for integration managers
+  #
+  bindAddress: 127.0.0.1
+  port: 9001
+  secret: &quot;!secretToken&quot;
+passFile:
+  # A passkey used to encrypt tokens stored inside the bridge.
+  # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
+  #
+  passkey.pem
+bot:
+  # (Optional) Define profile information for the bot user
+  #
+  displayname: GitHub Bot
+  avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+metrics:
+  # (Optional) Prometheus metrics support
+  #
+  enabled: true
+  bindAddress: 127.0.0.1
+  port: 9002
+queue:
+  # (Optional) Message queue / cache configuration options for large scale deployments
+  #
+  monolithic: true
+  port: 6379
+  host: localhost
+logging:
+  # (Optional) Logging settings. You can have a severity debug,info,warn,error
+  #
+  level: info
+
+</code></pre>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="../setup/gitlab.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="../setup.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
-                                                    <a rel="next" href="../setup/webhooks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                                    <a rel="next" href="../setup/github.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -171,11 +268,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="../setup/gitlab.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="../setup.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
-                                    <a rel="next" href="../setup/webhooks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                    <a rel="next" href="../setup/github.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                             </nav>

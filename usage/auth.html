@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>JIRA - Matrix Hookshot</title>
+        <title>Authenticating - Matrix Hookshot</title>
                 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html" class="active"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html" class="active"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -121,7 +121,7 @@
                                                                         <a href="https://github.com/half-shot/matrix-hookshot" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/setup/jira.md" title="Suggest an edit" aria-label="Suggest an edit">
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/usage/auth.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
                         
@@ -150,18 +150,90 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="jira"><a class="header" href="#jira">JIRA</a></h1>
-<p>TODO</p>
+                        <h1 id="authenticating"><a class="header" href="#authenticating">Authenticating</a></h1>
+<p>To authenticate with services, you must first have a DM room with the bridge set up. In this guide,
+we are going to assume the bot is called <code>@hookshot:example.com</code> but this will vary for your setup. For all
+the instructions below, commands should only be executed in the DM room.</p>
+<h2 id="github"><a class="header" href="#github">GitHub</a></h2>
+<p>You can authenticate via OAuth or a Personal Access Token (PAT) when using GitHub. Authentication is required
+when trying to bridge GitHub resources into rooms.</p>
+<section class="notice">
+Please note that you will need a Personal Access Token in order to bridge your personal GitHub notifications.
+This is a limitation of GitHub's API.
+</section>
+<p>To authenticate with a personal access token:</p>
+<ol>
+<li>
+<p>Open <a href="https://github.com/settings/tokens">https://github.com/settings/tokens</a> (Github &gt; Settings &gt; Developer Settings / Personal access tokens)</p>
+</li>
+<li>
+<p>Click <strong>Generate new token</strong></p>
+</li>
+<li>
+<p>Give it a good name, and a sensible expiration date. For scopes you will need:</p>
+<ul>
+<li>Repo (to access repo information)
+<ul>
+<li>public_repo</li>
+<li>repo:status</li>
+</ul>
+</li>
+<li>Workflow (if you want to be able to launch workflows / GitHub actions from Matrix)</li>
+<li>Notifications (if you want to bridge in your notifications to Matrix)</li>
+<li>User
+<ul>
+<li>read:user</li>
+</ul>
+</li>
+<li>write:discussion (for GitHub discussion support)
+<ul>
+<li>read:discussion</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p>Send the generated token to the bridge by saying <code>github setpersonaltoken %your-token%</code>. You can redact
+the message afterwards if you like.</p>
+</li>
+<li>
+<p>The bridge will have connected you. You can check the status at any time by saying <code>github hastoken</code></p>
+</li>
+</ol>
+<h2 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h2>
+<p>You can authenticate with GitLab by supplying a Personal Access Token. OAuth-style authentication isn't supported
+yet.</p>
+<ul>
+<li>You will need to have configured a GitLab instance in your config.yml for the instance you want to login to.</li>
+<li>Open https://%instance%/-/profile/personal_access_tokens (GitLab &gt; User Settings &gt; Access Tokens), where instance is your GitLab instance address.
+<ul>
+<li>For the public GitLab server, this would be &quot;gitlab.com&quot;</li>
+</ul>
+</li>
+<li>Give it a good name, and a sensible expiration date. For scopes you will need to tick <code>api</code>.</li>
+<li>Send the generated token to the bridge by saying <code>gitlab personaltoken %instance% %your-token%</code>. You can redact
+the message afterwards if you like.</li>
+<li>The bridge will have connected you. You can check the status at any time by saying <code>gitlab hastoken %instance% </code></li>
+</ul>
+<h2 id="jira"><a class="header" href="#jira">JIRA</a></h2>
+<p>You can login to JIRA via OAuth. This means you will need to have configured OAuth support in your <code>config.yml</code>, and
+have the endpoints required accessible from the internet. Authentication is required when trying to bridge JIRA resources into rooms.</p>
+<ul>
+<li>Say <code>jira login</code> to get the URL to authenticate via.</li>
+<li>Click the URL sent by the bot.</li>
+<li>Follow the steps, ensuring you authenticate with the right user.</li>
+<li>If all goes well, you will now be connected. You can check the status and authorisatied instances by saying <code>jira whoami</code></li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="../setup/gitlab.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="../usage/dynamic_rooms.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
-                                                    <a rel="next" href="../setup/webhooks.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                                    <a rel="next" href="../usage/room_configuration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -171,11 +243,11 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="../setup/gitlab.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="../usage/dynamic_rooms.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
-                                    <a rel="next" href="../setup/webhooks.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                    <a rel="next" href="../usage/room_configuration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                             </nav>

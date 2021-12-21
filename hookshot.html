@@ -31,6 +31,7 @@
         <link rel="stylesheet" href="ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+                <link rel="stylesheet" href="docs/_site/style.css">
         
             </head>
     <body>
@@ -82,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html" class="active"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="features.html"><strong aria-hidden="true">2.</strong> Features</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">3.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">3.1.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">3.2.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">3.3.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">3.4.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html" class="active"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -117,7 +118,13 @@
                                                 <a href="print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                                                                        
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/hookshot.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                        
                     </div>
                 </div>
 
@@ -143,14 +150,56 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="chapter-1"><a class="header" href="#chapter-1">Chapter 1</a></h1>
+                        <h1 id="matrix-hookshot"><a class="header" href="#matrix-hookshot">matrix-hookshot</a></h1>
+<p><em>Previously matrix-github</em></p>
+<p><a href="https://matrix.to/#/#hookshot:half-shot.uk"><img src="https://img.shields.io/matrix/github-bridge:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&amp;label=%23hookshot:half-shot.uk&amp;logo=matrix" alt="#hookshot:half-shot.uk" /></a>
+<a href="https://hub.docker.com/r/halfshot/matrix-hookshot"><img src="https://img.shields.io/docker/v/halfshot/matrix-hookshot" alt="Docker Image Version (latest by date)" /></a></p>
+<p>A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.</p>
+<h2 id="featureset"><a class="header" href="#featureset">Featureset</a></h2>
+<p>This bridge bridges:</p>
+<ul>
+<li>GitHub
+<ul>
+<li>Webhooks (new issues, pull requests, releases etc)</li>
+<li>Commands (create issues, assign issues, start workflows etc)</li>
+</ul>
+</li>
+<li>GitLab
+<ul>
+<li>Webhooks (new issues, merge requests etc)</li>
+<li>Commands</li>
+</ul>
+</li>
+<li>Jira
+<ul>
+<li>Webhooks (new issues, issue changes)</li>
+<li>Commands (create new issues)</li>
+</ul>
+</li>
+<li>Generic webhooks
+<ul>
+<li>Webhooks (via GET, PUT or POST with optional transformation functions)</li>
+</ul>
+</li>
+</ul>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<p><a href="https://half-shot.github.io/matrix-hookshot/setup.html">See the setup guide</a></p>
+<h2 id="documentation"><a class="header" href="#documentation">Documentation</a></h2>
+<p>Documentation can be found on <a href="https://matrix-org.github.io/matrix-appservice-irc">GitHub Pages</a>.</p>
+<p>You can build the documentaion yourself by:</p>
+<pre><code class="language-sh"># cargo install mdbook
+mdbook build
+sensible-browser book/index.html
+</code></pre>
+<h2 id="contact"><a class="header" href="#contact">Contact</a></h2>
+<p>TODO...</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
                         
-                                                    <a rel="next" href="features.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                                    <a rel="next" href="setup.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -161,7 +210,7 @@
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
                 
-                                    <a rel="next" href="features.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                    <a rel="next" href="setup.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                             </nav>

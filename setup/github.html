@@ -31,6 +31,7 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+                <link rel="stylesheet" href="../docs/_site/style.css">
         
             </head>
     <body>
@@ -82,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">2.</strong> Features</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">3.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/github.html" class="active"><strong aria-hidden="true">3.1.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">3.2.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">3.3.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">3.4.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/github.html" class="active"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -117,7 +118,13 @@
                                                 <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                                                                        
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/setup/github.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                        
                     </div>
                 </div>
 
@@ -143,13 +150,90 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="github"><a class="header" href="#github">GitHub</a></h1>
+                        <h1 id="setting-up-github"><a class="header" href="#setting-up-github">Setting up GitHub</a></h1>
+<p>In order to bridge GitHub with Hookshot, you will need to create a GitHub App.</p>
+<h2 id="github-app"><a class="header" href="#github-app">GitHub App</a></h2>
+<p>This bridge requires a <a href="https://github.com/settings/apps/new">GitHub App</a>. You will need to create one.</p>
+<p>Most of the configuration can be left up to you, but the important points are:</p>
+<ul>
+<li>The callback URL should be set if you plan to use OAuth.</li>
+<li>The webhook URL should point to the public address of your hookshot instance, at the <code>/</code> path. A secret <strong>must</strong> be given.</li>
+<li>A client secret should be generated and stored.</li>
+</ul>
+<p>You will need to enable the following permissions:</p>
+<ul>
+<li>Repository
+<ul>
+<li>Actions (<code>read</code>)</li>
+<li>Contents (<code>read</code>)</li>
+<li>Discussions (<code>read &amp; write</code>)</li>
+<li>Issues (<code>read &amp; write</code>)</li>
+<li>Metadata </li>
+<li>Projects (<code>read &amp; write</code>)</li>
+<li>Pull requests (<code>read &amp; write</code>)</li>
+</ul>
+</li>
+<li>Organisation
+<ul>
+<li>Discussions (<code>read</code>)</li>
+</ul>
+</li>
+</ul>
+<p>Hookshot handles the following webhook event types:</p>
+<ul>
+<li>Commit comment</li>
+<li>Create</li>
+<li>Delete</li>
+<li>Discussion</li>
+<li>Discussion comment</li>
+<li>Issue comment</li>
+<li>Issues</li>
+<li>Project</li>
+<li>Project card</li>
+<li>Project column</li>
+<li>Pull request</li>
+<li>Pull request review</li>
+<li>Pull request review comment</li>
+<li>Push</li>
+<li>Release</li>
+<li>Repository</li>
+<li>Workflow run</li>
+</ul>
+<p>You can disable any of these to disable the events being handled in Hookshot.</p>
+<p>Once you have setup your app, you can move onto configuring the bridge:</p>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>The GitHub service requires a few connection options.</p>
+<pre><code class="language-yaml">github:
+  auth:
+    id: 123
+    privateKeyFile: github-key.pem
+  webhook:
+    secret: secrettoken
+  oauth:
+    client_id: foo
+    client_secret: bar
+    redirect_uri: https://example.com/bridge_oauth/
+  defaultOptions:
+    showIssueRoomLink: false
+</code></pre>
+<p>In the <code>auth</code> section, you will need to supply the <strong>App ID</strong> given in your GitHub App page.
+You should also supply the page to a generated private key file.</p>
+<p>The <code>webhook</code> section takes a secret, which is <strong>Webhook secret</strong> on the GitHub App page.</p>
+<p>The <code>oauth</code> section should include both the <strong>Client ID</strong> and <strong>Client Secret</strong> on the GitHub App page.
+The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/oauth</code> on the webhooks path. E.g. if your load balancer
+points <code>https://example.com/hookshot</code> to the bridge's webhooks port, you should use the path <code>https://example.com/hookshot/oauth</code>.
+This value MUST exactly match the <strong>Callback URL</strong> on the GitHub App page.</p>
+<p><code>defaultOptions</code> allows you to set some defaults for room connections. Options listed on <a href="../usage/room_configuration/github_repo.html#configuration">this page</a>
+are supported.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>If you have followed these steps correctly, GitHub should now be configured with hookshot 🥳.</p>
+<p>You can now follow the guide on <a href="../usage/auth.html">authenticating with GitHub</a>, and then <a href="../usage/room_configuration/github_repo.html#setting-up">bridging a room</a></p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="../setup.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="../setup/sample-configuration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
@@ -163,7 +247,7 @@
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="../setup.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="../setup/sample-configuration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 

@@ -31,6 +31,7 @@
         <link rel="stylesheet" href="../ayu-highlight.css">
 
         <!-- Custom theme stylesheets -->
+                <link rel="stylesheet" href="../docs/_site/style.css">
         
             </head>
     <body>
@@ -82,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../features.html"><strong aria-hidden="true">2.</strong> Features</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">3.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">3.1.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">3.2.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">3.3.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html" class="active"><strong aria-hidden="true">3.4.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html" class="active"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> Metrics</a></li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Advanced</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.1.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">5.2.</strong> Workers</a></li></ol></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -117,7 +118,13 @@
                                                 <a href="../print.html" title="Print this book" aria-label="Print this book">
                             <i id="print-button" class="fa fa-print"></i>
                         </a>
-                                                                        
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                                                                        <a href="https://github.com/half-shot/matrix-hookshot/edit/main/docs/setup/webhooks.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                        
                     </div>
                 </div>
 
@@ -144,6 +151,63 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="webhooks"><a class="header" href="#webhooks">Webhooks</a></h1>
+<p>Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol.</p>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<p>The webhook connection supports sending messages into a single Matrix room, by hitting an API endpoint.</p>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>You will need to add the following configuration to the config file.</p>
+<pre><code class="language-yaml">generic:
+  enabled: true
+  urlPrefix: https://example.com/mywebhookspath/
+  allowJsTransformationFunctions: false
+</code></pre>
+<p>The bridge listens for incoming webhooks on the host and port provided in the <code>webhook</code> configuration section. For example,
+a internal hook URL (using the default port) would look like <code>http://0.0.0.0:9000/abcdef</code>.</p>
+<p><code>urlPrefix</code> describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
+webhook requests from <code>https://example.com/mywebhookspath</code> to the bridge, an example webhook URL would look like:
+<code>https://example.com/mywebhookspath/abcdef</code>.</p>
+<h2 id="adding-a-webhook"><a class="header" href="#adding-a-webhook">Adding a webhook</a></h2>
+<p>To add a webhook to your room:</p>
+<ul>
+<li>Invite the bot user to the room.</li>
+<li>Make sure the bot able to send state events (usually the Moderator power level in clients)</li>
+<li>Say <code>!setup webhook</code></li>
+<li>The bot will respond with the webhook URL to be sent to services.</li>
+</ul>
+<h2 id="endpoint-options"><a class="header" href="#endpoint-options">Endpoint options</a></h2>
+<p>The webhook endpoint can handle a <code>GET</code>,<code>POST</code> or <code>PUT</code> request.</p>
+<p>If the request is a <code>GET</code> request, the query parameters are assumed to be the body.
+otherwise, the body of the request should be a JSON payload.</p>
+<p>If the body contains a <code>text</code> key, then that key will be used as a message body in Matrix.
+If the body <em>also</em> contains a <code>username</code> key, then the message will be prepended by the given username.</p>
+<p>Otherwise, the full JSON payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
+<h2 id="javascript-transformations"><a class="header" href="#javascript-transformations">JavaScript Transformations</a></h2>
+<section class="notice">
+Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
+in your room to prevent users from tampering with the script.
+</section>
+<p>This bridge support creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
+you a very powerful ability to generate messages based on whatever input is coming in.</p>
+<p>The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
+With that said, the feature is disabled by default and <code>allowJsTransformationFunctions</code> must be enabled in the config.</p>
+<p>The code snippets can be edited by editing the Matrix state event corresponding to this connection (with a state type of <code>uk.half-shot.matrix-hookshot.generic.hook</code>).
+Because this is a fairly advanced feature, this documentation won't go into how to edit state events from your client.
+Please seek out documentation from your client on how to achieve this. </p>
+<p>The script string should be set within the state event under the <code>transformationFunction</code> key.</p>
+<h3 id="script-api"><a class="header" href="#script-api">Script API</a></h3>
+<p>The scripts have a very minimal API. The execution environment will contain a <code>data</code> field, which will be the body
+of the incoming request (JSON will be parsed into an <code>Object</code>). Scripts are executed syncronously and a variable <code>result</code>
+is expected to be set in the execution, which will be used as the text value for the script. <code>result</code> will be automatically
+transformed by a Markdown parser.</p>
+<p>If the script contains errors or is otherwise unable to work, the bridge will send an error to the room.</p>
+<h3 id="example-script"><a class="header" href="#example-script">Example script</a></h3>
+<p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
+<pre><code class="language-js">if (data.counter &gt; data.maxValue) {
+    result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`
+} else {
+    result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
+}
+</code></pre>
 
                     </main>
 
@@ -153,7 +217,7 @@
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
-                                                    <a rel="next" href="../metrics.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                                    <a rel="next" href="../usage.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <i class="fa fa-angle-right"></i>
                             </a>
                         
@@ -167,7 +231,7 @@
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
-                                    <a rel="next" href="../metrics.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                    <a rel="next" href="../usage.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <i class="fa fa-angle-right"></i>
                     </a>
                             </nav>
