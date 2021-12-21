@@ -1,7 +1,5 @@
 # GitLab
 
-Setting up GitLab requires that you have access to create webhooks on repositories.
-
 ## Configuration
 
 GitLab configuration is fairly straight-forward:

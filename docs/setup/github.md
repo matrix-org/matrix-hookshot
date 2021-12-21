@@ -1,8 +1,5 @@
 Setting up GitHub
 ======
-
-In order to bridge GitHub with Hookshot, you will need to create a GitHub App.
-
 ## GitHub App
 
 This bridge requires a [GitHub App](https://github.com/settings/apps/new). You will need to create one.
