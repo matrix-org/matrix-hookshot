@@ -228,13 +228,25 @@ yarn # or npm i
 </ul>
 <p>You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a></p>
-<h3 id="webhooks-configuration"><a class="header" href="#webhooks-configuration">Webhooks configuration</a></h3>
-<p>You will need to configure the webhooks listener at a minimum to make the bridge functional.
-To do this, ensure that your configuration for <code>webhook</code> is correct:</p>
-<pre><code class="language-yaml">webhook:
-  port: 5061
-  host: 0.0.0.0
+<h3 id="listeners-configuration"><a class="header" href="#listeners-configuration">Listeners configuration</a></h3>
+<p>You will need to configure some listeners to make the bridge functional.</p>
+<pre><code class="language-yaml">  # (Optional) HTTP Listener configuration.
+  # Bind resource endpoints to ports and addresses.
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  #
+  - port: 9000
+    bindAddress: 0.0.0.0
+    resources:
+      - webhooks
+      - widgets
+  - port: 9001
+    bindAddress: 127.0.0.1
+    resources:
+      - metrics
+      - provisioning
 </code></pre>
+<p>At a minimum, you should bind the <code>webooks</code> resource to a port and address. You can have multiple resources on the same
+port, or one on each.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
 is reccomended to factor hookshot into your load balancer configuration, but currrently this process is left as an
 excercise to the user.</p>
@@ -306,16 +318,9 @@ generic:
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   userIdPrefix: webhooks_
-webhook:
-  # HTTP webhook listener options
-  #
-  port: 9000
-  bindAddress: 0.0.0.0
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
-  bindAddress: 127.0.0.1
-  port: 9001
   secret: &quot;!secretToken&quot;
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
@@ -331,8 +336,6 @@ metrics:
   # (Optional) Prometheus metrics support
   #
   enabled: true
-  bindAddress: 127.0.0.1
-  port: 9002
 queue:
   # (Optional) Message queue / cache configuration options for large scale deployments
   #
@@ -343,6 +346,21 @@ logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
   level: info
+listeners:
+  # (Optional) HTTP Listener configuration.
+  # Bind resource endpoints to ports and addresses.
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  #
+  - port: 9000
+    bindAddress: 0.0.0.0
+    resources:
+      - webhooks
+      - widgets
+  - port: 9001
+    bindAddress: 127.0.0.1
+    resources:
+      - metrics
+      - provisioning
 
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="setting-up-github"><a class="header" href="#setting-up-github">Setting up GitHub</a></h1>
