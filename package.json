@@ -1,7 +1,7 @@
 {
   "name": "matrix-hookshot",
-  "version": "0.1.0",
-  "description": "A bridge that displays GitHub issues/PRs as rooms.",
+  "version": "1.0.0",
+  "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.",
   "main": "lib/app.js",
   "repository": "https://github.com/Half-Shot/matrix-hookshot",
   "author": "Half-Shot",
