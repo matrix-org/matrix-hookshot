@@ -364,7 +364,6 @@ listeners:
 
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="setting-up-github"><a class="header" href="#setting-up-github">Setting up GitHub</a></h1>
-<p>In order to bridge GitHub with Hookshot, you will need to create a GitHub App.</p>
 <h2 id="github-app"><a class="header" href="#github-app">GitHub App</a></h2>
 <p>This bridge requires a <a href="https://github.com/settings/apps/new">GitHub App</a>. You will need to create one.</p>
 <p>Most of the configuration can be left up to you, but the important points are:</p>
@@ -442,7 +441,6 @@ are supported.</p>
 <p>If you have followed these steps correctly, GitHub should now be configured with hookshot 🥳.</p>
 <p>You can now follow the guide on <a href="setup/../usage/auth.html">authenticating with GitHub</a>, and then <a href="setup/../usage/room_configuration/github_repo.html#setting-up">bridging a room</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h1>
-<p>Setting up GitLab requires that you have access to create webhooks on repositories.</p>
 <h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
 <p>GitLab configuration is fairly straight-forward:</p>
 <pre><code class="language-yaml">  # (Optional) Configure this to enable GitLab support
@@ -478,12 +476,48 @@ You will want to give the URL of the public address for the hookshot webhooks po
 </code></pre>
 <p>Once this is done, you are bridged 🥳.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="jira"><a class="header" href="#jira">JIRA</a></h1>
-<p>TODO</p>
+<h2 id="adding-a-webhook-to-a-jira-organisation"><a class="header" href="#adding-a-webhook-to-a-jira-organisation">Adding a webhook to a JIRA Organisation</a></h2>
+<p>This should be done for all JIRA organisations you wish to bridge. The steps may differ for SaaS and on-prem, but
+you need to go to the <code>webhooks</code> configuration page under Settings &gt; System.</p>
+<p>Next, add a webhook that points to <code>/</code> on the public webhooks address for hookshot. You should also include a 
+secret value by appending <code>?secret=your-webhook-secret</code>. The secret value can be anything, but should
+be reasonably secure and should also be stored in the <code>config.yml</code> file.</p>
+<p>Ensure that you enable all the events that you wish to be bridge.</p>
+<h2 id="jira-oauth"><a class="header" href="#jira-oauth">JIRA OAuth</a></h2>
+<section class="notice">
+The JIRA service currently only supports atlassian.com (JIRA SaaS) when handling user authentication.
+Support for on-prem deployments is hoping to land soon.
+</section>
+<p>You will need a Atlassain account with the ability to use the developer tools in order to create the app.</p>
+<p>You'll first need to head to https://developer.atlassian.com/console/myapps/create-3lo-app/ to create a 
+&quot;OAuth 2.0 (3LO)&quot; integration.</p>
+<p>Once named and created, you will need to:
+- Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.
+- Use rotating tokens under Authorisation.
+- Set a callback url. This will be the public URL to hookshot with a path of <code>/jira/oauth</code>.
+- Copy the client ID and Secret from Settings</p>
+<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
+<p>You can now set some configuration in the bridge <code>config.yml</code></p>
+<pre><code class="language-yaml">jira:
+  webhook:
+    secret: auto-generated-config
+  oauth:
+    client_id: s2tkGiqj5TS1SOBlDP9Mc3e8m15w07pL
+    client_secret: wQcADRX_rw_6VmuFBOYPi6H9Q_Lh2fNsqTu520cX5IdqoUETH1zStFItmkDtEJtA
+    redirect_uri: https://f6bd-82-129-52-204.ngrok.io/jira/oauth
+</code></pre>
+<p>You can leave the <code>oauth</code> section blank if you are not planning to use those capabilities.</p>
+<p>The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/jira/oauth</code> on the webhooks path. E.g. if your load balancer
+points <code>https://example.com/hookshot</code> to the bridge's webhooks port, you should use the path <code>https://example.com/hookshot/oauth</code>.
+This value MUST exactly match the <strong>Callback URL</strong> on the JIRA integration page page.</p>
+<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next steps</a></h2>
+<p>If you have followed these steps correctly, JIRA should now be configured with hookshot 🥳.</p>
+<p>You can now follow the guide on <a href="setup/../usage/auth.html#jira">authenticating with JIRA</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="webhooks"><a class="header" href="#webhooks">Webhooks</a></h1>
 <p>Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol.</p>
 <h2 id="features"><a class="header" href="#features">Features</a></h2>
 <p>The webhook connection supports sending messages into a single Matrix room, by hitting an API endpoint.</p>
-<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
+<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
 <p>You will need to add the following configuration to the config file.</p>
 <pre><code class="language-yaml">generic:
   enabled: true
@@ -844,7 +878,7 @@ a new release.</p>
 </ul>
 </li>
 </ol>
-<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
+<h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
 <table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
 <tr><td>ignoreHooks</td><td>Choose to exclude notifications for some event types</td><td>Array of: <a href="usage/room_configuration/github_repo.html#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
