@@ -38,17 +38,17 @@ You can now set some configuration in the bridge `config.yml`
 ```yaml
 jira:
   webhook:
-    secret: auto-generated-config
+    secret: some-secret
   oauth:
-    client_id: s2tkGiqj5TS1SOBlDP9Mc3e8m15w07pL
-    client_secret: wQcADRX_rw_6VmuFBOYPi6H9Q_Lh2fNsqTu520cX5IdqoUETH1zStFItmkDtEJtA
-    redirect_uri: https://f6bd-82-129-52-204.ngrok.io/jira/oauth
+    client_id: your-client-id
+    client_secret: your-client-secret
+    redirect_uri: https://example.com/hookshot/jira/oauth
 ```
 
 You can leave the `oauth` section blank if you are not planning to use those capabilities.
 
 The `redirect_uri` value must be the **public** path to `/jira/oauth` on the webhooks path. E.g. if your load balancer
-points `https://example.com/hookshot` to the bridge's webhooks port, you should use the path `https://example.com/hookshot/oauth`.
+points `https://example.com/hookshot` to the bridge's webhooks port, you should use the path `https://example.com/hookshot/jira/oauth`.
 This value MUST exactly match the **Callback URL** on the JIRA integration page page.
 
 ## Next steps
