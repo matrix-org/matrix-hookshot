@@ -500,15 +500,15 @@ Support for on-prem deployments is hoping to land soon.
 <p>You can now set some configuration in the bridge <code>config.yml</code></p>
 <pre><code class="language-yaml">jira:
   webhook:
-    secret: auto-generated-config
+    secret: some-secret
   oauth:
-    client_id: s2tkGiqj5TS1SOBlDP9Mc3e8m15w07pL
-    client_secret: wQcADRX_rw_6VmuFBOYPi6H9Q_Lh2fNsqTu520cX5IdqoUETH1zStFItmkDtEJtA
-    redirect_uri: https://f6bd-82-129-52-204.ngrok.io/jira/oauth
+    client_id: your-client-id
+    client_secret: your-client-secret
+    redirect_uri: https://example.com/hookshot/jira/oauth
 </code></pre>
 <p>You can leave the <code>oauth</code> section blank if you are not planning to use those capabilities.</p>
 <p>The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/jira/oauth</code> on the webhooks path. E.g. if your load balancer
-points <code>https://example.com/hookshot</code> to the bridge's webhooks port, you should use the path <code>https://example.com/hookshot/oauth</code>.
+points <code>https://example.com/hookshot</code> to the bridge's webhooks port, you should use the path <code>https://example.com/hookshot/jira/oauth</code>.
 This value MUST exactly match the <strong>Callback URL</strong> on the JIRA integration page page.</p>
 <h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next steps</a></h2>
 <p>If you have followed these steps correctly, JIRA should now be configured with hookshot 🥳.</p>
