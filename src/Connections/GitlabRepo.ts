@@ -212,7 +212,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
         const message = attributes.message && ` "${attributes.message}"`;
 
-        const content = `**${data.user.username}** ${statement} [\`${attributes.title}\`](${attributes.url}) for ${data.project.path_with_namespace} ${message}`;
+        const content = `**${data.user.username}** ${statement} "[${attributes.title}](${attributes.url})" for ${data.project.path_with_namespace} ${message}`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
