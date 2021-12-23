@@ -86,6 +86,23 @@ export interface IGitLabWebhookTagPushEvent {
     repository: IGitlabRepository;
 }
 
+export interface IGitLabWebhookWikiPageEvent {
+    object_kind: "wiki_page";
+    user: IGitlabUser;
+    project: IGitlabProject;
+    wiki: {
+        web_url: string;
+        path_with_namespace: string;
+    };
+    object_attributes: {
+        title: string;
+        url: string;
+        message: string;
+        format: "markdown";
+        content: string;
+        action: "create"|"update"|"delete";
+    };
+}
 
 export interface IGitLabWebhookNoteEvent {
     user: IGitlabUser;
