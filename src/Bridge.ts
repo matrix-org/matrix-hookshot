@@ -334,7 +334,7 @@ export class Bridge {
         this.bindHandlerToQueue<IGitLabWebhookWikiPageEvent, GitLabRepoConnection>(
             "gitlab.wiki_page",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
-            (c, data) => c.onMergeRequestOpened(data),
+            (c, data) => c.onWikiPageEvent(data),
         );
 
         this.queue.on<UserNotificationsEvent>("notifications.user.events", async (msg) => {
