@@ -89,6 +89,8 @@ export class Webhooks extends EventEmitter {
             return `gitlab.note.created`;
         } else if (body.object_kind === "tag_push") {
             return "gitlab.tag_push";
+        } else if (body.object_kind === "wiki_page") {
+            return "gitlab.wiki_page";
         } else {
             return null;
         }
