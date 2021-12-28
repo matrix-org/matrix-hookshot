@@ -14,7 +14,7 @@
     - [GitHub Repo](./usage/room_configuration/github_repo.md)
 - [📊 Metrics](./metrics.md)
 
-## 🥼 Advanced
+# 🥼 Advanced
 
 - [Provisioning](./advanced/provisioning.md)
 - [Workers](./advanced/workers.md)
