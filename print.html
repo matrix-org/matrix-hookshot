@@ -227,7 +227,7 @@ yarn # or npm i
 <li>At a minimum, you will need to replace the <code>as_token</code> and <code>hs_token</code> and change the domain part of the namespaces.</li>
 </ul>
 <p>You will need to link the registration file to the homeserver. Consult your homeserver documentation
-on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a></p>
+on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a>.</p>
 <h3 id="listeners-configuration"><a class="header" href="#listeners-configuration">Listeners configuration</a></h3>
 <p>You will need to configure some listeners to make the bridge functional.</p>
 <pre><code class="language-yaml">  # (Optional) HTTP Listener configuration.
@@ -248,7 +248,7 @@ on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/
 <p>At a minimum, you should bind the <code>webooks</code> resource to a port and address. You can have multiple resources on the same
 port, or one on each.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is reccomended to factor hookshot into your load balancer configuration, but currrently this process is left as an
+is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
 excercise to the user.</p>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
 <p>You will need to configure some services. Each service has it's own documentation file inside the the setup subdirectory.</p>
