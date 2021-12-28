@@ -56,7 +56,7 @@ Copy `registration.sample.yml` into `registration.yml` and fill in:
 - At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
-on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html)
+on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
 
 ### Listeners configuration
 
@@ -83,7 +83,7 @@ At a minimum, you should bind the `webooks` resource to a port and address. You 
 port, or one on each.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is reccomended to factor hookshot into your load balancer configuration, but currrently this process is left as an
+is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
 excercise to the user.
 
 ### Services configuration
