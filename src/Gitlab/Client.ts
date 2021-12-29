@@ -3,6 +3,7 @@ import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse } from "./Types";
 import LogWrapper from "../LogWrapper";
 import { URLSearchParams } from "url";
+import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("GitLabClient");
 export class GitLabClient {
@@ -23,7 +24,7 @@ export class GitLabClient {
         return {
             headers: {
                 "Authorization": `Bearer ${this.token}`,
-                "User-Agent": "matrix-hookshot v0.0.1",
+                "User-Agent": UserAgent,
             },
             baseURL: this.instanceUrl
         };
