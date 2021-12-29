@@ -1,30 +1,27 @@
 use crate::Jira;
-use crate::Jira::types::{JiraIssue, JiraIssueLight};
+use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
 use contrast;
 use md5::{Digest, Md5};
-use napi::{CallContext, Env, Error as NapiError, JsObject, JsString, JsUnknown, Status};
+use napi_derive::napi;
+use napi::bindgen_prelude::*;
 use rgb::RGB;
 use std::fmt::Write;
 
 #[derive(Serialize, Debug, Deserialize)]
-struct IssueLabelDetail {
-    color: Option<String>,
-    name: String,
-    description: Option<String>,
+#[napi(object)]
+pub struct IssueLabelDetail {
+    pub color: Option<String>,
+    pub name: String,
+    pub description: Option<String>,
 }
 
-pub fn get_module(env: Env) -> Result<JsObject, NapiError> {
-    let mut root_module = env.create_object()?;
-    root_module.create_named_method(
-        "get_partial_body_for_jira_issue",
-        get_partial_body_for_jira_issue,
-    )?;
-    root_module.create_named_method("format_labels", format_labels)?;
-    root_module.create_named_method("hash_id", hash_id)?;
-    Ok(root_module)
+#[napi(object)]
+pub struct MatrixMessageFormatResult {
+    pub html: String,
+    pub plain: String,
 }
 
-fn parse_rgb(input_color: String) -> Result<rgb::RGB8, NapiError> {
+fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
     let chunk_size;
     let color;
     if input_color.starts_with('#') {
@@ -42,41 +39,42 @@ fn parse_rgb(input_color: String) -> Result<rgb::RGB8, NapiError> {
             chunk_size = 1;
         }
         _ => {
-            return Err(NapiError::new(
+            return Err(Error::new(
                 Status::InvalidArg,
                 format!("color '{}' is invalid", color).to_string(),
             ));
         }
     }
-    let rgb = color
-        .as_bytes()
-        .chunks(chunk_size)
-        .map(std::str::from_utf8)
-        .collect::<Result<Vec<&str>, _>>()
-        .unwrap();
-    let r = u8::from_str_radix(rgb[0], 16).unwrap();
-    let g = u8::from_str_radix(rgb[1], 16).unwrap();
-    let b = u8::from_str_radix(rgb[2], 16).unwrap();
-    Ok(RGB::new(r, g, b))
+    let mut rgb = RGB::default();
+    let i = 0;
+    for color_byte in color.as_bytes().chunks(chunk_size) {
+        let val = std::str::from_utf8(color_byte).map_err(
+            |e| Error::new(
+                Status::InvalidArg,
+                format!("UTF8Error '{}' when converting rgb component", e).to_string(),
+            )
+        ).and_then(|v| u8::from_str_radix(v, 16).map_err(
+            |e| Error::new(
+                Status::InvalidArg,
+                format!("Integer parse error '{}' when converting rgb component", e).to_string(),
+            )))?;
+        if i == 0 {
+            rgb.r = val;
+        } else if i == 1 {
+            rgb.g = val;
+        } else if i == 2 {
+            rgb.b = val;
+        }
+    }
+    Ok(rgb)
 }
 
-#[js_function(1)]
-pub fn format_labels(ctx: CallContext) -> Result<JsObject, NapiError> {
-    let array: JsObject = ctx.get::<JsObject>(0)?;
-    if array.is_array()? != true {
-        return Err(NapiError::new(
-            Status::InvalidArg,
-            "labels is not an array".to_string(),
-        ));
-    }
+#[napi]
+pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormatResult> {
     let mut plain = String::new();
     let mut html = String::new();
     let mut i = 0;
-    while array.has_element(i)? {
-        let label: IssueLabelDetail = ctx
-            .env
-            .from_js_value(array.get_element_unchecked::<JsUnknown>(i)?)?;
-
+    for label in array {
         if i != 0 {
             plain.push_str(", ");
             html.push_str(" ");
@@ -112,59 +110,40 @@ pub fn format_labels(ctx: CallContext) -> Result<JsObject, NapiError> {
         i += 1;
     }
 
-    let mut body = ctx.env.create_object()?;
-    body.set_named_property("plain", ctx.env.create_string_from_std(plain)?)?;
-    body.set_named_property("html", ctx.env.create_string_from_std(html)?)?;
-    Ok(body)
+    Ok(MatrixMessageFormatResult{
+        html: html,
+        plain: plain
+    })
 }
 
 /// Generate a URL for a given Jira Issue object.
-#[js_function(1)]
-pub fn get_partial_body_for_jira_issue(ctx: CallContext) -> Result<JsObject, NapiError> {
-    let jira_issue: JiraIssue = ctx.env.from_js_value(ctx.get::<JsUnknown>(0)?)?;
-    let light = JiraIssueLight {
+#[napi]
+pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssueMessageBody> {
+    let light_issue = JiraIssueLight {
         _self: jira_issue._self,
         key: jira_issue.key,
     };
-    let mut body = ctx.env.create_object()?;
-    let url = Jira::utils::generate_jira_web_link_from_issue(&light)?;
-    body.set_named_property("external_url", ctx.env.create_string_from_std(url)?)?;
-
-    let mut jira_issue_result = ctx.env.create_object()?;
-    let mut jira_project = ctx.env.create_object()?;
-
-    jira_issue_result.set_named_property("id", ctx.env.create_string_from_std(jira_issue.id)?)?;
-    jira_issue_result.set_named_property("key", ctx.env.create_string_from_std(light.key)?)?;
-    jira_issue_result
-        .set_named_property("api_url", ctx.env.create_string_from_std(light._self)?)?;
-
-    jira_project.set_named_property(
-        "id",
-        ctx.env
-            .create_string_from_std(jira_issue.fields.project.id)?,
-    )?;
-    jira_project.set_named_property(
-        "key",
-        ctx.env
-            .create_string_from_std(jira_issue.fields.project.key)?,
-    )?;
-    jira_project.set_named_property(
-        "api_url",
-        ctx.env
-            .create_string_from_std(jira_issue.fields.project._self)?,
-    )?;
-
-    body.set_named_property("uk.half-shot.matrix-hookshot.jira.issue", jira_issue_result)?;
-    body.set_named_property("uk.half-shot.matrix-hookshot.jira.project", jira_project)?;
-    Ok(body)
+    let external_url = Jira::utils::generate_jira_web_link_from_issue(&light_issue)?;
+    
+    Ok(JiraIssueMessageBody {
+        jira_issue: JiraIssueSimpleItem {
+            id: jira_issue.id,
+            key: light_issue.key,
+            api_url: light_issue._self,
+        },
+        jira_project: JiraIssueSimpleItem {
+            id: jira_issue.fields.project.id,
+            key: jira_issue.fields.project.key,
+            api_url: jira_issue.fields.project._self,
+        },
+        external_url: external_url,
+    })
 }
 
 /// Generate a URL for a given Jira Issue object.
-#[js_function(1)]
-pub fn hash_id(ctx: CallContext) -> Result<JsString, NapiError> {
-    let id = ctx.get::<JsString>(0)?;
+#[napi]
+pub fn hash_id(id: String) -> Result<String> {
     let mut hasher = Md5::new();
-    hasher.input(id.into_utf8()?.as_str()?);
-    let result = hex::encode(hasher.result());
-    ctx.env.create_string_from_std(result)
+    hasher.input(id);
+    Ok(hex::encode(hasher.result()))
 }
