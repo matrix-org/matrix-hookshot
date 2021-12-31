@@ -102,7 +102,7 @@ export class Bridge {
     public async start() {
         log.info('Starting up');
 
-        if (!this.config.github && !this.config.gitlab && !this.config.jira) {
+        if (!this.config.github && !this.config.gitlab && !this.config.jira && !this.config.generic) {
             log.error("You haven't configured support for GitHub or GitLab!");
             throw Error('Bridge cannot start -- no connectors are configured');
         }
