@@ -18,7 +18,7 @@ jobs:
       with:
         node-version: 16
     - run: yarn --ignore-scripts
-    - run: yarn lint
+    - run: yarn lint:js
   lint-rust:
    runs-on: ubuntu-latest
    steps:
