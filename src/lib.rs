@@ -1,4 +1,3 @@
-
 pub mod Jira;
 pub mod format_util;
 
