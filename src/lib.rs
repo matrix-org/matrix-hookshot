@@ -1,5 +1,6 @@
-pub mod FormatUtil;
+
 pub mod Jira;
+pub mod format_util;
 
 #[macro_use]
 extern crate napi_derive;
