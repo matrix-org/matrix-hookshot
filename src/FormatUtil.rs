@@ -2,8 +2,8 @@ use crate::Jira;
 use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
 use contrast;
 use md5::{Digest, Md5};
-use napi_derive::napi;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use rgb::RGB;
 use std::fmt::Write;
 
@@ -48,16 +48,22 @@ fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
     let mut rgb = RGB::default();
     let i = 0;
     for color_byte in color.as_bytes().chunks(chunk_size) {
-        let val = std::str::from_utf8(color_byte).map_err(
-            |e| Error::new(
-                Status::InvalidArg,
-                format!("UTF8Error '{}' when converting rgb component", e).to_string(),
-            )
-        ).and_then(|v| u8::from_str_radix(v, 16).map_err(
-            |e| Error::new(
-                Status::InvalidArg,
-                format!("Integer parse error '{}' when converting rgb component", e).to_string(),
-            )))?;
+        let val = std::str::from_utf8(color_byte)
+            .map_err(|e| {
+                Error::new(
+                    Status::InvalidArg,
+                    format!("UTF8Error '{}' when converting rgb component", e).to_string(),
+                )
+            })
+            .and_then(|v| {
+                u8::from_str_radix(v, 16).map_err(|e| {
+                    Error::new(
+                        Status::InvalidArg,
+                        format!("Integer parse error '{}' when converting rgb component", e)
+                            .to_string(),
+                    )
+                })
+            })?;
         if i == 0 {
             rgb.r = val;
         } else if i == 1 {
@@ -110,9 +116,9 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
         i += 1;
     }
 
-    Ok(MatrixMessageFormatResult{
+    Ok(MatrixMessageFormatResult {
         html: html,
-        plain: plain
+        plain: plain,
     })
 }
 
@@ -124,7 +130,7 @@ pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssu
         key: jira_issue.key,
     };
     let external_url = Jira::utils::generate_jira_web_link_from_issue(&light_issue)?;
-    
+
     Ok(JiraIssueMessageBody {
         jira_issue: JiraIssueSimpleItem {
             id: jira_issue.id,

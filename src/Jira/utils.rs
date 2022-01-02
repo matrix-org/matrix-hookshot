@@ -1,10 +1,10 @@
 use super::types::JiraIssueLight;
-use napi_derive::napi;
 use napi::bindgen_prelude::*;
+use napi_derive::napi;
 use url::Url;
 
 /// Generate a URL for a given Jira Issue object.
-#[napi(js_name="generateJiraWeblinkFromIssue")]
+#[napi(js_name = "generateJiraWeblinkFromIssue")]
 pub fn js_generate_jira_web_link_from_issue(jira_issue: JiraIssueLight) -> Result<String> {
     return generate_jira_web_link_from_issue(&jira_issue);
 }
