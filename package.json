@@ -20,7 +20,7 @@
     "build:app:fix-defs": "ts-node scripts/definitions-fixer.ts src/libRs.d.ts",
     "build:docs": "ts-node scripts/build-metrics-docs.ts > docs/metrics.md && mdbook build",
     "dev:web": "snowpack dev",
-    "build": "yarn run build:web && yarn run build:app:rs && yarn run build:app:fix-defs && yarn run build:app",
+    "build": "scripts/build-app.sh",
     "prepare": "yarn build",
     "start": "node --require source-map-support/register lib/App/BridgeApp.js",
     "start:app": "node --require source-map-support/register lib/App/BridgeApp.js",
