@@ -6,7 +6,7 @@ import { VMScript as Script, NodeVM } from "vm2";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice } from "matrix-bot-sdk";
 import { v4 as uuid} from "uuid";
-import { BridgeGenericWebhooksConfig } from "../Config/Config";
+import { BridgeGenericWebhooksConfig } from "../config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
 import { BaseConnection } from "./BaseConnection";
 export interface GenericHookConnectionState {

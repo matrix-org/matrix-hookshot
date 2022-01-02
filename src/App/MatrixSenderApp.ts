@@ -1,4 +1,4 @@
-import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
+import { BridgeConfig, parseRegistrationFile } from "../config/Config";
 import { MatrixSender } from "../MatrixSender";
 import LogWrapper from "../LogWrapper";
 import Metrics from "../Metrics";

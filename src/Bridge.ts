@@ -1,7 +1,7 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider, EventKind } from "matrix-bot-sdk";
-import { BridgeConfig, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, GitLabInstance } from "./config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";

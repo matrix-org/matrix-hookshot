@@ -5,7 +5,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { GitLabInstance } from "../Config/Config";
+import { GitLabInstance } from "../config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { getIntentForUser } from "../IntentUtils";

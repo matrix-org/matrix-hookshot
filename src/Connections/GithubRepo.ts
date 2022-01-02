@@ -17,7 +17,7 @@ import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from ".";
-import { BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
 import { Issue } from "@octokit/webhooks-types"
 const log = new LogWrapper("GitHubRepoConnection");

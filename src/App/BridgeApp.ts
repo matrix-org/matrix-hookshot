@@ -1,7 +1,7 @@
 import { Bridge } from "../Bridge";
 import LogWrapper from "../LogWrapper";
 
-import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
+import { BridgeConfig, parseRegistrationFile } from "../config/Config";
 import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";

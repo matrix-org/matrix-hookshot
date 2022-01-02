@@ -1,4 +1,4 @@
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import { Webhooks } from "../Webhooks";
 import LogWrapper from "../LogWrapper";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";

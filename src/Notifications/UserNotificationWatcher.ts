@@ -6,7 +6,7 @@ import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";
 import { GitHubUserNotification } from "../Github/Types";
 import { GitLabWatcher } from "./GitLabWatcher";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import Metrics from "../Metrics";
 export interface UserNotificationsEvent {
     roomId: string;

@@ -10,7 +10,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import { GithubInstance } from "../Github/GithubInstance";
 import { JiraProject } from "../Jira/Types";
 import { v4 as uuid } from "uuid";
-import { BridgeGenericWebhooksConfig } from "../Config/Config";
+import { BridgeGenericWebhooksConfig } from "../config/Config";
 import markdown from "markdown-it";
 const md = new markdown();
 

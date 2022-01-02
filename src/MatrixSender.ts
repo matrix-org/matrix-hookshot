@@ -1,4 +1,4 @@
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MatrixEventContent, MatrixMessageContent } from "./MatrixEvent";
 import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";

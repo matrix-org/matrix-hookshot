@@ -6,7 +6,7 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
-import { GitLabInstance } from "../Config/Config";
+import { GitLabInstance } from "../config/Config";
 import { IGitLabWebhookMREvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 

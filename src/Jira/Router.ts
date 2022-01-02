@@ -1,4 +1,4 @@
-import { BridgeConfigJira } from "../Config/Config";
+import { BridgeConfigJira } from "../config/Config";
 import { generateJiraURL } from "./AdminCommands";
 import { JiraOAuthResult } from "./Types";
 import { MessageQueue } from "../MessageQueue";

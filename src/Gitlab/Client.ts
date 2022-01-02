@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GitLabInstance } from "../Config/Config";
+import { GitLabInstance } from "../config/Config";
 import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse } from "./Types";
 import LogWrapper from "../LogWrapper";
 import { URLSearchParams } from "url";

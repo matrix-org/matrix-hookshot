@@ -6,7 +6,7 @@
 
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
-import { BridgeConfig, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, GitLabInstance } from "./config/Config";
 import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
 import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";

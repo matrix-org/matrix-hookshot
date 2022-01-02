@@ -6,7 +6,7 @@ import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
 import { JiraClient } from "./Jira/Client";
 import { JiraOAuthResult } from "./Jira/Types";
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { v4 as uuid } from "uuid";
 import { GitHubOAuthToken } from "./Github/Types";
 

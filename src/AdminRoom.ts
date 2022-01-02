@@ -2,7 +2,7 @@
 import "reflect-metadata";
 import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
 import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 import { CommandError } from "./errors";
 import { Endpoints } from "@octokit/types";

@@ -3,7 +3,7 @@ import axios, { Method } from 'axios';
 import JiraApi, { SearchUserOptions } from 'jira-client';
 import QuickLRU from "@alloc/quick-lru";
 import { JiraAccount, JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject } from './Types';
-import { BridgeConfigJira } from '../Config/Config';
+import { BridgeConfigJira } from '../config/Config';
 import LogWrapper from '../LogWrapper';
 
 const log = new LogWrapper("JiraClient");

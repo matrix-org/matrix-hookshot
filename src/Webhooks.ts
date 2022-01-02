@@ -1,4 +1,4 @@
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
