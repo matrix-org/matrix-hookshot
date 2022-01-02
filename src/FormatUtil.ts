@@ -4,7 +4,7 @@ import emoji from "node-emoji";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
 import { JiraIssue } from './Jira/Types';
-import { format_util } from "./libRs";
+import { formatLabels, getPartialBodyForJiraIssue, hashId } from "./libRs";
 
 interface IMinimalRepository {
     id: number;
@@ -115,14 +115,14 @@ export class FormatUtil {
     }
 
     public static formatLabels(labels: ILabel[] = []): { plain: string, html: string } {
-        return format_util.format_labels(labels);
+        return formatLabels(labels);
     }
 
     public static getPartialBodyForJiraIssue(issue: JiraIssue) {
-        return format_util.get_partial_body_for_jira_issue(issue);
+        return getPartialBodyForJiraIssue(issue);
     }
 
     public static hashId(id: string) {
-        return format_util.hash_id(id);
+        return hashId(id);
     }
 }
