@@ -8,7 +8,7 @@ async function processDefFile() {
   const file = await fs.readFile(path, "utf-8");
   const out = await fs.open(path, 'w');
   for (const line of file.split('\n')) {
-    const match = /(uk\.half-shot[\w.-]+):/g.exec(line);
+    const match = / {2}(\w+\.[\w.-]+):/g.exec(line);
     out.write((match ? line.replace(match[1], `"${match[1]}"`) : line) + "\n");
   }
 }
