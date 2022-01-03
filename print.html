@@ -245,7 +245,7 @@ on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/
       - metrics
       - provisioning
 </code></pre>
-<p>At a minimum, you should bind the <code>webooks</code> resource to a port and address. You can have multiple resources on the same
+<p>At a minimum, you should bind the <code>webhooks</code> resource to a port and address. You can have multiple resources on the same
 port, or one on each.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
 is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
@@ -549,7 +549,7 @@ If the body <em>also</em> contains a <code>username</code> key, then the message
 Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
 in your room to prevent users from tampering with the script.
 </section>
-<p>This bridge support creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
+<p>This bridge supports creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.</p>
 <p>The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
 With that said, the feature is disabled by default and <code>allowJsTransformationFunctions</code> must be enabled in the config.</p>
@@ -861,7 +861,7 @@ heading.</p>
 see the documentation provided for information on each connection type.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="github-repository"><a class="header" href="#github-repository">GitHub Repository</a></h1>
 <p>This connection type connects a GitHub repository (e.g. https://github.com/Half-Shot/matrix-hookshot) to a room.</p>
-<p>You can run commands to create and manipulate issues, and recieve notifications when something changes such as
+<p>You can run commands to create and manipulate issues, and receive notifications when something changes such as
 a new release.</p>
 <h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
 <p>To set up a connection to a GitHub Repository in a new room:</p>

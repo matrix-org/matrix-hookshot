@@ -186,7 +186,7 @@ If the body <em>also</em> contains a <code>username</code> key, then the message
 Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
 in your room to prevent users from tampering with the script.
 </section>
-<p>This bridge support creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
+<p>This bridge supports creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.</p>
 <p>The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
 With that said, the feature is disabled by default and <code>allowJsTransformationFunctions</code> must be enabled in the config.</p>
