@@ -44,7 +44,7 @@
     "ioredis": "^4.28.0",
     "jira-client": "^8.0.0",
     "markdown-it": "^12.2.0",
-    "matrix-bot-sdk": "^0.5.19",
+    "matrix-bot-sdk": "^v0.6.0-beta.3",
     "matrix-widget-api": "^0.1.0-beta.17",
     "micromatch": "^4.0.4",
     "mime": "^3.0.0",

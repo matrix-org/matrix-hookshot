@@ -2,9 +2,11 @@ use std::fs::File;
 use std::collections::HashMap;
 use napi::{Error, Status};
 
-use self::config::{BridgeConfig, BridgeConfigLogging, BridgeConfigYAML, BridgeConfigLoggingYAML};
+use self::config::{*};
 
 pub mod config;
+pub mod defaults;
+
 
 #[napi]
 impl BridgeConfig {
@@ -30,7 +32,6 @@ impl BridgeConfig {
         Ok(o) => BridgeConfig::new(o, env),
         Err(e) => Err(e)
     }
-
   }
 
   #[napi(constructor)]
@@ -39,14 +40,27 @@ impl BridgeConfig {
       level: Some("info".to_string())
     });
     let mut config = BridgeConfig {
+      bot: config_yaml.bot,
+      bridge: config_yaml.bridge,
       logging: BridgeConfigLogging {
-        level: logging_yaml.level.unwrap_or("info".to_string())
-      }
+        level: logging_yaml.level.unwrap_or_else(|| "info".to_string())
+      },
+      queue: config_yaml.queue,
+      listeners: config_yaml.listeners.unwrap_or_else(|| Vec::default())
     };
     match env.get("LOG_LEVEL") {
         Some(log_level) => config.logging.level = log_level.to_string(),
         None => { }
     }
+    // Handle legacy 'webhook' config
+    match config_yaml.webhook {
+    Some(webhook_cfg) => config.listeners.push( BridgeConfigListener {
+      bind_address: webhook_cfg.bind_address,
+      port: webhook_cfg.port,
+      resources: vec!("webhooks".to_string()),
+    }),
+    None => { }
+}
     Ok(config)
   }
 }
@@ -54,12 +68,11 @@ impl BridgeConfig {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-
-    use crate::config::config::{BridgeConfig};
+    use crate::config::{defaults::DefaultBridgeConfig, config::BridgeConfig};
 
     #[test]
-    fn it_works() {
-      let cfg = BridgeConfig::parse_config("./config.sample.yml".to_string(), HashMap::new()).unwrap();
+    fn test_sample_config() {
+      let cfg: BridgeConfig = DefaultBridgeConfig::new().into();
       assert_eq!(cfg.logging.level, "info");
     }
 }
