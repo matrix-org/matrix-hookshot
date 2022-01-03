@@ -3,7 +3,7 @@ GitHub Repository
 
 This connection type connects a GitHub repository (e.g. https://github.com/Half-Shot/matrix-hookshot) to a room.
 
-You can run commands to create and manipulate issues, and recieve notifications when something changes such as
+You can run commands to create and manipulate issues, and receive notifications when something changes such as
 a new release.
 
 ## Setting up
