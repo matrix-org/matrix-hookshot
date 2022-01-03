@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# exit when any command fails
+set -e
+
 echo "Building web"
 yarn run build:web
 echo "Building Rust layer"
