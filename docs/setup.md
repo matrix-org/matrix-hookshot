@@ -79,7 +79,7 @@ You will need to configure some listeners to make the bridge functional.
       - provisioning
 ```
 
-At a minimum, you should bind the `webooks` resource to a port and address. You can have multiple resources on the same
+At a minimum, you should bind the `webhooks` resource to a port and address. You can have multiple resources on the same
 port, or one on each.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
