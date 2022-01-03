@@ -12,6 +12,7 @@
 }
 
 .warning {
+    color: black;
     border: 2px solid #dda02f;
     border-left-width: 2px;
     border-left-width: 5px;
