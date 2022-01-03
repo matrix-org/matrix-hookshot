@@ -51,7 +51,7 @@ Although every effort has been made to securely sandbox scripts, running untrust
 in your room to prevent users from tampering with the script.
 </section>
 
-This bridge support creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
+This bridge supports creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.
 
 The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
