@@ -885,8 +885,8 @@ a new release.</p>
 <tr><td>commandPrefix</td><td>Choose the prefix to use when sending commands to the bot</td><td>A string, ideally starts with &quot;!&quot;</td><td><code>!gh</code></td></tr>
 <tr><td>showIssueRoomLink</td><td>When new issues are created, provide a Matrix alias link to the issue room</td><td><code>true/false</code></td><td><code>false</code></td></tr>
 <tr><td>prDiff</td><td>Show a diff in the room when a PR is created, subject to limits</td><td><code>{enabled: boolean, maxLines: number}</code></td><td><code>{enabled: false}</code></td></tr>
-<tr><td>includingLabels</td><td>Only notify on issues matching these label names</td><td>Any string matching a label name</td><td><em>empty</em></td></tr>
-<tr><td>excludingLabels</td><td>Never notify on issues matching these label names</td><td>Any string matching a label name</td><td><em>empty</em></td></tr>
+<tr><td>includingLabels</td><td>Only notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
+<tr><td>excludingLabels</td><td>Never notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 </tbody></table>
 <h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
