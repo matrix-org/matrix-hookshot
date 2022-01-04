@@ -272,17 +272,3 @@ export async function parseRegistrationFile(filename: string) {
     const file = await fs.readFile(filename, "utf-8");
     return YAML.parse(file) as IAppserviceRegistration;
 }
-
-
-// Can be called directly
-if (require.main === module) {
-    BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
-        // eslint-disable-next-line no-console
-        console.log('Config successfully validated.');
-        process.exit(0);
-    }).catch(ex => {
-        // eslint-disable-next-line no-console
-        console.error('Error in config:', ex);
-        process.exit(1);
-    });
-}
