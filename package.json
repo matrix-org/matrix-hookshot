@@ -30,7 +30,8 @@
     "lint": "yarn run lint:js && yarn run lint:rs",
     "lint:js": "eslint -c .eslintrc.js src/**/*.ts",
     "lint:rs": "cargo fmt --all -- --check",
-    "generate-default-config": "ts-node src/Config/Defaults.ts --config > config.sample.yml"
+    "generate-default-config": "ts-node src/Config/Defaults.ts --config > config.sample.yml",
+    "validate-config": "ts-node src/Config/Config.ts"
   },
   "dependencies": {
     "@alloc/quick-lru": "^5.2.0",
