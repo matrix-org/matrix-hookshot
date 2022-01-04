@@ -85,13 +85,12 @@ logging:
 listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning
   #
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
       - webhooks
-      - widgets
   - port: 9001
     bindAddress: 127.0.0.1
     resources:

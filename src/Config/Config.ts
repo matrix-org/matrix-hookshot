@@ -190,6 +190,8 @@ export class BridgeConfig {
 
     @configKey(`HTTP Listener configuration.
  Bind resource endpoints to ports and addresses.
+ 'port' must be specified. Each listener must listen on a unique port.
+ 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
  'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
 
