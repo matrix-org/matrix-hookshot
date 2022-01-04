@@ -230,15 +230,15 @@ yarn # or npm i
 on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a>.</p>
 <h3 id="listeners-configuration"><a class="header" href="#listeners-configuration">Listeners configuration</a></h3>
 <p>You will need to configure some listeners to make the bridge functional.</p>
-<pre><code class="language-yaml">  # (Optional) HTTP Listener configuration.
+<pre><code class="language-yaml">listeners:
+  # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning
   #
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
       - webhooks
-      - widgets
   - port: 9001
     bindAddress: 127.0.0.1
     resources:
@@ -246,10 +246,32 @@ on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/
       - provisioning
 </code></pre>
 <p>At a minimum, you should bind the <code>webhooks</code> resource to a port and address. You can have multiple resources on the same
-port, or one on each.</p>
+port, or one on each. Each listener MUST listen on a unique port.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
 is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
 excercise to the user.</p>
+<p>In terms of API endpoints:</p>
+<ul>
+<li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on it's own listener.</li>
+<li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
+<li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
+</ul>
+<h4 id="appservice-listener"><a class="header" href="#appservice-listener">Appservice listener</a></h4>
+<section class="notice">
+Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge due to lack of support
+in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
+</section>
+<pre><code class="language-yaml">bridge:
+  # Basic homeserver configuration
+  #
+  domain: example.com
+  url: http://localhost:8008
+  mediaUrl: http://example.com
+  port: 9993
+  bindAddress: 127.0.0.1
+</code></pre>
+<p>The <code>port</code> and <code>bindAddress</code> must not conflict with the other listeners in the bridge config. This listeners should <strong>not</strong> be reachable
+over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on <code>/_matrix/app/</code>.</p>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
 <p>You will need to configure some services. Each service has it's own documentation file inside the the setup subdirectory.</p>
 <ul>
@@ -349,13 +371,14 @@ logging:
 listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  # 'port' must be specified. Each listener must listen on a unique port.
+  # 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning
   #
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
       - webhooks
-      - widgets
   - port: 9001
     bindAddress: 127.0.0.1
     resources:
@@ -514,9 +537,8 @@ This value MUST exactly match the <strong>Callback URL</strong> on the JIRA inte
 <p>If you have followed these steps correctly, JIRA should now be configured with hookshot 🥳.</p>
 <p>You can now follow the guide on <a href="setup/../usage/auth.html#jira">authenticating with JIRA</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="webhooks"><a class="header" href="#webhooks">Webhooks</a></h1>
-<p>Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol.</p>
-<h2 id="features"><a class="header" href="#features">Features</a></h2>
-<p>The webhook connection supports sending messages into a single Matrix room, by hitting an API endpoint.</p>
+<p>Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
+by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.</p>
 <h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
 <p>You will need to add the following configuration to the config file.</p>
 <pre><code class="language-yaml">generic:
@@ -524,10 +546,9 @@ This value MUST exactly match the <strong>Callback URL</strong> on the JIRA inte
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
 </code></pre>
-<p>The bridge listens for incoming webhooks on the host and port provided in the <code>webhook</code> configuration section. For example,
-a internal hook URL (using the default port) would look like <code>http://0.0.0.0:9000/abcdef</code>.</p>
+<p>The bridge listens for incoming webhooks requests on the host and port provided in the <a href="setup/../setup.html#listeners-configuration"><code>listeners</code> config</a>.</p>
 <p><code>urlPrefix</code> describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
-webhook requests from <code>https://example.com/mywebhookspath</code> to the bridge, an example webhook URL would look like:
+webhook requests from <code>https://example.com/mywebhookspath</code> to the bridge an example webhook URL would look like:
 <code>https://example.com/mywebhookspath/abcdef</code>.</p>
 <h2 id="adding-a-webhook"><a class="header" href="#adding-a-webhook">Adding a webhook</a></h2>
 <p>To add a webhook to your room:</p>
@@ -537,13 +558,12 @@ webhook requests from <code>https://example.com/mywebhookspath</code> to the bri
 <li>Say <code>!setup webhook</code></li>
 <li>The bot will respond with the webhook URL to be sent to services.</li>
 </ul>
-<h2 id="endpoint-options"><a class="header" href="#endpoint-options">Endpoint options</a></h2>
-<p>The webhook endpoint can handle a <code>GET</code>,<code>POST</code> or <code>PUT</code> request.</p>
-<p>If the request is a <code>GET</code> request, the query parameters are assumed to be the body.
-otherwise, the body of the request should be a JSON payload.</p>
-<p>If the body contains a <code>text</code> key, then that key will be used as a message body in Matrix.
-If the body <em>also</em> contains a <code>username</code> key, then the message will be prepended by the given username.</p>
-<p>Otherwise, the full JSON payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
+<h2 id="webhook-handling"><a class="header" href="#webhook-handling">Webhook Handling</a></h2>
+<p>Hookshot handles HTTP requests with a method of <code>GET</code>, <code>POST</code> or <code>PUT</code>.</p>
+<p>If the request is a <code>GET</code> request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.</p>
+<p>If the body contains a <code>text</code> key, then that key will be used as a message body in Matrix. This text will be automatically converted from Markdown to HTML.</p>
+<p>If the body <em>also</em> contains a <code>username</code> key, then the message will be prepended by the given username.</p>
+<p>If the body does NOT contain a <code>text</code> field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
 <h2 id="javascript-transformations"><a class="header" href="#javascript-transformations">JavaScript Transformations</a></h2>
 <section class="notice">
 Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
