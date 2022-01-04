@@ -1,5 +1,6 @@
 use crate::Jira;
 use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
+use crate::Github::types::{*};
 use contrast;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
@@ -121,6 +122,41 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
         plain: plain,
     })
 }
+
+/// Generate extra message content for GitHub repo related events
+#[napi]
+pub fn get_partial_body_for_github_repo(repo: MinimalGitHubRepo) -> GitHubRepoMessageBody {
+    GitHubRepoMessageBody {
+        external_url: repo.html_url.clone(),
+        repo: GitHubIssueMessageBodyRepo {
+            id: repo.id,
+            name: repo.full_name,
+            url: repo.html_url,
+
+        }
+    }   
+}
+
+/// Generate extra message content for GitHub issue related events
+#[napi]
+pub fn get_partial_body_for_github_issue(repo: MinimalGitHubRepo, issue: MinimalGitHubIssue) -> GitHubIssueMessageBody {
+    GitHubIssueMessageBody {
+        external_url: issue.html_url.clone(),
+        issue: GitHubIssueMessageBodyIssue {
+            id: issue.id,
+            title: issue.title,
+            number: issue.number,
+            url: issue.html_url,
+        },
+        repo: GitHubIssueMessageBodyRepo {
+            id: repo.id,
+            name: repo.full_name,
+            url: repo.html_url,
+
+        }
+    }   
+}
+
 
 /// Generate a URL for a given Jira Issue object.
 #[napi]

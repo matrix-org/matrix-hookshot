@@ -1,4 +1,5 @@
 pub mod Jira;
+pub mod Github;
 pub mod format_util;
 
 #[macro_use]

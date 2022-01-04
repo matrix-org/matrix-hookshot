@@ -184,7 +184,7 @@ export class NotificationProcessor {
         const body = `⚠️ ${notif.subject.title} - `
             + `for **[${notif.repository.full_name}](${notif.repository.html_url})**`;
         return {
-            ...FormatUtil.getPartialBodyForRepo(notif.repository),
+            ...FormatUtil.getPartialBodyForGithubRepo(notif.repository),
             msgtype: "m.text",
             body,
             formatted_body: md.render(body),
@@ -247,7 +247,7 @@ export class NotificationProcessor {
         } else if (notif.subject.url_data && notif.repository) {
             body = {
                 ...body,
-                ...FormatUtil.getPartialBodyForIssue(
+                ...FormatUtil.getPartialBodyForGithubIssue(
                     notif.repository,
                     notif.subject.url_data,
                 ),
