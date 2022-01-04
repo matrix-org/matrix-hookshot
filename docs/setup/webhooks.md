@@ -1,10 +1,7 @@
 # Webhooks
 
-Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol.
-
-## Features
-
-The webhook connection supports sending messages into a single Matrix room, by hitting an API endpoint.
+Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
+by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.
 
 ## Configuration
 
@@ -17,11 +14,10 @@ generic:
   allowJsTransformationFunctions: false
 ```
 
-The bridge listens for incoming webhooks on the host and port provided in the `webhook` configuration section. For example,
-a internal hook URL (using the default port) would look like `http://0.0.0.0:9000/abcdef`.
+The bridge listens for incoming webhooks requests on the host and port provided in the [`listeners` config](../setup.md#listeners-configuration).
 
 `urlPrefix` describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
-webhook requests from `https://example.com/mywebhookspath` to the bridge, an example webhook URL would look like:
+webhook requests from `https://example.com/mywebhookspath` to the bridge an example webhook URL would look like:
 `https://example.com/mywebhookspath/abcdef`.
 
 ## Adding a webhook
@@ -32,17 +28,17 @@ To add a webhook to your room:
   - Say `!setup webhook`
   - The bot will respond with the webhook URL to be sent to services.
 
-## Endpoint options
+## Webhook Handling
 
-The webhook endpoint can handle a `GET`,`POST` or `PUT` request.
+Hookshot handles HTTP requests with a method of `GET`, `POST` or `PUT`.
 
-If the request is a `GET` request, the query parameters are assumed to be the body.
-otherwise, the body of the request should be a JSON payload.
+If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.
 
-If the body contains a `text` key, then that key will be used as a message body in Matrix.
+If the body contains a `text` key, then that key will be used as a message body in Matrix. This text will be automatically converted from Markdown to HTML.
+
 If the body *also* contains a `username` key, then the message will be prepended by the given username.
 
-Otherwise, the full JSON payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
+If the body does NOT contain a `text` field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
 
 ## JavaScript Transformations
 

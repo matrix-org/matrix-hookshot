@@ -63,6 +63,7 @@ on how to add appservices. [Synapse documents the process here](https://matrix-o
 You will need to configure some listeners to make the bridge functional.
 
 ```yaml
+listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
   # 'resources' may be any of webhooks, widgets, metrics, provisioning
