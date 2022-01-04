@@ -65,13 +65,12 @@ You will need to configure some listeners to make the bridge functional.
 ```yaml
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning
   #
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
       - webhooks
-      - widgets
   - port: 9001
     bindAddress: 127.0.0.1
     resources:
@@ -80,11 +79,40 @@ You will need to configure some listeners to make the bridge functional.
 ```
 
 At a minimum, you should bind the `webhooks` resource to a port and address. You can have multiple resources on the same
-port, or one on each.
+port, or one on each. Each listener MUST listen on a unique port.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
 is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
 excercise to the user.
+
+In terms of API endpoints:
+
+- The `webhooks` resource handles resources under `/`, so it should be on it's own listener.
+- The `metrics` resource handles resources under `/metrics`.
+- The `provisioning` resource handles resources under `/v1/...`.
+
+#### Appservice listener
+
+<section class="notice">
+Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge due to lack of support
+in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
+</section>
+
+
+```yaml
+bridge:
+  # Basic homeserver configuration
+  #
+  domain: example.com
+  url: http://localhost:8008
+  mediaUrl: http://example.com
+  port: 9993
+  bindAddress: 127.0.0.1
+```
+
+The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listeners should **not** be reachable
+over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on `/_matrix/app/`.
+
 
 ### Services configuration
 
