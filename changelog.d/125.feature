@@ -1,0 +1,1 @@
+Add new script `validate-config` which check your config file for simple errors.
