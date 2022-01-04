@@ -82,7 +82,7 @@ export const DefaultConfig = new BridgeConfig({
         {
             port: 9000,
             bindAddress: '0.0.0.0',
-            resources: ['webhooks', 'widgets'],
+            resources: ['webhooks'],
         },
         {
             port: 9001,
