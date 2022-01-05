@@ -34,9 +34,12 @@ Hookshot handles HTTP requests with a method of `GET`, `POST` or `PUT`.
 
 If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.
 
-If the body contains a `text` key, then that key will be used as a message body in Matrix. This text will be automatically converted from Markdown to HTML.
+If the body contains a `text` key, then that key will be used as a message body in Matrix (aka `body`). This text will be automatically converted from Markdown to HTML (unless
+a `html` key is provided.).
 
-If the body *also* contains a `username` key, then the message will be prepended by the given username.
+If the body contains a `html` key, then that key will be used as the HTML message body in Matrix (aka `formatted_body`). A `text` key fallback MUST still be provided.
+
+If the body *also* contains a `username` key, then the message will be prepended by the given username. This will be prepended to both `text` and `html`.
 
 If the body does NOT contain a `text` field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
 
