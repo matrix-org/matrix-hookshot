@@ -1,0 +1,1 @@
+Add support for a `html` key on generic webhooks to set the HTML content of a Matrix message.
