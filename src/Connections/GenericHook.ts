@@ -224,7 +224,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
         return this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: "m.notice",
-            body: content,
+            body: content.plain,
             formatted_body: content.html || md.renderInline(content.plain),
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": data,
