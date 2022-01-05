@@ -1,6 +1,6 @@
+use crate::Github::types::*;
 use crate::Jira;
 use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
-use crate::Github::types::{*};
 use contrast;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
@@ -132,14 +132,16 @@ pub fn get_partial_body_for_github_repo(repo: MinimalGitHubRepo) -> GitHubRepoMe
             id: repo.id,
             name: repo.full_name,
             url: repo.html_url,
-
-        }
-    }   
+        },
+    }
 }
 
 /// Generate extra message content for GitHub issue related events
 #[napi]
-pub fn get_partial_body_for_github_issue(repo: MinimalGitHubRepo, issue: MinimalGitHubIssue) -> GitHubIssueMessageBody {
+pub fn get_partial_body_for_github_issue(
+    repo: MinimalGitHubRepo,
+    issue: MinimalGitHubIssue,
+) -> GitHubIssueMessageBody {
     GitHubIssueMessageBody {
         external_url: issue.html_url.clone(),
         issue: GitHubIssueMessageBodyIssue {
@@ -152,11 +154,9 @@ pub fn get_partial_body_for_github_issue(repo: MinimalGitHubRepo, issue: Minimal
             id: repo.id,
             name: repo.full_name,
             url: repo.html_url,
-
-        }
-    }   
+        },
+    }
 }
-
 
 /// Generate a URL for a given Jira Issue object.
 #[napi]

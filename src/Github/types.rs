@@ -46,7 +46,6 @@ pub struct GitHubRepoMessageBody {
     pub external_url: String,
 }
 
-
 #[derive(Serialize, Debug, Deserialize)]
 #[napi(object)]
 pub struct GitHubIssueMessageBody {

@@ -42,10 +42,19 @@ export class FormatUtil {
     }
 
     public static getPartialBodyForGithubRepo(repo: MinimalGitHubRepo) {
+        if (!repo.id || !repo.html_url || !repo.full_name) {
+            throw Error('Missing keys in repo object');
+        }
         return getPartialBodyForGithubRepo(repo);
     }
 
     public static getPartialBodyForGithubIssue(repo: MinimalGitHubRepo, issue: MinimalGitHubIssue) {
+        if (!repo.id || !repo.html_url || !repo.full_name) {
+            throw Error('Missing keys in repo object');
+        }
+        if (!issue.html_url || !issue.id || !issue.number || !issue.title) {
+            throw Error('Missing keys in issue object');
+        }
         return getPartialBodyForGithubIssue(repo, issue);
     }
 
