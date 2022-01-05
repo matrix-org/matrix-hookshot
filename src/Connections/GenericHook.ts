@@ -167,26 +167,33 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         this.state = validatedConfig;
     }
 
-    public transformHookData(data: Record<string, unknown>): string {
+    public transformHookData(data: Record<string, unknown>): {plain: string, html?: string} {
         // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
-        let msg = "";
-        if (typeof data.username === "string") {
-            // Create a matrix user for this person
-            msg += `**${data.username}**: `
-        }
+        const msg: {plain: string, html?: string} = {plain: ""};
         if (typeof data.text === "string") {
-            msg += data.text;
+            msg.plain += data.text;
         } else {
-            msg += `Received webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
+            msg.plain += `Received webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
         }
 
+        if (typeof data.html === "string") {
+            msg.html = data.html;
+        }
+
+        if (typeof data.username === "string") {
+            // Create a matrix user for this person
+            msg.plain = `**${data.username}**: ${msg.plain}`
+            if (msg.html) {
+                msg.html = `<strong>${data.username}</strong>: ${msg.html}`;
+            }
+        }
         // TODO: Transform Slackdown into markdown.
         return msg;
     }
 
     public async onGenericHook(data: Record<string, unknown>) {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
-        let content: string;
+        let content: {plain: string, html?: string};
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
         } else {
@@ -202,13 +209,13 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 vm.run(this.transformationFunction);
                 content = vm.getGlobal('result');
                 if (typeof content === "string") {
-                    content = `Received webhook: ${content}`;
+                    content = {plain: `Received webhook: ${content}`};
                 } else {
-                    content = `No content`;
+                    content = {plain: `No content`};
                 }
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
-                content = `Webhook received but failed to process via transformation function`;
+                content = {plain: `Webhook received but failed to process via transformation function`};
             }
         }
 
@@ -218,7 +225,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: "m.notice",
             body: content,
-            formatted_body: md.renderInline(content),
+            formatted_body: content.html || md.renderInline(content.plain),
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": data,
         }, 'm.room.message', sender);
