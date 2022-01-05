@@ -7,17 +7,18 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+contrast = "0"
+hex = "0.4.3"
+imap = "2"
+md-5 = "0.8.0"
 napi = {version="2", features=["serde-json"]}
 napi-derive = "2"
-url = "2"
-serde_json = "1"
+native-tls = "0.2.8"
+rgb = "0"
 serde = "1"
 serde_derive = "1"
-contrast = "0"
-rgb = "0"
-md-5 = "0.8.0"
-hex = "0.4.3"
-
+serde_json = "1"
+url = "2"
 
 [build-dependencies]
 napi-build = "1"
