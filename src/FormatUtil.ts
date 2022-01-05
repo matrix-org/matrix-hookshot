@@ -4,22 +4,7 @@ import emoji from "node-emoji";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
 import { JiraIssue } from './Jira/Types';
-import { formatLabels, getPartialBodyForJiraIssue, hashId } from "./libRs";
-
-interface IMinimalRepository {
-    id: number;
-    full_name: string;
-    html_url: string;
-    description: string | null;
-}
-
-interface IMinimalIssue {
-    html_url: string;
-    id: number;
-    number: number;
-    title: string;
-    repository_url: string;
-}
+import { formatLabels, getPartialBodyForJiraIssue, hashId, getPartialBodyForGithubIssue, getPartialBodyForGithubRepo, MinimalGitHubRepo, MinimalGitHubIssue } from "./libRs";
 
 interface IMinimalPR {
     html_url: string;
@@ -39,12 +24,12 @@ export interface ILabel {
 }
 
 export class FormatUtil {
-    public static formatIssueRoomName(issue: IMinimalIssue) {
+    public static formatIssueRoomName(issue: MinimalGitHubIssue & {repository_url: string}) {
         const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
         return emoji.emojify(`${orgRepoName}#${issue.number}: ${issue.title}`);
     }
 
-    public static formatRepoRoomName(repo: IMinimalRepository) {
+    public static formatRepoRoomName(repo: MinimalGitHubRepo) {
         return emoji.emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
     }
 
@@ -56,33 +41,26 @@ export class FormatUtil {
         return `${repo.html_url}`;
     }
 
-    public static getPartialBodyForRepo(repo: IMinimalRepository) {
-        return {
-            "external_url": repo.html_url,
-            "uk.half-shot.matrix-hookshot.github.repo": {
-                id: repo.id,
-                name: repo.full_name,
-                url: repo.html_url,
-            },
-        };
+    public static getPartialBodyForGithubRepo(repo: MinimalGitHubRepo) {
+        if (!repo.id || !repo.html_url || !repo.full_name) {
+            throw Error('Missing keys in repo object');
+        }
+        return getPartialBodyForGithubRepo(repo);
     }
 
-    public static getPartialBodyForIssue(repo: IMinimalRepository, issue: IMinimalIssue) {
-        return {
-            ...FormatUtil.getPartialBodyForRepo(repo),
-            "external_url": issue.html_url,
-            "uk.half-shot.matrix-hookshot.github.issue": {
-                id: issue.id,
-                number: issue.number,
-                title: issue.title,
-                url: issue.html_url,
-            },
-        };
+    public static getPartialBodyForGithubIssue(repo: MinimalGitHubRepo, issue: MinimalGitHubIssue) {
+        if (!repo.id || !repo.html_url || !repo.full_name) {
+            throw Error('Missing keys in repo object');
+        }
+        if (!issue.html_url || !issue.id || !issue.number || !issue.title) {
+            throw Error('Missing keys in issue object');
+        }
+        return getPartialBodyForGithubIssue(repo, issue);
     }
 
-    public static getPartialBodyForGitHubPR(repo: IMinimalRepository, issue: IMinimalPR) {
+    public static getPartialBodyForGitHubPR(repo: MinimalGitHubRepo, issue: IMinimalPR) {
         return {
-            ...FormatUtil.getPartialBodyForRepo(repo),
+            ...FormatUtil.getPartialBodyForGithubRepo(repo),
             "external_url": issue.html_url,
             "uk.half-shot.matrix-hookshot.github.pull_request": {
                 id: issue.id,
@@ -95,10 +73,10 @@ export class FormatUtil {
 
 
     public static getPartialBodyForComment(comment: {id: number, html_url: string},
-                                           repo?: IMinimalRepository,
-                                           issue?: IMinimalIssue) {
+                                           repo?: MinimalGitHubRepo,
+                                           issue?: MinimalGitHubIssue) {
         return {
-            ...(issue && repo ? FormatUtil.getPartialBodyForIssue(repo, issue) : undefined),
+            ...(issue && repo ? FormatUtil.getPartialBodyForGithubIssue(repo, issue) : undefined),
             "external_url": comment.html_url,
             "uk.half-shot.matrix-hookshot.github.comment": {
                 id: comment.id,

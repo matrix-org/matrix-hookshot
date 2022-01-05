@@ -1,3 +1,4 @@
+pub mod Github;
 pub mod Jira;
 pub mod format_util;
 
