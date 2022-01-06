@@ -64,7 +64,6 @@ export class SetupConnection extends CommandConnection {
         const [, org, repo] = res;
         let resultRepo
         try {
-            log.info("DATA:", org, repo);
             resultRepo = await octokit.repos.get({owner: org, repo});
         } catch (ex) {
             throw new CommandError("Invalid GitHub repo", "Could not find the requested GitHub repo. Do you have permission to view it?");

@@ -3,6 +3,8 @@ import { promises as fs } from "fs";
 import { IAppserviceRegistration } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey } from "./Decorators";
+import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
+import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 
 interface BridgeConfigGitHubYAML {
     auth: {
@@ -20,9 +22,7 @@ interface BridgeConfigGitHubYAML {
         // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
-    defaultOptions?: {
-        showIssueRoomLink: false;
-    }
+    defaultOptions?: GitHubRepoConnectionOptions;
 }
 
 export class BridgeConfigGitHub {
@@ -45,9 +45,7 @@ export class BridgeConfigGitHub {
         redirect_uri: string;
     };
     @configKey("Default options for GitHub connections.", true)
-    defaultOptions?: {
-        showIssueRoomLink: false;
-    };
+    defaultOptions?: GitHubRepoConnectionOptions;
 
     constructor(yaml: BridgeConfigGitHubYAML) {
         this.auth = yaml.auth;
@@ -102,10 +100,11 @@ export interface BridgeGenericWebhooksConfig {
 }
 
 interface BridgeWidgetConfig {
-    port: number;
+    port?: number;
     addToAdminRooms: boolean;
     publicUrl: string;
 }
+
 
 interface BridgeConfigBridge {
     domain: string;
@@ -121,8 +120,8 @@ interface BridgeConfigBridge {
 }
 
 interface BridgeConfigWebhook {
-    port: number;
-    bindAddress: string;
+    port?: number;
+    bindAddress?: string;
 }
 
 interface BridgeConfigQueue {
@@ -142,7 +141,7 @@ interface BridgeConfigBot {
 
 export interface BridgeConfigProvisioning {
     bindAddress?: string;
-    port: number;
+    port?: number;
     secret: string;
 }
 
@@ -151,7 +150,6 @@ export interface BridgeConfigMetrics {
     bindAddress?: string;
     port?: number;
 }
-
 
 interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
@@ -165,16 +163,15 @@ interface BridgeConfigRoot {
     logging: BridgeConfigLogging;
     passFile: string;
     queue: BridgeConfigQueue;
-    webhook: BridgeConfigWebhook;
+    webhook?: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfig;
     metrics?: BridgeConfigMetrics;
+    listeners?: BridgeConfigListener[];
 }
 
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
-    @configKey("HTTP webhook listener options")
-    public readonly webhook: BridgeConfigWebhook;
     @configKey("Message queue / cache configuration options for large scale deployments", true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
@@ -190,6 +187,8 @@ export class BridgeConfig {
     public readonly jira?: BridgeConfigJira;
     @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
     public readonly generic?: BridgeGenericWebhooksConfig;
+    @configKey("Configure this to enable Figma support", true)
+    public readonly figma?: BridgeConfigFigma;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
@@ -198,8 +197,13 @@ export class BridgeConfig {
     public readonly provisioning?: BridgeConfigProvisioning;
     @configKey("Prometheus metrics support", true)
     public readonly metrics?: BridgeConfigMetrics;
-    @configKey("Prometheus metrics support", true)
-    public readonly figma?: BridgeConfigFigma;
+
+    @configKey(`HTTP Listener configuration.
+ Bind resource endpoints to ports and addresses.
+ 'port' must be specified. Each listener must listen on a unique port.
+ 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
+ 'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
+    public readonly listeners: BridgeConfigListener[];
 
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
@@ -215,23 +219,62 @@ export class BridgeConfig {
         this.jira = configData.jira;
         this.generic = configData.generic;
         this.figma = configData.figma;
-        this.webhook = configData.webhook;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
         this.metrics = configData.metrics;
-        assert.ok(this.webhook);
         this.queue = configData.queue || {
             monolithic: true,
         };
         this.logging = configData.logging || {
             level: "info",
         }
+
+
+        if (!this.github && !this.gitlab && !this.jira && !this.generic) {
+            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA or generic hooks must be configured");
+        }
+
         // TODO: Formalize env support
         if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
             this.queue.monolithic = false;
             this.queue.host = env.CFG_QUEUE_HOST;
             this.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
+        }
+
+        // Listeners is a bit special
+        this.listeners = configData.listeners || [];
+
+        // For legacy reasons, copy across the per-service listener config into the listeners array.
+        if (configData.webhook?.port) {
+            this.listeners.push({
+                resources: ['webhooks'],
+                port: configData.webhook.port,
+                bindAddress: configData.webhook.bindAddress,
+            })
+        }
+
+        if (this.provisioning?.port) {
+            this.listeners.push({
+                resources: ['provisioning'],
+                port: this.provisioning.port,
+                bindAddress: this.provisioning.bindAddress,
+            })
+        }
+        
+        if (this.metrics?.port) {
+            this.listeners.push({
+                resources: ['metrics'],
+                port: this.metrics.port,
+                bindAddress: this.metrics.bindAddress,
+            })
+        }
+        
+        if (this.widgets?.port) {
+            this.listeners.push({
+                resources: ['widgets'],
+                port: this.widgets.port,
+            })
         }
 
     }
@@ -245,4 +288,18 @@ export class BridgeConfig {
 export async function parseRegistrationFile(filename: string) {
     const file = await fs.readFile(filename, "utf-8");
     return YAML.parse(file) as IAppserviceRegistration;
+}
+
+
+// Can be called directly
+if (require.main === module) {
+    BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
+        // eslint-disable-next-line no-console
+        console.log('Config successfully validated.');
+        process.exit(0);
+    }).catch(ex => {
+        // eslint-disable-next-line no-console
+        console.error('Error in config:', ex);
+        process.exit(1);
+    });
 }

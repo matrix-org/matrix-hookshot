@@ -17,7 +17,7 @@ const SIMPLE_REPO = {
     id: 123,
     description: "A simple description",
     full_name: "evilcorp/lab",
-    html_url: "https://github.com/evilcorp/lab/issues/123",
+    html_url: "https://github.com/evilcorp/lab",
 };
 
 const SIMPLE_JIRA_ISSUE = {
@@ -52,6 +52,32 @@ describe("FormatUtilTest", () => {
         expect(FormatUtil.formatIssueRoomName(SIMPLE_ISSUE)).to.equal(
             "evilcorp/lab#123: A simple title",
         );
+    });
+    it("should correctly generate a partial body for a Github repo", () => {
+        expect(FormatUtil.getPartialBodyForGithubRepo(SIMPLE_REPO)).to.deep.equal({
+            "external_url": "https://github.com/evilcorp/lab",
+            "uk.half-shot.matrix-hookshot.github.repo": {
+                id: 123,
+                name: "evilcorp/lab",
+                url: "https://github.com/evilcorp/lab",
+            },
+        });
+    });
+    it("should correctly generate a partial body for a Github issue", () => {
+        expect(FormatUtil.getPartialBodyForGithubIssue(SIMPLE_REPO, SIMPLE_ISSUE)).to.deep.equal({
+            "external_url": "https://github.com/evilcorp/lab/issues/123",
+            "uk.half-shot.matrix-hookshot.github.issue": {
+                id: 123,
+                number: 123,
+                title: "A simple title",
+                url: "https://github.com/evilcorp/lab/issues/123",
+            },
+            "uk.half-shot.matrix-hookshot.github.repo": {
+                id: 123,
+                name: "evilcorp/lab",
+                url: "https://github.com/evilcorp/lab",
+            },
+        });
     });
     it("should correctly formats a room topic", () => {
         expect(FormatUtil.formatRoomTopic(SIMPLE_ISSUE)).to.equal(

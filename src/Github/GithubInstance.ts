@@ -11,8 +11,7 @@ import qs from "querystring";
 const log = new LogWrapper("GithubInstance");
 
 const USER_AGENT = "matrix-hookshot v0.0.1";
-const INSTALL_CACHE_MAX_AGE = 15 * 60000;
-const INSTALL_CACHE_MAX_SIZE = 1000;
+
 interface Installation {
     account: {
         login?: string;

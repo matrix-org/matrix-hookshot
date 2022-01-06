@@ -11,4 +11,7 @@ public/
 # Added by cargo
 /target
 
+# Generated during build
+/src/libRs.d.ts
+
 book

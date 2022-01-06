@@ -1,0 +1,1 @@
+Fix an issue introduced in #111 that would cause the build to fail in CI.

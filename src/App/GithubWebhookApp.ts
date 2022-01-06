@@ -3,6 +3,7 @@ import { Webhooks } from "../Webhooks";
 import LogWrapper from "../LogWrapper";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import Metrics from "../Metrics";
+import { ListenerService } from "../ListenerService";
 
 
 const log = new LogWrapper("App");
@@ -11,22 +12,24 @@ async function start() {
     const configFile = process.argv[2] || "./config.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     LogWrapper.configureLogging(config.logging.level);
+    const listener = new ListenerService(config.listeners);
     if (config.metrics) {
         if (!config.metrics.port) {
             log.warn(`Not running metrics for service, no port specified`);
         } else {
-            Metrics.start(config.metrics);
+            listener.bindResource('metrics', Metrics.expressRouter);
         }
     }
     const webhookHandler = new Webhooks(config);
-    webhookHandler.listen();
+    listener.bindResource('webhooks', webhookHandler.expressRouter);
     const userWatcher = new UserNotificationWatcher(config);
     userWatcher.start();
+    listener.start();
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");
         webhookHandler.stop();
+        listener.stop();
         userWatcher.stop();
-        Metrics.stop();
     });
 }
 

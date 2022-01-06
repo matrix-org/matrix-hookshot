@@ -21,12 +21,7 @@ export const DefaultConfig = new BridgeConfig({
         level: "info",
     },
     passFile: "passkey.pem",
-    webhook: {
-        port: 9000,
-        bindAddress: "0.0.0.0"
-    },
     widgets: {
-        port: 5000,
         publicUrl: "https://example.com/bridge_widget/",
         addToAdminRooms: true,
     },
@@ -84,15 +79,23 @@ export const DefaultConfig = new BridgeConfig({
         }]
     },
     provisioning: {
-        bindAddress: "127.0.0.1",
-        port: 9001,
         secret: "!secretToken"
     },
     metrics: {
         enabled: true,
-        bindAddress: "127.0.0.1",
-        port: 9002,
-    }
+    },
+    listeners: [
+        {
+            port: 9000,
+            bindAddress: '0.0.0.0',
+            resources: ['webhooks'],
+        },
+        {
+            port: 9001,
+            bindAddress: '127.0.0.1',
+            resources: ['metrics', 'provisioning'],
+        }
+    ]
 }, {});
 
 function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {

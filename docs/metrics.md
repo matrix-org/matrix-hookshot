@@ -1,7 +1,16 @@
 Prometheus Metrics
 ==================
 
-Below is the generated list of prometheus metrics for hookshot.
+You can configure metrics support by adding the following to your config:
+
+```yaml
+  enabled: true
+  bindAddress: 127.0.0.1
+  port: 9002
+```
+
+Below is the generated list of Prometheus metrics for Hookshot.
+
 
 ## hookshot
 | Metric | Help | Labels |

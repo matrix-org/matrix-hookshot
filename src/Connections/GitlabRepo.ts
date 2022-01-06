@@ -7,7 +7,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookTagPushEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 
 export interface GitLabRepoConnectionState {
@@ -185,6 +185,34 @@ export class GitLabRepoConnection extends CommandConnection {
         }
         const url = `${event.project.homepage}/-/tree/${tagname}`;
         const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+    
+    public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
+        const attributes = data.object_attributes;
+        log.info(`onWikiPageEvent ${this.roomId} ${this.instance}/${this.path}`);
+        if (this.shouldSkipHook('wiki', `wiki.${attributes.action}`)) {
+            return;
+        }
+
+
+        let statement: string;
+        if (attributes.action === "create") {
+            statement = "created new wiki page";
+        } else if (attributes.action === "delete") {
+            statement = "deleted wiki page";
+        } else {
+            statement = "updated wiki page";
+        }
+
+        const message = attributes.message && ` "${attributes.message}"`;
+
+        const content = `**${data.user.username}** ${statement} "[${attributes.title}](${attributes.url})" for ${data.project.path_with_namespace} ${message}`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,

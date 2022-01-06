@@ -1,4 +1,4 @@
-import { Application, default as express, Request, Response } from "express";
+import express, { Router, Request, Response } from "express";
 import cors from "cors";
 import { AdminRoom } from "../AdminRoom";
 import LogWrapper from "../LogWrapper";
@@ -7,27 +7,19 @@ import { Server } from "http";
 const log = new LogWrapper("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
-    private app: Application;
+    public readonly expressRouter: Router;
     private server?: Server;
     constructor(private adminRooms: Map<string, AdminRoom>) {
-        this.app = express();
-        this.app.use((req, _res, next) => {
+        this.expressRouter = Router();
+        this.expressRouter.use((req, _res, next) => {
             log.info(`${req.method} ${req.path} ${req.ip || ''} ${req.headers["user-agent"] || ''}`);
             next();
         });
-        this.app.use('/', express.static('public'));
-        this.app.use(cors());
-        this.app.get('/widgetapi/:roomId/verify', this.getVerifyToken.bind(this));
-        this.app.get('/widgetapi/:roomId', this.getRoomState.bind(this));
-        this.app.get('/health', this.getHealth.bind(this));
-    }
-
-    public start(port = 5000) {
-        log.info(`Widget API listening on port ${port}`)
-        this.server = this.app.listen(port);
-    }
-    public stop() {
-        if (this.server) this.server.close();
+        this.expressRouter.use('/', express.static('public'));
+        this.expressRouter.use(cors());
+        this.expressRouter.get('/widgetapi/:roomId/verify', this.getVerifyToken.bind(this));
+        this.expressRouter.get('/widgetapi/:roomId', this.getRoomState.bind(this));
+        this.expressRouter.get('/health', this.getHealth.bind(this));
     }
 
     private async getRoomFromRequest(req: Request): Promise<AdminRoom|{error: string, statusCode: number}> {

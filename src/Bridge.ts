@@ -11,7 +11,7 @@ import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection } from "./Connections";
-import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent } from "./Gitlab/WebhookTypes";
+import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
@@ -37,6 +37,7 @@ import { SetupConnection } from "./Connections/SetupConnection";
 import Metrics from "./Metrics";
 import { FigmaPayload } from "./figma/types";
 import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
+import { ListenerService } from "./ListenerService";
 const log = new LogWrapper("Bridge");
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
@@ -79,7 +80,7 @@ export class Bridge {
 
     private ready = false;
 
-    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration) {
+    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration, private readonly listener: ListenerService) {
         if (this.config.queue.host && this.config.queue.port) {
             log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
             this.storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
@@ -97,19 +98,11 @@ export class Bridge {
 
     public stop() {
         this.as.stop();
-        Metrics.stop();
         if (this.queue.stop) this.queue.stop();
-        if (this.widgetApi) this.widgetApi.stop();
-        if (this.provisioningApi) this.provisioningApi.stop();
     }
 
     public async start() {
         log.info('Starting up');
-
-        if (!this.config.github && !this.config.gitlab && !this.config.jira) {
-            log.error("You haven't configured support for GitHub or GitLab!");
-            throw Error('Bridge cannot start -- no connectors are configured');
-        }
 
         if (this.config.github) {
             this.github = new GithubInstance(this.config.github.auth.id, await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'));
@@ -334,6 +327,12 @@ export class Bridge {
             "gitlab.tag_push",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
             (c, data) => c.onGitLabTagPush(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookWikiPageEvent, GitLabRepoConnection>(
+            "gitlab.wiki_page",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onWikiPageEvent(data),
         );
 
         this.queue.on<UserNotificationsEvent>("notifications.user.events", async (msg) => {
@@ -587,13 +586,13 @@ export class Bridge {
         }
 
         if (this.config.widgets) {
-            await this.widgetApi.start(this.config.widgets.port);
+            this.listener.bindResource('widgets', this.widgetApi.expressRouter);
         }
         if (this.provisioningApi) {
-            await this.provisioningApi.listen();
+            this.listener.bindResource('provisioning', this.provisioningApi.expressRouter);
         }
         if (this.config.metrics?.enabled) {
-            Metrics.start(this.config.metrics, this.as);
+            this.listener.bindResource('metrics', Metrics.expressRouter);
         }
         await this.as.begin();
         log.info("Started bridge");

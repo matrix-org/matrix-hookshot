@@ -19,7 +19,6 @@ import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from ".";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
-import { Issue } from "@octokit/webhooks-types"
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -31,9 +30,7 @@ interface IQueryRoomOpts {
     githubInstance: GithubInstance;
 }
 
-export interface GitHubRepoConnectionState {
-    org: string;
-    repo: string;
+export interface GitHubRepoConnectionOptions {
     ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     showIssueRoomLink?: boolean;
@@ -44,6 +41,11 @@ export interface GitHubRepoConnectionState {
     includingLabels?: string[];
     excludingLabels?: string[];
 }
+export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions{
+    org: string;
+    repo: string;
+}
+
 
 const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
     "👍": "+1",
@@ -494,8 +496,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
-            // TODO: Fix types.
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
     }
 
@@ -518,8 +519,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            // TODO: Fix types
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
     }
 
@@ -538,8 +538,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            // TODO: Fix types
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.issue as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
     }
 
@@ -574,8 +573,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: "") + diffContent,
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: "") + diffContentHtml,
             format: "org.matrix.custom.html",
-            // TODO: Fix types.
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
             ...FormatUtil.getPartialBodyForGitHubPR(event.repository, event.pull_request),
         });
     }
@@ -599,7 +597,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
         });
     }
 
@@ -632,7 +630,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
         });
     }
 
@@ -656,7 +654,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
             // TODO: Fix types.
-            ...FormatUtil.getPartialBodyForIssue(event.repository, event.pull_request as any),
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
         });
     }
 

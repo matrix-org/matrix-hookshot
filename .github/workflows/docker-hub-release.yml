@@ -31,4 +31,4 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: true
           tags: |
-            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:release-${{ env.RELEASE_VERSION }}
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:${{ env.RELEASE_VERSION }}
