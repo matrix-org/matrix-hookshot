@@ -42,6 +42,7 @@
     "axios": "^0.24.0",
     "cors": "^2.8.5",
     "express": "^4.17.1",
+    "figma-js": "^1.14.0",
     "ioredis": "^4.28.0",
     "jira-client": "^8.0.0",
     "markdown-it": "^12.2.0",

@@ -10,8 +10,9 @@ A bridge between Matrix and multiple project management services, such as GitHub
 
 ## Featureset
 
-This bridge bridges:
-
+This bridge supports:
+- Figma
+  - File comments
 - GitHub
   - Webhooks (new issues, pull requests, releases etc)
   - Commands (create issues, assign issues, start workflows etc)

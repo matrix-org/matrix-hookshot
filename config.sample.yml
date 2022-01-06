@@ -54,6 +54,15 @@ generic:
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   userIdPrefix: webhooks_
+figma:
+  # (Optional) Configure this to enable Figma support
+  #
+  publicUrl: https://example.com/hookshot/
+  instances:
+    your-instance:
+      teamId: your-team-id
+      accessToken: your-personal-access-token
+      passcode: your-webhook-passcode
 provisioning:
   # (Optional) Provisioning API for integration managers
   #

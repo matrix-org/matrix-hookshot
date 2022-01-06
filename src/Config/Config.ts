@@ -71,6 +71,16 @@ interface BridgeConfigGitLab {
     instances: {[name: string]: GitLabInstance};
 }
 
+export interface BridgeConfigFigma {
+    publicUrl: string;
+    overrideUserId?: string;
+    instances: {[name: string]: {
+        teamId: string;
+        accessToken: string;
+        passcode: string;
+    }};
+}
+
 export interface BridgeConfigJira {
     webhook: {
         secret: string;
@@ -147,6 +157,7 @@ export interface BridgeConfigMetrics {
 interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
+    figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
@@ -179,6 +190,8 @@ export class BridgeConfig {
     public readonly jira?: BridgeConfigJira;
     @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
     public readonly generic?: BridgeGenericWebhooksConfig;
+    @configKey("Configure this to enable Figma support", true)
+    public readonly figma?: BridgeConfigFigma;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
@@ -208,6 +221,7 @@ export class BridgeConfig {
         this.gitlab = configData.gitlab;
         this.jira = configData.jira;
         this.generic = configData.generic;
+        this.figma = configData.figma;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
@@ -220,8 +234,8 @@ export class BridgeConfig {
         }
 
 
-        if (!this.github && !this.gitlab && !this.jira && !this.generic) {
-            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA or generic hooks must be configured");
+        if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
+            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma or generic hooks must be configured");
         }
 
         // TODO: Formalize env support

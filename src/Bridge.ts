@@ -10,7 +10,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
@@ -33,32 +33,12 @@ import { JiraProvisionerRouter } from "./Jira/Router";
 import { GitHubProvisionerRouter } from "./Github/Router";
 import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
-import { SetupConnection } from "./Connections/SetupConnection";
 import Metrics from "./Metrics";
+import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
+import { SetupConnection } from "./Connections/SetupConnection";
+import { getAppservice } from "./appservice";
 const log = new LogWrapper("Bridge");
-
-export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
-    return new Appservice({
-        homeserverName: config.bridge.domain,
-        homeserverUrl: config.bridge.url,
-        port: config.bridge.port,
-        bindAddress: config.bridge.bindAddress,
-        registration: {
-            ...registration,
-            namespaces: {
-                // Support multiple users
-                users: [{
-                    regex: '(' + registration.namespaces.users.map((r) => r.regex).join(')|(') + ')',
-                    exclusive: true,
-                }],
-                aliases: registration.namespaces.aliases,
-                rooms: registration.namespaces.rooms,
-            }
-        },
-        storage: storage,
-    });
-}
 
 export class Bridge {
     private readonly as: Appservice;
@@ -92,6 +72,8 @@ export class Bridge {
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
+        this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
+        this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
     }
 
     public stop() {
@@ -107,8 +89,10 @@ export class Bridge {
             await this.github.start();
         }
 
-        this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
-        this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
+        if (this.config.figma) {
+            // Ensure webhooks are setup
+            await ensureFigmaWebhooks(this.config.figma, this.as.botClient);
+        }
 
         if (this.config.bridge.pantalaimon) {
             log.info(`Loading pantalaimon client`);
@@ -131,7 +115,7 @@ export class Bridge {
 
         await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
-            this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.github);
+            this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
     
         if (this.config.provisioning) {
             const routers = [];
@@ -186,6 +170,7 @@ export class Bridge {
         this.queue.subscribe("github.*");
         this.queue.subscribe("gitlab.*");
         this.queue.subscribe("jira.*");
+        this.queue.subscribe("figma.*");
 
         const validateRepoIssue = (data: GitHubWebhookTypes.IssuesEvent|GitHubWebhookTypes.IssueCommentEvent) => {
             if (!data.repository || !data.issue) {
@@ -477,6 +462,12 @@ export class Bridge {
             (c, data) => c.onGenericHook(data.hookData),
         );
 
+        this.bindHandlerToQueue<FigmaEvent, FigmaFileConnection>(
+            "figma.payload",
+            (data) => connManager.getForFigmaFile(data.payload.file_key, data.instanceName),
+            (c, data) => c.handleNewComment(data.payload),
+        )
+
         // Fetch all room state
         let joinedRooms: string[]|undefined;
         while(joinedRooms === undefined) {
@@ -657,7 +648,7 @@ export class Bridge {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
-                        new SetupConnection(roomId, this.as, this.tokenStore, this.github, !!this.config.jira, this.config.generic)
+                        new SetupConnection(roomId, this.as, this.tokenStore, this.config, this.github)
                     ).onMessageEvent(event);
                 } catch (ex) {
                     log.warn(`Setup connection failed to handle:`, ex);

@@ -72,6 +72,16 @@ export const DefaultConfig = new BridgeConfig({
         allowJsTransformationFunctions: false,
         userIdPrefix: "webhooks_",
     },
+    figma: {
+        publicUrl: "https://example.com/hookshot/",
+        instances: {
+            "your-instance": {
+                teamId: "your-team-id",
+                accessToken: "your-personal-access-token",
+                passcode: "your-webhook-passcode",
+            }
+        }
+    },
     provisioning: {
         secret: "!secretToken"
     },
@@ -121,7 +131,7 @@ function renderDefaultConfig() {
     doc.contents = YAML.createNode({});
     doc.commentBefore = ' This is an example configuration file';
     // Needed because the entries syntax below would not work otherwise
-    renderSection(doc, DefaultConfig as any);
+    renderSection(doc, DefaultConfig as unknown as Record<string, unknown>);
     return doc.toString();
 }
 

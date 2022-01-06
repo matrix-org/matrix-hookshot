@@ -6,6 +6,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private issues: Map<string, IssuesGetResponseData> = new Map();
     private issuesLastComment: Map<string, string> = new Map();
     private reviewData: Map<string, string> = new Map();
+    private figmaCommentIds: Map<string, string> = new Map();
     constructor() {
         super();
     }
@@ -34,5 +35,17 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     public async getPRReviewData(repo: string, issueNumber: string, scope = "") {
         const key = `${scope}:${repo}/${issueNumber}`;
         return this.reviewData.get(key) || null;
+    }
+
+    private static figmaCommentKey(roomId: string, figmaCommentId: string) {
+        return `${roomId}:${figmaCommentId}`;
+    }
+
+    public async setFigmaCommentEventId(roomId: string, figmaCommentId: string, eventId: string) {
+        this.figmaCommentIds.set(MemoryStorageProvider.figmaCommentKey(roomId, figmaCommentId), eventId);
+    }
+
+    public async getFigmaCommentEventId(roomId: string, figmaCommentId: string) {
+        return this.figmaCommentIds.get(MemoryStorageProvider.figmaCommentKey(roomId, figmaCommentId)) || null;
     }
 }

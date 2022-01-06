@@ -23,9 +23,6 @@ export class Provisioner {
         if (!this.config.secret) {
             throw Error('Missing secret in provisioning config');
         }
-        if (!this.config.port) {
-            throw Error('Missing port in provisioning config');
-        }
         this.expressRouter.use((req, _res, next) => {
             Metrics.provisioningHttpRequest.inc({path: req.path, method: req.method});
             next();

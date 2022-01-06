@@ -10,8 +10,9 @@ import { UserTokenStore } from "../UserTokenStore";
 import { GithubInstance } from "../Github/GithubInstance";
 import { JiraProject } from "../Jira/Types";
 import { v4 as uuid } from "uuid";
-import { BridgeGenericWebhooksConfig } from "../Config/Config";
+import { BridgeConfig } from "../Config/Config";
 import markdown from "markdown-it";
+import { FigmaFileConnection } from "./FigmaFileConnection";
 const md = new markdown();
 
 const log = new LogWrapper("SetupConnection");
@@ -28,9 +29,8 @@ export class SetupConnection extends CommandConnection {
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private readonly tokenStore: UserTokenStore,
-        private readonly githubInstance?: GithubInstance,
-        private readonly jiraEnabled?: boolean,
-        private readonly webhooksConfig?: BridgeGenericWebhooksConfig,) {
+        private readonly config: BridgeConfig,
+        private readonly githubInstance?: GithubInstance,) {
             super(
                 roomId,
                 "",
@@ -85,7 +85,7 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("jira project", "Create a connection for a JIRA project. (You must be logged in with JIRA to do this)", ["url"], [], true)
     public async onJiraProject(userId: string, url: string) {
-        if (!this.jiraEnabled) {
+        if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira");
         }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
@@ -123,7 +123,7 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("webhook", "Create a inbound webhook", ["name"], [], true)
     public async onWebhook(userId: string, name: string) {
-        if (!this.webhooksConfig?.enabled) {
+        if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks");
         }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
@@ -133,13 +133,33 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
         }
         if (!name || name.length < 3 || name.length > 64) {
-            throw new CommandError("Bad webhook name", "The bridge is not configured to support webhooks");
+            throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters");
         }
         const hookId = uuid();
-        const url = `${this.webhooksConfig.urlPrefix}${this.webhooksConfig.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
+        const url = `${this.config.generic.urlPrefix}${this.config.generic.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
         await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
         await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. Please configure your webhook source to use \`${url}\``));
+    }
+
+    @botCommand("figma file", "Bridge a Figma file to the room", ["url"], [], true)
+    public async onFigma(userId: string, url: string) {
+        if (!this.config.figma) {
+            throw new CommandError("not-configured", "The bridge is not configured to support Figma");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
+        }
+        const res = /https:\/\/www\.figma\.com\/file\/(\w+).+/.exec(url);
+        if (!res) {
+            throw new CommandError("Invalid Figma url", "The Figma file url you entered was not valid. It should be in the format of `https://figma.com/file/FILEID/...`");
+        }
+        const [, fileId] = res;
+        await this.as.botClient.sendStateEvent(this.roomId, FigmaFileConnection.CanonicalEventType, fileId, {fileId});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 }
 

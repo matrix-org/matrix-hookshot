@@ -4,7 +4,8 @@ import { MatrixEventContent, MatrixMessageContent } from "./MatrixEvent";
 import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";
 import LogWrapper from "./LogWrapper";
 import { v4 as uuid } from "uuid";
-import { getAppservice } from "./Bridge";
+import { getAppservice } from "./appservice";
+
 export interface IMatrixSendMessage {
     sender: string|null;
     type: string;
