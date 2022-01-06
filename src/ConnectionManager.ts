@@ -198,7 +198,7 @@ export class ConnectionManager {
             if (!this.config.figma) {
                 throw Error('Figma is not configured');
             }
-            return new FigmaFileConnection(roomId, state.stateKey, state.content, this.as.botClient, this.storage);
+            return new FigmaFileConnection(roomId, state.stateKey, state.content, this.config.figma, this.as, this.storage);
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
@@ -329,7 +329,6 @@ export class ConnectionManager {
         return this.connections.filter((c) => (c instanceof FigmaFileConnection && (c.fileId === fileKey || c.instanceName === instanceName))) as FigmaFileConnection[];
     }
     
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
         return this.connections.filter((c) => (c instanceof typeT)) as T[];

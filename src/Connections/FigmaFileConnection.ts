@@ -1,10 +1,11 @@
-import { MatrixClient, RichReply } from "matrix-bot-sdk";
+import { Appservice, MatrixClient, RichReply } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection } from ".";
 import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { BridgeConfigFigma } from "../Config/Config";
 
 const log = new LogWrapper("FigmaFileConnection");
 
@@ -30,7 +31,13 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
     }
 
 
-    constructor(roomId: string, stateKey: string, private state: FigmaFileConnectionState, private readonly client: MatrixClient, private readonly storage: IBridgeStorageProvider) {
+    constructor(
+        roomId: string,
+        stateKey: string,
+        private state: FigmaFileConnectionState,
+        private readonly config: BridgeConfigFigma,
+        private readonly as: Appservice,
+        private readonly storage: IBridgeStorageProvider) {
         super(roomId, stateKey, FigmaFileConnection.CanonicalEventType)
     }
 
@@ -55,6 +62,8 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
             log.warn(`Comment ${payload.comment_id} is stale, ignoring (${age}ms old)`);
             return;
         }
+
+        const intent = this.as.getIntentForUserId(this.config.overrideUserId || this.as.botUserId);
     
         const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`;
         const comment = payload.comment.map(({text}) => text).join("\n");
@@ -63,7 +72,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         const parentEventId = await this.storage.getFigmaCommentEventId(this.roomId, payload.parent_id);
         let content;
         if (parentEventId) {
-            const parentEvent = this.client.getEvent(this.roomId, parentEventId);
+            const parentEvent = intent.underlyingClient.getEvent(this.roomId, parentEventId);
             const body = `**${name}**: ${comment}`;
             content = RichReply.createFor(this.roomId, parentEvent, body, md.renderInline(body));
             content["msgtype"] = "m.notice";
@@ -77,7 +86,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
             };
         }
         content["uk.half-shot.matrix-hookshot.figma.comment_id"] = payload.comment_id;
-        const eventId = await this.client.sendMessage(this.roomId, content);
+        const eventId = await intent.sendEvent(this.roomId, content);
         await this.storage.setFigmaCommentEventId(this.roomId, payload.comment_id, eventId);
     }
 }

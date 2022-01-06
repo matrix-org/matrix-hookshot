@@ -73,6 +73,7 @@ interface BridgeConfigGitLab {
 
 export interface BridgeConfigFigma {
     publicUrl: string;
+    overrideUserId?: string;
     instances: {[name: string]: {
         teamId: string;
         accessToken: string;
