@@ -218,6 +218,12 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
+
+
+        if (!this.github && !this.gitlab && !this.jira && !this.generic) {
+            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA or generic hooks must be configured");
+        }
+
         // TODO: Formalize env support
         if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
             this.queue.monolithic = false;
