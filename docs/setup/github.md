@@ -72,7 +72,7 @@ The `webhook` section takes a secret, which is **Webhook secret** on the GitHub 
 
 The `oauth` section should include both the **Client ID** and **Client Secret** on the GitHub App page.
 The `redirect_uri` value must be the **public** path to `/oauth` on the webhooks path. E.g. if your load balancer
-points `https://example.com/hookshot` to the bridge's webhooks port, you should use the path `https://example.com/hookshot/oauth`.
+points `https://example.com/hookshot` to the bridge `webhooks` listener, you should use the path `https://example.com/hookshot/oauth`.
 This value MUST exactly match the **Callback URL** on the GitHub App page.
 
 `defaultOptions` allows you to set some defaults for room connections. Options listed on [this page](../usage/room_configuration/github_repo.md#configuration)

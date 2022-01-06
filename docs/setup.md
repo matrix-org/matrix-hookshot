@@ -91,6 +91,7 @@ excercise to the user.
 In terms of API endpoints:
 
 - The `webhooks` resource handles resources under `/`, so it should be on it's own listener.
+  Note that OAuth requests also go through this listener.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 

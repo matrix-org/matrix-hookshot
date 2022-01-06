@@ -48,7 +48,7 @@ jira:
 You can leave the `oauth` section blank if you are not planning to use those capabilities.
 
 The `redirect_uri` value must be the **public** path to `/jira/oauth` on the webhooks path. E.g. if your load balancer
-points `https://example.com/hookshot` to the bridge's webhooks port, you should use the path `https://example.com/hookshot/jira/oauth`.
+points `https://example.com/hookshot` to the bridge `webhooks` listener, you should use the path `https://example.com/hookshot/jira/oauth`.
 This value MUST exactly match the **Callback URL** on the JIRA integration page page.
 
 ## Next steps
