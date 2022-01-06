@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.2.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.3.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.4.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.5.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -154,8 +154,13 @@
 <a href="https://hub.docker.com/r/halfshot/matrix-hookshot"><img src="https://img.shields.io/docker/v/halfshot/matrix-hookshot" alt="Docker Image Version (latest by date)" /></a></p>
 <p>A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.</p>
 <h2 id="featureset"><a class="header" href="#featureset">Featureset</a></h2>
-<p>This bridge bridges:</p>
+<p>This bridge supports:</p>
 <ul>
+<li>Figma
+<ul>
+<li>File comments</li>
+</ul>
+</li>
 <li>GitHub
 <ul>
 <li>Webhooks (new issues, pull requests, releases etc)</li>
@@ -342,6 +347,15 @@ generic:
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   userIdPrefix: webhooks_
+figma:
+  # (Optional) Configure this to enable Figma support
+  #
+  publicUrl: https://example.com/hookshot/
+  instances:
+    your-instance:
+      teamId: your-team-id
+      accessToken: your-personal-access-token
+      passcode: your-webhook-passcode
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
@@ -388,6 +402,38 @@ listeners:
       - provisioning
 
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="figma"><a class="header" href="#figma">Figma</a></h1>
+<h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
+<p>To bridge Figma webhooks with Hookshot, you will need:</p>
+<ul>
+<li>A personal access token with admin access to the team you intend to bridge.</li>
+<li>A figma account that is on the professional tier, as the free tier does provide webhook access.</li>
+<li>Your team ID. You can get this by going to the team page on Figma, and looking for the ID in the url (e.g. 12345 in <code>https://www.figma.com/files/team/12345/...</code>)</li>
+</ul>
+<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<p>You can now set some configuration in the bridge <code>config.yml</code></p>
+<pre><code class="language-yaml">figma:
+  publicUrl: https://example.com/hookshot/
+  instances:
+    your-instance:
+      teamId: your-team-id
+      accessToken: your-personal-access-token
+      passcode: your-webhook-passcode
+</code></pre>
+<p><code>your-instance</code> should be a friendly name for your instance E.g. <code>matrix-dot-org</code>.</p>
+<p>The <code>publicUrl</code> value must be the <strong>public</strong> path to <code>/figma/webhook</code> on the webhooks listener. E.g. if your load balancer points <code>https://example.com/hookshot</code> to the bridge's webhooks listener, you should use the path <code>https://example.com/hookshot/figma/webhook</code>.</p>
+<p>The <code>accessToken</code> should be the personal access token for your account.</p>
+<p>The <code>passcode</code> should be a randomly generated code which is used to authenticate requests from Figma.</p>
+<p>The bridge will automatically setup a webhook on Figma for you upon startup, and will automatically reconfigure that webhook if the <code>publicUrl</code> or <code>passcode</code> changes.</p>
+<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<p>If you have followed these steps correctly, Figma should now be configured with hookshot 🥳.</p>
+<p>To bridge a figma file into your room, you should:</p>
+<ul>
+<li>Invite the bot user to the room.</li>
+<li>Make sure the bot able to send state events (usually the Moderator power level in clients)</li>
+<li>Say <code>!hookshot figma file fileUrl</code> where <code>fileUrl</code> is the URL to the figma file e.g <code>https://www.figma.com/files/project/12345/...</code></li>
+<li>Figma comments will now be bridged into the room.</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="setting-up-github"><a class="header" href="#setting-up-github">Setting up GitHub</a></h1>
 <h2 id="github-app"><a class="header" href="#github-app">GitHub App</a></h2>
 <p>This bridge requires a <a href="https://github.com/settings/apps/new">GitHub App</a>. You will need to create one.</p>
@@ -438,7 +484,7 @@ listeners:
 </ul>
 <p>You can disable any of these to disable the events being handled in Hookshot.</p>
 <p>Once you have setup your app, you can move onto configuring the bridge:</p>
-<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
 <p>The GitHub service requires a few connection options.</p>
 <pre><code class="language-yaml">github:
   auth:
@@ -462,11 +508,11 @@ points <code>https://example.com/hookshot</code> to the bridge <code>webhooks</c
 This value MUST exactly match the <strong>Callback URL</strong> on the GitHub App page.</p>
 <p><code>defaultOptions</code> allows you to set some defaults for room connections. Options listed on <a href="setup/../usage/room_configuration/github_repo.html#configuration">this page</a>
 are supported.</p>
-<h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
+<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next steps</a></h2>
 <p>If you have followed these steps correctly, GitHub should now be configured with hookshot 🥳.</p>
 <p>You can now follow the guide on <a href="setup/../usage/auth.html">authenticating with GitHub</a>, and then <a href="setup/../usage/room_configuration/github_repo.html#setting-up">bridging a room</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h1>
-<h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
+<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
 <p>GitLab configuration is fairly straight-forward:</p>
 <pre><code class="language-yaml">  # (Optional) Configure this to enable GitLab support
   #
@@ -521,7 +567,7 @@ Support for on-prem deployments is hoping to land soon.
 - Use rotating tokens under Authorisation.
 - Set a callback url. This will be the public URL to hookshot with a path of <code>/jira/oauth</code>.
 - Copy the client ID and Secret from Settings</p>
-<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
+<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
 <p>You can now set some configuration in the bridge <code>config.yml</code></p>
 <pre><code class="language-yaml">jira:
   webhook:
@@ -535,13 +581,13 @@ Support for on-prem deployments is hoping to land soon.
 <p>The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/jira/oauth</code> on the webhooks path. E.g. if your load balancer
 points <code>https://example.com/hookshot</code> to the bridge <code>webhooks</code> listener, you should use the path <code>https://example.com/hookshot/jira/oauth</code>.
 This value MUST exactly match the <strong>Callback URL</strong> on the JIRA integration page page.</p>
-<h2 id="next-steps-1"><a class="header" href="#next-steps-1">Next steps</a></h2>
+<h2 id="next-steps-2"><a class="header" href="#next-steps-2">Next steps</a></h2>
 <p>If you have followed these steps correctly, JIRA should now be configured with hookshot 🥳.</p>
 <p>You can now follow the guide on <a href="setup/../usage/auth.html#jira">authenticating with JIRA</a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="webhooks"><a class="header" href="#webhooks">Webhooks</a></h1>
 <p>Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
 by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.</p>
-<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
+<h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
 <p>You will need to add the following configuration to the config file.</p>
 <pre><code class="language-yaml">generic:
   enabled: true
@@ -887,7 +933,7 @@ see the documentation provided for information on each connection type.</p>
 <p>This connection type connects a GitHub repository (e.g. https://github.com/Half-Shot/matrix-hookshot) to a room.</p>
 <p>You can run commands to create and manipulate issues, and receive notifications when something changes such as
 a new release.</p>
-<h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
+<h2 id="setting-up-1"><a class="header" href="#setting-up-1">Setting up</a></h2>
 <p>To set up a connection to a GitHub Repository in a new room:</p>
 <p>(N.B you must have permission to bridge GitHub repositories before you can use this command, see <a href="usage/room_configuration/../auth.html#github">auth</a>)</p>
 <ol>
@@ -902,7 +948,7 @@ a new release.</p>
 </ul>
 </li>
 </ol>
-<h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
+<h2 id="configuration-6"><a class="header" href="#configuration-6">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
 <table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
 <tr><td>ignoreHooks</td><td>Choose to exclude notifications for some event types</td><td>Array of: <a href="usage/room_configuration/github_repo.html#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
