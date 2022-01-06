@@ -73,7 +73,25 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
-    it("will handle a hook event containing text", async () => {
+    it("will handle a hook event containing html", async () => {
+        const webhookData = {text: "simple-message", html: "<b>simple-message</b>"};
+        const [connection, mq] = createGenericHook();
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "simple-message",
+                format: "org.matrix.custom.html",
+                formatted_body: "<b>simple-message</b>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event containing a username", async () => {
         const webhookData = {username: "Bobs-integration", type: 42};
         const [connection, mq] = createGenericHook();
         const messagePromise = handleMessage(mq);
