@@ -233,8 +233,8 @@ export class BridgeConfig {
         }
 
 
-        if (!this.github && !this.gitlab && !this.jira && !this.generic) {
-            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA or generic hooks must be configured");
+        if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
+            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma or generic hooks must be configured");
         }
 
         // TODO: Formalize env support
