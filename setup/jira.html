@@ -183,7 +183,7 @@ Support for on-prem deployments is hoping to land soon.
 </code></pre>
 <p>You can leave the <code>oauth</code> section blank if you are not planning to use those capabilities.</p>
 <p>The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/jira/oauth</code> on the webhooks path. E.g. if your load balancer
-points <code>https://example.com/hookshot</code> to the bridge's webhooks port, you should use the path <code>https://example.com/hookshot/jira/oauth</code>.
+points <code>https://example.com/hookshot</code> to the bridge <code>webhooks</code> listener, you should use the path <code>https://example.com/hookshot/jira/oauth</code>.
 This value MUST exactly match the <strong>Callback URL</strong> on the JIRA integration page page.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <p>If you have followed these steps correctly, JIRA should now be configured with hookshot 🥳.</p>

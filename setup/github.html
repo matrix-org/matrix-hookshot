@@ -220,7 +220,7 @@ You should also supply the page to a generated private key file.</p>
 <p>The <code>webhook</code> section takes a secret, which is <strong>Webhook secret</strong> on the GitHub App page.</p>
 <p>The <code>oauth</code> section should include both the <strong>Client ID</strong> and <strong>Client Secret</strong> on the GitHub App page.
 The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/oauth</code> on the webhooks path. E.g. if your load balancer
-points <code>https://example.com/hookshot</code> to the bridge's webhooks port, you should use the path <code>https://example.com/hookshot/oauth</code>.
+points <code>https://example.com/hookshot</code> to the bridge <code>webhooks</code> listener, you should use the path <code>https://example.com/hookshot/oauth</code>.
 This value MUST exactly match the <strong>Callback URL</strong> on the GitHub App page.</p>
 <p><code>defaultOptions</code> allows you to set some defaults for room connections. Options listed on <a href="../usage/room_configuration/github_repo.html#configuration">this page</a>
 are supported.</p>

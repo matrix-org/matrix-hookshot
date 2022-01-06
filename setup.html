@@ -212,7 +212,8 @@ is recommended to factor hookshot into your load balancer configuration, but cur
 excercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
-<li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on it's own listener.</li>
+<li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on it's own listener.
+Note that OAuth requests also go through this listener.</li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
 </ul>
