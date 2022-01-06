@@ -72,10 +72,12 @@ interface BridgeConfigGitLab {
 }
 
 export interface BridgeConfigFigma {
-    instances: {
-        name: string,
-        webhookPasscode: string;
-    }[];
+    publicUrl: string;
+    instances: {[name: string]: {
+        teamId: string;
+        accessToken: string;
+        passcode: string;
+    }};
 }
 
 export interface BridgeConfigJira {

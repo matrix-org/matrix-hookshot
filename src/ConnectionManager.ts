@@ -18,6 +18,7 @@ import { ApiError, ErrCode, GetConnectionTypeResponseItem } from "./provisioning
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
+import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 
 const log = new LogWrapper("ConnectionManager");
 
@@ -31,6 +32,7 @@ export class ConnectionManager {
         private readonly tokenStore: UserTokenStore,
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
+        private readonly storage: IBridgeStorageProvider,
         private readonly github?: GithubInstance) {
 
     }
@@ -193,10 +195,10 @@ export class ConnectionManager {
         }
 
         if (FigmaFileConnection.EventTypes.includes(state.type)) {
-            if (this.config.figma) {
+            if (!this.config.figma) {
                 throw Error('Figma is not configured');
             }
-            return new FigmaFileConnection(roomId, state.stateKey, state.content, this.as.botClient);
+            return new FigmaFileConnection(roomId, state.stateKey, state.content, this.as.botClient, this.storage);
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
@@ -323,9 +325,10 @@ export class ConnectionManager {
         return this.connections.filter((c) => (c instanceof GenericHookConnection && c.hookId === hookId)) as GenericHookConnection[];
     }
 
-    public getForFigmaFile(fileKey: string): FigmaFileConnection[] {
-        return this.connections.filter((c) => (c instanceof FigmaFileConnection && c.fileId === fileKey)) as FigmaFileConnection[];
+    public getForFigmaFile(fileKey: string, instanceName: string): FigmaFileConnection[] {
+        return this.connections.filter((c) => (c instanceof FigmaFileConnection && (c.fileId === fileKey || c.instanceName === instanceName))) as FigmaFileConnection[];
     }
+    
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {

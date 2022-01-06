@@ -13,6 +13,7 @@ const COMPLETED_TRANSACTIONS_KEY = "as.completed_transactions";
 const GH_ISSUES_KEY = "gh.issues";
 const GH_ISSUES_LAST_COMMENT_KEY = "gh.issues.last_comment";
 const GH_ISSUES_REVIEW_DATA_KEY = "gh.issues.review_data";
+const FIGMA_EVENT_COMMENT_ID = "figma.comment_event_id";
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
@@ -105,5 +106,17 @@ export class RedisStorageProvider implements IBridgeStorageProvider {
     public async getPRReviewData(repo: string, issueNumber: string, scope = "") {
         const res = await this.redis.get(`${scope}:${GH_ISSUES_REVIEW_DATA_KEY}:${repo}/${issueNumber}`);
         return res ? res : null;
+    }
+
+    private static figmaCommentKey(roomId: string, figmaCommentId: string) {
+        return `${FIGMA_EVENT_COMMENT_ID}:${roomId}:${figmaCommentId}`;
+    }
+
+    public async setFigmaCommentEventId(roomId: string, figmaCommentId: string, eventId: string) {
+        await this.redis.set(RedisStorageProvider.figmaCommentKey(roomId, figmaCommentId), eventId);
+    }
+
+    public async getFigmaCommentEventId(roomId: string, figmaCommentId: string) {
+        return this.redis.get(RedisStorageProvider.figmaCommentKey(roomId, figmaCommentId));
     }
 }

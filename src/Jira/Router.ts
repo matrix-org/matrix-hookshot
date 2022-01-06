@@ -3,7 +3,7 @@ import { generateJiraURL } from "./AdminCommands";
 import { JiraOAuthResult } from "./Types";
 import { MessageQueue } from "../MessageQueue";
 import { OAuthRequest } from "../WebhookTypes";
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";
 import axios from "axios";
 import LogWrapper from "../LogWrapper";
@@ -65,6 +65,7 @@ export class JiraWebhooksRouter {
 
     public getRouter() {
         const router = Router();
+        router.use(json())
         router.get("/oauth", this.onOAuth.bind(this));
         return router;
     }

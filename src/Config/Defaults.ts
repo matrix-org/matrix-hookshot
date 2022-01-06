@@ -73,10 +73,14 @@ export const DefaultConfig = new BridgeConfig({
         userIdPrefix: "webhooks_",
     },
     figma: {
-        instances: [{
-            name: "your-instance",
-            webhookPasscode: "some-secret",
-        }]
+        publicUrl: "https://example.com/hookshot/",
+        instances: {
+            "your-instance": {
+                teamId: "your-team-id",
+                accessToken: "your-personal-access-token",
+                passcode: "your-webhook-passcode",
+            }
+        }
     },
     provisioning: {
         secret: "!secretToken"

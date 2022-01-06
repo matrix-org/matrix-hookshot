@@ -56,24 +56,22 @@ export class Webhooks extends EventEmitter {
 
         // TODO: Move these
         this.expressRouter.get("/oauth", this.onGitHubGetOauth.bind(this));
-        this.expressRouter.all(
-            '/:hookId',
-            express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
-            this.onGenericPayload.bind(this),
-        );
-
-        this.expressRouter.use(express.json({
-            verify: this.verifyRequest.bind(this),
-        }));
-        this.expressRouter.post("/", this.onPayload.bind(this));
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
             this.expressRouter.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
         }
         if (this.config.figma) {
-            this.expressApp.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
+            this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
         }
-        this.queue = createMessageQueue(config);
+        this.expressRouter.all(
+            '/:hookId',
+            express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
+            this.onGenericPayload.bind(this),
+        );
+        this.expressRouter.use(express.json({
+            verify: this.verifyRequest.bind(this),
+        }));
+        this.expressRouter.post("/", this.onPayload.bind(this));
     }
 
     public stop() {

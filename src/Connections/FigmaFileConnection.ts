@@ -4,11 +4,13 @@ import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection } from ".";
 import LogWrapper from "../LogWrapper";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 
 const log = new LogWrapper("FigmaFileConnection");
 
 export interface FigmaFileConnectionState {
     fileId?: string;
+    instanceName?: string;
 }
 
 const md = markdownit();
@@ -27,9 +29,8 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         } as FigmaFileConnectionState);
     }
 
-    private commentIdToEvent: Map<string,string> = new Map();
 
-    constructor(roomId: string, stateKey: string, private state: FigmaFileConnectionState, public readonly client: MatrixClient) {
+    constructor(roomId: string, stateKey: string, private state: FigmaFileConnectionState, private readonly client: MatrixClient, private readonly storage: IBridgeStorageProvider) {
         super(roomId, stateKey, FigmaFileConnection.CanonicalEventType)
     }
 
@@ -41,11 +42,15 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         return this.state.fileId;
     }
 
+    public get instanceName() {
+        return this.state.instanceName;
+    }
+
     public async handleNewComment(payload: FigmaPayload) {
         // We need to check if the comment was actually new.
         // There isn't a way to tell how the comment has changed, so for now check the timestamps
         const age = Date.now() - Date.parse(payload.created_at);
-        if (Date.now() - Date.parse(payload.created_at) > 5000) {
+        if (age > 5000) {
             // Comment was created at least 5 seconds before the webhook, ignore it.
             log.warn(`Comment ${payload.comment_id} is stale, ignoring (${age}ms old)`);
             return;
@@ -55,11 +60,12 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         const comment = payload.comment.map(({text}) => text).join("\n");
         const empty = "‎"; // This contains an empty character to thwart the notification matcher.
         const name = payload.triggered_by.handle.split(' ').map(p => p[0] + empty + p.slice(1)).join(' ');
-        const parentEventId = this.commentIdToEvent.get(payload.parent_id);
+        const parentEventId = await this.storage.getFigmaCommentEventId(this.roomId, payload.parent_id);
         let content;
         if (parentEventId) {
+            const parentEvent = this.client.getEvent(this.roomId, parentEventId);
             const body = `**${name}**: ${comment}`;
-            content = RichReply.createFor(this.roomId, parentEventId, body, md.renderInline(body));
+            content = RichReply.createFor(this.roomId, parentEvent, body, md.renderInline(body));
             content["msgtype"] = "m.notice";
         } else {
             const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
@@ -72,10 +78,6 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
         content["uk.half-shot.matrix-hookshot.figma.comment_id"] = payload.comment_id;
         const eventId = await this.client.sendMessage(this.roomId, content);
-        this.commentIdToEvent.set(payload.comment_id, {
-            ...content,
-            event_id: eventId,
-            sender: await this.client.getUserId(),
-        });
+        await this.storage.setFigmaCommentEventId(this.roomId, payload.comment_id, eventId);
     }
 }

@@ -9,3 +9,4 @@ export * from "./GitlabIssue";
 export * from "./GitlabRepo";
 export * from "./IConnection";
 export * from "./JiraProject";
+export * from "./FigmaFileConnection";

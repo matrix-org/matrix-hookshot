@@ -10,7 +10,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import { GithubInstance } from "../Github/GithubInstance";
 import { JiraProject } from "../Jira/Types";
 import { v4 as uuid } from "uuid";
-import { BridgeConfig, BridgeGenericWebhooksConfig } from "../Config/Config";
+import { BridgeConfig } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 const md = new markdown();

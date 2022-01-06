@@ -22,6 +22,7 @@
     "esModuleInterop": true,
     "inlineSourceMap": true,
     "inlineSources": true,
+    "allowJs": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     // TODO: Type errors

@@ -16,3 +16,8 @@ export interface FigmaPayload {
     triggered_by: { id: string, handle: string },
     webhook_id: string,
 }
+
+export interface FigmaEvent {
+    payload: FigmaPayload,
+    instanceName: string,
+}

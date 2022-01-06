@@ -16,7 +16,7 @@ import LogWrapper from "../LogWrapper";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
-import { GitHubIssueConnection } from ".";
+import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
 const log = new LogWrapper("GitHubRepoConnection");
