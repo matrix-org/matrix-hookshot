@@ -175,8 +175,10 @@ webhook requests from <code>https://example.com/mywebhookspath</code> to the bri
 <h2 id="webhook-handling"><a class="header" href="#webhook-handling">Webhook Handling</a></h2>
 <p>Hookshot handles HTTP requests with a method of <code>GET</code>, <code>POST</code> or <code>PUT</code>.</p>
 <p>If the request is a <code>GET</code> request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.</p>
-<p>If the body contains a <code>text</code> key, then that key will be used as a message body in Matrix. This text will be automatically converted from Markdown to HTML.</p>
-<p>If the body <em>also</em> contains a <code>username</code> key, then the message will be prepended by the given username.</p>
+<p>If the body contains a <code>text</code> key, then that key will be used as a message body in Matrix (aka <code>body</code>). This text will be automatically converted from Markdown to HTML (unless
+a <code>html</code> key is provided.).</p>
+<p>If the body contains a <code>html</code> key, then that key will be used as the HTML message body in Matrix (aka <code>formatted_body</code>). A <code>text</code> key fallback MUST still be provided.</p>
+<p>If the body <em>also</em> contains a <code>username</code> key, then the message will be prepended by the given username. This will be prepended to both <code>text</code> and <code>html</code>.</p>
 <p>If the body does NOT contain a <code>text</code> field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
 <h2 id="javascript-transformations"><a class="header" href="#javascript-transformations">JavaScript Transformations</a></h2>
 <section class="notice">
