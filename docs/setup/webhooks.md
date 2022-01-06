@@ -25,7 +25,7 @@ webhook requests from `https://example.com/mywebhookspath` to the bridge an exam
 To add a webhook to your room:
   - Invite the bot user to the room.
   - Make sure the bot able to send state events (usually the Moderator power level in clients)
-  - Say `!hookshot webhook example`
+  - Say `!hookshot webhook example` where `example` is a name for your hook.
   - The bot will respond with the webhook URL to be sent to services.
 
 ## Webhook Handling
