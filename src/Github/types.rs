@@ -39,8 +39,8 @@ pub struct GitHubIssueMessageBodyIssue {
 #[derive(Serialize, Debug, Deserialize)]
 #[napi(object)]
 pub struct GitHubRepoMessageBody {
-    #[serde(rename = "'uk.half-shot.matrix-hookshot.github.repo'")]
-    #[napi(js_name = "'uk.half-shot.matrix-hookshot.github.repo'")]
+    #[serde(rename = "uk.half-shot.matrix-hookshot.github.repo")]
+    #[napi(js_name = "uk.half-shot.matrix-hookshot.github.repo")]
     pub repo: GitHubIssueMessageBodyRepo,
     #[napi(js_name = "external_url")]
     pub external_url: String,
@@ -49,11 +49,11 @@ pub struct GitHubRepoMessageBody {
 #[derive(Serialize, Debug, Deserialize)]
 #[napi(object)]
 pub struct GitHubIssueMessageBody {
-    #[serde(rename = "'uk.half-shot.matrix-hookshot.github.issue'")]
-    #[napi(js_name = "'uk.half-shot.matrix-hookshot.github.issue'")]
+    #[serde(rename = "uk.half-shot.matrix-hookshot.github.issue")]
+    #[napi(js_name = "uk.half-shot.matrix-hookshot.github.issue")]
     pub issue: GitHubIssueMessageBodyIssue,
-    #[serde(rename = "'uk.half-shot.matrix-hookshot.github.repo'")]
-    #[napi(js_name = "'uk.half-shot.matrix-hookshot.github.repo'")]
+    #[serde(rename = "uk.half-shot.matrix-hookshot.github.repo")]
+    #[napi(js_name = "uk.half-shot.matrix-hookshot.github.repo")]
     pub repo: GitHubIssueMessageBodyRepo,
     #[napi(js_name = "external_url")]
     pub external_url: String,
