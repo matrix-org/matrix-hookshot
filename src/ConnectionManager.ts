@@ -6,7 +6,7 @@
 
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
-import { BridgeConfig, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
 import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
@@ -114,6 +114,7 @@ export class ConnectionManager {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
+
 
         if (GitHubRepoConnection.EventTypes.includes(state.type)) {
             if (!this.github || !this.config.github) {

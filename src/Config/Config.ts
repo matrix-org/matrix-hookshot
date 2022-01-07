@@ -302,7 +302,7 @@ export class BridgeConfig {
 
     }
 
-    public checkPermission(mxid: string, service: "github"|"gitlab"|"jira"|"figma"|"webhooks", permission: BridgePermissionLevel, target: string) {
+    public checkPermission(mxid: string, service: "github"|"gitlab"|"jira"|"figma"|"webhooks", permission: BridgePermissionLevel, target?: string) {
         return permissionsCheckAction(this.permissions, mxid, service, BridgePermissionLevel[permission], target);
     }
 
