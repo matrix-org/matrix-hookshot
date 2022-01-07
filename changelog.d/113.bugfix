@@ -1,1 +1,0 @@
-Fix a bug where the bridge would not start if only generic webhooks are configured.

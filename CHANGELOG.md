@@ -1,3 +1,39 @@
+1.1.0 (2022-01-07)
+==================
+
+Features
+--------
+
+- Add support for [Figma](https://www.figma.com) webhooks. ([\#103](https://github.com/half-shot/matrix-hookshot/issues/103))
+- Support GitLab wiki page change events for GitLabProject connections. ([\#104](https://github.com/half-shot/matrix-hookshot/issues/104))
+- Add new script `validate-config` which check your config file for simple errors. ([\#125](https://github.com/half-shot/matrix-hookshot/issues/125))
+- Add support for a `html` key on generic webhooks to set the HTML content of a Matrix message. ([\#130](https://github.com/half-shot/matrix-hookshot/issues/130))
+
+
+Bugfixes
+--------
+
+- Fix an issue introduced in #111 that would cause the build to fail in CI. ([\#111](https://github.com/half-shot/matrix-hookshot/issues/111))
+- Fix a bug where the bridge would not start if only generic webhooks are configured. ([\#113](https://github.com/half-shot/matrix-hookshot/issues/113))
+
+
+Improved Documentation
+----------------------
+
+- Fix a couple of typos in `docs/setup.md`. Thanks @HarHarLinks! ([\#107](https://github.com/half-shot/matrix-hookshot/issues/107))
+- Improve documentation sidepanel with emojis! ([\#110](https://github.com/half-shot/matrix-hookshot/issues/110))
+- Fix incorrect command for webhook setup ([\#115](https://github.com/half-shot/matrix-hookshot/issues/115))
+- Improve docs around listener and generic webhook configuration ([\#124](https://github.com/half-shot/matrix-hookshot/issues/124))
+- Improve documentation for OAuth listener setup ([\#132](https://github.com/half-shot/matrix-hookshot/issues/132))
+
+
+Internal Changes
+----------------
+
+- Update to npai-rs@2 ([\#111](https://github.com/half-shot/matrix-hookshot/issues/111))
+- Port GitHub formatting functions to Rust. ([\#126](https://github.com/half-shot/matrix-hookshot/issues/126))
+
+
 1.0.0 (2021-12-21)
 ===================
 
