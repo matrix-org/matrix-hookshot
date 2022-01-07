@@ -5,6 +5,16 @@ import * as assert from "assert";
 import { configKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
+import { BridgeConfigActorPermission, permissionsCheckAction } from "../libRs";
+
+// Maps to permission_level_to_int in permissions.rs
+export enum BridgePermissionLevel {
+    "commands" = 1,
+    "login" = 2,
+    "notifications" = 3,
+    "manage-connections" = 4,
+    "admin" = 5,
+}
 
 interface BridgeConfigGitHubYAML {
     auth: {
@@ -161,6 +171,7 @@ interface BridgeConfigRoot {
     generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
+    permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
     jira?: BridgeConfigJira;
     logging: BridgeConfigLogging;
@@ -179,6 +190,8 @@ export class BridgeConfig {
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
+    @configKey("Permissions for using the bridge", true)
+    public readonly permissions: BridgeConfigActorPermission[];
     @configKey(`A passkey used to encrypt tokens stored inside the bridge.
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
@@ -232,6 +245,13 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
+        this.permissions = configData.permissions || [{
+            actor: this.bridge.domain,
+            services: [{
+                service: '*',
+                level: BridgePermissionLevel[BridgePermissionLevel.admin],
+            }]
+        }]
 
 
         if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
@@ -280,6 +300,10 @@ export class BridgeConfig {
             })
         }
 
+    }
+
+    public checkPermission(mxid: string, service: "github"|"gitlab"|"jira"|"figma"|"webhooks", permission: BridgePermissionLevel, target: string) {
+        return permissionsCheckAction(this.permissions, mxid, service, BridgePermissionLevel[permission], target);
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {

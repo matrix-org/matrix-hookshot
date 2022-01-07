@@ -1,4 +1,4 @@
-import { BridgeConfig } from "./Config";
+import { BridgeConfig, BridgePermissionLevel } from "./Config";
 import YAML from "yaml";
 import { getConfigKeyMetadata } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
@@ -20,6 +20,12 @@ export const DefaultConfig = new BridgeConfig({
     logging: {
         level: "info",
     },
+    permissions: [{
+        actor: "example.com",
+        services: [{
+            level: "admin"
+        }],
+    }],
     passFile: "passkey.pem",
     widgets: {
         publicUrl: "https://example.com/bridge_widget/",
