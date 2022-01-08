@@ -176,7 +176,7 @@ yarn # or npm i
     -v /etc/matrix-hookshot:/data \
     halfshot/matrix-hookshot:latest
 </code></pre>
-<p>Where <code>/etc/matrix-hookshot</code> would contain the configuration files <code>config.yml</code> and <code>registration.yml</code>, along with any other files needed.</p>
+<p>Where <code>/etc/matrix-hookshot</code> would contain the configuration files <code>config.yml</code> and <code>registration.yml</code>. The <code>passKey</code> file should also be stored alongside these files. In your config, you should use the path <code>/data/passkey.pem</code>.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>Copy the <code>config.sample.yml</code> to a new file <code>config.yml</code>. The sample config is also hosted
 <a href="./setup/sample-configuration.html">here</a> for your convienence.</p>
