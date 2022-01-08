@@ -42,7 +42,7 @@ docker run \
     halfshot/matrix-hookshot:latest
 ```
 
-Where `/etc/matrix-hookshot` would contain the configuration files `config.yml` and `registration.yml`, along with any other files needed.
+Where `/etc/matrix-hookshot` would contain the configuration files `config.yml` and `registration.yml`. The `passKey` file should also be stored alongside these files. In your config, you should use the path `/data/passkey.pem`.
 
 
 ## Configuration
