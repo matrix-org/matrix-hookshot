@@ -67,7 +67,6 @@ impl BridgeConfig {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use crate::config::{defaults::DefaultBridgeConfig, config::BridgeConfig};
 
     #[test]
