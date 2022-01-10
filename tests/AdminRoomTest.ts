@@ -14,7 +14,7 @@ function createAdminRoom(data: any = {admin_user: "@admin:bar"}): [AdminRoom, In
         data.admin_user = "@admin:bar";
     }
     const tokenStore = new UserTokenStore("notapath", intent, DefaultConfig);
-    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, {} as any, ), intent];
+    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, DefaultConfig), intent];
 }
 
 describe("AdminRoom", () => {
@@ -22,10 +22,9 @@ describe("AdminRoom", () => {
         const [adminRoom, intent] = createAdminRoom();
         await adminRoom.handleCommand("$foo:bar", "help");
         expect(intent.sentEvents).to.have.lengthOf(1);
-
         expect(intent.sentEvents[0]).to.deep.equal({
             roomId: ROOM_ID,
-            content: AdminRoom.helpMessage(),
+            content: AdminRoom.helpMessage(undefined, ["github", "gitlab", "jira"]),
         });
     });
 })
