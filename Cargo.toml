@@ -18,6 +18,7 @@ contrast = "0"
 rgb = "0"
 md-5 = "0.8.0"
 hex = "0.4.3"
+indoc = "1.0"
 
 [build-dependencies]
 napi-build = "1"

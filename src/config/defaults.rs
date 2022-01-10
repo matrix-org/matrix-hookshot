@@ -14,10 +14,12 @@ pub struct DefaultBridgeConfig {
     pub listeners: DefaultBridgeConfigItem<Vec<BridgeConfigListener>>,
     pub logging: DefaultBridgeConfigItem<BridgeConfigLogging>,
     pub queue: DefaultBridgeConfigItem<BridgeConfigMessageQueue>,
+    pub passFile: DefaultBridgeConfigItem<String>,
 }
 
 pub fn comment_multiline(comment: &String) -> String {
-    let mut out = String::from("\n# ");
+    let mut sentences = Vec::new();
+    let mut out = String::new();
     let mut len = 0;
     for word in comment.split(' ') {
         if len > 0 {
@@ -27,10 +29,13 @@ pub fn comment_multiline(comment: &String) -> String {
         out.push_str(word);
         len += word.len();
         if len >= 70 {
+            sentences.push(out);
+            out = String::new();
             out.push_str("\n# ");
             len = 0;
         }
     }
+    ,
     out
 }
 
@@ -60,14 +65,14 @@ impl DefaultBridgeConfig {
     pub fn new() -> Self {
         DefaultBridgeConfig {
             bot: DefaultBridgeConfigItem {
-                comment: "foo".to_string(),
+                comment: "Define profile information for the bot user".to_string(),
                 v: BridgeConfigBot {
                     displayname: Some("Hookshot Bot".to_string()),
-                    avatar: Some("mxc://example.com/foobar".to_string())
+                    avatar: Some("mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d".to_string())
                 }
             },
             bridge: DefaultBridgeConfigItem {
-                comment: "ffoo".to_string(),
+                comment: "Basic homeserver configuration".to_string(),
                 v: BridgeConfigBridge {
                     domain: "example.com".to_string(),
                     port: 1234,
@@ -77,28 +82,39 @@ impl DefaultBridgeConfig {
                 }
             },
             listeners: DefaultBridgeConfigItem {
-                comment: "ffoo".to_string(),
+                comment: indoc! {"
+                    HTTP Listener configuration.
+                    Bind resource endpoints to ports and addresses.
+                    'resources' may be any of webhooks, widgets, metrics, provisioning
+                "}.to_string(),
                 // TODO: Fill me in
                 v: vec![]
             },
             logging: DefaultBridgeConfigItem {
-                comment: "fooo".to_string(),
+                comment: "Logging settings. You can have a severity debug,info,warn,error".to_string(),
                 v: BridgeConfigLogging {
                     level: "info".to_string(),
                 }
             }, 
             queue: DefaultBridgeConfigItem {
-                comment: "fooo".to_string(),
+                comment: "Message queue / cache configuration options for large scale deployments".to_string(),
                 v: BridgeConfigMessageQueue {
                     monolithic: true,
                     port: Some(6379),
                     host: Some("localhost".to_string()),
                 }
-            }
+            },
+            passFile: DefaultBridgeConfigItem {
+                comment: indoc! {"
+                A passkey used to encrypt tokens stored inside the bridge.
+                Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
+                "}.to_string(),
+                v: "passkey.pem".to_string()
+            },
         }
     }
 
-    pub fn to_output<T: Serialize + Clone>(name: String, item: &DefaultBridgeConfigItem<T>) -> String {
+    fn to_output<T: Serialize + Clone>(name: String, item: &DefaultBridgeConfigItem<T>) -> String {
         let mut output = String::new();
         output.push_str(&comment_multiline(&item.comment));
         let mut map = HashMap::new();
@@ -110,8 +126,8 @@ impl DefaultBridgeConfig {
 
     pub fn output(&self) -> String {
         let mut output = String::new();
-        output.push_str( &DefaultBridgeConfig::to_output("bot".to_string(),&self.bot));
-        output.push_str( &DefaultBridgeConfig::to_output("bridge".to_string(),&self.bridge));
+        output.push_str(&DefaultBridgeConfig::to_output("bot".to_string(),&self.bot));
+        output.push_str(&DefaultBridgeConfig::to_output("bridge".to_string(),&self.bridge));
         output.push_str(&DefaultBridgeConfig::to_output("listeners".to_string(),&self.listeners));
         output.push_str(&DefaultBridgeConfig::to_output("logging".to_string(),&self.logging));
         output.push_str(&DefaultBridgeConfig::to_output("queue".to_string(),&self.queue));
@@ -127,6 +143,7 @@ impl From<DefaultBridgeConfig> for BridgeConfig {
             logging: d.logging.v,
             queue: Some(d.queue.v),
             listeners: d.listeners.v,
+            passFile: d.passFile.v,
         }
     }
 }

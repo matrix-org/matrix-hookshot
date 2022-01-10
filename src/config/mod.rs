@@ -2,10 +2,15 @@ use std::fs::File;
 use std::collections::HashMap;
 use napi::{Error, Status};
 
-use self::config::{*};
+use self::{config::{*}, defaults::DefaultBridgeConfig};
 
 pub mod config;
 pub mod defaults;
+
+#[napi]
+pub fn get_default_config() -> String {
+  DefaultBridgeConfig::new().output()
+}
 
 
 #[napi]
