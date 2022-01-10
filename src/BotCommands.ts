@@ -7,52 +7,79 @@ import { MatrixMessageContent } from "./MatrixEvent";
 const md = new markdown();
 
 export const botCommandSymbol = Symbol("botCommandMetadata");
-export function botCommand(prefix: string, help: string, requiredArgs: string[] = [], optionalArgs: string[] = [], includeUserId = false) {
+export function botCommand(prefix: string, helpOrOpts: string|BotCommandOptions, requiredArgs: string[] = [], optionalArgs: string[] = [], includeUserId = false) {
+    if (typeof helpOrOpts === "string") {
+        return Reflect.metadata(botCommandSymbol, {
+            prefix,
+            help: helpOrOpts,
+            requiredArgs,
+            optionalArgs,
+            includeUserId,
+        });
+    }
     return Reflect.metadata(botCommandSymbol, {
         prefix,
-        help,
-        requiredArgs,
-        optionalArgs,
-        includeUserId,
+        ...helpOrOpts
     });
 }
+export interface BotCommandOptions {
+    help: string,
+    requiredArgs?: string[],
+    optionalArgs?: string[],
+    includeUserId?: boolean,
+    category?: string,
+}
+
+
 type BotCommandResult = {status?: boolean, reaction?: string}|undefined;
 type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
 
-export type BotCommands = {[prefix: string]: {
-    fn: BotCommandFunction,
-    requiredArgs: string[],
-    optionalArgs: string[],
-    includeUserId: boolean,
-}};
+export type BotCommands = {[prefix: string]: {fn: BotCommandFunction} & BotCommandOptions};
+export type HelpFunction = (cmdPrefix?: string, categories?: string[]) => MatrixMessageContent
 
-export function compileBotCommands(...prototypes: Record<string, BotCommandFunction>[]): {helpMessage: (cmdPrefix?: string) => MatrixMessageContent, botCommands: BotCommands} {
-    let content = "Commands:\n";
+export function compileBotCommands(...prototypes: Record<string, BotCommandFunction>[]): {helpMessage: HelpFunction, botCommands: BotCommands} {
     const botCommands: BotCommands = {};
+    const cmdStrs: {[category: string]: string[]} = {};
     prototypes.forEach(prototype => {
         Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
             const b = Reflect.getMetadata(botCommandSymbol, prototype, propetyKey);
             if (b) {
-                const requiredArgs = b.requiredArgs.join(" ");
-                const optionalArgs = b.optionalArgs.map((arg: string) =>  `[${arg}]`).join(" ");
-                content += ` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}\n`;
-                // We know that this is safe.
+                const category = b.category || "default";
+                const requiredArgs = b.requiredArgs?.join(" ") || "";
+                const optionalArgs = b.optionalArgs?.map((arg: string) =>  `[${arg}]`).join(" ") || "";
+                cmdStrs[category] = cmdStrs[category] || []
+                cmdStrs[category].push(` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}`);
+                // We know that these types are safe.
                 botCommands[b.prefix as string] = {
                     fn: prototype[propetyKey],
+                    help: b.help,
                     requiredArgs: b.requiredArgs,
                     optionalArgs: b.optionalArgs,
                     includeUserId: b.includeUserId,
+                    category: b.category,
                 };
             }
         });
     })
     return {
-        helpMessage: (cmdPrefix?: string) => ({
-            msgtype: "m.notice",
-            body: content,
-            formatted_body: md.render(content).replace(/££PREFIX££/g, cmdPrefix || ""),
-            format: "org.matrix.custom.html"
-        }),
+        helpMessage: (cmdPrefix?: string, onlyCategories?: string[]) => {
+            let content = "";
+            for (const [categoryName, commands] of Object.entries(cmdStrs)) {
+                if (categoryName !== "default" && onlyCategories && !onlyCategories.includes(categoryName)) {
+                    continue;
+                }
+                if (categoryName !== "default") {
+                    content += `### ${categoryName[0].toUpperCase()}${categoryName.substring(1).toLowerCase()}\n`;
+                }
+                content += commands.join('\n') + "\n";
+            }
+            return {
+                msgtype: "m.notice",
+                body: content.replace(/££PREFIX££/g, cmdPrefix || ""),
+                formatted_body: md.render(content).replace(/££PREFIX££/g, cmdPrefix || ""),
+                format: "org.matrix.custom.html"
+            }
+        },
         botCommands,
     }
 }
@@ -71,7 +98,7 @@ export async function handleCommand(userId: string, command: string, botCommands
         // We have a match!
         const command = botCommands[prefix];
         if (command) {
-            if (command.requiredArgs.length > parts.length - i) {
+            if (command.requiredArgs && command.requiredArgs.length > parts.length - i) {
                 return {handled: true, error: "Missing args"};
             }
             const args = parts.slice(i);

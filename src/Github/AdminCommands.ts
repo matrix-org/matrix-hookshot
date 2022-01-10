@@ -20,7 +20,7 @@ export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, st
 }
 
 export class GitHubBotCommands extends AdminRoomCommandHandler {
-    @botCommand("github login", "Login to GitHub")
+    @botCommand("github login", {help: "Login to GitHub", category: "github"})
     public async loginCommand() {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
@@ -32,13 +32,13 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         return this.sendNotice(`To login, open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge`);
     }
 
-    @botCommand("github startoauth", "Start the OAuth process with GitHub")
+    @botCommand("github startoauth", {help: "Start the OAuth process with GitHub", category: "github"})
     public async beginOAuth() {
         // Legacy command
         return this.loginCommand();
     }
 
-    @botCommand("github setpersonaltoken", "Set your personal access token for GitHub", ['accessToken'])
+    @botCommand("github setpersonaltoken", {help: "Set your personal access token for GitHub", requiredArgs: ['accessToken'], category: "github"})
     public async setGHPersonalAccessToken(accessToken: string) {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
@@ -56,7 +56,7 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         await this.tokenStore.storeUserToken("github", this.userId, JSON.stringify({access_token: accessToken, token_type: 'pat'} as GitHubOAuthToken));
     }
 
-    @botCommand("github hastoken", "Check if you have a token stored for GitHub")
+    @botCommand("github hastoken", {help: "Check if you have a token stored for GitHub", category: "github"})
     public async hasPersonalToken() {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
