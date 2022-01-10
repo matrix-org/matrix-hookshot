@@ -20,7 +20,7 @@ Support for on-prem deployments is hoping to land soon.
 </section>
 
 
-You will need a Atlassain account with the ability to use the developer tools in order to create the app.
+You will need a Atlassian account with the ability to use the developer tools in order to create the app.
 
 You'll first need to head to https://developer.atlassian.com/console/myapps/create-3lo-app/ to create a 
 "OAuth 2.0 (3LO)" integration.
