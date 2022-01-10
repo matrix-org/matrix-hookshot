@@ -1,8 +1,6 @@
 import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { CommentProcessor } from "../CommentProcessor";
-import { MessageSenderClient } from "../MatrixSender"
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
@@ -64,8 +62,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore) {
         const validData = validateJiraConnectionState(data);
         const jiraClient = await tokenStore.getJiraForUser(userId);
         if (!jiraClient) {
@@ -75,7 +72,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         if (!jiraResourceClient) {
             throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
         }
-        const connection = new JiraProjectConnection(roomId, as, data, validData.url, commentProcessor, messageClient, tokenStore);
+        const connection = new JiraProjectConnection(roomId, as, data, validData.url, tokenStore);
         if (!connection.projectKey) {
             throw Error('Expected projectKey to be defined');
         }
@@ -83,7 +80,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             // Just need to check that the user can access this.
             await jiraResourceClient.getProject(connection.projectKey);
         } catch (ex) {
-            throw new ApiError("User cannot open this project", ErrCode.ForbiddenUser);
+            throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
         }
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
         return {stateEventContent: validData, connection};
@@ -131,8 +128,6 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         private readonly as: Appservice,
         private state: JiraProjectConnectionState,
         stateKey: string,
-        private readonly commentProcessor: CommentProcessor,
-        private readonly messageClient: MessageSenderClient,
         private readonly tokenStore: UserTokenStore,) {
             super(
                 roomId,
