@@ -5,6 +5,7 @@ module.exports = {
     },
     plugins: [
       '@prefresh/snowpack',
+      '@snowpack/plugin-sass',
       ['@snowpack/plugin-typescript', '--project tsconfig.web.json'],
     ],
     packageOptions: {

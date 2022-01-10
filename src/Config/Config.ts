@@ -102,10 +102,22 @@ export interface BridgeGenericWebhooksConfig {
     allowJsTransformationFunctions?: boolean;
 }
 
-interface BridgeWidgetConfig {
+interface BridgeWidgetConfigYAML {
     port?: number;
     addToAdminRooms: boolean;
     publicUrl: string;
+}
+
+export class BridgeWidgetConfig {
+    public readonly addToAdminRooms: boolean;
+    public readonly publicUrl: string;
+    constructor(yaml: BridgeWidgetConfigYAML) {
+        this.addToAdminRooms = yaml.addToAdminRooms;
+        if (typeof yaml.publicUrl !== "string") {
+            throw Error('publicUrl is not defined or not a string');
+        }
+        this.publicUrl = yaml.publicUrl;
+    }
 }
 
 
@@ -167,7 +179,7 @@ interface BridgeConfigRoot {
     passFile: string;
     queue: BridgeConfigQueue;
     webhook?: BridgeConfigWebhook;
-    widgets?: BridgeWidgetConfig;
+    widgets?: BridgeWidgetConfigYAML;
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
 }
@@ -232,6 +244,7 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
+        this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
 
 
         if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
@@ -256,6 +269,13 @@ export class BridgeConfig {
                 bindAddress: configData.webhook.bindAddress,
             })
         }
+        
+        if (configData.widgets?.port) {
+            this.listeners.push({
+                resources: ['widgets'],
+                port: configData.widgets.port,
+            })
+        }
 
         if (this.provisioning?.port) {
             this.listeners.push({
@@ -272,14 +292,6 @@ export class BridgeConfig {
                 bindAddress: this.metrics.bindAddress,
             })
         }
-        
-        if (this.widgets?.port) {
-            this.listeners.push({
-                resources: ['widgets'],
-                port: this.widgets.port,
-            })
-        }
-
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {

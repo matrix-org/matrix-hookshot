@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { BridgeConfigGitHub } from "../Config/Config";
-import { ApiError, ErrCode } from "../provisioning/api";
+import { ApiError, ErrCode } from "../api";
 import { UserTokenStore } from "../UserTokenStore";
 import { generateGitHubOAuthUrl } from "./AdminCommands";
 import LogWrapper from "../LogWrapper";

@@ -7,7 +7,7 @@ import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";
 import axios from "axios";
 import LogWrapper from "../LogWrapper";
-import { ApiError, ErrCode } from "../provisioning/api";
+import { ApiError, ErrCode } from "../api";
 import { HookshotJiraApi } from "./Client";
 
 const log = new LogWrapper("JiraRouter");

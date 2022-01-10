@@ -1,4 +1,4 @@
-import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, WidgetConfigurationOptions, WidgetConfigurationType } from '../src/Widgets/BridgeWidgetInterface';
 
 export class BridgeAPIError extends Error {
     constructor(msg: string, private body: Record<string, unknown>) {
@@ -8,8 +8,7 @@ export class BridgeAPIError extends Error {
 
 export default class BridgeAPI {
 
-    constructor(private baseUrl: string, private roomId: string, private accessToken: string) {
-    }
+    constructor(private readonly baseUrl: string, private readonly accessToken: string) {}
 
     async request(method: string, endpoint: string, body?: unknown) {
         const req = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -32,10 +31,18 @@ export default class BridgeAPI {
     }
 
     async verify() {
-        return this.request('GET', `/widgetapi/${encodeURIComponent(this.roomId)}/verify`);
+        return this.request('GET', `/widgetapi/v1/verify`);
     }
 
     async state(): Promise<BridgeRoomState> {
-        return this.request('GET', `/widgetapi/${encodeURIComponent(this.roomId)}`);
+        return this.request('GET', `/widgetapi/v1/state`);
+    }
+
+    async getEnabledConfigSections(): Promise<{[sectionName: string]: boolean}> {
+        return this.request('GET', '/widgetapi/v1/config/sections');
+    }
+
+    async getConfig(section: string): Promise<WidgetConfigurationOptions> {
+        return this.request('GET', `/widgetapi/v1/config/${section}`);
     }
 }

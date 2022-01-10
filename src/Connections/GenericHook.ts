@@ -7,7 +7,7 @@ import { MatrixEvent } from "../MatrixEvent";
 import { Appservice } from "matrix-bot-sdk";
 import { v4 as uuid} from "uuid";
 import { BridgeGenericWebhooksConfig } from "../Config/Config";
-import { ApiError, ErrCode } from "../provisioning/api";
+import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 export interface GenericHookConnectionState {
     /**

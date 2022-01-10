@@ -11,3 +11,21 @@ export interface BridgeRoomState {
     title: string;
     github: BridgeRoomStateGitHub;
 }
+
+export enum WidgetConfigurationType {
+    String,
+    OAuthUrl,
+}
+
+export interface WidgetConfigurationOption {
+    key: string;
+    type: WidgetConfigurationType,
+    currentValue: string|null;
+    defaultValue?: string;
+    additionalData?: Record<string, unknown>;
+}
+
+export interface WidgetConfigurationSection {
+    name: string;
+    options: WidgetConfigurationOption[];
+}

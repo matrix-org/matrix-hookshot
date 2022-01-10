@@ -13,7 +13,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
-import { ApiError, ErrCode } from "../provisioning/api";
+import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
 
 type JiraAllowedEventsNames = "issue.created";

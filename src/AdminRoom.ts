@@ -4,18 +4,17 @@ import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHan
 import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
 import { BridgeConfig } from "./Config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
-import { CommandError } from "./errors";
 import { Endpoints } from "@octokit/types";
 import { FormatUtil } from "./FormatUtil";
 import { GetUserResponse } from "./Gitlab/Types";
 import { GitHubBotCommands } from "./Github/AdminCommands";
-import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
+import { GithubGraphQLClient } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { JiraBotCommands } from "./Jira/AdminCommands";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
-import { GitHubOAuthToken, ProjectsListResponseData } from "./Github/Types";
+import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import LogWrapper from "./LogWrapper";
@@ -50,8 +49,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
                 config: BridgeConfig) {
         super(botIntent, roomId, tokenStore, config, data);
         this.notifFilter = new NotifFilter(notifContent);
-        // TODO: Move this
-        this.backfillAccessToken();
+        if (this.config.widgets) {
+
+            this.backfillAccessToken();
+        }
     }
 
     public get oauthState() {
@@ -153,8 +154,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github notifications filter participating", "Toggle enabling/disabling GitHub notifications in this room")
-    // @ts-ignore - property is used
-    private async setGitHubNotificationsStateParticipating() {
+    public async setGitHubNotificationsStateParticipating() {
         const newData = await this.saveAccountData((data) => {
             if (!data.github?.notifications?.enabled) {
                 throw Error('Notifications are not enabled')
@@ -177,8 +177,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github notifications", "Show the current notification settings")
-    // @ts-ignore - property is used
-    private async getGitHubNotificationsState() {
+    public async getGitHubNotificationsState() {
         if (!this.notificationsEnabled("github")) {
             return this.sendNotice(`Notifications are disabled`);
         }
@@ -187,8 +186,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
 
     @botCommand("github project list-for-user", "List GitHub projects for a user", [], ['user', 'repo'])
-    // @ts-ignore - property is used
-    private async listProjects(username?: string, repo?: string) {
+    public async listProjectsForUser(username?: string, repo?: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support");
         }
@@ -200,7 +198,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         if (!username) {
             const me = await octokit.users.getAuthenticated();
             // TODO: Fix
-            username = me.data.name!;
+            username = me.data.login;
         }
 
         let res: ProjectsListResponseData;
@@ -229,8 +227,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github project list-for-org", "List GitHub projects for an org", ['org'], ['repo'])
-    // @ts-ignore - property is used
-    private async listProjects(org: string, repo?: string) {
+    public async listProjectsForOrg(org: string, repo?: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support");
         }
@@ -268,8 +265,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github project open", "Open a GitHub project as a room", ['projectId'])
-    // @ts-ignore - property is used
-    private async openProject(projectId: string) {
+    public async openProject(projectId: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support");
         }
@@ -282,7 +278,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
             const project = await octokit.projects.get({
                 project_id: parseInt(projectId, 10),
             });
-            this.emit('open.project', project.data);
+            return this.emit('open.project', project.data);
         } catch (ex) {
             if (ex.status === 404) {
                 return this.sendNotice('Not found');
@@ -293,8 +289,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github discussion open", "Open a discussion room", ['owner', 'repo', 'number'])
-    // @ts-ignore - property is used
-    private async listDiscussions(owner: string, repo: string, numberStr: string) {
+    public async listDiscussions(owner: string, repo: string, numberStr: string) {
         const number = parseInt(numberStr);
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support");
@@ -306,7 +301,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         try {
             const graphql = new GithubGraphQLClient(octokit);
             const discussions = await graphql.getDiscussionByNumber(owner, repo, number);
-            this.emit('open.discussion', owner, repo, discussions);
+            return this.emit('open.discussion', owner, repo, discussions);
         } catch (ex) {
             if (ex.status === 404) {
                 return this.sendNotice('Not found');
@@ -320,8 +315,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     /* GitLab commands */
 
     @botCommand("gitlab open issue", "Open or join a issue room for GitLab", ['url'])
-    // @ts-ignore - property is used
-    private async gitLabOpenIssue(url: string) {
+    public async gitLabOpenIssue(url: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
         }
@@ -342,7 +336,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         };
         log.info(`Looking up issue ${instanceName} ${getIssueOpts.projects.join("/")}#${getIssueOpts.issue}`);
         const issue = await client.issues.get(getIssueOpts);
-        this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
+        return this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
     }
 
     @botCommand("gitlab personaltoken", "Set your personal access token for GitLab", ['instanceName', 'accessToken'])
@@ -480,8 +474,11 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return this.sendNotice("Command not understood");
         }
         
-        if ("error" in result) {
-            return this.sendNotice(`Failed to handle command: ${result.error}`);
+        if ("humanError" in result) {
+            return this.sendNotice(`Failed to handle command: ${result.humanError}`);
+        } else if ("error" in result) {
+            // Error is not something we want to print to the user.
+            return this.sendNotice(`Failed to handle command: A unknown failure occured. Contact your bridge admin`);
         }
         return null;
     }
@@ -517,9 +514,11 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     public async setupWidget() {
+        log.info(`Running setupWidget for ${this.roomId}`);
         try {
             const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
             if (res) {
+                log.debug(`Widget for ${this.roomId} exists, not creating`);
                 // No-op
                 // Validate?
                 return;
@@ -527,8 +526,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
         } catch (ex) {
             // Didn't exist, create it.
         }
+        log.debug(`Generating widget state event for ${this.roomId}`);
         const accessToken = uuid();
-        return this.botIntent.underlyingClient.sendStateEvent(
+        await this.botIntent.underlyingClient.sendStateEvent(
             this.roomId,
             "im.vector.modular.widgets",
             "bridge_control",
@@ -541,10 +541,17 @@ export class AdminRoom extends AdminRoomCommandHandler {
                 "name": "Bridge Control",
                 "type": "m.custom",
                 "url": `${this.config.widgets?.publicUrl}/#/?roomId=$matrix_room_id&widgetId=$matrix_widget_id&accessToken=${accessToken}`,
-                accessToken,
-                "waitForIframeLoad": true
+                "uk.half-shot.matrix-hookshot.accessToken": accessToken,
+                "waitForIframeLoad": true,
             }
         );
+        await this.botIntent.underlyingClient.sendStateEvent(this.roomId,
+            "m.room.name",
+            "",
+            {
+                name: "Hookshot Settings"
+        });
+        await this.sendNotice(`If your client supports it, you can open the widget to configure hookshot.`);
     }
 
     private async backfillAccessToken() {
@@ -552,10 +559,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
             const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
             if (res) {
                 log.debug(`Stored access token for widgets for ${this.roomId}`);
-                this.widgetAccessToken = res.accessToken;
+                this.widgetAccessToken = res["uk.half-shot.matrix-hookshot.accessToken"];
             }
         } catch (ex) {
-            log.info(`No widget access token for ${this.roomId}`);
+            log.debug(`No widget access token for ${this.roomId}`);
         }
     }
 

@@ -52,7 +52,7 @@ export class Bridge {
     private github?: GithubInstance;
     private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
+    private widgetApi?: BridgeWidgetApi;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -568,6 +568,7 @@ export class Bridge {
         }
 
         if (this.config.widgets) {
+            this.widgetApi = new BridgeWidgetApi(this.adminRooms, this.config);
             this.listener.bindResource('widgets', this.widgetApi.expressRouter);
         }
         if (this.provisioningApi) {
@@ -937,7 +938,7 @@ export class Bridge {
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
-        if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
+        if (this.config.widgets?.addToAdminRooms) {
             await adminRoom.setupWidget();
         }
         log.info(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);

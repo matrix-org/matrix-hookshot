@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { h, Component } from 'preact';
 import WA from 'matrix-widget-api';
 import BridgeAPI from './BridgeAPI';
@@ -41,7 +42,8 @@ export default class App extends Component<void, IState> {
         const widgetId = assertParam(qs, 'widgetId');
         const roomId = assertParam(qs, 'roomId');
         const accessToken = assertParam(qs, 'accessToken');
-        this.bridgeApi = new BridgeAPI("http://localhost:5000", roomId, accessToken);
+        // Fetch via config.
+        this.bridgeApi = new BridgeAPI("http://localhost:5000", accessToken);
         await this.bridgeApi.verify();
         this.widgetApi = new WA.WidgetApi(widgetId);
         this.widgetApi.on("ready", () => {
@@ -78,7 +80,7 @@ export default class App extends Component<void, IState> {
         if (this.state.error) {
             content = <ErrorPane>{this.state.error}</ErrorPane>;
         } else if (this.state.roomState) {
-            content = <AdminSettings roomState={this.state.roomState}></AdminSettings>;
+            content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState}></AdminSettings>;
         } else if (this.state.busy) {
             content = <div class="spinner"></div>;
         } else {
