@@ -1,0 +1,1 @@
+Bot command help text now features category headers, and disabled commands are no longer visible.
