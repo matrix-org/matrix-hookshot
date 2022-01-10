@@ -2,20 +2,16 @@
 import { Appservice } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
-import LogWrapper from "../LogWrapper";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GitHubRepoConnection, GitHubRepoConnectionState, JiraProjectConnection, JiraProjectConnectionState } from ".";
+import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection } from ".";
 import { CommandError } from "../errors";
 import { UserTokenStore } from "../UserTokenStore";
 import { GithubInstance } from "../Github/GithubInstance";
-import { JiraProject } from "../Jira/Types";
 import { v4 as uuid } from "uuid";
 import { BridgeConfig } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 const md = new markdown();
-
-const log = new LogWrapper("SetupConnection");
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
@@ -44,7 +40,7 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("github repo", "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this)", ["url"], [], true)
     public async onGitHubRepo(userId: string, url: string) {
-        if (!this.githubInstance) {
+        if (!this.githubInstance || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub");
         }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
@@ -57,30 +53,14 @@ export class SetupConnection extends CommandConnection {
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
         }
-        const res = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(url.trim().toLowerCase());
-        if (!res) {
+        const urlParts = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(url.trim().toLowerCase());
+        if (!urlParts) {
             throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid");
         }
-        const [, org, repo] = res;
-        let resultRepo
-        try {
-            resultRepo = await octokit.repos.get({owner: org, repo});
-        } catch (ex) {
-            throw new CommandError("Invalid GitHub repo", "Could not find the requested GitHub repo. Do you have permission to view it?");
-        }
-        // Check if we have a webhook for this repo
-        try {
-            await this.githubInstance.getOctokitForRepo(org, repo);
-        } catch (ex) {
-            log.warn(`No app instance for new git connection:`, ex);
-            // We might be able to do it via a personal access token
-            await this.as.botClient.sendNotice(this.roomId, `Note: There doesn't appear to be a GitHub App install that covers this repository so webhooks won't work.`)
-        }
-        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, url, {
-            org,
-            repo,
-        } as GitHubRepoConnectionState);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${resultRepo.data.full_name}`);
+        const [, org, repo] = urlParts;
+        const res = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.as, this.tokenStore, this.githubInstance, this.config.github);
+        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, url, res.stateEventContent);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${org}/${repo}`);
     }
 
     @botCommand("jira project", "Create a connection for a JIRA project. (You must be logged in with JIRA to do this)", ["url"], [], true)
@@ -98,27 +78,15 @@ export class SetupConnection extends CommandConnection {
         if (!jiraClient) {
             throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
         }
-        const res = /^https:\/\/([A-z.\-_]+)\/.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.trim().toLowerCase());
-        if (!res) {
+        const urlParts = /^https:\/\/([A-z.\-_]+)\/.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.trim().toLowerCase());
+        if (!urlParts) {
             throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...`");
         }
-        const [, origin, projectKey] = res;
+        const [, origin, projectKey] = urlParts;
         const safeUrl = `https://${origin}/projects/${projectKey}`;
-        const jiraOriginClient = await jiraClient.getClientForUrl(new URL(safeUrl));
-        if (!jiraOriginClient) {
-            throw new CommandError("User does not have permission to access this JIRA instance", "You do not have access to this JIRA instance. You may need to log into Jira again to provide access");
-        }
-        let jiraProject: JiraProject;
-        try {
-            jiraProject = await jiraOriginClient.getProject(projectKey.toUpperCase());
-        } catch (ex) {
-            log.warn(`Failed to get jira project:`, ex);
-            throw new CommandError("Missing or invalid JIRA project", "Could not find the requested JIRA project. Do you have permission to view it?");
-        }
-        await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, safeUrl, {
-            url: safeUrl,
-        } as JiraProjectConnectionState);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project '${jiraProject.name}' (${jiraProject.key})`);
+        const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.as, this.tokenStore);
+        await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, safeUrl, res.stateEventContent);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${projectKey}`);
     }
 
     @botCommand("webhook", "Create a inbound webhook", ["name"], [], true)

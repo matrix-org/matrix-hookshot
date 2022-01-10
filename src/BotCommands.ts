@@ -1,6 +1,7 @@
 import markdown from "markdown-it";
 import stringArgv from "string-argv";
 import { CommandError } from "./errors";
+import { ApiError } from "./provisioning/api";
 import { MatrixMessageContent } from "./MatrixEvent";
 
 const md = new markdown();
@@ -15,7 +16,7 @@ export function botCommand(prefix: string, help: string, requiredArgs: string[] 
         includeUserId,
     });
 }
-type BotCommandResult = {status: boolean, reaction?: string};
+type BotCommandResult = {status?: boolean, reaction?: string}|undefined;
 type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
 
 export type BotCommands = {[prefix: string]: {
@@ -82,6 +83,9 @@ export async function handleCommand(userId: string, command: string, botCommands
                 return {handled: true, result};
             } catch (ex) {
                 const commandError = ex as CommandError;
+                if (ex instanceof ApiError) {
+                    return {handled: true, error: ex.error, humanError: ex.error};
+                }
                 return {handled: true, error: commandError.message, humanError: commandError.humanError};
             }
         }

@@ -72,7 +72,7 @@ export class ConnectionManager {
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
-            const res = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.commentProcessor, this.messageClient, this.tokenStore);
+            const res = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore);
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
             this.push(res.connection);
             return res.connection;
@@ -191,7 +191,7 @@ export class ConnectionManager {
             if (!this.config.jira) {
                 throw Error('JIRA is not configured');
             }
-            return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.commentProcessor, this.messageClient, this.tokenStore);
+            return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.tokenStore);
         }
 
         if (FigmaFileConnection.EventTypes.includes(state.type)) {

@@ -1,0 +1,1 @@
+Refactor setup commands code to use the same checks as the provisioning code.

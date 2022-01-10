@@ -141,7 +141,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const validData = validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+            throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
         }
         const me = await octokit.users.getAuthenticated();
         let permissionLevel;
@@ -479,7 +479,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
 
-        let message = `${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        let message = `**${event.issue.user.login}** created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
         message += (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
         if (this.showIssueRoomLink) {
             const appInstance = await this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
