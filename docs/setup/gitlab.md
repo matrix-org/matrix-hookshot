@@ -14,7 +14,7 @@ GitLab configuration is fairly straight-forward:
     secret: secrettoken
 ```
 
-You neeed to list all the instances you plan to connect to in the `config.yml`. This is
+You need to list all the instances you plan to connect to in the `config.yml`. This is
 used so that users can give a short name like `gitlab` or `matrix.org` when they want
 to specify an instance.
 
