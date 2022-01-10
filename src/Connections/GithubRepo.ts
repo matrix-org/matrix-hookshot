@@ -141,7 +141,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const validData = validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+            throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
         }
         const me = await octokit.users.getAuthenticated();
         let permissionLevel;
