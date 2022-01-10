@@ -16,7 +16,7 @@ export function botCommand(prefix: string, help: string, requiredArgs: string[] 
         includeUserId,
     });
 }
-type BotCommandResult = {status: boolean, reaction?: string};
+type BotCommandResult = {status?: boolean, reaction?: string}|undefined;
 type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
 
 export type BotCommands = {[prefix: string]: {

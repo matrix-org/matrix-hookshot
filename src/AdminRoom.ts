@@ -4,18 +4,17 @@ import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHan
 import { botCommand, compileBotCommands, handleCommand, BotCommands } from "./BotCommands";
 import { BridgeConfig } from "./Config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
-import { CommandError } from "./errors";
 import { Endpoints } from "@octokit/types";
 import { FormatUtil } from "./FormatUtil";
 import { GetUserResponse } from "./Gitlab/Types";
 import { GitHubBotCommands } from "./Github/AdminCommands";
-import { GithubGraphQLClient, GithubInstance } from "./Github/GithubInstance";
+import { GithubGraphQLClient } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { JiraBotCommands } from "./Jira/AdminCommands";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
-import { GitHubOAuthToken, ProjectsListResponseData } from "./Github/Types";
+import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import LogWrapper from "./LogWrapper";
@@ -200,7 +199,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         if (!username) {
             const me = await octokit.users.getAuthenticated();
             // TODO: Fix
-            username = me.data.name!;
+            username = me.data.login;
         }
 
         let res: ProjectsListResponseData;

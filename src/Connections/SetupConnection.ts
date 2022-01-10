@@ -2,21 +2,16 @@
 import { Appservice } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
-import LogWrapper from "../LogWrapper";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GitHubRepoConnection, GitHubRepoConnectionState, JiraProjectConnection, JiraProjectConnectionState } from ".";
+import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection } from ".";
 import { CommandError } from "../errors";
 import { UserTokenStore } from "../UserTokenStore";
 import { GithubInstance } from "../Github/GithubInstance";
-import { JiraProject } from "../Jira/Types";
 import { v4 as uuid } from "uuid";
 import { BridgeConfig } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
-import { ApiError } from "../api";
 const md = new markdown();
-
-const log = new LogWrapper("SetupConnection");
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has

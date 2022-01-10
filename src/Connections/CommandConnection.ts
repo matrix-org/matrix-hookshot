@@ -48,7 +48,7 @@ export abstract class CommandConnection extends BaseConnection {
             log.warn(`Failed to handle command:`, error);
             return true;
         } else {
-            const reaction = commandResult.result.reaction || '✅';
+            const reaction = commandResult.result?.reaction || '✅';
             await this.botClient.sendEvent(this.roomId, "m.reaction", {
                 "m.relates_to": {
                     rel_type: "m.annotation",
