@@ -264,7 +264,7 @@ export class Bridge {
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestReadyForReviewEvent, GitHubRepoConnection>(
-            "github.pull_request_review.ready_for_review",
+            "github.pull_request.ready_for_review",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
             (c, data) => c.onPRReadyForReview(data),
         );
