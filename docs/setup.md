@@ -53,6 +53,7 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 You should read and fill this in as the bridge will not start without a complete config.
 
 You may validate your config without starting the service by running `yarn validate-config`.
+For Docker you can run `docker run -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml`
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
 - At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces.
