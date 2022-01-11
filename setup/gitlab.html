@@ -164,10 +164,12 @@
 <p>You need to list all the instances you plan to connect to in the <code>config.yml</code>. This is
 used so that users can give a short name like <code>gitlab</code> or <code>matrix.org</code> when they want
 to specify an instance.</p>
-<p>The webhooks secret should be generated, for use in your repositories.</p>
+<p>You should generate a webhook <code>secret</code> (e.g. <code>pwgen -n 64 -s 1</code>) and then use this as your
+&quot;Secret token&quot; when adding webhooks.</p>
 <h2 id="adding-a-repository"><a class="header" href="#adding-a-repository">Adding a repository</a></h2>
 <p>Adding a repository is a case of navigating to the settings page, and then adding a new webhook.
 You will want to give the URL of the public address for the hookshot webhooks port on the <code>/</code> path.</p>
+<p>You should use the value of <code>webhook.secret</code> from your config as your &quot;Secret token&quot;.</p>
 <p>You should add the events you wish to trigger on. Hookshot currently supports:</p>
 <ul>
 <li>Push events</li>

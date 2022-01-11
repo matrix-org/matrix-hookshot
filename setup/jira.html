@@ -166,11 +166,13 @@ Support for on-prem deployments is hoping to land soon.
 <p>You will need a Atlassian account with the ability to use the developer tools in order to create the app.</p>
 <p>You'll first need to head to https://developer.atlassian.com/console/myapps/create-3lo-app/ to create a 
 &quot;OAuth 2.0 (3LO)&quot; integration.</p>
-<p>Once named and created, you will need to:
-- Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.
-- Use rotating tokens under Authorisation.
-- Set a callback url. This will be the public URL to hookshot with a path of <code>/jira/oauth</code>.
-- Copy the client ID and Secret from Settings</p>
+<p>Once named and created, you will need to:</p>
+<ol>
+<li>Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.</li>
+<li>Use rotating tokens under Authorisation.</li>
+<li>Set a callback url. This will be the public URL to hookshot with a path of <code>/jira/oauth</code>.</li>
+<li>Copy the client ID and Secret from Settings</li>
+</ol>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>You can now set some configuration in the bridge <code>config.yml</code></p>
 <pre><code class="language-yaml">jira:
@@ -181,7 +183,7 @@ Support for on-prem deployments is hoping to land soon.
     client_secret: your-client-secret
     redirect_uri: https://example.com/hookshot/jira/oauth
 </code></pre>
-<p>You can leave the <code>oauth</code> section blank if you are not planning to use those capabilities.</p>
+<p>You can omit the <code>oauth</code> section if you are not planning to allow users to login and use interactive features (i.e. webhook only mode).</p>
 <p>The <code>redirect_uri</code> value must be the <strong>public</strong> path to <code>/jira/oauth</code> on the webhooks path. E.g. if your load balancer
 points <code>https://example.com/hookshot</code> to the bridge <code>webhooks</code> listener, you should use the path <code>https://example.com/hookshot/jira/oauth</code>.
 This value MUST exactly match the <strong>Callback URL</strong> on the JIRA integration page page.</p>
