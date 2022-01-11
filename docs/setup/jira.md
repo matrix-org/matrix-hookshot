@@ -45,7 +45,7 @@ jira:
     redirect_uri: https://example.com/hookshot/jira/oauth
 ```
 
-You can omit the `oauth` section blank if you are not planning to allow users to login and use interactive features (i.e. webhook only mode).
+You can omit the `oauth` section if you are not planning to allow users to login and use interactive features (i.e. webhook only mode).
 
 The `redirect_uri` value must be the **public** path to `/jira/oauth` on the webhooks path. E.g. if your load balancer
 points `https://example.com/hookshot` to the bridge `webhooks` listener, you should use the path `https://example.com/hookshot/jira/oauth`.
