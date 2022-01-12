@@ -5,15 +5,15 @@ import * as assert from "assert";
 import { configKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
-import { BridgeConfigActorPermission, permissionsCheckAction } from "../libRs";
+import { BridgeConfigActorPermission, permissionsCheckAction, permissionsCheckActionAny } from "../libRs";
 
 // Maps to permission_level_to_int in permissions.rs
 export enum BridgePermissionLevel {
-    "commands" = 1,
-    "login" = 2,
-    "notifications" = 3,
-    "manage-connections" = 4,
-    "admin" = 5,
+    commands = 1,
+    login = 2,
+    notifications = 3,
+    manageConnections = 4,
+    admin = 5,
 }
 
 interface BridgeConfigGitHubYAML {
@@ -299,10 +299,13 @@ export class BridgeConfig {
                 port: this.widgets.port,
             })
         }
-
     }
 
-    public checkPermission(mxid: string, service: "github"|"gitlab"|"jira"|"figma"|"webhooks", permission: BridgePermissionLevel, target?: string) {
+    public checkPermissionAny(mxid: string, permission: BridgePermissionLevel, target?: string) {
+        return permissionsCheckActionAny(this.permissions, mxid, BridgePermissionLevel[permission], target);
+    }
+
+    public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel, target?: string) {
         return permissionsCheckAction(this.permissions, mxid, service, BridgePermissionLevel[permission], target);
     }
 

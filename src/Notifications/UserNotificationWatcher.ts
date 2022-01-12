@@ -6,7 +6,7 @@ import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";
 import { GitHubUserNotification } from "../Github/Types";
 import { GitLabWatcher } from "./GitLabWatcher";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import Metrics from "../Metrics";
 export interface UserNotificationsEvent {
     roomId: string;
@@ -25,7 +25,7 @@ export class UserNotificationWatcher {
     private matrixMessageSender: MessageSenderClient;
     private queue: MessageQueue;
 
-    constructor(config: BridgeConfig) {
+    constructor(private readonly config: BridgeConfig) {
         this.queue = createMessageQueue(config);
         this.matrixMessageSender = new MessageSenderClient(this.queue);
     }
@@ -74,6 +74,9 @@ Check your token is still valid, and then turn notifications back on.`, "m.notic
     }
 
     public addUser(data: NotificationsEnableEvent) {
+        if (!this.config.checkPermission(data.userId, data.type, BridgePermissionLevel.notifications, data.instanceUrl)) {
+            throw Error('User does not have permission enable notifications');
+        }
         let task: NotificationWatcherTask;
         const key = UserNotificationWatcher.constructMapKey(data.userId, data.type, data.instanceUrl);
         if (data.type === "github") {

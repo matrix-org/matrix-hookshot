@@ -1,7 +1,7 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider, EventKind } from "matrix-bot-sdk";
-import { BridgeConfig, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
@@ -636,15 +636,16 @@ export class Bridge {
         if (!adminRoom) {
             let handled = false;
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+                const checkPermission = (service: string, level: BridgePermissionLevel, target?: string) => this.config.checkPermission(event.sender, service, level, target);
                 try {
                     if (connection.onMessageEvent) {
-                        handled = await connection.onMessageEvent(event, processedReplyMetadata);
+                        handled = await connection.onMessageEvent(event, checkPermission, processedReplyMetadata);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
                 }
             }
-            if (!handled) {
+            if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
@@ -722,8 +723,8 @@ export class Bridge {
                 try {
                     if (event.content.disabled === true) {
                         await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
-                    } else if (connection?.onStateUpdate) {
-                        connection.onStateUpdate(event);
+                    } else {
+                        connection.onStateUpdate?.(event);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);

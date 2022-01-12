@@ -8,7 +8,7 @@ import { CommandError } from "../errors";
 import { UserTokenStore } from "../UserTokenStore";
 import { GithubInstance } from "../Github/GithubInstance";
 import { v4 as uuid } from "uuid";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 const md = new markdown();
@@ -43,6 +43,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.githubInstance || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub");
         }
+        if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
+            throw new CommandError('You are not permitted to provision connections for GitHub');
+        }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
         }
@@ -67,6 +70,9 @@ export class SetupConnection extends CommandConnection {
     public async onJiraProject(userId: string, url: string) {
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira");
+        }
+        if (!this.config.checkPermission(userId, "jira", BridgePermissionLevel.manageConnections)) {
+            throw new CommandError('You are not permitted to provision connections for Jira');
         }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
@@ -94,6 +100,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks");
         }
+        if (!this.config.checkPermission(userId, "webhooks", BridgePermissionLevel.manageConnections)) {
+            throw new CommandError('You are not permitted to provision connections for generic webhooks');
+        }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");
         }
@@ -114,6 +123,9 @@ export class SetupConnection extends CommandConnection {
     public async onFigma(userId: string, url: string) {
         if (!this.config.figma) {
             throw new CommandError("not-configured", "The bridge is not configured to support Figma");
+        }
+        if (!this.config.checkPermission(userId, "figma", BridgePermissionLevel.manageConnections)) {
+            throw new CommandError('You are not permitted to provision connections for Figma');
         }
         if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to setup new integrations.");

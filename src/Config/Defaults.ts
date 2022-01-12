@@ -23,6 +23,7 @@ export const DefaultConfig = new BridgeConfig({
     permissions: [{
         actor: "example.com",
         services: [{
+            service: "*",
             level: "admin"
         }],
     }],
