@@ -4,7 +4,6 @@ import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { PermissionCheckFn } from ".";
-import { BridgePermissionLevel } from "../Config/Config";
 const log = new LogWrapper("CommandConnection");
 
 /**
@@ -20,7 +19,7 @@ export abstract class CommandConnection extends BaseConnection {
         private readonly botCommands: BotCommands,
         private readonly helpMessage: (prefix: string) => MatrixMessageContent,
         protected readonly stateCommandPrefix: string,
-        protected readonly serviceName: string,
+        protected readonly serviceName?: string,
     ) {
         super(roomId, stateKey, canonicalStateType);
     }  
@@ -30,10 +29,10 @@ export abstract class CommandConnection extends BaseConnection {
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn) {
-        const commandResult = await handleCommand(ev.sender, ev.content.body, this.botCommands, this, this.commandPrefix);
-        if (!checkPermission(this.serviceName, BridgePermissionLevel.commands)) {
-            throw CommandConnection
-        }
+        const commandResult = await handleCommand(
+            ev.sender, ev.content.body, this.botCommands, this,checkPermission,
+            this.serviceName, this.commandPrefix
+        );
         if (commandResult.handled !== true) {
             // Not for us.
             return false;

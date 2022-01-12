@@ -632,11 +632,11 @@ export class Bridge {
         const processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
         const processedReplyMetadata: IRichReplyMetadata = processedReply?.mx_richreply;
         const adminRoom = this.adminRooms.get(roomId);
+        const checkPermission = (service: string, level: BridgePermissionLevel, target?: string) => this.config.checkPermission(event.sender, service, level, target);
 
         if (!adminRoom) {
             let handled = false;
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
-                const checkPermission = (service: string, level: BridgePermissionLevel, target?: string) => this.config.checkPermission(event.sender, service, level, target);
                 try {
                     if (connection.onMessageEvent) {
                         handled = await connection.onMessageEvent(event, checkPermission, processedReplyMetadata);
@@ -650,7 +650,7 @@ export class Bridge {
                 try {
                     await (
                         new SetupConnection(roomId, this.as, this.tokenStore, this.config, this.github)
-                    ).onMessageEvent(event);
+                    ).onMessageEvent(event, checkPermission);
                 } catch (ex) {
                     log.warn(`Setup connection failed to handle:`, ex);
                 }
