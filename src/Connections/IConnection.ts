@@ -4,7 +4,6 @@ import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IRichReplyMetadata } from "matrix-bot-sdk";
 import { BridgePermissionLevel } from "../Config/Config";
 
-
 export type PermissionCheckFn = (service: string, level: BridgePermissionLevel, target?: string) => boolean;
 export interface IConnection {
     /**

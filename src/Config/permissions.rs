@@ -77,7 +77,7 @@ pub fn permissions_check_action(
             }
         }
     }
-    Ok(true)
+    Ok(false)
 }
 
 #[napi]
