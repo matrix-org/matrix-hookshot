@@ -64,6 +64,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore) {
         const validData = validateJiraConnectionState(data);
+        log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
         const jiraClient = await tokenStore.getJiraForUser(userId);
         if (!jiraClient) {
             throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
@@ -73,6 +74,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
         }
         const connection = new JiraProjectConnection(roomId, as, data, validData.url, tokenStore);
+        log.debug(`projectKey for ${validData.url} is ${connection.projectKey}`);
         if (!connection.projectKey) {
             throw Error('Expected projectKey to be defined');
         }
@@ -95,8 +97,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     }
 
     public get projectKey() {
-        const parts =  this.projectUrl?.pathname.split('/');
-        return parts ? parts[parts.length - 1] : undefined;
+        const parts = this.projectUrl?.pathname.split('/');
+        return parts ? parts[parts.length - 1]?.toUpperCase() : undefined;
     }
 
     public toString() {
@@ -113,7 +115,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         }
         if (this.instanceOrigin) {
             const url = new URL(project.self);
-            return this.instanceOrigin === url.origin && this.projectKey === project.key;
+            return this.instanceOrigin === url.origin && this.projectKey === project.key.toUpperCase();
         }
         return false;
     }
