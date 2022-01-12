@@ -313,7 +313,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             result = await api.getProject(keyOrId);
         } catch (ex) {
             log.warn("Failed to get issue types:", ex);
-            throw new CommandError(ex.message, "Failed to create JIRA issue");
+            throw new CommandError(ex.message, "Failed to get issue types");
         }
 
         const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(', ')}`;
