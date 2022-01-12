@@ -6,10 +6,13 @@ import { configKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, permissionsCheckAction, permissionsCheckActionAny } from "../libRs";
+import LogWrapper from "../LogWrapper";
+
+const log = new LogWrapper("Config");
 
 // Maps to permission_level_to_int in permissions.rs
 export enum BridgePermissionLevel {
-    commands = 1,
+    "commands" = 1,
     login = 2,
     notifications = 3,
     manageConnections = 4,
@@ -252,6 +255,9 @@ export class BridgeConfig {
                 level: BridgePermissionLevel[BridgePermissionLevel.admin],
             }]
         }]
+        if (!configData.permissions) { 
+            log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
+        }
 
 
         if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
@@ -274,7 +280,8 @@ export class BridgeConfig {
                 resources: ['webhooks'],
                 port: configData.webhook.port,
                 bindAddress: configData.webhook.bindAddress,
-            })
+            });
+            log.warn("The `webhook` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
 
         if (this.provisioning?.port) {
@@ -283,6 +290,7 @@ export class BridgeConfig {
                 port: this.provisioning.port,
                 bindAddress: this.provisioning.bindAddress,
             })
+            log.warn("The `provisioning` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
         
         if (this.metrics?.port) {
@@ -291,13 +299,15 @@ export class BridgeConfig {
                 port: this.metrics.port,
                 bindAddress: this.metrics.bindAddress,
             })
+            log.warn("The `metrics` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
         
         if (this.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
                 port: this.widgets.port,
-            })
+            });
+            log.warn("The `widgets` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
     }
 
@@ -323,6 +333,7 @@ export async function parseRegistrationFile(filename: string) {
 
 // Can be called directly
 if (require.main === module) {
+    LogWrapper.configureLogging("info");
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
         // eslint-disable-next-line no-console
         console.log('Config successfully validated.');
