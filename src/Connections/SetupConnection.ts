@@ -89,7 +89,7 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${projectKey}`);
     }
 
-    @botCommand("webhook", "Create a inbound webhook", ["name"], [], true)
+    @botCommand("webhook", "Create an inbound webhook", ["name"], [], true)
     public async onWebhook(userId: string, name: string) {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks");
