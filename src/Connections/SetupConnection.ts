@@ -86,7 +86,7 @@ export class SetupConnection extends CommandConnection {
         const safeUrl = `https://${origin}/projects/${projectKey}`;
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.as, this.tokenStore);
         await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, safeUrl, res.stateEventContent);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${projectKey}`);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}`);
     }
 
     @botCommand("webhook", "Create an inbound webhook", ["name"], [], true)
