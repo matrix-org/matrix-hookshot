@@ -45,7 +45,7 @@
     "figma-js": "^1.14.0",
     "ioredis": "^4.28.0",
     "jira-client": "^8.0.0",
-    "markdown-it": "^12.2.0",
+    "markdown-it": "^12.3.2",
     "matrix-bot-sdk": "^0.5.19",
     "matrix-widget-api": "^0.1.0-beta.17",
     "micromatch": "^4.0.4",
