@@ -25,3 +25,25 @@
     content: "WARNING: ";
     font-weight: 700;
 }
+
+/* icons for headers */
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(2) strong:after {
+    content: url('/icons/figma.png')
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(3) strong:after {
+    content: url('/icons/github.png')
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(4) strong:after {
+    content: url('/icons/gitlab.png')
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(5) strong:after {
+    content: url('/icons/jira.png')
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(6) strong:after {
+    content: url('/icons/webhooks.png')
+}
