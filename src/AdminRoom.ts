@@ -2,7 +2,7 @@
 import "reflect-metadata";
 import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
 import { botCommand, compileBotCommands, handleCommand, BotCommands, HelpFunction } from "./BotCommands";
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 import { Endpoints } from "@octokit/types";
 import { FormatUtil } from "./FormatUtil";
@@ -477,7 +477,8 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     public async handleCommand(eventId: string, command: string) {
-        const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this);
+        const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(this.userId, service, level);
+        const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this, checkPermission);
         if (!result.handled) {
             return this.sendNotice("Command not understood");
         }

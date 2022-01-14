@@ -3,6 +3,8 @@ import stringArgv from "string-argv";
 import { CommandError } from "./errors";
 import { ApiError } from "./provisioning/api";
 import { MatrixMessageContent } from "./MatrixEvent";
+import { BridgePermissionLevel } from "./Config/Config";
+import { PermissionCheckFn } from "./Connections";
 
 const md = new markdown();
 
@@ -28,6 +30,8 @@ export interface BotCommandOptions {
     optionalArgs?: string[],
     includeUserId?: boolean,
     category?: string,
+    permissionLevel?: BridgePermissionLevel,
+    permissionService?: string,
 }
 
 
@@ -84,7 +88,9 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
     }
 }
 
-export async function handleCommand(userId: string, command: string, botCommands: BotCommands, obj: unknown, prefix?: string)
+export async function handleCommand(
+    userId: string, command: string, botCommands: BotCommands, obj: unknown, permissionCheckFn: PermissionCheckFn,
+    defaultPermissionService?: string, prefix?: string)
 : Promise<{handled: false}|{handled: true, result: BotCommandResult}|{handled: true, error: string, humanError?: string}> {
     if (prefix) {
         if (!command.startsWith(prefix)) {
@@ -98,6 +104,10 @@ export async function handleCommand(userId: string, command: string, botCommands
         // We have a match!
         const command = botCommands[prefix];
         if (command) {
+            const permissionService = command.permissionService || defaultPermissionService;
+            if (permissionService && !permissionCheckFn(permissionService, command.permissionLevel || BridgePermissionLevel.commands)) {
+                return {handled: true, error: "You do not have permission to use this command"};
+            }
             if (command.requiredArgs && command.requiredArgs.length > parts.length - i) {
                 return {handled: true, error: "Missing args"};
             }

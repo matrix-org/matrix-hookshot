@@ -6,9 +6,10 @@ import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
 import { JiraClient } from "./Jira/Client";
 import { JiraOAuthResult } from "./Jira/Types";
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
 import { v4 as uuid } from "uuid";
 import { GitHubOAuthToken } from "./Github/Types";
+import { ApiError, ErrCode } from "./provisioning/api";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -50,6 +51,9 @@ export class UserTokenStore {
     }
 
     public async storeUserToken(type: TokenType, userId: string, token: string, instanceUrl?: string): Promise<void> {
+        if (!this.config.checkPermission(userId, type, BridgePermissionLevel.login)) {
+            throw new ApiError('User does not have permission to login to service', ErrCode.ForbiddenUser);
+        }
         const key = tokenKey(type, userId, false, instanceUrl);
         const tokenParts: string[] = [];
         while (token && token.length > 0) {

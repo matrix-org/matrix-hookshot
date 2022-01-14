@@ -138,7 +138,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
                 as.botClient,
                 JiraProjectConnection.botCommands,
                 JiraProjectConnection.helpMessage,
-                state.commandPrefix || "!jira"
+                state.commandPrefix || "!jira",
+                "jira"
             );
             if (state.url) {
                 this.projectUrl = new URL(state.url);

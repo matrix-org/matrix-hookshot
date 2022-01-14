@@ -19,6 +19,7 @@ import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../provisioning/api";
+import { PermissionCheckFn } from ".";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -277,7 +278,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 as.botClient,
                 GitHubRepoConnection.botCommands,
                 GitHubRepoConnection.helpMessage,
-                state.commandPrefix || "!gh"
+                state.commandPrefix || "!gh",
+                "github",
             );
     }
 
@@ -302,8 +304,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
 
-    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, reply?: IRichReplyMetadata) {
-        if (await super.onMessageEvent(ev)) {
+    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn, reply?: IRichReplyMetadata) {
+        if (await super.onMessageEvent(ev, checkPermission)) {
             return true;
         }
         if (!reply) {

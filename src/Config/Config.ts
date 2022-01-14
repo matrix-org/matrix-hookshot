@@ -1,10 +1,23 @@
 import YAML from "yaml";
 import { promises as fs } from "fs";
-import { IAppserviceRegistration } from "matrix-bot-sdk";
+import { IAppserviceRegistration, MatrixClient } from "matrix-bot-sdk";
 import * as assert from "assert";
-import { configKey } from "./Decorators";
+import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
+import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
+import LogWrapper from "../LogWrapper";
+
+const log = new LogWrapper("Config");
+
+// Maps to permission_level_to_int in permissions.rs
+export enum BridgePermissionLevel {
+    "commands" = 1,
+    login = 2,
+    notifications = 3,
+    manageConnections = 4,
+    admin = 5,
+}
 
 interface BridgeConfigGitHubYAML {
     auth: {
@@ -154,13 +167,14 @@ export interface BridgeConfigMetrics {
     port?: number;
 }
 
-interface BridgeConfigRoot {
+export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfig;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
+    permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
     jira?: BridgeConfigJira;
     logging: BridgeConfigLogging;
@@ -179,6 +193,8 @@ export class BridgeConfig {
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
+    @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
+    public readonly permissions: BridgeConfigActorPermission[];
     @configKey(`A passkey used to encrypt tokens stored inside the bridge.
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
@@ -208,6 +224,9 @@ export class BridgeConfig {
  'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
 
+    @hideKey()
+    private readonly bridgePermissions: BridgePermissions;
+
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
@@ -232,6 +251,18 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
+        this.permissions = configData.permissions || [{
+            actor: this.bridge.domain,
+            services: [{
+                service: '*',
+                level: BridgePermissionLevel[BridgePermissionLevel.admin],
+            }]
+        }];
+        this.bridgePermissions = new BridgePermissions(this.permissions);
+
+        if (!configData.permissions) { 
+            log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
+        }
 
 
         if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
@@ -254,7 +285,8 @@ export class BridgeConfig {
                 resources: ['webhooks'],
                 port: configData.webhook.port,
                 bindAddress: configData.webhook.bindAddress,
-            })
+            });
+            log.warn("The `webhook` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
 
         if (this.provisioning?.port) {
@@ -263,6 +295,7 @@ export class BridgeConfig {
                 port: this.provisioning.port,
                 bindAddress: this.provisioning.bindAddress,
             })
+            log.warn("The `provisioning` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
         
         if (this.metrics?.port) {
@@ -271,15 +304,39 @@ export class BridgeConfig {
                 port: this.metrics.port,
                 bindAddress: this.metrics.bindAddress,
             })
+            log.warn("The `metrics` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
         
         if (this.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
                 port: this.widgets.port,
-            })
+            });
+            log.warn("The `widgets` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
+    }
 
+    public async prefillMembershipCache(client: MatrixClient) {
+        for(const roomEntry of this.bridgePermissions.getInterestedRooms()) {
+            const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
+            membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
+        } 
+    }
+
+    public addMemberToCache(roomId: string, userId: string) {
+        this.bridgePermissions.addMemberToCache(roomId, userId);
+    }
+
+    public removeMemberFromCache(roomId: string, userId: string) {
+        this.bridgePermissions.removeMemberFromCache(roomId, userId);
+    }
+
+    public checkPermissionAny(mxid: string, permission: BridgePermissionLevel) {
+        return this.bridgePermissions.checkActionAny(mxid, BridgePermissionLevel[permission]);
+    }
+
+    public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel) {
+        return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {
@@ -296,6 +353,7 @@ export async function parseRegistrationFile(filename: string) {
 
 // Can be called directly
 if (require.main === module) {
+    LogWrapper.configureLogging("info");
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
         // eslint-disable-next-line no-console
         console.log('Config successfully validated.');
