@@ -92,7 +92,7 @@ logging:
   #
   level: info
 permissions:
-  # (Optional) Permissions for using the bridge
+  # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #
   - actor: example.com
     services:

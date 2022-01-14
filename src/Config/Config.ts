@@ -2,7 +2,7 @@ import YAML from "yaml";
 import { promises as fs } from "fs";
 import { IAppserviceRegistration, MatrixClient } from "matrix-bot-sdk";
 import * as assert from "assert";
-import { configKey } from "./Decorators";
+import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
@@ -167,7 +167,7 @@ export interface BridgeConfigMetrics {
     port?: number;
 }
 
-interface BridgeConfigRoot {
+export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
@@ -194,7 +194,7 @@ export class BridgeConfig {
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
     @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
-    public readonly permissions: BridgePermissions;
+    public readonly permissions: BridgeConfigActorPermission[];
     @configKey(`A passkey used to encrypt tokens stored inside the bridge.
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
@@ -224,6 +224,9 @@ export class BridgeConfig {
  'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
 
+    @hideKey()
+    private readonly bridgePermissions: BridgePermissions;
+
     constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
@@ -248,13 +251,14 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
-        this.permissions = new BridgePermissions(configData.permissions || [{
+        this.permissions = configData.permissions || [{
             actor: this.bridge.domain,
             services: [{
                 service: '*',
                 level: BridgePermissionLevel[BridgePermissionLevel.admin],
             }]
-        }]);
+        }];
+        this.bridgePermissions = new BridgePermissions(this.permissions);
 
         if (!configData.permissions) { 
             log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
@@ -313,26 +317,26 @@ export class BridgeConfig {
     }
 
     public async prefillMembershipCache(client: MatrixClient) {
-        for(const roomEntry of this.permissions.getInterestedRooms()) {
+        for(const roomEntry of this.bridgePermissions.getInterestedRooms()) {
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
-            membership.forEach(userId => this.permissions.addMemberToCache(roomEntry, userId));
+            membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
         } 
     }
 
     public addMemberToCache(roomId: string, userId: string) {
-        this.permissions.addMemberToCache(roomId, userId);
+        this.bridgePermissions.addMemberToCache(roomId, userId);
     }
 
     public removeMemberFromCache(roomId: string, userId: string) {
-        this.permissions.removeMemberFromCache(roomId, userId);
+        this.bridgePermissions.removeMemberFromCache(roomId, userId);
     }
 
     public checkPermissionAny(mxid: string, permission: BridgePermissionLevel) {
-        return this.permissions.checkActionAny(mxid, BridgePermissionLevel[permission]);
+        return this.bridgePermissions.checkActionAny(mxid, BridgePermissionLevel[permission]);
     }
 
     public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel) {
-        return this.permissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
+        return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {

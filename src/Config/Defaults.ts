@@ -1,6 +1,6 @@
 import { BridgeConfig } from "./Config";
 import YAML from "yaml";
-import { getConfigKeyMetadata } from "./Decorators";
+import { getConfigKeyMetadata, keyIsHidden } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
 import { randomBytes } from "crypto";
 
@@ -112,6 +112,10 @@ export const DefaultConfig = new BridgeConfig({
 function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
     const entries = Object.entries(obj);
     entries.forEach(([key, value]) => {
+        if (keyIsHidden(obj, key)) {
+            return;
+        }
+        
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
             newNode = YAML.createNode({});
@@ -119,7 +123,7 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
         } else {
             newNode = YAML.createNode(value);
         }
-        
+
         const metadata = getConfigKeyMetadata(obj, key);
         if (metadata) {
             newNode.commentBefore = `${metadata[1] ? ' (Optional)' : ''} ${metadata[0]}\n`;
