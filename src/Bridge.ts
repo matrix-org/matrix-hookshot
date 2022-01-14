@@ -730,12 +730,7 @@ export class Bridge {
                     if (event.content.disabled === true) {
                         await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
                     } else {
-                        if (connection.onStateUpdate) {
-                            if (!await connection.isStateAllowed?.(new StateEvent(event), false)) {
-                                throw Error('State update not allowed');
-                            }
-                            connection.onStateUpdate(event);
-                        }
+                        connection.onStateUpdate?.(event);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
