@@ -75,8 +75,8 @@ permissions:
 ```
 
 You must configure a set of "actors" with access to services. An `actor` can be:
-- A MxID (also known as a User ID) e.g. @Half-Shot:half-shot.uk
-- A homserver domain e.g. @alice:matrix.org
+- A MxID (also known as a User ID) e.g. `@Half-Shot:half-shot.uk`
+- A homeserver domain e.g. `matrix.org`
 - A roomId. This will allow any member of this room to complete actions. e.g. `!TlZdPIYrhwNvXlBiEk:half-shot.uk`
 - `*`, to match all users.
 
