@@ -32,12 +32,6 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         return this.sendNotice(`To login, open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge`);
     }
 
-    @botCommand("github startoauth", {help: "Start the OAuth process with GitHub", category: "github"})
-    public async beginOAuth() {
-        // Legacy command
-        return this.loginCommand();
-    }
-
     @botCommand("github setpersonaltoken", {help: "Set your personal access token for GitHub", requiredArgs: ['accessToken'], category: "github"})
     public async setGHPersonalAccessToken(accessToken: string) {
         if (!this.config.github) {
