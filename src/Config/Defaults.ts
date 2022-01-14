@@ -1,4 +1,4 @@
-import { BridgeConfig, BridgePermissionLevel } from "./Config";
+import { BridgeConfig } from "./Config";
 import YAML from "yaml";
 import { getConfigKeyMetadata } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";

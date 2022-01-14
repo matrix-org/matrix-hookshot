@@ -193,7 +193,7 @@ export class BridgeConfig {
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
-    @configKey("Permissions for using the bridge", true)
+    @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
     public readonly permissions: BridgeConfigActorPermission[];
     @configKey(`A passkey used to encrypt tokens stored inside the bridge.
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
