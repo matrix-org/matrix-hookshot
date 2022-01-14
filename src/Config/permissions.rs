@@ -34,7 +34,6 @@ pub fn permissions_check_action(
     mxid: String,
     service: String,
     permission: String,
-    target: Option<String>,
 ) -> napi::Result<bool> {
     let parts: Vec<&str> = mxid.split(':').collect();
     let domain: String;
@@ -60,18 +59,6 @@ pub fn permissions_check_action(
                 }
                 None => {}
             }
-            match (&actor_service.targets, &target) {
-                (Some(actor_targets), Some(target)) => {
-                    if actor_targets.iter().any(|e| *e == *target) == false {
-                        continue;
-                    }
-                }
-                (Some(_), None) => {
-                    // Actor has a set of targets but this doesn't specify one.
-                    continue;
-                }
-                _ => {}
-            }
             if permission_level_to_int(actor_service.level.clone())? >= permission_int {
                 return Ok(true);
             }
@@ -85,7 +72,6 @@ pub fn permissions_check_action_any(
     config: Vec<BridgeConfigActorPermission>,
     mxid: String,
     permission: String,
-    target: Option<String>,
 ) -> napi::Result<bool> {
     let parts: Vec<&str> = mxid.split(':').collect();
     let domain: String;
@@ -103,22 +89,10 @@ pub fn permissions_check_action_any(
             continue;
         }
         for actor_service in actor_permission.services.iter() {
-            match (&actor_service.targets, &target) {
-                (Some(actor_targets), Some(target)) => {
-                    if actor_targets.iter().any(|e| *e == *target) == false {
-                        continue;
-                    }
-                }
-                (Some(_), None) => {
-                    // Actor has a set of targets but this doesn't specify one.
-                    continue;
-                }
-                _ => {}
-            }
             if permission_level_to_int(actor_service.level.clone())? >= permission_int {
                 return Ok(true);
             }
         }
     }
-    Ok(true)
+    Ok(false)
 }

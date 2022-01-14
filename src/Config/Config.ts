@@ -311,12 +311,12 @@ export class BridgeConfig {
         }
     }
 
-    public checkPermissionAny(mxid: string, permission: BridgePermissionLevel, target?: string) {
-        return permissionsCheckActionAny(this.permissions, mxid, BridgePermissionLevel[permission], target);
+    public checkPermissionAny(mxid: string, permission: BridgePermissionLevel) {
+        return permissionsCheckActionAny(this.permissions, mxid, BridgePermissionLevel[permission]);
     }
 
-    public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel, target?: string) {
-        return permissionsCheckAction(this.permissions, mxid, service, BridgePermissionLevel[permission], target);
+    public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel) {
+        return permissionsCheckAction(this.permissions, mxid, service, BridgePermissionLevel[permission]);
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {

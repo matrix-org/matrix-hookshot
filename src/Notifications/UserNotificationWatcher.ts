@@ -74,7 +74,7 @@ Check your token is still valid, and then turn notifications back on.`, "m.notic
     }
 
     public addUser(data: NotificationsEnableEvent) {
-        if (!this.config.checkPermission(data.userId, data.type, BridgePermissionLevel.notifications, data.instanceUrl)) {
+        if (!this.config.checkPermission(data.userId, data.type, BridgePermissionLevel.notifications)) {
             throw Error('User does not have permission enable notifications');
         }
         let task: NotificationWatcherTask;

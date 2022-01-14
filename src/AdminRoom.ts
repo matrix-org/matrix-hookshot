@@ -477,7 +477,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     public async handleCommand(eventId: string, command: string) {
-        const checkPermission = (service: string, level: BridgePermissionLevel, target?: string) => this.config.checkPermission(this.userId, service, level, target);
+        const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(this.userId, service, level);
         const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this, checkPermission);
         if (!result.handled) {
             return this.sendNotice("Command not understood");

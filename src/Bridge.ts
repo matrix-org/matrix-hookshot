@@ -632,7 +632,7 @@ export class Bridge {
         const processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
         const processedReplyMetadata: IRichReplyMetadata = processedReply?.mx_richreply;
         const adminRoom = this.adminRooms.get(roomId);
-        const checkPermission = (service: string, level: BridgePermissionLevel, target?: string) => this.config.checkPermission(event.sender, service, level, target);
+        const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(event.sender, service, level);
 
         if (!adminRoom) {
             let handled = false;
