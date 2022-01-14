@@ -1,5 +1,4 @@
 import { createAppAuth } from "@octokit/auth-app";
-import { createTokenAuth } from "@octokit/auth-token";
 import { Octokit } from "@octokit/rest";
 import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
