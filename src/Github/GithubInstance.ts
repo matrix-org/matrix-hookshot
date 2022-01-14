@@ -1,5 +1,4 @@
 import { createAppAuth } from "@octokit/auth-app";
-import { createTokenAuth } from "@octokit/auth-token";
 import { Octokit } from "@octokit/rest";
 import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
@@ -44,10 +43,7 @@ export class GithubInstance {
 
     public static createUserOctokit(token: string) {
         return new Octokit({
-            // XXX: A recent release of octokit (rest/auth-token?) broke passing in the token
-            // as an auth parameter. For now we can just do this.
-            authStrategy: () => createTokenAuth(token),
-            auth: null,
+            auth: token,
             userAgent: USER_AGENT,
         });
     }

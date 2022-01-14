@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider, EventKind } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, EventKind } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -83,6 +83,7 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
             this.github = new GithubInstance(this.config.github.auth.id, await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'));
@@ -845,7 +846,7 @@ export class Bridge {
         // Make this more efficent.
         if (!oldSettings.github?.notifications?.enabled && settings.github?.notifications?.enabled) {
             log.info(`Notifications enabled for ${adminRoom.userId}`);
-            const token = await this.tokenStore.getUserToken("github", adminRoom.userId);
+            const token = await this.tokenStore.getGitHubToken(adminRoom.userId);
             if (token) {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
                 await this.queue.push<NotificationsEnableEvent>({

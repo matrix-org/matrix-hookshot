@@ -317,9 +317,12 @@ export class BridgeConfig {
     }
 
     public async prefillMembershipCache(client: MatrixClient) {
-        for(const roomEntry of this.bridgePermissions.getInterestedRooms()) {
+        const permissionRooms = this.bridgePermissions.getInterestedRooms();
+        log.info(`Prefilling room membership for permissions for ${permissionRooms.length} rooms`);
+        for(const roomEntry of permissionRooms) {
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
+            log.info(`Found ${membership.length} users for ${roomEntry}`);
         } 
     }
 

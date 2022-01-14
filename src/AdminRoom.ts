@@ -471,7 +471,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
         const newData = updateFn(oldData);
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, newData);
-        this.emit("settings.changed", this, oldData, newData);
+        this.emit("settings.changed", this, newData, oldData);
         this.data = newData;
         return newData;
     }
