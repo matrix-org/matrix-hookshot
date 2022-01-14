@@ -98,8 +98,7 @@ export class UserTokenStore {
         return null;
     }
 
-    public async getOctokitForUser(userId: string) {
-        // TODO: Move this somewhere else.
+    public async getGitHubToken(userId: string) {
         const storeTokenResponse = await this.getUserToken("github", userId);
         if (!storeTokenResponse) {
             return null;
@@ -139,7 +138,12 @@ export class UserTokenStore {
                 throw Error('Token is expired, cannot refresh');
             }
         }
-        return GithubInstance.createUserOctokit(senderToken.access_token);
+        return senderToken.access_token;
+    }
+
+    public async getOctokitForUser(userId: string) {
+        const res = await this.getGitHubToken(userId);
+        return res ? GithubInstance.createUserOctokit(res) : null;
     }
 
     public async getGitLabForUser(userId: string, instanceUrl: string) {

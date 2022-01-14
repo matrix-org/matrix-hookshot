@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider, EventKind } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, EventKind } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -730,7 +730,12 @@ export class Bridge {
                     if (event.content.disabled === true) {
                         await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
                     } else {
-                        connection.onStateUpdate?.(event);
+                        if (connection.onStateUpdate) {
+                            if (!await connection.isStateAllowed?.(new StateEvent(event), false)) {
+                                throw Error('State update not allowed');
+                            }
+                            connection.onStateUpdate(event);
+                        }
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
@@ -846,7 +851,7 @@ export class Bridge {
         // Make this more efficent.
         if (!oldSettings.github?.notifications?.enabled && settings.github?.notifications?.enabled) {
             log.info(`Notifications enabled for ${adminRoom.userId}`);
-            const token = await this.tokenStore.getUserToken("github", adminRoom.userId);
+            const token = await this.tokenStore.getGitHubToken(adminRoom.userId);
             if (token) {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
                 await this.queue.push<NotificationsEnableEvent>({
