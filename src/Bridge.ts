@@ -83,6 +83,7 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
             this.github = new GithubInstance(this.config.github.auth.id, await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'));
