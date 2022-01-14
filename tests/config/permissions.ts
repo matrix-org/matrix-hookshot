@@ -1,8 +1,8 @@
-import { permissionsCheckAction ,permissionsCheckActionAny } from "../../src/libRs";
+import { BridgePermissions } from "../../src/libRs";
 import { expect } from "chai";
 
-function generateSimplePermissionBlock(actor: string, service: string, level: string) {
-    return [
+function genBridgePermissions(actor: string, service: string, level: string) {
+    return new BridgePermissions([
         {
             actor,
             services: [
@@ -12,58 +12,54 @@ function generateSimplePermissionBlock(actor: string, service: string, level: st
                 }
             ],
         }
-    ]
+    ]);
 }
 
-describe("Config/permissions", () => {
-    describe("permissionsCheckAction", () => {
+describe("Config/BridgePermissions", () => {
+    describe("checkAction", () => {
         it("will return false for an empty actor set", () => {
-            expect(permissionsCheckAction([], "@foo:bar", "empty-service", "commands")).to.be.false;
+            const bridgePermissions = new BridgePermissions([]);
+            expect(bridgePermissions.checkAction("@foo:bar", "empty-service", "commands")).to.be.false;
         });
         it("will return false for an insufficent level", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('@foo:bar', 'my-service', 'login'),
-                "@foo:bar", "my-service", "notifications")
-            ).to.be.false;
+            const bridgePermissions = genBridgePermissions('@foo:bar', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "notifications")).to.be.false;
         });
         it("will return false if the there are no matching services", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('@foo:bar', 'my-service', 'login'),
-                "@foo:bar", "other-service", "login")
-            ).to.be.false;
+            const bridgePermissions = genBridgePermissions('@foo:bar', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "other-service", "login")).to.be.false;
         });
         it("will return false if the target does not match", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('@foo:bar', 'my-service', 'login'),
-                "@foo:baz", "my-service", "login")
-            ).to.be.false;
+            const bridgePermissions = genBridgePermissions('@foo:bar', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:baz", "my-service", "login")).to.be.false;
         });
         it("will return true if there is a matching level and service", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('@foo:bar', 'my-service', 'login'),
-                "@foo:bar", "my-service", "login")
-            ).to.be.true;
+            const bridgePermissions = genBridgePermissions('@foo:bar', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
         });
         it("will return true for a matching actor domain", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('bar', 'my-service', 'login'),
-                "@foo:bar", "my-service", "login")
-            ).to.be.true;
+            const bridgePermissions = genBridgePermissions('bar', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
         });
         it("will return true for a wildcard actor", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('*', 'my-service', 'login'),
-                "@foo:bar", "my-service", "login")
-            ).to.be.true;
+            const bridgePermissions = genBridgePermissions('*', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
         });
         it("will return true for a wildcard service", () => {
-            expect(permissionsCheckAction(
-                generateSimplePermissionBlock('@foo:bar', '*', 'login'),
-                "@foo:bar", "my-service", "login")
-            ).to.be.true;
+            const bridgePermissions = genBridgePermissions('@foo:bar', '*', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
+        });
+        it("will return false if a user is not present in a room", () => {
+            const bridgePermissions = genBridgePermissions('!foo:bar', 'my-service', 'login');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.false;
+        });
+        it("will return true if a user is present in a room", () => {
+            const bridgePermissions = genBridgePermissions('!foo:bar', 'my-service', 'login');
+            bridgePermissions.addMemberToCache('!foo:bar', '@foo:bar');
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.false;
         });
         it("will fall through and return true for multiple permission sets", () => {
-            const sets = [
+            const bridgePermissions = new BridgePermissions([
                 {
                     actor: "not-you",
                     services: [
@@ -91,18 +87,21 @@ describe("Config/permissions", () => {
                         }
                     ],
                 }
-            ];
-            expect(permissionsCheckAction(sets, "@foo:bar", "my-service", "commands")).to.be.true;
-            expect(permissionsCheckAction(sets, "@foo:bar", "my-service", "login")).to.be.false;
+            ]);
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "commands")).to.be.true;
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.false;
         });
     })
+
     describe("permissionsCheckActionAny", () => {
         it("will return false for an empty actor set", () => {
-            expect(permissionsCheckActionAny([], "@foo:bar", "commands")).to.be.false;
+            const bridgePermissions = new BridgePermissions([]);
+            expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).to.be.false;
         });
         it(`will return false for a service with an insufficent level`, () => {
+            const bridgePermissions = genBridgePermissions("@foo:bar", "fake-service", "commands");
             expect(
-                permissionsCheckActionAny(generateSimplePermissionBlock("@foo:bar", "fake-service", "commands"),
+                bridgePermissions.checkActionAny(
                     "@foo:bar",
                     "login"
                 )
@@ -111,9 +110,9 @@ describe("Config/permissions", () => {
         const checkActorValues = ["@foo:bar", "bar", "*"];
         checkActorValues.forEach(actor => {
             it(`will return true for a service defintion of '${actor}' that has a sufficent level`, () => {
+                const bridgePermissions = genBridgePermissions("@foo:bar", "fake-service", "commands");
                 expect(
-                    permissionsCheckActionAny(
-                        generateSimplePermissionBlock("@foo:bar", "fake-service", "commands"),
+                    bridgePermissions.checkActionAny(
                         "@foo:bar",
                         "commands"
                     )

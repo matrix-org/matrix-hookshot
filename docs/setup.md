@@ -63,8 +63,8 @@ on how to add appservices. [Synapse documents the process here](https://matrix-o
 
 ### Permissions
 
-You will need to configure the bridge to control which users can use it. By default, any user on the bridge's own
-homeserver has full permission to use it.
+The bridge supports fine grained permission control over what services a user can access.
+By default, any user on the bridge's own homeserver has full permission to use it.
 
 ```yaml
 permissions:
@@ -77,6 +77,7 @@ permissions:
 You must configure a set of "actors" with access to services. An `actor` can be:
 - A MxID (also known as a User ID) e.g. @Half-Shot:half-shot.uk
 - A homserver domain e.g. @alice:matrix.org
+- A roomId. This will allow any member of this room to complete actions. e.g. `!TlZdPIYrhwNvXlBiEk:half-shot.uk`
 - `*`, to match all users.
 
 Each permission set can have a services. The `service` field can be:
@@ -109,6 +110,11 @@ permissions:
     services:
       - service: *
         level: commands
+  # Allow any user that is part of this space to manage github connections
+  - actor: !TlZdPIYrhwNvXlBiEk:half-shot.uk
+    services:
+      - service: github
+        level: manageConnections
   # Allow users on this domain to login to jira and github.
   - actor: support.example.com
     services:

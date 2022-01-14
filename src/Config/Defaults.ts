@@ -148,7 +148,7 @@ async function renderRegistrationFile(configPath?: string) {
     if (configPath) {
         bridgeConfig = await BridgeConfig.parseConfig(configPath, process.env);
     } else {
-        bridgeConfig = new BridgeConfig(DefaultConfig, process.env);
+        bridgeConfig = DefaultConfig;
     }
     const obj = {
         as_token: randomBytes(32).toString('hex'),

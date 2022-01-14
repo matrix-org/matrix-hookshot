@@ -695,6 +695,7 @@ export class Bridge {
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
+        this.config.addMemberToCache(roomId, matrixEvent.sender);
         if (this.as.botUserId !== matrixEvent.sender) {
             // Only act on bot joins
             return;
@@ -717,6 +718,10 @@ export class Bridge {
             return;
         }
         if (event.state_key !== undefined) {
+            if (event.type === "m.room.member" && event.content.membership !== "join") {
+                this.config.removeMemberFromCache(roomId, event.state_key);
+                return;
+            }
             // A state update, hurrah!
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {
