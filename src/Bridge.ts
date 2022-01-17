@@ -83,6 +83,21 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+
+        // Fetch all room state
+        let joinedRooms: string[]|undefined;
+        while(joinedRooms === undefined) {
+            try {
+                log.info("Connecting to homeserver and fetching joined rooms..");
+                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
+                log.info(`Found ${joinedRooms.length} rooms`);
+            } catch (ex) {
+                // This is our first interaction with the homeserver, so wait if it's not ready yet.
+                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
+                await new Promise((r) => setTimeout(r, 5000));
+            }
+        }
+        
         await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
@@ -468,20 +483,6 @@ export class Bridge {
             (data) => connManager.getForFigmaFile(data.payload.file_key, data.instanceName),
             (c, data) => c.handleNewComment(data.payload),
         )
-
-        // Fetch all room state
-        let joinedRooms: string[]|undefined;
-        while(joinedRooms === undefined) {
-            try {
-                log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
-                log.info(`Found ${joinedRooms.length} rooms`);
-            } catch (ex) {
-                // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
-                await new Promise((r) => setTimeout(r, 5000));
-            }
-        }
 
         // Set the name and avatar of the bot
         if (this.config.bot) {

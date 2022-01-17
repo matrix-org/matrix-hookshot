@@ -99,7 +99,7 @@ export class GithubInstance {
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
-            userAgent: USER_AGENT,
+            userAgent: UserAgent,
         });
 
 
