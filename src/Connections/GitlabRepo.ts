@@ -51,7 +51,8 @@ export class GitLabRepoConnection extends CommandConnection {
                 as.botClient,
                 GitLabRepoConnection.botCommands,
                 GitLabRepoConnection.helpMessage,
-                state.commandPrefix || "!gl"
+                state.commandPrefix || "!gl",
+                "gitlab",
             )
             if (!state.path || !state.instance) {
                 throw Error('Invalid state, missing `path` or `instance`');

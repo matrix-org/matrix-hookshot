@@ -33,7 +33,7 @@ export function generateJiraURL(clientId: string, redirectUri: string, state: st
 }
 
 export class JiraBotCommands extends AdminRoomCommandHandler {
-    @botCommand("jira login", "Login to JIRA")
+    @botCommand("jira login", {help: "Login to JIRA", category: "jira"})
     public async loginCommand() {
         if (!this.config.jira?.oauth) {
             this.sendNotice(`Bot is not configured with JIRA OAuth support`);
@@ -44,7 +44,7 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
         await this.sendNotice(`To login, open ${generateJiraURL(cfg.client_id, cfg.redirect_uri, state)} to link your account to the bridge`);
     }
 
-    @botCommand("jira whoami", "Determine JIRA identity")
+    @botCommand("jira whoami", {help: "Determine JIRA identity", category: "jira"})
     public async whoami() {
         if (!this.config.jira) {
             await this.sendNotice(`Bot is not configured with JIRA OAuth support`);

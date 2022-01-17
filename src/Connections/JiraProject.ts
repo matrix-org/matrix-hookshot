@@ -1,8 +1,6 @@
 import { IConnection } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
-import { CommentProcessor } from "../CommentProcessor";
-import { MessageSenderClient } from "../MatrixSender"
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
@@ -64,9 +62,9 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        commentProcessor: CommentProcessor, messageClient: MessageSenderClient, tokenStore: UserTokenStore) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore) {
         const validData = validateJiraConnectionState(data);
+        log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
         const jiraClient = await tokenStore.getJiraForUser(userId);
         if (!jiraClient) {
             throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
@@ -75,7 +73,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         if (!jiraResourceClient) {
             throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
         }
-        const connection = new JiraProjectConnection(roomId, as, data, validData.url, commentProcessor, messageClient, tokenStore);
+        const connection = new JiraProjectConnection(roomId, as, data, validData.url, tokenStore);
+        log.debug(`projectKey for ${validData.url} is ${connection.projectKey}`);
         if (!connection.projectKey) {
             throw Error('Expected projectKey to be defined');
         }
@@ -83,7 +82,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             // Just need to check that the user can access this.
             await jiraResourceClient.getProject(connection.projectKey);
         } catch (ex) {
-            throw new ApiError("User cannot open this project", ErrCode.ForbiddenUser);
+            throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
         }
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
         return {stateEventContent: validData, connection};
@@ -98,8 +97,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     }
 
     public get projectKey() {
-        const parts =  this.projectUrl?.pathname.split('/');
-        return parts ? parts[parts.length - 1] : undefined;
+        const parts = this.projectUrl?.pathname.split('/');
+        return parts ? parts[parts.length - 1]?.toUpperCase() : undefined;
     }
 
     public toString() {
@@ -116,7 +115,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         }
         if (this.instanceOrigin) {
             const url = new URL(project.self);
-            return this.instanceOrigin === url.origin && this.projectKey === project.key;
+            return this.instanceOrigin === url.origin && this.projectKey === project.key.toUpperCase();
         }
         return false;
     }
@@ -131,8 +130,6 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         private readonly as: Appservice,
         private state: JiraProjectConnectionState,
         stateKey: string,
-        private readonly commentProcessor: CommentProcessor,
-        private readonly messageClient: MessageSenderClient,
         private readonly tokenStore: UserTokenStore,) {
             super(
                 roomId,
@@ -141,7 +138,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
                 as.botClient,
                 JiraProjectConnection.botCommands,
                 JiraProjectConnection.helpMessage,
-                state.commandPrefix || "!jira"
+                state.commandPrefix || "!jira",
+                "jira"
             );
             if (state.url) {
                 this.projectUrl = new URL(state.url);
@@ -316,7 +314,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
             result = await api.getProject(keyOrId);
         } catch (ex) {
             log.warn("Failed to get issue types:", ex);
-            throw new CommandError(ex.message, "Failed to create JIRA issue");
+            throw new CommandError(ex.message, "Failed to get issue types");
         }
 
         const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(', ')}`;

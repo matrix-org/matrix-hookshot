@@ -91,6 +91,13 @@ logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
   level: info
+permissions:
+  # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
+  #
+  - actor: example.com
+    services:
+      - service: "*"
+        level: admin
 listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.

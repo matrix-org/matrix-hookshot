@@ -53,12 +53,91 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 You should read and fill this in as the bridge will not start without a complete config.
 
 You may validate your config without starting the service by running `yarn validate-config`.
+For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml`
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
 - At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
+
+### Permissions
+
+The bridge supports fine grained permission control over what services a user can access.
+By default, any user on the bridge's own homeserver has full permission to use it.
+
+```yaml
+permissions:
+  - actor: example.com
+    services:
+      - service: "*"
+        level: admin
+```
+
+You must configure a set of "actors" with access to services. An `actor` can be:
+- A MxID (also known as a User ID) e.g. `@Half-Shot:half-shot.uk`
+- A homeserver domain e.g. `matrix.org`
+- A roomId. This will allow any member of this room to complete actions. e.g. `!TlZdPIYrhwNvXlBiEk:half-shot.uk`
+- `*`, to match all users.
+
+Each permission set can have a services. The `service` field can be:
+- `github`
+- `gitlab`
+- `jira`
+- `figma`
+- `webhooks`
+- `*`, for any service.
+
+The `level` can be:
+ - `commands` Can run commands within connected rooms, but NOT log into the bridge.
+ - `login` All the above, and can also log into the bridge.
+ - `notifications` All the above, and can also bridge their notifications.
+ - `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
+ - `admin` All permissions. Currently there are no admin features so this exists as a placeholder.
+
+When permissions are checked, if a user matches any of the permission set and one
+of those grants the right level for a service, they are allowed access. If none of the 
+definitions match, they are denined.
+
+#### Example
+
+A typical setup might be.
+
+```yaml
+permissions:
+  # Allo all users to send commands to existing services
+  - actor: *
+    services:
+      - service: *
+        level: commands
+  # Allow any user that is part of this space to manage github connections
+  - actor: !TlZdPIYrhwNvXlBiEk:half-shot.uk
+    services:
+      - service: github
+        level: manageConnections
+  # Allow users on this domain to login to jira and github.
+  - actor: support.example.com
+    services:
+      - service: jira
+        level: login
+      - service: github
+        level: commands
+  # Allow users on this domain to enable notifications on any service.
+  - actor: engineering.example.com
+    services:
+      - service: *
+        level: notifications
+  # Allow users on this domain to create connections.
+  - actor: management.example.com
+    services:
+      - service: *
+        level: manageConnections
+  # Allow this specific user to do any action
+  - actor: @alice:example.com
+    services:
+      - service: *
+        level: admin
+```
 
 ### Listeners configuration
 

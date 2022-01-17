@@ -19,6 +19,7 @@ import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
+import { PermissionCheckFn } from ".";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -141,7 +142,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const validData = validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
-            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+            throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
         }
         const me = await octokit.users.getAuthenticated();
         let permissionLevel;
@@ -277,7 +278,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 as.botClient,
                 GitHubRepoConnection.botCommands,
                 GitHubRepoConnection.helpMessage,
-                state.commandPrefix || "!gh"
+                state.commandPrefix || "!gh",
+                "github",
             );
     }
 
@@ -302,8 +304,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
     }
 
 
-    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, reply?: IRichReplyMetadata) {
-        if (await super.onMessageEvent(ev)) {
+    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn, reply?: IRichReplyMetadata) {
+        if (await super.onMessageEvent(ev, checkPermission)) {
             return true;
         }
         if (!reply) {
@@ -479,7 +481,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
 
-        let message = `${event.issue.user?.login} created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        let message = `**${event.issue.user.login}** created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
         message += (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
         if (this.showIssueRoomLink) {
             const appInstance = await this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
@@ -513,7 +515,26 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const state = event.issue.state === 'open' ? 'reopened' : 'closed';
         const orgRepoName = event.repository.full_name;
-        const content = `**${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
+        let withComment = "";
+        if (state === 'reopened' || state === 'closed') {
+            const octokit = this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
+            if (octokit) {
+                try {
+                    const comments = await octokit.issues.listComments({
+                        owner: this.org,
+                        repo: this.repo,
+                        issue_number: event.issue.number,
+                        // Get comments from the 2 minutes.
+                        since: new Date(Date.now() - (2 * 60000)).toISOString(),
+                    });
+                    const [comment] = comments.data.filter((c) => c.user?.login === event.sender.login).sort((a,b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+                    withComment = ` with comment "${comment.body}"`;
+                } catch (ex) {
+                    log.warn(`Failed to get previous comments for closed / reopened issue.`, ex);
+                }
+            }
+        }
+        const content = `**${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"${withComment}`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,

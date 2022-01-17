@@ -1,16 +1,17 @@
-import { Octokit } from "@octokit/rest";
+import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { EventEmitter } from "events";
 import { GithubInstance } from "../Github/GithubInstance";
+import { GitHubUserNotification as HSGitHubUserNotification } from "../Github/Types";
 import LogWrapper from "../LogWrapper";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { RequestError } from "@octokit/request-error";
-import { GitHubUserNotification } from "../Github/Types";
-import { OctokitResponse } from "@octokit/types";
 import Metrics from "../Metrics";
 const log = new LogWrapper("GitHubWatcher");
 
 const GH_API_THRESHOLD = 50;
 const GH_API_RETRY_IN = 1000 * 60;
+
+type GitHubUserNotification = RestEndpointMethodTypes["activity"]["listNotificationsForAuthenticatedUser"]["response"];
 
 export class GitHubWatcher extends EventEmitter implements NotificationWatcherTask  {
     private static apiFailureCount = 0;
@@ -76,11 +77,9 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
         }
         log.debug(`Getting notifications for ${this.userId} ${this.lastReadTs}`);
         const since = this.lastReadTs !== 0 ? `&since=${new Date(this.lastReadTs).toISOString()}`: "";
-        let response: OctokitResponse<GitHubUserNotification[]>;
+        let response: GitHubUserNotification;
         try {
-            response = await this.octoKit.request(
-                `/notifications?participating=${this.participating}${since}`,
-            );
+            response = await this.octoKit.activity.listNotificationsForAuthenticatedUser({since, participating: this.participating});
             Metrics.notificationsServiceUp.set({service: "github"}, 1);
             // We were succesful, clear any timeouts.
             GitHubWatcher.globalRetryIn = 0;
@@ -96,17 +95,18 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             log.info(`Got ${response.data.length} notifications for ${this.userId}`);
         }
         for (const rawEvent of response.data) {
+            const ev = rawEvent as unknown as HSGitHubUserNotification;
             try {
                 if (rawEvent.subject.url) {
                     const res = await this.octoKit.request(rawEvent.subject.url);
-                    rawEvent.subject.url_data = res.data;
+                    ev.subject.url_data = res.data;
                 }
                 if (rawEvent.subject.latest_comment_url) {
                     const res = await this.octoKit.request(rawEvent.subject.latest_comment_url);
-                    rawEvent.subject.latest_comment_url_data = res.data;
+                    ev.subject.latest_comment_url_data = res.data;
                 }
                 if (rawEvent.reason === "review_requested") {
-                    if (!rawEvent.subject.url_data?.number) {
+                    if (!ev.subject.url_data?.number) {
                         log.warn("review_requested was missing subject.url_data.number");
                         continue;
                     }
@@ -114,14 +114,14 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                         log.warn("review_requested was missing repository.owner");
                         continue;
                     }
-                    rawEvent.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
-                        pull_number: rawEvent.subject.url_data.number,
+                    ev.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
+                        pull_number: ev.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,
                         repo: rawEvent.repository.name,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     })).data as any; 
-                    rawEvent.subject.reviews = (await this.octoKit.pulls.listReviews({
-                        pull_number: rawEvent.subject.url_data.number,
+                    ev.subject.reviews = (await this.octoKit.pulls.listReviews({
+                        pull_number: ev.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,
                         repo: rawEvent.repository.name,
                     })).data;
@@ -130,13 +130,13 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                 log.warn(`Failed to pre-process ${rawEvent.id}: ${ex}`);
                 // We still push
             }
-            log.debug(`Pushing ${rawEvent.id}`);
+            log.debug(`Pushing ${ev.id}`);
             Metrics.notificationsPush.inc({service: "github"});
             this.emit("new_events", {
                 eventName: "notifications.user.events",
                 data: {
                     roomId: this.roomId,
-                    events: [rawEvent],
+                    events: [ev],
                     lastReadTs: this.lastReadTs,
                 },
                 sender: "GithubWebhooks",

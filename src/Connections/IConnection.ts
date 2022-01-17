@@ -2,7 +2,9 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IRichReplyMetadata } from "matrix-bot-sdk";
+import { BridgePermissionLevel } from "../Config/Config";
 
+export type PermissionCheckFn = (service: string, level: BridgePermissionLevel) => boolean;
 export interface IConnection {
     /**
      * The roomId that this connection serves.
@@ -26,7 +28,7 @@ export interface IConnection {
      * When a room gets a message event.
      * @returns Was the message handled
      */
-    onMessageEvent?: (ev: MatrixEvent<MatrixMessageContent>, replyMetadata?: IRichReplyMetadata) => Promise<boolean>;
+    onMessageEvent?: (ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn, replyMetadata: IRichReplyMetadata) => Promise<boolean>;
 
     onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
 

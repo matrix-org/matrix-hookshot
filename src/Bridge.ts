@@ -1,7 +1,7 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, IAppserviceStorageProvider, EventKind } from "matrix-bot-sdk";
-import { BridgeConfig, GitLabInstance } from "./Config/Config";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, EventKind } from "matrix-bot-sdk";
+import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
@@ -83,6 +83,22 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+
+        // Fetch all room state
+        let joinedRooms: string[]|undefined;
+        while(joinedRooms === undefined) {
+            try {
+                log.info("Connecting to homeserver and fetching joined rooms..");
+                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
+                log.info(`Found ${joinedRooms.length} rooms`);
+            } catch (ex) {
+                // This is our first interaction with the homeserver, so wait if it's not ready yet.
+                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
+                await new Promise((r) => setTimeout(r, 5000));
+            }
+        }
+        
+        await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
             this.github = new GithubInstance(this.config.github.auth.id, await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'));
@@ -264,7 +280,7 @@ export class Bridge {
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestReadyForReviewEvent, GitHubRepoConnection>(
-            "github.pull_request_review.ready_for_review",
+            "github.pull_request.ready_for_review",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
             (c, data) => c.onPRReadyForReview(data),
         );
@@ -468,20 +484,6 @@ export class Bridge {
             (c, data) => c.handleNewComment(data.payload),
         )
 
-        // Fetch all room state
-        let joinedRooms: string[]|undefined;
-        while(joinedRooms === undefined) {
-            try {
-                log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
-                log.info(`Found ${joinedRooms.length} rooms`);
-            } catch (ex) {
-                // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
-                await new Promise((r) => setTimeout(r, 5000));
-            }
-        }
-
         // Set the name and avatar of the bot
         if (this.config.bot) {
             // Ensure we are registered before we set a profile
@@ -633,24 +635,25 @@ export class Bridge {
         const processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
         const processedReplyMetadata: IRichReplyMetadata = processedReply?.mx_richreply;
         const adminRoom = this.adminRooms.get(roomId);
+        const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(event.sender, service, level);
 
         if (!adminRoom) {
             let handled = false;
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
                 try {
                     if (connection.onMessageEvent) {
-                        handled = await connection.onMessageEvent(event, processedReplyMetadata);
+                        handled = await connection.onMessageEvent(event, checkPermission, processedReplyMetadata);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
                 }
             }
-            if (!handled) {
+            if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
                         new SetupConnection(roomId, this.as, this.tokenStore, this.config, this.github)
-                    ).onMessageEvent(event);
+                    ).onMessageEvent(event, checkPermission);
                 } catch (ex) {
                     log.warn(`Setup connection failed to handle:`, ex);
                 }
@@ -695,6 +698,7 @@ export class Bridge {
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
+        this.config.addMemberToCache(roomId, matrixEvent.sender);
         if (this.as.botUserId !== matrixEvent.sender) {
             // Only act on bot joins
             return;
@@ -717,14 +721,18 @@ export class Bridge {
             return;
         }
         if (event.state_key !== undefined) {
+            if (event.type === "m.room.member" && event.content.membership !== "join") {
+                this.config.removeMemberFromCache(roomId, event.state_key);
+                return;
+            }
             // A state update, hurrah!
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {
                 try {
                     if (event.content.disabled === true) {
                         await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
-                    } else if (connection?.onStateUpdate) {
-                        connection.onStateUpdate(event);
+                    } else {
+                        connection.onStateUpdate?.(event);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
@@ -840,7 +848,7 @@ export class Bridge {
         // Make this more efficent.
         if (!oldSettings.github?.notifications?.enabled && settings.github?.notifications?.enabled) {
             log.info(`Notifications enabled for ${adminRoom.userId}`);
-            const token = await this.tokenStore.getUserToken("github", adminRoom.userId);
+            const token = await this.tokenStore.getGitHubToken(adminRoom.userId);
             if (token) {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
                 await this.queue.push<NotificationsEnableEvent>({

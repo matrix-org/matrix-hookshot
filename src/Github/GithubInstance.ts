@@ -1,5 +1,4 @@
 import { createAppAuth } from "@octokit/auth-app";
-import { createTokenAuth } from "@octokit/auth-token";
 import { Octokit } from "@octokit/rest";
 import LogWrapper from "../LogWrapper";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
@@ -7,10 +6,9 @@ import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
 import axios from "axios";
 import qs from "querystring";
+import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("GithubInstance");
-
-const USER_AGENT = "matrix-hookshot v0.0.1";
 
 interface Installation {
     account: {
@@ -44,11 +42,8 @@ export class GithubInstance {
 
     public static createUserOctokit(token: string) {
         return new Octokit({
-            // XXX: A recent release of octokit (rest/auth-token?) broke passing in the token
-            // as an auth parameter. For now we can just do this.
-            authStrategy: () => createTokenAuth(token),
-            auth: null,
-            userAgent: USER_AGENT,
+            auth: token,
+            userAgent: UserAgent,
         });
     }
 
@@ -89,7 +84,7 @@ export class GithubInstance {
                 privateKey: this.privateKey,
                 installationId,
             },
-            userAgent: USER_AGENT,
+            userAgent: UserAgent,
         });
     }
 
@@ -104,7 +99,7 @@ export class GithubInstance {
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
-            userAgent: USER_AGENT,
+            userAgent: UserAgent,
         });
 
 

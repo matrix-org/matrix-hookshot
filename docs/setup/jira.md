@@ -20,16 +20,16 @@ Support for on-prem deployments is hoping to land soon.
 </section>
 
 
-You will need a Atlassain account with the ability to use the developer tools in order to create the app.
+You will need a Atlassian account with the ability to use the developer tools in order to create the app.
 
 You'll first need to head to https://developer.atlassian.com/console/myapps/create-3lo-app/ to create a 
 "OAuth 2.0 (3LO)" integration.
 
 Once named and created, you will need to:
-    - Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.
-    - Use rotating tokens under Authorisation.
-    - Set a callback url. This will be the public URL to hookshot with a path of `/jira/oauth`.
-    - Copy the client ID and Secret from Settings
+  1. Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.
+  2. Use rotating tokens under Authorisation.
+  3. Set a callback url. This will be the public URL to hookshot with a path of `/jira/oauth`.
+  4. Copy the client ID and Secret from Settings
 
 ## Configuration
 
@@ -45,7 +45,7 @@ jira:
     redirect_uri: https://example.com/hookshot/jira/oauth
 ```
 
-You can leave the `oauth` section blank if you are not planning to use those capabilities.
+You can omit the `oauth` section if you are not planning to allow users to login and use interactive features (i.e. webhook only mode).
 
 The `redirect_uri` value must be the **public** path to `/jira/oauth` on the webhooks path. E.g. if your load balancer
 points `https://example.com/hookshot` to the bridge `webhooks` listener, you should use the path `https://example.com/hookshot/jira/oauth`.
