@@ -6,10 +6,9 @@ import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
 import axios from "axios";
 import qs from "querystring";
+import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("GithubInstance");
-
-const USER_AGENT = "matrix-hookshot v0.0.1";
 
 interface Installation {
     account: {
@@ -44,7 +43,7 @@ export class GithubInstance {
     public static createUserOctokit(token: string) {
         return new Octokit({
             auth: token,
-            userAgent: USER_AGENT,
+            userAgent: UserAgent,
         });
     }
 
@@ -85,7 +84,7 @@ export class GithubInstance {
                 privateKey: this.privateKey,
                 installationId,
             },
-            userAgent: USER_AGENT,
+            userAgent: UserAgent,
         });
     }
 

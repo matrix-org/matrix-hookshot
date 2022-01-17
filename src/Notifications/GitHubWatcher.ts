@@ -4,7 +4,6 @@ import { GithubInstance } from "../Github/GithubInstance";
 import LogWrapper from "../LogWrapper";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { RequestError } from "@octokit/request-error";
-import { OctokitResponse } from "@octokit/types";
 import Metrics from "../Metrics";
 const log = new LogWrapper("GitHubWatcher");
 
