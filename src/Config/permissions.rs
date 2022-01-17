@@ -61,10 +61,7 @@ impl BridgePermissions {
         if actor_permission.actor.starts_with("!") {
             match self.room_membership.get(&actor_permission.actor) {
                 Some(set) => {
-                    if !set.contains(mxid) {
-                        // User not in set.
-                        return false;
-                    }
+                    return set.contains(mxid);
                 }
                 None => {
                     // No cached data stored...odd.

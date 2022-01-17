@@ -56,7 +56,7 @@ describe("Config/BridgePermissions", () => {
         it("will return true if a user is present in a room", () => {
             const bridgePermissions = genBridgePermissions('!foo:bar', 'my-service', 'login');
             bridgePermissions.addMemberToCache('!foo:bar', '@foo:bar');
-            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.false;
+            expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
         });
         it("will fall through and return true for multiple permission sets", () => {
             const bridgePermissions = new BridgePermissions([
