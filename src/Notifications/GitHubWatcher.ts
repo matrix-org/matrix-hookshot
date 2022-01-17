@@ -1,6 +1,7 @@
 import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { EventEmitter } from "events";
 import { GithubInstance } from "../Github/GithubInstance";
+import { GitHubUserNotification as HSGitHubUserNotification } from "../Github/Types";
 import LogWrapper from "../LogWrapper";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { RequestError } from "@octokit/request-error";
@@ -94,18 +95,18 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
             log.info(`Got ${response.data.length} notifications for ${this.userId}`);
         }
         for (const rawEvent of response.data) {
-            const ev = rawEvent as any;
+            const ev = rawEvent as unknown as HSGitHubUserNotification;
             try {
                 if (rawEvent.subject.url) {
                     const res = await this.octoKit.request(rawEvent.subject.url);
-                    ev.url_data = res.data;
+                    ev.subject.url_data = res.data;
                 }
                 if (rawEvent.subject.latest_comment_url) {
                     const res = await this.octoKit.request(rawEvent.subject.latest_comment_url);
-                    ev.latest_comment_url_data = res.data;
+                    ev.subject.latest_comment_url_data = res.data;
                 }
                 if (rawEvent.reason === "review_requested") {
-                    if (!ev.url_data?.number) {
+                    if (!ev.subject.url_data?.number) {
                         log.warn("review_requested was missing subject.url_data.number");
                         continue;
                     }
@@ -113,14 +114,14 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
                         log.warn("review_requested was missing repository.owner");
                         continue;
                     }
-                    ev.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
-                        pull_number: ev.url_data.number,
+                    ev.subject.requested_reviewers = (await this.octoKit.pulls.listRequestedReviewers({
+                        pull_number: ev.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,
                         repo: rawEvent.repository.name,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     })).data as any; 
-                    ev.reviews = (await this.octoKit.pulls.listReviews({
-                        pull_number: ev.url_data.number,
+                    ev.subject.reviews = (await this.octoKit.pulls.listReviews({
+                        pull_number: ev.subject.url_data.number,
                         owner: rawEvent.repository.owner.login,
                         repo: rawEvent.repository.name,
                     })).data;
