@@ -267,6 +267,17 @@ export class Bridge {
             (c, data) => c.onIssueEdited(data),
         );
 
+        this.bindHandlerToQueue<GitHubWebhookTypes.IssuesUnlabeledEvent, GitHubRepoConnection>(
+            "github.issues.unlabeled",
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (c, data) => c.onIssueUnlabeled(data),
+        );
+        this.bindHandlerToQueue<GitHubWebhookTypes.IssuesLabeledEvent, GitHubRepoConnection>(
+            "github.issues.labeled",
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (c, data) => c.onIssueLabeled(data),
+        );
+
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestOpenedEvent, GitHubRepoConnection>(
             "github.pull_request.opened",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
@@ -583,7 +594,7 @@ export class Bridge {
         this.ready = true;
     }
 
-    private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>) {
+    private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
         this.queue.on<EventType>(event, (msg) => {
             const connections = connectionFetcher.bind(this)(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
