@@ -29,3 +29,13 @@ export interface WidgetConfigurationSection {
     name: string;
     options: WidgetConfigurationOption[];
 }
+
+export interface UserSearchResults {
+    data: {
+        userId: string,
+        service: string,
+        displayName?: string,
+        avatarMxc?: string,
+        rawAvatarUrl?: string,
+    }[];
+}

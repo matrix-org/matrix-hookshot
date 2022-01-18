@@ -1,4 +1,4 @@
-import { BridgeRoomState, WidgetConfigurationOptions, WidgetConfigurationType } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, UserSearchResults, WidgetConfigurationOptions, WidgetConfigurationType } from '../src/Widgets/BridgeWidgetInterface';
 
 export class BridgeAPIError extends Error {
     constructor(msg: string, private body: Record<string, unknown>) {
@@ -44,5 +44,9 @@ export default class BridgeAPI {
 
     async getConfig(section: string): Promise<WidgetConfigurationOptions> {
         return this.request('GET', `/widgetapi/v1/config/${section}`);
+    }
+
+    async searchUsers(query: string): Promise<UserSearchResults> {
+        return this.request('POST', `/widgetapi/v1/search/users?query=${encodeURIComponent(query)}`);
     }
 }

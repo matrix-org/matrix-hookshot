@@ -5,11 +5,15 @@ import BridgeAPI from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import ErrorPane from './components/ErrorPane';
 import AdminSettings from './components/AdminSettings';
+import { WidgetKind } from './WidgetKind';
+import InviteView from './components/InviteView';
+
 interface IState {
     error: string|null,
     busy: boolean,
     roomId?: string,
-    roomState?: BridgeRoomState;
+    roomState?: BridgeRoomState,
+    kind?: WidgetKind,
 }
 
 function parseFragment() {
@@ -42,8 +46,9 @@ export default class App extends Component<void, IState> {
         const widgetId = assertParam(qs, 'widgetId');
         const roomId = assertParam(qs, 'roomId');
         const accessToken = assertParam(qs, 'accessToken');
+        const isInviteWidget = qs.get('bridgeInvites') === 'true';
         // Fetch via config.
-        this.bridgeApi = new BridgeAPI("http://localhost:5000", accessToken);
+        this.bridgeApi = new BridgeAPI("http://localhost:9001", accessToken);
         await this.bridgeApi.verify();
         this.widgetApi = new WA.WidgetApi(widgetId);
         this.widgetApi.on("ready", () => {
@@ -56,13 +61,13 @@ export default class App extends Component<void, IState> {
         this.widgetApi.on(`action:${WA.WidgetApiToWidgetAction.SendEvent}`, (ev) => {
             console.log(`${WA.WidgetApiToWidgetAction.SendEvent}`, ev);
         })
-                // Start the widget as soon as possible too, otherwise the client might time us out.
+        // Start the widget as soon as possible too, otherwise the client might time us out.
         this.widgetApi.start();
         const roomState = await this.bridgeApi.state();
-        console.log('Got state', roomState);
         this.setState({
             roomState,
             roomId,
+            kind: isInviteWidget ? WidgetKind.BridgeInvites : WidgetKind.Settings,
             busy: false,
         });
     } catch (ex) {
@@ -79,9 +84,11 @@ export default class App extends Component<void, IState> {
         let content;
         if (this.state.error) {
             content = <ErrorPane>{this.state.error}</ErrorPane>;
-        } else if (this.state.roomState) {
+        } else if (this.state.roomState && this.state.kind === WidgetKind.Settings) {
             content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState}></AdminSettings>;
-        } else if (this.state.busy) {
+        } else if (this.state.roomState && this.state.kind === WidgetKind.BridgeInvites) {
+            content = <InviteView bridgeApi={this.bridgeApi} widgetApi={this.widgetApi} ></InviteView>;
+        }  else if (this.state.busy) {
             content = <div class="spinner"></div>;
         } else {
             content = <b>Invalid state</b>;

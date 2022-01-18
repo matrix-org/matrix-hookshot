@@ -570,7 +570,7 @@ export class Bridge {
         }
 
         if (this.config.widgets) {
-            this.widgetApi = new BridgeWidgetApi(this.adminRooms, this.config);
+            this.widgetApi = new BridgeWidgetApi(this.adminRooms, this.config, this.tokenStore);
             this.listener.bindResource('widgets', this.widgetApi.expressRouter);
         }
         if (this.provisioningApi) {
