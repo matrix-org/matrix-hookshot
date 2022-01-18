@@ -4,7 +4,7 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
 import { IConnection } from "./IConnection";
-import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent } from "@octokit/webhooks-types";
+import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
@@ -74,6 +74,7 @@ type AllowedEventsNames =
     "issue.changed" |
     "issue.created" |
     "issue.edited" |
+    "issue.labeled" |
     "issue" | 
     "pull_request.closed" |
     "pull_request.merged" |
@@ -98,6 +99,8 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release.created" ,
     "release",
 ];
+
+const LABELED_DEBOUNCE_MS = 5000;
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
@@ -262,6 +265,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     static helpMessage: (cmdPrefix: string) => MatrixMessageContent;
     static botCommands: BotCommands;
+
+    public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
     constructor(roomId: string,
         private readonly as: Appservice,
@@ -561,6 +566,54 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             format: "org.matrix.custom.html",
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
+    }
+
+    public async onIssueLabeled(event: IssuesLabeledEvent) {
+        if (this.shouldSkipHook('issue.labeled', 'issue') || !event.label || !this.state.includingLabels?.length) {
+            return;
+        }
+        log.info(`onIssueLabeled ${this.roomId} ${this.org}/${this.repo} #${event.issue.id} ${event.label.name}`);
+        const renderFn = () => {
+            const {labels} = this.debounceOnIssueLabeled.get(event.issue.id) || { labels: [] };
+            this.debounceOnIssueLabeled.delete(event.issue.id);
+            // Only render if we *explicitly* want it.
+            if (![...labels.values()]?.find(l => this.state.includingLabels?.includes(l))) {
+                // Not interested.
+                return;
+            }
+            const orgRepoName = event.repository.full_name;
+            const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
+            const content = `**${event.sender.login}** labeled issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
+            this.as.botIntent.sendEvent(this.roomId, {
+                msgtype: "m.notice",
+                body: content + (plain.length > 0 ? ` with labels ${plain}`: ""),
+                formatted_body: md.renderInline(content) + (html.length > 0 ? ` with labels ${html}`: ""),
+                format: "org.matrix.custom.html",
+                ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
+            }).catch(ex  => {
+                log.error('Failed to send onIssueLabeled message', ex);
+            });
+
+        };
+        const existing = this.debounceOnIssueLabeled.get(event.issue.id);
+        if (existing) {
+            clearTimeout(existing.timeout);
+            existing.labels.add(event.label.name);
+            existing.timeout = setTimeout(renderFn, LABELED_DEBOUNCE_MS);
+        } else {
+            this.debounceOnIssueLabeled.set(event.issue.id, {
+                labels: new Set([event.label.name]),
+                timeout: setTimeout(renderFn, LABELED_DEBOUNCE_MS),
+            })
+        }
+    }
+
+    public onIssueUnlabeled(data: IssuesUnlabeledEvent) {
+        log.info(`onIssueUnlabeled ${this.roomId} ${this.org}/${this.repo} #${data.issue.id} ${data.label?.name}`);
+        const existing = this.debounceOnIssueLabeled.get(data.issue.id);
+        if (existing && data.label) {
+            existing.labels.delete(data.label.name);
+        }
     }
 
     public async onPROpened(event: PullRequestOpenedEvent) {
