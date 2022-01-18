@@ -101,6 +101,7 @@ const AllowedEvents: AllowedEventsNames[] = [
 ];
 
 const LABELED_DEBOUNCE_MS = 5000;
+const CREATED_GRACE_PERIOD_MS = 6000;
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
@@ -572,6 +573,12 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         if (this.shouldSkipHook('issue.labeled', 'issue') || !event.label || !this.state.includingLabels?.length) {
             return;
         }
+
+        // We don't want to send this message if we're also sending a created message
+        if (Date.now() - new Date(event.issue.created_at).getTime() < CREATED_GRACE_PERIOD_MS) {
+            return;
+        }
+        
         log.info(`onIssueLabeled ${this.roomId} ${this.org}/${this.repo} #${event.issue.id} ${event.label.name}`);
         const renderFn = () => {
             const {labels} = this.debounceOnIssueLabeled.get(event.issue.id) || { labels: [] };
