@@ -1,0 +1,1 @@
+GitHub repo connections will notify when an issue has been labeled if `includingLabels` is configured.

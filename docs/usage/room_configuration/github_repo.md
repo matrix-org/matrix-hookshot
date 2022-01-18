@@ -42,6 +42,7 @@ This connection supports sending messages when the following actions happen on t
   - issue.created
   - issue.changed
   - issue.edited
+  - issue.labeled
 - pull_request
   - pull_request.closed
   - pull_request.merged
