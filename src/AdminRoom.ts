@@ -385,7 +385,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice("A token is stored for your GitLab account.");
     }
 
-    @botCommand("gitlab notifications toggle", {help: "Toggle enabling/disabling GitHub notifications in this room", optionalArgs: ["instanceName"], category: "gitlab"})
+    @botCommand("gitlab notifications toggle", {help: "Toggle enabling/disabling GitLab notifications in this room", optionalArgs: ["instanceName"], category: "gitlab"})
     public async setGitLabNotificationsStateToggle(instanceName: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support");
