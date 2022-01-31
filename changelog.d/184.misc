@@ -1,0 +1,1 @@
+Do not hardcode `--target x86_64-unknown-linux-gnu` when installing Rust (rely on platform auto-detection instead)
