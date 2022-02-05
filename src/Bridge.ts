@@ -13,7 +13,7 @@ import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubU
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
-import { JiraOAuthResult } from "./Jira/Types";
+import { JiraOAuthResult, JiraStoredToken } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
@@ -38,6 +38,7 @@ import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
 import { getAppservice } from "./appservice";
+import { CLOUD_INSTANCE } from "./Jira/Client";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -474,7 +475,12 @@ export class Bridge {
                 log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
                 return;
             }
-            await this.tokenStore.storeUserToken("jira", userId, JSON.stringify(data));
+            await this.tokenStore.storeJiraToken(userId, {
+                access_token: data.access_token,
+                refresh_token: data.refresh_token,
+                instance: CLOUD_INSTANCE,
+                expires_in: data.expires_in,
+            });
 
             // Some users won't have an admin room and would have gone through provisioning.
             const adminRoom = this.adminRooms.get(userId);

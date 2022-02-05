@@ -2,13 +2,15 @@
 import axios, { Method } from 'axios';
 import JiraApi, { SearchUserOptions } from 'jira-client';
 import QuickLRU from "@alloc/quick-lru";
-import { JiraAccount, JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject } from './Types';
+import { JiraAccount, JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject, JiraStoredToken } from './Types';
 import { BridgeConfigJira } from '../Config/Config';
 import LogWrapper from '../LogWrapper';
 
 const log = new LogWrapper("JiraClient");
 const ACCESSIBLE_RESOURCE_CACHE_LIMIT = 100;
 const ACCESSIBLE_RESOURCE_CACHE_TTL_MS = 60000;
+
+export const CLOUD_INSTANCE = "https://api.atlassian.com/";
 
 interface JiraProjectSearchResponse {
     nextPage: string;
@@ -74,12 +76,12 @@ export class JiraClient {
         maxAge: ACCESSIBLE_RESOURCE_CACHE_TTL_MS
     });
 
-    constructor(private oauth2State: JiraOAuthResult, private readonly onTokenRefreshed: (newData: JiraOAuthResult) => Promise<void>, private readonly config: BridgeConfigJira) {
+    constructor(private storedToken: JiraStoredToken, private readonly onTokenRefreshed: (newData: JiraStoredToken) => Promise<void>, private readonly config: BridgeConfigJira) {
 
     }
 
     private get bearer() {
-        return this.oauth2State.access_token;
+        return this.storedToken.access_token;
     }
 
     async getAccessibleResources() {
@@ -107,8 +109,11 @@ export class JiraClient {
     }
 
     async checkTokenAge() {
-        if (this.oauth2State.expires_in + 60000 > Date.now()) {
+        if (this.storedToken.expires_in + 60000 > Date.now()) {
             return;
+        }
+        if (!this.storedToken.refresh_token) {
+            throw Error('Cannot refresh token, token does not support it');
         }
         log.info(`Refreshing oauth token`);
         // Refresh the token
@@ -116,12 +121,17 @@ export class JiraClient {
             grant_type: "refresh_token",
             client_id: this.config.oauth.client_id,
             client_secret: this.config.oauth.client_secret,
-            refresh_token: this.oauth2State.refresh_token,
+            refresh_token: this.storedToken.refresh_token,
         });
         const data = res.data as JiraOAuthResult;
         data.expires_in += Date.now() + (data.expires_in * 1000);
-        this.oauth2State = data;
-        this.onTokenRefreshed(this.oauth2State);
+        this.storedToken = {
+            expires_in: data.expires_in,
+            refresh_token: data.refresh_token,
+            access_token: data.access_token,
+            instance: CLOUD_INSTANCE,
+        };
+        this.onTokenRefreshed(data);
     }
 
     async getClientForUrl(url: URL) {

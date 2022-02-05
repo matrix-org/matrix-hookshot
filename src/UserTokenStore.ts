@@ -4,8 +4,8 @@ import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
-import { JiraClient } from "./Jira/Client";
-import { JiraOAuthResult } from "./Jira/Types";
+import { CLOUD_INSTANCE as JIRA_CLOUD_INSTANCE, JiraClient } from "./Jira/Client";
+import { JiraOAuthResult, JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
 import { v4 as uuid } from "uuid";
 import { GitHubOAuthToken } from "./Github/Types";
@@ -69,6 +69,10 @@ export class UserTokenStore {
         this.userTokens.set(key, token);
         log.info(`Stored new ${type} token for ${userId}`);
         log.debug(`Stored`, data);
+    }
+
+    public async storeJiraToken(userId: string, token: JiraStoredToken) {
+        return this.storeUserToken("jira", userId, JSON.stringify(token));
     }
 
     public async getUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<string|null> {
@@ -163,9 +167,13 @@ export class UserTokenStore {
         if (!jsonData) {
             return null;
         }
-        // TODO: Hacks
-        return new JiraClient(JSON.parse(jsonData) as JiraOAuthResult, (data) => {
-            return this.storeUserToken('jira', userId, JSON.stringify(data));
+        const storedToken = JSON.parse(jsonData) as JiraStoredToken;
+        if (!storedToken.instance) {
+            // Legacy stored tokens don't include the cloud instance string.
+            storedToken.instance = JIRA_CLOUD_INSTANCE;
+        }
+        return new JiraClient(storedToken, (data) => {
+            return this.storeJiraToken(userId, data);
         }, this.config.jira);
     }
 

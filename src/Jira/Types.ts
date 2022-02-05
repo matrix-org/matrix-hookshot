@@ -68,6 +68,13 @@ export interface JiraIssue {
     }
 }
 
+export interface JiraStoredToken {
+    expires_in: number;
+    access_token: string;
+    refresh_token?: string;
+    instance: string;
+}
+
 export interface JiraOAuthResult {
     state?: string;
     access_token: string;

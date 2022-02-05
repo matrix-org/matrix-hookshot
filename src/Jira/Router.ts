@@ -18,6 +18,16 @@ interface OAuthQuery {
 }
 
 export class JiraWebhooksRouter {
+
+    public static IsJIRARequest(req: Request): boolean {
+        if (req.headers['x-atlassian-webhook-identifier']) {
+            return true; // Cloud
+        } else if (req.headers['user-agent']?.match(/JIRA/)) {
+            return true; // JIRA On-prem
+        }
+        return false;
+    }
+
     constructor(private readonly config: BridgeConfigJira, private readonly queue: MessageQueue) { }
 
     private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQuery>, res: Response<string|{error: string}>) {
