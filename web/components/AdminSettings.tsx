@@ -4,7 +4,7 @@ import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
 import GeneralConfig from './configs/GeneralConfig';
 import style from "./AdminSettings.module.scss";
 import BridgeAPI from "../BridgeAPI";
-
+import GitHubState from "../components/GitHubState";
 interface IProps {
     roomState: BridgeRoomState;
     bridgeApi: BridgeAPI;
@@ -42,7 +42,7 @@ export default function AdminSettings(props: IProps) {
       );
     return <div class={style.root}>
         <h1 class={style.header}> Hookshot Bridge settings</h1>
-        <section class={style.contents}>
+        <div class={style.contents}>
             <aside class={style.sidebar}>
                 <ul>
                     {activeSections.general && <a sectionKey={AdminSettingsTab.General} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.General ? style.active : null}>General</li></a>}
@@ -52,9 +52,10 @@ export default function AdminSettings(props: IProps) {
                     {activeSections.figma && <a sectionKey={AdminSettingsTab.Figma} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.Figma ? style.active : null}> Figma</li></a>}
                 </ul>
             </aside>
-            <section class={style.content}>
+            <div class={style.content}>
                 {currentTab === AdminSettingsTab.General && <GeneralConfig/>}
-            </section>
-        </section>
+                {currentTab === AdminSettingsTab.GitHub && <GitHubState config={props.roomState.github} />}
+            </div>
+        </div>
     </div>;
 }

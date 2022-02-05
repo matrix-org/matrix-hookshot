@@ -2,7 +2,9 @@
 .root {
     margin-left: 30px;
     margin-right: 30px;
-    padding: 20px;
+    padding-left: 10vw;
+    padding-right: 10vw;
+    padding-top: 10vh;
 }
 
 .root > .card {
@@ -12,6 +14,7 @@
 .header {
     text-align: left;
     font-size: 24pt;
+    margin-bottom: 30px;
 }
 
 .sidebar {
@@ -21,7 +24,6 @@
 }
 
 .content {
-    color: red;
     padding-left: 20px;
     h2 {
         font-size: 16pt;
