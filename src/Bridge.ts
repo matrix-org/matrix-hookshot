@@ -478,7 +478,7 @@ export class Bridge {
                     instance = CLOUD_INSTANCE;
                 } else {
                     tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
-                    instance = new URL(this.config.jira?.url!).host;
+                    instance = new URL(this.config.jira.url!).host;
                 }
                 await this.tokenStore.storeJiraToken(userId, {
                     access_token: tokenInfo.access_token,

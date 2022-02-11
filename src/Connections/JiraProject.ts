@@ -93,7 +93,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     }
 
     public get instanceOrigin() {
-        return this.projectUrl?.origin;
+        return this.projectUrl?.host;
     }
 
     public get projectKey() {
@@ -115,7 +115,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         }
         if (this.instanceOrigin) {
             const url = new URL(project.self);
-            return this.instanceOrigin === url.origin && this.projectKey === project.key.toUpperCase();
+            return this.instanceOrigin === url.host && this.projectKey === project.key.toUpperCase();
         }
         return false;
     }

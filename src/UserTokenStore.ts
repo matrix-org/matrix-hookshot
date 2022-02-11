@@ -187,7 +187,6 @@ export class UserTokenStore {
     }
 
     public async getGitLabForUser(userId: string, instanceUrl: string) {
-        // TODO: Move this somewhere else.
         const senderToken = await this.getUserToken("gitlab", userId, instanceUrl);
         if (!senderToken) {
             return null;

@@ -1077,11 +1077,6 @@
   resolved "https://registry.yarnpkg.com/@ungap/promise-all-settled/-/promise-all-settled-1.1.2.tgz#aa58042711d6e3275dd37dc597e5d31e8c290a44"
   integrity sha512-sL/cEvJWAnClXw0wHk85/2L0G6Sj8UB0Ctc1TEMbKSsmpRosqhwj9gWgFRZSrBr2f9tiXISwNhCPmlfqUqyb9Q==
 
-"@zpublish/oauth-1.0a@^2.2.6-beta.1":
-  version "2.2.6-beta.1"
-  resolved "https://registry.yarnpkg.com/@zpublish/oauth-1.0a/-/oauth-1.0a-2.2.6-beta.1.tgz#7e03a39c93abd4440e9d8e69d949067199065cd2"
-  integrity sha512-nPRWulDo+LqD/LPaf506AixnsQK2Cc2oCH7FXGciJOK9l35xMIoi8XD1eMBA1+DKNkHOSlX9MtbSBqK3gyOFqQ==
-
 abbrev@1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/abbrev/-/abbrev-1.1.1.tgz#f8f2c887ad10bf67f634f005b6987fed3179aac8"
