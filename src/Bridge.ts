@@ -13,7 +13,7 @@ import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubU
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
-import { JiraOAuthResult, JiraStoredToken } from "./Jira/Types";
+import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
@@ -38,6 +38,7 @@ import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
 import { getAppservice } from "./appservice";
+import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { CLOUD_INSTANCE } from "./Jira/Client";
 const log = new LogWrapper("Bridge");
 
@@ -455,38 +456,54 @@ export class Bridge {
             (c, data) => c.onJiraIssueUpdated(data),
         );
     
-        this.queue.on<OAuthRequest>("jira.oauth.response", async (msg) => {
+        this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
+            if (!this.config.jira || !this.tokenStore.jiraOAuth) {
+                throw Error('Cannot handle, JIRA oauth support not enabled');
+            }
+            let result: JiraOAuthRequestResult;
             const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
-            await this.queue.push<boolean>({
-                data: !!(userId),
+            if (!userId) {
+                return this.queue.push<JiraOAuthRequestResult>({
+                    data: JiraOAuthRequestResult.UserNotFound,
+                    sender: "Bridge",
+                    messageId: msg.messageId,
+                    eventName: "response.jira.oauth.response",
+                });
+            }
+            try {
+                let tokenInfo: JiraOAuthResult;
+                let instance;
+                if ("code" in msg.data) {
+                    tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.code);
+                    instance = CLOUD_INSTANCE;
+                } else {
+                    tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
+                    instance = new URL(this.config.jira?.url!).host;
+                }
+                await this.tokenStore.storeJiraToken(userId, {
+                    access_token: tokenInfo.access_token,
+                    refresh_token: tokenInfo.refresh_token,
+                    instance,
+                    expires_in: tokenInfo.expires_in,
+                });
+
+                // Some users won't have an admin room and would have gone through provisioning.
+                const adminRoom = this.adminRooms.get(userId);
+                if (adminRoom) {
+                    await adminRoom.sendNotice(`Logged into Jira`);
+                }
+                result = JiraOAuthRequestResult.Success;
+            } catch (ex) {
+                log.warn(`Failed to handle JIRA oauth token exchange`, ex);
+                result = JiraOAuthRequestResult.UnknownFailure;
+            }
+            await this.queue.push<JiraOAuthRequestResult>({
+                data: result,
                 sender: "Bridge",
                 messageId: msg.messageId,
                 eventName: "response.jira.oauth.response",
             });
-        });
 
-        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async ({data}) => {
-            if (!data.state) {
-                log.warn("Missing `state` on `jira.oauth.tokens` event. This shouldn't happen!");
-                return;
-            }
-            const userId = this.tokenStore.getUserIdForOAuthState(data.state);
-            if (!userId) {
-                log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
-                return;
-            }
-            await this.tokenStore.storeJiraToken(userId, {
-                access_token: data.access_token,
-                refresh_token: data.refresh_token,
-                instance: CLOUD_INSTANCE,
-                expires_in: data.expires_in,
-            });
-
-            // Some users won't have an admin room and would have gone through provisioning.
-            const adminRoom = this.adminRooms.get(userId);
-            if (adminRoom) {
-                await adminRoom.sendNotice(`Logged into Jira`);
-            }
         });
 
         this.bindHandlerToQueue<GenericWebhookEvent, GenericHookConnection>(

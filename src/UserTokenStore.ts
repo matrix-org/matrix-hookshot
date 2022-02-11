@@ -4,12 +4,17 @@ import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
-import { CLOUD_INSTANCE as JIRA_CLOUD_INSTANCE, JiraClient } from "./Jira/Client";
-import { JiraOAuthResult, JiraStoredToken } from "./Jira/Types";
-import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
+import { CLOUD_INSTANCE, CLOUD_INSTANCE as JIRA_CLOUD_INSTANCE, isJiraCloudInstance, JiraClient } from "./Jira/Client";
+import { JiraStoredToken } from "./Jira/Types";
+import { BridgeConfig, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
 import { v4 as uuid } from "uuid";
 import { GitHubOAuthToken } from "./Github/Types";
 import { ApiError, ErrCode } from "./provisioning/api";
+import { JiraOAuth } from "./Jira/OAuth";
+import { JiraCloudOAuth } from "./Jira/oauth/CloudOAuth";
+import { JiraOnPremOAuth } from "./Jira/oauth/OnPremOAuth";
+import { JiraOnPremClient } from "./Jira/client/OnPremClient";
+import { JiraCloudClient } from "./Jira/client/CloudClient";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -21,6 +26,15 @@ const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.passw
 const log = new LogWrapper("UserTokenStore");
 type TokenType = "github"|"gitlab"|"jira";
 const AllowedTokenTypes = ["github", "gitlab", "jira"];
+
+interface StoredTokenData {
+    encrypted: string|string[];
+    instance?: string;
+}
+
+interface DeletedTokenData {
+    deleted: true;
+}
 
 function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?: string) {
     if (type === "github") {
@@ -41,8 +55,18 @@ export class UserTokenStore {
     private key!: Buffer;
     private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
+    public readonly jiraOAuth?: JiraOAuth;
     constructor(private keyPath: string, private intent: Intent, private config: BridgeConfig) {
         this.userTokens = new Map();
+        if (config.jira?.oauth) {
+            if ("client_id" in config.jira.oauth) {
+                this.jiraOAuth = new JiraCloudOAuth(config.jira.oauth);
+            } else if (config.jira.url) {
+                this.jiraOAuth = new JiraOnPremOAuth(config.jira.oauth, config.jira.url);
+            } else {
+                throw Error('jira oauth misconfigured');
+            }
+        }
     }
 
     public async load() {
@@ -61,7 +85,7 @@ export class UserTokenStore {
             token = token.substring(MAX_TOKEN_PART_SIZE);
             tokenParts.push(publicEncrypt(this.key, Buffer.from(part)).toString("base64"));
         }
-        const data = {
+        const data: StoredTokenData = {
             encrypted: tokenParts,
             instance: instanceUrl,
         };
@@ -71,33 +95,45 @@ export class UserTokenStore {
         log.debug(`Stored`, data);
     }
 
+    public async clearUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<boolean> {
+        const key = tokenKey(type, userId, false, instanceUrl);
+        const obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(key);
+        if (!obj || "deleted" in obj) {
+            // Token not stored
+            return false;
+        }
+        await this.intent.underlyingClient.setAccountData(key, {deleted: true});
+        this.userTokens.delete(key);
+        return true;
+    }
+
     public async storeJiraToken(userId: string, token: JiraStoredToken) {
         return this.storeUserToken("jira", userId, JSON.stringify(token));
     }
 
     public async getUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<string|null> {
+        if (!AllowedTokenTypes.includes(type)) {
+            throw Error('Unknown token type');
+        }
         const key = tokenKey(type, userId, false, instanceUrl);
         const existingToken = this.userTokens.get(key);
         if (existingToken) {
             return existingToken;
         }
         try {
-            let obj;
-            if (AllowedTokenTypes.includes(type)) {
-                obj = await this.intent.underlyingClient.getSafeAccountData<{encrypted: string|string[]}>(key);
-                if (!obj) {
-                    obj = await this.intent.underlyingClient.getAccountData<{encrypted: string|string[]}>(tokenKey(type, userId, true, instanceUrl));
-                }
-            } else {
-                throw Error('Unknown type');
+            let obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(key);
+            if (!obj) {
+                obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(tokenKey(type, userId, true, instanceUrl));
+            }
+            if (!obj || "deleted" in obj) {
+                return null;
             }
             const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
             const token = encryptedParts.map((t) => privateDecrypt(this.key, Buffer.from(t, "base64")).toString("utf-8")).join("");
             this.userTokens.set(key, token);
             return token;
         } catch (ex) {
-            log.error(`Failed to get ${type} token for user ${userId}`);
-            log.debug(ex);
+            log.error(`Failed to get ${type} token for user ${userId}`, ex);
         }
         return null;
     }
@@ -159,22 +195,43 @@ export class UserTokenStore {
         return new GitLabClient(instanceUrl, senderToken);
     }
 
-    public async getJiraForUser(userId: string) {
+    public async getJiraForUser(userId: string, instanceUrl?: string): Promise<JiraClient|null> {
         if (!this.config.jira?.oauth) {
             throw Error('Jira not configured');
         }
-        const jsonData = await this.getUserToken("jira", userId);
+
+        let instance = instanceUrl ? new URL(instanceUrl).host : CLOUD_INSTANCE;
+
+        if (isJiraCloudInstance(instance)) {
+            instance = CLOUD_INSTANCE;
+        }
+
+        let jsonData = await this.getUserToken("jira", userId, instance);
+        // XXX: Legacy fallback
+        if (!jsonData && instance === CLOUD_INSTANCE) {
+            jsonData = await this.getUserToken("jira", userId);
+        }
         if (!jsonData) {
             return null;
         }
         const storedToken = JSON.parse(jsonData) as JiraStoredToken;
         if (!storedToken.instance) {
             // Legacy stored tokens don't include the cloud instance string.
-            storedToken.instance = JIRA_CLOUD_INSTANCE;
+            storedToken.instance = CLOUD_INSTANCE;
         }
-        return new JiraClient(storedToken, (data) => {
-            return this.storeJiraToken(userId, data);
-        }, this.config.jira);
+        if (storedToken.instance === CLOUD_INSTANCE) {
+            return new JiraCloudClient(storedToken, (data) => {
+                return this.storeJiraToken(userId, data);
+            }, this.config.jira, instance);
+        } else if (this.config.jira.url) {
+            return new JiraOnPremClient(
+                storedToken,
+                (this.jiraOAuth as JiraOnPremOAuth).privateKey,
+                this.config.jira.oauth as BridgeConfigJiraOnPremOAuth,
+                this.config.jira.url,
+            );
+        }
+        throw Error('Could not determine type of client');
     }
 
     public createStateForOAuth(userId: string): string {

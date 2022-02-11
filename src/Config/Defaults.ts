@@ -64,7 +64,6 @@ export const DefaultConfig = new BridgeConfig({
         }
     },
     jira: {
-        url: "https://my-on-premise-url",
         webhook: {
             secret: 'secrettoken'
         },

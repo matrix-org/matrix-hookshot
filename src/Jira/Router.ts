@@ -1,22 +1,24 @@
 import { BridgeConfigJira } from "../Config/Config";
-import { generateJiraURL } from "./AdminCommands";
-import { JiraOAuthResult } from "./Types";
 import { MessageQueue } from "../MessageQueue";
-import { OAuthRequest } from "../WebhookTypes";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";
-import axios from "axios";
 import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../provisioning/api";
+import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 
 const log = new LogWrapper("JiraRouter");
 
-interface OAuthQuery {
+interface OAuthQueryCloud {
     state: string;
     code: string;
 }
 
+interface OAuthQueryOnPrem {
+    state: string;
+    oauth_token: string;
+    oauth_verifier: string;
+}
 export class JiraWebhooksRouter {
 
     public static IsJIRARequest(req: Request): boolean {
@@ -30,46 +32,68 @@ export class JiraWebhooksRouter {
 
     constructor(private readonly config: BridgeConfigJira, private readonly queue: MessageQueue) { }
 
-    private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQuery>, res: Response<string|{error: string}>) {
-        if (typeof req.query.state !== "string") {
-            return res.status(400).send({error: "Missing 'state' parameter"});
-        }
-        if (typeof req.query.code !== "string") {
-            return res.status(400).send({error: "Missing 'state' parameter"});
-        }
-        const state = req.query.state as string;
-        const code = req.query.code as string;
-        log.info(`Got new JIRA oauth request (${state.substring(0, 8)})`);
-        try {
-            const exists = await this.queue.pushWait<OAuthRequest, boolean>({
-                eventName: "jira.oauth.response",
-                sender: "GithubWebhooks",
-                data: {
-                    state,
-                },
-            });
-            if (!exists) {
-                return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
+    private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQueryCloud|OAuthQueryOnPrem>, res: Response<string|{error: string}>) {
+        let result: JiraOAuthRequestResult;
+        if ("oauth_token" in req.query) {
+            // On-prem
+            if (typeof req.query.state !== "string") {
+                return res.status(400).send({error: "Missing 'state' parameter"});
             }
-            const accessTokenRes = await axios.post("https://auth.atlassian.com/oauth/token", {
-                client_id: this.config.oauth.client_id,
-                client_secret: this.config.oauth.client_secret,
-                code: code,
-                grant_type: "authorization_code",
-                redirect_uri: this.config.oauth.redirect_uri,
-            });
-            const result = accessTokenRes.data as { access_token: string, scope: string, expires_in: number, refresh_token: string};
-            result.expires_in = Date.now() + (result.expires_in * 1000);
-            log.debug("JIRA token response:", result);
-            await this.queue.push<JiraOAuthResult>({
-                eventName: "jira.oauth.tokens",
-                sender: "GithubWebhooks",
-                data: { state, ... result },
-            });
-            return res.send(`<p> Your account has been bridged </p>`);
-        } catch (ex) {
-            log.error("Failed to handle oauth request:", ex);
-            return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+            if (typeof req.query.oauth_token !== "string") {
+                return res.status(400).send({error: "Missing 'code' parameter"});
+            }
+            const { state, oauth_token, oauth_verifier } = req.query;
+            try {
+                result = await this.queue.pushWait<JiraOAuthRequestOnPrem, JiraOAuthRequestResult>({
+                    eventName: "jira.oauth.response",
+                    sender: "GithubWebhooks",
+                    data: {
+                        state,
+                        // eslint-disable-next-line camelcase
+                        oauthToken: oauth_token,
+                        // eslint-disable-next-line camelcase
+                        oauthVerifier: oauth_verifier,
+                    },
+                });
+            }
+            catch (ex) {
+                log.error("Failed to handle oauth request:", ex);
+                return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+            }
+        } else if ("code" in req.query) {
+            // Cloud
+            if (typeof req.query.state !== "string") {
+                return res.status(400).send({error: "Missing 'state' parameter"});
+            }
+            if (typeof req.query.code !== "string") {
+                return res.status(400).send({error: "Missing 'code' parameter"});
+            }
+            const { state, code } = req.query;
+            log.info(`Got new JIRA oauth request (${state.substring(0, 8)})`);
+            try {
+                result = await this.queue.pushWait<JiraOAuthRequestCloud, JiraOAuthRequestResult>({
+                    eventName: "jira.oauth.response",
+                    sender: "GithubWebhooks",
+                    data: {
+                        state,
+                        code,
+                    },
+                });
+            } catch (ex) {
+                log.error("Failed to handle oauth request:", ex);
+                return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+            }
+        } else {
+            return res.status(400).send({error: "Missing 'oauth_token'/'code' parameter"});
+        }
+
+        switch (result) {
+            case JiraOAuthRequestResult.Success:
+                return res.send(`<p> Your account has been bridged </p>`);
+            case JiraOAuthRequestResult.UserNotFound:
+                return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
+            default:
+                return res.status(404).send(`<p>Unknown failure</p>`);
         }
     }
 
@@ -106,14 +130,16 @@ export class JiraProvisionerRouter {
         return router;
     }
 
-    private onOAuth(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<{url: string}>) {
-        res.send({
-            url: generateJiraURL(this.config.oauth.client_id, this.config.oauth.redirect_uri, this.tokenStore.createStateForOAuth(req.query.userId))
-        });
+    private async onOAuth(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<{url: string}>) {
+        if (!this.tokenStore.jiraOAuth) {
+            throw new ApiError('JIRA OAuth is disabled', ErrCode.DisabledFeature);
+        }
+        const url = await this.tokenStore.jiraOAuth.getAuthUrl(this.tokenStore.createStateForOAuth(req.query.userId));
+        res.send({ url });
     }
 
     private async onGetAccount(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<JiraAccountStatus>, next: NextFunction) {
-        const jiraUser = await this.tokenStore.getJiraForUser(req.query.userId);
+        const jiraUser = await this.tokenStore.getJiraForUser(req.query.userId, this.config.url);
         if (!jiraUser) {
             return res.send({
                 loggedIn: false,
@@ -138,7 +164,7 @@ export class JiraProvisionerRouter {
     }
 
     private async onGetInstanceProjects(req: Request<{instanceName: string}, undefined, undefined, {userId: string}>, res: Response<JiraProjectsListing[]>, next: NextFunction) {
-        const jiraUser = await this.tokenStore.getJiraForUser(req.query.userId);
+        const jiraUser = await this.tokenStore.getJiraForUser(req.query.userId, this.config.url);
         if (!jiraUser) {
             // TODO: Better error?
             return next( new ApiError("Not logged in", ErrCode.ForbiddenUser));
