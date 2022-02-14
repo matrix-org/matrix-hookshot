@@ -3,11 +3,17 @@ as_token: aaaaaaaaaa # This again can be a random string
 hs_token: aaaaaaaaaa # ..as can this
 namespaces:
   rooms: []
-  users:
-    - regex: "@_github_.*:foobar" # Where foobar is your homeserver's domain
+  users: # In the following, foobar is your homeserver's domain
+    - regex: "@_github_.*:foobar"
+      exclusive: true
+    - regex: "@_gitlab_.*:foobar"
+      exclusive: true
+    - regex: "@_jira_.*:foobar"
+      exclusive: true
+    - regex: "@_webhooks_.*:foobar" # Where _webhooks_ is set by userIdPrefix in config.yml
       exclusive: true
   aliases:
-    - regex: "#github_.+:foobar"  # Where foobar is your homeserver's domain
+    - regex: "#github_.+:foobar" # Where foobar is your homeserver's domain
       exclusive: true
 
 sender_localpart: hookshot
