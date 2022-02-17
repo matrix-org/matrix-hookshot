@@ -2,13 +2,16 @@ import { BridgeConfigFigma } from "../Config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Request, Response, Router, json } from "express";
 import { FigmaPayload } from "./types";
+import LogWrapper from "../LogWrapper";
 
+const log = new LogWrapper('FigmaWebhooksRouter');
 export class FigmaWebhooksRouter {
     constructor(private readonly config: BridgeConfigFigma, private readonly queue: MessageQueue) { }
 
     private onWebhook(req: Request<unknown, unknown, FigmaPayload, unknown>, res: Response<string|{error: string}>) {
         const payload = req.body;
         const instance = Object.entries(this.config.instances).find(([,p]) => p.passcode === payload.passcode);
+        log.debug(`Got figma webhook for instance ${instance?.[0]}`);
         if (!instance) {
             // No instance found
             res.sendStatus(401);

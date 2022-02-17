@@ -87,6 +87,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
         content["uk.half-shot.matrix-hookshot.figma.comment_id"] = payload.comment_id;
         const eventId = await intent.sendEvent(this.roomId, content);
+        log.info(`New figma comment ${payload.comment_id} -> ${this.roomId}/${eventId}`)
         await this.storage.setFigmaCommentEventId(this.roomId, payload.comment_id, eventId);
     }
 }
