@@ -260,18 +260,17 @@ export class ConnectionManager {
         return;
     }
 
-    public async createConnectionsForRoomId(roomId: string): Promise<IConnection[]> {
+    public async createConnectionsForRoomId(roomId: string) {
         const state = await this.as.botClient.getRoomState(roomId);
-        const connections: IConnection[] = [];
         for (const event of state) {
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-                if (conn) { this.push(conn); }
+                log.info(`Room ${roomId} is connected to: ${conn}`);
+                if (conn) { this.push(conn);  }
             } catch (ex) {
                 log.warn(`Failed to create connection for ${roomId}:`, ex);
             }
         }
-        return connections;
     }
 
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {

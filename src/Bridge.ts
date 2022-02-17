@@ -517,16 +517,10 @@ export class Bridge {
 
         await Promise.all(joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
-            let connections: IConnection[];
             try {
-                connections = await connManager.createConnectionsForRoomId(roomId);
+                await connManager.createConnectionsForRoomId(roomId);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
-                return;
-            }
-            if (connections.length) {
-                log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
-                connManager.push(...connections);
                 return;
             }
 
@@ -720,8 +714,7 @@ export class Bridge {
 
         // Only fetch rooms we have no connections in yet.
         if (!this.connectionManager.isRoomConnected(roomId)) {
-            const connections = await this.connectionManager.createConnectionsForRoomId(roomId);
-            this.connectionManager.push(...connections);
+            await this.connectionManager.createConnectionsForRoomId(roomId);
         }
     }
 
