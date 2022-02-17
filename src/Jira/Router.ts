@@ -97,10 +97,27 @@ export class JiraWebhooksRouter {
         }
     }
 
+    public onGetManifest(_req: Request, response: Response) {
+        response.type('application/xml').send(`
+<manifest>
+    <id>matrix-hookshot</id>
+    <name>Matrix Hookshot</name>
+    <typeId>generic</typeId>
+    <applinksVersion>6.0.21</applinksVersion>
+    <inboundAuthenticationTypes>com.atlassian.applinks.api.auth.types.OAuthAuthenticationProvider</inboundAuthenticationTypes>
+    <publicSignup>false</publicSignup>
+    <url>https://github.com/Half-Shot/matrix-hookshot</url>
+    <iconUrl>https://matrix.org/_matrix/media/r0/download/half-shot.uk/40169f5e77ad1521386e93e55931ee2b4695d7ae</iconUrl>
+    <iconUri>https://matrix.org/_matrix/media/r0/download/half-shot.uk/40169f5e77ad1521386e93e55931ee2b4695d7ae</iconUri>
+</manifest>
+`);
+    }
+
     public getRouter() {
         const router = Router();
         router.use(json())
         router.get("/oauth", this.onOAuth.bind(this));
+        router.get('/rest/applinks/1.0/manifest', this.onGetManifest.bind(this));
         return router;
     }
 }

@@ -12,6 +12,10 @@ be reasonably secure and should also be stored in the `config.yml` file.
 
 Ensure that you enable all the events that you wish to be bridge.
 
+## Connecting Matrix users to JIRA
+
+Hookshot supports allowing users to directly interact with JIRA through the bridge. The setup process differs
+depending on whether you are running a on-premise/enterprise instance or using Atlassian's cloud service.
 
 ## JIRA OAuth for Cloud
 
@@ -26,17 +30,50 @@ Once named and created, you will need to:
   3. Set a callback url. This will be the public URL to hookshot with a path of `/jira/oauth`.
   4. Copy the client ID and Secret from Settings
 
+You can now set some configuration in the bridge `config.yml`
+
+```yaml
+jira:
+  webhook:
+    secret: some-secret
+  oauth:
+    client_id: your-client-id
+    client_secret: your-client-secret
+    redirect_uri: https://example.com/hookshot/jira/oauth
+```
+
 
 ## JIRA for On-Premise
 
-On-Premise installs do not support the OAuth system we use above, so users will need to generate their own
-personal access tokens.
+To start with, setup your JIRA instance to support OAuth.
+
+1. Open the **Administration** page for your JIRA instance.
+2. Click **Applications**.
+3. Click **Application Links**.
+4. In the text box, enter "https://github.com/Half-Shot/matrix-hookshot"
+
 
 This can be done by:
 
 1. Opening your JIRA profile
 2. Clicking **Personal Access Tokens**
 3. Clicking **Create token**
+
+
+```
+
+jira:
+  url: http://localhost:9050
+  webhook:
+    secret: Ieph7iecheiThoo1othaineewieSh1koh2chainohtooyoh4waht1oetoaSoh6oh
+  oauth:
+    # client_id: s2tkGiqj5TS1SOBlDP9Mc3e8m15w07pL
+    # client_secret: 4PZr6-j4CI5BIb0mW8l3Xvc1Vcxp96h6L3-2TPZar6dBcUIjauBeE7erXKyxmh8R
+    # redirect_uri: https://c1e3-82-129-52-204.ngrok.io/jira/oauth
+    consumerKey: secret-consumer-key
+    privateKey: jira_privatekey.pem
+    redirect_uri: http://localhost:5065/jira/oauth
+```
 
 
 ## Configuration
