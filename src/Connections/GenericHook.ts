@@ -137,6 +137,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             return;
         }
         const sender = this.getUserId();
+        if (sender === this.as.botUserId) {
+            // Don't set the global displayname for the bot.
+            return;   
+        }
         const intent = this.as.getIntentForUserId(sender);
         const expectedDisplayname = `${this.state.name} (Webhook)`;
 
