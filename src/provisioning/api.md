@@ -210,8 +210,8 @@ This request can be retried until the number of entries is less than the value o
     "loggedIn": true,
     "repositories":[{
         "name": "matrix-hookshot",
-        "owner": "half-shot",
-        "fullName": "half-shot/matrix-hookshot",
+        "owner": "matrix-org",
+        "fullName": "matrix-org/matrix-hookshot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
         "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
     }]
@@ -236,8 +236,8 @@ This request can be retried until the number of entries is less than the value o
     "changeSelectionUrl": "https://github.com/settings/installations/12345",
     "repositories":[{
         "name": "matrix-hookshot",
-        "owner": "half-shot",
-        "fullName": "half-shot/matrix-hookshot",
+        "owner": "matrix-org",
+        "fullName": "matrix-org/matrix-hookshot",
         "avatarUrl": "https://avatars.githubusercontent.com/u/8418310?v=4",
         "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA. "
     }]
