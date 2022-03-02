@@ -27,11 +27,11 @@ This bridge supports:
 
 ## Setup
 
-[See the setup guide](https://half-shot.github.io/matrix-hookshot/setup.html)
+[See the setup guide](https://matrix-org.github.io/matrix-hookshot/setup.html)
 
 ## Documentation
 
-Documentation can be found on [GitHub Pages](https://half-shot.github.io/matrix-hookshot).
+Documentation can be found on [GitHub Pages](https://matrix-org.github.io/matrix-hookshot).
 
 You can build the documentaion yourself by:
 ```sh
