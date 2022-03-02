@@ -1,11 +1,14 @@
-import { BridgeConfigJira } from "../Config/Config";
+import { BridgeConfigJira, BridgeConfigJiraOnPremOAuth } from "../Config/Config";
 import { MessageQueue } from "../MessageQueue";
-import { Router, Request, Response, NextFunction, json } from "express";
+import express, { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../provisioning/api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
+import { createPublicKey } from "crypto";
+import { readFileSync } from "fs";
+import qs, { ParsedUrlQueryInput } from "querystring";
 
 const log = new LogWrapper("JiraRouter");
 
@@ -19,6 +22,30 @@ interface OAuthQueryOnPrem {
     oauth_token: string;
     oauth_verifier: string;
 }
+
+// const MANIFEST = "<manifest>" + Object.entries({
+//     id: "matrix-hookshot",
+//     name: "Matrix Hookshot",
+//     typeId: "generic",
+//     applinksVersion: "6.0.21",
+//     inboundAuthenticationTypes: "com.atlassian.applinks.api.auth.types.OAuthAuthenticationProvider",
+//     publicSignup: false,
+//     url: "https://github.com/matrix-org/matrix-hookshot",
+// }).map(([key, value]) => `<${key}>${value}</${key}>` ) + "</manifest>";
+
+const MANIFEST = {
+    id: "de1eb390-1678-4f57-93d6-1c57bc5def3f",
+    name: "Matrix Hookshot",
+    typeId: "generic",
+    applinksVersion: "6.0.21",
+    inboundAuthenticationTypes: [
+        "com.atlassian.applinks.api.auth.types.OAuthAuthenticationProvider",
+        "com.atlassian.applinks.api.auth.types.TwoLeggedOAuthAuthenticationProvider",
+        "com.atlassian.applinks.api.auth.types.TwoLeggedOAuthWithImpersonationAuthenticationProvider"
+    ],
+    publicSignup: false,
+    url: "http://localhost:5065/jira",
+};
 export class JiraWebhooksRouter {
 
     public static IsJIRARequest(req: Request): boolean {
@@ -30,7 +57,17 @@ export class JiraWebhooksRouter {
         return false;
     }
 
-    constructor(private readonly config: BridgeConfigJira, private readonly queue: MessageQueue) { }
+    private readonly publicKey?: string;
+
+    constructor(private readonly config: BridgeConfigJira, private readonly queue: MessageQueue) {
+        // TODO: Make this async.
+        if (config.oauth && "privateKey" in config.oauth) {
+            const oauth = config.oauth;
+            const privateKey = readFileSync(oauth.privateKey);
+            const publicKey = createPublicKey(privateKey);
+            this.publicKey = publicKey.export({ format: 'pem', type: 'spki'}).toString();
+        }
+    }
 
     private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQueryCloud|OAuthQueryOnPrem>, res: Response<string|{error: string}>) {
         let result: JiraOAuthRequestResult;
@@ -98,26 +135,61 @@ export class JiraWebhooksRouter {
     }
 
     public onGetManifest(_req: Request, response: Response) {
-        response.type('application/xml').send(`
-<manifest>
-    <id>matrix-hookshot</id>
-    <name>Matrix Hookshot</name>
-    <typeId>generic</typeId>
-    <applinksVersion>6.0.21</applinksVersion>
-    <inboundAuthenticationTypes>com.atlassian.applinks.api.auth.types.OAuthAuthenticationProvider</inboundAuthenticationTypes>
-    <publicSignup>false</publicSignup>
-    <url>https://github.com/Half-Shot/matrix-hookshot</url>
-    <iconUrl>https://matrix.org/_matrix/media/r0/download/half-shot.uk/40169f5e77ad1521386e93e55931ee2b4695d7ae</iconUrl>
-    <iconUri>https://matrix.org/_matrix/media/r0/download/half-shot.uk/40169f5e77ad1521386e93e55931ee2b4695d7ae</iconUri>
-</manifest>
-`);
+        response.type('application/json').send({
+            ...MANIFEST
+        });
+    }
+
+/**
+ *  final DocumentBuilder docBuilder = SecureXmlParserFactory.newDocumentBuilder();
+    final Document doc = docBuilder.parse(response.getResponseBodyAsStream());
+
+    final String consumerKey = doc.getElementsByTagName("key").item(0).getTextContent();
+    final String name = doc.getElementsByTagName("name").item(0).getTextContent();
+    final PublicKey publicKey = RSAKeys.fromPemEncodingToPublicKey(
+            doc.getElementsByTagName("publicKey").item(0).getTextContent());
+
+    String description = null;
+    if (doc.getElementsByTagName("description").getLength() > 0) {
+        description = doc.getElementsByTagName("description").item(0).getTextContent();
+    }
+    URI callback = null;
+    if (doc.getElementsByTagName("callback").getLength() > 0) {
+        callback = new URI(doc.getElementsByTagName("callback").item(0).getTextContent());
+    }
+
+ */
+
+    public onGetConsumerInfo(_req: Request, res: Response) {
+        if (!this.config.oauth || !("consumerKey" in this.config.oauth)) {
+            new ApiError("Application links are not supported", ErrCode.UnsupportedOperation).apply(res);
+            return;
+        }
+        const oauth: BridgeConfigJiraOnPremOAuth = this.config.oauth;
+        const info = Object.entries({
+            key: oauth.consumerKey,
+            name: "Matrix Bridge",
+            callback: oauth.redirect_uri,
+            publicKey: this.publicKey,
+            description: "Allows Matrix users to authenticate with their JIRA accounts."
+        }).map(([k,v]) => `<${k}>${v}</${k}>`).join("\n");
+        res.type('application/xml').send(`<document>${info}</document>`);
     }
 
     public getRouter() {
         const router = Router();
-        router.use(json())
+        router.use((req, _res, next) => { console.log(req.url); next() });
+        router.use(json());
+        // Move this to toplevel
+        router.use('/web', express.static('public'));
         router.get("/oauth", this.onOAuth.bind(this));
+        router.get("/plugins/servlet/applinks/auth/conf/oauth/add-consumer-by-url/*", (req, res) => res.send('Unsupported'));
         router.get('/rest/applinks/1.0/manifest', this.onGetManifest.bind(this));
+        router.get('/plugins/servlet/oauth/consumer-info', this.onGetConsumerInfo.bind(this));
+        // Upon completing the flow.
+        router.get('/plugins/servlet/applinks/listApplicationLinks',
+            (req, res) => res.redirect(`/jira/web/jira/applink.html?${qs.stringify(req.query as ParsedUrlQueryInput)}`)
+        );
         return router;
     }
 }
