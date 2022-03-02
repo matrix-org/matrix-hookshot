@@ -20,7 +20,7 @@ To install Rust, [rustup](https://rustup.rs/) is the preferred solution to stay 
 To clone and install, run:
 
 ```bash
-git clone git@github.com:Half-Shot/matrix-hookshot.git
+git clone git@github.com:matrix-org/matrix-hookshot.git
 cd matrix-hookshot
 yarn # or npm i
 ```
