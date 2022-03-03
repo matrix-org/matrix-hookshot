@@ -171,10 +171,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         this.state = validatedConfig;
     }
 
-    public transformHookData(data: Record<string, unknown>): {plain: string, html?: string} {
+    public transformHookData(data: Record<string, unknown>|string): {plain: string, html?: string} {
         // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
         const msg: {plain: string, html?: string} = {plain: ""};
-        if (typeof data.text === "string") {
+        if (typeof data === "string") {
+            return {plain: `Received webhook data: ${data}`};
+        } else if (typeof data.text === "string") {
             msg.plain = data.text;
         } else {
             msg.plain = "Received webhook data:\n\n" + "```json\n\n" + JSON.stringify(data, null, 2) + "\n\n```";

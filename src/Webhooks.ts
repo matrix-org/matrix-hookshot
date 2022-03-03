@@ -4,7 +4,6 @@ import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import LogWrapper from "./LogWrapper";
 import qs from "querystring";
-import { Server } from "http";
 import axios from "axios";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
@@ -65,7 +64,9 @@ export class Webhooks extends EventEmitter {
         }
         this.expressRouter.all(
             '/:hookId',
-            express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
+            express.text({ type: 'text/*'}),
+            express.urlencoded({ extended: false }),
+            express.json(),
             this.onGenericPayload.bind(this),
         );
         this.expressRouter.use(express.json({
