@@ -175,9 +175,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
         const msg: {plain: string, html?: string} = {plain: ""};
         if (typeof data.text === "string") {
-            msg.plain += data.text;
+            msg.plain = data.text;
         } else {
-            msg.plain += `Received webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
+            msg.plain = "Received webhook data:\n\n" + "```json\n\n" + JSON.stringify(data, null, 2) + "\n\n```";
+            msg.html = `<p>Received webhook data:</p><p><pre><code class=\\"language-json\\">${JSON.stringify(data, null, 2)}</code></pre></p>`
         }
 
         if (typeof data.html === "string") {
