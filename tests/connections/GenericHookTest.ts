@@ -8,7 +8,8 @@ import { AppserviceMock } from "../utils/AppserviceMock";
 
 const ROOM_ID = "!foo:bar";
 
-const TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
+const V1TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
+const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}";
 
 function createGenericHook(state: GenericHookConnectionState = {
     name: "some-name"
@@ -109,9 +110,9 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
-    it("will handle a hook event with a transformation function", async () => {
+    it("will handle a hook event with a v1 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
-        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: TFFunction}, {
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V1TFFunction}, {
                 enabled: true,
                 urlPrefix: "https://example.com/webhookurl",
                 allowJsTransformationFunctions: true,
@@ -126,6 +127,29 @@ describe("GenericHookConnection", () => {
                 body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
                 format: "org.matrix.custom.html",
                 formatted_body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event with a v2 transformation function", async () => {
+        const webhookData = {question: 'What is the meaning of life?', answer: 42};
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
+                enabled: true,
+                urlPrefix: "https://example.com/webhookurl",
+                allowJsTransformationFunctions: true,
+            }
+        );
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "The answer to 'What is the meaning of life?' is 42",
+                format: "org.matrix.custom.html",
+                formatted_body: "The answer to 'What is the meaning of life?' is 42",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },

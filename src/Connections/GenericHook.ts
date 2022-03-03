@@ -29,6 +29,13 @@ export interface GenericHookAccountData {
     [hookId: string]: string;
 }
 
+interface WebhookTransformationResult {
+    version: string;
+    plain?: string;
+    html?: string;
+    empty?: boolean;
+}
+
 const log = new LogWrapper("GenericHookConnection");
 const md = new markdownit();
 
@@ -195,6 +202,51 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
+    public executeTransformationFunction(data: Record<string, unknown>): {plain: string, html?: string}|null {
+        if (!this.transformationFunction) {
+            throw Error('Transformation function not defined');
+        }
+        const vm = new NodeVM({
+            console: 'off',
+            wrapper: 'none',
+            wasm: false,
+            eval: false,
+            timeout: TRANSFORMATION_TIMEOUT_MS,
+        });
+        vm.setGlobal('HookshotApiVersion', 'v2');
+        vm.setGlobal('data', data);
+        vm.run(this.transformationFunction);
+        const result = vm.getGlobal('result');
+
+        // Legacy v1 api
+        if (typeof result === "string") {
+            return {plain: `Received webhook: ${result}`};
+        } else if (typeof result !== "object") {
+            return {plain: `No content`};
+        }
+        const transformationResult = result as WebhookTransformationResult;
+        if (transformationResult.version !== "v2") {
+            throw Error("Result returned from transformation didn't specify version = v2");
+        }
+
+        if (transformationResult.empty) {
+            return null; // No-op
+        }
+
+        const plain = transformationResult.plain;
+        if (typeof plain !== "string") {
+            throw Error("Result returned from transformation didn't provide a string value for plain");
+        }
+        if (transformationResult.html && typeof transformationResult.html !== "string") {
+            throw Error("Result returned from transformation didn't provide a string value for html");
+        }
+
+        return {
+            plain: plain,
+            html: transformationResult.html,
+        }
+    }
+
     public async onGenericHook(data: Record<string, unknown>) {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string};
@@ -202,21 +254,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             content = this.transformHookData(data);
         } else {
             try {
-                const vm = new NodeVM({
-                    console: 'off',
-                    wrapper: 'none',
-                    wasm: false,
-                    eval: false,
-                    timeout: TRANSFORMATION_TIMEOUT_MS,
-                });
-                vm.setGlobal('data', data);
-                vm.run(this.transformationFunction);
-                content = vm.getGlobal('result');
-                if (typeof content === "string") {
-                    content = {plain: `Received webhook: ${content}`};
-                } else {
-                    content = {plain: `No content`};
+                const potentialContent = this.executeTransformationFunction(data);
+                if (potentialContent === null) {
+                    // Explitly no action
+                    return;
                 }
+                content = potentialContent;
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
                 content = {plain: `Webhook received but failed to process via transformation function`};
