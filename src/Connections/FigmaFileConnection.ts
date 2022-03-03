@@ -14,6 +14,9 @@ export interface FigmaFileConnectionState {
     instanceName?: string;
 }
 
+// Unstable prefix, change to m.thread once released.
+const THREAD_RELATION_TYPE = "io.element.thread";
+
 const md = markdownit();
 export class FigmaFileConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.figma.file";
@@ -74,7 +77,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         if (parentEventId) {
             content = { 
                 "m.relates_to": {
-                    rel_type: "m.thread",
+                    rel_type: THREAD_RELATION_TYPE,
                     event_id: parentEventId,
                     "m.in_reply_to": {
                         event_id: parentEventId,
