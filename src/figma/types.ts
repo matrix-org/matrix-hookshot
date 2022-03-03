@@ -7,7 +7,7 @@ export interface FigmaPayload {
     file_name: string,
     mentions: unknown[],
     order_id: string,
-    parent_id: string,
+    parent_id?: string,
     passcode: string,
     protocol_version: string,
     resolved_at: string,

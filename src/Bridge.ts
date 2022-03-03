@@ -636,8 +636,14 @@ export class Bridge {
         }
         log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
         log.debug("Content:", JSON.stringify(event));
-        const processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
-        const processedReplyMetadata: IRichReplyMetadata = processedReply?.mx_richreply;
+        let processedReply: any;
+        let processedReplyMetadata: IRichReplyMetadata|undefined = undefined;
+        try {
+            processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
+            processedReplyMetadata = processedReply?.mx_richreply;
+        } catch (ex) {
+            log.warn(`Event ${event.event_id} could not be processed by the reply processor, possibly a faulty event`);
+        }
         const adminRoom = this.adminRooms.get(roomId);
         const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(event.sender, service, level);
 
@@ -669,7 +675,7 @@ export class Bridge {
             return;
         }
 
-        if (processedReply) {
+        if (processedReply && processedReplyMetadata) {
             log.info(`Handling reply to ${processedReplyMetadata.parentEventId} for ${adminRoom.userId}`);
             // This might be a reply to a notification
             try {
