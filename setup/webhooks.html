@@ -194,12 +194,36 @@ Because this is a fairly advanced feature, this documentation won't go into how 
 Please seek out documentation from your client on how to achieve this. </p>
 <p>The script string should be set within the state event under the <code>transformationFunction</code> key.</p>
 <h3 id="script-api"><a class="header" href="#script-api">Script API</a></h3>
-<p>The scripts have a very minimal API. The execution environment will contain a <code>data</code> field, which will be the body
-of the incoming request (JSON will be parsed into an <code>Object</code>). Scripts are executed syncronously and a variable <code>result</code>
-is expected to be set in the execution, which will be used as the text value for the script. <code>result</code> will be automatically
-transformed by a Markdown parser.</p>
-<p>If the script contains errors or is otherwise unable to work, the bridge will send an error to the room.</p>
-<h3 id="example-script"><a class="header" href="#example-script">Example script</a></h3>
+<p>Transformation scripts have a versioned API. You can check the version of the API that the hookshot instance supports
+at runtime by checking the <code>HookshotApiVersion</code> variable. If the variable is undefined, it should be considered <code>v1</code>.</p>
+<p>The execution environment will contain a <code>data</code> variable, which will be the body of the incoming request (JSON will be parsed into an <code>Object</code>).
+Scripts are executed syncronously and expect the <code>result</code> variable to be set.</p>
+<p>If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
+for a more precise error.</p>
+<h3 id="v2-api"><a class="header" href="#v2-api">V2 API</a></h3>
+<p>The <code>v2</code> api expects an object to be returned from the <code>result</code> variable.</p>
+<pre><code class="language-json5">{
+  &quot;version&quot;: &quot;v2&quot; // The version of the schema being returned from the function. This is always &quot;v2&quot;.
+  &quot;empty&quot;: true|false, // Should the webhook be ignored and no output returned. The default is false (plain must be provided).
+  &quot;plain&quot;: &quot;Some text&quot;, // The plaintext value to be used for the Matrix message.
+  &quot;html&quot;: &quot;&lt;b&gt;Some&lt;/b&gt; text&quot;, // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
+}
+</code></pre>
+<h4 id="example-script"><a class="header" href="#example-script">Example script</a></h4>
+<p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
+<pre><code class="language-js">if (data.counter === undefined) {
+  // The API didn't give us a counter, send no message.
+  result = {empty: true, version: &quot;v2&quot;};
+} else if (data.counter &gt; data.maxValue) {
+    result = {plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`, version: &quot;v2&quot;};
+} else {
+    result = {plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`, version: &quot;v2&quot;};
+}
+</code></pre>
+<h3 id="v1-api"><a class="header" href="#v1-api">V1 API</a></h3>
+<p>The v1 API expects <code>result</code> to be a string. The string will be automatically transformed into markdown. All webhook messages
+will be prefix'd with <code>Received webhook:</code>. If <code>result</code> is falsey (undefined, false or null) then the message will be <code>No content</code>.</p>
+<h4 id="example-script-1"><a class="header" href="#example-script-1">Example script</a></h4>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
 <pre><code class="language-js">if (data.counter &gt; data.maxValue) {
     result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`
