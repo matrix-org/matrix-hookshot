@@ -97,6 +97,9 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
     readonly webhook: {
         secret: string;
     };
+    
+    // To hide the undefined for now
+    @hideKey()
     @configKey("URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)", true)
     readonly url?: string;
     @configKey("OAuth settings for connecting users to JIRA. See documentation for more information", true)

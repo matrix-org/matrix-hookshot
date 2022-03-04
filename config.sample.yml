@@ -45,10 +45,6 @@ jira:
     # Webhook settings for JIRA
     #
     secret: secrettoken
-  url:
-    # (Optional) URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)
-    #
-    null
   oauth:
     # (Optional) OAuth settings for connecting users to JIRA. See documentation for more information
     #
