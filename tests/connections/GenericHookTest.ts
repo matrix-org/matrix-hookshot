@@ -47,9 +47,9 @@ describe("GenericHookConnection", () => {
             roomId: ROOM_ID,
             sender: connection.getUserId(),
             content: {
-                body: "Received webhook data:\n\n```{\n  \"simple\": \"data\"\n}```",
+                body: "Received webhook data:\n\n```json\n\n{\n  \"simple\": \"data\"\n}\n\n```",
                 format: "org.matrix.custom.html",
-                formatted_body: "Received webhook data:\n\n<code>{   &quot;simple&quot;: &quot;data&quot; }</code>",
+                formatted_body: "<p>Received webhook data:</p><p><pre><code class=\\\"language-json\\\">{\n  \"simple\": \"data\"\n}</code></pre></p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -101,9 +101,9 @@ describe("GenericHookConnection", () => {
             roomId: ROOM_ID,
             sender: connection.getUserId(),
             content: {
-                body: "**Bobs-integration**: Received webhook data:\n\n```{\n  \"username\": \"Bobs-integration\",\n  \"type\": 42\n}```",
+                body: "**Bobs-integration**: Received webhook data:\n\n```json\n\n{\n  \"username\": \"Bobs-integration\",\n  \"type\": 42\n}\n\n```",
                 format: "org.matrix.custom.html",
-                formatted_body: "<strong>Bobs-integration</strong>: Received webhook data:\n\n<code>{   &quot;username&quot;: &quot;Bobs-integration&quot;,   &quot;type&quot;: 42 }</code>",
+                formatted_body: "<strong>Bobs-integration</strong>: <p>Received webhook data:</p><p><pre><code class=\\\"language-json\\\">{\n  \"username\": \"Bobs-integration\",\n  \"type\": 42\n}</code></pre></p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
