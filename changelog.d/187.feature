@@ -1,0 +1,1 @@
+Jira Datacenter (On Premise) instances are now supported by Hookshot. See https://matrix-org.github.io/matrix-hookshot/setup/jira.html for more information.
