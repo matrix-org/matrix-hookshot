@@ -195,11 +195,15 @@ gitlab:
   webhook:
     secret: secrettoken
 jira:
-  # (Optional) Configure this to enable Jira support
+  # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
   #
   webhook:
+    # Webhook settings for JIRA
+    #
     secret: secrettoken
   oauth:
+    # (Optional) OAuth settings for connecting users to JIRA. See documentation for more information
+    #
     client_id: foo
     client_secret: bar
     redirect_uri: https://example.com/bridge_oauth/
