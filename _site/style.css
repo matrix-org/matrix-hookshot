@@ -29,21 +29,21 @@
 /* icons for headers */
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(2) strong:after {
-    content: url('/icons/figma.png')
+    content: url('/matrix-hookshot/icons/figma.png')
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(3) strong:after {
-    content: url('/icons/github.png')
+    content: url('/matrix-hookshot/icons/github.png')
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(4) strong:after {
-    content: url('/icons/gitlab.png')
+    content: url('/matrix-hookshot/icons/gitlab.png')
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(5) strong:after {
-    content: url('/icons/jira.png')
+    content: url('/matrix-hookshot/icons/jira.png')
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(6) strong:after {
-    content: url('/icons/webhooks.png')
+    content: url('/matrix-hookshot/icons/webhooks.png')
 }
