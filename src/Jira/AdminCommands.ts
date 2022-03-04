@@ -64,33 +64,4 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
         }
         await this.sendNotice(response);
     }
-
-    @botCommand("jira list projects", {help: "List accessible projects", category: "jira", optionalArgs: ["instanceUrl"]})
-    public async listProjects(instanceUrl?: string) {
-        if (!this.config.jira) {
-            await this.sendNotice(`Bot is not configured with JIRA OAuth support`);
-            return;
-        }
-        const client = await this.tokenStore.getJiraForUser(this.userId, this.config.jira.url);
-        
-        if (!client) {
-            await this.sendNotice(`You are not logged into JIRA`);
-            return;
-        }
-
-        const url = instanceUrl || this.config.jira.instanceUrl;
-        if (!url) {
-            throw new CommandError('No instanceUrl provided', 'No URL provided and this is a cloud instance');
-        }
-
-        const resource = await client.getClientForUrl(new URL(url));
-        if (!resource) {
-            await this.sendNotice(`Could not get resource`);
-            return;
-        }
-
-        for await (const project of resource.getAllProjects()) {
-            console.log(project);
-        }
-    }
 }
