@@ -67,7 +67,8 @@ export class SetupConnection extends CommandConnection {
     }
 
     @botCommand("jira project", "Create a connection for a JIRA project. (You must be logged in with JIRA to do this)", ["url"], [], true)
-    public async onJiraProject(userId: string, url: string) {
+    public async onJiraProject(userId: string, urlStr: string) {
+        const url = new URL(urlStr);
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira");
         }
@@ -80,16 +81,16 @@ export class SetupConnection extends CommandConnection {
         if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
             throw new CommandError("Bot lacks power level to set room state", "I do not have permission to setup a bridge in this room. Please promote me to an Admin/Moderator");
         }
-        const jiraClient = await this.tokenStore.getJiraForUser(userId);
+        const jiraClient = await this.tokenStore.getJiraForUser(userId, urlStr);
         if (!jiraClient) {
             throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
         }
-        const urlParts = /^https:\/\/([A-z.\-_]+)\/.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.trim().toLowerCase());
-        if (!urlParts) {
-            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...`");
+        const urlParts = /.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname.toLowerCase());
+        const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
+        if (!projectKey) {
+            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`");
         }
-        const [, origin, projectKey] = urlParts;
-        const safeUrl = `https://${origin}/projects/${projectKey}`;
+        const safeUrl = `https://${url.host}/projects/${projectKey}`;
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.as, this.tokenStore);
         await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, safeUrl, res.stateEventContent);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}`);

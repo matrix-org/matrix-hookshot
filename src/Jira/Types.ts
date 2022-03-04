@@ -18,8 +18,8 @@ export interface JiraProject {
     key: string;
     name: string;
     projectTypeKey: string;
-    simplified: boolean;
     avatarUrls: Record<string, string>;
+    simplified?: boolean;
     issueTypes?: JiraIssueType[];
 }
 
@@ -68,11 +68,18 @@ export interface JiraIssue {
     }
 }
 
+export interface JiraStoredToken {
+    expires_in?: number;
+    access_token: string;
+    refresh_token?: string;
+    instance: string;
+}
+
 export interface JiraOAuthResult {
     state?: string;
     access_token: string;
-    refresh_token: string;
-    expires_in: number;
+    refresh_token?: string;
+    expires_in?: number;
     scope: string;
 }
 
@@ -80,6 +87,16 @@ export interface JiraAPIAccessibleResource {
     id: string;
     url: string,
     name: string,
-    scopes: string[],
-    avatarUrl: string,
+    scopes?: string[],
+    avatarUrl?: string,
 }
+
+export interface JiraCloudProjectSearchResponse {
+    nextPage: string;
+    maxResults: number;
+    startAt: number;
+    isLast: boolean;
+    values: JiraProject[];
+}
+
+export type JiraOnPremProjectSearchResponse = JiraProject[];
