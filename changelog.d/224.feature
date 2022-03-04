@@ -1,1 +1,0 @@
-Generic webhook payloads are now pretty printed.

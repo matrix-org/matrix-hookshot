@@ -1,3 +1,47 @@
+1.2.0 (2022-03-04)
+==================
+
+Features
+--------
+
+- Bot command help text now features category headers, and disabled commands are no longer visible. ([\#143](https://github.com/matrix-org/matrix-hookshot/issues/143))
+- Automatically append the last comment on a closed GitHub issue notification, if the comment was made when the issue was closed. ([\#144](https://github.com/matrix-org/matrix-hookshot/issues/144))
+- New configuraion option `permissions` to control who can use the bridge.
+  **Please note**: By default, all users on the same homeserver will be given `admin` permissions (to reflect previous behaviour). Please adjust
+  your config when updating. ([\#167](https://github.com/matrix-org/matrix-hookshot/issues/167))
+- GitHub repo connections will notify when an issue has been labeled if `includingLabels` is configured. ([\#176](https://github.com/matrix-org/matrix-hookshot/issues/176))
+- Jira Datacenter (On Premise) instances are now supported by Hookshot. See https://matrix-org.github.io/matrix-hookshot/setup/jira.html for more information. ([\#187](https://github.com/matrix-org/matrix-hookshot/issues/187))
+- Use MSC3440 threads for figma comment threads. ([\#222](https://github.com/matrix-org/matrix-hookshot/issues/222))
+- Add support for `v2` webhook transformation functions, supporting more options.
+  See https://matrix-org.github.io/matrix-hookshot/setup/webhooks.html#javascript-transformations for more information ([\#223](https://github.com/matrix-org/matrix-hookshot/issues/223))
+- Generic webhook payloads are now pretty printed. ([\#224](https://github.com/matrix-org/matrix-hookshot/issues/224))
+
+
+Bugfixes
+--------
+
+- Fix a bug which caused GitHub "ready for review" events to be unhandled. ([\#149](https://github.com/matrix-org/matrix-hookshot/issues/149))
+- Fix a bug preventing `!hookshot jira project` from working ([\#166](https://github.com/matrix-org/matrix-hookshot/issues/166))
+- Fix a few issues preventing GitHub notifications from working ([\#173](https://github.com/matrix-org/matrix-hookshot/issues/173))
+- Fixed an issue where the bridge bot would change it's displayname if a webhook event is handled while `generic.userIdPrefix` is not set in the config. ([\#215](https://github.com/matrix-org/matrix-hookshot/issues/215))
+- Remove nonfunctional `gitlab notifications toggle` command. ([\#226](https://github.com/matrix-org/matrix-hookshot/issues/226))
+
+
+Improved Documentation
+----------------------
+
+- Update registration.sample.yml to include the required localparts for all supported services ([\#162](https://github.com/matrix-org/matrix-hookshot/issues/162))
+
+
+Internal Changes
+----------------
+
+- Refactor setup commands code to use the same checks as the provisioning code. ([\#141](https://github.com/matrix-org/matrix-hookshot/issues/141))
+- Add icons to documentation for supported platforms. ([\#168](https://github.com/matrix-org/matrix-hookshot/issues/168))
+- Do not hardcode `--target x86_64-unknown-linux-gnu` when installing Rust (rely on platform auto-detection instead) ([\#184](https://github.com/matrix-org/matrix-hookshot/issues/184))
+- The GitHub repository has moved from `https://github.com/Half-Shot/matrix-hookshot` to `https://github.com/matrix-org/matrix-hookshot`. ([\#216](https://github.com/matrix-org/matrix-hookshot/issues/216))
+
+
 1.1.0 (2022-01-07)
 ==================
 
