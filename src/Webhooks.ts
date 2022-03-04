@@ -59,7 +59,7 @@ export class Webhooks extends EventEmitter {
         this.expressRouter.get("/oauth", this.onGitHubGetOauth.bind(this));
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
-            this.expressRouter.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
+            this.expressRouter.use("/jira", new JiraWebhooksRouter(this.queue).getRouter());
         }
         if (this.config.figma) {
             this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
