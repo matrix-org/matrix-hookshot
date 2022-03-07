@@ -264,12 +264,6 @@ export class Bridge {
             (c, data) => c.onIssueStateChange(data),
         );
 
-        this.bindHandlerToQueue<GitHubWebhookTypes.IssuesEditedEvent, GitHubRepoConnection>(
-            "github.issues.edited",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
-            (c, data) => c.onIssueEdited(data),
-        );
-
         this.bindHandlerToQueue<GitHubWebhookTypes.IssuesUnlabeledEvent, GitHubRepoConnection>(
             "github.issues.unlabeled",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
