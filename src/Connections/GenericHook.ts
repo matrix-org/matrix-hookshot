@@ -181,33 +181,25 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     public transformHookData(data: unknown): {plain: string, html?: string} {
         // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
         const msg: {plain: string, html?: string} = {plain: ""};
+        const safeData = typeof data === "object" && data !== null ? data as Record<string, unknown> : undefined;
         if (typeof data === "string") {
             return {plain: `Received webhook data: ${data}`};
-        } else if (typeof data !== "object") {
+        } else if (typeof safeData?.text === "string") {
+            msg.plain = safeData.text;
+        } else {
             msg.plain = "Received webhook data:\n\n" + "```json\n\n" + JSON.stringify(data, null, 2) + "\n\n```";
             msg.html = `<p>Received webhook data:</p><p><pre><code class=\\"language-json\\">${JSON.stringify(data, null, 2)}</code></pre></p>`
-            return msg;
         }
 
-        if (data === null) {
-            throw Error('`data` was null');
+        if (typeof safeData?.html === "string") {
+            msg.html = safeData.html;
         }
 
-        const objectData = data as Record<string, unknown>;
-
-        if (typeof objectData.text === "string") {
-            msg.plain = objectData.text;
-        }
-
-        if (typeof objectData.html === "string") {
-            msg.html = objectData.html;
-        }
-
-        if (typeof objectData.username === "string") {
+        if (typeof safeData?.username === "string") {
             // Create a matrix user for this person
-            msg.plain = `**${objectData.username}**: ${msg.plain}`
+            msg.plain = `**${safeData.username}**: ${msg.plain}`
             if (msg.html) {
-                msg.html = `<strong>${objectData.username}</strong>: ${msg.html}`;
+                msg.html = `<strong>${safeData.username}</strong>: ${msg.html}`;
             }
         }
         // TODO: Transform Slackdown into markdown.
@@ -267,6 +259,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     public async onGenericHook(data: unknown): Promise<boolean> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string};
+        let success = true;
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
         } else {
@@ -280,7 +273,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
                 content = {plain: `Webhook received but failed to process via transformation function`};
-                return false;
+                success = false;
             }
         }
 
@@ -294,7 +287,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": data,
         }, 'm.room.message', sender);
-        return true;
+        return success;
 
     }
 
