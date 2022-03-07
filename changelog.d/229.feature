@@ -1,0 +1,1 @@
+Logging now supports `json` format outputs and colourized logs. Startup logging should now be less noisy on non-debug levels.
