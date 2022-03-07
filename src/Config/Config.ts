@@ -201,8 +201,10 @@ interface BridgeConfigQueue {
     host?: string;
 }
 
-interface BridgeConfigLogging {
+export interface BridgeConfigLogging {
     level: string;
+    json?: boolean;
+    colorize?: boolean;
 }
 
 interface BridgeConfigBot {
@@ -376,7 +378,7 @@ export class BridgeConfig {
         for(const roomEntry of permissionRooms) {
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
-            log.info(`Found ${membership.length} users for ${roomEntry}`);
+            log.debug(`Found ${membership.length} users for ${roomEntry}`);
         } 
     }
 

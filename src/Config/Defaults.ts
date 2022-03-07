@@ -19,6 +19,8 @@ export const DefaultConfig = new BridgeConfig({
     },
     logging: {
         level: "info",
+        colorize: true,
+        json: false,
     },
     permissions: [{
         actor: "example.com",
