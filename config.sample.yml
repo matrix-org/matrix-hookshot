@@ -95,6 +95,9 @@ logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
   level: info
+  colorize: true
+  json: false
+  timestampFormat: HH:mm:ss:SSS
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #

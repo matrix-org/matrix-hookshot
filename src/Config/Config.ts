@@ -205,6 +205,7 @@ export interface BridgeConfigLogging {
     level: string;
     json?: boolean;
     colorize?: boolean;
+    timestampFormat?: string;
 }
 
 interface BridgeConfigBot {

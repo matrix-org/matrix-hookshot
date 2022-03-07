@@ -205,3 +205,19 @@ You will need to configure some services. Each service has it's own documentatio
 - [GitLab](./setup/gitlab.md)
 - [Jira](./setup/jira.md)
 - [Webhooks](./setup/webhooks.md)
+
+### Logging
+
+The bridge supports some basic logging options. The section is optional, and by default will log at an `info` level.
+
+```yaml
+logging:
+  # Level of information to report to the logs. Can be `debug`, `info`, `warn` or `error.
+  level: info
+  # Should the logs output in human readable format or JSON. If you are using a third-party ingestion service like logstash, use this.
+  json: false
+  # Ignored if `json` is enabled. Should the logs print the levels in color. This will print extra characters around the logs which may not be suitable for some systems.
+  colorize: true
+  #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
+  timestampFormat: HH:mm:ss:SSS
+```

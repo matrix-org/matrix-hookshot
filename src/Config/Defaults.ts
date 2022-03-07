@@ -21,6 +21,7 @@ export const DefaultConfig = new BridgeConfig({
         level: "info",
         colorize: true,
         json: false,
+        timestampFormat: "HH:mm:ss:SSS",
     },
     permissions: [{
         actor: "example.com",

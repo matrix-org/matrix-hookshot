@@ -30,7 +30,7 @@ export default class LogWrapper {
 
         const formatters = [
             winston.format.timestamp({
-                format: "HH:mm:ss:SSS",
+                format: cfg.timestampFormat || "HH:mm:ss:SSS",
             }),
             (format((info) => {
                 info.level = info.level.toUpperCase();
