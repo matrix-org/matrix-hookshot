@@ -1,0 +1,1 @@
+Generic webhooks now listen for incoming hooks on `/webhooks`. Existing setups using `/` will continue to work, but should be migrated where possible. See [the documentation](https://matrix-org.github.io/matrix-hookshot/setup/webhooks.html#configuration) for more information.
