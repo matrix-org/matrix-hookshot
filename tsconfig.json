@@ -1,12 +1,10 @@
 {
+  "extends": "@tsconfig/node14/tsconfig.json",
   "compilerOptions": {
     "incremental": true,
-    "target": "ES2019",
-    "module": "commonjs",
     "declaration": false,
     "outDir": "./lib",
     "rootDir": "./src",
-    "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
