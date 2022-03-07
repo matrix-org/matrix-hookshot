@@ -77,8 +77,7 @@ export const DefaultConfig = new BridgeConfig({
         enabled: false,
         urlPrefix: "https://example.com/webhooks/",
         allowJsTransformationFunctions: false,
-        userIdPrefix: "webhooks_",
-        waitForComplete: true,
+        waitForComplete: false,
     },
     figma: {
         publicUrl: "https://example.com/hookshot/",

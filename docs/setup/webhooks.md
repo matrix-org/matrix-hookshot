@@ -12,6 +12,8 @@ generic:
   enabled: true
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
+  waitForComplete: false
+  # userIdPrefix: webhook_
 ```
 
 <section class="notice">
@@ -27,6 +29,22 @@ The bridge listens for incoming webhooks requests on the host and port provided 
 webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/webhook`), an example webhook URL would look like:
 `https://example.com/mywebhookspath/abcdef`.
 
+`waitForComplete` causes the bridge to wait until the webhook is processed before sending a response. Some services prefer you always
+respond with a 200 as soon as the webhook has entered processing (`false`) while others prefer to know if the resulting Matrix message
+has been sent (`true`). By default this is `false`.
+
+You may set a `userIdPrefix` to create a specific user for each new webhook connection in a room. For example, a connection with a name
+like `example` for a prefix of `webhook_` will create a user called `@webhook_example:example.com`. If you enable this option,
+you need to configure the user to be part of your registration file e.g.:
+
+```yaml
+# registration.yaml
+...
+namespaces:
+  users:
+    - regex: "@webhook_.+:example.com" # Where example.com is your domain name.
+      exclusive: true
+```
 
 ## Adding a webhook
 
