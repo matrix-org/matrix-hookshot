@@ -360,6 +360,18 @@ over the internet to users, as it's intended to be used by the homeserver exclus
 <li><a href="./setup/jira.html">Jira</a></li>
 <li><a href="./setup/webhooks.html">Webhooks</a></li>
 </ul>
+<h3 id="logging"><a class="header" href="#logging">Logging</a></h3>
+<p>The bridge supports some basic logging options. The section is optional, and by default will log at an <code>info</code> level.</p>
+<pre><code class="language-yaml">logging:
+  # Level of information to report to the logs. Can be `debug`, `info`, `warn` or `error.
+  level: info
+  # Should the logs output in human readable format or JSON. If you are using a third-party ingestion service like logstash, use this.
+  json: false
+  # Ignored if `json` is enabled. Should the logs print the levels in color. This will print extra characters around the logs which may not be suitable for some systems.
+  colorize: true
+  #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
+  timestampFormat: HH:mm:ss:SSS
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sample-configuration"><a class="header" href="#sample-configuration">Sample Configuration</a></h1>
 <p>Below is a sample bridge configuration file. The configuration file 
 can be tweaked to change the behaviour of your bridge. A bridge of the server is 
@@ -461,6 +473,9 @@ logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
   level: info
+  colorize: true
+  json: false
+  timestampFormat: HH:mm:ss:SSS
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #
