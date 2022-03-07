@@ -59,6 +59,10 @@ export enum ErrCode {
      * A connection with similar configuration exists
      */
     ConflictingConnection =  "HS_CONFLICTING_CONNECTION",
+    /**
+     * The method used was invalid for this endpoint
+     */
+    MethodNotAllowed = "HS_METHOD_NOT_ALLOWED",
 }
 
 const ErrCodeToStatusCode: Record<ErrCode, number> = {
@@ -73,6 +77,7 @@ const ErrCodeToStatusCode: Record<ErrCode, number> = {
     HS_DISABLED_FEATURE: 500,
     HS_ADDITIONAL_ACTION_REQUIRED: 400,
     HS_CONFLICTING_CONNECTION: 409,
+    HS_METHOD_NOT_ALLOWED: 405,
 }
 
 export class ApiError extends Error {

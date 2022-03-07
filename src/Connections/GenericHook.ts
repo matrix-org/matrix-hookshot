@@ -178,34 +178,43 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         this.state = validatedConfig;
     }
 
-    public transformHookData(data: Record<string, unknown>|string): {plain: string, html?: string} {
+    public transformHookData(data: unknown): {plain: string, html?: string} {
         // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
         const msg: {plain: string, html?: string} = {plain: ""};
         if (typeof data === "string") {
             return {plain: `Received webhook data: ${data}`};
-        } else if (typeof data.text === "string") {
-            msg.plain = data.text;
-        } else {
+        } else if (typeof data !== "object") {
             msg.plain = "Received webhook data:\n\n" + "```json\n\n" + JSON.stringify(data, null, 2) + "\n\n```";
             msg.html = `<p>Received webhook data:</p><p><pre><code class=\\"language-json\\">${JSON.stringify(data, null, 2)}</code></pre></p>`
+            return msg;
         }
 
-        if (typeof data.html === "string") {
-            msg.html = data.html;
+        if (data === null) {
+            throw Error('`data` was null');
         }
 
-        if (typeof data.username === "string") {
+        const objectData = data as Record<string, unknown>;
+
+        if (typeof objectData.text === "string") {
+            msg.plain = objectData.text;
+        }
+
+        if (typeof objectData.html === "string") {
+            msg.html = objectData.html;
+        }
+
+        if (typeof objectData.username === "string") {
             // Create a matrix user for this person
-            msg.plain = `**${data.username}**: ${msg.plain}`
+            msg.plain = `**${objectData.username}**: ${msg.plain}`
             if (msg.html) {
-                msg.html = `<strong>${data.username}</strong>: ${msg.html}`;
+                msg.html = `<strong>${objectData.username}</strong>: ${msg.html}`;
             }
         }
         // TODO: Transform Slackdown into markdown.
         return msg;
     }
 
-    public executeTransformationFunction(data: Record<string, unknown>): {plain: string, html?: string}|null {
+    public executeTransformationFunction(data: unknown): {plain: string, html?: string}|null {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -250,7 +259,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
     }
 
-    public async onGenericHook(data: Record<string, unknown>) {
+    /**
+     * Processes an incoming generic hook
+     * @param data Structured data. This may either be a string, or an object.
+     * @returns `true` if the webhook completed, or `false` if it failed to complete 
+     */
+    public async onGenericHook(data: unknown): Promise<boolean> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string};
         if (!this.transformationFunction) {
@@ -260,25 +274,27 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 const potentialContent = this.executeTransformationFunction(data);
                 if (potentialContent === null) {
                     // Explitly no action
-                    return;
+                    return true;
                 }
                 content = potentialContent;
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
                 content = {plain: `Webhook received but failed to process via transformation function`};
+                return false;
             }
         }
 
         const sender = this.getUserId();
         await this.ensureDisplayname();
 
-        return this.messageClient.sendMatrixMessage(this.roomId, {
+        await this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: "m.notice",
             body: content.plain,
             formatted_body: content.html || md.renderInline(content.plain),
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": data,
         }, 'm.room.message', sender);
+        return true;
 
     }
 

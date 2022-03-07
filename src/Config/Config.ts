@@ -168,6 +168,7 @@ export interface BridgeGenericWebhooksConfig {
     urlPrefix: string;
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
+    waitForComplete?: boolean;
 }
 
 interface BridgeWidgetConfig {

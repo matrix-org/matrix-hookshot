@@ -14,11 +14,19 @@ generic:
   allowJsTransformationFunctions: false
 ```
 
+<section class="notice">
+Previous versions of the bridge listened for requests on `/` rather than `/webhooks`. While this behaviour will continue to work,
+administators are advised to use `/webhooks`.
+</section>
+
+The webhooks listener listens on the path `/webhooks`.
+
 The bridge listens for incoming webhooks requests on the host and port provided in the [`listeners` config](../setup.md#listeners-configuration).
 
 `urlPrefix` describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
-webhook requests from `https://example.com/mywebhookspath` to the bridge an example webhook URL would look like:
+webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/webhooks`), an example webhook URL would look like:
 `https://example.com/mywebhookspath/abcdef`.
+
 
 ## Adding a webhook
 

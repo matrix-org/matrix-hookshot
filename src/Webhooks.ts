@@ -13,13 +13,9 @@ import { OAuthRequest } from "./WebhookTypes";
 import { GitHubOAuthTokenResponse } from "./Github/Types";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
+import { GenericWebhooksRouter } from "./generic/Router";
 
 const log = new LogWrapper("Webhooks");
-
-export interface GenericWebhookEvent {
-    hookData: Record<string, unknown>;
-    hookId: string;
-}
 
 export interface NotificationsEnableEvent {
     userId: string;
@@ -64,13 +60,11 @@ export class Webhooks extends EventEmitter {
         if (this.config.figma) {
             this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
         }
-        this.expressRouter.all(
-            '/:hookId',
-            express.text({ type: 'text/*'}),
-            express.urlencoded({ extended: false }),
-            express.json(),
-            this.onGenericPayload.bind(this),
-        );
+        if (this.config.generic) {
+            this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue).getRouter());
+            // TODO: Remove old deprecated endpoint
+            this.expressRouter.use(new GenericWebhooksRouter(this.queue, true).getRouter());
+        }
         this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),
         }));
@@ -120,32 +114,6 @@ export class Webhooks extends EventEmitter {
         } catch (err) {
             log.error(`Failed to emit payload ${id}: ${err}`);
         }
-    }
-
-    private onGenericPayload(req: Request, res: Response) {
-        if (!['PUT', 'GET', 'POST'].includes(req.method)) {
-            res.sendStatus(400).send({error: 'Wrong METHOD. Expecting PUT,GET,POST'});
-            return;
-        }
-
-        let body;
-        if (req.method === 'GET') {
-            body = req.query;
-        } else {
-            body = req.body;
-        }
-
-        res.sendStatus(200);
-        this.queue.push({
-            eventName: 'generic-webhook.event',
-            sender: "GithubWebhooks",
-            data: {
-                hookData: body,
-                hookId: req.params.hookId,
-            } as GenericWebhookEvent,
-        }).catch((err) => {
-            log.error(`Failed to emit payload: ${err}`);
-        });
     }
 
     private onPayload(req: Request, res: Response) {
