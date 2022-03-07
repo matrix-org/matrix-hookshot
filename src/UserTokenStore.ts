@@ -4,7 +4,7 @@ import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
-import { CLOUD_INSTANCE, CLOUD_INSTANCE as JIRA_CLOUD_INSTANCE, isJiraCloudInstance, JiraClient } from "./Jira/Client";
+import { CLOUD_INSTANCE, isJiraCloudInstance, JiraClient } from "./Jira/Client";
 import { JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
 import { v4 as uuid } from "uuid";

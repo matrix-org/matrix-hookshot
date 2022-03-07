@@ -11,7 +11,7 @@ may increase depending on the traffic and the number of rooms bridged.
 
 ## Local installation 
 
-This bridge requires at least Node 12 (though 16 is preferred), and Rust installed.
+This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.
 
 To install Node.JS, [nvm](https://github.com/nvm-sh/nvm) is a good option.
 
