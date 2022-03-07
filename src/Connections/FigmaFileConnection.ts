@@ -105,4 +105,8 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         log.info(`New figma comment ${payload.comment_id} -> ${this.roomId}/${eventId}`)
         await this.storage.setFigmaCommentEventId(this.roomId, payload.comment_id, eventId);
     }
+
+    public toString() {
+        return `FigmaFileConnection ${this.instanceName}/${this.fileId || "*"}`;
+    }
 }

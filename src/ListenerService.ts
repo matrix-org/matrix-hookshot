@@ -39,7 +39,7 @@ export class ListenerService {
 
     public bindResource(resourceName: ResourceName, router: Router) {
         for (const listener of this.listeners.filter((l) => l.config.resources.includes(resourceName))) {
-            log.info(`Registering ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`);
+            log.debug(`Registering ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`);
             listener.app.use(router);
             listener.resourcesBound = true;
         }
@@ -55,7 +55,7 @@ export class ListenerService {
             }
             const addr = listener.config.bindAddress || "127.0.0.1";
             listener.server = listener.app.listen(listener.config.port, addr);
-            log.info(`Listening on ${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)
+            log.info(`Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)
         }
     }
 

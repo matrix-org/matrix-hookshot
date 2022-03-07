@@ -26,6 +26,10 @@ export class ConnectionManager {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
 
+    public get size() {
+        return this.connections.length;
+    }
+
     constructor(
         private readonly as: Appservice,
         private readonly config: BridgeConfig,
@@ -265,8 +269,10 @@ export class ConnectionManager {
         for (const event of state) {
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-                log.info(`Room ${roomId} is connected to: ${conn}`);
-                if (conn) { this.push(conn);  }
+                if (conn) {
+                    log.debug(`Room ${roomId} is connected to: ${conn}`);
+                    this.push(conn);
+                }
             } catch (ex) {
                 log.warn(`Failed to create connection for ${roomId}:`, ex);
             }
