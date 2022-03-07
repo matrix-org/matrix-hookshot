@@ -1,6 +1,7 @@
 import { LogLevel, LogService } from "matrix-bot-sdk";
 import util from "util";
-import winston from "winston";
+import winston, { format } from "winston";
+import { BridgeConfigLogging } from "./Config/Config";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MsgType = string|Error|any|{error?: string};
@@ -21,20 +22,46 @@ function isMessageNoise(messageOrObject: MsgType[]) {
 }
 export default class LogWrapper {
 
-    public static configureLogging(level: string) {
+    public static configureLogging(cfg: BridgeConfigLogging|string) {
+
+        if (typeof cfg === "string") {
+            cfg = { level: cfg };
+        }
+
+        const formatters = [
+            winston.format.timestamp({
+                format: "HH:mm:ss:SSS",
+            }),
+            (format((info) => {
+                info.level = info.level.toUpperCase();
+                return info;
+            }))(),
+        ]
+
+        if (!cfg.json && cfg.colorize) {
+            formatters.push(
+                winston.format.colorize({
+                    level: true,
+                })
+            );
+        }
+
+        if (cfg.json) {
+            formatters.push(winston.format.json());
+        } else {
+            formatters.push(winston.format.printf(
+                (info) => {
+                    return `${info.level} ${info.timestamp} [${info.module}] ${info.message}`;
+                },
+            ));
+        }
+
+
         const log = winston.createLogger({
-            level,
+            level: cfg.level,
             transports: [
                 new winston.transports.Console({
-                    format: winston.format.combine(
-                        winston.format.timestamp({
-                            format: "HH:mm:ss:SSS",
-                        }),
-                        winston.format.printf(
-                        (info) => {
-                            return `${info.level.toUpperCase()} ${info.timestamp} [${info.module}] ${info.message}`;
-                        },
-                    )),
+                    format: winston.format.combine(...formatters),
                 }),
             ],
         });
@@ -80,8 +107,8 @@ export default class LogWrapper {
                 log.verbose(getMessageString(messageOrObject), { module });
             },
         });
-        LogService.setLevel(LogLevel.fromString(level));
-        LogService.info("LogWrapper", "Reconfigured logging");
+        LogService.setLevel(LogLevel.fromString(cfg.level));
+        LogService.debug("LogWrapper", "Reconfigured logging");
     }
 
     constructor(private module: string) { }
