@@ -168,6 +168,7 @@ export interface BridgeGenericWebhooksConfig {
     urlPrefix: string;
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
+    waitForComplete?: boolean;
 }
 
 interface BridgeWidgetConfig {
@@ -262,7 +263,9 @@ export class BridgeConfig {
     public readonly gitlab?: BridgeConfigGitLab;
     @configKey("Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)", true)
     public readonly jira?: BridgeConfigJira;
-    @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
+    @configKey(`Support for generic webhook events.
+'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
+`, true)
     public readonly generic?: BridgeGenericWebhooksConfig;
     @configKey("Configure this to enable Figma support", true)
     public readonly figma?: BridgeConfigFigma;

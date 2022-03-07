@@ -20,7 +20,7 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
+import { NotificationsEnableEvent, NotificationsDisableEvent } from "./Webhooks";
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
@@ -40,6 +40,7 @@ import { SetupConnection } from "./Connections/SetupConnection";
 import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { CLOUD_INSTANCE } from "./Jira/Client";
+import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -505,12 +506,42 @@ export class Bridge {
             });
 
         });
+        
+        this.queue.on<GenericWebhookEvent>("generic-webhook.event", async (msg) => {
+            const { data, messageId } = msg;
+            const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
+            log.debug(`generic-webhook.event for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
 
-        this.bindHandlerToQueue<GenericWebhookEvent, GenericHookConnection>(
-            "generic-webhook.event",
-            (data) => connManager.getConnectionsForGenericWebhook(data.hookId), 
-            (c, data) => c.onGenericHook(data.hookData),
-        );
+            if (!connections.length) {
+                await this.queue.push<GenericWebhookEventResult>({
+                    data: {notFound: true},
+                    sender: "Bridge",
+                    messageId: messageId,
+                    eventName: "response.generic-webhook.event",
+                });
+            }
+
+            connections.map(async (c, index) => {
+                // TODO: Support webhook responses to more than one room
+                if (index !== 0) {
+                    c.onGenericHook(data.hookData);
+                    return;
+                }
+                let successful: boolean|null = null;
+                if (this.config.generic?.waitForComplete) {
+                    successful = await c.onGenericHook(data.hookData);
+                }
+                await this.queue.push<GenericWebhookEventResult>({
+                    data: {successful},
+                    sender: "Bridge",
+                    messageId,
+                    eventName: "response.jira.oauth.response",
+                });
+                if (!this.config.generic?.waitForComplete) {
+                    c.onGenericHook(data.hookData);
+                }
+            });
+        });
 
         this.bindHandlerToQueue<FigmaEvent, FigmaFileConnection>(
             "figma.payload",
@@ -615,11 +646,11 @@ export class Bridge {
         this.queue.on<EventType>(event, (msg) => {
             const connections = connectionFetcher.bind(this)(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
-            connections.forEach(async (c) => {
+            connections.forEach(async (connection) => {
                 try {
-                    await handler(c, msg.data);
+                    await handler(connection, msg.data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle ${event}:`, ex);
+                    log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
                 }
             })
         });
