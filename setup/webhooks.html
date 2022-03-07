@@ -159,11 +159,31 @@ by having services hit a unique URL that then transforms a HTTP payload into a M
   enabled: true
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
+  waitForComplete: false
+  # userIdPrefix: webhook_
 </code></pre>
+<section class="notice">
+Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work,
+administators are advised to use `/webhook`.
+</section>
+<p>The webhooks listener listens on the path <code>/webhook</code>.</p>
 <p>The bridge listens for incoming webhooks requests on the host and port provided in the <a href="../setup.html#listeners-configuration"><code>listeners</code> config</a>.</p>
 <p><code>urlPrefix</code> describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
-webhook requests from <code>https://example.com/mywebhookspath</code> to the bridge an example webhook URL would look like:
+webhook requests from <code>https://example.com/mywebhookspath</code> to the bridge (on <code>/webhook</code>), an example webhook URL would look like:
 <code>https://example.com/mywebhookspath/abcdef</code>.</p>
+<p><code>waitForComplete</code> causes the bridge to wait until the webhook is processed before sending a response. Some services prefer you always
+respond with a 200 as soon as the webhook has entered processing (<code>false</code>) while others prefer to know if the resulting Matrix message
+has been sent (<code>true</code>). By default this is <code>false</code>.</p>
+<p>You may set a <code>userIdPrefix</code> to create a specific user for each new webhook connection in a room. For example, a connection with a name
+like <code>example</code> for a prefix of <code>webhook_</code> will create a user called <code>@webhook_example:example.com</code>. If you enable this option,
+you need to configure the user to be part of your registration file e.g.:</p>
+<pre><code class="language-yaml"># registration.yaml
+...
+namespaces:
+  users:
+    - regex: &quot;@webhook_.+:example.com&quot; # Where example.com is your domain name.
+      exclusive: true
+</code></pre>
 <h2 id="adding-a-webhook"><a class="header" href="#adding-a-webhook">Adding a webhook</a></h2>
 <p>To add a webhook to your room:</p>
 <ul>
