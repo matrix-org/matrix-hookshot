@@ -11,6 +11,7 @@ import { v4 as uuid } from "uuid";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
+import { URL } from "url";
 const md = new markdown();
 
 /**
