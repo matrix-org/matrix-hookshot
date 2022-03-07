@@ -92,7 +92,7 @@ export class Bridge {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
                 joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
-                log.info(`Found ${joinedRooms.length} rooms`);
+                log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
                 log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
@@ -583,7 +583,7 @@ export class Bridge {
                 const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
-                log.info(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
+                log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
             } catch (ex) {
                 log.error(`Failed to setup admin room ${roomId}:`, ex);
             }
@@ -607,7 +607,7 @@ export class Bridge {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
         await this.as.begin();
-        log.info("Started bridge");
+        log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;
     }
 
@@ -981,7 +981,7 @@ export class Bridge {
         if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
             await adminRoom.setupWidget();
         }
-        log.info(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
+        log.debug(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
     }
 }

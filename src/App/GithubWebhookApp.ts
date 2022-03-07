@@ -11,7 +11,7 @@ const log = new LogWrapper("App");
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
-    LogWrapper.configureLogging(config.logging.level);
+    LogWrapper.configureLogging(config.logging);
     const listener = new ListenerService(config.listeners);
     if (config.metrics) {
         if (!config.metrics.port) {
