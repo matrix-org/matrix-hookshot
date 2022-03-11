@@ -14,8 +14,7 @@ export interface FigmaFileConnectionState {
     instanceName?: string;
 }
 
-// Unstable prefix, change to m.thread once released.
-const THREAD_RELATION_TYPE = "io.element.thread";
+const THREAD_RELATION_TYPE = "m.thread";
 
 const md = markdownit();
 export class FigmaFileConnection extends BaseConnection implements IConnection {
