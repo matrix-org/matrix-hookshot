@@ -14,8 +14,7 @@ export interface FigmaFileConnectionState {
     instanceName?: string;
 }
 
-// Unstable prefix, change to m.thread once released.
-const THREAD_RELATION_TYPE = "io.element.thread";
+const THREAD_RELATION_TYPE = "m.thread";
 
 const md = markdownit();
 export class FigmaFileConnection extends BaseConnection implements IConnection {
@@ -84,7 +83,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
                     }
                 },
                 body: `**${name}**: ${comment}`,
-                formatted_body: `<strong>${name}<strong>: ${comment}`,
+                formatted_body: `<strong>${name}</strong>: ${comment}`,
                 format: "org.matrix.custom.html",
                 msgtype: "m.notice",
                 "uk.half-shot.matrix-hookshot.figma.comment_id": payload.comment_id,
