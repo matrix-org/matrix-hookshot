@@ -83,7 +83,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
                     }
                 },
                 body: `**${name}**: ${comment}`,
-                formatted_body: `<strong>${name}<strong>: ${comment}`,
+                formatted_body: `<strong>${name}</strong>: ${comment}`,
                 format: "org.matrix.custom.html",
                 msgtype: "m.notice",
                 "uk.half-shot.matrix-hookshot.figma.comment_id": payload.comment_id,
