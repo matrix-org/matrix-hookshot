@@ -66,13 +66,13 @@ on how to add appservices. [Synapse documents the process here](https://matrix-o
 ### Homeserver Configuration
 
 In addition to providing the registration file above, you also need to tell Hookshot how to reach your homeserver. For clarity, hookshot
-expects to be able to connect to an existing homeserver which has it's registration file configured.
+expects to be able to connect to an existing homeserver which has its registration file configured.
 
 ```yaml
 bridge:
   domain: example.com # your homeserver's server name
   url: http://localhost:8008 # The URL where hookshot can reach the client-server API.
-  mediaUrl: http://example.com # Optional. The url where media hosted on your homeserver is reachable (this should be publically reachable from the internet)
+  mediaUrl: https://example.com # Optional. The url where media hosted on your homeserver is reachable (this should be publically reachable from the internet)
   port: 9993 # The port where hookshot will listen for appservice requests.
   bindAddress: 127.0.0.1 # The address which hookshot will bind to. Docker users should set this to `0.0.0.0`.
 ```
