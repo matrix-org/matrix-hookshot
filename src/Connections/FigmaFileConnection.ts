@@ -78,6 +78,8 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
                 "m.relates_to": {
                     rel_type: THREAD_RELATION_TYPE,
                     event_id: parentEventId,
+                    // Needed to prevent clients from showing these as actual replies
+                    is_falling_back: true,
                     "m.in_reply_to": {
                         event_id: parentEventId,
                     }
