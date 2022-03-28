@@ -515,10 +515,10 @@ export class Bridge {
                 });
             }
 
-            connections.map(async (c, index) => {
+            await Promise.all(connections.map(async (c, index) => {
                 // TODO: Support webhook responses to more than one room
                 if (index !== 0) {
-                    c.onGenericHook(data.hookData);
+                    await c.onGenericHook(data.hookData);
                     return;
                 }
                 let successful: boolean|null = null;
@@ -532,9 +532,9 @@ export class Bridge {
                     eventName: "response.generic-webhook.event",
                 });
                 if (!this.config.generic?.waitForComplete) {
-                    c.onGenericHook(data.hookData);
+                    await c.onGenericHook(data.hookData);
                 }
-            });
+            }));
         });
 
         this.bindHandlerToQueue<FigmaEvent, FigmaFileConnection>(
