@@ -65,16 +65,15 @@ You will need to link the registration file to the homeserver. Consult your home
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
 ### Homeserver Configuration
 
-In addition to providing the registration file above, you also need to tell Hookshot how to reach your homeserver. For clarity, hookshot
-expects to be able to connect to an existing homeserver which has its registration file configured.
+In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.
 
 ```yaml
 bridge:
-  domain: example.com # your homeserver's server name
-  url: http://localhost:8008 # The URL where hookshot can reach the client-server API.
-  mediaUrl: https://example.com # Optional. The url where media hosted on your homeserver is reachable (this should be publically reachable from the internet)
+  domain: example.com # The homeserver's server name.
+  url: http://localhost:8008 # The URL where Hookshot can reach the client-server API.
+  mediaUrl: https://example.com # Optional. The url where media hosted on the homeserver is reachable (this should be publically reachable from the internet)
   port: 9993 # The port where hookshot will listen for appservice requests.
-  bindAddress: 127.0.0.1 # The address which hookshot will bind to. Docker users should set this to `0.0.0.0`.
+  bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
 ```
 
 The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listeners should **not** be reachable
