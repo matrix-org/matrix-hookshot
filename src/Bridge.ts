@@ -515,7 +515,7 @@ export class Bridge {
                 });
             }
 
-            await Promise.all(connections.map(async (c, index) => {
+            const promises = Promise.all(connections.map(async (c, index) => {
                 // TODO: Support webhook responses to more than one room
                 if (index !== 0) {
                     await c.onGenericHook(data.hookData);
@@ -535,6 +535,12 @@ export class Bridge {
                     await c.onGenericHook(data.hookData);
                 }
             }));
+            
+            try {
+                await promises;
+            } catch (ex) {
+                log.warn(`Failed to handle generic webhooks(s)`, ex);
+            }
         });
 
         this.bindHandlerToQueue<FigmaEvent, FigmaFileConnection>(
