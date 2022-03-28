@@ -312,6 +312,8 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
+        // To allow DEBUG as well as debug
+        this.logging.level = this.logging.level.toLowerCase();
         this.permissions = configData.permissions || [{
             actor: this.bridge.domain,
             services: [{
