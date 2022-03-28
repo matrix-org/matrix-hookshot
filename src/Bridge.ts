@@ -529,7 +529,7 @@ export class Bridge {
                     data: {successful},
                     sender: "Bridge",
                     messageId,
-                    eventName: "response.jira.oauth.response",
+                    eventName: "response.generic-webhook.event",
                 });
                 if (!this.config.generic?.waitForComplete) {
                     c.onGenericHook(data.hookData);
