@@ -1,6 +1,6 @@
 import YAML from "yaml";
 import { promises as fs } from "fs";
-import { IAppserviceRegistration, MatrixClient } from "matrix-bot-sdk";
+import { IAppserviceRegistration, LogLevel, MatrixClient } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
@@ -9,6 +9,14 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 
 const log = new LogWrapper("Config");
+
+export const ValidLogLevelStrings = [
+    LogLevel.ERROR.toString(),
+    LogLevel.WARN.toString(),
+    LogLevel.INFO.toString(),
+    LogLevel.DEBUG.toString(),
+    LogLevel.TRACE.toString(),
+].map(l => l.toLowerCase());
 
 // Maps to permission_level_to_int in permissions.rs
 export enum BridgePermissionLevel {
@@ -309,9 +317,16 @@ export class BridgeConfig {
         this.queue = configData.queue || {
             monolithic: true,
         };
+
         this.logging = configData.logging || {
             level: "info",
         }
+        // To allow DEBUG as well as debug
+        this.logging.level = this.logging.level.toLowerCase();
+        if (!ValidLogLevelStrings.includes(this.logging.level)) {
+            throw Error(`'logging.level' is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
+        }
+
         this.permissions = configData.permissions || [{
             actor: this.bridge.domain,
             services: [{

@@ -1,0 +1,1 @@
+Uppercase values for `logging.level` are now allowed, although lowercase values are preferred.
