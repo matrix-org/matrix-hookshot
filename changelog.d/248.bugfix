@@ -1,0 +1,1 @@
+Fix a bug that would cause Hookshot to crash when a Matrix message could not be sent
