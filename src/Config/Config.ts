@@ -16,7 +16,7 @@ export const ValidLogLevelStrings = [
     LogLevel.INFO.toString(),
     LogLevel.DEBUG.toString(),
     LogLevel.TRACE.toString(),
-];
+].map(l => l.toLowerCase());
 
 // Maps to permission_level_to_int in permissions.rs
 export enum BridgePermissionLevel {
