@@ -153,8 +153,10 @@
                         <h1 id="getting-setup"><a class="header" href="#getting-setup">Getting setup</a></h1>
 <p>This page explains how to set up Hookshot for use with a Matrix homeserver.</p>
 <h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
-<p>Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory. Hookshot memory requirements
-may increase depending on the traffic and the number of rooms bridged.</p>
+<p>Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
+Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.</p>
+<p>You <strong>must</strong> have administrative access to an existing homeserver in order to setup Hookshot, as requires
+the homeserver to be configured with it's appservice registration.</p>
 <h2 id="local-installation"><a class="header" href="#local-installation">Local installation</a></h2>
 <p>This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.</p>
 <p>To install Node.JS, <a href="https://github.com/nvm-sh/nvm">nvm</a> is a good option.</p>
@@ -189,6 +191,17 @@ For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/co
 </ul>
 <p>You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a>.</p>
+<h3 id="homeserver-configuration"><a class="header" href="#homeserver-configuration">Homeserver Configuration</a></h3>
+<p>In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.</p>
+<pre><code class="language-yaml">bridge:
+  domain: example.com # The homeserver's server name.
+  url: http://localhost:8008 # The URL where Hookshot can reach the client-server API.
+  mediaUrl: https://example.com # Optional. The url where media hosted on the homeserver is reachable (this should be publically reachable from the internet)
+  port: 9993 # The port where hookshot will listen for appservice requests.
+  bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
+</code></pre>
+<p>The <code>port</code> and <code>bindAddress</code> must not conflict with the other listeners in the bridge config. This listeners should <strong>not</strong> be reachable
+over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on <code>/_matrix/app/</code>.</p>
 <h3 id="permissions"><a class="header" href="#permissions">Permissions</a></h3>
 <p>The bridge supports fine grained permission control over what services a user can access.
 By default, any user on the bridge's own homeserver has full permission to use it.</p>
@@ -290,22 +303,10 @@ Note that OAuth requests also go through this listener.</li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
 </ul>
-<h4 id="appservice-listener"><a class="header" href="#appservice-listener">Appservice listener</a></h4>
 <section class="notice">
-Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge due to lack of support
+Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
-<pre><code class="language-yaml">bridge:
-  # Basic homeserver configuration
-  #
-  domain: example.com
-  url: http://localhost:8008
-  mediaUrl: http://example.com
-  port: 9993
-  bindAddress: 127.0.0.1
-</code></pre>
-<p>The <code>port</code> and <code>bindAddress</code> must not conflict with the other listeners in the bridge config. This listeners should <strong>not</strong> be reachable
-over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on <code>/_matrix/app/</code>.</p>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
 <p>You will need to configure some services. Each service has it's own documentation file inside the the setup subdirectory.</p>
 <ul>
