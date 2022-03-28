@@ -5,8 +5,11 @@ This page explains how to set up Hookshot for use with a Matrix homeserver.
 
 ## Requirements
 
-Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory. Hookshot memory requirements
-may increase depending on the traffic and the number of rooms bridged.
+Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
+Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.
+
+You **must** have administrative access to an existing homeserver in order to setup Hookshot, as requires
+the homeserver to be configured with it's appservice registration.
 
 
 ## Local installation 
@@ -60,6 +63,22 @@ Copy `registration.sample.yml` into `registration.yml` and fill in:
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
+### Homeserver Configuration
+
+In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.
+
+```yaml
+bridge:
+  domain: example.com # The homeserver's server name.
+  url: http://localhost:8008 # The URL where Hookshot can reach the client-server API.
+  mediaUrl: https://example.com # Optional. The url where media hosted on the homeserver is reachable (this should be publically reachable from the internet)
+  port: 9993 # The port where hookshot will listen for appservice requests.
+  bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
+```
+
+The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listeners should **not** be reachable
+over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on `/_matrix/app/`.
+
 
 ### Permissions
 
@@ -174,27 +193,10 @@ In terms of API endpoints:
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 
-#### Appservice listener
-
 <section class="notice">
-Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge due to lack of support
+Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
-
-
-```yaml
-bridge:
-  # Basic homeserver configuration
-  #
-  domain: example.com
-  url: http://localhost:8008
-  mediaUrl: http://example.com
-  port: 9993
-  bindAddress: 127.0.0.1
-```
-
-The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listeners should **not** be reachable
-over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on `/_matrix/app/`.
 
 
 ### Services configuration
