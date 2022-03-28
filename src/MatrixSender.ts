@@ -17,6 +17,11 @@ export interface IMatrixSendMessageResponse {
     eventId: string;
 }
 
+export interface IMatrixSendMessageFailedResponse {
+    failed: boolean;
+}
+
+
 const log = new LogWrapper("MatrixSender");
 
 export class MatrixSender {
@@ -45,18 +50,29 @@ export class MatrixSender {
     }
 
     public async sendMatrixMessage(messageId: string, msg: IMatrixSendMessage) {
-       const intent = msg.sender ? this.as.getIntentForUserId(msg.sender) : this.as.botIntent;
-       await intent.ensureRegisteredAndJoined(msg.roomId);
-       const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
-       log.info("Sent", eventId);
-       await this.mq.push<IMatrixSendMessageResponse>({
-           eventName: "response.matrix.message",
-           sender: "MatrixSender",
-           data: {
-               eventId,
-           },
-           messageId,
-       });
+        const intent = msg.sender ? this.as.getIntentForUserId(msg.sender) : this.as.botIntent;
+        await intent.ensureRegisteredAndJoined(msg.roomId);
+        try {
+                const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
+                log.info(`Sent event to room ${msg.roomId} (${msg.sender}) > ${eventId}`);
+                await this.mq.push<IMatrixSendMessageResponse>({
+                    eventName: "response.matrix.message",
+                    sender: "MatrixSender",
+                    data: {
+                        eventId,
+                    },
+                    messageId,
+                });
+        } catch (ex) {
+            await this.mq.push<IMatrixSendMessageFailedResponse>({
+                eventName: "response.matrix.message",
+                sender: "MatrixSender",
+                data: {
+                    failed: true,
+                },
+                messageId,
+            });
+        }
     }
 }
 
@@ -74,7 +90,7 @@ export class MessageSenderClient {
     public async sendMatrixMessage(roomId: string,
                                    content: MatrixEventContent, eventType = "m.room.message",
                                    sender: string|null = null): Promise<string> {
-        return (await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse>({
+        const result = await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse|IMatrixSendMessageFailedResponse>({
             eventName: "matrix.message",
             sender: "Bridge",
             data: {
@@ -83,6 +99,11 @@ export class MessageSenderClient {
                 sender,
                 content,
             },
-        })).eventId;
+        });
+
+        if ("eventId" in result) {
+            return result.eventId;
+        }
+        throw Error('Failed to send Matrix message');
     }
 }

@@ -38,7 +38,7 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
         const p = new Promise<X>((res, rej) => {
             resolve = res;
             timer = setTimeout(() => {
-                rej(new Error("Timeout waiting for message queue response"));
+                rej(new Error(`Timeout waiting for message queue response for ${message.eventName} / ${message.messageId}`));
             }, timeout);
         });
 
