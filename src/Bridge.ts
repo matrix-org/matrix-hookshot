@@ -312,6 +312,12 @@ export class Bridge {
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.close",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onMergeRequestClosed(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.merge",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
             (c, data) => c.onMergeRequestMerged(data),
