@@ -816,8 +816,9 @@ export class Bridge {
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {
                 try {
-                    if (event.content.disabled === true) {
-                        await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId);
+                    // Empty object == redacted
+                    if (event.content.disabled === true || Object.keys(event.content).length === 0) {
+                        await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
                     } else {
                         connection.onStateUpdate?.(event);
                     }
