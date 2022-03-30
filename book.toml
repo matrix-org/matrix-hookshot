@@ -22,3 +22,8 @@ git-repository-url = "https://github.com/matrix-org/matrix-hookshot"
 additional-css = [
     "docs/_site/style.css"
 ]
+
+additional-js = [
+    "docs/_site/main.js",
+    "docs/_site/version.js"
+]
