@@ -1,0 +1,1 @@
+Fix an issue where the bridge bot would rejoin a room after being removed.
