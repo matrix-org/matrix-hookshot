@@ -28,8 +28,12 @@ window.addEventListener("load", () => {
     selectElement.add(option);
 
     selectElement.addEventListener('change', (event) => {
-        const versionlessPath = window.location.pathname.split('/').slice(2).join('/');
-        window.location = `${window.location.origin}/${event.target.value}/${versionlessPath}`;
+        const path = [
+            ...window.location.pathname.split('/').slice(0, 2),
+            event.target.value,
+            ...window.location.pathname.split('/').slice(3)].join('/')
+        ].join('/');
+        window.location = `${window.location.origin}${path}`;
     });
 
     document.querySelector(".version-box").appendChild(selectElement);
