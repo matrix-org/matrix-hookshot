@@ -1,1 +1,0 @@
-Hosted documentation now features a version selector.
