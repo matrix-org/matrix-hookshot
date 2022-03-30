@@ -27,7 +27,7 @@ This bridge supports:
 
 ## Setup
 
-[See the setup guide](https://matrix-org.github.io/matrix-hookshot/setup.html)
+[See the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html)
 
 ## Documentation
 
