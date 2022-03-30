@@ -1,1 +1,0 @@
-Add support for close events on GitLab merge requests.

@@ -1,3 +1,45 @@
+1.3.0 (2022-03-30)
+==================
+
+Features
+--------
+
+- Generic webhooks now listen for incoming hooks on `/webhook`. Existing setups using `/` will continue to work, but should be migrated where possible. See [the documentation](https://matrix-org.github.io/matrix-hookshot/setup/webhooks.html#configuration) for more information. ([\#227](https://github.com/matrix-org/matrix-hookshot/issues/227))
+- Logging now supports `json` format outputs and colourized logs. Startup logging should now be less noisy on non-debug levels. ([\#229](https://github.com/matrix-org/matrix-hookshot/issues/229))
+- Use stable key `m.thread` for Figma threads. ([\#236](https://github.com/matrix-org/matrix-hookshot/issues/236))
+- Add support for close events on GitLab merge requests. ([\#253](https://github.com/matrix-org/matrix-hookshot/issues/253))
+- Hosted documentation now features a version selector. ([\#259](https://github.com/matrix-org/matrix-hookshot/issues/259))
+
+
+Bugfixes
+--------
+
+- Fixed an issue which caused GitHub issue edit notifications to be posted to a room twice. ([\#230](https://github.com/matrix-org/matrix-hookshot/issues/230))
+- Fix generic webhooks always returning an HTTP error when `waitForComplete` is enabled. ([\#247](https://github.com/matrix-org/matrix-hookshot/issues/247))
+- Fix a bug that would cause Hookshot to crash when a Matrix message could not be sent ([\#249](https://github.com/matrix-org/matrix-hookshot/issues/249))
+- Stop Figma threads showing as replies in clients. ([\#251](https://github.com/matrix-org/matrix-hookshot/issues/251))
+- Fix an issue where the bridge bot would rejoin a room after being removed. ([\#257](https://github.com/matrix-org/matrix-hookshot/issues/257))
+- Connections are now properly cleaned up when the state event is redacted. ([\#258](https://github.com/matrix-org/matrix-hookshot/issues/258))
+
+
+Improved Documentation
+----------------------
+
+- Clarify homeserver requirements and configuration on the setup page. ([\#243](https://github.com/matrix-org/matrix-hookshot/issues/243))
+
+
+Deprecations and Removals
+-------------------------
+
+- Drop support for Node.JS 12. Administrators are advised to upgrade to at least Node.JS 14. ([\#228](https://github.com/matrix-org/matrix-hookshot/issues/228))
+
+
+Internal Changes
+----------------
+
+- Uppercase values for `logging.level` are now allowed, although lowercase values are preferred. ([\#250](https://github.com/matrix-org/matrix-hookshot/issues/250))
+
+
 1.2.0 (2022-03-04)
 ==================
 
