@@ -180,6 +180,10 @@ export class Bridge {
             return this.onRoomEvent(roomId, event);
         });
 
+        this.as.on("room.leave", async (roomId, event) => {
+            return this.onRoomLeave(roomId, event);
+        });
+
         this.as.on("room.join", async (roomId, event) => {
             return this.onRoomJoin(roomId, event);
         });
@@ -681,6 +685,20 @@ export class Bridge {
         }
     }
 
+
+    private async onRoomLeave(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
+        if (event.state_key !== this.as.botUserId) {
+            // Only interested in bot leaves.
+            return;
+        }
+        // If the bot has left the room, we want to vape all connections for that room.
+        try {
+            await this.connectionManager?.removeConnectionsForRoom(roomId);
+        } catch (ex) {
+            log.warn(`Failed to remove connections on leave for ${roomId}`);
+        }
+    }
+
     private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
         if (!this.connectionManager) {
             // Not ready yet.
@@ -799,7 +817,7 @@ export class Bridge {
             for (const connection of existingConnections) {
                 try {
                     if (event.content.disabled === true) {
-                        await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
+                        await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId);
                     } else {
                         connection.onStateUpdate?.(event);
                     }
