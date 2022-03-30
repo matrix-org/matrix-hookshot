@@ -828,10 +828,14 @@ export class Bridge {
             }
             if (!existingConnections.length) {
                 // Is anyone interested in this state?
-                const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event));
-                if (connection) {
-                    log.info(`New connected added to ${roomId}: ${connection.toString()}`);
-                    this.connectionManager.push(connection);
+                try {
+                    const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event));
+                    if (connection) {
+                        log.info(`New connected added to ${roomId}: ${connection.toString()}`);
+                        this.connectionManager.push(connection);
+                    }
+                } catch (ex) {
+                    log.warn(`Failed to create state for ${roomId}`, ex);
                 }
             }
             return;
