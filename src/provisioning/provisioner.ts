@@ -235,7 +235,7 @@ export class Provisioner {
             if (!connection.onRemove) {
                 return next(new ApiError("Connection does not support removal", ErrCode.UnsupportedOperation));
             }
-            await this.connMan.removeConnection(req.params.roomId, req.params.connectionId);
+            await this.connMan.purgeConnection(req.params.roomId, req.params.connectionId);
             res.send({ok: true});
         } catch (ex) {
             return next(ex);

@@ -387,8 +387,8 @@ export class ConnectionManager {
         return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
     }
 
-    public async removeConnection(roomId: string, connectionId: string) {
-        const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId);
+    public async purgeConnection(roomId: string, connectionId: string) {
+        const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId == roomId);
         if (!connection) {
             throw Error("Connection not found");
         }
@@ -402,6 +402,16 @@ export class ConnectionManager {
             log.info(`No more connections in ${roomId}, leaving room`);
             await this.as.botIntent.leaveRoom(roomId);
         }
+    }
+
+    /**
+     * Removes connections for a room from memory. This does NOT remove the state
+     * event from the room.
+     * @param roomId 
+     */
+    public async removeConnectionsForRoom(roomId: string) {
+        log.info(`Removing all connections from ${roomId}`);
+        this.connections = this.connections.filter((c) => c.roomId !== roomId);
     }
 
     public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {
