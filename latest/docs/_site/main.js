@@ -31,7 +31,7 @@ window.addEventListener("load", () => {
         const path = [
             ...window.location.pathname.split('/').slice(0, 2),
             event.target.value,
-            ...window.location.pathname.split('/').slice(3).join('/'),
+            ...window.location.pathname.split('/').slice(3),
         ].join('/');
         window.location = `${window.location.origin}${path}`;
     });
