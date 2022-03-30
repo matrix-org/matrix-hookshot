@@ -132,7 +132,8 @@ export class ConnectionManager {
     }
 
     public async createConnectionForState(roomId: string, state: StateEvent<any>) {
-        if (state.content.disabled === true) {
+        // Empty object == redacted
+        if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
@@ -387,12 +388,12 @@ export class ConnectionManager {
         return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
     }
 
-    public async purgeConnection(roomId: string, connectionId: string) {
+    public async purgeConnection(roomId: string, connectionId: string, requireNoRemoveHandler = true) {
         const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId == roomId);
         if (!connection) {
             throw Error("Connection not found");
         }
-        if (!connection.onRemove) {
+        if (requireNoRemoveHandler && !connection.onRemove) {
             throw Error("Connection doesn't support removal, and so cannot be safely removed");
         }
         await connection.onRemove?.();

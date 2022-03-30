@@ -1,0 +1,1 @@
+Connections are now properly cleaned up when the state event is redacted.
