@@ -1,0 +1,1 @@
+Show the closing comments on closed GitHub PRs.
