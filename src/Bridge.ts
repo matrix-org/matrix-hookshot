@@ -493,7 +493,7 @@ export class Bridge {
                 });
 
                 // Some users won't have an admin room and would have gone through provisioning.
-                const adminRoom = this.adminRooms.get(userId);
+                const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
                 if (adminRoom) {
                     await adminRoom.sendNotice(`Logged into Jira`);
                 }
@@ -740,7 +740,11 @@ export class Bridge {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
-                        new SetupConnection(roomId, this.as, this.tokenStore, this.config, this.github)
+                        new SetupConnection(
+                            roomId, this.as, this.tokenStore, this.config, 
+                            this.getOrCreateAdminRoom.bind(this),
+                            this.github,
+                        )
                     ).onMessageEvent(event, checkPermission);
                 } catch (ex) {
                     log.warn(`Setup connection failed to handle:`, ex);
@@ -999,6 +1003,20 @@ export class Bridge {
             }
         }
         
+    }
+
+    private async getOrCreateAdminRoom(userId: string): Promise<AdminRoom> {
+        const existingRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+        if (existingRoom) {
+            return existingRoom;
+        }
+        // Otherwise, we need to create a room.
+        const roomId = await this.as.botClient.createRoom({
+            invite: [userId],
+            is_direct: true,
+            preset: "trusted_private_chat",
+        });
+        return this.setupAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
     }
 
     private async setupAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
