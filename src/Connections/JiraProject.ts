@@ -65,7 +65,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore) {
         const validData = validateJiraConnectionState(data);
         log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
-        const jiraClient = await tokenStore.getJiraForUser(userId);
+        const jiraClient = await tokenStore.getJiraForUser(userId, validData.url);
         if (!jiraClient) {
             throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
         }
@@ -93,7 +93,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     }
 
     public get instanceOrigin() {
-        return this.projectUrl?.origin;
+        return this.projectUrl?.host;
     }
 
     public get projectKey() {
@@ -115,7 +115,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         }
         if (this.instanceOrigin) {
             const url = new URL(project.self);
-            return this.instanceOrigin === url.origin && this.projectKey === project.key.toUpperCase();
+            return this.instanceOrigin === url.host && this.projectKey === project.key.toUpperCase();
         }
         return false;
     }
@@ -225,12 +225,12 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     }
 
     private async getUserClientForProject(userId: string) {
-        const jiraClient = await this.tokenStore.getJiraForUser(userId);
-        if (!jiraClient) {
-            throw new NotLoggedInError();
-        }
         if (!this.projectUrl) {
             throw new CommandError("No-resource-origin", "Room is configured with an ID and not a URL, cannot determine correct JIRA client");
+        }
+        const jiraClient = await this.tokenStore.getJiraForUser(userId, this.projectUrl.toString());
+        if (!jiraClient) {
+            throw new NotLoggedInError();
         }
         const jiraProjectClient = await jiraClient.getClientForUrl(this.projectUrl);
         if (!jiraProjectClient) {
@@ -268,24 +268,13 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
                     "issuetype": {
                         id: issueTypeId,
                     },
-                    ...( description ? {"description": {
-                        "type": "doc",
-                        "version": 1,
-                        "content": [
-                            {
-                                "type": "paragraph",
-                                "content": [
-                                    {
-                                        "text": description,
-                                        "type": "text"
-                                    }
-                                ]
-                            }
-                        ]
-                    }} : undefined),
+                    ...( description ? {description} : undefined),
                     ...( labels ? {"labels": labels.split(",")} : undefined),
                 }
-            })
+            });
+            if (!result) {
+                throw Error('Invalid result');
+            }
         } catch (ex) {
             log.warn("Failed to create JIRA issue:", ex);
             throw new CommandError(ex.message, "Failed to create JIRA issue");
@@ -304,7 +293,6 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     @botCommand("issue-types", "Get issue types for this project", [], [], true)
     public async getIssueTypes(userId: string) {
         const api = await this.getUserClientForProject(userId);
-        log.info(`Creating new issue on behalf of ${userId}`);
         let result: JiraProject;
         try {
             const keyOrId = this.projectKey || this.projectId;
@@ -337,9 +325,12 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         }
 
         log.info(`Assinging issue on behalf of ${userId}`);
-        const searchForUser = await api.searchUsers({query: user, maxResults: 1, includeInactive: false, includeActive: true, username: ""});
+        let searchForUser = await api.searchUsers({query: user, maxResults: 1});
         if (searchForUser.length === 0) {
-            throw new CommandError("not-found", `Could not find a user matching '${user}'`);
+            searchForUser = await api.searchUsers({username: user, maxResults: 1});
+            if (searchForUser.length === 0) {
+                throw new CommandError("not-found", `Could not find a user matching '${user}'`);
+            }
         }
         await api.updateAssigneeWithId(issueKey, searchForUser[0].accountId);
     }

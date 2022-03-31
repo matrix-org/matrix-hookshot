@@ -8,7 +8,8 @@ import { AppserviceMock } from "../utils/AppserviceMock";
 
 const ROOM_ID = "!foo:bar";
 
-const TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
+const V1TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
+const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}";
 
 function createGenericHook(state: GenericHookConnectionState = {
     name: "some-name"
@@ -46,9 +47,9 @@ describe("GenericHookConnection", () => {
             roomId: ROOM_ID,
             sender: connection.getUserId(),
             content: {
-                body: "Received webhook data:\n\n```{\n  \"simple\": \"data\"\n}```",
+                body: "Received webhook data:\n\n```json\n\n{\n  \"simple\": \"data\"\n}\n\n```",
                 format: "org.matrix.custom.html",
-                formatted_body: "Received webhook data:\n\n<code>{   &quot;simple&quot;: &quot;data&quot; }</code>",
+                formatted_body: "<p>Received webhook data:</p><p><pre><code class=\\\"language-json\\\">{\n  \"simple\": \"data\"\n}</code></pre></p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -100,18 +101,18 @@ describe("GenericHookConnection", () => {
             roomId: ROOM_ID,
             sender: connection.getUserId(),
             content: {
-                body: "**Bobs-integration**: Received webhook data:\n\n```{\n  \"username\": \"Bobs-integration\",\n  \"type\": 42\n}```",
+                body: "**Bobs-integration**: Received webhook data:\n\n```json\n\n{\n  \"username\": \"Bobs-integration\",\n  \"type\": 42\n}\n\n```",
                 format: "org.matrix.custom.html",
-                formatted_body: "<strong>Bobs-integration</strong>: Received webhook data:\n\n<code>{   &quot;username&quot;: &quot;Bobs-integration&quot;,   &quot;type&quot;: 42 }</code>",
+                formatted_body: "<strong>Bobs-integration</strong>: <p>Received webhook data:</p><p><pre><code class=\\\"language-json\\\">{\n  \"username\": \"Bobs-integration\",\n  \"type\": 42\n}</code></pre></p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
             type: 'm.room.message',
         });
     });
-    it("will handle a hook event with a transformation function", async () => {
+    it("will handle a hook event with a v1 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
-        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: TFFunction}, {
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V1TFFunction}, {
                 enabled: true,
                 urlPrefix: "https://example.com/webhookurl",
                 allowJsTransformationFunctions: true,
@@ -126,6 +127,29 @@ describe("GenericHookConnection", () => {
                 body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
                 format: "org.matrix.custom.html",
                 formatted_body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event with a v2 transformation function", async () => {
+        const webhookData = {question: 'What is the meaning of life?', answer: 42};
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
+                enabled: true,
+                urlPrefix: "https://example.com/webhookurl",
+                allowJsTransformationFunctions: true,
+            }
+        );
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "The answer to 'What is the meaning of life?' is 42",
+                format: "org.matrix.custom.html",
+                formatted_body: "The answer to 'What is the meaning of life?' is 42",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },

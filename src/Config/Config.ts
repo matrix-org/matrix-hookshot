@@ -1,6 +1,6 @@
 import YAML from "yaml";
 import { promises as fs } from "fs";
-import { IAppserviceRegistration, MatrixClient } from "matrix-bot-sdk";
+import { IAppserviceRegistration, LogLevel, MatrixClient } from "matrix-bot-sdk";
 import * as assert from "assert";
 import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
@@ -9,6 +9,14 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 
 const log = new LogWrapper("Config");
+
+export const ValidLogLevelStrings = [
+    LogLevel.ERROR.toString(),
+    LogLevel.WARN.toString(),
+    LogLevel.INFO.toString(),
+    LogLevel.DEBUG.toString(),
+    LogLevel.TRACE.toString(),
+].map(l => l.toLowerCase());
 
 // Maps to permission_level_to_int in permissions.rs
 export enum BridgePermissionLevel {
@@ -68,6 +76,75 @@ export class BridgeConfigGitHub {
     }
 }
 
+export interface BridgeConfigJiraCloudOAuth {
+    // eslint-disable-next-line camelcase
+    client_id: string;
+    // eslint-disable-next-line camelcase
+    client_secret: string;
+    // eslint-disable-next-line camelcase
+    redirect_uri: string;
+}
+
+export interface BridgeConfigJiraOnPremOAuth {
+    consumerKey: string;
+    privateKey: string;
+    // eslint-disable-next-line camelcase
+    redirect_uri: string;
+}
+
+export interface BridgeConfigJiraYAML {
+    webhook: {
+        secret: string;
+    };
+    url?: string,
+    oauth?: BridgeConfigJiraCloudOAuth|BridgeConfigJiraOnPremOAuth;
+
+}
+export class BridgeConfigJira implements BridgeConfigJiraYAML {
+    @configKey("Webhook settings for JIRA")
+    readonly webhook: {
+        secret: string;
+    };
+    
+    // To hide the undefined for now
+    @hideKey()
+    @configKey("URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)", true)
+    readonly url?: string;
+    @configKey("OAuth settings for connecting users to JIRA. See documentation for more information", true)
+    readonly oauth?: BridgeConfigJiraCloudOAuth|BridgeConfigJiraOnPremOAuth;
+
+    @hideKey()
+    readonly instanceUrl?: URL;
+
+    constructor(yaml: BridgeConfigJiraYAML) {
+        assert.ok(yaml.webhook);
+        assert.ok(yaml.webhook.secret);
+        this.webhook = yaml.webhook;
+        this.url = yaml.url;
+        this.instanceUrl = yaml.url !== undefined ? new URL(yaml.url) : undefined;
+
+        if (!yaml.oauth) {
+            return;
+        }
+        let oauth: BridgeConfigJiraCloudOAuth|BridgeConfigJiraOnPremOAuth;
+
+        assert.ok(yaml.oauth.redirect_uri);
+        // Validate oauth settings
+        if (this.url) {
+            // On-prem
+            oauth = yaml.oauth as BridgeConfigJiraOnPremOAuth;
+            assert.ok(oauth.consumerKey);
+            assert.ok(oauth.privateKey);
+        } else {
+            // Cloud
+            oauth = yaml.oauth as BridgeConfigJiraCloudOAuth;
+            assert.ok(oauth.client_id);
+            assert.ok(oauth.client_secret);
+        }
+        this.oauth = oauth;
+    }
+}
+
 export interface GitLabInstance {
     url: string;
     // oauth: {
@@ -94,25 +171,12 @@ export interface BridgeConfigFigma {
     }};
 }
 
-export interface BridgeConfigJira {
-    webhook: {
-        secret: string;
-    };
-    oauth: {
-        // eslint-disable-next-line camelcase
-        client_id: string;
-        // eslint-disable-next-line camelcase
-        client_secret: string;
-        // eslint-disable-next-line camelcase
-        redirect_uri: string;
-    };
-}
-
 export interface BridgeGenericWebhooksConfig {
     enabled: boolean;
     urlPrefix: string;
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
+    waitForComplete?: boolean;
 }
 
 interface BridgeWidgetConfigYAML {
@@ -158,8 +222,11 @@ interface BridgeConfigQueue {
     host?: string;
 }
 
-interface BridgeConfigLogging {
+export interface BridgeConfigLogging {
     level: string;
+    json?: boolean;
+    colorize?: boolean;
+    timestampFormat?: string;
 }
 
 interface BridgeConfigBot {
@@ -214,9 +281,11 @@ export class BridgeConfig {
     public readonly github?: BridgeConfigGitHub;
     @configKey("Configure this to enable GitLab support", true)
     public readonly gitlab?: BridgeConfigGitLab;
-    @configKey("Configure this to enable Jira support", true)
+    @configKey("Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)", true)
     public readonly jira?: BridgeConfigJira;
-    @configKey("Support for generic webhook events. `allowJsTransformationFunctions` will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments", true)
+    @configKey(`Support for generic webhook events.
+'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
+`, true)
     public readonly generic?: BridgeGenericWebhooksConfig;
     @configKey("Configure this to enable Figma support", true)
     public readonly figma?: BridgeConfigFigma;
@@ -250,7 +319,7 @@ export class BridgeConfig {
             this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab;
-        this.jira = configData.jira;
+        this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic;
         this.figma = configData.figma;
         this.provisioning = configData.provisioning;
@@ -260,10 +329,19 @@ export class BridgeConfig {
         this.queue = configData.queue || {
             monolithic: true,
         };
+
         this.logging = configData.logging || {
             level: "info",
         }
+
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
+    
+        // To allow DEBUG as well as debug
+        this.logging.level = this.logging.level.toLowerCase();
+        if (!ValidLogLevelStrings.includes(this.logging.level)) {
+            throw Error(`'logging.level' is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
+        }
+
         this.permissions = configData.permissions || [{
             actor: this.bridge.domain,
             services: [{
@@ -276,7 +354,6 @@ export class BridgeConfig {
         if (!configData.permissions) { 
             log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
         }
-
 
         if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
             throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma or generic hooks must be configured");
@@ -342,7 +419,7 @@ export class BridgeConfig {
         for(const roomEntry of permissionRooms) {
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
-            log.info(`Found ${membership.length} users for ${roomEntry}`);
+            log.debug(`Found ${membership.length} users for ${roomEntry}`);
         } 
     }
 

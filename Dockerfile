@@ -7,7 +7,7 @@ COPY . /src
 WORKDIR /src
 
 # We need rustup so we have a sensible rust version, the version packed with bullsye is too old
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal --target x86_64-unknown-linux-gnu
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459

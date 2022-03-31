@@ -1,17 +1,17 @@
 {
   "name": "matrix-hookshot",
-  "version": "1.1.0",
+  "version": "1.3.0",
   "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.",
   "main": "lib/app.js",
-  "repository": "https://github.com/Half-Shot/matrix-hookshot",
-  "author": "Half-Shot",
+  "repository": "https://github.com/matrix-org/matrix-hookshot",
+  "author": "matrix.org",
   "license": "Apache-2.0",
   "private": false,
   "napi": {
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=12"
+    "node": ">=14"
   },
   "scripts": {
     "build:web": "snowpack build",
@@ -56,7 +56,7 @@
     "source-map-support": "^0.5.21",
     "string-argv": "^0.3.1",
     "uuid": "^8.3.2",
-    "vm2": "^3.9.5",
+    "vm2": "^3.9.6",
     "winston": "^3.3.3",
     "yaml": "^1.10.2"
   },
@@ -75,7 +75,7 @@
     "@types/micromatch": "^4.0.1",
     "@types/mime": "^2.0.3",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^12",
+    "@types/node": "^14",
     "@types/node-emoji": "^1.8.1",
     "@types/uuid": "^8.3.3",
     "@typescript-eslint/eslint-plugin": "^5.4.0",

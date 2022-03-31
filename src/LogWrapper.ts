@@ -1,25 +1,67 @@
 import { LogLevel, LogService } from "matrix-bot-sdk";
 import util from "util";
-import winston from "winston";
+import winston, { format } from "winston";
+import { BridgeConfigLogging } from "./Config/Config";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type MsgType = string|Error|any|{error?: string};
+
+function isMessageNoise(messageOrObject: MsgType[]) {
+    const error = messageOrObject[0]?.error || messageOrObject[1]?.error ||messageOrObject[1]?.body?.error;
+    const errcode = messageOrObject[0]?.errcode || messageOrObject[1]?.errcode;
+    if (errcode === "M_NOT_FOUND" && error === "Room account data not found") {
+        return true;
+    }
+    if (errcode === "M_NOT_FOUND" && error === "Event not found.") {
+        return true;
+    }
+    if (errcode === "M_USER_IN_USE") {
+        return true;
+    }
+    return false;
+}
 export default class LogWrapper {
 
-    public static configureLogging(level: string) {
+    public static configureLogging(cfg: BridgeConfigLogging|string) {
+
+        if (typeof cfg === "string") {
+            cfg = { level: cfg };
+        }
+
+        const formatters = [
+            winston.format.timestamp({
+                format: cfg.timestampFormat || "HH:mm:ss:SSS",
+            }),
+            (format((info) => {
+                info.level = info.level.toUpperCase();
+                return info;
+            }))(),
+        ]
+
+        if (!cfg.json && cfg.colorize) {
+            formatters.push(
+                winston.format.colorize({
+                    level: true,
+                })
+            );
+        }
+
+        if (cfg.json) {
+            formatters.push(winston.format.json());
+        } else {
+            formatters.push(winston.format.printf(
+                (info) => {
+                    return `${info.level} ${info.timestamp} [${info.module}] ${info.message}`;
+                },
+            ));
+        }
+
+
         const log = winston.createLogger({
-            level,
+            level: cfg.level,
             transports: [
                 new winston.transports.Console({
-                    format: winston.format.combine(
-                        winston.format.timestamp({
-                            format: "HH:mm:ss:SSS",
-                        }),
-                        winston.format.printf(
-                        (info) => {
-                            return `${info.level.toUpperCase()} ${info.timestamp} [${info.module}] ${info.message}`;
-                        },
-                    )),
+                    format: winston.format.combine(...formatters),
                 }),
             ],
         });
@@ -45,16 +87,14 @@ export default class LogWrapper {
                 log.info(getMessageString(messageOrObject), { module });
             },
             warn: (module: string, ...messageOrObject: MsgType[]) => {
-                const error = messageOrObject[0].error || messageOrObject[1]?.body?.error;
-                if (error === "Room account data not found") {
+                if (isMessageNoise(messageOrObject)) {
                     log.debug(getMessageString(messageOrObject), { module });
                     return; // This is just noise :|
                 }
                 log.warn(getMessageString(messageOrObject), { module });
             },
             error: (module: string, ...messageOrObject: MsgType[]) => {
-                const error = messageOrObject[0].error || messageOrObject[1]?.body?.error;
-                if (error === "Room account data not found") {
+                if (isMessageNoise(messageOrObject)) {
                     log.debug(getMessageString(messageOrObject), { module });
                     return; // This is just noise :|
                 }
@@ -67,8 +107,8 @@ export default class LogWrapper {
                 log.verbose(getMessageString(messageOrObject), { module });
             },
         });
-        LogService.setLevel(LogLevel.fromString(level));
-        LogService.info("LogWrapper", "Reconfigured logging");
+        LogService.setLevel(LogLevel.fromString(cfg.level));
+        LogService.debug("LogWrapper", "Reconfigured logging");
     }
 
     constructor(private module: string) { }

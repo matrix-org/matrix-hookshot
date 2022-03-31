@@ -20,7 +20,7 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { NotificationsEnableEvent, NotificationsDisableEvent, GenericWebhookEvent } from "./Webhooks";
+import { NotificationsEnableEvent, NotificationsDisableEvent } from "./Webhooks";
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
@@ -38,6 +38,9 @@ import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
 import { getAppservice } from "./appservice";
+import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
+import { CLOUD_INSTANCE } from "./Jira/Client";
+import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -90,7 +93,7 @@ export class Bridge {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
                 joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
-                log.info(`Found ${joinedRooms.length} rooms`);
+                log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
                 log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
@@ -177,6 +180,10 @@ export class Bridge {
             return this.onRoomEvent(roomId, event);
         });
 
+        this.as.on("room.leave", async (roomId, event) => {
+            return this.onRoomLeave(roomId, event);
+        });
+
         this.as.on("room.join", async (roomId, event) => {
             return this.onRoomJoin(roomId, event);
         });
@@ -261,10 +268,15 @@ export class Bridge {
             (c, data) => c.onIssueStateChange(data),
         );
 
-        this.bindHandlerToQueue<GitHubWebhookTypes.IssuesEditedEvent, GitHubRepoConnection>(
-            "github.issues.edited",
+        this.bindHandlerToQueue<GitHubWebhookTypes.IssuesUnlabeledEvent, GitHubRepoConnection>(
+            "github.issues.unlabeled",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
-            (c, data) => c.onIssueEdited(data),
+            (c, data) => c.onIssueUnlabeled(data),
+        );
+        this.bindHandlerToQueue<GitHubWebhookTypes.IssuesLabeledEvent, GitHubRepoConnection>(
+            "github.issues.labeled",
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (c, data) => c.onIssueLabeled(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestOpenedEvent, GitHubRepoConnection>(
@@ -301,6 +313,12 @@ export class Bridge {
             "gitlab.merge_request.open",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
             (c, data) => c.onMergeRequestOpened(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.close",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onMergeRequestClosed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
@@ -443,40 +461,97 @@ export class Bridge {
             (c, data) => c.onJiraIssueUpdated(data),
         );
     
-        this.queue.on<OAuthRequest>("jira.oauth.response", async (msg) => {
+        this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
+            if (!this.config.jira || !this.tokenStore.jiraOAuth) {
+                throw Error('Cannot handle, JIRA oauth support not enabled');
+            }
+            let result: JiraOAuthRequestResult;
             const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
-            await this.queue.push<boolean>({
-                data: !!(userId),
+            if (!userId) {
+                return this.queue.push<JiraOAuthRequestResult>({
+                    data: JiraOAuthRequestResult.UserNotFound,
+                    sender: "Bridge",
+                    messageId: msg.messageId,
+                    eventName: "response.jira.oauth.response",
+                });
+            }
+            try {
+                let tokenInfo: JiraOAuthResult;
+                let instance;
+                if ("code" in msg.data) {
+                    tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.code);
+                    instance = CLOUD_INSTANCE;
+                } else {
+                    tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
+                    instance = new URL(this.config.jira.url!).host;
+                }
+                await this.tokenStore.storeJiraToken(userId, {
+                    access_token: tokenInfo.access_token,
+                    refresh_token: tokenInfo.refresh_token,
+                    instance,
+                    expires_in: tokenInfo.expires_in,
+                });
+
+                // Some users won't have an admin room and would have gone through provisioning.
+                const adminRoom = this.adminRooms.get(userId);
+                if (adminRoom) {
+                    await adminRoom.sendNotice(`Logged into Jira`);
+                }
+                result = JiraOAuthRequestResult.Success;
+            } catch (ex) {
+                log.warn(`Failed to handle JIRA oauth token exchange`, ex);
+                result = JiraOAuthRequestResult.UnknownFailure;
+            }
+            await this.queue.push<JiraOAuthRequestResult>({
+                data: result,
                 sender: "Bridge",
                 messageId: msg.messageId,
                 eventName: "response.jira.oauth.response",
             });
+
         });
+        
+        this.queue.on<GenericWebhookEvent>("generic-webhook.event", async (msg) => {
+            const { data, messageId } = msg;
+            const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
+            log.debug(`generic-webhook.event for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
 
-        this.queue.on<JiraOAuthResult>("jira.oauth.tokens", async ({data}) => {
-            if (!data.state) {
-                log.warn("Missing `state` on `jira.oauth.tokens` event. This shouldn't happen!");
-                return;
+            if (!connections.length) {
+                await this.queue.push<GenericWebhookEventResult>({
+                    data: {notFound: true},
+                    sender: "Bridge",
+                    messageId: messageId,
+                    eventName: "response.generic-webhook.event",
+                });
             }
-            const userId = this.tokenStore.getUserIdForOAuthState(data.state);
-            if (!userId) {
-                log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
-                return;
-            }
-            await this.tokenStore.storeUserToken("jira", userId, JSON.stringify(data));
 
-            // Some users won't have an admin room and would have gone through provisioning.
-            const adminRoom = this.adminRooms.get(userId);
-            if (adminRoom) {
-                await adminRoom.sendNotice(`Logged into Jira`);
+            const promises = Promise.all(connections.map(async (c, index) => {
+                // TODO: Support webhook responses to more than one room
+                if (index !== 0) {
+                    await c.onGenericHook(data.hookData);
+                    return;
+                }
+                let successful: boolean|null = null;
+                if (this.config.generic?.waitForComplete) {
+                    successful = await c.onGenericHook(data.hookData);
+                }
+                await this.queue.push<GenericWebhookEventResult>({
+                    data: {successful},
+                    sender: "Bridge",
+                    messageId,
+                    eventName: "response.generic-webhook.event",
+                });
+                if (!this.config.generic?.waitForComplete) {
+                    await c.onGenericHook(data.hookData);
+                }
+            }));
+            
+            try {
+                await promises;
+            } catch (ex) {
+                log.warn(`Failed to handle generic webhooks(s)`, ex);
             }
         });
-
-        this.bindHandlerToQueue<GenericWebhookEvent, GenericHookConnection>(
-            "generic-webhook.event",
-            (data) => connManager.getConnectionsForGenericWebhook(data.hookId), 
-            (c, data) => c.onGenericHook(data.hookData),
-        );
 
         this.bindHandlerToQueue<FigmaEvent, FigmaFileConnection>(
             "figma.payload",
@@ -506,16 +581,10 @@ export class Bridge {
 
         await Promise.all(joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
-            let connections: IConnection[];
             try {
-                connections = await connManager.createConnectionsForRoomId(roomId);
+                await connManager.createConnectionsForRoomId(roomId);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
-                return;
-            }
-            if (connections.length) {
-                log.info(`Room ${roomId} is connected to: ${connections.join(',')}`);
-                connManager.push(...connections);
                 return;
             }
 
@@ -555,7 +624,7 @@ export class Bridge {
                 const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
-                log.info(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
+                log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
             } catch (ex) {
                 log.error(`Failed to setup admin room ${roomId}:`, ex);
             }
@@ -580,19 +649,19 @@ export class Bridge {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
         await this.as.begin();
-        log.info("Started bridge");
+        log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;
     }
 
-    private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>) {
+    private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
         this.queue.on<EventType>(event, (msg) => {
             const connections = connectionFetcher.bind(this)(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
-            connections.forEach(async (c) => {
+            connections.forEach(async (connection) => {
                 try {
-                    await handler(c, msg.data);
+                    await handler(connection, msg.data);
                 } catch (ex) {
-                    log.warn(`Connection ${c.toString()} failed to handle ${event}:`, ex);
+                    log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
                 }
             })
         });
@@ -617,6 +686,20 @@ export class Bridge {
         }
     }
 
+
+    private async onRoomLeave(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
+        if (event.state_key !== this.as.botUserId) {
+            // Only interested in bot leaves.
+            return;
+        }
+        // If the bot has left the room, we want to vape all connections for that room.
+        try {
+            await this.connectionManager?.removeConnectionsForRoom(roomId);
+        } catch (ex) {
+            log.warn(`Failed to remove connections on leave for ${roomId}`);
+        }
+    }
+
     private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
         if (!this.connectionManager) {
             // Not ready yet.
@@ -632,8 +715,14 @@ export class Bridge {
         }
         log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
         log.debug("Content:", JSON.stringify(event));
-        const processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
-        const processedReplyMetadata: IRichReplyMetadata = processedReply?.mx_richreply;
+        let processedReply: any;
+        let processedReplyMetadata: IRichReplyMetadata|undefined = undefined;
+        try {
+            processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
+            processedReplyMetadata = processedReply?.mx_richreply;
+        } catch (ex) {
+            log.warn(`Event ${event.event_id} could not be processed by the reply processor, possibly a faulty event`);
+        }
         const adminRoom = this.adminRooms.get(roomId);
         const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(event.sender, service, level);
 
@@ -665,7 +754,7 @@ export class Bridge {
             return;
         }
 
-        if (processedReply) {
+        if (processedReply && processedReplyMetadata) {
             log.info(`Handling reply to ${processedReplyMetadata.parentEventId} for ${adminRoom.userId}`);
             // This might be a reply to a notification
             try {
@@ -710,8 +799,7 @@ export class Bridge {
 
         // Only fetch rooms we have no connections in yet.
         if (!this.connectionManager.isRoomConnected(roomId)) {
-            const connections = await this.connectionManager.createConnectionsForRoomId(roomId);
-            this.connectionManager.push(...connections);
+            await this.connectionManager.createConnectionsForRoomId(roomId);
         }
     }
 
@@ -729,8 +817,9 @@ export class Bridge {
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             for (const connection of existingConnections) {
                 try {
-                    if (event.content.disabled === true) {
-                        await this.connectionManager.removeConnection(connection.roomId, connection.connectionId);
+                    // Empty object == redacted
+                    if (event.content.disabled === true || Object.keys(event.content).length === 0) {
+                        await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
                     } else {
                         connection.onStateUpdate?.(event);
                     }
@@ -949,7 +1038,7 @@ export class Bridge {
         if (this.config.widgets?.addToAdminRooms) {
             await adminRoom.setupWidget();
         }
-        log.info(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
+        log.debug(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
     }
 }

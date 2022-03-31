@@ -27,6 +27,10 @@ export class ConnectionManager {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
 
+    public get size() {
+        return this.connections.length;
+    }
+
     constructor(
         private readonly as: Appservice,
         private readonly config: BridgeConfig,
@@ -129,7 +133,8 @@ export class ConnectionManager {
     }
 
     public async createConnectionForState(roomId: string, state: StateEvent<any>) {
-        if (state.content.disabled === true) {
+        // Empty object == redacted
+        if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
@@ -261,18 +266,19 @@ export class ConnectionManager {
         return;
     }
 
-    public async createConnectionsForRoomId(roomId: string): Promise<IConnection[]> {
+    public async createConnectionsForRoomId(roomId: string) {
         const state = await this.as.botClient.getRoomState(roomId);
-        const connections: IConnection[] = [];
         for (const event of state) {
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event));
-                if (conn) { this.push(conn); }
+                if (conn) {
+                    log.debug(`Room ${roomId} is connected to: ${conn}`);
+                    this.push(conn);
+                }
             } catch (ex) {
                 log.warn(`Failed to create connection for ${roomId}:`, ex);
             }
         }
-        return connections;
     }
 
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
@@ -383,12 +389,12 @@ export class ConnectionManager {
         return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
     }
 
-    public async removeConnection(roomId: string, connectionId: string) {
-        const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId);
+    public async purgeConnection(roomId: string, connectionId: string, requireNoRemoveHandler = true) {
+        const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId == roomId);
         if (!connection) {
             throw Error("Connection not found");
         }
-        if (!connection.onRemove) {
+        if (requireNoRemoveHandler && !connection.onRemove) {
             throw Error("Connection doesn't support removal, and so cannot be safely removed");
         }
         await connection.onRemove?.();
@@ -398,6 +404,16 @@ export class ConnectionManager {
             log.info(`No more connections in ${roomId}, leaving room`);
             await this.as.botIntent.leaveRoom(roomId);
         }
+    }
+
+    /**
+     * Removes connections for a room from memory. This does NOT remove the state
+     * event from the room.
+     * @param roomId 
+     */
+    public async removeConnectionsForRoom(roomId: string) {
+        log.info(`Removing all connections from ${roomId}`);
+        this.connections = this.connections.filter((c) => c.roomId !== roomId);
     }
 
     public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {

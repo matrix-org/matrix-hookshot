@@ -29,6 +29,13 @@ export interface GenericHookAccountData {
     [hookId: string]: string;
 }
 
+interface WebhookTransformationResult {
+    version: string;
+    plain?: string;
+    html?: string;
+    empty?: boolean;
+}
+
 const log = new LogWrapper("GenericHookConnection");
 const md = new markdownit();
 
@@ -137,6 +144,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             return;
         }
         const sender = this.getUserId();
+        if (sender === this.as.botUserId) {
+            // Don't set the global displayname for the bot.
+            return;   
+        }
         const intent = this.as.getIntentForUserId(sender);
         const expectedDisplayname = `${this.state.name} (Webhook)`;
 
@@ -167,68 +178,116 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         this.state = validatedConfig;
     }
 
-    public transformHookData(data: Record<string, unknown>): {plain: string, html?: string} {
+    public transformHookData(data: unknown): {plain: string, html?: string} {
         // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
         const msg: {plain: string, html?: string} = {plain: ""};
-        if (typeof data.text === "string") {
-            msg.plain += data.text;
+        const safeData = typeof data === "object" && data !== null ? data as Record<string, unknown> : undefined;
+        if (typeof data === "string") {
+            return {plain: `Received webhook data: ${data}`};
+        } else if (typeof safeData?.text === "string") {
+            msg.plain = safeData.text;
         } else {
-            msg.plain += `Received webhook data:\n\n\`\`\`${JSON.stringify(data, undefined, 2)}\`\`\``;
+            msg.plain = "Received webhook data:\n\n" + "```json\n\n" + JSON.stringify(data, null, 2) + "\n\n```";
+            msg.html = `<p>Received webhook data:</p><p><pre><code class=\\"language-json\\">${JSON.stringify(data, null, 2)}</code></pre></p>`
         }
 
-        if (typeof data.html === "string") {
-            msg.html = data.html;
+        if (typeof safeData?.html === "string") {
+            msg.html = safeData.html;
         }
 
-        if (typeof data.username === "string") {
+        if (typeof safeData?.username === "string") {
             // Create a matrix user for this person
-            msg.plain = `**${data.username}**: ${msg.plain}`
+            msg.plain = `**${safeData.username}**: ${msg.plain}`
             if (msg.html) {
-                msg.html = `<strong>${data.username}</strong>: ${msg.html}`;
+                msg.html = `<strong>${safeData.username}</strong>: ${msg.html}`;
             }
         }
         // TODO: Transform Slackdown into markdown.
         return msg;
     }
 
-    public async onGenericHook(data: Record<string, unknown>) {
+    public executeTransformationFunction(data: unknown): {plain: string, html?: string}|null {
+        if (!this.transformationFunction) {
+            throw Error('Transformation function not defined');
+        }
+        const vm = new NodeVM({
+            console: 'off',
+            wrapper: 'none',
+            wasm: false,
+            eval: false,
+            timeout: TRANSFORMATION_TIMEOUT_MS,
+        });
+        vm.setGlobal('HookshotApiVersion', 'v2');
+        vm.setGlobal('data', data);
+        vm.run(this.transformationFunction);
+        const result = vm.getGlobal('result');
+
+        // Legacy v1 api
+        if (typeof result === "string") {
+            return {plain: `Received webhook: ${result}`};
+        } else if (typeof result !== "object") {
+            return {plain: `No content`};
+        }
+        const transformationResult = result as WebhookTransformationResult;
+        if (transformationResult.version !== "v2") {
+            throw Error("Result returned from transformation didn't specify version = v2");
+        }
+
+        if (transformationResult.empty) {
+            return null; // No-op
+        }
+
+        const plain = transformationResult.plain;
+        if (typeof plain !== "string") {
+            throw Error("Result returned from transformation didn't provide a string value for plain");
+        }
+        if (transformationResult.html && typeof transformationResult.html !== "string") {
+            throw Error("Result returned from transformation didn't provide a string value for html");
+        }
+
+        return {
+            plain: plain,
+            html: transformationResult.html,
+        }
+    }
+
+    /**
+     * Processes an incoming generic hook
+     * @param data Structured data. This may either be a string, or an object.
+     * @returns `true` if the webhook completed, or `false` if it failed to complete 
+     */
+    public async onGenericHook(data: unknown): Promise<boolean> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string};
+        let success = true;
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
         } else {
             try {
-                const vm = new NodeVM({
-                    console: 'off',
-                    wrapper: 'none',
-                    wasm: false,
-                    eval: false,
-                    timeout: TRANSFORMATION_TIMEOUT_MS,
-                });
-                vm.setGlobal('data', data);
-                vm.run(this.transformationFunction);
-                content = vm.getGlobal('result');
-                if (typeof content === "string") {
-                    content = {plain: `Received webhook: ${content}`};
-                } else {
-                    content = {plain: `No content`};
+                const potentialContent = this.executeTransformationFunction(data);
+                if (potentialContent === null) {
+                    // Explitly no action
+                    return true;
                 }
+                content = potentialContent;
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
                 content = {plain: `Webhook received but failed to process via transformation function`};
+                success = false;
             }
         }
 
         const sender = this.getUserId();
         await this.ensureDisplayname();
 
-        return this.messageClient.sendMatrixMessage(this.roomId, {
+        await this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: "m.notice",
             body: content.plain,
             formatted_body: content.html || md.renderInline(content.plain),
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": data,
         }, 'm.room.message', sender);
+        return success;
 
     }
 

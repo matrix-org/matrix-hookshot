@@ -1,7 +1,7 @@
 [tool.towncrier]
     filename = "CHANGELOG.md"
     directory = "changelog.d"
-    issue_format = "[\\#{issue}](https://github.com/half-shot/matrix-hookshot/issues/{issue})"
+    issue_format = "[\\#{issue}](https://github.com/matrix-org/matrix-hookshot/issues/{issue})"
 
     [[tool.towncrier.type]]
         directory = "feature"

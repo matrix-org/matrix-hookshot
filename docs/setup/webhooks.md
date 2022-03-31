@@ -12,13 +12,39 @@ generic:
   enabled: true
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
+  waitForComplete: false
+  # userIdPrefix: webhook_
 ```
+
+<section class="notice">
+Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work,
+administators are advised to use `/webhook`.
+</section>
+
+The webhooks listener listens on the path `/webhook`.
 
 The bridge listens for incoming webhooks requests on the host and port provided in the [`listeners` config](../setup.md#listeners-configuration).
 
 `urlPrefix` describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
-webhook requests from `https://example.com/mywebhookspath` to the bridge an example webhook URL would look like:
+webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/webhook`), an example webhook URL would look like:
 `https://example.com/mywebhookspath/abcdef`.
+
+`waitForComplete` causes the bridge to wait until the webhook is processed before sending a response. Some services prefer you always
+respond with a 200 as soon as the webhook has entered processing (`false`) while others prefer to know if the resulting Matrix message
+has been sent (`true`). By default this is `false`.
+
+You may set a `userIdPrefix` to create a specific user for each new webhook connection in a room. For example, a connection with a name
+like `example` for a prefix of `webhook_` will create a user called `@webhook_example:example.com`. If you enable this option,
+you need to configure the user to be part of your registration file e.g.:
+
+```yaml
+# registration.yaml
+...
+namespaces:
+  users:
+    - regex: "@webhook_.+:example.com" # Where example.com is your domain name.
+      exclusive: true
+```
 
 ## Adding a webhook
 
@@ -64,14 +90,50 @@ The script string should be set within the state event under the `transformation
 
 ### Script API
 
-The scripts have a very minimal API. The execution environment will contain a `data` field, which will be the body
-of the incoming request (JSON will be parsed into an `Object`). Scripts are executed syncronously and a variable `result`
-is expected to be set in the execution, which will be used as the text value for the script. `result` will be automatically
-transformed by a Markdown parser.
+Transformation scripts have a versioned API. You can check the version of the API that the hookshot instance supports
+at runtime by checking the `HookshotApiVersion` variable. If the variable is undefined, it should be considered `v1`.
 
-If the script contains errors or is otherwise unable to work, the bridge will send an error to the room.
+The execution environment will contain a `data` variable, which will be the body of the incoming request (JSON will be parsed into an `Object`).
+Scripts are executed syncronously and expect the `result` variable to be set.
 
-### Example script
+If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
+for a more precise error.
+
+### V2 API
+
+The `v2` api expects an object to be returned from the `result` variable.
+
+```json5
+{
+  "version": "v2" // The version of the schema being returned from the function. This is always "v2".
+  "empty": true|false, // Should the webhook be ignored and no output returned. The default is false (plain must be provided).
+  "plain": "Some text", // The plaintext value to be used for the Matrix message.
+  "html": "<b>Some</b> text", // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
+}
+```
+
+#### Example script
+
+Where `data` = `{"counter": 5, "maxValue": 4}`
+
+```js
+if (data.counter === undefined) {
+  // The API didn't give us a counter, send no message.
+  result = {empty: true, version: "v2"};
+} else if (data.counter > data.maxValue) {
+    result = {plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`, version: "v2"};
+} else {
+    result = {plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`, version: "v2"};
+}
+```
+
+
+### V1 API
+
+The v1 API expects `result` to be a string. The string will be automatically transformed into markdown. All webhook messages
+will be prefix'd with `Received webhook:`. If `result` is falsey (undefined, false or null) then the message will be `No content`.
+
+#### Example script
 
 Where `data` = `{"counter": 5, "maxValue": 4}`
 

@@ -14,6 +14,8 @@ export interface FigmaFileConnectionState {
     instanceName?: string;
 }
 
+const THREAD_RELATION_TYPE = "m.thread";
+
 const md = markdownit();
 export class FigmaFileConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.figma.file";
@@ -69,24 +71,43 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         const comment = payload.comment.map(({text}) => text).join("\n");
         const empty = "‎"; // This contains an empty character to thwart the notification matcher.
         const name = payload.triggered_by.handle.split(' ').map(p => p[0] + empty + p.slice(1)).join(' ');
-        const parentEventId = await this.storage.getFigmaCommentEventId(this.roomId, payload.parent_id);
-        let content;
+        let content: Record<string, unknown>|undefined = undefined;
+        const parentEventId = payload.parent_id && await this.storage.getFigmaCommentEventId(this.roomId, payload.parent_id);
         if (parentEventId) {
-            const parentEvent = intent.underlyingClient.getEvent(this.roomId, parentEventId);
-            const body = `**${name}**: ${comment}`;
-            content = RichReply.createFor(this.roomId, parentEvent, body, md.renderInline(body));
-            content["msgtype"] = "m.notice";
+            content = { 
+                "m.relates_to": {
+                    rel_type: THREAD_RELATION_TYPE,
+                    event_id: parentEventId,
+                    // Needed to prevent clients from showing these as actual replies
+                    is_falling_back: true,
+                    "m.in_reply_to": {
+                        event_id: parentEventId,
+                    }
+                },
+                body: `**${name}**: ${comment}`,
+                formatted_body: `<strong>${name}</strong>: ${comment}`,
+                format: "org.matrix.custom.html",
+                msgtype: "m.notice",
+                "uk.half-shot.matrix-hookshot.figma.comment_id": payload.comment_id,
+            }
         } else {
+            // Root event.
             const body = `**${name}** [commented](${permalink}) on [${payload.file_name}](https://www.figma.com/file/${payload.file_key}): ${comment}`;
             content = {
-                "msgtype": "m.notice",
-                "body": body,
-                "formatted_body": md.renderInline(body),
-                "format": "org.matrix.custom.html"
+                msgtype: "m.notice",
+                body: body,
+                formatted_body: md.renderInline(body),
+                format: "org.matrix.custom.html",
+                "uk.half-shot.matrix-hookshot.figma.comment_id": payload.comment_id,
             };
         }
         content["uk.half-shot.matrix-hookshot.figma.comment_id"] = payload.comment_id;
         const eventId = await intent.sendEvent(this.roomId, content);
+        log.info(`New figma comment ${payload.comment_id} -> ${this.roomId}/${eventId}`)
         await this.storage.setFigmaCommentEventId(this.roomId, payload.comment_id, eventId);
+    }
+
+    public toString() {
+        return `FigmaFileConnection ${this.instanceName}/${this.fileId || "*"}`;
     }
 }

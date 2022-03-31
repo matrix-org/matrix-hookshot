@@ -19,6 +19,9 @@ export const DefaultConfig = new BridgeConfig({
     },
     logging: {
         level: "info",
+        colorize: true,
+        json: false,
+        timestampFormat: "HH:mm:ss:SSS",
     },
     permissions: [{
         actor: "example.com",
@@ -75,9 +78,9 @@ export const DefaultConfig = new BridgeConfig({
     },
     generic: {
         enabled: false,
-        urlPrefix: "https://example.com/mywebhookspath/",
+        urlPrefix: "https://example.com/webhook/",
         allowJsTransformationFunctions: false,
-        userIdPrefix: "webhooks_",
+        waitForComplete: false,
     },
     figma: {
         publicUrl: "https://example.com/hookshot/",

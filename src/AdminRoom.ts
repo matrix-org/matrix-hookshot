@@ -381,37 +381,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice("A token is stored for your GitLab account.");
     }
 
-    @botCommand("gitlab notifications toggle", {help: "Toggle enabling/disabling GitHub notifications in this room", optionalArgs: ["instanceName"], category: "gitlab"})
-    public async setGitLabNotificationsStateToggle(instanceName: string) {
-        if (!this.config.gitlab) {
-            return this.sendNotice("The bridge is not configured with GitLab support");
-        }
-        const instance = this.config.gitlab.instances[instanceName];
-        if (!instance) {
-            return this.sendNotice("The bridge is not configured for this GitLab instance");
-        }
-        const hasClient = await this.tokenStore.getGitLabForUser(this.userId, instance.url);
-        if (!hasClient) {
-            return this.sendNotice("You do not have a GitLab token configured for this instance");
-        }
-        let newValue = false;
-        await this.saveAccountData((data) => {
-            const currentNotifs = (data.gitlab || {})[instanceName].notifications;
-            newValue = !currentNotifs.enabled;
-            return {
-                ...data,
-                gitlab: {
-                    [instanceName]: {
-                        notifications: {
-                            enabled: newValue,
-                        },
-                    }
-                },
-            };
-        });
-        return this.sendNotice(`${newValue ? "En" : "Dis"}abled GitLab notifications for ${instanceName}`);
-    }
-
     @botCommand("filters list", "List your saved filters")
     public async getFilters() {
         if (this.notifFilter.empty) {

@@ -135,8 +135,24 @@ export class GitLabRepoConnection extends CommandConnection {
         });
     }
 
+    public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
+        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        if (this.shouldSkipHook('merge_request.close') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        this.validateMREvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = `**${event.user.username}** closed MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
@@ -223,7 +239,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public toString() {
-        return `GitLabRepo ${this.instance}/${this.path}`;
+        return `GitLabRepo ${this.instance.url}/${this.path}`;
     }
 
     public matchesLabelFilter(itemWithLabels: {labels?: {title: string}[]}): boolean {

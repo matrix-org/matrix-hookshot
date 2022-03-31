@@ -4,7 +4,6 @@ import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import LogWrapper from "./LogWrapper";
 import qs from "querystring";
-import { Server } from "http";
 import axios from "axios";
 import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
@@ -14,12 +13,9 @@ import { OAuthRequest } from "./WebhookTypes";
 import { GitHubOAuthTokenResponse } from "./Github/Types";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
-const log = new LogWrapper("GithubWebhooks");
+import { GenericWebhooksRouter } from "./generic/Router";
 
-export interface GenericWebhookEvent {
-    hookData: Record<string, unknown>;
-    hookId: string;
-}
+const log = new LogWrapper("Webhooks");
 
 export interface NotificationsEnableEvent {
     userId: string;
@@ -38,6 +34,7 @@ export interface NotificationsDisableEvent {
 }
 
 export class Webhooks extends EventEmitter {
+    
     public readonly expressRouter = Router();
     private queue: MessageQueue;
     private ghWebhooks?: OctokitWebhooks;
@@ -58,16 +55,16 @@ export class Webhooks extends EventEmitter {
         this.expressRouter.get("/oauth", this.onGitHubGetOauth.bind(this));
         this.queue = createMessageQueue(config);
         if (this.config.jira) {
-            this.expressRouter.use("/jira", new JiraWebhooksRouter(this.config.jira, this.queue).getRouter());
+            this.expressRouter.use("/jira", new JiraWebhooksRouter(this.queue).getRouter());
         }
         if (this.config.figma) {
             this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
         }
-        this.expressRouter.all(
-            '/:hookId',
-            express.json({ type: ['application/json', 'application/x-www-form-urlencoded'] }),
-            this.onGenericPayload.bind(this),
-        );
+        if (this.config.generic) {
+            this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue).getRouter());
+            // TODO: Remove old deprecated endpoint
+            this.expressRouter.use(new GenericWebhooksRouter(this.queue, true).getRouter());
+        }
         this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),
         }));
@@ -79,7 +76,6 @@ export class Webhooks extends EventEmitter {
             this.queue.stop();
         }
     }
-
 
     private onGitLabPayload(body: IGitLabWebhookEvent) {
         log.info(`onGitLabPayload ${body.event_type}:`, body);
@@ -120,34 +116,7 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private onGenericPayload(req: Request, res: Response) {
-        if (!['PUT', 'GET', 'POST'].includes(req.method)) {
-            res.sendStatus(400).send({error: 'Wrong METHOD. Expecting PUT,GET,POST'});
-            return;
-        }
-
-        let body;
-        if (req.method === 'GET') {
-            body = req.query;
-        } else {
-            body = req.body;
-        }
-
-        res.sendStatus(200);
-        this.queue.push({
-            eventName: 'generic-webhook.event',
-            sender: "GithubWebhooks",
-            data: {
-                hookData: body,
-                hookId: req.params.hookId,
-            } as GenericWebhookEvent,
-        }).catch((err) => {
-            log.error(`Failed to emit payload: ${err}`);
-        });
-    }
-
     private onPayload(req: Request, res: Response) {
-        log.info(`New webhook: ${req.url}`);
         try {
             let eventName: string|null = null;
             const body = req.body;
@@ -171,7 +140,7 @@ export class Webhooks extends EventEmitter {
             } else if (req.headers['x-gitlab-token']) {
                 res.sendStatus(200);
                 eventName = this.onGitLabPayload(body);
-            } else if (req.headers['x-atlassian-webhook-identifier']) {
+            } else if (JiraWebhooksRouter.IsJIRARequest(req)) {
                 res.sendStatus(200);
                 eventName = this.onJiraPayload(body);
             }
@@ -260,7 +229,7 @@ export class Webhooks extends EventEmitter {
             // GitHub
             // Verified within handler.
             return true;
-        } else if (req.headers['x-atlassian-webhook-identifier']) {
+        } else if (JiraWebhooksRouter.IsJIRARequest(req)) {
             // JIRA
             if (!this.config.jira) {
                 log.error("Got a JIRA webhook, but the bridge is not set up for it.");

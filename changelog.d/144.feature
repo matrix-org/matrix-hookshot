@@ -1,1 +1,0 @@
-Automatically append the last comment on a closed GitHub issue notification, if the comment was made when the issue was closed.
