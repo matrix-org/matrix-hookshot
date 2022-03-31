@@ -3,6 +3,11 @@
 :root {
   --background-color: #f2f5f8;
   --foreground-color: #111111;
+  --universal-border-radius: 7px;
+  --button-back-color: #0dbd8b;
+  --button-hover-back-color: #0dbd8b;
+  --button-fore-color: #f2f5f8;
+  --universal-padding: 7px;
 }
 
 // @media (prefers-color-scheme: dark) {
@@ -18,4 +23,15 @@
   height: 100vh;
   width: 100vw;
   font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
+}
+
+.app {
+  padding: 10px;
+}
+
+
+
+button {
+  font-weight: 600;
+  margin-right: 8px;
 }

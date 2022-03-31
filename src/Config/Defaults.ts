@@ -34,6 +34,7 @@ export const DefaultConfig = new BridgeConfig({
     widgets: {
         publicUrl: "https://example.com/bridge_widget/",
         addToAdminRooms: true,
+        roomSetupWidget: false,
     },
     bot: {
         displayname: "GitHub Bot",

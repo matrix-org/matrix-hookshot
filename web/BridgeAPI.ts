@@ -1,5 +1,7 @@
-import { BridgeRoomState, UserSearchResults, WidgetConfigurationOptions, WidgetConfigurationType } from '../src/Widgets/BridgeWidgetInterface';
-
+import { BridgeRoomState, UserSearchResults, WidgetConfigurationSection } from '../src/Widgets/BridgeWidgetInterface';
+import { GetConnectionsResponseItem } from "../src/provisioning/api";
+import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
+import { WidgetApi } from 'matrix-widget-api';
 export class BridgeAPIError extends Error {
     constructor(msg: string, private body: Record<string, unknown>) {
         super(msg);
@@ -8,9 +10,54 @@ export class BridgeAPIError extends Error {
 
 export default class BridgeAPI {
 
-    constructor(private readonly baseUrl: string, private readonly accessToken: string) {}
+    static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi): Promise<BridgeAPI> {
+        const sessionToken = localStorage.getItem('hookshot-sessionToken');
+        baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+        if (sessionToken) {
+            const client = new BridgeAPI(baseUrl, sessionToken);
+            try {
+                await client.verify();
+                return client;
+            } catch (ex) {
+                // Clear the token from the server, also actually check the error here.
+                console.warn(`Failed to verify token, fetching new token`, ex);
+                localStorage.removeItem(sessionToken);
+            }
+        }
+        const creds = await widgetApi.requestOpenIDConnectToken();
+        const { matrix_server_name, access_token } = creds;
+        // eslint-disable-next-line camelcase
+        if (!matrix_server_name || !access_token) {
+            throw Error('Server OpenID response missing values');
+        }
+
+        const req = await fetch(`${baseUrl}/widgetapi/v1/exchange_openid`, {
+            cache: 'no-cache',
+            method: 'POST',
+            body: JSON.stringify({
+                // eslint-disable-next-line camelcase
+                matrixServer: matrix_server_name,
+                // eslint-disable-next-line camelcase
+                openIdToken: access_token,
+            } as ExchangeOpenAPIRequestBody),
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (req.status !== 200) {
+            throw Error(`Response was not 200: ${await req.text()}`);
+        }
+        const response = await req.json() as ExchangeOpenAPIResponseBody;
+        localStorage.setItem('hookshot-sessionToken', response.token);
+        return new BridgeAPI(baseUrl, response.token);
+    }
+
+    private constructor(private readonly baseUrl: string, private readonly accessToken?: string) {
+        this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+    }
 
     async request(method: string, endpoint: string, body?: unknown) {
+        
         const req = await fetch(`${this.baseUrl}${endpoint}`, {
             cache: 'no-cache',
             method,
@@ -30,8 +77,8 @@ export default class BridgeAPI {
         throw new BridgeAPIError(resultBody?.error || 'Request failed', resultBody);
     }
 
-    async verify() {
-        return this.request('GET', `/widgetapi/v1/verify`);
+    async verify(): Promise<{ userId: string, type: "widget" }> {
+        return this.request('GET', `/widgetapi/v1/session`);
     }
 
     async state(): Promise<BridgeRoomState> {
@@ -42,8 +89,12 @@ export default class BridgeAPI {
         return this.request('GET', '/widgetapi/v1/config/sections');
     }
 
-    async getConfig(section: string): Promise<WidgetConfigurationOptions> {
+    async getConfig(section: string): Promise<WidgetConfigurationSection[]> {
         return this.request('GET', `/widgetapi/v1/config/${section}`);
+    }
+    
+    async getConnectionsForRoom(roomId: string): Promise<GetConnectionsResponseItem[]> {
+        return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
     }
 
     async searchUsers(query: string): Promise<UserSearchResults> {

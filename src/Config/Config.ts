@@ -181,15 +181,18 @@ export interface BridgeGenericWebhooksConfig {
 
 interface BridgeWidgetConfigYAML {
     port?: number;
-    addToAdminRooms: boolean;
+    addToAdminRooms?: boolean;
     publicUrl: string;
+    roomSetupWidget?: boolean;
 }
 
 export class BridgeWidgetConfig {
     public readonly addToAdminRooms: boolean;
     public readonly publicUrl: string;
+    public readonly roomSetupWidget: boolean;
     constructor(yaml: BridgeWidgetConfigYAML) {
-        this.addToAdminRooms = yaml.addToAdminRooms;
+        this.addToAdminRooms = yaml.addToAdminRooms || false;
+        this.roomSetupWidget = yaml.roomSetupWidget || false;
         if (typeof yaml.publicUrl !== "string") {
             throw Error('publicUrl is not defined or not a string');
         }

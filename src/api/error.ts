@@ -1,4 +1,5 @@
 import { NextFunction, Response, Request } from "express";
+import { IApiError } from "matrix-appservice-bridge";
 import LogWrapper from "../LogWrapper";
 
 export enum ErrCode {
@@ -47,6 +48,8 @@ export enum ErrCode {
      * A connection with similar configuration exists
      */
     ConflictingConnection =  "HS_CONFLICTING_CONNECTION",
+
+    MethodNotAllowed = "HS_METHOD_NOT_ALLOWED"
 }
 
 const ErrCodeToStatusCode: Record<ErrCode, number> = {
@@ -61,9 +64,10 @@ const ErrCodeToStatusCode: Record<ErrCode, number> = {
     HS_DISABLED_FEATURE: 500,
     HS_ADDITIONAL_ACTION_REQUIRED: 400,
     HS_CONFLICTING_CONNECTION: 409,
+    HS_METHOD_NOT_ALLOWED: 405,
 }
 
-export class ApiError extends Error {
+export class ApiError extends Error implements IApiError {
     constructor(
         public readonly error: string,
         public readonly errcode = ErrCode.Unknown,

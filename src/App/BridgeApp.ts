@@ -6,6 +6,7 @@ import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
+import { Logging } from "matrix-appservice-bridge";
 
 LogWrapper.configureLogging("info");
 const log = new LogWrapper("App");
@@ -17,6 +18,7 @@ async function start() {
     const registration = await parseRegistrationFile(registrationFile);
     const listener = new ListenerService(config.listeners);
     LogWrapper.configureLogging(config.logging);
+    Logging.configure({console: config.logging.level as "debug"|"info"|"warn"|"error" });
 
     if (config.queue.monolithic) {
         const webhookHandler = new Webhooks(config);

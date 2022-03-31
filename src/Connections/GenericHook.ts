@@ -301,8 +301,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
     }
 
-    public getProvisionerDetails() {
-        const url = `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`;
+    public getProvisionerDetails(showSecrets = false) {
         return {
             ...GenericHookConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
@@ -310,8 +309,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 transformationFunction: this.transformationFunction,
                 hookId: this.hookId,
                 name: this.state.name,
-                url,
             },
+            ...(showSecrets ? { secrets: {
+                url: `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`
+            }} : undefined)
         }
     }
 
