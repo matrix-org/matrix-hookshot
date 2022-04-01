@@ -1137,18 +1137,19 @@ see the documentation provided for information on each connection type.</p>
 a new release.</p>
 <h2 id="setting-up-1"><a class="header" href="#setting-up-1">Setting up</a></h2>
 <p>To set up a connection to a GitHub Repository in a new room:</p>
-<p>(N.B you must have permission to bridge GitHub repositories before you can use this command, see <a href="usage/room_configuration/../auth.html#github">auth</a>)</p>
+<p>(NB you must have permission to bridge GitHub repositories before you can use this command, see <a href="usage/room_configuration/../auth.html#github">auth</a>.)</p>
 <ol>
-<li>Invite the bridge bot (e..g <code>@hookshot:example.com</code>)</li>
-<li>Give the bridge bot moderator permissions or higher (power level 50).</li>
-<li>Send the command <code>!hookshot github repo https://github.com/my/project</code></li>
-<li>If you have permission to bridge this repo, the bridge will respond with a confirmation message.</li>
-<li>Note: The bridge will need to either:
+<li>The bridge will need to either:
 <ul>
-<li>Have a GitHub installation registered with the organisation</li>
+<li>Have a GitHub installation registered with the organisation (or GitHub user account)</li>
 <li>The requesting user must be authenticated with the bridge via OAuth and the repository must be part of their GitHub account.</li>
 </ul>
 </li>
+<li>Create a new, unencrypted room. It can be public or private.</li>
+<li>Invite the bridge bot (e.g. <code>@hookshot:example.com</code>).</li>
+<li>Give the bridge bot moderator permissions or higher (power level 50) (or otherwise configure the room so the bot can edit room state).</li>
+<li>Send the command <code>!hookshot github repo https://github.com/my/project</code>.</li>
+<li>If you have permission to bridge this repo, the bridge will respond with a confirmation message.</li>
 </ol>
 <h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
