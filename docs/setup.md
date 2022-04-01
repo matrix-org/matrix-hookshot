@@ -1,5 +1,5 @@
-Getting setup
-=============
+Getting set up
+==============
 
 This page explains how to set up Hookshot for use with a Matrix homeserver.
 
@@ -8,8 +8,8 @@ This page explains how to set up Hookshot for use with a Matrix homeserver.
 Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
 Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.
 
-You **must** have administrative access to an existing homeserver in order to setup Hookshot, as requires
-the homeserver to be configured with it's appservice registration.
+You **must** have administrative access to an existing homeserver in order to set up Hookshot, as
+Hookshot requires the homeserver to be configured with its appservice registration.
 
 
 ## Local installation 
@@ -32,7 +32,7 @@ Starting the bridge (after configuring it), is a matter of running `yarn start`.
 
 ## Installation via Docker
 
-To get started quickly, you can use the Docker image [`halfshot/matrix-hookshot`](https://hub.docker.com/r/halfshot/matrix-hookshot)
+To get started quickly, you can use the Docker image [`halfshot/matrix-hookshot`](https://hub.docker.com/r/halfshot/matrix-hookshot).
 
 ```bash
 docker run \
@@ -188,7 +188,7 @@ excercise to the user.
 
 In terms of API endpoints:
 
-- The `webhooks` resource handles resources under `/`, so it should be on it's own listener.
+- The `webhooks` resource handles resources under `/`, so it should be on its own listener.
   Note that OAuth requests also go through this listener.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
@@ -201,7 +201,7 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
 
 ### Services configuration
 
-You will need to configure some services. Each service has it's own documentation file inside the the setup subdirectory.
+You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.
 
 - [GitHub](./setup/github.md)
 - [GitLab](./setup/gitlab.md)
@@ -216,7 +216,7 @@ The bridge supports some basic logging options. The section is optional, and by 
 logging:
   # Level of information to report to the logs. Can be `debug`, `info`, `warn` or `error.
   level: info
-  # Should the logs output in human readable format or JSON. If you are using a third-party ingestion service like logstash, use this.
+  # Should the logs output in human-readable format or JSON. If you are using a third-party ingestion service like logstash, use this.
   json: false
   # Ignored if `json` is enabled. Should the logs print the levels in color. This will print extra characters around the logs which may not be suitable for some systems.
   colorize: true
