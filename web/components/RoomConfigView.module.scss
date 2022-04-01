@@ -1,10 +1,16 @@
 .root {
     h1 {
-        font-size: 1.5em;
+        font-style: normal;
+        font-weight: 600;
+        font-size: 24px;
+        line-height: 29px;
     }
 
     h2 {
-        font-size: 1.25em;
+        font-size: 18px;
+        font-style: normal;
+        font-weight: 600;
+        line-height: 22px;
     }
 
     section {
@@ -12,6 +18,12 @@
     }
 
     header {
-        height: 5rem;
+        // min-height: 3rem;
+        margin-bottom: 8px;
     }
+}
+
+.backButton {
+    font-weight: 500;
+    cursor: pointer;
 }

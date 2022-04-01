@@ -37,7 +37,13 @@ export class BridgeWidgetApi {
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
         this.api.addRoute("get", '/v1/config/:section', this.getConfigSection.bind(this));
+        this.api.addRoute("get", '/v1/service/:service/config', this.getServiceConfig.bind(this));
         this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
+        this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsByService.bind(this));
+        this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
+        // TODO: Fix this, it should be patch
+        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
+        this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', this.deleteConnection.bind(this));
         // this.expressRouter.post('/widgetapi/v1/search/users', this.postSearchUsers.bind(this));
     }
 
@@ -67,6 +73,17 @@ export class BridgeWidgetApi {
             generic: !!this.config.generic,
             jira: !!this.config.jira,
             figma: !!this.config.figma,
+        });
+    }
+
+    private async getServiceConfig(req: ProvisioningRequest, res: Response<Record<string, unknown>>) {
+        await this.getRoomFromRequest(req);
+        // TODO: Needs to be made generic
+        if (req.params.service !== "generic") {
+            throw new ApiError("Not a known service", ErrCode.NotFound);
+        }
+        res.send({
+            allowJsTransformationFunctions: this.config.generic?.allowJsTransformationFunctions || false,
         });
     }
 
@@ -108,6 +125,82 @@ export class BridgeWidgetApi {
         }
 
         res.send(details);
+    }
+
+    private async getConnectionsByService(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem[]>) {
+        if (!req.userId) {
+            throw Error('Cannot get connections without a valid userId');
+        }
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", this.intent);
+        const connections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
+        const powerlevel = new PowerLevelsEvent({content: await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "")});
+        const details = connections.map(c => c.getProvisionerDetails?.(true)).filter(c => c?.service === req.params.service).filter(c => !!c) as GetConnectionsResponseItem[];
+
+        for (const c of details) {
+            const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
+            const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
+            c.canEdit = userPl >= requiredPl;
+            if (userPl < requiredPl) {
+                delete c.secrets;
+            }
+        }
+
+        res.send(details);
+    }
+
+    private async createConnection(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem>) {
+        if (!req.userId) {
+            throw Error('Cannot get connections without a valid userId');
+        }
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", this.intent);
+        try {
+            if (!req.body || typeof req.body !== "object") {
+                throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
+            }
+            const connection = await this.connMan.provisionConnection(req.params.roomId as string, req.userId, req.params.type as string, req.body as Record<string, unknown>);
+            if (!connection.getProvisionerDetails) {
+                throw new Error('Connection supported provisioning but not getProvisionerDetails');
+            }
+            res.send(connection.getProvisionerDetails(true));
+        } catch (ex) {
+            log.warn(`Failed to create connection for ${req.params.roomId}`, ex);
+            throw ex;
+        }
+    }
+
+    private async updateConnection(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem>) {
+        if (!req.userId) {
+            throw Error('Cannot get connections without a valid userId');
+        }
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", this.intent);
+        const connection = this.connMan.getConnectionById(req.params.roomId as string, req.params.connectionId as string);
+        if (!connection) {
+            throw new ApiError("Connection does not exist", ErrCode.NotFound);
+        }
+        if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
+            throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
+        }
+        await connection.provisionerUpdateConfig(req.userId, req.body);
+        res.send(connection.getProvisionerDetails(true));
+    }
+
+
+    private async deleteConnection(req: ProvisioningRequest, res: Response<{ok: true}>) {
+        if (!req.userId) {
+            throw Error('Cannot get connections without a valid userId');
+        }
+        const roomId = req.params.roomId as string;
+        const connectionId = req.params.connectionId as string;
+        await assertUserPermissionsInRoom(req.userId, roomId, "write", this.intent);
+        const connection = this.connMan.getConnectionById(roomId, connectionId);
+        if (!connection) {
+            throw new ApiError("Connection does not exist", ErrCode.NotFound);
+        }
+        if (!connection.onRemove) {
+            throw new ApiError("Connection does not support removal", ErrCode.UnsupportedOperation);
+        }
+        await this.connMan.purgeConnection(roomId, connectionId);
+        res.send({ok: true});
     }
 
     // private async postSearchUsers(req: ProvisioningRequest, res: Response<UserSearchResults>, next: NextFunction) {

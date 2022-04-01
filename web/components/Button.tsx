@@ -1,7 +1,10 @@
 import { h } from "preact";
-import { useEffect, useState, useCallback } from 'preact/hooks';
 import style from "./Button.module.scss";
 
-export function Button(props: Record<string, unknown>) {
-    return <button className={style.button} {...props}/>;
+export function Button(props: { [key: string]: unknown, intent?: string}) {
+    let className = style.button;
+    if (props.intent === "remove") {
+        className += " " + style.remove;
+    }
+    return <button className={className} {...props}/>;
 } 

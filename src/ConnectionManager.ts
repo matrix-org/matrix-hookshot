@@ -399,11 +399,10 @@ export class ConnectionManager {
         }
         await connection.onRemove?.();
         const connectionIndex = this.connections.indexOf(connection);
-        this.connections.splice(connectionIndex, 1);
-        if (this.getAllConnectionsForRoom(roomId).length === 0) {
-            log.info(`No more connections in ${roomId}, leaving room`);
-            await this.as.botIntent.leaveRoom(roomId);
+        if (connectionIndex === -1) {
+            throw Error('Could not find connection index');
         }
+        this.connections.splice(connectionIndex, 1);
     }
 
     /**

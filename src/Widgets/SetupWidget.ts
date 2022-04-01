@@ -6,7 +6,7 @@ import { HookshotWidgetKind } from "./WidgetKind";
 const log = new LogWrapper("SetupWidget");
 
 export class SetupWidget {
-    static async SetupRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig) {
+    static async SetupRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
         const widgetKey = "hookshot_room_config";
         log.info(`Running setupWidget for ${roomId}`);
         try {
@@ -15,11 +15,12 @@ export class SetupWidget {
                 "im.vector.modular.widgets",
                 "hookshot_room_config"
             );
-            if (res) {
+            // Deleted widgets are empty objects
+            if (res && Object.keys(res).length > 0) {
                 log.debug(`Widget for ${roomId} exists, not creating`);
                 // No-op
                 // Validate?
-                return;
+                return false;
             }
         } catch (ex) {
             // Didn't exist, create it.
@@ -32,15 +33,16 @@ export class SetupWidget {
             {
                 "creatorUserId": botIntent.userId,
                 "data": {
-                    "title": "Hookshot Room Configuration"
+                    "title": "Hookshot Configuration"
                 },
                 "id": widgetKey,
-                "name": "Hookshot Room Configuration",
+                "name": "Hookshot Configuration",
                 "type": "m.custom",
                 "url": `${config?.publicUrl}/#/?kind=${HookshotWidgetKind.RoomConfiguration}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`,
                 "waitForIframeLoad": true,
             }
         );
-        await botIntent.sendText(roomId, `Please open the "Hookshot Room Configuration" widget to configure the room with integrations.`);
+        await botIntent.sendText(roomId, `Please open the "Hookshot Configuration" widget to setup integrations.`);
+        return true;
     }
 }

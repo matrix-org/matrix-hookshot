@@ -2,6 +2,7 @@ import { BridgeRoomState, UserSearchResults, WidgetConfigurationSection } from '
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
+import { GenericHookConnectionState } from '../src/Connections';
 export class BridgeAPIError extends Error {
     constructor(msg: string, private body: Record<string, unknown>) {
         super(msg);
@@ -9,7 +10,6 @@ export class BridgeAPIError extends Error {
 }
 
 export default class BridgeAPI {
-
     static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi): Promise<BridgeAPI> {
         const sessionToken = localStorage.getItem('hookshot-sessionToken');
         baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
@@ -57,7 +57,6 @@ export default class BridgeAPI {
     }
 
     async request(method: string, endpoint: string, body?: unknown) {
-        
         const req = await fetch(`${this.baseUrl}${endpoint}`, {
             cache: 'no-cache',
             method,
@@ -92,10 +91,31 @@ export default class BridgeAPI {
     async getConfig(section: string): Promise<WidgetConfigurationSection[]> {
         return this.request('GET', `/widgetapi/v1/config/${section}`);
     }
+
+    async getServiceConfig(service: string): Promise<Record<string, unknown>> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/config`);
+    }
     
     async getConnectionsForRoom(roomId: string): Promise<GetConnectionsResponseItem[]> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
     }
+
+    async getConnectionsForService(roomId: string, service: string): Promise<GetConnectionsResponseItem[]> {
+        return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(service)}`);
+    }
+
+    async createConnection(roomId: string, type: string, config: unknown) {
+        return this.request('POST', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(type)}`, config);
+    }
+
+    async updateConnection(roomId: string, connectionId: string, config: unknown) {
+        return this.request('PUT', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`, config);
+    }
+
+    removeConnection(roomId: string, connectionId: string) {
+        return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
+    }
+
 
     async searchUsers(query: string): Promise<UserSearchResults> {
         return this.request('POST', `/widgetapi/v1/search/users?query=${encodeURIComponent(query)}`);

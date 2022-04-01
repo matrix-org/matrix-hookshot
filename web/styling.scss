@@ -1,13 +1,10 @@
 
 
 :root {
-  --background-color: #f2f5f8;
-  --foreground-color: #111111;
-  --universal-border-radius: 7px;
-  --button-back-color: #0dbd8b;
-  --button-hover-back-color: #0dbd8b;
-  --button-fore-color: #f2f5f8;
-  --universal-padding: 7px;
+  --background-color: #FFFFFF;
+  --foreground-color: #17191C;
+  --light-color: #737D8C;
+  --primary-color: #0DBD8B;
 }
 
 // @media (prefers-color-scheme: dark) {
@@ -20,18 +17,51 @@
 #root {
   background-color: var(--background-color);
   color: var(--foreground-color);
-  height: 100vh;
+  min-height: 100vh;
   width: 100vw;
   font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
 }
 
 .app {
-  padding: 10px;
+  padding: 32px;
 }
 
+body {
+  margin: 0;
+}
 
 
 button {
   font-weight: 600;
   margin-right: 8px;
+}
+
+
+.chevron::before {
+	border-style: solid;
+	border-width: 0.25em 0.25em 0 0;
+  border-radius: 3px;
+	content: '';
+	display: inline-block;
+	height: 10px;
+	position: relative;
+	top: 0.15em;
+	vertical-align: top;
+	width: 10px;
+	left: 0.25em;
+	transform: rotate(-135deg);
+  margin-right: 5px;
+}
+
+.chevron.down::before {
+	transform: rotate(-225deg);
+  border-color: var(--light-color);
+  float: right;
+}
+
+
+.chevron.up::before {
+	transform: rotate(-45deg);
+  border-color: var(--light-color);
+  float: right;
 }

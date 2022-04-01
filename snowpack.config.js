@@ -13,7 +13,7 @@ module.exports = {
         polyfillNode: true,
     },
     buildOptions: {
-        out: 'public'
+        out: 'public',
     },
     alias: {
         "react": "preact/compat",

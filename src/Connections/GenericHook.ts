@@ -306,12 +306,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             ...GenericHookConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
             config: {
-                transformationFunction: this.transformationFunction,
-                hookId: this.hookId,
+                transformationFunction: this.state.transformationFunction,
                 name: this.state.name,
             },
             ...(showSecrets ? { secrets: {
-                url: `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`
+                url: `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`,
+                hookId: this.hookId,
             }} : undefined)
         }
     }
