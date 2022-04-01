@@ -196,13 +196,13 @@ sensible-browser book/index.html
 </code></pre>
 <h2 id="contact"><a class="header" href="#contact">Contact</a></h2>
 <p>We have a bridge support room you can drop into at <a href="https://matrix.to/#/#hookshot:half-shot.uk">#hookshot:half-shot.uk</a>, or you can reach me at <a href="https://matrix.to/#/@Half-Shot:half-shot.uk">@Half-Shot:half-shot.uk</a></p>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-setup"><a class="header" href="#getting-setup">Getting setup</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="getting-set-up"><a class="header" href="#getting-set-up">Getting set up</a></h1>
 <p>This page explains how to set up Hookshot for use with a Matrix homeserver.</p>
 <h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
 <p>Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
 Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.</p>
-<p>You <strong>must</strong> have administrative access to an existing homeserver in order to setup Hookshot, as requires
-the homeserver to be configured with it's appservice registration.</p>
+<p>You <strong>must</strong> have administrative access to an existing homeserver in order to set up Hookshot, as
+Hookshot requires the homeserver to be configured with its appservice registration.</p>
 <h2 id="local-installation"><a class="header" href="#local-installation">Local installation</a></h2>
 <p>This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.</p>
 <p>To install Node.JS, <a href="https://github.com/nvm-sh/nvm">nvm</a> is a good option.</p>
@@ -214,7 +214,7 @@ yarn # or npm i
 </code></pre>
 <p>Starting the bridge (after configuring it), is a matter of running <code>yarn start</code>.</p>
 <h2 id="installation-via-docker"><a class="header" href="#installation-via-docker">Installation via Docker</a></h2>
-<p>To get started quickly, you can use the Docker image <a href="https://hub.docker.com/r/halfshot/matrix-hookshot"><code>halfshot/matrix-hookshot</code></a></p>
+<p>To get started quickly, you can use the Docker image <a href="https://hub.docker.com/r/halfshot/matrix-hookshot"><code>halfshot/matrix-hookshot</code></a>.</p>
 <pre><code class="language-bash">docker run \
     --name matrix-hookshot \
     -d \
@@ -344,7 +344,7 @@ is recommended to factor hookshot into your load balancer configuration, but cur
 excercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
-<li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on it's own listener.
+<li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
 Note that OAuth requests also go through this listener.</li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
@@ -354,7 +354,7 @@ Please note that the appservice HTTP listener is configured <strong>seperately</
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
-<p>You will need to configure some services. Each service has it's own documentation file inside the the setup subdirectory.</p>
+<p>You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.</p>
 <ul>
 <li><a href="./setup/github.html">GitHub</a></li>
 <li><a href="./setup/gitlab.html">GitLab</a></li>
@@ -366,7 +366,7 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
 <pre><code class="language-yaml">logging:
   # Level of information to report to the logs. Can be `debug`, `info`, `warn` or `error.
   level: info
-  # Should the logs output in human readable format or JSON. If you are using a third-party ingestion service like logstash, use this.
+  # Should the logs output in human-readable format or JSON. If you are using a third-party ingestion service like logstash, use this.
   json: false
   # Ignored if `json` is enabled. Should the logs print the levels in color. This will print extra characters around the logs which may not be suitable for some systems.
   colorize: true
