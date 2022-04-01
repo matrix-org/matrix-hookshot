@@ -533,8 +533,12 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                         // Get comments from the 2 minutes.
                         since: new Date(Date.now() - (2 * 60000)).toISOString(),
                     });
-                    const [comment] = comments.data.filter((c) => c.user?.login === event.sender.login).sort((a,b) => Date.parse(a.created_at) - Date.parse(b.created_at));
-                    withComment = ` with comment "${comment.body}"`;
+                    const [comment] = comments.data.filter((c) => c.user?.login === event.sender.login).sort(
+                        (a,b) => Date.parse(b.created_at) - Date.parse(a.created_at)
+                    );
+                    if (comment) {
+                        withComment = ` with comment "${comment.body}"`;
+                    }
                 } catch (ex) {
                     log.warn(`Failed to get previous comments for closed / reopened issue.`, ex);
                 }
@@ -728,7 +732,29 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
         const verb = event.pull_request.merged ? 'merged' : 'closed';
-        const content = emoji.emojify(`**${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
+        let withComment = "";
+        const octokit = this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
+        if (verb == "closed" && octokit) {
+            try {
+                const comments = await octokit.issues.listComments({
+                    owner: this.org,
+                    repo: this.repo,
+                    issue_number: event.pull_request.number,
+                    // Get comments from the 2 minutes.
+                    since: new Date(Date.now() - (2 * 60000)).toISOString(),
+                });
+                const [comment] = comments.data.filter((c) => c.user?.login === event.sender.login).sort(
+                    (a,b) => Date.parse(b.created_at) - Date.parse(a.created_at)
+                );
+                if (comment) {
+                    withComment = ` with comment "${comment.body}"`;
+                }
+            } catch (ex) {
+                log.warn(`Failed to get previous comments for closed / reopened issue.`, ex);
+            }
+        }
+
+        const content = emoji.emojify(`**${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,

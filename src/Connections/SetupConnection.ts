@@ -12,6 +12,7 @@ import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
+import { AdminRoom } from "../AdminRoom";
 const md = new markdown();
 
 /**
@@ -27,6 +28,7 @@ export class SetupConnection extends CommandConnection {
         private readonly as: Appservice,
         private readonly tokenStore: UserTokenStore,
         private readonly config: BridgeConfig,
+        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
         private readonly githubInstance?: GithubInstance,) {
             super(
                 roomId,
@@ -118,7 +120,9 @@ export class SetupConnection extends CommandConnection {
         const url = `${this.config.generic.urlPrefix}${this.config.generic.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
         await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
         await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
-        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. Please configure your webhook source to use \`${url}\``));
+        const adminRoom = await this.getOrCreateAdminRoom(userId);
+        await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use \`${url}\``);
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. See admin room for secret url.`));
     }
 
     @botCommand("figma file", "Bridge a Figma file to the room", ["url"], [], true)
