@@ -13,7 +13,7 @@ To set up a connection to a GitHub Repository in a new room:
 (NB you must have permission to bridge GitHub repositories before you can use this command, see [auth](../auth.html#github).)
 
 1. The bridge will need to either:
-    - Have a GitHub installation registered with the organisation (can be user)
+    - Have a GitHub installation registered with the organisation (or GitHub user account)
     - The requesting user must be authenticated with the bridge via OAuth and the repository must be part of their GitHub account.
 2. Create a new, unencrypted room. It can be public or private.
 3. Invite the bridge bot (e.g. `@hookshot:example.com`).
