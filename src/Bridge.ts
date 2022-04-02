@@ -621,7 +621,7 @@ export class Bridge {
                         // No state yet
                     }
                 }
-                const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                const adminRoom = await this.setUpAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
@@ -678,7 +678,7 @@ export class Bridge {
         }
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const room = await this.setupAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
+            const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
             await this.as.botIntent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
@@ -1016,10 +1016,10 @@ export class Bridge {
             is_direct: true,
             preset: "trusted_private_chat",
         });
-        return this.setupAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        return this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
     }
 
-    private async setupAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
+    private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
         const adminRoom = new AdminRoom(
             roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config,
         );
