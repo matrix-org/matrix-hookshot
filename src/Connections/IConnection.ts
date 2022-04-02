@@ -16,7 +16,7 @@ export interface IConnection {
      */
     get connectionId(): string;
     /**
-     * When a room gets an update to it's state.
+     * When a room gets an update to its state.
      */
     onStateUpdate?: (ev: MatrixEvent<unknown>) => Promise<void>;
     /**
