@@ -488,7 +488,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
     }
 
-    public async setupWidget() {
+    public async setUpWidget() {
         try {
             const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
             if (res) {

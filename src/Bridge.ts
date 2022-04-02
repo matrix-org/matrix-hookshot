@@ -1053,7 +1053,7 @@ export class Bridge {
         });
         this.adminRooms.set(roomId, adminRoom);
         if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
-            await adminRoom.setupWidget();
+            await adminRoom.setUpWidget();
         }
         log.debug(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
