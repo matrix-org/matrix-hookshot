@@ -29,7 +29,7 @@ The `accessToken` should be the personal access token for your account.
 
 The `passcode` should be a randomly generated code which is used to authenticate requests from Figma.
 
-The bridge will automatically setup a webhook on Figma for you upon startup, and will automatically reconfigure that webhook if the `publicUrl` or `passcode` changes.
+The bridge will automatically set up a webhook on Figma for you upon startup, and will automatically reconfigure that webhook if the `publicUrl` or `passcode` changes.
 
 ## Next steps
 

@@ -109,7 +109,7 @@ export class Bridge {
         }
 
         if (this.config.figma) {
-            // Ensure webhooks are setup
+            // Ensure webhooks are set up
             await ensureFigmaWebhooks(this.config.figma, this.as.botClient);
         }
 
@@ -626,7 +626,7 @@ export class Bridge {
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
             } catch (ex) {
-                log.error(`Failed to setup admin room ${roomId}:`, ex);
+                log.error(`Failed to set up admin room ${roomId}:`, ex);
             }
         }));
 
@@ -1055,7 +1055,7 @@ export class Bridge {
         if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
             await adminRoom.setUpWidget();
         }
-        log.debug(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
+        log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
     }
 }
