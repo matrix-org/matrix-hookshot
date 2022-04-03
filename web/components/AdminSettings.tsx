@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import { Component } from 'preact';
 import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
 import "./AdminSettings.css";
 import GitHubState from './GitHubState';

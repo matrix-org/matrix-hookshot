@@ -1,4 +1,4 @@
-import { h, FunctionComponent } from "preact";
+import { FunctionComponent } from "preact";
 import "./ErrorPane.css";
 
 const ErrorPane: FunctionComponent<unknown> = ({ children }) => {
