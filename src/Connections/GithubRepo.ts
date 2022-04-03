@@ -441,7 +441,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const workflow = workflows.data.workflows.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
         if (!workflow) {
             const workflowNames = workflows.data.workflows.map(w => w.name).join(', ');
-            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}`, "m.notice");
+            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`, "m.notice");
             return;
         }
         try {
@@ -471,7 +471,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             throw ex;
         }
 
-        await this.as.botIntent.sendText(this.roomId, `Workflow started`, "m.notice");
+        await this.as.botIntent.sendText(this.roomId, `Workflow started.`, "m.notice");
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
