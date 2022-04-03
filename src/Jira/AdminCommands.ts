@@ -2,7 +2,6 @@ import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
 import LogWrapper from "../LogWrapper";
-import { CommandError } from "../errors";
 import { CLOUD_INSTANCE } from "./Client";
 
 const log = new LogWrapper('JiraBotCommands');

@@ -6,8 +6,6 @@ import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../provisioning/api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
-import { createPublicKey } from "crypto";
-import { readFileSync } from "fs";
 
 const log = new LogWrapper("JiraRouter");
 
