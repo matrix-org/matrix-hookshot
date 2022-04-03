@@ -8,22 +8,22 @@ import { CLOUD_INSTANCE } from "./Client";
 const log = new LogWrapper('JiraBotCommands');
 
 export class JiraBotCommands extends AdminRoomCommandHandler {
-    @botCommand("jira login", {help: "Login to JIRA", category: "jira"})
+    @botCommand("jira login", {help: "Log in to JIRA", category: "jira"})
     public async loginCommand() {
         if (!this.config.jira?.oauth || !this.tokenStore.jiraOAuth) {
-            this.sendNotice(`Bot is not configured with JIRA OAuth support`);
+            this.sendNotice(`Bot is not configured with JIRA OAuth support.`);
             return;
         }
         const state = this.tokenStore.createStateForOAuth(this.userId);
         const url = await this.tokenStore.jiraOAuth?.getAuthUrl(state);
-        await this.sendNotice(`To login, open ${url} to link your account to the bridge`);
+        await this.sendNotice(`Open ${url} to link your account to the bridge.`);
     }
 
 
     @botCommand("jira logout", {help: "Clear any login information", category: "jira"})
     public async logout() {
         if (!this.config.jira?.oauth || !this.tokenStore.jiraOAuth) {
-            this.sendNotice(`Bot is not configured with JIRA OAuth support`);
+            this.sendNotice(`Bot is not configured with JIRA OAuth support.`);
             return;
         }
         if (await this.tokenStore.clearUserToken("jira", this.userId, this.config.jira.url || CLOUD_INSTANCE)) {
@@ -35,13 +35,13 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
     @botCommand("jira whoami", {help: "Determine JIRA identity", category: "jira"})
     public async whoami() {
         if (!this.config.jira) {
-            await this.sendNotice(`Bot is not configured with JIRA OAuth support`);
+            await this.sendNotice(`Bot is not configured with JIRA OAuth support.`);
             return;
         }
         const client = await this.tokenStore.getJiraForUser(this.userId, this.config.jira.url);
         
         if (!client) {
-            await this.sendNotice(`You are not logged into JIRA`);
+            await this.sendNotice(`You are not logged into JIRA.`);
             return;
         }
         // Get all resources for user
@@ -50,10 +50,10 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
             resources = await client.getAccessibleResources();
         } catch (ex) {
             log.warn(`Could not request resources from JIRA API: `, ex);
-            await this.sendNotice(`Could not request JIRA resources due to an error`);
+            await this.sendNotice(`Could not request JIRA resources due to an error.`);
             return;
         }
-        let response = resources.length === 0 ?  `You do not have any instances authorised with this bot` : 'You have access to the following instances:';
+        let response = resources.length === 0 ?  `You do not have any instances authorised with this bot.` : 'You have access to the following instances:';
         for (const resource of resources) {
             const clientForResource = await client.getClientForResource(resource);
             if (!clientForResource) {

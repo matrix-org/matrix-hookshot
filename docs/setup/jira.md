@@ -25,7 +25,7 @@ jira:
     ... # See below
 ```
 
-You can omit the `oauth` section if you are not planning to allow users to login and use interactive features (i.e. webhook only mode).
+You can omit the `oauth` section if you are not planning to allow users to log in and use interactive features (i.e. webhook only mode).
 
 ## Connecting Matrix users to JIRA
 

@@ -20,22 +20,22 @@ export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, st
 }
 
 export class GitHubBotCommands extends AdminRoomCommandHandler {
-    @botCommand("github login", {help: "Login to GitHub", category: "github"})
+    @botCommand("github login", {help: "Log in to GitHub", category: "github"})
     public async loginCommand() {
         if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
         }
         if (!this.config.github.oauth) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub OAuth support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub OAuth support.");
         }
         const state = this.tokenStore.createStateForOAuth(this.userId);
-        return this.sendNotice(`To login, open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge`);
+        return this.sendNotice(`Open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge.`);
     }
 
     @botCommand("github setpersonaltoken", {help: "Set your personal access token for GitHub", requiredArgs: ['accessToken'], category: "github"})
     public async setGHPersonalAccessToken(accessToken: string) {
         if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
         }
         let me;
         try {
@@ -46,18 +46,18 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
             await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
             return;
         }
-        await this.sendNotice(`Connected as ${me.data.login}. Token stored`);
+        await this.sendNotice(`Connected as ${me.data.login}. Token stored.`);
         await this.tokenStore.storeUserToken("github", this.userId, JSON.stringify({access_token: accessToken, token_type: 'pat'} as GitHubOAuthToken));
     }
 
     @botCommand("github hastoken", {help: "Check if you have a token stored for GitHub", category: "github"})
     public async hasPersonalToken() {
         if (!this.config.github) {
-            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support");
+            throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
         }
         const result = await this.tokenStore.getUserToken("github", this.userId);
         if (result === null) {
-            await this.sendNotice("You do not currently have a token stored");
+            await this.sendNotice("You do not currently have a token stored.");
             return;
         }
         await this.sendNotice("A token is stored for your GitHub account.");

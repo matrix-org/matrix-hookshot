@@ -38,7 +38,7 @@ To authenticate with a personal access token:
 You can authenticate with GitLab by supplying a Personal Access Token. OAuth-style authentication isn't supported
 yet.
 
-- You will need to have configured a GitLab instance in your config.yml for the instance you want to login to.
+- You will need to have configured a GitLab instance in your config.yml for the instance you want to log in to.
 - Open https://%instance%/-/profile/personal_access_tokens (GitLab > User Settings > Access Tokens), where instance is your GitLab instance address.
   - For the public GitLab server, this would be "gitlab.com"
 - Give it a good name, and a sensible expiration date. For scopes you will need to tick `api`.
@@ -49,7 +49,7 @@ yet.
 
 ## JIRA
 
-You can login to JIRA via OAuth. This means you will need to have configured OAuth support in your `config.yml`, and
+You can log in to JIRA via OAuth. This means you will need to have configured OAuth support in your `config.yml`, and
 have the endpoints required accessible from the internet. Authentication is required when trying to bridge JIRA resources into rooms.
 
 - Say `jira login` to get the URL to authenticate via.
