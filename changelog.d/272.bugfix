@@ -1,1 +1,1 @@
-Bridge API: Don't sent HTTP header Content-Type: application/json when there is no body
+Bridge API: Don't sent HTTP header Content-Type: application/json when there is no body.
