@@ -17,8 +17,11 @@ export default class BridgeAPI {
             method,
             body: body ? JSON.stringify(body) : undefined,
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${this.accessToken}`,
+                // Only set Content-Type if we send a body
+                ...(!!body && {
+                    'Content-Type': 'application/json',
+                }),
             },
         });
         if (req.status === 204) {
