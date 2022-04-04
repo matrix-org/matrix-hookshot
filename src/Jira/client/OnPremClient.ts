@@ -1,13 +1,10 @@
 
-import { JiraAPIAccessibleResource, JiraProject, JiraCloudProjectSearchResponse, JiraStoredToken, JiraOnPremProjectSearchResponse } from '../Types';
+import { JiraAPIAccessibleResource, JiraProject, JiraStoredToken, JiraOnPremProjectSearchResponse } from '../Types';
 import { BridgeConfigJiraOnPremOAuth } from '../../Config/Config';
-import LogWrapper from '../../LogWrapper';
 import { decodeJiraToken } from '../OAuth';
 import { KeyObject } from 'crypto';
 import { HookshotJiraApi, JiraClient } from '../Client';
 import JiraApi from 'jira-client';
-
-const log = new LogWrapper("JiraOnPremClient");
 
 export class HookshotOnPremJiraApi extends HookshotJiraApi {
 

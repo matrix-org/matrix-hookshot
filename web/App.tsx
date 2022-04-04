@@ -58,6 +58,8 @@ export default class App extends Component<void, IState> {
         this.widgetApi.start();
         const roomState = await this.bridgeApi.state();
         console.log('Got state', roomState);
+        // Calling setState is ok because we've awaited a network request.
+        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
             roomState,
             roomId,
@@ -65,6 +67,8 @@ export default class App extends Component<void, IState> {
         });
     } catch (ex) {
         console.error(`Bridge verifiation failed:`, ex);
+        // Calling setState is ok because we've awaited a network request.
+        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
             error: ex.message,
             busy: false,
@@ -78,9 +82,9 @@ export default class App extends Component<void, IState> {
         if (this.state.error) {
             content = <ErrorPane>{this.state.error}</ErrorPane>;
         } else if (this.state.roomState) {
-            content = <AdminSettings roomState={this.state.roomState}></AdminSettings>;
+            content = <AdminSettings roomState={this.state.roomState} />;
         } else if (this.state.busy) {
-            content = <div class="spinner"></div>;
+            content = <div class="spinner" />;
         } else {
             content = <b>Invalid state</b>;
         }
