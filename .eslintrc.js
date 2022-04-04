@@ -5,7 +5,8 @@ module.exports = {
         '@typescript-eslint'
     ],
     extends: [
-        'plugin:@typescript-eslint/recommended',
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
     ],
     // eslint-config-preact needs a Jest version to be happy, even if Jest isn't used.
     // See https://github.com/preactjs/eslint-config-preact/issues/19#issuecomment-997924892
