@@ -18,7 +18,7 @@ The processes should all share the same config, which should contain the correct
 
 ```yaml
 queue:
-  monolithic: true
+  monolithic: false
   port: 6379
   host: github-bridge-redis
 ```
