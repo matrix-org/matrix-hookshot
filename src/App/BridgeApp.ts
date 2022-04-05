@@ -21,8 +21,6 @@ async function start() {
     Logging.configure({console: config.logging.level as "debug"|"info"|"warn"|"error" });
 
     if (config.queue.monolithic) {
-        const webhookHandler = new Webhooks(config);
-        listener.bindResource('webhooks', webhookHandler.expressRouter);
         const matrixSender = new MatrixSender(config, registration);
         matrixSender.listen();
         const userNotificationWatcher = new UserNotificationWatcher(config);
@@ -37,6 +35,14 @@ async function start() {
         bridgeApp.stop();
     });
     await bridgeApp.start();
+
+    // XXX: Since the webhook listener listens on /, it must listen AFTER other resources
+    // have bound themselves.
+    if (config.queue.monolithic) {
+        const webhookHandler = new Webhooks(config);
+        listener.bindResource('webhooks', webhookHandler.expressRouter);
+    }
+
     listener.start();
 }
 
