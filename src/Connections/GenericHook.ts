@@ -6,9 +6,10 @@ import { VMScript as Script, NodeVM } from "vm2";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice } from "matrix-bot-sdk";
 import { v4 as uuid} from "uuid";
-import { BridgeGenericWebhooksConfig } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
+import { GetConnectionsResponseItem } from "../provisioning/api";
+import { BridgeConfigGenericWebhooks } from "../Config/Config";
 export interface GenericHookConnectionState {
     /**
      * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
@@ -20,6 +21,19 @@ export interface GenericHookConnectionState {
     name: string;
     transformationFunction?: string;
 }
+
+export interface GenericHookSecrets {
+    /**
+     * The public URL for the webhook.
+     */
+    url: string;
+    /**
+     * The hookId of the webhook.
+     */
+    hookId: string;
+}
+
+export type GenericHookResponseItem = GetConnectionsResponseItem<GenericHookConnectionState, GenericHookSecrets>;
 
 /** */
 export interface GenericHookAccountData {
@@ -70,7 +84,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         };
     }
 
-    static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeGenericWebhooksConfig, messageClient: MessageSenderClient) {
+    static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeConfigGenericWebhooks, messageClient: MessageSenderClient) {
         const hookId = uuid();
         const validState: GenericHookConnectionState = {
             ...GenericHookConnection.validateState(data, config.allowJsTransformationFunctions || false),
@@ -116,7 +130,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         public readonly hookId: string,
         stateKey: string,
         private readonly messageClient: MessageSenderClient,
-        private readonly config: BridgeGenericWebhooksConfig,
+        private readonly config: BridgeConfigGenericWebhooks,
         private readonly as: Appservice) {
             super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
             if (state.transformationFunction && config.allowJsTransformationFunctions) {
@@ -301,7 +315,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
     }
 
-    public getProvisionerDetails(showSecrets = false) {
+    public getProvisionerDetails(showSecrets = false): GenericHookResponseItem {
         return {
             ...GenericHookConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
@@ -312,7 +326,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             ...(showSecrets ? { secrets: {
                 url: `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`,
                 hookId: this.hookId,
-            }} : undefined)
+            } as GenericHookSecrets} : undefined)
         }
     }
 

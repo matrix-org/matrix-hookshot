@@ -9,10 +9,10 @@ export interface GetConnectionTypeResponseItem {
     botUserId: string;
 }
 
-export interface GetConnectionsResponseItem extends GetConnectionTypeResponseItem {
+export interface GetConnectionsResponseItem<Config = object, Secrets = object> extends GetConnectionTypeResponseItem {
     id: string;
-    config: Record<string, unknown>;
-    secrets?: Record<string, unknown>;
+    config: Config;
+    secrets?: Secrets;
     canEdit?: boolean;
 }
 
