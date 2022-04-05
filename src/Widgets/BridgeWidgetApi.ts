@@ -42,7 +42,7 @@ export class BridgeWidgetApi {
         this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsForService.bind(this));
         this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
         // TODO: Ideally this would be a PATCH, but needs https://github.com/matrix-org/matrix-appservice-bridge/pull/397 to land to support PATCH.
-        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
+        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
         this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', this.deleteConnection.bind(this));
     }
 
