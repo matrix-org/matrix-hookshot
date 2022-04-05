@@ -1,3 +1,5 @@
+import { GetConnectionsResponseItem } from "../provisioning/api";
+
 export interface BridgeRoomStateGitHub {
     enabled: boolean;
     tokenStored: boolean;
@@ -30,12 +32,7 @@ export interface WidgetConfigurationSection {
     options: WidgetConfigurationOption[];
 }
 
-export interface UserSearchResults {
-    data: {
-        userId: string,
-        service: string,
-        displayName?: string,
-        avatarMxc?: string,
-        rawAvatarUrl?: string,
-    }[];
+export interface GetConnectionsForServiceResponse<T extends GetConnectionsResponseItem> {
+    connections: T[];
+    canEdit: boolean;
 }

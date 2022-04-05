@@ -3,8 +3,7 @@ import { AdminRoom } from "../AdminRoom";
 import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../Config/Config";
-import { WidgetConfigurationSection, WidgetConfigurationType } from "./BridgeWidgetInterface";
-import { UserTokenStore } from "../UserTokenStore";
+import { GetConnectionsForServiceResponse, WidgetConfigurationSection, WidgetConfigurationType } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
@@ -12,12 +11,12 @@ import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../prov
 import { Intent, PowerLevelsEvent } from "matrix-bot-sdk";
 
 const log = new LogWrapper("BridgeWidgetApi");
+
 export class BridgeWidgetApi {
     private readonly api: ProvisioningApi;
     constructor(
         private adminRooms: Map<string, AdminRoom>,
         private readonly config: BridgeConfig,
-        private readonly tokenStore: UserTokenStore,
         storageProvider: IBridgeStorageProvider,
         expressApp: Application,
         private readonly connMan: ConnectionManager,
@@ -30,13 +29,14 @@ export class BridgeWidgetApi {
             widgetFrontendLocation: "public",
             expressApp,
             widgetTokenPrefix: "hookshot_",
+            disallowedIpRanges: config.widgets?.disallowedIpRanges,
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
         this.api.addRoute("get", '/v1/config/:section', this.getConfigSection.bind(this));
         this.api.addRoute("get", '/v1/service/:service/config', this.getServiceConfig.bind(this));
         this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
-        this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsByService.bind(this));
+        this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsForService.bind(this));
         this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
         // TODO: Ideally this would be a PATCH, but needs https://github.com/matrix-org/matrix-appservice-bridge/pull/397 to land to support PATCH.
         this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
@@ -74,12 +74,21 @@ export class BridgeWidgetApi {
 
     private async getServiceConfig(req: ProvisioningRequest, res: Response<Record<string, unknown>>) {
         await this.getRoomFromRequest(req);
-        // TODO: Needs to be made generic
-        if (req.params.service !== "generic") {
-            throw new ApiError("Not a known service", ErrCode.NotFound);
+        let config: undefined|Record<string, unknown>;
+        switch (req.params.service) {
+            case "generic":
+                config = this.config.generic?.publicConfig;
+                break;
+            default:
+                throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);
         }
+
+        if (!config) {
+            throw new ApiError("Service is not enabled", ErrCode.DisabledFeature);
+        }
+
         res.send({
-            allowJsTransformationFunctions: this.config.generic?.allowJsTransformationFunctions || false,
+            config
         });
     }
 
@@ -123,17 +132,17 @@ export class BridgeWidgetApi {
         res.send(details);
     }
 
-    private async getConnectionsByService(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem[]>) {
+    private async getConnectionsForService(req: ProvisioningRequest, res: Response<GetConnectionsForServiceResponse<GetConnectionsResponseItem>>) {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
         await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", this.intent);
-        const connections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
+        const allConnections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
         const powerlevel = new PowerLevelsEvent({content: await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "")});
-        const details = connections.map(c => c.getProvisionerDetails?.(true)).filter(c => c?.service === req.params.service).filter(c => !!c) as GetConnectionsResponseItem[];
+        const connections = allConnections.map(c => c.getProvisionerDetails?.(true)).filter(c => c?.service === req.params.service).filter(c => !!c) as GetConnectionsResponseItem[];
+        const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
 
-        for (const c of details) {
-            const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
+        for (const c of connections) {
             const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
             c.canEdit = userPl >= requiredPl;
             if (userPl < requiredPl) {
@@ -141,7 +150,10 @@ export class BridgeWidgetApi {
             }
         }
 
-        res.send(details);
+        res.send({
+            connections,
+            canEdit: userPl >= powerlevel.defaultUserLevel
+        });
     }
 
     private async createConnection(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem>) {
