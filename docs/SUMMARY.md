@@ -19,3 +19,4 @@
 
 - [Provisioning](./advanced/provisioning.md)
 - [Workers](./advanced/workers.md)
+- [🪀 Widgets](./advanced/widgets.md)

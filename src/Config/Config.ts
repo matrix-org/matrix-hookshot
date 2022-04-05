@@ -211,7 +211,9 @@ interface BridgeWidgetConfigYAML {
     publicUrl: string;
     port?: number;
     addToAdminRooms?: boolean;
-    roomSetupWidget?: boolean;
+    roomSetupWidget?: {
+        addOnInvite?: boolean;
+    };
     disallowedIpRanges?: string[];
     branding?: {
         widgetTitle: string,
@@ -221,15 +223,17 @@ interface BridgeWidgetConfigYAML {
 export class BridgeWidgetConfig {
     public readonly addToAdminRooms: boolean;
     public readonly publicUrl: string;
-    public readonly roomSetupWidget: boolean;
+    public readonly roomSetupWidget?: {
+        addOnInvite?: boolean;
+    };
     public readonly disallowedIpRanges?: string[];
     public readonly branding?: {
         widgetTitle: string,
     }
     constructor(yaml: BridgeWidgetConfigYAML) {
         this.addToAdminRooms = yaml.addToAdminRooms || false;
-        this.roomSetupWidget = yaml.roomSetupWidget || false;
         this.disallowedIpRanges = yaml.disallowedIpRanges;
+        this.roomSetupWidget = yaml.roomSetupWidget;
         if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
             throw Error('disallowedIpRanges must be a string array');
         }

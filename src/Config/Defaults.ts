@@ -33,9 +33,11 @@ export const DefaultConfig = new BridgeConfig({
     }],
     passFile: "passkey.pem",
     widgets: {
-        publicUrl: "http://localhost:9001/widgetapi/v1/static",
-        addToAdminRooms: true,
-        roomSetupWidget: false,
+        publicUrl: "http://example.com/widgetapi/v1/static",
+        addToAdminRooms: false,
+        roomSetupWidget: {
+            addOnInvite: false,
+        },
         disallowedIpRanges: DefaultDisallowedIpRanges,
         branding: {
             widgetTitle: "Hookshot Configuration"

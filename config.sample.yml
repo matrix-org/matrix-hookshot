@@ -104,8 +104,7 @@ logging:
 widgets:
   # (Optional) EXPERIMENTAL support for complimentary widgets
   #
-  addToAdminRooms: true
-  roomSetupWidget: false
+  addToAdminRooms: false
   disallowedIpRanges:
     - 127.0.0.0/8
     - 10.0.0.0/8
@@ -126,7 +125,9 @@ widgets:
     - 2001:db8::/32
     - ff00::/8
     - fec0::/10
-  publicUrl: https://example.com/bridge_widget/
+  roomSetupWidget:
+    addOnInvite: false
+  publicUrl: http://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
 permissions:

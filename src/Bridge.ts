@@ -700,7 +700,7 @@ export class Bridge {
 
         try {
             // Otherwise it's a new room
-            if (this.config.widgets?.roomSetupWidget) {
+            if (this.config.widgets?.roomSetupWidget?.addOnInvite) {
                 if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
                     await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
                 } else {
@@ -868,7 +868,7 @@ export class Bridge {
             }
 
             // If it's a power level event for a new room, we might want to create the setup widget.
-            if (this.config.widgets && event.type === "m.room.power_levels" && event.state_key === "" &&  !this.connectionManager.isRoomConnected(roomId)) {
+            if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
                 log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
                 const plEvent = new PowerLevelsEvent(event);
                 const currentPl = plEvent.content.users?.[this.as.botUserId] || plEvent.defaultUserLevel;
