@@ -66,7 +66,7 @@ const ConnectionConfiguration: FunctionComponent<{
 
         {!!existingConnection && <div className={style.inputField}>
             <label>URL</label>
-            <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets.url || ""}></input>
+            <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets?.url || ""}></input>
         </div>}
 
         { serviceConfig.allowJsTransformationFunctions && <div className={style.inputField}>
