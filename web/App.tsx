@@ -106,7 +106,7 @@ export default class App extends Component<void, IState> {
             if (this.state.roomState && this.state.kind === "admin") {
                 content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState}></AdminSettings>;
             } else if (this.state.roomState && this.state.kind === "invite") {
-                content = <InviteView bridgeApi={this.bridgeApi} widgetApi={this.widgetApi} ></InviteView>;
+                // Fall through for now, we don't support invite widgets *just* yet.
             } else if (this.state.roomState && this.state.kind === "roomConfig") {
                 content = <RoomConfigView
                     roomId={this.state.roomId}

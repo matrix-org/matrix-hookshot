@@ -30,9 +30,6 @@ export class BridgeWidgetApi {
             widgetFrontendLocation: "public",
             expressApp,
             widgetTokenPrefix: "hookshot_",
-            openIdOverride: {
-                'beefy': 'http://localhost:8008' as any,
-            }
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
@@ -41,10 +38,9 @@ export class BridgeWidgetApi {
         this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
         this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsByService.bind(this));
         this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
-        // TODO: Fix this, it should be patch
+        // TODO: Ideally this would be a PATCH, but needs https://github.com/matrix-org/matrix-appservice-bridge/pull/397 to land to support PATCH.
         this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
         this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', this.deleteConnection.bind(this));
-        // this.expressRouter.post('/widgetapi/v1/search/users', this.postSearchUsers.bind(this));
     }
 
     private async getRoomFromRequest(req: ProvisioningRequest): Promise<AdminRoom> {
@@ -202,27 +198,4 @@ export class BridgeWidgetApi {
         await this.connMan.purgeConnection(roomId, connectionId);
         res.send({ok: true});
     }
-
-    // private async postSearchUsers(req: ProvisioningRequest, res: Response<UserSearchResults>, next: NextFunction) {
-    //     const room = await this.getRoomFromRequest(req);
-    //     const octokit = await this.tokenStore.getOctokitForUser(room.userId);
-    //     if (!octokit) {
-    //         next(new ApiError('You must be logged in to search GitHub', ErrCode.ForbiddenUser));
-    //         return;
-    //     }
-    //     if (!req.query.query || typeof req.query.query !== "string" || req.query.query.length < 3) {
-    //         next(new ApiError('Query was not a string of at least 3 characters', ErrCode.BadValue));
-    //         return;
-    //     }
-    //     const searchResults = await octokit.search.users({q: req.query.query, per_page: 10});
-    //     // Handle lots of results
-    //     res.send({
-    //         data: searchResults.data.items.map((u) => ({
-    //             userId: `@_github_${u.login}:beefy`,
-    //             service: 'github',
-    //             displayName: u.name || u.login || undefined,
-    //             rawAvatarUrl: u.avatar_url,
-    //         }))
-    //     });
-    // }
 }
