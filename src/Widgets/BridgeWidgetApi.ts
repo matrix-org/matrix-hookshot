@@ -117,12 +117,12 @@ export class BridgeWidgetApi {
         const connections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
         const powerlevel = new PowerLevelsEvent({content: await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "")});
         const details = connections.map(c => c.getProvisionerDetails?.(true)).filter(c => !!c) as GetConnectionsResponseItem[];
+        const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
 
         for (const c of details) {
-            const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
             const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
             c.canEdit = userPl >= requiredPl;
-            if (userPl < requiredPl) {
+            if (!c.canEdit) {
                 delete c.secrets;
             }
         }
@@ -143,7 +143,7 @@ export class BridgeWidgetApi {
         for (const c of connections) {
             const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
             c.canEdit = userPl >= requiredPl;
-            if (userPl < requiredPl) {
+            if (!c.canEdit) {
                 delete c.secrets;
             }
         }
