@@ -29,9 +29,6 @@ export class BridgeWidgetApi {
             widgetFrontendLocation: "public",
             expressApp,
             widgetTokenPrefix: "hookshot_",
-            openIdOverride: {
-                // "beefy": new URL("http://localhost:8008")
-            },
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
@@ -76,7 +73,6 @@ export class BridgeWidgetApi {
     }
 
     private async getServiceConfig(req: ProvisioningRequest, res: Response<Record<string, unknown>>) {
-        await this.getRoomFromRequest(req);
         let config: undefined|Record<string, unknown>;
         switch (req.params.service) {
             case "generic":
@@ -96,7 +92,6 @@ export class BridgeWidgetApi {
     }
 
     private async getConfigSection(req: ProvisioningRequest, res: Response<WidgetConfigurationSection[]>) {
-        await this.getRoomFromRequest(req);
         if (req.params.section !== "general") {
             throw new ApiError("Not a known config section", ErrCode.NotFound);
         }

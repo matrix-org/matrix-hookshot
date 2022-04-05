@@ -6,7 +6,6 @@ import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import ErrorPane from './components/ErrorPane';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
-import { ErrCode as BrErrCode } from 'matrix-appservice-bridge';
 
 interface IMinimalState {
     error: string|null,
@@ -72,7 +71,7 @@ export default class App extends Component<void, IState> {
         const widgetApiUrl = new URL(`${window.location.origin}${window.location.pathname.replace("/widgetapi/v1/static", "")}`);
         this.bridgeApi = await BridgeAPI.getBridgeAPI(widgetApiUrl.toString(), this.widgetApi);
         const { userId } = await this.bridgeApi.verify();
-        const roomState = await this.bridgeApi.state();
+        const roomState = widgetKind === "admin" && await this.bridgeApi.state();
         const supportedServices = await this.bridgeApi.getEnabledConfigSections();
         this.setState({
             userId,
@@ -106,12 +105,12 @@ export default class App extends Component<void, IState> {
             content = <div class="spinner"></div>;
         }
         
-        if ("roomState" in this.state) {
+        if ("kind" in this.state) {
             if (this.state.roomState && this.state.kind === "admin") {
                 content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState}></AdminSettings>;
-            } else if (this.state.roomState && this.state.kind === "invite") {
+            } else if (this.state.kind === "invite") {
                 // Fall through for now, we don't support invite widgets *just* yet.
-            } else if (this.state.roomState && this.state.kind === "roomConfig") {
+            } else if (this.state.kind === "roomConfig") {
                 content = <RoomConfigView
                     roomId={this.state.roomId}
                     supportedServices={this.state.supportedServices}
