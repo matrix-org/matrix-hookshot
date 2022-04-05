@@ -1455,7 +1455,7 @@ This feature is <b>experimental</b> and should only be used when you are reachin
 <p><code>docker run --name github-bridge-redis -p 6379:6379 -d redis</code>.</p>
 <p>The processes should all share the same config, which should contain the correct config enable redis:</p>
 <pre><code class="language-yaml">queue:
-  monolithic: true
+  monolithic: false
   port: 6379
   host: github-bridge-redis
 </code></pre>
