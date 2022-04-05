@@ -7,6 +7,9 @@ const log = new LogWrapper("SetupWidget");
 
 export class SetupWidget {
     static async SetupRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
+
+        const widgetTitle = config.branding?.widgetTitle || "Hookshot Configuration";
+
         const widgetKey = "hookshot_room_config";
         log.info(`Running setupWidget for ${roomId}`);
         try {
@@ -33,16 +36,16 @@ export class SetupWidget {
             {
                 "creatorUserId": botIntent.userId,
                 "data": {
-                    "title": "Hookshot Configuration"
+                    "title": widgetTitle
                 },
                 "id": widgetKey,
-                "name": "Hookshot Configuration",
+                "name": widgetTitle,
                 "type": "m.custom",
                 "url": `${config?.publicUrl}/#/?kind=${HookshotWidgetKind.RoomConfiguration}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`,
                 "waitForIframeLoad": true,
             }
         );
-        await botIntent.sendText(roomId, `Please open the "Hookshot Configuration" widget to setup integrations.`);
+        await botIntent.sendText(roomId, `Please open the ${widgetTitle} widget to setup integrations.`);
         return true;
     }
 }
