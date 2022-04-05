@@ -1,8 +1,7 @@
-import { BridgeRoomState, UserSearchResults, WidgetConfigurationSection } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, GetConnectionsForServiceResponse, WidgetConfigurationSection } from '../src/Widgets/BridgeWidgetInterface';
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
-import { GenericHookConnectionState } from '../src/Connections';
 export class BridgeAPIError extends Error {
     constructor(msg: string, private body: Record<string, unknown>) {
         super(msg);
@@ -100,7 +99,7 @@ export default class BridgeAPI {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
     }
 
-    async getConnectionsForService(roomId: string, service: string): Promise<GetConnectionsResponseItem[]> {
+    async getConnectionsForService<T extends GetConnectionsResponseItem >(roomId: string, service: string): Promise<GetConnectionsForServiceResponse<T>> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(service)}`);
     }
 
@@ -114,10 +113,5 @@ export default class BridgeAPI {
 
     removeConnection(roomId: string, connectionId: string) {
         return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
-    }
-
-
-    async searchUsers(query: string): Promise<UserSearchResults> {
-        return this.request('POST', `/widgetapi/v1/search/users?query=${encodeURIComponent(query)}`);
     }
 }

@@ -4,7 +4,7 @@ import { useState } from "preact/hooks"
 import BridgeAPI from "../BridgeAPI";
 import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
-import { GenericWebhookConfig } from "./connectionConfig/GenericWebhookConfig";
+import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
 
 
 interface IProps {
@@ -40,8 +40,6 @@ export default function RoomConfigView(props: IProps) {
     return <div className={style.root}>
         <header>
             {activeConnectionType && <span className={style.backButton} onClick={() => setActiveConnectionType(null)}><span className="chevron"/> Browse integrations</span>}
-            {/* {configureConnection && <h2>{`${configureConnection.type} (${configureConnection.config.name})`}</h2>}
-            {configureConnection && <button onClick={() => setConfigureConnection(null)}>Back</button>} */}
         </header>
         {content}
     </div>;

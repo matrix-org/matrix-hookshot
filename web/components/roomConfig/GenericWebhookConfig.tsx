@@ -1,14 +1,13 @@
 import { h, FunctionComponent, Fragment, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
-import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import style from "./GenericWebhookConfig.module.scss";
 import { Button } from "../Button";
 import { ListItem } from "../ListItem";
 import BridgeAPI from "../../BridgeAPI";
 import ErrorPane from "../ErrorPane";
-import { GenericHookConnectionState } from "../../../src/Connections/GenericHook";
+import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
+import style from "./GenericWebhookConfig.module.scss";
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
@@ -27,14 +26,16 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     };
   }`;
 
+const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
 
 
 const ConnectionConfiguration: FunctionComponent<{
     serviceConfig: ServiceConfig,
-    existingConnection?: GetConnectionsResponseItem,
+    existingConnection?: GenericHookResponseItem,
     onSave: (newConfig: GenericHookConnectionState) => void,
     onRemove?: () => void
 }> = ({serviceConfig, existingConnection, onSave, onRemove}) => {
+
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
     const nameRef = createRef<HTMLInputElement>();
@@ -62,14 +63,17 @@ const ConnectionConfiguration: FunctionComponent<{
             <label>Friendly name</label>
             <input ref={nameRef} disabled={!canEdit} placeholder="My webhook" type="text" value={existingConnection?.config.name}></input>
         </div> }
+
         {!!existingConnection && <div className={style.inputField}>
             <label>URL</label>
             <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets.url || ""}></input>
         </div>}
+
         { serviceConfig.allowJsTransformationFunctions && <div className={style.inputField}>
             <label className={style.nopad}>Enable Transformation JavaScript</label>
             <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={() => setTransFnEnabled(!transFnEnabled)}></input>
         </div> }
+
         { transFnEnabled && <div className={style.inputField}>
             <CodeMirror
                 value={transFn}
@@ -78,12 +82,14 @@ const ConnectionConfiguration: FunctionComponent<{
                     setTransFn(value)
                 }}
             />
-            <p> See the <a target="_blank" rel="noopener" href="https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api">documentation</a> for help writing transformation functions </p>
+            <p> See the <a target="_blank" rel="noopener" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </div>}
+
         <div className={style.buttonSet}>
             { canEdit && <Button onClick={onSaveClick}>{ existingConnection ? "Save" : "Add webhook"}</Button>}
             { canEdit && existingConnection && <Button intent="remove" onClick={onRemoveClick}>Remove webhook</Button>}
         </div>
+
     </div>;
 };
 
@@ -98,12 +104,16 @@ interface ServiceConfig {
 
 export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
     const [ error, setError ] = useState<null|string>(null);
-    const [ connections, setConnections ] = useState<GetConnectionsResponseItem[]|null>(null);
+    const [ connections, setConnections ] = useState<GenericHookResponseItem[]|null>(null);
     const [ serviceConfig, setServiceConfig ] = useState<{allowJsTransformationFunctions: boolean}|null>(null);
+    const [ canEditRoom, setCanEditRoom ] = useState<boolean>(false);
 
     if (connections === null) {
-        api.getConnectionsForService(roomId, 'generic')
-        .then(setConnections)
+        api.getConnectionsForService<GenericHookResponseItem>(roomId, 'generic')
+        .then(res => {
+            setCanEditRoom(res.canEdit);
+            setConnections(res.connections);
+        })
         .catch(ex => {
             console.warn("Failed to fetch existing connections", ex);
             setError("Failed to fetch existing connections");
@@ -129,14 +139,12 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
                 <img src="./icons/webhook.webp"></img>
                 <h1>Generic Webhooks</h1> 
             </header>
-            {/* TODO: Hide this section if the user lacks permissions to change it*/}
-            <section>
+            { canEditRoom && <section>
                 <h2>Create new webhook</h2>
                 {serviceConfig && <ConnectionConfiguration
                     serviceConfig={serviceConfig}
                     onSave={(config) => {
                         api.createConnection(roomId, "uk.half-shot.matrix-hookshot.generic.hook", config).then(() => {
-                            // TODO: Show a message?
                             // Force reload
                             setConnections(null);
                         }).catch(ex => {
@@ -145,17 +153,15 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
                         });
                     }}
                 />}
-            </section>
+            </section>}
             <section>
-                <h2>Your webhooks</h2>
+                <h2>{ canEditRoom ? "Your webhooks" : "Configured webhooks" }</h2>
                 { serviceConfig && connections?.map(c => <ListItem key={c.id} text={c.config.name as string}>
                         <ConnectionConfiguration
                             serviceConfig={serviceConfig}
                             existingConnection={c}
                             onSave={(config) => {
                                 api.updateConnection(roomId, c.id, config).then(() => {
-                                    // TODO: Update webhook config
-                                    // TODO: Show a message?
                                     // Force reload
                                     setConnections(null);
                                 }).catch(ex => {
@@ -178,22 +184,3 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
         </main>
     </>;
 };
-
-/**
- *             <div>
-                <p>Transformation Function</p><div>
-                <label>Enable</label>
-                <input type="checkbox" value={transFnEnabled} onChange={() => setTransFnEnabled(!transFnEnabled)}></input>
-                </div>
-                { transFnEnabled && <div>
-                    <CodeMirror
-                        value={transFn}
-                        disabled={true}
-                        extensions={[javascript({  })]}
-                        onChange={(value) => {
-                            setTransFn(value)
-                        }}
-                    />
-                    <p> See the <a href="https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api">documentation</a> for help writing transformation functions </p>
-                </div>}
- */
