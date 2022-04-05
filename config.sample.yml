@@ -38,6 +38,15 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+figma:
+  # (Optional) Configure this to enable Figma support
+  #
+  publicUrl: https://example.com/hookshot/
+  instances:
+    your-instance:
+      teamId: your-team-id
+      accessToken: your-personal-access-token
+      passcode: your-webhook-passcode
 jira:
   # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
   #
@@ -58,17 +67,9 @@ generic:
   #
   enabled: false
   urlPrefix: https://example.com/webhook/
+  userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
   waitForComplete: false
-figma:
-  # (Optional) Configure this to enable Figma support
-  #
-  publicUrl: https://example.com/hookshot/
-  instances:
-    your-instance:
-      teamId: your-team-id
-      accessToken: your-personal-access-token
-      passcode: your-webhook-passcode
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
@@ -100,6 +101,34 @@ logging:
   colorize: true
   json: false
   timestampFormat: HH:mm:ss:SSS
+widgets:
+  # (Optional) EXPERIMENTAL support for complimentary widgets
+  #
+  addToAdminRooms: true
+  roomSetupWidget: false
+  disallowedIpRanges:
+    - 127.0.0.0/8
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 192.0.0.0/24
+    - 169.254.0.0/16
+    - 192.88.99.0/24
+    - 198.18.0.0/15
+    - 192.0.2.0/24
+    - 198.51.100.0/24
+    - 203.0.113.0/24
+    - 224.0.0.0/4
+    - ::1/128
+    - fe80::/10
+    - fc00::/7
+    - 2001:db8::/32
+    - ff00::/8
+    - fec0::/10
+  publicUrl: https://example.com/bridge_widget/
+  branding:
+    widgetTitle: Hookshot Configuration
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #

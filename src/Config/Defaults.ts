@@ -3,6 +3,7 @@ import YAML from "yaml";
 import { getConfigKeyMetadata, keyIsHidden } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
 import { randomBytes } from "crypto";
+import { DefaultDisallowedIpRanges } from "matrix-appservice-bridge";
 
 export const DefaultConfig = new BridgeConfig({
     bridge: {
@@ -32,9 +33,13 @@ export const DefaultConfig = new BridgeConfig({
     }],
     passFile: "passkey.pem",
     widgets: {
-        publicUrl: "https://example.com/bridge_widget/",
+        publicUrl: "http://localhost:9001/widgetapi/v1/static",
         addToAdminRooms: true,
         roomSetupWidget: false,
+        disallowedIpRanges: DefaultDisallowedIpRanges,
+        branding: {
+            widgetTitle: "Hookshot Configuration"
+        }
     },
     bot: {
         displayname: "GitHub Bot",
@@ -82,6 +87,7 @@ export const DefaultConfig = new BridgeConfig({
         urlPrefix: "https://example.com/webhook/",
         allowJsTransformationFunctions: false,
         waitForComplete: false,
+        userIdPrefix: "_webhooks_"
     },
     figma: {
         publicUrl: "https://example.com/hookshot/",

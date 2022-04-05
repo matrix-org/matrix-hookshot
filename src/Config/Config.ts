@@ -171,7 +171,7 @@ export interface BridgeConfigFigma {
     }};
 }
 
-export interface BridgeGenericWebhooksConfig {
+export interface BridgeGenericWebhooksConfigYAML {
     enabled: boolean;
     urlPrefix: string;
     userIdPrefix?: string;
@@ -179,24 +179,65 @@ export interface BridgeGenericWebhooksConfig {
     waitForComplete?: boolean;
 }
 
+export class BridgeConfigGenericWebhooks {
+    public readonly enabled: boolean;
+    public readonly urlPrefix: string;
+    public readonly userIdPrefix?: string;
+    public readonly allowJsTransformationFunctions?: boolean;
+    public readonly waitForComplete?: boolean;
+    constructor(yaml: BridgeGenericWebhooksConfigYAML) {
+        if (typeof yaml.urlPrefix !== "string") {
+            throw Error('urlPrefix is not defined or not a string');
+        }
+        this.enabled = yaml.enabled || false;
+        this.urlPrefix = yaml.urlPrefix;
+        this.userIdPrefix = yaml.userIdPrefix;
+        this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
+        this.waitForComplete = yaml.waitForComplete;
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+            allowJsTransformationFunctions: this.allowJsTransformationFunctions,
+        }
+    }
+
+}
+
+
 interface BridgeWidgetConfigYAML {
+    publicUrl: string;
     port?: number;
     addToAdminRooms?: boolean;
-    publicUrl: string;
     roomSetupWidget?: boolean;
+    disallowedIpRanges?: string[];
+    branding?: {
+        widgetTitle: string,
+    }
 }
 
 export class BridgeWidgetConfig {
     public readonly addToAdminRooms: boolean;
     public readonly publicUrl: string;
     public readonly roomSetupWidget: boolean;
+    public readonly disallowedIpRanges?: string[];
+    public readonly branding?: {
+        widgetTitle: string,
+    }
     constructor(yaml: BridgeWidgetConfigYAML) {
         this.addToAdminRooms = yaml.addToAdminRooms || false;
         this.roomSetupWidget = yaml.roomSetupWidget || false;
+        this.disallowedIpRanges = yaml.disallowedIpRanges;
+        if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
+            throw Error('disallowedIpRanges must be a string array');
+        }
         if (typeof yaml.publicUrl !== "string") {
             throw Error('publicUrl is not defined or not a string');
         }
         this.publicUrl = yaml.publicUrl;
+        this.branding = yaml.branding;
     }
 }
 
@@ -253,7 +294,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
-    generic?: BridgeGenericWebhooksConfig;
+    generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
     permissions?: BridgeConfigActorPermission[];
@@ -289,7 +330,7 @@ export class BridgeConfig {
     @configKey(`Support for generic webhook events.
 'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
 `, true)
-    public readonly generic?: BridgeGenericWebhooksConfig;
+    public readonly generic?: BridgeConfigGenericWebhooks;
     @configKey("Configure this to enable Figma support", true)
     public readonly figma?: BridgeConfigFigma;
     @configKey("Define profile information for the bot user", true)
@@ -322,9 +363,9 @@ export class BridgeConfig {
             this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab;
-        this.jira = configData.jira && new BridgeConfigJira(configData.jira);
-        this.generic = configData.generic;
         this.figma = configData.figma;
+        this.jira = configData.jira && new BridgeConfigJira(configData.jira);
+        this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
