@@ -643,7 +643,6 @@ export class Bridge {
             this.widgetApi = new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
-                this.tokenStore,
                 this.storage,
                 this.listener.getApplicationForResource('widgets'),
                 this.connectionManager,

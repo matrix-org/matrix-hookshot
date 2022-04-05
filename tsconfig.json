@@ -23,6 +23,7 @@
     "allowJs": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
     // TODO: Type errors
     "useUnknownInCatchVariables": false,
   },

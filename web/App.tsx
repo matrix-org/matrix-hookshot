@@ -5,7 +5,6 @@ import BridgeAPI from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import ErrorPane from './components/ErrorPane';
 import AdminSettings from './components/AdminSettings';
-import InviteView from './components/InviteView';
 import RoomConfigView from './components/RoomConfigView';
 
 interface IMinimalState {
@@ -60,7 +59,6 @@ export default class App extends Component<void, IState> {
             console.log("Widget ready:", this);
         });
         this.widgetApi.on(`action:${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, (ev) => {
-            console.log(ev.detail.data.approved);
             console.log(`${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, ev);
         })
         this.widgetApi.on(`action:${WA.WidgetApiToWidgetAction.SendEvent}`, (ev) => {
@@ -71,7 +69,6 @@ export default class App extends Component<void, IState> {
 
         // Assuming the hosted widget is on the same API path.
         const widgetApiUrl = new URL(`${window.location.origin}${window.location.pathname.replace("/widgetapi/v1/static", "")}`);
-        console.log("The URL:", widgetApiUrl);
         this.bridgeApi = await BridgeAPI.getBridgeAPI(widgetApiUrl.toString(), this.widgetApi);
         const { userId } = await this.bridgeApi.verify();
         const roomState = await this.bridgeApi.state();

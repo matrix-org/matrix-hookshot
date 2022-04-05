@@ -20,7 +20,10 @@
       "importsNotUsedAsValues": "error",
       "experimentalDecorators": true,
       "emitDecoratorMetadata": true,
-      "esModuleInterop": true
-    }
+      "esModuleInterop": true,
+      "typeRoots": [
+        "web/typings"
+      ]
+    },
   }
   
