@@ -2,9 +2,17 @@ import { BridgeRoomState, GetConnectionsForServiceResponse, WidgetConfigurationS
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
+import { ApiError } from '../src/api';
 export class BridgeAPIError extends Error {
-    constructor(msg: string, private body: Record<string, unknown>) {
+    constructor(msg: string, public readonly body: ApiError) {
         super(msg);
+    }
+
+    public get errcode() {
+        return this.body.errcode as string;
+    }
+    public get error() {
+        return this.body.error as string;
     }
 }
 
@@ -44,7 +52,13 @@ export default class BridgeAPI {
             },
         });
         if (req.status !== 200) {
-            throw Error(`Response was not 200: ${await req.text()}`);
+            console.log(req);
+            if (req.headers.get('Content-Type').includes("application/json")) {
+                const resultBody = await req.json();
+                throw new BridgeAPIError(resultBody?.error || 'Request failed', resultBody);
+            } else {
+                throw new Error(`API request failed: ${await req.text()}`, );
+            }
         }
         const response = await req.json() as ExchangeOpenAPIResponseBody;
         localStorage.setItem('hookshot-sessionToken', response.token);

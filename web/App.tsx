@@ -1,11 +1,12 @@
 /* eslint-disable no-console */
 import { h, Component } from 'preact';
 import WA from 'matrix-widget-api';
-import BridgeAPI from './BridgeAPI';
+import BridgeAPI, { BridgeAPIError } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import ErrorPane from './components/ErrorPane';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
+import { ErrCode as BrErrCode } from 'matrix-appservice-bridge';
 
 interface IMinimalState {
     error: string|null,
@@ -83,8 +84,14 @@ export default class App extends Component<void, IState> {
         });
     } catch (ex) {
         console.error(`Failed to setup widget:`, ex);
+        let error: string = ex.message;
+        if (ex instanceof BridgeAPIError) {
+            if (ex.errcode === "M_AS_BAD_OPENID") {
+                error = "Could not contact your homeserver. Your instance may be misconfigured.";
+            }
+        }
         this.setState({
-            error: ex.message,
+            error,
             busy: false,
         });
     }
