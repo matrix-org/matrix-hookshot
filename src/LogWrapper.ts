@@ -22,7 +22,7 @@ function isMessageNoise(messageOrObject: MsgType[]) {
 }
 export default class LogWrapper {
 
-    public static configureLogging(cfg: BridgeConfigLogging|string) {
+    public static configureLogging(cfg: BridgeConfigLogging) {
 
         if (typeof cfg === "string") {
             cfg = { level: cfg };

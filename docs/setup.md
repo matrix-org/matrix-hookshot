@@ -192,7 +192,7 @@ In terms of API endpoints:
   Note that OAuth requests also go through this listener.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
-- The `widgets` resource handles resources under `/widgetapi/v1...`
+- The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
 
 <section class="notice">
 Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support

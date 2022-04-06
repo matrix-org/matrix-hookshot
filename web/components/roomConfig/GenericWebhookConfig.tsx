@@ -121,8 +121,8 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
     }
 
     if (serviceConfig === null) {
-        api.getServiceConfig('generic')
-        .then((res) => setServiceConfig(res.config as unknown as ServiceConfig))
+        api.getServiceConfig<ServiceConfig>('generic')
+        .then((res) => setServiceConfig(res))
         .catch(ex => {
             console.warn("Failed to fetch service config", ex);
             setError("Failed to fetch service config");

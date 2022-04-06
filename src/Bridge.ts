@@ -638,13 +638,16 @@ export class Bridge {
                 await user.ensureDiscussionInSpace(discussion);
             }
         }
-
         if (this.config.widgets) {
+            const apps = this.listener.getApplicationsForResource('widgets');
+            if (apps.length > 1) {
+                throw Error('You may only bind `widgets` to one listener.');
+            } 
             this.widgetApi = new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
-                this.listener.getApplicationForResource('widgets'),
+                apps[0],
                 this.connectionManager,
                 this.as.botIntent,
             );
@@ -691,6 +694,7 @@ export class Bridge {
             await this.as.botClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
+            return;
         }
 
         if (this.connectionManager?.isRoomConnected(roomId)) {
@@ -1099,7 +1103,7 @@ export class Bridge {
         });
         this.adminRooms.set(roomId, adminRoom);
         if (this.config.widgets?.addToAdminRooms) {
-            await adminRoom.setupWidget();
+            await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
         }
         log.debug(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;

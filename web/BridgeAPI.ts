@@ -26,7 +26,7 @@ export default class BridgeAPI {
                 await client.verify();
                 return client;
             } catch (ex) {
-                // Clear the token from the server, also actually check the error here.
+                // TODO: Check that the token is actually invalid, rather than just assuming we need to refresh.
                 console.warn(`Failed to verify token, fetching new token`, ex);
                 localStorage.removeItem(sessionToken);
             }
@@ -38,7 +38,7 @@ export default class BridgeAPI {
             throw Error('Server OpenID response missing values');
         }
 
-        const req = await fetch(`${baseUrl}/widgetapi/v1/exchange_openid`, {
+        const res = await fetch(`${baseUrl}/widgetapi/v1/exchange_openid`, {
             cache: 'no-cache',
             method: 'POST',
             body: JSON.stringify({
@@ -51,16 +51,15 @@ export default class BridgeAPI {
                 'Content-Type': 'application/json',
             },
         });
-        if (req.status !== 200) {
-            console.log(req);
-            if (req.headers.get('Content-Type').includes("application/json")) {
-                const resultBody = await req.json();
+        if (res.status !== 200) {
+            if (res.headers.get('Content-Type').includes("application/json")) {
+                const resultBody = await res.json();
                 throw new BridgeAPIError(resultBody?.error || 'Request failed', resultBody);
             } else {
-                throw new Error(`API request failed: ${await req.text()}`, );
+                throw new Error(`API request failed: ${await res.text()}`, );
             }
         }
-        const response = await req.json() as ExchangeOpenAPIResponseBody;
+        const response = await res.json() as ExchangeOpenAPIResponseBody;
         localStorage.setItem('hookshot-sessionToken', response.token);
         return new BridgeAPI(baseUrl, response.token);
     }
@@ -70,7 +69,7 @@ export default class BridgeAPI {
     }
 
     async request(method: string, endpoint: string, body?: unknown) {
-        const req = await fetch(`${this.baseUrl}${endpoint}`, {
+        const res = await fetch(`${this.baseUrl}${endpoint}`, {
             cache: 'no-cache',
             method,
             body: body ? JSON.stringify(body) : undefined,
@@ -79,13 +78,13 @@ export default class BridgeAPI {
                 'Authorization': `Bearer ${this.accessToken}`,
             },
         });
-        if (req.status === 204) {
+        if (res.status === 204) {
             return;
         }
-        if (req.status === 200) {
-            return req.json();
+        if (res.status === 200) {
+            return res.json();
         }
-        const resultBody = await req.json();
+        const resultBody = await res.json();
         throw new BridgeAPIError(resultBody?.error || 'Request failed', resultBody);
     }
 
@@ -105,7 +104,7 @@ export default class BridgeAPI {
         return this.request('GET', `/widgetapi/v1/config/${section}`);
     }
 
-    async getServiceConfig(service: string): Promise<Record<string, unknown>> {
+    async getServiceConfig<T>(service: string): Promise<T> {
         return this.request('GET', `/widgetapi/v1/service/${service}/config`);
     }
     

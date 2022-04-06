@@ -18,6 +18,7 @@ import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import LogWrapper from "./LogWrapper";
 import markdown from "markdown-it";
+import { HookshotWidgetKind } from "./Widgets/WidgetKind";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -48,10 +49,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
                 config: BridgeConfig) {
         super(botIntent, roomId, tokenStore, config, data);
         this.notifFilter = new NotifFilter(notifContent);
-        if (this.config.widgets) {
-
-            this.backfillAccessToken();
-        }
     }
 
     public get oauthState() {
@@ -484,59 +481,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return {
             title: "Admin Room",
             github,
-        }
-    }
-
-    public async setupWidget() {
-        log.info(`Running setupWidget for ${this.roomId}`);
-        try {
-            const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
-            if (res) {
-                log.debug(`Widget for ${this.roomId} exists, not creating`);
-                // No-op
-                // Validate?
-                return;
-            }
-        } catch (ex) {
-            // Didn't exist, create it.
-        }
-        log.debug(`Generating widget state event for ${this.roomId}`);
-        const accessToken = uuid();
-        await this.botIntent.underlyingClient.sendStateEvent(
-            this.roomId,
-            "im.vector.modular.widgets",
-            "bridge_control",
-            {
-                "creatorUserId": this.botIntent.userId,
-                "data": {
-                  "title": "Bridge Control"
-                },
-                "id": "bridge_control",
-                "name": "Bridge Control",
-                "type": "m.custom",
-                "url": `${this.config.widgets?.publicUrl}/#/?roomId=$matrix_room_id&widgetId=$matrix_widget_id&accessToken=${accessToken}`,
-                "uk.half-shot.matrix-hookshot.accessToken": accessToken,
-                "waitForIframeLoad": true,
-            }
-        );
-        await this.botIntent.underlyingClient.sendStateEvent(this.roomId,
-            "m.room.name",
-            "",
-            {
-                name: "Hookshot Settings"
-        });
-        await this.sendNotice(`If your client supports it, you can open the widget to configure hookshot.`);
-    }
-
-    private async backfillAccessToken() {
-        try {
-            const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
-            if (res) {
-                log.debug(`Stored access token for widgets for ${this.roomId}`);
-                this.widgetAccessToken = res["uk.half-shot.matrix-hookshot.accessToken"];
-            }
-        } catch (ex) {
-            log.debug(`No widget access token for ${this.roomId}`);
         }
     }
 

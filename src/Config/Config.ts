@@ -227,7 +227,7 @@ export class BridgeWidgetConfig {
         addOnInvite?: boolean;
     };
     public readonly disallowedIpRanges?: string[];
-    public readonly branding?: {
+    public readonly branding: {
         widgetTitle: string,
     }
     constructor(yaml: BridgeWidgetConfigYAML) {
@@ -241,7 +241,9 @@ export class BridgeWidgetConfig {
             throw Error('publicUrl is not defined or not a string');
         }
         this.publicUrl = yaml.publicUrl;
-        this.branding = yaml.branding;
+        this.branding = yaml.branding || {
+            widgetTitle: "Hookshot Configuration"
+        };
     }
 }
 
@@ -271,7 +273,7 @@ interface BridgeConfigQueue {
 }
 
 export interface BridgeConfigLogging {
-    level: string;
+    level: "debug"|"info"|"warn"|"error"|"trace";
     json?: boolean;
     colorize?: boolean;
     timestampFormat?: string;
@@ -385,7 +387,7 @@ export class BridgeConfig {
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
     
         // To allow DEBUG as well as debug
-        this.logging.level = this.logging.level.toLowerCase();
+        this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
             throw Error(`'logging.level' is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
         }
@@ -501,7 +503,7 @@ export async function parseRegistrationFile(filename: string) {
 
 // Can be called directly
 if (require.main === module) {
-    LogWrapper.configureLogging("info");
+    LogWrapper.configureLogging({level: "info"});
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
         // eslint-disable-next-line no-console
         console.log('Config successfully validated.');

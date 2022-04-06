@@ -8,7 +8,7 @@ import { UserNotificationWatcher } from "../Notifications/UserNotificationWatche
 import { ListenerService } from "../ListenerService";
 import { Logging } from "matrix-appservice-bridge";
 
-LogWrapper.configureLogging("info");
+LogWrapper.configureLogging({level: "info"});
 const log = new LogWrapper("App");
 
 async function start() {
@@ -18,7 +18,9 @@ async function start() {
     const registration = await parseRegistrationFile(registrationFile);
     const listener = new ListenerService(config.listeners);
     LogWrapper.configureLogging(config.logging);
-    Logging.configure({console: config.logging.level as "debug"|"info"|"warn"|"error" });
+    // Bridge SDK doesn't support trace, use "debug" instead.
+    const bridgeSdkLevel = config.logging.level === "trace" ? "debug" : config.logging.level;
+    Logging.configure({console: bridgeSdkLevel });
 
     if (config.queue.monolithic) {
         const matrixSender = new MatrixSender(config, registration);

@@ -113,13 +113,13 @@ export class Provisioner {
         return res.send(this.connMan.enabledForProvisioning);
     }
 
-    private async getConnections(req: Request<{roomId: string}>, res: Response<GetConnectionsResponseItem[]>) {
+    private getConnections(req: Request<{roomId: string}>, res: Response<GetConnectionsResponseItem[]>) {
         const connections = this.connMan.getAllConnectionsForRoom(req.params.roomId);
         const details = connections.map(c => c.getProvisionerDetails?.()).filter(c => !!c) as GetConnectionsResponseItem[];
         return res.send(details);
     }
 
-    private async getConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<GetConnectionsResponseItem>) {
+    private getConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<GetConnectionsResponseItem>) {
         const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
         if (!connection) {
             throw new ApiError("Connection does not exist", ErrCode.NotFound);

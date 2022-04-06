@@ -54,7 +54,7 @@ export class BridgeWidgetApi {
     private async getRoomState(req: ProvisioningRequest, res: Response) {
         try {
             const room = await this.getRoomFromRequest(req);
-            await res.send(await room.getBridgeState());
+            res.send(await room.getBridgeState());
         } catch (ex) {
             log.error(`Failed to get room state:`, ex);
             throw new ApiError("An error occured when getting room state", ErrCode.Unknown);
@@ -86,9 +86,9 @@ export class BridgeWidgetApi {
             throw new ApiError("Service is not enabled", ErrCode.DisabledFeature);
         }
 
-        res.send({
+        res.send(
             config
-        });
+        );
     }
 
     private async getConfigSection(req: ProvisioningRequest, res: Response<WidgetConfigurationSection[]>) {
@@ -109,35 +109,18 @@ export class BridgeWidgetApi {
         );
     }
 
-    private async getConnections(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem[]>) {
-        if (!req.userId) {
-            throw Error('Cannot get connections without a valid userId');
-        }
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", this.intent);
-        const connections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
-        const powerlevel = new PowerLevelsEvent({content: await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "")});
-        const details = connections.map(c => c.getProvisionerDetails?.(true)).filter(c => !!c) as GetConnectionsResponseItem[];
-        const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
-
-        for (const c of details) {
-            const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
-            c.canEdit = userPl >= requiredPl;
-            if (!c.canEdit) {
-                delete c.secrets;
-            }
-        }
-
-        res.send(details);
-    }
-
-    private async getConnectionsForService(req: ProvisioningRequest, res: Response<GetConnectionsForServiceResponse<GetConnectionsResponseItem>>) {
+    private async getConnectionsForRequest(req: ProvisioningRequest) {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
         await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", this.intent);
         const allConnections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
         const powerlevel = new PowerLevelsEvent({content: await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "")});
-        const connections = allConnections.map(c => c.getProvisionerDetails?.(true)).filter(c => c?.service === req.params.service).filter(c => !!c) as GetConnectionsResponseItem[];
+        const serviceFilter = req.params.service;
+        const connections = allConnections.map(c => c.getProvisionerDetails?.(true))
+            .filter(c => !!c)
+            // If we have a service filter.
+            .filter(c => typeof serviceFilter !== "string" || c?.service === serviceFilter) as GetConnectionsResponseItem[];
         const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
 
         for (const c of connections) {
@@ -146,12 +129,20 @@ export class BridgeWidgetApi {
             if (!c.canEdit) {
                 delete c.secrets;
             }
-        }
+    }
 
-        res.send({
+        return {
             connections,
             canEdit: userPl >= powerlevel.defaultUserLevel
-        });
+        };
+    }
+
+    private async getConnections(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem[]>) {
+        res.send((await this.getConnectionsForRequest(req)).connections);
+    }
+
+    private async getConnectionsForService(req: ProvisioningRequest, res: Response<GetConnectionsForServiceResponse<GetConnectionsResponseItem>>) {
+        res.send(await this.getConnectionsForRequest(req));
     }
 
     private async createConnection(req: ProvisioningRequest, res: Response<GetConnectionsResponseItem>) {

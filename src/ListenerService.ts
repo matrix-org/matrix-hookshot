@@ -49,14 +49,16 @@ export class ListenerService {
         }
     }
 
-    public getApplicationForResource(resourceName: ResourceName): Application {
-        const listener = this.listeners.find((l) => l.config.resources.includes(resourceName));
-        if (!listener) {
+    public getApplicationsForResource(resourceName: ResourceName): Application[] {
+        const listeners = this.listeners.filter((l) => l.config.resources.includes(resourceName));
+        if (listeners.length === 0) {
             throw Error(`No listener found for resource ${resourceName}`);
         }
-        log.debug(`Reverse binding ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`);
-        listener.resourcesBound = true;
-        return listener.app;
+        for (const listener of listeners) {
+            log.debug(`Reverse binding ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`);
+            listener.resourcesBound = true;
+        }
+        return listeners.map(l => l.app);
     }
 
     public start() {
