@@ -1,5 +1,5 @@
 import axios, { Method } from 'axios';
-import JiraApi, { SearchUserOptions } from 'jira-client';
+import JiraApi from 'jira-client';
 import { JiraAccount, JiraAPIAccessibleResource, JiraProject } from './Types';
 
 export function isJiraCloudInstance(host: string) {

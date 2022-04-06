@@ -1,4 +1,4 @@
-import { Appservice, MatrixClient, RichReply } from "matrix-bot-sdk";
+import { Appservice, MatrixClient } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";

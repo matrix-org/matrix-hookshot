@@ -8,10 +8,6 @@ interface IProps{
 }
 
 export default class AdminSettings extends Component<IProps> {
-    constructor(props) {
-        super(props)
-    }
-
     renderGitHub() {
         const githubConfig = this.props.roomState.github;
         if (!githubConfig.enabled) {
@@ -29,7 +25,7 @@ export default class AdminSettings extends Component<IProps> {
                 Your token does not appear to work
             </strong>;
         }
-        return <GitHubState config={githubConfig}/>;
+        return <GitHubState config={githubConfig} />;
     }
 
     render() {

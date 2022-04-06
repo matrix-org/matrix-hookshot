@@ -17,7 +17,7 @@ export default class BridgeAPI {
             method,
             body: body ? JSON.stringify(body) : undefined,
             headers: {
-                'Authorization': `Bearer ${this.accessToken}`,
+                Authorization: `Bearer ${this.accessToken}`,
                 // Only set Content-Type if we send a body
                 ...(!!body && {
                     'Content-Type': 'application/json',
