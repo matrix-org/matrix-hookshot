@@ -33,6 +33,7 @@ This connection supports a few options which can be defined in the room state:
 |prDiff|Show a diff in the room when a PR is created, subject to limits|`{enabled: boolean, maxLines: number}`|`{enabled: false}`|
 |includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|hotlinkIssues|Link an issue in the room when a user mentions a number|` { prefix: string }`|`{prefix: "#"}`|
 
 
 ### Supported event types
