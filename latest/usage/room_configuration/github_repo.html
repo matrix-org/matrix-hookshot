@@ -179,6 +179,7 @@ a new release.</p>
 <tr><td>prDiff</td><td>Show a diff in the room when a PR is created, subject to limits</td><td><code>{enabled: boolean, maxLines: number}</code></td><td><code>{enabled: false}</code></td></tr>
 <tr><td>includingLabels</td><td>Only notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 <tr><td>excludingLabels</td><td>Never notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
+<tr><td>hotlinkIssues</td><td>Send a link to an issue/PR in the room when a user mentions a prefix followed by a number</td><td><code> { prefix: string }</code></td><td><code>{prefix: &quot;#&quot;}</code></td></tr>
 </tbody></table>
 <h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
