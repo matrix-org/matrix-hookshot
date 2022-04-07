@@ -2,11 +2,6 @@
 
 export interface IGitLabWebhookEvent {
     object_kind: string;
-    event_type: string;    
-    object_attributes: {
-        action: string;
-        state: string;
-    }
 }
 
 export interface IGitlabUser {
@@ -62,6 +57,7 @@ export interface IGitLabLabel {
 
 export interface IGitLabWebhookMREvent {
     object_kind: "merge_request";
+    event_type: string;
     user: IGitlabUser;
     project: IGitlabProject;
     repository: IGitlabRepository;
@@ -104,8 +100,46 @@ export interface IGitLabWebhookWikiPageEvent {
     };
 }
 
+export interface IGitLabWebhookReleaseEvent {
+    object_kind: "release";
+    description: string;
+    name: string;
+    tag: string;
+    created_at: string;
+    released_at: string;
+    url: string;
+    action: "create";
+    project: IGitlabProject;
+    commit: {
+        id: string;
+        message: string;
+        title: string;
+        timestamp: string;
+        url: string;
+        author: {
+            name: string;
+            email: string;
+        };
+    };
+    assets: {
+        count: number;
+        links: [{
+            id: string;
+            external: boolean;
+            link_type: "other";
+            name: string;
+            url: string;
+        }],
+        sources: [{
+            format: string;
+            url: string;
+        }]
+    }
+}
+
 export interface IGitLabWebhookNoteEvent {
     user: IGitlabUser;
+    event_type: string;
     project: IGitlabProject;
     issue: IGitlabIssue;
     repository: {
@@ -122,6 +156,7 @@ export interface IGitLabWebhookNoteEvent {
 }
 export interface IGitLabWebhookIssueStateEvent {
     user: IGitlabUser;
+    event_type: string;
     project: IGitlabProject;
     repository: {
         name: string;
@@ -132,6 +167,7 @@ export interface IGitLabWebhookIssueStateEvent {
     object_attributes: {
         id: number;
         iid: number;
+        action: string;
         description: string;
     }
 }

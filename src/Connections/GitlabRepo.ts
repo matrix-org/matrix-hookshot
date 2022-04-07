@@ -7,7 +7,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 
 export interface GitLabRepoConnectionState {
@@ -234,6 +234,23 @@ export class GitLabRepoConnection extends CommandConnection {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onRelease(data: IGitLabWebhookReleaseEvent) {
+        if (this.shouldSkipHook('release', 'release.created')) {
+            return;
+        }
+        log.info(`onReleaseCreated ${this.roomId} ${this.toString()} ${data.tag}`);
+        const orgRepoName = data.project.path_with_namespace;
+        const content = `**${data.commit.author.name}** 🪄 released [${data.name}](${data.url}) for ${orgRepoName}
+
+${data.description}`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
             format: "org.matrix.custom.html",
         });
     }
