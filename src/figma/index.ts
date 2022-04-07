@@ -55,7 +55,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
             webhookDefinition = res.data as FigmaWebhookDefinition;
             await matrixClient.setAccountData(accountDataKey, {webhookId: webhookDefinition.id});
         }
-        // Webhook is ready and setup
+        // Webhook is ready and set up
     }
 
 }

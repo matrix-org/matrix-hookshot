@@ -65,7 +65,7 @@ Bugfixes
 - Fix a bug which caused GitHub "ready for review" events to be unhandled. ([\#149](https://github.com/matrix-org/matrix-hookshot/issues/149))
 - Fix a bug preventing `!hookshot jira project` from working ([\#166](https://github.com/matrix-org/matrix-hookshot/issues/166))
 - Fix a few issues preventing GitHub notifications from working ([\#173](https://github.com/matrix-org/matrix-hookshot/issues/173))
-- Fixed an issue where the bridge bot would change it's displayname if a webhook event is handled while `generic.userIdPrefix` is not set in the config. ([\#215](https://github.com/matrix-org/matrix-hookshot/issues/215))
+- Fixed an issue where the bridge bot would change its displayname if a webhook event is handled while `generic.userIdPrefix` is not set in the config. ([\#215](https://github.com/matrix-org/matrix-hookshot/issues/215))
 - Remove nonfunctional `gitlab notifications toggle` command. ([\#226](https://github.com/matrix-org/matrix-hookshot/issues/226))
 
 

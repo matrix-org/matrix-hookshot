@@ -76,7 +76,7 @@ export class GitLabRepoConnection extends CommandConnection {
     public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
-            await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
+            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
             throw Error('Not logged in');
         }
         const res = await client.issues.create({
@@ -99,7 +99,7 @@ export class GitLabRepoConnection extends CommandConnection {
     public async onClose(userId: string, number: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
-            await this.as.botIntent.sendText(this.roomId, "You must login to create an issue", "m.notice");
+            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
             throw Error('Not logged in');
         }
 
