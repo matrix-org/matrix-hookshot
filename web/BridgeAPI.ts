@@ -100,10 +100,6 @@ export default class BridgeAPI {
         return this.request('GET', '/widgetapi/v1/config/sections');
     }
 
-    async getConfig(section: string): Promise<WidgetConfigurationSection[]> {
-        return this.request('GET', `/widgetapi/v1/config/${section}`);
-    }
-
     async getServiceConfig<T>(service: string): Promise<T> {
         return this.request('GET', `/widgetapi/v1/service/${service}/config`);
     }

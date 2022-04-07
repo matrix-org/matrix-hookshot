@@ -33,7 +33,6 @@ export class BridgeWidgetApi {
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
-        this.api.addRoute("get", '/v1/config/:section', this.getConfigSection.bind(this));
         this.api.addRoute("get", '/v1/service/:service/config', this.getServiceConfig.bind(this));
         this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
         this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsForService.bind(this));
@@ -88,24 +87,6 @@ export class BridgeWidgetApi {
 
         res.send(
             config
-        );
-    }
-
-    private async getConfigSection(req: ProvisioningRequest, res: Response<WidgetConfigurationSection[]>) {
-        if (req.params.section !== "general") {
-            throw new ApiError("Not a known config section", ErrCode.NotFound);
-        }
-        res.send(
-            [{
-
-                name: 'Overview',
-                options: [{
-                    key: 'name',
-                    type: WidgetConfigurationType.String,
-                    currentValue: null,
-                    defaultValue: 'Agent Smith',
-                }]
-            }]
         );
     }
 
