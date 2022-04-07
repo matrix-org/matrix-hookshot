@@ -172,7 +172,7 @@
 <p>The <code>publicUrl</code> value must be the <strong>public</strong> path to <code>/figma/webhook</code> on the webhooks listener. E.g. if your load balancer points <code>https://example.com/hookshot</code> to the bridge's webhooks listener, you should use the path <code>https://example.com/hookshot/figma/webhook</code>.</p>
 <p>The <code>accessToken</code> should be the personal access token for your account.</p>
 <p>The <code>passcode</code> should be a randomly generated code which is used to authenticate requests from Figma.</p>
-<p>The bridge will automatically setup a webhook on Figma for you upon startup, and will automatically reconfigure that webhook if the <code>publicUrl</code> or <code>passcode</code> changes.</p>
+<p>The bridge will automatically set up a webhook on Figma for you upon startup, and will automatically reconfigure that webhook if the <code>publicUrl</code> or <code>passcode</code> changes.</p>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <p>If you have followed these steps correctly, Figma should now be configured with hookshot 🥳.</p>
 <p>To bridge a figma file into your room, you should:</p>
