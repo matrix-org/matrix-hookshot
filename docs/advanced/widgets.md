@@ -20,7 +20,7 @@ widgets:
   addToAdminRooms: false
   roomSetupWidget:
     addOnInvite: false
-#   disallowedIpRanges:
+# disallowedIpRanges:
 #     - 127.0.0.0/8
 #     - 10.0.0.0/8
 #     - 172.16.0.0/12
