@@ -713,7 +713,7 @@ export class Bridge {
                 }
             }
         } catch (ex) {
-            log.warn(`Failed to setup new widget for room`, ex);
+            log.error(`Failed to setup new widget for room`, ex);
         }
     }
 
@@ -884,7 +884,7 @@ export class Bridge {
                         log.info(`Bot has powerlevel required to create a setup widget, attempting`);
                         await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
                     } catch (ex) {
-                        log.warn(`Failed to create setup widget for ${roomId}`, ex);
+                        log.error(`Failed to create setup widget for ${roomId}`, ex);
                     }
                 }
             } 

@@ -142,7 +142,7 @@ export class Provisioner {
             }
             res.send(connection.getProvisionerDetails(true));
         } catch (ex) {
-            log.warn(`Failed to create connection for ${req.params.roomId}`, ex);
+            log.error(`Failed to create connection for ${req.params.roomId}`, ex);
             return next(ex);
         }
     }

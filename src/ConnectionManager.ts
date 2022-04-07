@@ -276,7 +276,7 @@ export class ConnectionManager {
                     this.push(conn);
                 }
             } catch (ex) {
-                log.warn(`Failed to create connection for ${roomId}:`, ex);
+                log.error(`Failed to create connection for ${roomId}:`, ex);
             }
         }
     }
