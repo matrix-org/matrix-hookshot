@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, EventKind } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -41,6 +41,7 @@ import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { CLOUD_INSTANCE } from "./Jira/Client";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
+import { SetupWidget } from "./Widgets/SetupWidget";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -55,7 +56,7 @@ export class Bridge {
     private github?: GithubInstance;
     private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi: BridgeWidgetApi = new BridgeWidgetApi(this.adminRooms);
+    private widgetApi?: BridgeWidgetApi;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -643,9 +644,20 @@ export class Bridge {
                 await user.ensureDiscussionInSpace(discussion);
             }
         }
-
         if (this.config.widgets) {
-            this.listener.bindResource('widgets', this.widgetApi.expressRouter);
+            const apps = this.listener.getApplicationsForResource('widgets');
+            if (apps.length > 1) {
+                throw Error('You may only bind `widgets` to one listener.');
+            } 
+            this.widgetApi = new BridgeWidgetApi(
+                this.adminRooms,
+                this.config,
+                this.storage,
+                apps[0],
+                this.connectionManager,
+                this.as.botIntent,
+            );
+            
         }
         if (this.provisioningApi) {
             this.listener.bindResource('provisioning', this.provisioningApi.expressRouter);
@@ -685,9 +697,29 @@ export class Bridge {
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
             const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
-            await this.as.botIntent.underlyingClient.setRoomAccountData(
+            await this.as.botClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
+            return;
+        }
+
+        if (this.connectionManager?.isRoomConnected(roomId)) {
+            // Room has connections, don't setup a wizard.
+            return;
+        }
+
+        try {
+            // Otherwise it's a new room
+            if (this.config.widgets?.roomSetupWidget?.addOnInvite) {
+                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
+                    await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
+                } else {
+                    // Setup the widget
+                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+                }
+            }
+        } catch (ex) {
+            log.error(`Failed to setup new widget for room`, ex);
         }
     }
 
@@ -844,6 +876,24 @@ export class Bridge {
                     this.connectionManager.push(connection);
                 }
             }
+
+            // If it's a power level event for a new room, we might want to create the setup widget.
+            if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
+                log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
+                const plEvent = new PowerLevelsEvent(event);
+                const currentPl = plEvent.content.users?.[this.as.botUserId] || plEvent.defaultUserLevel;
+                const previousPl = plEvent.previousContent?.users?.[this.as.botUserId] || plEvent.previousContent?.users_default;
+                const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
+                if (currentPl !== previousPl && currentPl >= requiredPl) {
+                    // PL changed for bot user, check to see if the widget can be created.
+                    try {
+                        log.info(`Bot has powerlevel required to create a setup widget, attempting`);
+                        await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+                    } catch (ex) {
+                        log.error(`Failed to create setup widget for ${roomId}`, ex);
+                    }
+                }
+            } 
             return;
         }
 
@@ -1059,7 +1109,7 @@ export class Bridge {
         });
         this.adminRooms.set(roomId, adminRoom);
         if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
-            await adminRoom.setUpWidget();
+            await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
         }
         log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;

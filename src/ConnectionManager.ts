@@ -14,7 +14,8 @@ import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
 import LogWrapper from "./LogWrapper";
 import { MessageSenderClient } from "./MatrixSender";
-import { ApiError, ErrCode, GetConnectionTypeResponseItem } from "./provisioning/api";
+import { GetConnectionTypeResponseItem } from "./provisioning/api";
+import { ApiError, ErrCode } from "./api";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
@@ -275,7 +276,7 @@ export class ConnectionManager {
                     this.push(conn);
                 }
             } catch (ex) {
-                log.warn(`Failed to create connection for ${roomId}:`, ex);
+                log.error(`Failed to create connection for ${roomId}:`, ex);
             }
         }
     }
@@ -398,11 +399,10 @@ export class ConnectionManager {
         }
         await connection.onRemove?.();
         const connectionIndex = this.connections.indexOf(connection);
-        this.connections.splice(connectionIndex, 1);
-        if (this.getAllConnectionsForRoom(roomId).length === 0) {
-            log.info(`No more connections in ${roomId}, leaving room`);
-            await this.as.botIntent.leaveRoom(roomId);
+        if (connectionIndex === -1) {
+            throw Error('Could not find connection index');
         }
+        this.connections.splice(connectionIndex, 1);
     }
 
     /**

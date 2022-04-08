@@ -18,7 +18,7 @@ import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
-import { ApiError, ErrCode } from "../provisioning/api";
+import { ApiError, ErrCode } from "../api";
 import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 const log = new LogWrapper("GitHubRepoConnection");

@@ -1,7 +1,6 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 import { Appservice } from "matrix-bot-sdk";
-import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixMessageContent } from "../MatrixEvent";
+import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
 import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection } from ".";
 import { CommandError } from "../errors";
@@ -12,6 +11,7 @@ import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { URL } from "url";
+import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 const md = new markdown();
 
@@ -22,7 +22,7 @@ const md = new markdown();
 export class SetupConnection extends CommandConnection {
     
     static botCommands: BotCommands;
-    static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
+    static helpMessage: HelpFunction;
 
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
@@ -147,6 +147,26 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendStateEvent(this.roomId, FigmaFileConnection.CanonicalEventType, fileId, {fileId});
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
+
+    @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
+    public async onSetupWidget() {
+        if (!this.config.widgets?.roomSetupWidget) {
+            throw new CommandError("Not configured", "The bridge is not configured to support setup widgets");
+        }
+        if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.as.botIntent, this.config.widgets)) {
+            await this.as.botClient.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
+        }
+    }
+
+
+    @botCommand("help", "This help text")
+    public async helpCommand() {
+        const enabledCategories = [
+            this.config.widgets?.roomSetupWidget ? "widget" : "",
+        ];
+        return this.as.botIntent.sendEvent(this.roomId, SetupConnection.helpMessage(undefined, enabledCategories));
+    }
+
 }
 
 // Typescript doesn't understand Prototypes very well yet.

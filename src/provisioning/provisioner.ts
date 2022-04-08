@@ -2,8 +2,9 @@ import { BridgeConfigProvisioning } from "../Config/Config";
 import { Router, default as express, NextFunction, Request, Response } from "express";
 import { ConnectionManager } from "../ConnectionManager";
 import LogWrapper from "../LogWrapper";
-import { ApiError, ErrCode, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
-import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import { assertUserPermissionsInRoom, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
+import { ApiError, ErrCode, errorMiddleware } from "../api";
+import { Intent, MembershipEventContent, PowerLevelsEvent, PowerLevelsEventContent } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
 
 const log = new LogWrapper("Provisioner");
@@ -23,19 +24,19 @@ export class Provisioner {
         if (!this.config.secret) {
             throw Error('Missing secret in provisioning config');
         }
-        this.expressRouter.use((req, _res, next) => {
+        this.expressRouter.use("/v1", (req, _res, next) => {
             Metrics.provisioningHttpRequest.inc({path: req.path, method: req.method});
             next();
         });
         this.expressRouter.get("/v1/health", this.getHealth);
-        this.expressRouter.use(this.checkAuth.bind(this));
+        this.expressRouter.use("/v1", this.checkAuth.bind(this));
         this.expressRouter.use(express.json());
         // Room Routes
         this.expressRouter.get(
             "/v1/connectiontypes",
             this.getConnectionTypes.bind(this),
         );
-        this.expressRouter.use(this.checkUserId.bind(this));
+        this.expressRouter.use("/v1", this.checkUserId.bind(this));
         additionalRoutes.forEach(route => {
             this.expressRouter.use(route.route, route.router);
         });
@@ -69,7 +70,7 @@ export class Provisioner {
             (...args) => this.checkUserPermission("write", ...args),
             this.deleteConnection.bind(this),
         );
-        this.expressRouter.use(this.onError);
+        this.expressRouter.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
     }
 
     private checkAuth(req: Request, _res: Response, next: NextFunction) {
@@ -93,78 +94,14 @@ export class Provisioner {
         next();
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    private onError(err: unknown, _req: Request, res: Response, _next: NextFunction) {
-        if (!err) {
-            return;
-        }
-        log.warn(err);
-        if (res.headersSent) {
-            return;
-        }
-        if (err instanceof ApiError) {
-            err.apply(res);
-        } else {
-            new ApiError("An internal error occured").apply(res);
-        }
-    }
-
     private async checkUserPermission(requiredPermission: "read"|"write", req: Request<{roomId: string}, unknown, unknown, {userId: string}>, res: Response, next: NextFunction) {
         const userId = req.query.userId;
         const roomId = req.params.roomId;
         try {
-            const membership = await this.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", this.intent.userId) as MembershipEventContent;
-            if (membership.membership === "invite") {
-                await this.intent.underlyingClient.joinRoom(roomId);
-            } else if (membership.membership !== "join") {
-                return next(new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom));
-            }
-        } catch (ex) {
-            if (ex.body.errcode === "M_NOT_FOUND") {
-                return next(new ApiError("User is not joined to the room.", ErrCode.NotInRoom));
-            }
-            log.warn(`Failed to find member event for ${req.query.userId} in room ${roomId}`, ex);
-            return next(new ApiError(`Could not determine if the user is in the room.`, ErrCode.NotInRoom));
-        }
-        // If the user just wants to read, just ensure they are in the room.
-        try {
-            const membership = await this.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", userId) as MembershipEventContent;
-            if (membership.membership !== "join") {
-                return next(new ApiError("User is not joined to the room.", ErrCode.NotInRoom));
-            }
-        } catch (ex) {
-            if (ex.body.errcode === "M_NOT_FOUND") {
-                return next(new ApiError("User is not joined to the room.", ErrCode.NotInRoom));
-            }
-            log.warn(`Failed to find member event for ${req.query.userId} in room ${roomId}`, ex);
-            return next(new ApiError(`Could not determine if the user is in the room.`, ErrCode.NotInRoom));
-        }
-        if (requiredPermission === "read") {
-            return next();
-        }
-        let pls: PowerLevelsEventContent;
-        try {
-            pls = await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "") as PowerLevelsEventContent;
-        } catch (ex) {
-            log.warn(`Failed to find PL event for room ${req.params.roomId}`, ex);
-            return next(new ApiError(`Could not get power levels for ${req.params.roomId}. Is the bot invited?`, ErrCode.NotInRoom));
-        }
-
-        // TODO: Decide what PL consider "write" permissions
-        const botPl = pls.users?.[this.intent.userId] || pls.users_default || 0;
-        const userPl = pls.users?.[userId] || pls.users_default || 0;
-        const requiredPl = pls.state_default || 50;
-        
-        // Check the bot's permissions
-        if (botPl < requiredPl) {
-            return next(new ApiError(`Bot has a PL of ${botPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenBot));
-        }
-
-        // Now check the users
-        if (userPl >= requiredPl) {
+            await assertUserPermissionsInRoom(userId, roomId, requiredPermission, this.intent);
             next();
-        } else {
-            return next(new ApiError(`User has a PL of ${userPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenUser));
+        } catch (ex) {
+            next(ex);
         }
     }
 
@@ -203,9 +140,9 @@ export class Provisioner {
             if (!connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails.');
             }
-            res.send(connection.getProvisionerDetails());
+            res.send(connection.getProvisionerDetails(true));
         } catch (ex) {
-            log.warn(`Failed to create connection for ${req.params.roomId}.`, ex);
+            log.error(`Failed to create connection for ${req.params.roomId}`, ex);
             return next(ex);
         }
     }
@@ -220,7 +157,7 @@ export class Provisioner {
                 return next(new ApiError("Connection type does not support updates.", ErrCode.UnsupportedOperation));
             }
             await connection.provisionerUpdateConfig(req.query.userId, req.body);
-            res.send(connection.getProvisionerDetails());
+            res.send(connection.getProvisionerDetails(true));
         } catch (ex) {
             next(ex);
         }

@@ -9,7 +9,7 @@ import { JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
 import { v4 as uuid } from "uuid";
 import { GitHubOAuthToken } from "./Github/Types";
-import { ApiError, ErrCode } from "./provisioning/api";
+import { ApiError, ErrCode } from "./api";
 import { JiraOAuth } from "./Jira/OAuth";
 import { JiraCloudOAuth } from "./Jira/oauth/CloudOAuth";
 import { JiraOnPremOAuth } from "./Jira/oauth/OnPremOAuth";

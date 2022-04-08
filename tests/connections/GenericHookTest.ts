@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { expect } from "chai";
-import { BridgeGenericWebhooksConfig } from "../../src/Config/Config";
+import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/Config/Config";
 import { GenericHookConnection, GenericHookConnectionState } from "../../src/Connections/GenericHook";
 import { MessageSenderClient } from "../../src/MatrixSender";
 import { createMessageQueue, MessageQueue } from "../../src/MessageQueue";
@@ -13,7 +13,7 @@ const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${da
 
 function createGenericHook(state: GenericHookConnectionState = {
     name: "some-name"
-}, config: BridgeGenericWebhooksConfig = { enabled: true, urlPrefix: "https://example.com/webhookurl"}): [GenericHookConnection, MessageQueue] {
+}, config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}): [GenericHookConnection, MessageQueue] {
     const mq = createMessageQueue({
         queue: {
             monolithic: true,
@@ -21,7 +21,7 @@ function createGenericHook(state: GenericHookConnectionState = {
     } as any);
     mq.subscribe('*');
     const messageClient = new MessageSenderClient(mq);
-    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, config, AppserviceMock.create())
+    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), AppserviceMock.create())
     return [connection, mq];
 }
 

@@ -1,0 +1,29 @@
+.root {
+    h1 {
+        font-style: normal;
+        font-weight: 600;
+        font-size: 24px;
+        line-height: 29px;
+    }
+
+    h2 {
+        font-size: 18px;
+        font-style: normal;
+        font-weight: 600;
+        line-height: 22px;
+    }
+
+    section {
+        margin-bottom: 25px;
+    }
+
+    header {
+        // min-height: 3rem;
+        margin-bottom: 8px;
+    }
+}
+
+.backButton {
+    font-weight: 500;
+    cursor: pointer;
+}

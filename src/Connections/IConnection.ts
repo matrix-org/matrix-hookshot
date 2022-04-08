@@ -46,7 +46,7 @@ export interface IConnection {
     /**
      * The details to be sent to the provisioner when requested about this connection.
      */
-    getProvisionerDetails?: () => GetConnectionsResponseItem;
+    getProvisionerDetails?: (showSecrets?: boolean) => GetConnectionsResponseItem;
 
     /**
      * If supported, this is sent when a user attempts to update the configuration of a connection.

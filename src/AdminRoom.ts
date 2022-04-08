@@ -18,6 +18,7 @@ import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import LogWrapper from "./LogWrapper";
 import markdown from "markdown-it";
+import { HookshotWidgetKind } from "./Widgets/WidgetKind";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -48,8 +49,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
                 config: BridgeConfig) {
         super(botIntent, roomId, tokenStore, config, data);
         this.notifFilter = new NotifFilter(notifContent);
-        // TODO: Move this
-        this.backfillAccessToken();
     }
 
     public get oauthState() {
@@ -156,7 +155,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github notifications filter participating", {help: "Toggle enabling/disabling GitHub notifications in this room", category: "github"})
-    // @ts-ignore - property is used
     private async setGitHubNotificationsStateParticipating() {
         const newData = await this.saveAccountData((data) => {
             if (!data.github?.notifications?.enabled) {
@@ -189,8 +187,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
 
     @botCommand("github project list-for-user", {help: "List GitHub projects for a user", optionalArgs:['user', 'repo'], category: "github"})
-    // @ts-ignore - property is used
-    private async listProjects(username?: string, repo?: string) {
+    private async listGitHubProjectsForUser(username?: string, repo?: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
         }
@@ -231,8 +228,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github project list-for-org", {help: "List GitHub projects for an org", requiredArgs: ['org'], optionalArgs: ['repo'], category: "github"})
-    // @ts-ignore - property is used
-    private async listProjects(org: string, repo?: string) {
+    private async listGitHubProjectsForOrg(org: string, repo?: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
         }
@@ -270,7 +266,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github project open", {help: "Open a GitHub project as a room", requiredArgs: ['projectId'], category: "github"})
-    // @ts-ignore - property is used
     private async openProject(projectId: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
@@ -284,7 +279,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
             const project = await octokit.projects.get({
                 project_id: parseInt(projectId, 10),
             });
-            this.emit('open.project', project.data);
+            return this.emit('open.project', project.data);
         } catch (ex) {
             if (ex.status === 404) {
                 return this.sendNotice('Project does not exist.');
@@ -295,7 +290,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     @botCommand("github discussion open", {help: "Open a discussion room", requiredArgs: ['owner', 'repo', 'number'], category: "github"})
-    // @ts-ignore - property is used
     private async listDiscussions(owner: string, repo: string, numberStr: string) {
         const number = parseInt(numberStr);
         if (!this.config.github) {
@@ -308,7 +302,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         try {
             const graphql = new GithubGraphQLClient(octokit);
             const discussions = await graphql.getDiscussionByNumber(owner, repo, number);
-            this.emit('open.discussion', owner, repo, discussions);
+            return this.emit('open.discussion', owner, repo, discussions);
         } catch (ex) {
             if (ex.status === 404) {
                 return this.sendNotice('Discussion does not exist.');
@@ -322,7 +316,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
     /* GitLab commands */
 
     @botCommand("gitlab open issue", {help: "Open or join a issue room for GitLab", requiredArgs: ['url'], category: "gitlab"})
-    // @ts-ignore - property is used
     private async gitLabOpenIssue(url: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support.");
@@ -344,7 +337,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         };
         log.info(`Looking up issue ${instanceName} ${getIssueOpts.projects.join("/")}#${getIssueOpts.issue}`);
         const issue = await client.issues.get(getIssueOpts);
-        this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
+        return this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
     }
 
     @botCommand("gitlab personaltoken", {help: "Set your personal access token for GitLab", requiredArgs: ['instanceName', 'accessToken'], category: "gitlab"})
@@ -452,8 +445,11 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return this.sendNotice("Command not understood.");
         }
         
-        if ("error" in result) {
-            return this.sendNotice(`Failed to handle command: ${result.error}`);
+        if ("humanError" in result) {
+            return this.sendNotice(`Failed to handle command: ${result.humanError}`);
+        } else if ("error" in result) {
+            // Error is not something we want to print to the user.
+            return this.sendNotice(`Failed to handle command: A unknown failure occured. Contact your bridge admin`);
         }
         return null;
     }
@@ -485,49 +481,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return {
             title: "Admin Room",
             github,
-        }
-    }
-
-    public async setUpWidget() {
-        try {
-            const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
-            if (res) {
-                // No-op
-                // Validate?
-                return;
-            }
-        } catch (ex) {
-            // Didn't exist, create it.
-        }
-        const accessToken = uuid();
-        return this.botIntent.underlyingClient.sendStateEvent(
-            this.roomId,
-            "im.vector.modular.widgets",
-            "bridge_control",
-            {
-                "creatorUserId": this.botIntent.userId,
-                "data": {
-                  "title": "Bridge Control"
-                },
-                "id": "bridge_control",
-                "name": "Bridge Control",
-                "type": "m.custom",
-                "url": `${this.config.widgets?.publicUrl}/#/?roomId=$matrix_room_id&widgetId=$matrix_widget_id&accessToken=${accessToken}`,
-                accessToken,
-                "waitForIframeLoad": true
-            }
-        );
-    }
-
-    private async backfillAccessToken() {
-        try {
-            const res = await this.botIntent.underlyingClient.getRoomStateEvent(this.roomId, "im.vector.modular.widgets", "bridge_control");
-            if (res) {
-                log.debug(`Stored access token for widgets for ${this.roomId}`);
-                this.widgetAccessToken = res.accessToken;
-            }
-        } catch (ex) {
-            log.info(`No widget access token for ${this.roomId}`);
         }
     }
 

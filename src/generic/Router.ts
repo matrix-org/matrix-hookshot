@@ -1,7 +1,7 @@
 import { MessageQueue } from "../MessageQueue";
 import express, { NextFunction, Request, Response, Router } from "express";
 import LogWrapper from "../LogWrapper";
-import { ApiError, ErrCode } from "../provisioning/api";
+import { ApiError, ErrCode } from "../api";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
 
 const WEBHOOK_RESPONSE_TIMEOUT = 5000;

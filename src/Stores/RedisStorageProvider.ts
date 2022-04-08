@@ -4,6 +4,7 @@ import LogWrapper from "../LogWrapper";
 
 import { IBridgeStorageProvider } from "./StorageProvider";
 import { IFilterInfo } from "matrix-bot-sdk";
+import { ProvisionSession } from "matrix-appservice-bridge";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";
@@ -17,6 +18,10 @@ const FIGMA_EVENT_COMMENT_ID = "figma.comment_event_id";
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
+
+
+const WIDGET_TOKENS = "widgets.tokens.";
+const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const log = new LogWrapper("RedisASProvider");
 
@@ -118,5 +123,36 @@ export class RedisStorageProvider implements IBridgeStorageProvider {
 
     public async getFigmaCommentEventId(roomId: string, figmaCommentId: string) {
         return this.redis.get(RedisStorageProvider.figmaCommentKey(roomId, figmaCommentId));
+    }
+
+    // Widget API sessions
+
+    async getSessionForToken(token: string) {
+        const json = await this.redis.get(`${WIDGET_TOKENS}${token}`);
+        if (json) {
+            return {
+                ...JSON.parse(json),
+                token,
+            } as ProvisionSession;
+        }
+        return null;
+    }
+
+    async createSession(session: ProvisionSession) {
+        await this.redis.set(`${WIDGET_TOKENS}${session.token}`, JSON.stringify({ userId: session.userId, expiresTs: session.expiresTs }));
+        await this.redis.sadd(`${WIDGET_USER_TOKENS}${session.userId}`, session.token);
+    }
+
+    async deleteSession(token: string) {
+        await this.redis.del(`${WIDGET_TOKENS}${token}`);
+        await this.redis.srem(`${WIDGET_USER_TOKENS}${token}`, token);
+    }
+
+    async deleteAllSessions(userId: string) {
+        let token = await this.redis.spop(`${WIDGET_USER_TOKENS}${userId}`);
+        while (token) {
+            await this.redis.del(`${WIDGET_TOKENS}${token}`);
+            token = await this.redis.spop(`${WIDGET_USER_TOKENS}${userId}`);
+        }
     }
 }

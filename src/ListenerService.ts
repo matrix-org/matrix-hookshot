@@ -38,11 +38,27 @@ export class ListenerService {
     }
 
     public bindResource(resourceName: ResourceName, router: Router) {
-        for (const listener of this.listeners.filter((l) => l.config.resources.includes(resourceName))) {
+        const listeners = this.listeners.filter((l) => l.config.resources.includes(resourceName));
+        if (listeners.length === 0) {
+            throw Error(`No listeners found for resource ${resourceName}`);
+        }
+        for (const listener of listeners) {
             log.debug(`Registering ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`);
             listener.app.use(router);
             listener.resourcesBound = true;
         }
+    }
+
+    public getApplicationsForResource(resourceName: ResourceName): Application[] {
+        const listeners = this.listeners.filter((l) => l.config.resources.includes(resourceName));
+        if (listeners.length === 0) {
+            throw Error(`No listener found for resource ${resourceName}`);
+        }
+        for (const listener of listeners) {
+            log.debug(`Reverse binding ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`);
+            listener.resourcesBound = true;
+        }
+        return listeners.map(l => l.app);
     }
 
     public start() {

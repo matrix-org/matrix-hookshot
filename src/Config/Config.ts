@@ -171,7 +171,7 @@ export interface BridgeConfigFigma {
     }};
 }
 
-export interface BridgeGenericWebhooksConfig {
+export interface BridgeGenericWebhooksConfigYAML {
     enabled: boolean;
     urlPrefix: string;
     userIdPrefix?: string;
@@ -179,10 +179,72 @@ export interface BridgeGenericWebhooksConfig {
     waitForComplete?: boolean;
 }
 
-interface BridgeWidgetConfig {
-    port?: number;
-    addToAdminRooms: boolean;
+export class BridgeConfigGenericWebhooks {
+    public readonly enabled: boolean;
+    public readonly urlPrefix: string;
+    public readonly userIdPrefix?: string;
+    public readonly allowJsTransformationFunctions?: boolean;
+    public readonly waitForComplete?: boolean;
+    constructor(yaml: BridgeGenericWebhooksConfigYAML) {
+        if (typeof yaml.urlPrefix !== "string") {
+            throw Error('urlPrefix is not defined or not a string');
+        }
+        this.enabled = yaml.enabled || false;
+        this.urlPrefix = yaml.urlPrefix;
+        this.userIdPrefix = yaml.userIdPrefix;
+        this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
+        this.waitForComplete = yaml.waitForComplete;
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+            allowJsTransformationFunctions: this.allowJsTransformationFunctions,
+        }
+    }
+
+}
+
+
+interface BridgeWidgetConfigYAML {
     publicUrl: string;
+    port?: number;
+    addToAdminRooms?: boolean;
+    roomSetupWidget?: {
+        addOnInvite?: boolean;
+    };
+    disallowedIpRanges?: string[];
+    branding?: {
+        widgetTitle: string,
+    }
+}
+
+export class BridgeWidgetConfig {
+    public readonly addToAdminRooms: boolean;
+    public readonly publicUrl: string;
+    public readonly roomSetupWidget?: {
+        addOnInvite?: boolean;
+    };
+    public readonly disallowedIpRanges?: string[];
+    public readonly branding: {
+        widgetTitle: string,
+    }
+    constructor(yaml: BridgeWidgetConfigYAML) {
+        this.addToAdminRooms = yaml.addToAdminRooms || false;
+        this.disallowedIpRanges = yaml.disallowedIpRanges;
+        this.roomSetupWidget = yaml.roomSetupWidget;
+        if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
+            throw Error('disallowedIpRanges must be a string array');
+        }
+        if (typeof yaml.publicUrl !== "string") {
+            throw Error('publicUrl is not defined or not a string');
+        }
+        this.publicUrl = yaml.publicUrl;
+        this.branding = yaml.branding || {
+            widgetTitle: "Hookshot Configuration"
+        };
+    }
 }
 
 
@@ -211,7 +273,7 @@ interface BridgeConfigQueue {
 }
 
 export interface BridgeConfigLogging {
-    level: string;
+    level: "debug"|"info"|"warn"|"error"|"trace";
     json?: boolean;
     colorize?: boolean;
     timestampFormat?: string;
@@ -238,7 +300,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
-    generic?: BridgeGenericWebhooksConfig;
+    generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLab;
     permissions?: BridgeConfigActorPermission[];
@@ -248,7 +310,7 @@ export interface BridgeConfigRoot {
     passFile: string;
     queue: BridgeConfigQueue;
     webhook?: BridgeConfigWebhook;
-    widgets?: BridgeWidgetConfig;
+    widgets?: BridgeWidgetConfigYAML;
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
 }
@@ -274,7 +336,7 @@ export class BridgeConfig {
     @configKey(`Support for generic webhook events.
 'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
 `, true)
-    public readonly generic?: BridgeGenericWebhooksConfig;
+    public readonly generic?: BridgeConfigGenericWebhooks;
     @configKey("Configure this to enable Figma support", true)
     public readonly figma?: BridgeConfigFigma;
     @configKey("Define profile information for the bot user", true)
@@ -307,9 +369,9 @@ export class BridgeConfig {
             this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab;
-        this.jira = configData.jira && new BridgeConfigJira(configData.jira);
-        this.generic = configData.generic;
         this.figma = configData.figma;
+        this.jira = configData.jira && new BridgeConfigJira(configData.jira);
+        this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
@@ -321,8 +383,11 @@ export class BridgeConfig {
         this.logging = configData.logging || {
             level: "info",
         }
+
+        this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
+    
         // To allow DEBUG as well as debug
-        this.logging.level = this.logging.level.toLowerCase();
+        this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
             throw Error(`'logging.level' is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
         }
@@ -363,6 +428,13 @@ export class BridgeConfig {
             });
             log.warn("The `webhook` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
+        
+        if (configData.widgets?.port) {
+            this.listeners.push({
+                resources: ['widgets'],
+                port: configData.widgets.port,
+            })
+        }
 
         if (this.provisioning?.port) {
             this.listeners.push({
@@ -382,10 +454,10 @@ export class BridgeConfig {
             log.warn("The `metrics` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
         
-        if (this.widgets?.port) {
+        if (configData.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
-                port: this.widgets.port,
+                port: configData.widgets.port,
             });
             log.warn("The `widgets` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
@@ -431,7 +503,7 @@ export async function parseRegistrationFile(filename: string) {
 
 // Can be called directly
 if (require.main === module) {
-    LogWrapper.configureLogging("info");
+    LogWrapper.configureLogging({level: "info"});
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
         // eslint-disable-next-line no-console
         console.log('Config successfully validated.');

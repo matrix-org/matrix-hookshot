@@ -1,7 +1,7 @@
 import markdown from "markdown-it";
 import stringArgv from "string-argv";
+import { ApiError } from "./api";
 import { CommandError } from "./errors";
-import { ApiError } from "./provisioning/api";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { BridgePermissionLevel } from "./Config/Config";
 import { PermissionCheckFn } from "./Connections";

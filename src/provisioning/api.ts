@@ -1,5 +1,6 @@
-
-import { Response } from "express";
+import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import { ApiError, ErrCode } from "../api";
+import LogWrapper from "../LogWrapper";
 
 export interface GetConnectionTypeResponseItem {
     eventType: string;
@@ -7,101 +8,69 @@ export interface GetConnectionTypeResponseItem {
     service: string;
     botUserId: string;
 }
-export interface GetConnectionsResponseItem extends GetConnectionTypeResponseItem {
+
+export interface GetConnectionsResponseItem<Config = object, Secrets = object> extends GetConnectionTypeResponseItem {
     id: string;
-    config: Record<string, unknown>;
+    config: Config;
+    secrets?: Secrets;
+    canEdit?: boolean;
 }
 
+const log = new LogWrapper("Provisioner.api");
 
-export enum ErrCode {
-    // Errors are prefixed with HS_
-    /**
-     * Generic failure, unknown reason
-     */
-    Unknown = "HS_UNKNOWN",
-    /**
-     * The resource was not found
-     */
-    NotFound = "HS_NOTFOUND",
-    /**
-     * The operation was not supported by this connection
-     */
-    UnsupportedOperation = "HS_UNSUPPORTED_OPERATION",
-    /**
-     * The target user does not have permissions to perform this action in the room.
-     */
-    ForbiddenUser = "HS_FORBIDDEN_USER",
-    /**
-     * The bot does not have permissions to perform this action in the room.
-     */
-    ForbiddenBot = "HS_FORBIDDEN_BOT",
-    /**
-     * The bot or user could not be confirmed to be in the room.
-     */
-    NotInRoom = "HS_NOT_IN_ROOM",
-    /**
-     * A bad value was given to the API.
-     */
-    BadValue = "HS_BAD_VALUE",
-    /**
-     * The secret token provided to the API was invalid or not given.
-     */
-    BadToken = "HS_BAD_TOKEN",
-    /**
-     * The requested feature is not enabled in the bridge.
-     */
-    DisabledFeature = "HS_DISABLED_FEATURE",
-    /**
-     * The operation action requires an additional action from the requestor.
-     */
-    AdditionalActionRequired = "HS_ADDITIONAL_ACTION_REQUIRED",
-    /**
-     * A connection with similar configuration exists
-     */
-    ConflictingConnection =  "HS_CONFLICTING_CONNECTION",
-    /**
-     * The method used was invalid for this endpoint
-     */
-    MethodNotAllowed = "HS_METHOD_NOT_ALLOWED",
-}
-
-const ErrCodeToStatusCode: Record<ErrCode, number> = {
-    HS_UNKNOWN: 500,
-    HS_NOTFOUND: 404,
-    HS_UNSUPPORTED_OPERATION: 400,
-    HS_FORBIDDEN_USER: 403,
-    HS_FORBIDDEN_BOT: 403,
-    HS_NOT_IN_ROOM: 403,
-    HS_BAD_VALUE: 400,
-    HS_BAD_TOKEN: 401,
-    HS_DISABLED_FEATURE: 500,
-    HS_ADDITIONAL_ACTION_REQUIRED: 400,
-    HS_CONFLICTING_CONNECTION: 409,
-    HS_METHOD_NOT_ALLOWED: 405,
-}
-
-export class ApiError extends Error {
-    constructor(
-        public readonly error: string,
-        public readonly errcode = ErrCode.Unknown,
-        public readonly statusCode = -1,
-        public readonly additionalContent: Record<string, unknown> = {},
-    ) {
-        super(`API error ${errcode}: ${error}`);
-        if (statusCode === -1) {
-            this.statusCode = ErrCodeToStatusCode[errcode];
+export async function assertUserPermissionsInRoom(userId: string, roomId: string, requiredPermission: "read"|"write", intent: Intent) {
+    try {
+        const membership = await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", intent.userId) as MembershipEventContent;
+        if (membership.membership === "invite") {
+            await intent.underlyingClient.joinRoom(roomId);
+        } else if (membership.membership !== "join") {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
+    } catch (ex) {
+        if (ex.body.errcode === "M_NOT_FOUND") {
+            throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
+        }
+        log.warn(`Failed to find member event for ${userId} in room ${roomId}`, ex);
+        throw new ApiError(`Could not determine if the user is in the room.`, ErrCode.NotInRoom);
+    }
+    // If the user just wants to read, just ensure they are in the room.
+    try {
+        const membership = await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", userId) as MembershipEventContent;
+        if (membership.membership !== "join") {
+            throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
+        }
+    } catch (ex) {
+        if (ex.body.errcode === "M_NOT_FOUND") {
+            throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
+        }
+        log.warn(`Failed to find member event for ${userId} in room ${roomId}`, ex);
+        throw new ApiError(`Could not determine if the user is in the room.`, ErrCode.NotInRoom);
+    }
+    if (requiredPermission === "read") {
+        return true;
+    }
+    let pls: PowerLevelsEventContent;
+    try {
+        pls = await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as PowerLevelsEventContent;
+    } catch (ex) {
+        log.warn(`Failed to find PL event for room ${roomId}`, ex);
+        throw new ApiError(`Could not get power levels for ${roomId}. Is the bot invited?`, ErrCode.NotInRoom);
     }
 
-    get jsonBody() {
-        return {
-            errcode: this.errcode,
-            error: this.error,
-            ...this.additionalContent,
-        }
+    // TODO: Decide what PL consider "write" permissions
+    const botPl = pls.users?.[intent.userId] || pls.users_default || 0;
+    const userPl = pls.users?.[userId] || pls.users_default || 0;
+    const requiredPl = pls.state_default || 50;
+    
+    // Check the bot's permissions
+    if (botPl < requiredPl) {
+        throw new ApiError(`Bot has a PL of ${botPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenBot);
     }
 
-    public apply(response: Response) {
-        return response.status(this.statusCode).send(this.jsonBody);
+    // Now check the users
+    if (userPl >= requiredPl) {
+        return true;
+    } else {
+        throw new ApiError(`User has a PL of ${userPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenUser);
     }
 }
