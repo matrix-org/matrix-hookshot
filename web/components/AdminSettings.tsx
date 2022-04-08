@@ -27,19 +27,19 @@ export default function AdminSettings(props: IProps) {
             setActiveSections(sections);
         })
         setBusy(false);
-    }, [setBusy, setActiveSections]);
-    if (busy) {
-        return <div class={style.root}>
-            <div class="spinner"/>
-        </div>;
-    }
+    }, [setBusy, setActiveSections, props.bridgeApi]);
     const onSectionClick = useCallback(
         (event: MouseEvent) => {
             const key = parseInt((event.target as HTMLElement).parentElement.getAttribute('sectionkey'), 10);
             setCurrentTab(key as AdminSettingsTab);
         },
         [setCurrentTab]
-      );
+    );
+    if (busy) {
+        return <div class={style.root}>
+            <div class="spinner" />
+        </div>;
+    }
     return <div class={style.root}>
         <h1 class={style.header}> Hookshot Bridge settings</h1>
         <div class={style.contents}>
@@ -53,7 +53,7 @@ export default function AdminSettings(props: IProps) {
                 </ul>
             </aside>
             <div class={style.content}>
-                {currentTab === AdminSettingsTab.General && <GeneralConfig/>}
+                {currentTab === AdminSettingsTab.General && <GeneralConfig />}
                 {currentTab === AdminSettingsTab.GitHub && <GitHubState config={props.roomState.github} />}
             </div>
         </div>

@@ -7,7 +7,7 @@ export const ListItem: FunctionComponent<{text: string}> = ({ text, children }) 
     
     return <div className={style.root}>
         <div className={style.header} onClick={() => setExpand(!expand)}>
-            <span>{text}</span><span className={`chevron ${expand ? "up" : "down"}`}></span>
+            <span>{text}</span><span className={`chevron ${expand ? "up" : "down"}`} />
         </div>
         <div className={style.contents}>
             {expand && children}

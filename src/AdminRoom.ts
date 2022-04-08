@@ -15,10 +15,8 @@ import { JiraBotCommands } from "./Jira/AdminCommands";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
-import {v4 as uuid} from "uuid";
 import LogWrapper from "./LogWrapper";
 import markdown from "markdown-it";
-import { HookshotWidgetKind } from "./Widgets/WidgetKind";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 

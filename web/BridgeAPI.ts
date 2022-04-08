@@ -1,4 +1,4 @@
-import { BridgeRoomState, GetConnectionsForServiceResponse, WidgetConfigurationSection } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';

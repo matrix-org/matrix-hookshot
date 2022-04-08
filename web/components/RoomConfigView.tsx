@@ -21,7 +21,7 @@ export default function RoomConfigView(props: IProps) {
 
     if (activeConnectionType) {
         content = <>
-            {activeConnectionType === "generic" && <GenericWebhookConfig roomId={props.roomId} api={props.bridgeApi}/>}
+            {activeConnectionType === "generic" && <GenericWebhookConfig roomId={props.roomId} api={props.bridgeApi} />}
         </>;
     } else {
         content = <>
@@ -39,7 +39,7 @@ export default function RoomConfigView(props: IProps) {
 
     return <div className={style.root}>
         <header>
-            {activeConnectionType && <span className={style.backButton} onClick={() => setActiveConnectionType(null)}><span className="chevron"/> Browse integrations</span>}
+            {activeConnectionType && <span className={style.backButton} onClick={() => setActiveConnectionType(null)}><span className="chevron" /> Browse integrations</span>}
         </header>
         {content}
     </div>;

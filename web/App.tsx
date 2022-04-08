@@ -106,12 +106,12 @@ export default class App extends Component<void, IState> {
         if (this.state.error) {
             content = <ErrorPane>{this.state.error}</ErrorPane>;
         } else if (this.state.busy) {
-            content = <div class="spinner"></div>;
+            content = <div class="spinner" />;
         }
         
         if ("kind" in this.state) {
             if (this.state.roomState && this.state.kind === "admin") {
-                content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState}></AdminSettings>;
+                content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState} />;
             } else if (this.state.kind === "invite") {
                 // Fall through for now, we don't support invite widgets *just* yet.
             } else if (this.state.kind === "roomConfig") {
@@ -120,7 +120,7 @@ export default class App extends Component<void, IState> {
                     supportedServices={this.state.supportedServices}
                     bridgeApi={this.bridgeApi}
                     widgetApi={this.widgetApi}
-                ></RoomConfigView>;
+                 />;
             } 
         }
 

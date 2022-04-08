@@ -51,7 +51,7 @@ const ConnectionConfiguration: FunctionComponent<{
             setTransFn(EXAMPLE_SCRIPT);
             setTransFnEnabled(false);
         }
-    }, [onSave, nameRef, transFn, setTransFnEnabled, setTransFn]);
+    }, [onSave, nameRef, transFn, setTransFnEnabled, setTransFn, existingConnection, transFnEnabled]);
 
     const onRemoveClick = useCallback(() => {
         onRemove();
@@ -61,17 +61,17 @@ const ConnectionConfiguration: FunctionComponent<{
     return <div>
         { !existingConnection && <div className={style.inputField}>
             <label>Friendly name</label>
-            <input ref={nameRef} disabled={!canEdit} placeholder="My webhook" type="text" value={existingConnection?.config.name}></input>
+            <input ref={nameRef} disabled={!canEdit} placeholder="My webhook" type="text" value={existingConnection?.config.name} />
         </div> }
 
         {!!existingConnection && <div className={style.inputField}>
             <label>URL</label>
-            <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets?.url || ""}></input>
+            <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets?.url || ""} />
         </div>}
 
         { serviceConfig.allowJsTransformationFunctions && <div className={style.inputField}>
             <label className={style.nopad}>Enable Transformation JavaScript</label>
-            <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={() => setTransFnEnabled(!transFnEnabled)}></input>
+            <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={() => setTransFnEnabled(!transFnEnabled)} />
         </div> }
 
         { transFnEnabled && <div className={style.inputField}>
@@ -82,7 +82,7 @@ const ConnectionConfiguration: FunctionComponent<{
                     setTransFn(value)
                 }}
             />
-            <p> See the <a target="_blank" rel="noopener" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
+            <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </div>}
 
         <div className={style.buttonSet}>
@@ -136,7 +136,7 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
                 error && <ErrorPane header="Error">{error}</ErrorPane>
             }
             <header className={style.header}>
-                <img src="./icons/webhook.webp"></img>
+                <img src="./icons/webhook.webp" />
                 <h1>Generic Webhooks</h1> 
             </header>
             { canEditRoom && <section>
