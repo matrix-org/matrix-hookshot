@@ -4,6 +4,7 @@ Prometheus Metrics
 You can configure metrics support by adding the following to your config:
 
 ```yaml
+metrics:
   enabled: true
   bindAddress: 127.0.0.1
   port: 9002

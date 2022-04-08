@@ -20,6 +20,7 @@ import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
 import { PermissionCheckFn } from ".";
+import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -41,6 +42,9 @@ export interface GitHubRepoConnectionOptions {
     },
     includingLabels?: string[];
     excludingLabels?: string[];
+    hotlinkIssues?: boolean|{
+        prefix: string;
+    }
 }
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions{
     org: string;
@@ -102,6 +106,7 @@ const AllowedEvents: AllowedEventsNames[] = [
 
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
+const DEFAULT_HOTLINK_PREFIX = "#";
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
@@ -289,6 +294,19 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             );
     }
 
+    public get hotlinkIssues() {
+        const cfg = this.config.defaultOptions?.hotlinkIssues || this.state.hotlinkIssues;
+        if (cfg === false) {
+            return false;
+        }
+        if (cfg === true || cfg === undefined || cfg.prefix === undefined) {
+            return {
+                prefix: DEFAULT_HOTLINK_PREFIX,
+            }
+        }
+        return cfg;
+    }
+
     public get org() {
         return this.state.org.toLowerCase();
     }
@@ -309,54 +327,109 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
+    public async handleIssueHotlink(ev: MatrixEvent<MatrixMessageContent>): Promise<boolean> {
+        if (ev.content.msgtype !== "m.text" && ev.content.msgtype !== "m.emote" || this.hotlinkIssues === false) {
+            return false;
+        }
+        const octokit = this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
+        if (!octokit) {
+            // No octokit for this repo, ignoring
+            return false;
+        }
 
-    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn, reply?: IRichReplyMetadata) {
+        let eventBody = ev.content.body.trim();
+        if (!eventBody) {
+            return false;
+        }
+        // Strip code blocks
+        eventBody = eventBody.replace(/(?:```|`)[^`]+(?:```|`)/g, "");
+        // Strip quotes
+        eventBody = eventBody.replace(/>.+/g, "");
+        const prefix = this.hotlinkIssues.prefix;
+
+        // Simple text search
+        const regex = new RegExp(`(?:^|\\s)${prefix}(\\d+)(?:$|\\s)`, "gm");
+        const result = regex.exec(eventBody);
+        const issueNumber = result?.[1];
+
+        if (issueNumber) {
+            let issue: MinimalGitHubIssue & { repository?: MinimalGitHubRepo, pull_request?: unknown, state: string };
+            try {
+                issue = (await octokit.issues.get({
+                    repo: this.state.repo,
+                    owner: this.state.org,
+                    issue_number: parseInt(issueNumber),
+                })).data;
+            } catch (ex) {
+                // Failed to fetch the issue, don't handle.
+                return false;
+            }
+
+            let message = `${issue.pull_request ? "Pull Request" : "Issue"} [#${issue.number}](${issue.html_url}): ${issue.title} (${issue.state})`;
+            if (this.showIssueRoomLink) {
+                message += ` [Issue Room](https://matrix.to/#/${this.as.getAlias(GitHubIssueConnection.generateAliasLocalpart(this.org, this.repo, issue.number))})`;
+            }
+            const content = emoji.emojify(message);
+            await this.as.botIntent.sendEvent(this.roomId, {
+                msgtype: "m.notice",
+                body: content ,
+                formatted_body: md.renderInline(content),
+                format: "org.matrix.custom.html",
+                ...(issue.repository ? FormatUtil.getPartialBodyForGithubIssue(issue.repository, issue) : {}),
+            });
+            return true;
+        }
+        return false;
+    }
+
+
+    public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn, reply?: IRichReplyMetadata): Promise<boolean> {
         if (await super.onMessageEvent(ev, checkPermission)) {
             return true;
         }
-        if (!reply) {
-            return false;
-        }
         const body = ev.content.body?.trim();
-        const repoInfo = reply.realEvent.content["uk.half-shot.matrix-hookshot.github.repo"];
-        const pullRequestId = reply.realEvent.content["uk.half-shot.matrix-hookshot.github.pull_request"]?.number;
-        // Emojis can be multi-byte, so make sure we split properly
-        const reviewKey = Object.keys(EMOJI_TO_REVIEW_STATE).find(
-            (k) => k.includes(
-                body.split(' ')[0]
-            )
-        );
-        // Typescript is dumb.
-        // @ts-ignore - property is used
-        const reviewEvent = reviewKey && EMOJI_TO_REVIEW_STATE[reviewKey];
-        if (body && repoInfo && pullRequestId  && reviewEvent) {
-            log.info(`Handling reply to PR ${pullRequestId}`);
-            const [org, owner] = repoInfo.name.split('/');
-            const octokit = await this.tokenStore.getOctokitForUser(ev.sender);
-            try {
-                await octokit?.pulls.createReview({
-                    pull_number: pullRequestId,
-                    owner: org,
-                    repo: owner,
-                    body: body.substr(1).trim(),
-                    event: reviewEvent,
-                });
-            } catch (ex) {
-                await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
-                    "m.relates_to": {
-                        rel_type: "m.annotation",
-                        event_id: ev.event_id,
-                        key: "⛔",
-                    }
-                });
-                await this.as.botClient.sendEvent(this.roomId, 'm.room.message', {
-                    msgtype: "m.notice",
-                    body: `Failed to submit review: ${ex.message}`,
-                });
+        if (reply) {
+            const repoInfo = reply.realEvent.content["uk.half-shot.matrix-hookshot.github.repo"];
+            const pullRequestId = reply.realEvent.content["uk.half-shot.matrix-hookshot.github.pull_request"]?.number;
+            // Emojis can be multi-byte, so make sure we split properly
+            const reviewKey = Object.keys(EMOJI_TO_REVIEW_STATE).find(
+                (k) => k.includes(
+                    body.split(' ')[0]
+                )
+            );
+            // Typescript is dumb.
+            // @ts-ignore - property is used
+            const reviewEvent = reviewKey && EMOJI_TO_REVIEW_STATE[reviewKey];
+            if (body && repoInfo && pullRequestId  && reviewEvent) {
+                log.info(`Handling reply to PR ${pullRequestId}`);
+                const [org, owner] = repoInfo.name.split('/');
+                const octokit = await this.tokenStore.getOctokitForUser(ev.sender);
+                try {
+                    await octokit?.pulls.createReview({
+                        pull_number: pullRequestId,
+                        owner: org,
+                        repo: owner,
+                        body: body.substr(1).trim(),
+                        event: reviewEvent,
+                    });
+                } catch (ex) {
+                    await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+                        "m.relates_to": {
+                            rel_type: "m.annotation",
+                            event_id: ev.event_id,
+                            key: "⛔",
+                        }
+                    });
+                    await this.as.botClient.sendEvent(this.roomId, 'm.room.message', {
+                        msgtype: "m.notice",
+                        body: `Failed to submit review: ${ex.message}`,
+                    });
+                }
+                return true;
             }
         }
-        return true;
-        
+        // We might want to do a hotlink.
+        return await this.handleIssueHotlink(ev);
     }
 
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
@@ -441,7 +514,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const workflow = workflows.data.workflows.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
         if (!workflow) {
             const workflowNames = workflows.data.workflows.map(w => w.name).join(', ');
-            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}`, "m.notice");
+            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`, "m.notice");
             return;
         }
         try {
@@ -471,7 +544,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             throw ex;
         }
 
-        await this.as.botIntent.sendText(this.roomId, `Workflow started`, "m.notice");
+        await this.as.botIntent.sendText(this.roomId, `Workflow started.`, "m.notice");
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {

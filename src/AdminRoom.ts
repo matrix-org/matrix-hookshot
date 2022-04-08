@@ -158,7 +158,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     private async setGitHubNotificationsStateParticipating() {
         const newData = await this.saveAccountData((data) => {
             if (!data.github?.notifications?.enabled) {
-                throw Error('Notifications are not enabled')
+                throw Error('Notifications are not enabled.')
             }
             const oldState = data.github?.notifications?.participating ?? false;
             return {
@@ -172,24 +172,24 @@ export class AdminRoom extends AdminRoomCommandHandler {
             };
         });
         if (newData.github?.notifications?.participating) {
-            return this.sendNotice(`Filtering for events you are participating in`);
+            return this.sendNotice(`Filtering for events you are participating in.`);
         }
-        return this.sendNotice(`Showing all events`);
+        return this.sendNotice(`Showing all events.`);
     }
 
     @botCommand("github notifications", {help: "Show the current notification settings", category: "github"})
     public async getGitHubNotificationsState() {
         if (!this.notificationsEnabled("github")) {
-            return this.sendNotice(`Notifications are disabled`);
+            return this.sendNotice(`Notifications are disabled.`);
         }
-        return this.sendNotice(`Notifications are enabled, ${this.notificationsParticipating("github") ? "Showing only events you are particiapting in" : "Showing all events"}`);
+        return this.sendNotice(`Notifications are enabled, ${this.notificationsParticipating("github") ? "Showing only events you are particiapting in." : "Showing all events."}`);
     }
 
 
     @botCommand("github project list-for-user", {help: "List GitHub projects for a user", optionalArgs:['user', 'repo'], category: "github"})
     private async listGitHubProjectsForUser(username?: string, repo?: string) {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            return this.sendNotice("The bridge is not configured with GitHub support.");
         }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
@@ -215,7 +215,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
             })).data;
         } catch (ex) {
             log.warn(`Failed to fetch projects:`, ex);
-            return this.sendNotice(`Failed to fetch projects due to an error. See logs for details`);
+            return this.sendNotice(`Failed to fetch projects due to an error. See logs for details.`);
         }
 
         const content = `Projects for ${username}:\n${FormatUtil.projectListing(res)}\n`;
@@ -230,7 +230,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("github project list-for-org", {help: "List GitHub projects for an org", requiredArgs: ['org'], optionalArgs: ['repo'], category: "github"})
     private async listGitHubProjectsForOrg(org: string, repo?: string) {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            return this.sendNotice("The bridge is not configured with GitHub support.");
         }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
@@ -250,10 +250,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
             }));
         } catch (ex) {
             if (ex.status === 404) {
-                return this.sendNotice('Not found');
+                return this.sendNotice(`${repo ? "Repository" : "Org"} does not exist.`);
             }
             log.warn(`Failed to fetch projects:`, ex);
-            return this.sendNotice(`Failed to fetch projects due to an error. See logs for details`);
+            return this.sendNotice(`Failed to fetch projects due to an error. See logs for details.`);
         }
 
         const content = `Projects for ${org}:\n` + res.data.map(r => ` - ${FormatUtil.projectListing([r])}\n`).join("\n");
@@ -268,7 +268,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("github project open", {help: "Open a GitHub project as a room", requiredArgs: ['projectId'], category: "github"})
     private async openProject(projectId: string) {
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            return this.sendNotice("The bridge is not configured with GitHub support.");
         }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
@@ -282,10 +282,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return this.emit('open.project', project.data);
         } catch (ex) {
             if (ex.status === 404) {
-                return this.sendNotice('Not found');
+                return this.sendNotice('Project does not exist.');
             }
             log.warn(`Failed to fetch project:`, ex);
-            return this.sendNotice(`Failed to fetch project due to an error. See logs for details`);
+            return this.sendNotice(`Failed to fetch project due to an error. See logs for details.`);
         }
     }
 
@@ -293,7 +293,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     private async listDiscussions(owner: string, repo: string, numberStr: string) {
         const number = parseInt(numberStr);
         if (!this.config.github) {
-            return this.sendNotice("The bridge is not configured with GitHub support");
+            return this.sendNotice("The bridge is not configured with GitHub support.");
         }
         const octokit = await this.tokenStore.getOctokitForUser(this.userId);
         if (!octokit) {
@@ -305,10 +305,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return this.emit('open.discussion', owner, repo, discussions);
         } catch (ex) {
             if (ex.status === 404) {
-                return this.sendNotice('Not found');
+                return this.sendNotice('Discussion does not exist.');
             }
             log.warn(`Failed to fetch discussions:`, ex);
-            return this.sendNotice(`Failed to fetch discussions due to an error. See logs for details`);
+            return this.sendNotice(`Failed to fetch discussions due to an error. See logs for details.`);
         }
 
     }
@@ -318,7 +318,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("gitlab open issue", {help: "Open or join a issue room for GitLab", requiredArgs: ['url'], category: "gitlab"})
     private async gitLabOpenIssue(url: string) {
         if (!this.config.gitlab) {
-            return this.sendNotice("The bridge is not configured with GitLab support");
+            return this.sendNotice("The bridge is not configured with GitLab support.");
         }
 
         const urlResult = GitLabClient.splitUrlIntoParts(this.config.gitlab.instances, url);
@@ -329,7 +329,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         const instance = this.config.gitlab.instances[instanceName];
         const client = await this.tokenStore.getGitLabForUser(this.userId, instance.url);
         if (!client) {
-            return this.sendNotice("You have not added a personal access token for GitLab");
+            return this.sendNotice("You have not added a personal access token for GitLab.");
         }
         const getIssueOpts = {
             issue: parseInt(parts[parts.length-1]),
@@ -344,11 +344,11 @@ export class AdminRoom extends AdminRoomCommandHandler {
     public async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
         let me: GetUserResponse;
         if (!this.config.gitlab) {
-            return this.sendNotice("The bridge is not configured with GitLab support");
+            return this.sendNotice("The bridge is not configured with GitLab support.");
         }
         const instance = this.config.gitlab.instances[instanceName];
         if (!instance) {
-            return this.sendNotice("The bridge is not configured for this GitLab instance");
+            return this.sendNotice("The bridge is not configured for this GitLab instance.");
         }
         try {
             const client = new GitLabClient(instance.url, accessToken);
@@ -358,22 +358,22 @@ export class AdminRoom extends AdminRoomCommandHandler {
             log.error("Gitlab auth error:", ex);
             return this.sendNotice("Could not authenticate with GitLab. Is your token correct?");
         }
-        await this.sendNotice(`Connected as ${me.username}. Token stored`);
+        await this.sendNotice(`Connected as ${me.username}. Token stored.`);
         return this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
     }
 
     @botCommand("gitlab hastoken", {help: "Check if you have a token stored for GitLab", requiredArgs: ["instanceName"], category: "gitlab"})
     public async gitlabHasPersonalToken(instanceName: string) {
         if (!this.config.gitlab) {
-            return this.sendNotice("The bridge is not configured with GitLab support");
+            return this.sendNotice("The bridge is not configured with GitLab support.");
         }
         const instance = this.config.gitlab.instances[instanceName];
         if (!instance) {
-            return this.sendNotice("The bridge is not configured for this GitLab instance");
+            return this.sendNotice("The bridge is not configured for this GitLab instance.");
         }
         const result = await this.tokenStore.getUserToken("gitlab", this.userId, instance.url);
         if (result === null) {
-            return this.sendNotice("You do not currently have a token stored");
+            return this.sendNotice("You do not currently have a token stored.");
         }
         return this.sendNotice("A token is stored for your GitLab account.");
     }
@@ -381,7 +381,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("filters list", "List your saved filters")
     public async getFilters() {
         if (this.notifFilter.empty) {
-            return this.sendNotice("You do not currently have any filters");
+            return this.sendNotice("You do not currently have any filters.");
         }
         const filterText = Object.entries(this.notifFilter.filters).map(([name, value]) => {
             const userText = value.users.length ? `users: ${value.users.join("|")}` : '';
@@ -400,7 +400,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         const users = parameters.filter(param => param.toLowerCase().startsWith("users:")).map(param => param.toLowerCase().substring("users:".length).split(",")).flat();
         const repos = parameters.filter(param => param.toLowerCase().startsWith("repos:")).map(param => param.toLowerCase().substring("repos:".length).split(",")).flat();
         if (orgs.length + users.length + repos.length === 0) {
-            return this.sendNotice("You must specify some filter options like 'orgs:matrix-org,half-shot', 'users:Half-Shot' or 'repos:matrix-hookshot'");
+            return this.sendNotice("You must specify some filter options like 'orgs:matrix-org,half-shot', 'users:Half-Shot' or 'repos:matrix-hookshot'.");
         }
         this.notifFilter.setFilter(name, {
             orgs,
@@ -408,20 +408,20 @@ export class AdminRoom extends AdminRoomCommandHandler {
             repos,
         });
         await this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
-        return this.sendNotice(`Stored new filter "${name}". You can now apply the filter by saying 'filters notifications toggle $name'`);
+        return this.sendNotice(`Stored new filter "${name}". You can now apply the filter by saying 'filters notifications toggle $name'.`);
     }
 
     @botCommand("filters notifications toggle", "Apply a filter as a whitelist to your notifications", ["name"])
     public async setFiltersNotificationsToggle(name: string) {
         if (!this.notifFilter.filters[name]) {
-            return this.sendNotice(`Filter "${name}" doesn't exist'`);
+            return this.sendNotice(`Filter "${name}" doesn't exist.`);
         }
         if (this.notifFilter.forNotifications.has(name)) {
             this.notifFilter.forNotifications.delete(name);
-            await this.sendNotice(`Filter "${name}" disabled for notifications`);
+            await this.sendNotice(`Filter "${name}" disabled for notifications.`);
         } else {
             this.notifFilter.forNotifications.add(name);
-            await this.sendNotice(`Filter "${name}" enabled for notifications`);
+            await this.sendNotice(`Filter "${name}" enabled for notifications.`);
         }
         return this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
     }
@@ -442,7 +442,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(this.userId, service, level);
         const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this, checkPermission);
         if (!result.handled) {
-            return this.sendNotice("Command not understood");
+            return this.sendNotice("Command not understood.");
         }
         
         if ("humanError" in result) {

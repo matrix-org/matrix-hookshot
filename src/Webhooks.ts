@@ -5,7 +5,7 @@ import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import axios from "axios";
-import { IGitLabWebhookEvent } from "./Gitlab/WebhookTypes";
+import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./Jira/Router";
@@ -78,17 +78,22 @@ export class Webhooks extends EventEmitter {
     }
 
     private onGitLabPayload(body: IGitLabWebhookEvent) {
-        log.info(`onGitLabPayload ${body.event_type}:`, body);
-        if (body.event_type === "merge_request") {
-            return `gitlab.merge_request.${body.object_attributes.action}`;
-        } else if (body.event_type === "issue") {
-            return `gitlab.issue.${body.object_attributes.action}`;
-        } else if (body.event_type === "note") {
+        log.info(`onGitLabPayload ${body.object_kind}:`, body);
+        if (body.object_kind === "merge_request") {
+            const action = (body as unknown as IGitLabWebhookMREvent).object_attributes.action;
+            return `gitlab.merge_request.${action}`;
+        } else if (body.object_kind === "issue") {
+            const action = (body as unknown as IGitLabWebhookIssueStateEvent).object_attributes.action;
+            return `gitlab.issue.${action}`;
+        } else if (body.object_kind === "note") {
             return `gitlab.note.created`;
         } else if (body.object_kind === "tag_push") {
             return "gitlab.tag_push";
         } else if (body.object_kind === "wiki_page") {
             return "gitlab.wiki_page";
+        } else if (body.object_kind === "release") {
+            const action = (body as unknown as IGitLabWebhookReleaseEvent).action;
+            return `gitlab.release.${action}`;
         } else {
             return null;
         }

@@ -11,7 +11,7 @@ import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection } from "./Connections";
-import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
+import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
@@ -110,7 +110,7 @@ export class Bridge {
         }
 
         if (this.config.figma) {
-            // Ensure webhooks are setup
+            // Ensure webhooks are set up
             await ensureFigmaWebhooks(this.config.figma, this.as.botClient);
         }
 
@@ -338,6 +338,12 @@ export class Bridge {
             "gitlab.merge_request.unapproved",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
             (c, data) => c.onMergeRequestReviewed(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookReleaseEvent, GitLabRepoConnection>(
+            "gitlab.release.create",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onRelease(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookTagPushEvent, GitLabRepoConnection>(
@@ -622,12 +628,12 @@ export class Bridge {
                         // No state yet
                     }
                 }
-                const adminRoom = await this.setupAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                const adminRoom = await this.setUpAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
             } catch (ex) {
-                log.error(`Failed to setup admin room ${roomId}:`, ex);
+                log.error(`Failed to set up admin room ${roomId}:`, ex);
             }
         }));
 
@@ -690,7 +696,7 @@ export class Bridge {
         }
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const room = await this.setupAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
+            const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
             await this.as.botClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
@@ -1066,10 +1072,10 @@ export class Bridge {
             is_direct: true,
             preset: "trusted_private_chat",
         });
-        return this.setupAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        return this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
     }
 
-    private async setupAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
+    private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
         const adminRoom = new AdminRoom(
             roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config,
         );
@@ -1102,10 +1108,10 @@ export class Bridge {
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
-        if (this.config.widgets?.addToAdminRooms) {
+        if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
             await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
         }
-        log.debug(`Setup ${roomId} as an admin room for ${adminRoom.userId}`);
+        log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
     }
 }

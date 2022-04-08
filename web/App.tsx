@@ -73,6 +73,8 @@ export default class App extends Component<void, IState> {
         const { userId } = await this.bridgeApi.verify();
         const roomState = widgetKind === "admin" && await this.bridgeApi.state();
         const supportedServices = await this.bridgeApi.getEnabledConfigSections();
+        // Calling setState is ok because we've awaited a network request.
+        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
             userId,
             roomState,
@@ -89,6 +91,8 @@ export default class App extends Component<void, IState> {
                 error = "Could not contact your homeserver. Your instance may be misconfigured.";
             }
         }
+        // Calling setState is ok because we've awaited a network request.
+        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
             error,
             busy: false,

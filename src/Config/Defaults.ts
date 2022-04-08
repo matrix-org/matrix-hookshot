@@ -62,6 +62,9 @@ export const DefaultConfig = new BridgeConfig({
         },
         defaultOptions: {
             showIssueRoomLink: false,
+            hotlinkIssues: {
+                prefix: "#"
+            }
         }
     },
     gitlab: {

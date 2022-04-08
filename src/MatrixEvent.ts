@@ -25,7 +25,7 @@ export interface MatrixMessageContent extends MatrixEventContent {
     body: string;
     formatted_body?: string;
     format?: string;
-    msgtype: "m.text"|"m.notice"|"m.image"|"m.video"|"m.audio";
+    msgtype: "m.text"|"m.notice"|"m.image"|"m.video"|"m.audio"|"m.emote";
     "m.relates_to"?: {
         "m.in_reply_to"?: {
           event_id: string;

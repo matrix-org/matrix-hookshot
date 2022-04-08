@@ -25,7 +25,7 @@ export interface ILabel {
 
 export class FormatUtil {
     public static formatIssueRoomName(issue: MinimalGitHubIssue & {repository_url: string}) {
-        const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
+        const orgRepoName = issue.repository_url.slice("https://api.github.com/repos/".length);
         return emoji.emojify(`${orgRepoName}#${issue.number}: ${issue.title}`);
     }
 

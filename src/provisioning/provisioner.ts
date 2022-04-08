@@ -122,10 +122,10 @@ export class Provisioner {
     private getConnection(req: Request<{roomId: string, connectionId: string}>, res: Response<GetConnectionsResponseItem>) {
         const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
         if (!connection) {
-            throw new ApiError("Connection does not exist", ErrCode.NotFound);
+            throw new ApiError("Connection does not exist.", ErrCode.NotFound);
         }
         if (!connection.getProvisionerDetails)  {
-            throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
+            throw new ApiError("Connection type does not support updates.", ErrCode.UnsupportedOperation);
         }
         return res.send(connection.getProvisionerDetails());
     }
@@ -134,11 +134,11 @@ export class Provisioner {
         // Need to figure out which connections are available
         try {
             if (!req.body || typeof req.body !== "object") {
-                throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
+                throw new ApiError("A JSON body must be provided.", ErrCode.BadValue);
             }
             const connection = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
             if (!connection.getProvisionerDetails) {
-                throw new Error('Connection supported provisioning but not getProvisionerDetails');
+                throw new Error('Connection supported provisioning but not getProvisionerDetails.');
             }
             res.send(connection.getProvisionerDetails(true));
         } catch (ex) {
@@ -151,10 +151,10 @@ export class Provisioner {
         try {
             const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
             if (!connection) {
-                return next(new ApiError("Connection does not exist", ErrCode.NotFound));
+                return next(new ApiError("Connection does not exist.", ErrCode.NotFound));
             }
             if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
-                return next(new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation));
+                return next(new ApiError("Connection type does not support updates.", ErrCode.UnsupportedOperation));
             }
             await connection.provisionerUpdateConfig(req.query.userId, req.body);
             res.send(connection.getProvisionerDetails(true));
@@ -167,10 +167,10 @@ export class Provisioner {
         try {
             const connection = this.connMan.getConnectionById(req.params.roomId, req.params.connectionId);
             if (!connection) {
-                return next(new ApiError("Connection does not exist", ErrCode.NotFound));
+                return next(new ApiError("Connection does not exist.", ErrCode.NotFound));
             }
             if (!connection.onRemove) {
-                return next(new ApiError("Connection does not support removal", ErrCode.UnsupportedOperation));
+                return next(new ApiError("Connection does not support removal.", ErrCode.UnsupportedOperation));
             }
             await this.connMan.purgeConnection(req.params.roomId, req.params.connectionId);
             res.send({ok: true});

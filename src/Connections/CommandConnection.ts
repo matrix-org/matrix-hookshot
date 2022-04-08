@@ -48,7 +48,7 @@ export abstract class CommandConnection extends BaseConnection {
             });
             await this.botClient.sendEvent(this.roomId, 'm.room.message', {
                 msgtype: "m.notice",
-                body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command",
+                body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command.",
             });
             log.warn(`Failed to handle command:`, error);
             return true;

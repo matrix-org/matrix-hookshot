@@ -6,7 +6,7 @@ const GitHubState: FunctionComponent<{config: BridgeRoomStateGitHub}> = ({ confi
     return <div class="container login-card">
         <div class="row">
             <div class="col-sm-2">
-                <img src={config.identity.avatarUrl} title="GitHub avatar"/>
+                <img src={config.identity.avatarUrl} title="GitHub avatar" />
             </div>
             <div class="col-sm-9">
                 Logged in as <span>{config.identity.name}</span>

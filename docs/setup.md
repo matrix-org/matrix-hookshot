@@ -108,11 +108,11 @@ Each permission set can have a services. The `service` field can be:
 - `*`, for any service.
 
 The `level` can be:
- - `commands` Can run commands within connected rooms, but NOT log into the bridge.
- - `login` All the above, and can also log into the bridge.
+ - `commands` Can run commands within connected rooms, but NOT log in to the bridge.
+ - `login` All the above, and can also log in to the bridge.
  - `notifications` All the above, and can also bridge their notifications.
  - `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
- - `admin` All permissions. Currently there are no admin features so this exists as a placeholder.
+ - `admin` All permissions. Currently, there are no admin features so this exists as a placeholder.
 
 When permissions are checked, if a user matches any of the permission set and one
 of those grants the right level for a service, they are allowed access. If none of the 
@@ -134,7 +134,7 @@ permissions:
     services:
       - service: github
         level: manageConnections
-  # Allow users on this domain to login to jira and github.
+  # Allow users on this domain to log in to jira and github.
   - actor: support.example.com
     services:
       - service: jira

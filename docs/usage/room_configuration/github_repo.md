@@ -10,15 +10,16 @@ a new release.
 
 To set up a connection to a GitHub Repository in a new room:
 
-(N.B you must have permission to bridge GitHub repositories before you can use this command, see [auth](../auth.html#github))
+(NB you must have permission to bridge GitHub repositories before you can use this command, see [auth](../auth.html#github).)
 
-1. Invite the bridge bot (e..g `@hookshot:example.com`)
-2. Give the bridge bot moderator permissions or higher (power level 50).
-3. Send the command `!hookshot github repo https://github.com/my/project`
-4. If you have permission to bridge this repo, the bridge will respond with a confirmation message.
-5. Note: The bridge will need to either:
-    - Have a GitHub installation registered with the organisation
+1. The bridge will need to either:
+    - Have a GitHub installation registered with the organisation (or GitHub user account)
     - The requesting user must be authenticated with the bridge via OAuth and the repository must be part of their GitHub account.
+2. Create a new, unencrypted room. It can be public or private.
+3. Invite the bridge bot (e.g. `@hookshot:example.com`).
+4. Give the bridge bot moderator permissions or higher (power level 50) (or otherwise configure the room so the bot can edit room state).
+5. Send the command `!hookshot github repo https://github.com/my/project`.
+6. If you have permission to bridge this repo, the bridge will respond with a confirmation message.
 
 ## Configuration
 
@@ -32,6 +33,7 @@ This connection supports a few options which can be defined in the room state:
 |prDiff|Show a diff in the room when a PR is created, subject to limits|`{enabled: boolean, maxLines: number}`|`{enabled: false}`|
 |includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|hotlinkIssues|Send a link to an issue/PR in the room when a user mentions a prefix followed by a number|` { prefix: string }`|`{prefix: "#"}`|
 
 
 ### Supported event types

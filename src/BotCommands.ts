@@ -106,10 +106,10 @@ export async function handleCommand(
         if (command) {
             const permissionService = command.permissionService || defaultPermissionService;
             if (permissionService && !permissionCheckFn(permissionService, command.permissionLevel || BridgePermissionLevel.commands)) {
-                return {handled: true, error: "You do not have permission to use this command"};
+                return {handled: true, error: "You do not have permission to use this command."};
             }
             if (command.requiredArgs && command.requiredArgs.length > parts.length - i) {
-                return {handled: true, error: "Missing args"};
+                return {handled: true, error: "Missing at least one required parameter."};
             }
             const args = parts.slice(i);
             if (command.includeUserId) {

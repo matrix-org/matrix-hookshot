@@ -30,6 +30,8 @@ github:
     # (Optional) Default options for GitHub connections.
     #
     showIssueRoomLink: false
+    hotlinkIssues:
+      prefix: "#"
 gitlab:
   # (Optional) Configure this to enable GitLab support
   #

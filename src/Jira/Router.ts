@@ -134,7 +134,7 @@ export class JiraProvisionerRouter {
 
     private async onOAuth(req: Request<undefined, undefined, undefined, {userId: string}>, res: Response<{url: string}>) {
         if (!this.tokenStore.jiraOAuth) {
-            throw new ApiError('JIRA OAuth is disabled', ErrCode.DisabledFeature);
+            throw new ApiError('JIRA OAuth is disabled.', ErrCode.DisabledFeature);
         }
         const url = await this.tokenStore.jiraOAuth.getAuthUrl(this.tokenStore.createStateForOAuth(req.query.userId));
         res.send({ url });
@@ -157,7 +157,7 @@ export class JiraProvisionerRouter {
             }
         } catch (ex) {
             log.warn(`Failed to fetch accessible resources for ${req.query.userId}`, ex);
-            return next( new ApiError("Could not fetch accessible resources for JIRA user", ErrCode.Unknown));
+            return next( new ApiError("Could not fetch accessible resources for JIRA user.", ErrCode.Unknown));
         }
         return res.send({
             loggedIn: true,
@@ -177,10 +177,10 @@ export class JiraProvisionerRouter {
             resClient = await jiraUser.getClientForName(req.params.instanceName);
         } catch (ex) {
             log.warn(`Failed to fetch client for ${req.params.instanceName} for ${req.query.userId}`, ex);
-            return next( new ApiError("Could not fetch accessible resources for JIRA user", ErrCode.Unknown));
+            return next( new ApiError("Could not fetch accessible resources for JIRA user.", ErrCode.Unknown));
         }
         if (!resClient) {
-            return next( new ApiError("Instance not known or not accessible to this user", ErrCode.ForbiddenUser));
+            return next( new ApiError("Instance not known or not accessible to this user.", ErrCode.ForbiddenUser));
         }
     
         const projects = [];
@@ -195,7 +195,7 @@ export class JiraProvisionerRouter {
             }
         } catch (ex) {
             log.warn(`Failed to fetch accessible projects for ${req.params.instanceName} / ${req.query.userId}`, ex);
-            return next( new ApiError("Could not fetch accessible projects for JIRA user", ErrCode.Unknown));
+            return next( new ApiError("Could not fetch accessible projects for JIRA user.", ErrCode.Unknown));
         }
         
         return res.send(projects);

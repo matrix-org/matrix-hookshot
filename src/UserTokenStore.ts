@@ -76,7 +76,7 @@ export class UserTokenStore {
 
     public async storeUserToken(type: TokenType, userId: string, token: string, instanceUrl?: string): Promise<void> {
         if (!this.config.checkPermission(userId, type, BridgePermissionLevel.login)) {
-            throw new ApiError('User does not have permission to login to service', ErrCode.ForbiddenUser);
+            throw new ApiError('User does not have permission to log in to service', ErrCode.ForbiddenUser);
         }
         const key = tokenKey(type, userId, false, instanceUrl);
         const tokenParts: string[] = [];
