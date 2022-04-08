@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -348,6 +348,7 @@ excercise to the user.</p>
 Note that OAuth requests also go through this listener.</li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
+<li>The <code>widgets</code> resource handles resources under <code>/widgetapi/v1...</code>. This may only be bound to <strong>one</strong> listener at present.</li>
 </ul>
 <section class="notice">
 Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
@@ -419,6 +420,15 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+figma:
+  # (Optional) Configure this to enable Figma support
+  #
+  publicUrl: https://example.com/hookshot/
+  instances:
+    your-instance:
+      teamId: your-team-id
+      accessToken: your-personal-access-token
+      passcode: your-webhook-passcode
 jira:
   # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
   #
@@ -439,17 +449,9 @@ generic:
   #
   enabled: false
   urlPrefix: https://example.com/webhook/
+  userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
   waitForComplete: false
-figma:
-  # (Optional) Configure this to enable Figma support
-  #
-  publicUrl: https://example.com/hookshot/
-  instances:
-    your-instance:
-      teamId: your-team-id
-      accessToken: your-personal-access-token
-      passcode: your-webhook-passcode
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
@@ -481,6 +483,35 @@ logging:
   colorize: true
   json: false
   timestampFormat: HH:mm:ss:SSS
+widgets:
+  # (Optional) EXPERIMENTAL support for complimentary widgets
+  #
+  addToAdminRooms: false
+  disallowedIpRanges:
+    - 127.0.0.0/8
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 192.0.0.0/24
+    - 169.254.0.0/16
+    - 192.88.99.0/24
+    - 198.18.0.0/15
+    - 192.0.2.0/24
+    - 198.51.100.0/24
+    - 203.0.113.0/24
+    - 224.0.0.0/4
+    - ::1/128
+    - fe80::/10
+    - fc00::/7
+    - 2001:db8::/32
+    - ff00::/8
+    - fec0::/10
+  roomSetupWidget:
+    addOnInvite: false
+  publicUrl: http://example.com/widgetapi/v1/static
+  branding:
+    widgetTitle: Hookshot Configuration
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #
@@ -1468,6 +1499,61 @@ yarn start:matrixsender
 yarn start:app
 </code></pre>
 <p>Be aware that you will need to start all worker types when running in worker mode, as the service does not allow a hybrid worker approach.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="widgets"><a class="header" href="#widgets">Widgets</a></h1>
+<section class="warning">
+Widgets themselves are still not
+part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
+so there cannot be guarantees about client support or stability of the feature.
+</section>
+<p>Hookshot supports using widgets to configure connections in rooms. Widgets allow users to view and configure rooms without the need to type commands. The widget feature is designed to complement
+the existing command system, rather than replace it.</p>
+<p><img alt="Example of a configuration widget" src="advanced/./widgets.png" style="display: block; margin-left: auto; width: 500px; margin-right: auto;"></img></p>
+<h3 id="configuration-6"><a class="header" href="#configuration-6">Configuration</a></h3>
+<pre><code class="language-yaml">widgets:
+  addToAdminRooms: false
+  roomSetupWidget:
+    addOnInvite: false
+# disallowedIpRanges:
+#     - 127.0.0.0/8
+#     - 10.0.0.0/8
+#     - 172.16.0.0/12
+#     - 192.168.0.0/16
+#     - 100.64.0.0/10
+#     - 192.0.0.0/24
+#     - 169.254.0.0/16
+#     - 192.88.99.0/24
+#     - 198.18.0.0/15
+#     - 192.0.2.0/24
+#     - 198.51.100.0/24
+#     - 203.0.113.0/24
+#     - 224.0.0.0/4
+#     - ::1/128
+#     - fe80::/10
+#     - fc00::/7
+#     - 2001:db8::/32
+#     - ff00::/8
+#     - fec0::/10
+  publicUrl: http://example.com/widgetapi/v1/static
+  branding:
+    widgetTitle: Hookshot Configuration
+</code></pre>
+<p>The admin room feature is still very barebones so while it's included here for completeness, most instances
+should leave <code>addToAdminRooms</code> off (as it is by default). This flag will add an &quot;admin room&quot; widget to user admin rooms.</p>
+<p>The room setup feature is more complete, supporting generic webhook configuration (with more options coming soon).
+This can be enabled by setting <code>roomSetupWidget</code> to an object. You can add the widget by saying <code>!hookshot setup-widget</code> in any room.
+When <code>addOnInvite</code> is true, the bridge will add a widget to rooms when the bot is invited, and the room has <strong>no existing connections</strong>.</p>
+<p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons). Unless you know what you are doing,
+it is reccomended to not include this key. The default blocked IPs are listed above for your convienence.</p>
+<p><code>publicUrl</code> should be set to the publically reachable address for the widget <code>public</code> content. By default, hookshot hosts this content on the
+<code>widgets</code> listener under <code>/widgetapi/v1/static</code>. </p>
+<p><code>branding</code> allows you to change the strings used for various bits of widget UI. At the moment you can:</p>
+<ul>
+<li>Set <code>widgetTitle</code> to change the title of the widget that is created.</li>
+</ul>
+<h3 id="api"><a class="header" href="#api">API</a></h3>
+<p>The API for widgets is currently in flux due to being fairly new, and it's not reccomended
+to develop against it at this time. At a future date this API will be merged with the existing
+provisioning API and the details will be published.</p>
 
                     </main>
 

@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html" class="active"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html" class="active"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="../advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -196,6 +196,15 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+figma:
+  # (Optional) Configure this to enable Figma support
+  #
+  publicUrl: https://example.com/hookshot/
+  instances:
+    your-instance:
+      teamId: your-team-id
+      accessToken: your-personal-access-token
+      passcode: your-webhook-passcode
 jira:
   # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
   #
@@ -216,17 +225,9 @@ generic:
   #
   enabled: false
   urlPrefix: https://example.com/webhook/
+  userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
   waitForComplete: false
-figma:
-  # (Optional) Configure this to enable Figma support
-  #
-  publicUrl: https://example.com/hookshot/
-  instances:
-    your-instance:
-      teamId: your-team-id
-      accessToken: your-personal-access-token
-      passcode: your-webhook-passcode
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
@@ -258,6 +259,35 @@ logging:
   colorize: true
   json: false
   timestampFormat: HH:mm:ss:SSS
+widgets:
+  # (Optional) EXPERIMENTAL support for complimentary widgets
+  #
+  addToAdminRooms: false
+  disallowedIpRanges:
+    - 127.0.0.0/8
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 100.64.0.0/10
+    - 192.0.0.0/24
+    - 169.254.0.0/16
+    - 192.88.99.0/24
+    - 198.18.0.0/15
+    - 192.0.2.0/24
+    - 198.51.100.0/24
+    - 203.0.113.0/24
+    - 224.0.0.0/4
+    - ::1/128
+    - fe80::/10
+    - fc00::/7
+    - 2001:db8::/32
+    - ff00::/8
+    - fec0::/10
+  roomSetupWidget:
+    addOnInvite: false
+  publicUrl: http://example.com/widgetapi/v1/static
+  branding:
+    widgetTitle: Hookshot Configuration
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #

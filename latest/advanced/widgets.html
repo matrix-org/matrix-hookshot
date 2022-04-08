@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Authenticating - Matrix Hookshot</title>
+        <title>🪀 Widgets - Matrix Hookshot</title>
                 
 
         <!-- Custom HTML head -->
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html" class="active"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="../advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="../advanced/widgets.html" class="active"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -121,7 +121,7 @@
                                                                         <a href="https://github.com/matrix-org/matrix-hookshot" title="Git repository" aria-label="Git repository">
                             <i id="git-repository-button" class="fa fa-github"></i>
                         </a>
-                                                                        <a href="https://github.com/matrix-org/matrix-hookshot/edit/main/docs/usage/auth.md" title="Suggest an edit" aria-label="Suggest an edit">
+                                                                        <a href="https://github.com/matrix-org/matrix-hookshot/edit/main/docs/advanced/widgets.md" title="Suggest an edit" aria-label="Suggest an edit">
                             <i id="git-edit-button" class="fa fa-edit"></i>
                         </a>
                         
@@ -150,92 +150,70 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="authenticating"><a class="header" href="#authenticating">Authenticating</a></h1>
-<p>To authenticate with services, you must first have a DM room with the bridge set up. In this guide,
-we are going to assume the bot is called <code>@hookshot:example.com</code> but this will vary for your setup. For all
-the instructions below, commands should only be executed in the DM room.</p>
-<h2 id="github"><a class="header" href="#github">GitHub</a></h2>
-<p>You can authenticate via OAuth or a Personal Access Token (PAT) when using GitHub. Authentication is required
-when trying to bridge GitHub resources into rooms.</p>
-<section class="notice">
-Please note that you will need a Personal Access Token in order to bridge your personal GitHub notifications.
-This is a limitation of GitHub's API.
+                        <h1 id="widgets"><a class="header" href="#widgets">Widgets</a></h1>
+<section class="warning">
+Widgets themselves are still not
+part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
+so there cannot be guarantees about client support or stability of the feature.
 </section>
-<p>To authenticate with a personal access token:</p>
-<ol>
-<li>
-<p>Open <a href="https://github.com/settings/tokens">https://github.com/settings/tokens</a> (Github &gt; Settings &gt; Developer Settings / Personal access tokens)</p>
-</li>
-<li>
-<p>Click <strong>Generate new token</strong></p>
-</li>
-<li>
-<p>Give it a good name, and a sensible expiration date. For scopes you will need:</p>
+<p>Hookshot supports using widgets to configure connections in rooms. Widgets allow users to view and configure rooms without the need to type commands. The widget feature is designed to complement
+the existing command system, rather than replace it.</p>
+<p><img alt="Example of a configuration widget" src="./widgets.png" style="display: block; margin-left: auto; width: 500px; margin-right: auto;"></img></p>
+<h3 id="configuration"><a class="header" href="#configuration">Configuration</a></h3>
+<pre><code class="language-yaml">widgets:
+  addToAdminRooms: false
+  roomSetupWidget:
+    addOnInvite: false
+# disallowedIpRanges:
+#     - 127.0.0.0/8
+#     - 10.0.0.0/8
+#     - 172.16.0.0/12
+#     - 192.168.0.0/16
+#     - 100.64.0.0/10
+#     - 192.0.0.0/24
+#     - 169.254.0.0/16
+#     - 192.88.99.0/24
+#     - 198.18.0.0/15
+#     - 192.0.2.0/24
+#     - 198.51.100.0/24
+#     - 203.0.113.0/24
+#     - 224.0.0.0/4
+#     - ::1/128
+#     - fe80::/10
+#     - fc00::/7
+#     - 2001:db8::/32
+#     - ff00::/8
+#     - fec0::/10
+  publicUrl: http://example.com/widgetapi/v1/static
+  branding:
+    widgetTitle: Hookshot Configuration
+</code></pre>
+<p>The admin room feature is still very barebones so while it's included here for completeness, most instances
+should leave <code>addToAdminRooms</code> off (as it is by default). This flag will add an &quot;admin room&quot; widget to user admin rooms.</p>
+<p>The room setup feature is more complete, supporting generic webhook configuration (with more options coming soon).
+This can be enabled by setting <code>roomSetupWidget</code> to an object. You can add the widget by saying <code>!hookshot setup-widget</code> in any room.
+When <code>addOnInvite</code> is true, the bridge will add a widget to rooms when the bot is invited, and the room has <strong>no existing connections</strong>.</p>
+<p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons). Unless you know what you are doing,
+it is reccomended to not include this key. The default blocked IPs are listed above for your convienence.</p>
+<p><code>publicUrl</code> should be set to the publically reachable address for the widget <code>public</code> content. By default, hookshot hosts this content on the
+<code>widgets</code> listener under <code>/widgetapi/v1/static</code>. </p>
+<p><code>branding</code> allows you to change the strings used for various bits of widget UI. At the moment you can:</p>
 <ul>
-<li>Repo (to access repo information)
-<ul>
-<li>public_repo</li>
-<li>repo:status</li>
+<li>Set <code>widgetTitle</code> to change the title of the widget that is created.</li>
 </ul>
-</li>
-<li>Workflow (if you want to be able to launch workflows / GitHub actions from Matrix)</li>
-<li>Notifications (if you want to bridge in your notifications to Matrix)</li>
-<li>User
-<ul>
-<li>read:user</li>
-</ul>
-</li>
-<li>write:discussion (for GitHub discussion support)
-<ul>
-<li>read:discussion</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p>Send the generated token to the bridge by saying <code>github setpersonaltoken %your-token%</code>. You can redact
-the message afterwards if you like.</p>
-</li>
-<li>
-<p>The bridge will have connected you. You can check the status at any time by saying <code>github hastoken</code></p>
-</li>
-</ol>
-<h2 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h2>
-<p>You can authenticate with GitLab by supplying a Personal Access Token. OAuth-style authentication isn't supported
-yet.</p>
-<ul>
-<li>You will need to have configured a GitLab instance in your config.yml for the instance you want to log in to.</li>
-<li>Open https://%instance%/-/profile/personal_access_tokens (GitLab &gt; User Settings &gt; Access Tokens), where instance is your GitLab instance address.
-<ul>
-<li>For the public GitLab server, this would be &quot;gitlab.com&quot;</li>
-</ul>
-</li>
-<li>Give it a good name, and a sensible expiration date. For scopes you will need to tick <code>api</code>.</li>
-<li>Send the generated token to the bridge by saying <code>gitlab personaltoken %instance% %your-token%</code>. You can redact
-the message afterwards if you like.</li>
-<li>The bridge will have connected you. You can check the status at any time by saying <code>gitlab hastoken %instance% </code></li>
-</ul>
-<h2 id="jira"><a class="header" href="#jira">JIRA</a></h2>
-<p>You can log in to JIRA via OAuth. This means you will need to have configured OAuth support in your <code>config.yml</code>, and
-have the endpoints required accessible from the internet. Authentication is required when trying to bridge JIRA resources into rooms.</p>
-<ul>
-<li>Say <code>jira login</code> to get the URL to authenticate via.</li>
-<li>Click the URL sent by the bot.</li>
-<li>Follow the steps, ensuring you authenticate with the right user.</li>
-<li>If all goes well, you will now be connected. You can check the status and authorisatied instances by saying <code>jira whoami</code></li>
-</ul>
+<h3 id="api"><a class="header" href="#api">API</a></h3>
+<p>The API for widgets is currently in flux due to being fairly new, and it's not reccomended
+to develop against it at this time. At a future date this API will be merged with the existing
+provisioning API and the details will be published.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                                                    <a rel="prev" href="../usage/dynamic_rooms.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                                    <a rel="prev" href="../advanced/workers.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <i class="fa fa-angle-left"></i>
                             </a>
                         
-                                                    <a rel="next" href="../usage/room_configuration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <i class="fa fa-angle-right"></i>
-                            </a>
                         
                         <div style="clear: both"></div>
                     </nav>
@@ -243,13 +221,10 @@ have the endpoints required accessible from the internet. Authentication is requ
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                                    <a rel="prev" href="../usage/dynamic_rooms.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                    <a rel="prev" href="../advanced/workers.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <i class="fa fa-angle-left"></i>
                     </a>
                 
-                                    <a rel="next" href="../usage/room_configuration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <i class="fa fa-angle-right"></i>
-                    </a>
                             </nav>
 
         </div>
