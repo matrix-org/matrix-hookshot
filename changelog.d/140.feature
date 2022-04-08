@@ -1,1 +1,0 @@
-Add support for configuring generic webhooks via widgets.

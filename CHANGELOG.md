@@ -1,3 +1,36 @@
+1.4.0 (2022-04-08)
+==================
+
+Features
+--------
+
+- Add support for configuring generic webhooks via widgets. ([\#140](https://github.com/matrix-org/matrix-hookshot/issues/140))
+- Show the closing comments on closed GitHub PRs. ([\#262](https://github.com/matrix-org/matrix-hookshot/issues/262))
+- Webhooks created via `!hookshot webhook` now have their secret URLs sent to the admin room with the user, rather than posted in the bridged room. ([\#265](https://github.com/matrix-org/matrix-hookshot/issues/265))
+- Automatically link GitHub issues and pull requests when an issue number is mentioned (by default, using the # prefix). ([\#277](https://github.com/matrix-org/matrix-hookshot/issues/277))
+- Support GitLab release webhook events. ([\#278](https://github.com/matrix-org/matrix-hookshot/issues/278))
+
+
+Bugfixes
+--------
+
+- Bridge API: Don't sent HTTP header Content-Type: application/json when there is no body. ([\#272](https://github.com/matrix-org/matrix-hookshot/issues/272))
+
+
+Improved Documentation
+----------------------
+
+- Clarify steps of bridging a GitHub repo ([\#245](https://github.com/matrix-org/matrix-hookshot/issues/245))
+- Update setup.md: Minor grammar corrections ([\#264](https://github.com/matrix-org/matrix-hookshot/issues/264))
+
+
+Internal Changes
+----------------
+
+- Make some grammar corrections in code, chat notices and documentation. ([\#267](https://github.com/matrix-org/matrix-hookshot/issues/267))
+- Made ESLint lint all TypeScript files and fix a few linter errors. ([\#273](https://github.com/matrix-org/matrix-hookshot/issues/273))
+
+
 1.3.0 (2022-03-30)
 ==================
 

@@ -1,1 +1,0 @@
-Automatically link GitHub issues and pull requests when an issue number is mentioned (by default, using the # prefix).
