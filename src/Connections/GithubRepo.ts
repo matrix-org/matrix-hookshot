@@ -487,7 +487,13 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
 
-        let message = `**${event.issue.user.login}** created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
+        let actionText = "created new issue"
+        if (event.issue.comments > 0) {
+            // This was tranferred
+            actionText = "transferred issue"
+        }
+
+        let message = `**${event.issue.user.login}** ${actionText} [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`;
         message += (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
         if (this.showIssueRoomLink) {
             const appInstance = await this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);

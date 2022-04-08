@@ -351,11 +351,12 @@ export class ConnectionManager {
         return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
     }
 
-    public getConnectionsForJiraProject(project: JiraProject, eventName: string): JiraProjectConnection[] {
+    public getConnectionsForJiraProject(project: {id: string, self: string, key: string}, eventName?: string): JiraProjectConnection[] {
         return this.connections.filter((c) => 
             (c instanceof JiraProjectConnection &&
                 c.interestedInProject(project) &&
-                c.isInterestedInHookEvent(eventName))) as JiraProjectConnection[];
+                (!eventName || c.isInterestedInHookEvent(eventName))
+            )) as JiraProjectConnection[];
     }
 
 
@@ -388,12 +389,12 @@ export class ConnectionManager {
         return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
     }
 
-    public async purgeConnection(roomId: string, connectionId: string, requireNoRemoveHandler = true) {
+    public async purgeConnection(roomId: string, connectionId: string, requireRemoveHandler = true) {
         const connection = this.connections.find((c) => c.connectionId === connectionId && c.roomId == roomId);
         if (!connection) {
             throw Error("Connection not found");
         }
-        if (requireNoRemoveHandler && !connection.onRemove) {
+        if (requireRemoveHandler && !connection.onRemove) {
             throw Error("Connection doesn't support removal, and so cannot be safely removed");
         }
         await connection.onRemove?.();

@@ -109,7 +109,7 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         return !this.state.events || this.state.events?.includes(eventName as JiraAllowedEventsNames);
     }
 
-    public interestedInProject(project: JiraProject) {
+    public interestedInProject(project: {id: string, self: string, key: string}) {
         if (this.projectId === project.id) {
             return true;
         }

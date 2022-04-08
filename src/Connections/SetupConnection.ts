@@ -13,8 +13,11 @@ import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { URL } from "url";
 import { AdminRoom } from "../AdminRoom";
+import { ConnectionManager } from "../ConnectionManager";
 const md = new markdown();
 
+const GITHUB_REGEX = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/;
+const JIRA_REGEX = /.+\/projects\/(\w+)\/?(\w+\/?)*$/;
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
  * no state, and is only invoked when messages from other clients fall through.
@@ -28,6 +31,7 @@ export class SetupConnection extends CommandConnection {
         private readonly as: Appservice,
         private readonly tokenStore: UserTokenStore,
         private readonly config: BridgeConfig,
+        private readonly connectionManager: ConnectionManager,
         private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
         private readonly githubInstance?: GithubInstance,) {
             super(
@@ -59,7 +63,7 @@ export class SetupConnection extends CommandConnection {
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
         }
-        const urlParts = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(url.trim().toLowerCase());
+        const urlParts = GITHUB_REGEX.exec(url.trim().toLowerCase());
         if (!urlParts) {
             throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid");
         }
@@ -67,6 +71,38 @@ export class SetupConnection extends CommandConnection {
         const res = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.as, this.tokenStore, this.githubInstance, this.config.github);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, url, res.stateEventContent);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${org}/${repo}`);
+    }
+
+    @botCommand("remove github repo", "Remove a GitHub repository connection.", ["url"], [], true)
+    public async onRemoveGitHubRepo(userId: string, url: string) {
+        if (!this.githubInstance || !this.config.github) {
+            throw new CommandError("not-configured", "The bridge is not configured to support GitHub");
+        }
+        if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
+            throw new CommandError('You are not permitted to remove connections for GitHub');
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to remove integrations.");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to remove a bridge in this room. Please promote me to an Admin/Moderator");
+        }
+        const urlParts = GITHUB_REGEX.exec(url.trim().toLowerCase());
+        if (!urlParts) {
+            throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid");
+        }
+        const [, org, repo] = urlParts;
+        const connections = await this.connectionManager.getConnectionsForGithubRepo(org, repo);
+        for (const connection of connections) {
+            await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
+        }
+        if (connections.length === 0) {
+            throw new CommandError("no-connections-found", "No connections found matching that url");
+        } else if (connections.length === 1) {
+            await this.as.botClient.sendNotice(this.roomId, `Removed connection from this room`);
+        } else {
+            await this.as.botClient.sendNotice(this.roomId, `Removed ${connections.length} connections from this room`);
+        }
     }
 
     @botCommand("jira project", "Create a connection for a JIRA project. (You must be logged in with JIRA to do this)", ["url"], [], true)
@@ -88,7 +124,7 @@ export class SetupConnection extends CommandConnection {
         if (!jiraClient) {
             throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
         }
-        const urlParts = /.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname.toLowerCase());
+        const urlParts = JIRA_REGEX.exec(url.pathname.toLowerCase());
         const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
         if (!projectKey) {
             throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`");
@@ -97,6 +133,44 @@ export class SetupConnection extends CommandConnection {
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.as, this.tokenStore);
         await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, safeUrl, res.stateEventContent);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}`);
+    }
+
+    @botCommand("remove jira project", "Remove a GitHub repository connection.", ["url"], [], true)
+    public async onRemoveJiraProject(userId: string, urlStr: string) {
+        const url = new URL(urlStr);
+        if (!this.config.jira) {
+            throw new CommandError("not-configured", "The bridge is not configured to support Jira");
+        }
+        if (!this.config.checkPermission(userId, "jira", BridgePermissionLevel.manageConnections)) {
+            throw new CommandError('You are not permitted to remove connections for Jira');
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to remove connections.");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to remove a connection in this room. Please promote me to an Admin/Moderator");
+        }
+        const urlParts = JIRA_REGEX.exec(url.pathname.toLowerCase());
+        const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
+        if (!projectKey) {
+            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`");
+        }
+        const safeUrl = `https://${url.host}/projects/${projectKey}`;
+        const connections = await this.connectionManager.getConnectionsForJiraProject({
+            id: "none",
+            self: safeUrl,
+            key: projectKey,
+        });
+        for (const connection of connections) {
+            await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
+        }
+        if (connections.length === 0) {
+            throw new CommandError("no-connections-found", "No connections found matching that url");
+        } else if (connections.length === 1) {
+            await this.as.botClient.sendNotice(this.roomId, `Removed connection from this room`);
+        } else {
+            await this.as.botClient.sendNotice(this.roomId, `Removed ${connections.length} connections from this room`);
+        }
     }
 
     @botCommand("webhook", "Create an inbound webhook", ["name"], [], true)

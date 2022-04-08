@@ -435,8 +435,8 @@ export class Bridge {
                     );
                     connManager.push(discussionConnection);
                 } catch (ex) {
-                    log.error(ex);
-                    throw Error('Failed to create discussion room');
+                    log.error("Failed to create discussion room", ex);
+                    return;
                 }
             }
 
