@@ -47,6 +47,7 @@ interface WebhookTransformationResult {
     version: string;
     plain?: string;
     html?: string;
+    msgtype?: string;
     empty?: boolean;
 }
 
@@ -220,7 +221,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {plain: string, html?: string}|null {
+    public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -258,10 +259,14 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (transformationResult.html && typeof transformationResult.html !== "string") {
             throw Error("Result returned from transformation didn't provide a string value for html");
         }
+        if (transformationResult.msgtype && typeof transformationResult.msgtype !== "string") {
+            throw Error("Result returned from transformation didn't provide a string value for msgtype");
+        }
 
         return {
             plain: plain,
             html: transformationResult.html,
+            msgtype: transformationResult.msgtype,
         }
     }
 
@@ -272,7 +277,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      */
     public async onGenericHook(data: unknown): Promise<boolean> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
-        let content: {plain: string, html?: string};
+        let content: {plain: string, html?: string, msgtype?: string};
         let success = true;
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
@@ -295,7 +300,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         await this.ensureDisplayname();
 
         await this.messageClient.sendMatrixMessage(this.roomId, {
-            msgtype: "m.notice",
+            msgtype: content.msgtype || "m.notice",
             body: content.plain,
             formatted_body: content.html || md.renderInline(content.plain),
             format: "org.matrix.custom.html",
