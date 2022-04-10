@@ -109,6 +109,7 @@ The `v2` api expects an object to be returned from the `result` variable.
   "empty": true|false, // Should the webhook be ignored and no output returned. The default is false (plain must be provided).
   "plain": "Some text", // The plaintext value to be used for the Matrix message.
   "html": "<b>Some</b> text", // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
+  "msgtype": "some.type", // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
 }
 ```
 
