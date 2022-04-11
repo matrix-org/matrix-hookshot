@@ -120,6 +120,11 @@ export const DefaultConfig = new BridgeConfig({
             port: 9001,
             bindAddress: '127.0.0.1',
             resources: ['metrics', 'provisioning'],
+        },
+        {
+            port: 9002,
+            bindAddress: '0.0.0.0',
+            resources: ['widgets'],
         }
     ]
 }, {});
