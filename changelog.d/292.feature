@@ -1,0 +1,1 @@
+Add new GitHubRepo config option `newIssue.labels` which allows admins to automatically set labels on new issues.
