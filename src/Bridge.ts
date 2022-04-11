@@ -774,7 +774,7 @@ export class Bridge {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
                 }
                 if (handled) {
-                    return;
+                    break;
                 }
             }
             if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
