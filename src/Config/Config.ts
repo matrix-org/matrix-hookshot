@@ -7,6 +7,7 @@ import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
+import { ConfigError } from "../errors";
 
 const log = new LogWrapper("Config");
 
@@ -187,7 +188,7 @@ export class BridgeConfigGenericWebhooks {
     public readonly waitForComplete?: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
         if (typeof yaml.urlPrefix !== "string") {
-            throw Error('urlPrefix is not defined or not a string');
+            throw new ConfigError("generic.urlPrefix", "is not defined or not a string");
         }
         this.enabled = yaml.enabled || false;
         this.urlPrefix = yaml.urlPrefix;
@@ -235,10 +236,10 @@ export class BridgeWidgetConfig {
         this.disallowedIpRanges = yaml.disallowedIpRanges;
         this.roomSetupWidget = yaml.roomSetupWidget;
         if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
-            throw Error('disallowedIpRanges must be a string array');
+            throw new ConfigError("widgets.disallowedIpRanges", "must be a string array");
         }
         if (typeof yaml.publicUrl !== "string") {
-            throw Error('publicUrl is not defined or not a string');
+            throw new ConfigError("widgets.publicUrl", "is not defined or not a string");
         }
         this.publicUrl = yaml.publicUrl;
         this.branding = yaml.branding || {
@@ -389,7 +390,7 @@ export class BridgeConfig {
         // To allow DEBUG as well as debug
         this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
-            throw Error(`'logging.level' is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
+            throw new ConfigError("logging.level", `Logging level is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
         }
 
         this.permissions = configData.permissions || [{
@@ -460,6 +461,11 @@ export class BridgeConfig {
                 port: configData.widgets.port,
             });
             log.warn("The `widgets` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
+        }
+
+        const hasWidgetListener = !!this.listeners.find(l => l.resources.includes('widgets'));
+        if (this.widgets && !hasWidgetListener) {
+            throw new ConfigError(`listeners`, "You have enabled the widgets feature, but not included a widgets listener.");
         }
     }
 
