@@ -155,4 +155,8 @@ listeners:
     resources:
       - metrics
       - provisioning
+  - port: 9002
+    bindAddress: 0.0.0.0
+    resources:
+      - widgets
 
