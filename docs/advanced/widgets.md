@@ -2,9 +2,8 @@ Widgets
 =======
 
 <section class="warning">
-Widgets themselves are still not
-part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
-so there cannot be guarantees about client support or stability of the feature.
+Widgets themselves are still not part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
+so there can be no guarantees about client support or stability of the feature).
 </section>
 
 Hookshot supports using widgets to configure connections in rooms. Widgets allow users to view and configure rooms without the need to type commands. The widget feature is designed to complement
@@ -52,8 +51,8 @@ The room setup feature is more complete, supporting generic webhook configuratio
 This can be enabled by setting `roomSetupWidget` to an object. You can add the widget by saying `!hookshot setup-widget` in any room.
 When `addOnInvite` is true, the bridge will add a widget to rooms when the bot is invited, and the room has **no existing connections**.
 
-`disallowedIpRanges` describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons). Unless you know what you are doing,
-it is reccomended to not include this key. The default blocked IPs are listed above for your convienence.
+`disallowedIpRanges` describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
+Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convienence.
 
 `publicUrl` should be set to the publically reachable address for the widget `public` content. By default, hookshot hosts this content on the
 `widgets` listener under `/widgetapi/v1/static`. 
