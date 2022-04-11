@@ -60,6 +60,17 @@ Unless you know what you are doing, it is recommended to not include this key. T
 `branding` allows you to change the strings used for various bits of widget UI. At the moment you can:
  - Set `widgetTitle` to change the title of the widget that is created.
 
+In addition to setting up the widgets config, you must bind a listener for the widgets resource in your `listeners` config.
+
+```yaml
+listeners:
+  - port: 5069
+    bindAddress: 0.0.0.0
+    resources:
+      - widgets
+```
+
+See the [setup page](../setup#listeners-configuration) for more information on listeners.
 
 ### API
 
