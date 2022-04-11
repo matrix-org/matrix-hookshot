@@ -1502,9 +1502,8 @@ yarn start:app
 <p>Be aware that you will need to start all worker types when running in worker mode, as the service does not allow a hybrid worker approach.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="widgets"><a class="header" href="#widgets">Widgets</a></h1>
 <section class="warning">
-Widgets themselves are still not
-part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
-so there cannot be guarantees about client support or stability of the feature.
+Widgets themselves are still not part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
+so there can be no guarantees about client support or stability of the feature).
 </section>
 <p>Hookshot supports using widgets to configure connections in rooms. Widgets allow users to view and configure rooms without the need to type commands. The widget feature is designed to complement
 the existing command system, rather than replace it.</p>
@@ -1543,8 +1542,8 @@ should leave <code>addToAdminRooms</code> off (as it is by default). This flag w
 <p>The room setup feature is more complete, supporting generic webhook configuration (with more options coming soon).
 This can be enabled by setting <code>roomSetupWidget</code> to an object. You can add the widget by saying <code>!hookshot setup-widget</code> in any room.
 When <code>addOnInvite</code> is true, the bridge will add a widget to rooms when the bot is invited, and the room has <strong>no existing connections</strong>.</p>
-<p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons). Unless you know what you are doing,
-it is reccomended to not include this key. The default blocked IPs are listed above for your convienence.</p>
+<p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
+Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convienence.</p>
 <p><code>publicUrl</code> should be set to the publically reachable address for the widget <code>public</code> content. By default, hookshot hosts this content on the
 <code>widgets</code> listener under <code>/widgetapi/v1/static</code>. </p>
 <p><code>branding</code> allows you to change the strings used for various bits of widget UI. At the moment you can:</p>
