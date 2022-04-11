@@ -121,8 +121,8 @@ export class SetupConnection extends CommandConnection {
         await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
         await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
         const adminRoom = await this.getOrCreateAdminRoom(userId);
-        await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`);
-        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge webhooks. See admin room for secret url.`));
+        await adminRoom.sendNotice(md.renderInline(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`));
+        return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }
 
     @botCommand("figma file", "Bridge a Figma file to the room.", ["url"], [], true)
