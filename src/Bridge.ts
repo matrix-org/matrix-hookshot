@@ -773,6 +773,9 @@ export class Bridge {
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
                 }
+                if (handled) {
+                    return;
+                }
             }
             if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
