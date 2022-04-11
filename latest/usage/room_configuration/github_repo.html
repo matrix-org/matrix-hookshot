@@ -180,6 +180,8 @@ a new release.</p>
 <tr><td>includingLabels</td><td>Only notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 <tr><td>excludingLabels</td><td>Never notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 <tr><td>hotlinkIssues</td><td>Send a link to an issue/PR in the room when a user mentions a prefix followed by a number</td><td><code> { prefix: string }</code></td><td><code>{prefix: &quot;#&quot;}</code></td></tr>
+<tr><td>newIssue</td><td>Configuration options for new issues</td><td><code>{ labels: string[] }</code></td><td><em>empty</em></td></tr>
+<tr><td>newIssue.labels</td><td>Automatically set these labels on issues created via commands</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 </tbody></table>
 <h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
