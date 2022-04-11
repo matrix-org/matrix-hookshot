@@ -136,7 +136,7 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
                 error && <ErrorPane header="Error">{error}</ErrorPane>
             }
             <header className={style.header}>
-                <img src="./icons/webhook.webp" />
+                <img src="./icons/webhook.png" />
                 <h1>Generic Webhooks</h1> 
             </header>
             { canEditRoom && <section>

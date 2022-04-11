@@ -1,0 +1,1 @@
+Fix issue where the webhook icon in the widget configuration page would not load in some browsers.
