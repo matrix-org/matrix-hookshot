@@ -9,8 +9,9 @@ import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
 import { IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
+import { IConnectionState } from "./IConnection";
 
-export interface GitLabRepoConnectionState {
+export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
     ignoreHooks?: string[],
@@ -61,6 +62,10 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public get path() {
         return this.state.path?.toString();
+    }
+
+    public get priority(): number {
+        return this.state.priority || super.priority;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {

@@ -14,4 +14,8 @@ export abstract class BaseConnection {
     public get connectionId(): string {
         return FormatUtil.hashId(`${this.roomId}/${this.canonicalStateType}/${this.stateKey}`);
     }
+
+    public get priority(): number {
+        return -1;
+    }
 }

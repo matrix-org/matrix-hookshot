@@ -378,7 +378,7 @@ export class ConnectionManager {
     }
 
     public getAllConnectionsForRoom(roomId: string): IConnection[] {
-        return this.connections.filter(c => c.roomId === roomId);
+        return this.connections.filter(c => c.roomId === roomId).sort((a,b) => b.priority - a.priority);
     }
 
     public getInterestedForRoomState(roomId: string, eventType: string, stateKey: string): IConnection[] {

@@ -1,4 +1,4 @@
-import { IConnection } from "./IConnection";
+import { IConnection, IConnectionState } from "./IConnection";
 import LogWrapper from "../LogWrapper";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
@@ -10,7 +10,7 @@ import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
-export interface GenericHookConnectionState {
+export interface GenericHookConnectionState extends IConnectionState {
     /**
      * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
      */
@@ -137,6 +137,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             if (state.transformationFunction && config.allowJsTransformationFunctions) {
                 this.transformationFunction = new Script(state.transformationFunction);
             }
+        }
+
+        public get priority(): number {
+            return this.state.priority || super.priority;
         }
 
 

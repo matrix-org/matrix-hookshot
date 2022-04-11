@@ -5,11 +5,18 @@ import { IRichReplyMetadata } from "matrix-bot-sdk";
 import { BridgePermissionLevel } from "../Config/Config";
 
 export type PermissionCheckFn = (service: string, level: BridgePermissionLevel) => boolean;
+
+export interface IConnectionState {
+    priority?: number;
+}
+
 export interface IConnection {
     /**
      * The roomId that this connection serves.
      */
     roomId: string;
+
+    priority: number;
 
     /**
      * The unique connection ID. This is a opaque hash of the roomId, connection type and state key.

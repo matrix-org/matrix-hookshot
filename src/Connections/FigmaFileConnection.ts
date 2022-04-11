@@ -2,14 +2,14 @@ import { Appservice, MatrixClient } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
-import { IConnection } from ".";
+import { IConnection, IConnectionState } from ".";
 import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigFigma } from "../Config/Config";
 
 const log = new LogWrapper("FigmaFileConnection");
 
-export interface FigmaFileConnectionState {
+export interface FigmaFileConnectionState extends IConnectionState {
     fileId?: string;
     instanceName?: string;
 }
@@ -53,6 +53,10 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
 
     public get instanceName() {
         return this.state.instanceName;
+    }
+
+    public get priority(): number {
+        return this.state.priority || super.priority;
     }
 
     public async handleNewComment(payload: FigmaPayload) {

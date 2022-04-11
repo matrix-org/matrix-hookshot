@@ -1,4 +1,4 @@
-import { IConnection } from "./IConnection";
+import { IConnection, IConnectionState } from "./IConnection";
 import { Appservice } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
@@ -16,7 +16,7 @@ import JiraApi from "jira-client";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
-export interface JiraProjectConnectionState {
+export interface JiraProjectConnectionState extends IConnectionState {
     // legacy field, prefer url
     id?: string;
     url?: string;
@@ -25,7 +25,7 @@ export interface JiraProjectConnectionState {
 }
 
 function validateJiraConnectionState(state: JiraProjectConnectionState) {
-    const {url, commandPrefix, events} = state as JiraProjectConnectionState;
+    const {url, commandPrefix, events, priority} = state as JiraProjectConnectionState;
     if (url === undefined) {
         throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
     }
@@ -40,7 +40,7 @@ function validateJiraConnectionState(state: JiraProjectConnectionState) {
     if (events?.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
         throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, ErrCode.BadValue);
     }
-    return {url, commandPrefix, events};
+    return {url, commandPrefix, events, priority};
 }
 
 const log = new LogWrapper("JiraProjectConnection");
@@ -99,6 +99,10 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     public get projectKey() {
         const parts = this.projectUrl?.pathname.split('/');
         return parts ? parts[parts.length - 1]?.toUpperCase() : undefined;
+    }
+
+    public get priority(): number {
+        return this.state.priority || super.priority;
     }
 
     public toString() {

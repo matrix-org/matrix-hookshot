@@ -3,7 +3,7 @@ import { Appservice, IRichReplyMetadata } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
-import { IConnection } from "./IConnection";
+import { IConnection, IConnectionState } from "./IConnection";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -32,7 +32,7 @@ interface IQueryRoomOpts {
     githubInstance: GithubInstance;
 }
 
-export interface GitHubRepoConnectionOptions {
+export interface GitHubRepoConnectionOptions extends IConnectionState {
     ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     showIssueRoomLink?: boolean;
@@ -49,7 +49,7 @@ export interface GitHubRepoConnectionOptions {
         labels: string[];
     };
 }
-export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions{
+export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
     repo: string;
 }
@@ -320,6 +320,10 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     public get repo() {
         return this.state.repo.toLowerCase();
+    }
+
+    public get priority(): number {
+        return this.state.priority || super.priority;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
