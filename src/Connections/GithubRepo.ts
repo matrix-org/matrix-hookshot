@@ -44,7 +44,10 @@ export interface GitHubRepoConnectionOptions {
     excludingLabels?: string[];
     hotlinkIssues?: boolean|{
         prefix: string;
-    }
+    };
+    newIssue?: {
+        labels: string[];
+    };
 }
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions{
     org: string;
@@ -438,13 +441,16 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         if (!octokit) {
             throw new NotLoggedInError();
         }
-        const labelsNames = labels?.split(",");
+        const labelsNames = new Set(labels?.split(","));
+        if (this.state.newIssue?.labels) {
+            this.state.newIssue?.labels.forEach(l => labelsNames.add(l));
+        }
         const res = await octokit.issues.create({
             repo: this.state.repo,
             owner: this.state.org,
             title: title,
             body: description,
-            labels: labelsNames,
+            labels: [...labelsNames],
         });
 
         return {

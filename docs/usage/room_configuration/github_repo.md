@@ -34,6 +34,8 @@ This connection supports a few options which can be defined in the room state:
 |includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |hotlinkIssues|Send a link to an issue/PR in the room when a user mentions a prefix followed by a number|` { prefix: string }`|`{prefix: "#"}`|
+|newIssue|Configuration options for new issues|`{ labels: string[] }`|*empty*|
+|newIssue.labels|Automatically set these labels on issues created via commands|Array of: String matching a label name|*empty*|
 
 
 ### Supported event types
