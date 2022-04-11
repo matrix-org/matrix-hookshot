@@ -39,9 +39,18 @@ export class SetupConnection extends CommandConnection {
                 SetupConnection.helpMessage,
                 "!hookshot",
             )
+            this.enabledHelpCategories = [
+                this.config.github ? "github" : "",
+                this.config.gitlab ? "gitlab": "",
+                this.config.figma ? "figma": "",
+                this.config.jira ? "jira": "",
+                this.config.generic?.enabled ? "webhook": "",
+                this.config.widgets?.roomSetupWidget ? "widget" : "",
+            ];
+            this.includeTitlesInHelp = false;
     }
 
-    @botCommand("github repo", "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this.)", ["url"], [], true)
+    @botCommand("github repo", { help: "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this.)", requiredArgs: ["url"], includeUserId: true, category: "github"})
     public async onGitHubRepo(userId: string, url: string) {
         if (!this.githubInstance || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
@@ -69,7 +78,7 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${org}/${repo}`);
     }
 
-    @botCommand("jira project", "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", ["url"], [], true)
+    @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: "jira"})
     public async onJiraProject(userId: string, urlStr: string) {
         const url = new URL(urlStr);
         if (!this.config.jira) {
@@ -99,7 +108,7 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
     }
 
-    @botCommand("webhook", "Create an inbound webhook.", ["name"], [], true)
+    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: "webhook"})
     public async onWebhook(userId: string, name: string) {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
@@ -125,7 +134,7 @@ export class SetupConnection extends CommandConnection {
         return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }
 
-    @botCommand("figma file", "Bridge a Figma file to the room.", ["url"], [], true)
+    @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: "figma"})
     public async onFigma(userId: string, url: string) {
         if (!this.config.figma) {
             throw new CommandError("not-configured", "The bridge is not configured to support Figma.");
@@ -157,16 +166,6 @@ export class SetupConnection extends CommandConnection {
             await this.as.botClient.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
         }
     }
-
-
-    @botCommand("help", "This help text")
-    public async helpCommand() {
-        const enabledCategories = [
-            this.config.widgets?.roomSetupWidget ? "widget" : "",
-        ];
-        return this.as.botIntent.sendEvent(this.roomId, SetupConnection.helpMessage(undefined, enabledCategories));
-    }
-
 }
 
 // Typescript doesn't understand Prototypes very well yet.

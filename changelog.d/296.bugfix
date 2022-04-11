@@ -1,0 +1,1 @@
+Fix `!hookshot help` appearing twice in help text, and only show setup commands for which the bridge is configured for.
