@@ -39,7 +39,7 @@ type BotCommandResult = {status?: boolean, reaction?: string}|undefined;
 type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
 
 export type BotCommands = {[prefix: string]: {fn: BotCommandFunction} & BotCommandOptions};
-export type HelpFunction = (cmdPrefix?: string, categories?: string[]) => MatrixMessageContent
+export type HelpFunction = (cmdPrefix?: string, categories?: string[], includeTitles?: boolean) => MatrixMessageContent
 
 export function compileBotCommands(...prototypes: Record<string, BotCommandFunction>[]): {helpMessage: HelpFunction, botCommands: BotCommands} {
     const botCommands: BotCommands = {};
@@ -66,13 +66,13 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
         });
     })
     return {
-        helpMessage: (cmdPrefix?: string, onlyCategories?: string[]) => {
+        helpMessage: (cmdPrefix?: string, onlyCategories?: string[], includeTitles=true) => {
             let content = "";
             for (const [categoryName, commands] of Object.entries(cmdStrs)) {
                 if (categoryName !== "default" && onlyCategories && !onlyCategories.includes(categoryName)) {
                     continue;
                 }
-                if (categoryName !== "default") {
+                if (includeTitles && categoryName !== "default") {
                     content += `### ${categoryName[0].toUpperCase()}${categoryName.substring(1).toLowerCase()}\n`;
                 }
                 content += commands.join('\n') + "\n";

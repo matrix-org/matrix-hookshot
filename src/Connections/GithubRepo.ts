@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { Appservice, IRichReplyMetadata } from "matrix-bot-sdk";
-import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
+import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
 import { IConnection, IConnectionState } from "./IConnection";
@@ -272,7 +272,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         };
     }
 
-    static helpMessage: (cmdPrefix: string) => MatrixMessageContent;
+    static helpMessage: HelpFunction;
     static botCommands: BotCommands;
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();

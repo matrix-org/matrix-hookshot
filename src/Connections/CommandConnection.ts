@@ -1,4 +1,4 @@
-import { botCommand, BotCommands, handleCommand } from "../BotCommands";
+import { botCommand, BotCommands, handleCommand, HelpFunction } from "../BotCommands";
 import LogWrapper from "../LogWrapper";
 import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
@@ -11,13 +11,15 @@ const log = new LogWrapper("CommandConnection");
  * by connections expecting to handle user input.
  */
 export abstract class CommandConnection extends BaseConnection {
+    protected enabledHelpCategories?: string[];
+    protected includeTitlesInHelp?: boolean;
     constructor(
         roomId: string,
         stateKey: string,
         canonicalStateType: string,
         private readonly botClient: MatrixClient,
         private readonly botCommands: BotCommands,
-        private readonly helpMessage: (prefix: string) => MatrixMessageContent,
+        private readonly helpMessage: HelpFunction,
         protected readonly stateCommandPrefix: string,
         protected readonly serviceName?: string,
     ) {
@@ -67,6 +69,6 @@ export abstract class CommandConnection extends BaseConnection {
 
     @botCommand("help", "This help text")
     public async helpCommand() {
-        return this.botClient.sendEvent(this.roomId, 'm.room.message', this.helpMessage(this.commandPrefix));
+        return this.botClient.sendEvent(this.roomId, 'm.room.message', this.helpMessage(this.commandPrefix, this.enabledHelpCategories, this.includeTitlesInHelp));
     }
 }
