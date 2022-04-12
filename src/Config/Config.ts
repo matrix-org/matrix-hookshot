@@ -45,20 +45,21 @@ interface BridgeConfigGitHubYAML {
         redirect_uri: string;
     };
     defaultOptions?: GitHubRepoConnectionOptions;
+    userIdPrefix?: string;
 }
 
 export class BridgeConfigGitHub {
     @configKey("Authentication for the GitHub App.", false)
-    auth: {
+    readonly auth: {
         id: number|string;
         privateKeyFile: string;
     };
     @configKey("Webhook settings for the GitHub app.", false)
-    webhook: {
+    readonly webhook: {
         secret: string;
     };
     @configKey("Settings for allowing users to sign in via OAuth.", true)
-    oauth?: {
+    readonly oauth?: {
         // eslint-disable-next-line camelcase
         client_id: string;
         // eslint-disable-next-line camelcase
@@ -67,13 +68,17 @@ export class BridgeConfigGitHub {
         redirect_uri: string;
     };
     @configKey("Default options for GitHub connections.", true)
-    defaultOptions?: GitHubRepoConnectionOptions;
+    readonly defaultOptions?: GitHubRepoConnectionOptions;
+
+    @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
+    readonly userIdPrefix: string;
 
     constructor(yaml: BridgeConfigGitHubYAML) {
         this.auth = yaml.auth;
         this.webhook = yaml.webhook;
         this.oauth = yaml.oauth;
         this.defaultOptions = yaml.defaultOptions;
+        this.userIdPrefix = yaml.userIdPrefix || "_github_";
     }
 }
 
@@ -155,11 +160,28 @@ export interface GitLabInstance {
     // };
 }
 
-interface BridgeConfigGitLab {
+export interface BridgeConfigGitLabYAML {
     webhook: {
         secret: string;
     },
     instances: {[name: string]: GitLabInstance};
+    userIdPrefix: string;
+}
+
+export class BridgeConfigGitLab {
+    readonly instances: {[name: string]: GitLabInstance};
+    readonly webhook: {
+        secret: string;
+    };
+
+    @configKey("Prefix used when creating ghost users for GitLab accounts.", true)
+    readonly userIdPrefix: string;
+
+    constructor(yaml: BridgeConfigGitLabYAML) {
+        this.instances = yaml.instances;
+        this.webhook = yaml.webhook;
+        this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
+    }
 }
 
 export interface BridgeConfigFigma {
@@ -303,7 +325,7 @@ export interface BridgeConfigRoot {
     figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHub;
-    gitlab?: BridgeConfigGitLab;
+    gitlab?: BridgeConfigGitLabYAML;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
     jira?: BridgeConfigJira;
@@ -369,7 +391,7 @@ export class BridgeConfig {
         if (this.github?.oauth && env["GITHUB_OAUTH_REDIRECT_URI"]) {
             this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
         }
-        this.gitlab = configData.gitlab;
+        this.gitlab = configData.gitlab && new BridgeConfigGitLab(configData.gitlab);
         this.figma = configData.figma;
         this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);

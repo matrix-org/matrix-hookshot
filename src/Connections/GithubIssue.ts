@@ -13,6 +13,7 @@ import { GithubInstance } from "../Github/GithubInstance";
 import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData} from "../Github/Types";
 import { IssuesEditedEvent, IssueCommentCreatedEvent } from "@octokit/webhooks-types";
 import { BaseConnection } from "./BaseConnection";
+import { BridgeConfigGitHub } from "../Config/Config";
 
 export interface GitHubIssueConnectionState {
     org: string;
@@ -139,7 +140,8 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
-        private github: GithubInstance) {
+        private github: GithubInstance,
+        private config: BridgeConfigGitHub,) {
             super(roomId, stateKey, GitHubIssueConnection.CanonicalEventType);
         }
 
@@ -187,7 +189,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         const commentIntent = await getIntentForUser({
             login: comment.user.login,
             avatarUrl: comment.user.avatar_url,
-        }, this.as);
+        }, this.as, this.config.userIdPrefix);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
         // Comment body may be blank
         if (matrixEvent) {
@@ -219,7 +221,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
                 // TODO: Fix
                 login: issue.data.user?.login as string,
                 avatarUrl: issue.data.user?.avatar_url || undefined
-            }, this.as);
+            }, this.as, this.config.userIdPrefix);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
                 await this.messageClient.sendMatrixMessage(this.roomId, {

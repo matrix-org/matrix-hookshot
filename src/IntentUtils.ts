@@ -4,8 +4,9 @@ import axios from "axios";
 
 const log = new LogWrapper("IntentUtils");
 
-export async function getIntentForUser(user: {avatarUrl?: string, login: string}, as: Appservice) {
-    const intent = as.getIntentForSuffix(user.login);
+export async function getIntentForUser(user: {avatarUrl?: string, login: string}, as: Appservice, prefix: string) {
+    const domain = as.botUserId.split(":")[1];
+    const intent = as.getIntentForUserId(`@${prefix}${user.login}:${domain}`);
     const displayName = `${user.login}`;
     // Verify up-to-date profile
     let profile;

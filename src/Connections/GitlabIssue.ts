@@ -5,7 +5,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { GitLabInstance } from "../Config/Config";
+import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { getIntentForUser } from "../IntentUtils";
@@ -51,7 +51,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
     public static async createRoomForIssue(instanceName: string, instance: GitLabInstance,
         issue: GetIssueResponse, projects: string[], as: Appservice,
         tokenStore: UserTokenStore, commentProcessor: CommentProcessor, 
-        messageSender: MessageSenderClient) {
+        messageSender: MessageSenderClient, config: BridgeConfigGitLab) {
         const state: GitLabIssueConnectionState = {
             projects,
             state: issue.state,
@@ -76,7 +76,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
             ],
         });
 
-        return new GitLabIssueConnection(roomId, as, state, issue.web_url, tokenStore, commentProcessor, messageSender, instance);
+        return new GitLabIssueConnection(roomId, as, state, issue.web_url, tokenStore, commentProcessor, messageSender, instance, config);
     }
 
     public get projectPath() {
@@ -94,7 +94,8 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
-        private instance: GitLabInstance,) {
+        private instance: GitLabInstance,
+        private config: BridgeConfigGitLab) {
             super(roomId, stateKey, GitLabIssueConnection.CanonicalEventType);
         }
     
@@ -122,7 +123,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         const commentIntent = await getIntentForUser({
             login: event.user.name,
             avatarUrl: event.user.avatar_url,
-        }, this.as);
+        }, this.as, this.config.userIdPrefix);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitLabNote(event);
 
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);

@@ -65,7 +65,8 @@ export const DefaultConfig = new BridgeConfig({
             hotlinkIssues: {
                 prefix: "#"
             }
-        }
+        },
+        userIdPrefix: "_github_",
     },
     gitlab: {
         instances: {
@@ -75,7 +76,8 @@ export const DefaultConfig = new BridgeConfig({
         },
         webhook: {
             secret: "secrettoken",
-        }
+        },
+        userIdPrefix: "_gitlab_",
     },
     jira: {
         webhook: {

@@ -12,6 +12,7 @@ import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../Github/GithubInstance";
 import LogWrapper from "../LogWrapper";
 import { BaseConnection } from "./BaseConnection";
+import { BridgeConfigGitHub } from "../Config/Config";
 export interface GitHubDiscussionConnectionState {
     owner: string;
     repo: string;
@@ -43,11 +44,12 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
     public static async createDiscussionRoom(
         as: Appservice, userId: string|null, owner: string, repo: string, discussion: Discussion,
         tokenStore: UserTokenStore, commentProcessor: CommentProcessor, messageClient: MessageSenderClient,
+        config: BridgeConfigGitHub,
     ) {
         const commentIntent = await getIntentForUser({
             login: discussion.user.login,
             avatarUrl: discussion.user.avatar_url,
-        }, as);
+        }, as, config.userIdPrefix);
         const state: GitHubDiscussionConnectionState = {
             owner,
             repo,
@@ -79,16 +81,17 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             format: 'org.matrix.custom.html',
         });
         await as.botIntent.ensureJoined(roomId);
-        return new GitHubDiscussionConnection(roomId, as, state, '', tokenStore, commentProcessor, messageClient);
+        return new GitHubDiscussionConnection(roomId, as, state, '', tokenStore, commentProcessor, messageClient, config);
     }
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        private state: GitHubDiscussionConnectionState,
+        private readonly state: GitHubDiscussionConnectionState,
         stateKey: string,
-        private tokenStore: UserTokenStore,
-        private commentProcessor: CommentProcessor,
-        private messageClient: MessageSenderClient) {
+        private readonly tokenStore: UserTokenStore,
+        private readonly commentProcessor: CommentProcessor,
+        private readonly messageClient: MessageSenderClient,
+        private readonly config: BridgeConfigGitHub) {
             super(roomId, stateKey, GitHubDiscussionConnection.CanonicalEventType);
         }
 
@@ -130,7 +133,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         if (this.sentEvents.has(data.comment.node_id)) {
             return;
         }
-        const intent = await getIntentForUser(data.comment.user, this.as);
+        const intent = await getIntentForUser(data.comment.user, this.as, this.config.userIdPrefix);
         await this.messageClient.sendMatrixMessage(this.roomId, {
             body: data.comment.body,
             formatted_body: md.render(data.comment.body),
