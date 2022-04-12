@@ -149,13 +149,13 @@ export class ConnectionManager {
         }
 
         if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
+            if (!this.github || !this.config.github) {
                 throw Error('GitHub is not configured');
             }
             this.assertStateAllowed(state, "github");
             return new GitHubDiscussionConnection(
                 roomId, this.as, state.content, state.stateKey, this.tokenStore, this.commentProcessor,
-                this.messageClient,
+                this.messageClient, this.config.github,
             );
         }
     
@@ -171,12 +171,15 @@ export class ConnectionManager {
         }
 
         if (GitHubIssueConnection.EventTypes.includes(state.type)) {
-            if (!this.github) {
+            if (!this.github || !this.config.github) {
                 throw Error('GitHub is not configured');
             }
             
             this.assertStateAllowed(state, "github");
-            const issue = new GitHubIssueConnection(roomId, this.as, state.content, state.stateKey || "", this.tokenStore, this.commentProcessor, this.messageClient, this.github);
+            const issue = new GitHubIssueConnection(
+                roomId, this.as, state.content, state.stateKey || "", this.tokenStore,
+                this.commentProcessor, this.messageClient, this.github, this.config.github,
+            );
             await issue.syncIssueState();
             return issue;
         }
@@ -206,7 +209,7 @@ export class ConnectionManager {
         }
 
         if (GitLabIssueConnection.EventTypes.includes(state.type)) {
-            if (!this.config.gitlab) {
+            if (!this.github || !this.config.gitlab) {
                 throw Error('GitLab is not configured');
             }
             this.assertStateAllowed(state, "gitlab");
@@ -219,7 +222,9 @@ export class ConnectionManager {
                 this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
-                instance);
+                instance,
+                this.config.gitlab,
+            );
         }
 
         if (JiraProjectConnection.EventTypes.includes(state.type)) {

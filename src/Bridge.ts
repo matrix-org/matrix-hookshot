@@ -417,7 +417,7 @@ export class Bridge {
         );
 
         this.queue.on<GitHubWebhookTypes.DiscussionCreatedEvent>("github.discussion.created", async ({data}) => {
-            if (!this.github) {
+            if (!this.github || !this.config.github) {
                 return;
             }
             const spaces = connManager.getConnectionsForGithubRepoDiscussion(data.repository.owner.login, data.repository.name);
@@ -439,6 +439,7 @@ export class Bridge {
                         this.tokenStore,
                         this.commentProcessor,
                         this.messageClient,
+                        this.config.github,
                     );
                     connManager.push(discussionConnection);
                 } catch (ex) {
@@ -1093,6 +1094,9 @@ export class Bridge {
             }
         });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
+            if (!this.config.gitlab) {
+                return;
+            }
             const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {
                 return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
@@ -1105,7 +1109,8 @@ export class Bridge {
                 this.as,
                 this.tokenStore, 
                 this.commentProcessor,
-                this.messageClient
+                this.messageClient,
+                this.config.gitlab,
             );
             this.connectionManager?.push(newConnection);
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
