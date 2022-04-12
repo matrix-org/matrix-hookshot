@@ -19,3 +19,6 @@ namespaces:
 sender_localpart: hookshot
 url: "http://localhost:9993" # This should match the bridge.port in your config file
 rate_limited: false
+
+# If enabling encryption
+de.sorunome.msc2409.push_ephemeral: true,

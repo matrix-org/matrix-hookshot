@@ -1,7 +1,9 @@
-import { Appservice, IAppserviceRegistration, IAppserviceStorageProvider } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, IAppserviceStorageProvider, RustSdkAppserviceCryptoStorageProvider } from "matrix-bot-sdk";
 import { BridgeConfig } from "./Config/Config";
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration, storage: IAppserviceStorageProvider) {
+    const cryptoStorage = config.encryption?.storagePath ? new RustSdkAppserviceCryptoStorageProvider(config.encryption.storagePath) : undefined;
+
     return new Appservice({
         homeserverName: config.bridge.domain,
         homeserverUrl: config.bridge.url,
@@ -20,5 +22,9 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
             }
         },
         storage: storage,
+        intentOptions: {
+            encryption: !!config.encryption,
+        },
+        cryptoStorage: cryptoStorage,
     });
 }
