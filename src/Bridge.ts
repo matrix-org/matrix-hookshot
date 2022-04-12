@@ -188,6 +188,11 @@ export class Bridge {
             return this.onRoomJoin(roomId, event);
         });
 
+        this.as.on("room.failed_decryption", (roomId, event, err) => {
+            log.warn(`Failed to decrypt event ${event.event_id} from ${roomId}: ${err.message}`);
+            Metrics.matrixAppserviceDecryptionFailed.inc();
+        });
+
         this.queue.subscribe("response.matrix.message");
         this.queue.subscribe("notifications.user.events");
         this.queue.subscribe("github.*");

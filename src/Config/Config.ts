@@ -613,6 +613,10 @@ export class BridgeConfig {
         if (this.encryption && !this.queue.monolithic) {
             throw new ConfigError("queue.monolithic", "Encryption is not supported in worker mode yet.");
         }
+
+        if (this.encryption && !this.queue.port) {
+            throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
+        }
     }
 
     public async prefillMembershipCache(client: MatrixClient) {

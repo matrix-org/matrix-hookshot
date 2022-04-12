@@ -21,4 +21,5 @@ url: "http://localhost:9993" # This should match the bridge.port in your config 
 rate_limited: false
 
 # If enabling encryption
-de.sorunome.msc2409.push_ephemeral: true,
+de.sorunome.msc2409.push_ephemeral: true
+org.matrix.msc3202: true
