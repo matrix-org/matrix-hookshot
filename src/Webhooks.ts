@@ -78,7 +78,6 @@ export class Webhooks extends EventEmitter {
     }
 
     private onGitLabPayload(body: IGitLabWebhookEvent) {
-        log.info(`onGitLabPayload ${body.object_kind}:`, body);
         if (body.object_kind === "merge_request") {
             const action = (body as unknown as IGitLabWebhookMREvent).object_attributes.action;
             return `gitlab.merge_request.${action}`;
@@ -94,6 +93,8 @@ export class Webhooks extends EventEmitter {
         } else if (body.object_kind === "release") {
             const action = (body as unknown as IGitLabWebhookReleaseEvent).action;
             return `gitlab.release.${action}`;
+        } else if (body.object_kind === "push") {
+            return `gitlab.push`;
         } else {
             return null;
         }

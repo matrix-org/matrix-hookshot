@@ -7,7 +7,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { IConnectionState } from "./IConnection";
 
@@ -197,7 +197,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
-        log.info(`onGitLabTagPush ${this.roomId} ${this.instance}/${this.path} ${event.ref}`);
+        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         if (this.shouldSkipHook('tag_push')) {
             return;
         }
@@ -214,6 +214,39 @@ export class GitLabRepoConnection extends CommandConnection {
             format: "org.matrix.custom.html",
         });
     }
+
+
+    public async onGitLabPush(event: IGitLabWebhookPushEvent) {
+        log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
+        if (this.shouldSkipHook('push')) {
+            return;
+        }
+        const branchname = event.ref.replace("refs/heads/", "");
+        const commitsurl = `${event.project.homepage}/-/commit/${event.after}`
+        const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
+        const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
+
+        // Take the top 5 commits. The array is ordered in reverse.
+        const commits = event.commits.reverse().slice(0,5).map(commit => {
+            return `[${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
+        }).join('\n - ');
+
+        let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
+        + ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
+
+        if (event.commits.length >= 2) {
+            content += `\n - ${commits}\n`;
+        } else if (event.commits.length === 1) {
+            content += ` - ${commits}`;
+        }
+
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html",
+        });
+    }
     
     public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
         const attributes = data.object_attributes;
@@ -221,7 +254,6 @@ export class GitLabRepoConnection extends CommandConnection {
         if (this.shouldSkipHook('wiki', `wiki.${attributes.action}`)) {
             return;
         }
-
 
         let statement: string;
         if (attributes.action === "create") {
