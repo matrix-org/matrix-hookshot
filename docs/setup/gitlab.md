@@ -30,7 +30,6 @@ You should use the value of `webhook.secret` from your config as your "Secret to
 
 You should add the events you wish to trigger on. Hookshot currently supports:
 
-- Push events
 - Tag events
 - Issues events
 - Merge request events
