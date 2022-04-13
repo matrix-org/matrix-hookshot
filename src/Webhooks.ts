@@ -94,6 +94,8 @@ export class Webhooks extends EventEmitter {
         } else if (body.object_kind === "release") {
             const action = (body as unknown as IGitLabWebhookReleaseEvent).action;
             return `gitlab.release.${action}`;
+        } else if (body.object_kind === "push") {
+            return `gitlab.push`;
         } else {
             return null;
         }

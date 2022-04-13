@@ -352,6 +352,12 @@ export class Bridge {
             (c, data) => c.onGitLabTagPush(data),
         );
 
+        this.bindHandlerToQueue<IGitLabWebhookTagPushEvent, GitLabRepoConnection>(
+            "gitlab.push",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onGitLabPush(data),
+        );
+
         this.bindHandlerToQueue<IGitLabWebhookWikiPageEvent, GitLabRepoConnection>(
             "gitlab.wiki_page",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 

@@ -7,7 +7,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { IConnectionState } from "./IConnection";
 
@@ -197,7 +197,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
-        log.info(`onGitLabTagPush ${this.roomId} ${this.instance}/${this.path} ${event.ref}`);
+        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         if (this.shouldSkipHook('tag_push')) {
             return;
         }
@@ -207,6 +207,36 @@ export class GitLabRepoConnection extends CommandConnection {
         }
         const url = `${event.project.homepage}/-/tree/${tagname}`;
         const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+
+    public async onGitLabPush(event: IGitLabWebhookPushEvent) {
+        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
+        if (this.shouldSkipHook('push')) {
+            return;
+        }
+        const branchname = event.ref.replace("refs/heads/", "");
+        const commitsurl = `${event.project.homepage}/-/commit/${event.after}`
+        const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
+        const shouldName = !!event.commits.every(c => c.author.name === event.commits[0]?.author.name);
+
+        const commits = event.commits.map(commit => {
+            return `- [${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title} ${shouldName ? `by ${commit.author.name}` : ""}`;
+        }).join("\n");
+
+        let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
+        + ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
+
+        if (commits.length) {
+            content += `\n ${commits}`;
+        }
+
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
