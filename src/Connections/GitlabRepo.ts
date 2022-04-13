@@ -217,30 +217,33 @@ export class GitLabRepoConnection extends CommandConnection {
 
 
     public async onGitLabPush(event: IGitLabWebhookPushEvent) {
-        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
+        log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
         if (this.shouldSkipHook('push')) {
             return;
         }
         const branchname = event.ref.replace("refs/heads/", "");
         const commitsurl = `${event.project.homepage}/-/commit/${event.after}`
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
-        const shouldName = !!event.commits.every(c => c.author.name === event.commits[0]?.author.name);
+        const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
 
-        const commits = event.commits.map(commit => {
-            return `- [${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title} ${shouldName ? `by ${commit.author.name}` : ""}`;
-        }).join("\n");
+        // Take the top 5 commits. The array is ordered in reverse.
+        const commits = event.commits.reverse().slice(0,5).map(commit => {
+            return `[${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title} ${shouldName ? `by ${commit.author.name}` : ""}`;
+        }).join('\n - ');
 
         let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
         + ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
 
-        if (commits.length) {
-            content += `\n ${commits}`;
+        if (commits.length >= 2) {
+            content += `\n - ${commits}\n`;
+        } else if (commits.length === 1) {
+            content += ` (${commits[0]})`;
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
-            formatted_body: md.renderInline(content),
+            formatted_body: md.render(content),
             format: "org.matrix.custom.html",
         });
     }
@@ -251,7 +254,6 @@ export class GitLabRepoConnection extends CommandConnection {
         if (this.shouldSkipHook('wiki', `wiki.${attributes.action}`)) {
             return;
         }
-
 
         let statement: string;
         if (attributes.action === "create") {
