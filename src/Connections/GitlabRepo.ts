@@ -228,16 +228,16 @@ export class GitLabRepoConnection extends CommandConnection {
 
         // Take the top 5 commits. The array is ordered in reverse.
         const commits = event.commits.reverse().slice(0,5).map(commit => {
-            return `[${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title} ${shouldName ? `by ${commit.author.name}` : ""}`;
+            return `[${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
         }).join('\n - ');
 
         let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
         + ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
 
-        if (commits.length >= 2) {
+        if (event.commits.length >= 2) {
             content += `\n - ${commits}\n`;
-        } else if (commits.length === 1) {
-            content += ` (${commits[0]})`;
+        } else if (event.commits.length === 1) {
+            content += ` - ${commits}`;
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
