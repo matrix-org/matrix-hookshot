@@ -1,1 +1,0 @@
-Allow priority ordering of connections by setting a `priorty: number` key in the state event content.

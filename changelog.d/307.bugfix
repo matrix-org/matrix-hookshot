@@ -1,2 +1,0 @@
-Fix GitHub tokens not being refreshed on expiry when using OAuth support.
-Rename the `github hastoken` to `github status`.

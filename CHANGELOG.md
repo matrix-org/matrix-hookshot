@@ -1,3 +1,38 @@
+1.5.0 (2022-04-14)
+==================
+
+Features
+--------
+
+- Allow specifying msgtype for generic webhook transformations. ([\#282](https://github.com/matrix-org/matrix-hookshot/issues/282))
+- Add new GitHubRepo config option `newIssue.labels` which allows admins to automatically set labels on new issues. ([\#292](https://github.com/matrix-org/matrix-hookshot/issues/292))
+- Allow priority ordering of connections by setting a `priorty: number` key in the state event content. ([\#293](https://github.com/matrix-org/matrix-hookshot/issues/293))
+- Support GitLab `push` webhook events ([\#306](https://github.com/matrix-org/matrix-hookshot/issues/306))
+
+
+Bugfixes
+--------
+
+- Fix #289 "Generic webhook url format (copy) issue with backticks" ([\#290](https://github.com/matrix-org/matrix-hookshot/issues/290))
+- Fix `!hookshot help` appearing twice in help text, and only show setup commands for which the bridge is configured for. ([\#296](https://github.com/matrix-org/matrix-hookshot/issues/296))
+- Fix GitHub / GitLab issue rooms breaking due to being unable to generate ghost users. ([\#303](https://github.com/matrix-org/matrix-hookshot/issues/303))
+- Fix GitHub tokens not being refreshed on expiry when using OAuth support.
+  Rename the `github hastoken` to `github status`. ([\#307](https://github.com/matrix-org/matrix-hookshot/issues/307))
+
+
+Improved Documentation
+----------------------
+
+- Fix some typos in widgets.md ([\#286](https://github.com/matrix-org/matrix-hookshot/issues/286))
+
+
+Internal Changes
+----------------
+
+- Fix issue where the webhook icon in the widget configuration page would not load in some browsers. ([\#285](https://github.com/matrix-org/matrix-hookshot/issues/285))
+- Fail to start when widgets are configured but no "widgets" listener is configured. ([\#298](https://github.com/matrix-org/matrix-hookshot/issues/298))
+
+
 1.4.0 (2022-04-08)
 ==================
 
