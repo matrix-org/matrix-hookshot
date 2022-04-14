@@ -1,7 +1,7 @@
 import qs from "querystring";
 import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler"
 import { botCommand } from "../BotCommands";
-import { CommandError } from "../errors";
+import { CommandError, TokenError, TokenErrorCode } from "../errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
 import LogWrapper from "../LogWrapper";
@@ -50,16 +50,23 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         await this.tokenStore.storeUserToken("github", this.userId, JSON.stringify({access_token: accessToken, token_type: 'pat'} as GitHubOAuthToken));
     }
 
-    @botCommand("github hastoken", {help: "Check if you have a token stored for GitHub", category: "github"})
-    public async hasPersonalToken() {
+    @botCommand("github status", {help: "Check the status of your GitHub authentication", category: "github"})
+    public async getTokenStatus() {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
         }
-        const result = await this.tokenStore.getUserToken("github", this.userId);
-        if (result === null) {
-            await this.sendNotice("You do not currently have a token stored.");
-            return;
+       try {
+            const octokit = await this.tokenStore.getOctokitForUser(this.userId);
+            if (octokit === null) {
+                await this.sendNotice("You are not authenticated, please login.");
+                return;
+            }
+            const me = await octokit.users.getAuthenticated();
+            this.sendNotice(`You are logged in as ${me.data.login}`);    
+        } catch (ex) {
+            if (ex instanceof TokenError && ex.code === TokenErrorCode.EXPIRED) {
+                await this.sendNotice("Your authentication is no longer valid, please login again.");
+            }
         }
-        await this.sendNotice("A token is stored for your GitHub account.");
     }
 }
