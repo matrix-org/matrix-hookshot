@@ -15,6 +15,7 @@ import { JiraCloudOAuth } from "./Jira/oauth/CloudOAuth";
 import { JiraOnPremOAuth } from "./Jira/oauth/OnPremOAuth";
 import { JiraOnPremClient } from "./Jira/client/OnPremClient";
 import { JiraCloudClient } from "./Jira/client/CloudClient";
+import { TokenError, TokenErrorCode } from "./errors";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -155,7 +156,7 @@ export class UserTokenStore {
         if (senderToken.expires_in && senderToken.expires_in < date) {
             log.info(`GitHub access token for ${userId} has expired ${senderToken.expires_in} < ${date}, attempting refresh`);
             if (!this.config.github?.oauth) {
-                throw Error('GitHub oauth not configured, cannot refresh token');
+                throw new TokenError(TokenErrorCode.EXPIRED, "GitHub oauth not configured, cannot refresh token");
             }
             if (senderToken.refresh_token && senderToken.refresh_token_expires_in && senderToken?.refresh_token_expires_in > date) {
                 // Needs a refresh.
@@ -164,6 +165,9 @@ export class UserTokenStore {
                     this.config.github?.oauth?.client_id,
                     this.config.github?.oauth?.client_secret,
                 );
+                if (!senderToken.access_token) {
+                    throw Error('Refresh token response had the wrong response format!');
+                }
                 senderToken = {
                     access_token: refreshResult.access_token,
                     expires_in: refreshResult.expires_in && ((parseInt(refreshResult.expires_in) * 1000) + date),
@@ -172,10 +176,9 @@ export class UserTokenStore {
                     refresh_token_expires_in: refreshResult.refresh_token_expires_in && ((parseInt(refreshResult.refresh_token_expires_in) * 1000)  + date),
                 } as GitHubOAuthToken;
                 await this.storeUserToken("github", userId, JSON.stringify(senderToken));
-                
             } else {
                 log.error(`GitHub access token for ${userId} has expired, and the refresh token is stale or not given`);
-                throw Error('Token is expired, cannot refresh');
+                throw new TokenError(TokenErrorCode.EXPIRED, `GitHub access token for ${userId} has expired, and the refresh token is stale or not given`);
             }
         }
         return senderToken.access_token;

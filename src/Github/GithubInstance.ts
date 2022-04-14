@@ -54,7 +54,7 @@ export class GithubInstance {
             refresh_token: refreshToken,
             grant_type: 'refresh_token',
         })}`);
-        return accessTokenRes.data;
+        return qs.decode(accessTokenRes.data) as unknown as GitHubOAuthTokenResponse;
     }
 
     public getSafeOctokitForRepo(orgName: string, repoName?: string) {
