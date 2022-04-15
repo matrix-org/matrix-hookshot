@@ -204,6 +204,7 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
 
 You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.
 
+- [Figma](./setup/figma.md)
 - [GitHub](./setup/github.md)
 - [GitLab](./setup/gitlab.md)
 - [Jira](./setup/jira.md)
