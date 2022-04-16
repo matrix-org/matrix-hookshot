@@ -222,13 +222,13 @@ export class GitLabRepoConnection extends CommandConnection {
             return;
         }
         const branchname = event.ref.replace("refs/heads/", "");
-        const commitsurl = `${event.project.homepage}/-/commit/${event.after}`
+        const commitsurl = `${event.project.homepage}/-/commits/${branchname}`
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
         const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
 
         // Take the top 5 commits. The array is ordered in reverse.
         const commits = event.commits.reverse().slice(0,5).map(commit => {
-            return `[${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
+            return `[\`${commit.id.slice(0,8)}\`](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
         }).join('\n - ');
 
         let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
