@@ -71,6 +71,7 @@ export class Bridge {
             this.storage = new MemoryStorageProvider();
         }
         this.as = getAppservice(this.config, this.registration, this.storage);
+        Metrics.registerMatrixSdkMetrics(this.as);
         this.queue = createMessageQueue(this.config);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
