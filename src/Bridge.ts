@@ -540,31 +540,48 @@ export class Bridge {
                 });
             }
 
-            const promises = Promise.all(connections.map(async (c, index) => {
-                // TODO: Support webhook responses to more than one room
-                if (index !== 0) {
-                    await c.onGenericHook(data.hookData);
-                    return;
+            let didPush = false;
+            await Promise.all(connections.map(async (c, index) => {
+                try {
+                    // TODO: Support webhook responses to more than one room
+                    if (index !== 0) {
+                        await c.onGenericHook(data.hookData);
+                        return;
+                    }
+                    let successful: boolean|null = null;
+                    if (this.config.generic?.waitForComplete) {
+                        successful = await c.onGenericHook(data.hookData);
+                    }
+                    await this.queue.push<GenericWebhookEventResult>({
+                        data: {successful},
+                        sender: "Bridge",
+                        messageId,
+                        eventName: "response.generic-webhook.event",
+                    });
+                    didPush = true;
+                    if (!this.config.generic?.waitForComplete) {
+                        await c.onGenericHook(data.hookData);
+                    }
                 }
-                let successful: boolean|null = null;
-                if (this.config.generic?.waitForComplete) {
-                    successful = await c.onGenericHook(data.hookData);
+                catch (ex) {
+                    log.warn(`Failed to handle generic webhook`, ex);
+                    Metrics.connectionsEventFailed.inc({
+                        event: "generic-webhook.event",
+                        connectionId: c.connectionId
+                    });
                 }
+            }));
+
+            // We didn't manage to complete sending the event or even sending a failure.
+            if (!didPush) {
                 await this.queue.push<GenericWebhookEventResult>({
-                    data: {successful},
+                    data: {
+                        successful: false
+                    },
                     sender: "Bridge",
                     messageId,
                     eventName: "response.generic-webhook.event",
                 });
-                if (!this.config.generic?.waitForComplete) {
-                    await c.onGenericHook(data.hookData);
-                }
-            }));
-            
-            try {
-                await promises;
-            } catch (ex) {
-                log.warn(`Failed to handle generic webhooks(s)`, ex);
             }
         });
 
@@ -686,6 +703,7 @@ export class Bridge {
                 try {
                     await handler(connection, msg.data);
                 } catch (ex) {
+                    Metrics.connectionsEventFailed.inc({ event, connectionId: connection.connectionId });
                     log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
                 }
             })
