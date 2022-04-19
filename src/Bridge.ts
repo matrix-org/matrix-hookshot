@@ -789,7 +789,7 @@ export class Bridge {
                 try {
                     await (
                         new SetupConnection(
-                            roomId, this.as, this.tokenStore, this.config, 
+                            roomId, this.as, this.tokenStore, this.storage, this.config, 
                             this.getOrCreateAdminRoom.bind(this),
                             this.github,
                         )

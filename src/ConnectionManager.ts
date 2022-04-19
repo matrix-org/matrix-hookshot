@@ -96,7 +96,7 @@ export class ConnectionManager {
             if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
                 throw new ApiError('User is not permitted to provision connections for GitHub', ErrCode.ForbiddenUser);
             }
-            const res = await GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github);
+            const res = await GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github, this.storage);
             await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GitHubRepoConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
             this.push(res.connection);
             return res.connection;
@@ -145,7 +145,7 @@ export class ConnectionManager {
                 throw Error('GitHub is not configured');
             }
             this.assertStateAllowed(state, "github");
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey, this.github, this.config.github);
+            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, this.storage, state.stateKey, this.github, this.config.github);
         }
 
         if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {

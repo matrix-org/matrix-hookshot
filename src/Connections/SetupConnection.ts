@@ -13,6 +13,7 @@ import { FigmaFileConnection } from "./FigmaFileConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 const md = new markdown();
 
 /**
@@ -27,6 +28,7 @@ export class SetupConnection extends CommandConnection {
     constructor(public readonly roomId: string,
         private readonly as: Appservice,
         private readonly tokenStore: UserTokenStore,
+        private readonly store: IBridgeStorageProvider,
         private readonly config: BridgeConfig,
         private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
         private readonly githubInstance?: GithubInstance,) {
@@ -73,7 +75,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid.");
         }
         const [, org, repo] = urlParts;
-        const res = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.as, this.tokenStore, this.githubInstance, this.config.github);
+        const res = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.as, this.tokenStore, this.githubInstance, this.config.github, this.store);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, url, res.stateEventContent);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${org}/${repo}`);
     }

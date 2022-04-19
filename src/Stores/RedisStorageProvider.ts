@@ -15,9 +15,12 @@ const GH_ISSUES_KEY = "gh.issues";
 const GH_ISSUES_LAST_COMMENT_KEY = "gh.issues.last_comment";
 const GH_ISSUES_REVIEW_DATA_KEY = "gh.issues.review_data";
 const FIGMA_EVENT_COMMENT_ID = "figma.comment_event_id";
+const REMOTE_EVENTS_HASH = "remote_events";
+const REMOTE_EVENTS_LRU = "remote_events_lru";
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
+const REMOTE_EVENTS_MAX_SIZE = 5000;
 
 
 const WIDGET_TOKENS = "widgets.tokens.";
@@ -154,5 +157,24 @@ export class RedisStorageProvider implements IBridgeStorageProvider {
             await this.redis.del(`${WIDGET_TOKENS}${token}`);
             token = await this.redis.spop(`${WIDGET_USER_TOKENS}${userId}`);
         }
+    }
+
+    async getEventIdForRemoteId(remoteId: string): Promise<string|null> {
+        const result = await this.redis.hget(REMOTE_EVENTS_HASH, remoteId);
+        if (result) {
+            await this.redis.zadd(REMOTE_EVENTS_LRU, Date.now(), remoteId);
+        }
+        return result;
+    }
+
+    async setEventIdForRemoteId(remoteId: string, eventId: string): Promise<void> {
+        await this.redis.hset(REMOTE_EVENTS_HASH, remoteId, eventId);
+        await this.redis.zadd(REMOTE_EVENTS_LRU, Date.now(), remoteId);
+        const lruCount = await this.redis.zcount(REMOTE_EVENTS_LRU, "-inf", "+inf");
+        if (lruCount <= REMOTE_EVENTS_MAX_SIZE) {
+            return;
+        }
+        const popped = await this.redis.zpopmin(REMOTE_EVENTS_LRU, lruCount - REMOTE_EVENTS_MAX_SIZE);
+        await this.redis.zrem(REMOTE_EVENTS_HASH, popped);
     }
 }
