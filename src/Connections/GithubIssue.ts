@@ -285,9 +285,6 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
 
 
     public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
-
-        if (event.sender)
-
         const clientKit = await this.tokenStore.getOctokitForUser(event.sender);
         if (clientKit === null) {
             await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
