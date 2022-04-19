@@ -20,6 +20,7 @@ import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
 import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import Metrics from "./Metrics";
 
 const log = new LogWrapper("ConnectionManager");
 
@@ -55,6 +56,7 @@ export class ConnectionManager {
                 this.connections.push(connection);
             }
         }
+        Metrics.connections.set(this.connections.length);
         // Already exists, noop.
     }
 
@@ -408,6 +410,7 @@ export class ConnectionManager {
             throw Error('Could not find connection index');
         }
         this.connections.splice(connectionIndex, 1);
+        Metrics.connections.set(this.connections.length);
     }
 
     /**
@@ -418,6 +421,7 @@ export class ConnectionManager {
     public async removeConnectionsForRoom(roomId: string) {
         log.info(`Removing all connections from ${roomId}`);
         this.connections = this.connections.filter((c) => c.roomId !== roomId);
+        Metrics.connections.set(this.connections.length);
     }
 
     public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {
