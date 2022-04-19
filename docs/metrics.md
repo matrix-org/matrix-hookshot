@@ -19,6 +19,8 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | hookshot_webhooks_http_request | Number of requests made to the hookshot webhooks handler | path, method |
 | hookshot_provisioning_http_request | Number of requests made to the hookshot webhooks handler | path, method |
 | hookshot_queue_event_pushes | Number of events pushed through the queue | event |
+| hookshot_connection_event_failed | The number of events that failed to process | event, connectionId |
+| hookshot_connections | The number of active hookshot connections | service |
 | hookshot_notifications_push | Number of notifications pushed | service |
 | hookshot_notifications_service_up | Is the notification service up or down | service |
 | hookshot_notifications_watchers | Number of notifications watchers running | service |
