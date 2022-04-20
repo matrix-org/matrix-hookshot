@@ -55,15 +55,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.githubInstance || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
         }
-        if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for GitHub.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "github", GitHubRepoConnection.CanonicalEventType);
+
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
@@ -84,15 +78,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira.");
         }
-        if (!this.config.checkPermission(userId, "jira", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for Jira.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+
         const jiraClient = await this.tokenStore.getJiraForUser(userId, urlStr);
         if (!jiraClient) {
             throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
@@ -113,15 +101,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
         }
-        if (!this.config.checkPermission(userId, "webhooks", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for generic webhooks.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
+
         if (!name || name.length < 3 || name.length > 64) {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
@@ -139,15 +121,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.figma) {
             throw new CommandError("not-configured", "The bridge is not configured to support Figma.");
         }
-        if (!this.config.checkPermission(userId, "figma", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for Figma.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "figma", FigmaFileConnection.CanonicalEventType);
+
         const res = /https:\/\/www\.figma\.com\/file\/(\w+).+/.exec(url);
         if (!res) {
             throw new CommandError("Invalid Figma url", "The Figma file url you entered was not valid. It should be in the format of `https://figma.com/file/FILEID/...`.");
@@ -164,6 +140,18 @@ export class SetupConnection extends CommandConnection {
         }
         if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.as.botIntent, this.config.widgets)) {
             await this.as.botClient.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
+        }
+    }
+
+    private async checkUserPermissions(userId: string, service: string, stateEventType: string): Promise<void> {
+        if (!this.config.checkPermission(userId, service, BridgePermissionLevel.manageConnections)) {
+            throw new CommandError(`You are not permitted to provision connections for ${service}.`);
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, stateEventType, true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
         }
     }
 }
