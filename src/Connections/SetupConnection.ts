@@ -10,6 +10,7 @@ import { v4 as uuid } from "uuid";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
+import { FeedConnection } from "./FeedConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
@@ -45,6 +46,7 @@ export class SetupConnection extends CommandConnection {
                 this.config.figma ? "figma": "",
                 this.config.jira ? "jira": "",
                 this.config.generic?.enabled ? "webhook": "",
+                this.config.feeds?.enabled ? "feed" : "",
                 this.config.widgets?.roomSetupWidget ? "widget" : "",
             ];
             this.includeTitlesInHelp = false;
@@ -131,6 +133,25 @@ export class SetupConnection extends CommandConnection {
         const [, fileId] = res;
         await this.as.botClient.sendStateEvent(this.roomId, FigmaFileConnection.CanonicalEventType, fileId, {fileId});
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
+    }
+
+    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    public async onFeed(userId: string, url: string) {
+        if (!this.config.feeds?.enabled) {
+            throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
+        }
+
+        await this.checkUserPermissions(userId, "figma", FeedConnection.CanonicalEventType);
+
+        try {
+            new URL(url);
+            // TODO: fetch and check content-type?
+        } catch {
+            throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+        }
+
+        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {url});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})

@@ -10,7 +10,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
@@ -42,6 +42,7 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { CLOUD_INSTANCE } from "./Jira/Client";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
+import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -137,6 +138,16 @@ export class Bridge {
         await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
+
+        if (this.config.feeds?.enabled) {
+            new FeedReader(
+                this.config.feeds,
+                this.connectionManager,
+                this.queue,
+                this.as.botClient,
+            );
+        }
+
     
         if (this.config.provisioning) {
             const routers = [];
@@ -196,6 +207,7 @@ export class Bridge {
         this.queue.subscribe("gitlab.*");
         this.queue.subscribe("jira.*");
         this.queue.subscribe("figma.*");
+        this.queue.subscribe("feed.*");
 
         const validateRepoIssue = (data: GitHubWebhookTypes.IssuesEvent|GitHubWebhookTypes.IssueCommentEvent) => {
             if (!data.repository || !data.issue) {
@@ -590,6 +602,17 @@ export class Bridge {
             (data) => connManager.getForFigmaFile(data.payload.file_key, data.instanceName),
             (c, data) => c.handleNewComment(data.payload),
         )
+
+        this.bindHandlerToQueue<FeedEntry, FeedConnection>(
+            "feed.entry",
+            (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
+            (c, data) => c.handleFeedEntry(data),
+        );
+        this.bindHandlerToQueue<FeedError, FeedConnection>(
+            "feed.error",
+            (data) => connManager.getConnectionsForFeedUrl(data.url),
+            (c, data) => c.handleFeedError(data),
+        );
 
         // Set the name and avatar of the bot
         if (this.config.bot) {

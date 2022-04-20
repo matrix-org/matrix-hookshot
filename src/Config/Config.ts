@@ -184,6 +184,11 @@ export class BridgeConfigGitLab {
     }
 }
 
+export interface BridgeConfigFeeds {
+    enabled: boolean;
+    pollIntervalSeconds: number;
+}
+
 export interface BridgeConfigFigma {
     publicUrl: string;
     overrideUserId?: string;
@@ -323,6 +328,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
+    feeds?: BridgeConfigFeeds;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLabYAML;
@@ -362,6 +368,8 @@ export class BridgeConfig {
     public readonly generic?: BridgeConfigGenericWebhooks;
     @configKey("Configure this to enable Figma support", true)
     public readonly figma?: BridgeConfigFigma;
+    @configKey("Configure this to enable RSS/Atom feed support", true)
+    public readonly feeds?: BridgeConfigFeeds;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
@@ -395,6 +403,7 @@ export class BridgeConfig {
         this.figma = configData.figma;
         this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
+        this.feeds = configData.feeds;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;

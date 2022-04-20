@@ -18,7 +18,7 @@ import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { ApiError, ErrCode } from "./api";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
-import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
+import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
@@ -128,7 +128,7 @@ export class ConnectionManager extends EventEmitter {
         throw new ApiError(`Connection type not known`);
     }
 
-    private assertStateAllowed(state: StateEvent<any>, serviceType: "github"|"gitlab"|"jira"|"figma"|"webhooks") {
+    private assertStateAllowed(state: StateEvent<any>, serviceType: "github"|"gitlab"|"jira"|"figma"|"webhooks"|"feed") {
         if (state.sender === this.as.botUserId) {
             return;
         }
@@ -246,6 +246,14 @@ export class ConnectionManager extends EventEmitter {
             }
             this.assertStateAllowed(state, "figma");
             return new FigmaFileConnection(roomId, state.stateKey, state.content, this.config.figma, this.as, this.storage);
+        }
+
+        if (FeedConnection.EventTypes.includes(state.type)) {
+            if (!this.config.feeds?.enabled) {
+                throw Error('RSS/Atom feeds are not configured');
+            }
+            this.assertStateAllowed(state, "feed");
+            return new FeedConnection(roomId, state.stateKey, state.content, this.config.feeds, this.as, this.storage);
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
@@ -376,6 +384,10 @@ export class ConnectionManager extends EventEmitter {
 
     public getForFigmaFile(fileKey: string, instanceName: string): FigmaFileConnection[] {
         return this.connections.filter((c) => (c instanceof FigmaFileConnection && (c.fileId === fileKey || c.instanceName === instanceName))) as FigmaFileConnection[];
+    }
+
+    public getConnectionsForFeedUrl(url: string): FeedConnection[] {
+        return this.connections.filter(c => c instanceof FeedConnection && c.feedUrl === url) as FeedConnection[];
     }
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
