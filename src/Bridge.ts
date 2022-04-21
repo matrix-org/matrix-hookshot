@@ -399,9 +399,14 @@ export class Bridge {
             } as GitHubOAuthToken));
         });
 
-        this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection>(
+        this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
             "gitlab.note.created",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.issue.iid), 
+            (data) => { 
+                const iid = data.issue?.iid || data.merge_request?.iid;
+                return [
+                    ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []), 
+                    ...connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+                ]},
             (c, data) => c.onCommentCreated(data),
         );
 
