@@ -322,7 +322,7 @@ ${data.description}`;
                 return;
             }
             const orgRepoName = event.project.path_with_namespace;
-            const comments = result.comments > 1 ? `${result.comments} comments` : '1 comment';
+            const comments = result.comments !== 1 ? `${result.comments} comments` : '1 comment';
             const content = `**${result.author}** reviewed MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}" with ${comments}`;
             this.as.botIntent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
