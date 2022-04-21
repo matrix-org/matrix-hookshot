@@ -7,7 +7,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabNote, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { IConnectionState } from "./IConnection";
 
@@ -24,6 +24,8 @@ export interface GitLabRepoConnectionState extends IConnectionState {
 const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
+const MRRCOMMENT_DEBOUNCE_MS = 5000;
+
 /**
  * Handles rooms connected to a github repo.
  */
@@ -38,6 +40,8 @@ export class GitLabRepoConnection extends CommandConnection {
     
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
+
+    private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
 
     constructor(roomId: string,
         stateKey: string,
@@ -291,6 +295,60 @@ ${data.description}`;
             format: "org.matrix.custom.html",
         });
     }
+
+    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        if (this.shouldSkipHook('merge_request.review', 'merge_request.review.comments')) {
+            return;
+        }
+        log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
+        const uniqueId = `${event.merge_request?.iid}/${event.object_attributes.author_id}`;
+
+        if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
+            // Not a MR comment
+            return;
+        }
+
+        if (event.object_attributes.author_id === event.merge_request.author_id) {
+            // If it's the same author, ignore
+            return;
+        }
+
+        const mergeRequest = event.merge_request;
+
+        const renderFn = () => {
+            const result = this.debounceMRComments.get(uniqueId);
+            if (!result) {
+                // Always defined, but for type checking purposes.
+                return;
+            }
+            const orgRepoName = event.project.path_with_namespace;
+            const comments = result.comments !== 1 ? `${result.comments} comments` : '1 comment';
+            const content = `**${result.author}** reviewed MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}" with ${comments}`;
+            this.as.botIntent.sendEvent(this.roomId, {
+                msgtype: "m.notice",
+                body: content,
+                formatted_body: md.renderInline(content),
+                format: "org.matrix.custom.html",
+            }).catch(ex  => {
+                log.error('Failed to send onCommentCreated message', ex);
+            });
+        };
+
+        const existing = this.debounceMRComments.get(uniqueId);
+        if (existing) {
+            clearTimeout(existing.timeout);
+            existing.comments = existing.comments + 1;
+            existing.timeout = setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS);
+        } else {
+            this.debounceMRComments.set(uniqueId, {
+                comments: 1,
+                author: event.user.name,
+                timeout: setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS),
+            })
+        }
+
+    }
+
 
     public toString() {
         return `GitLabRepo ${this.instance.url}/${this.path}`;
