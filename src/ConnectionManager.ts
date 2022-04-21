@@ -21,10 +21,11 @@ import {v4 as uuid} from "uuid";
 import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
+import EventEmitter from "events";
 
 const log = new LogWrapper("ConnectionManager");
 
-export class ConnectionManager {
+export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
 
@@ -39,8 +40,9 @@ export class ConnectionManager {
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly storage: IBridgeStorageProvider,
-        private readonly github?: GithubInstance) {
-
+        private readonly github?: GithubInstance
+    ) {
+        super();
     }
 
     /**
@@ -54,6 +56,7 @@ export class ConnectionManager {
         for (const connection of connections) {
             if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
                 this.connections.push(connection);
+                this.emit('new-connection', connection);
             }
         }
         Metrics.connections.set(this.connections.length);
