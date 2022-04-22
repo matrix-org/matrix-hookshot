@@ -8,6 +8,7 @@ import { MessageQueue } from "../MessageQueue";
 import Ajv from "ajv";
 import axios from "axios";
 import Parser from "rss-parser";
+import Metrics from "../Metrics";
 
 const log = new LogWrapper("FeedReader");
 
@@ -105,6 +106,7 @@ export class FeedReader {
             }
         }
         this.observedFeedUrls = new Set(normalizedUrls);
+        Metrics.feedsCount.set(this.observedFeedUrls.size);
     }
 
     private async loadSeenEntries(): Promise<void> {
@@ -206,6 +208,7 @@ export class FeedReader {
         if (seenEntriesChanged) await this.saveSeenEntries();
 
         const elapsed = (new Date()).getTime() - fetchingStarted;
+        Metrics.feedFetchMs.set(elapsed);
 
         let sleepFor: number;
         if (elapsed > this.config.pollIntervalSeconds * 1000) {

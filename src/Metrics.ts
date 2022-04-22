@@ -23,6 +23,10 @@ export class Metrics {
 
     public readonly matrixAppserviceEvents = new Counter({ name: "matrix_appservice_events", help: "The number of events sent over the AS API", labelNames: [], registers: [this.registry]});
 
+    public readonly feedsCount = new Gauge({ name: "feeds_count", help: "The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
+    public readonly feedFetchMs = new Gauge({ name: "feed_fetch_ms", help: "The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
+
+
     constructor(private registry: Registry = register) {
         this.expressRouter.get('/metrics', this.metricsFunc.bind(this));
         collectDefaultMetrics({
