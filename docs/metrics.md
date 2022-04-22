@@ -32,13 +32,10 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | matrix_api_calls | The number of Matrix client API calls made | method |
 | matrix_api_calls_failed | The number of Matrix client API calls which failed | method |
 | matrix_appservice_events | The number of events sent over the AS API |  |
-## feeds
-| Metric | Help | Labels |
-|--------|------|--------|
-| feeds_count | The number of RSS feeds that hookshot is subscribed to |  |
 ## feed
 | Metric | Help | Labels |
 |--------|------|--------|
+| feed_count | The number of RSS feeds that hookshot is subscribed to |  |
 | feed_fetch_ms | The time taken for hookshot to fetch all feeds |  |
 ## process
 | Metric | Help | Labels |
@@ -75,4 +72,4 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | nodejs_heap_space_size_available_bytes | Process heap space size available from Node.js in bytes. | space |
 | nodejs_version_info | Node.js version info. | version, major, minor, patch |
 | nodejs_gc_duration_seconds | Garbage collection duration by kind, one of major, minor, incremental or weakcb. | kind |
-Done in 2.16s.
+Done in 2.19s.
