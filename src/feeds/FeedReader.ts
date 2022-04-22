@@ -5,6 +5,7 @@ import { FeedConnection } from "../Connections";
 import LogWrapper from "../LogWrapper";
 import { MessageQueue } from "../MessageQueue";
 
+import Ajv from "ajv";
 import axios from "axios";
 import Parser from "rss-parser";
 
@@ -31,6 +32,19 @@ export interface FeedEntry {
 interface AccountData {
     [url: string]: string[],
 }
+
+const accountDataSchema = {
+    type: 'object',
+    patternProperties: {
+        "https?://.+": {
+            type: 'array',
+            items: { type: 'string' },
+        }
+    },
+    additionalProperties: false,
+};
+const ajv = new Ajv();
+const validateAccountData = ajv.compile<AccountData>(accountDataSchema);
 
 function stripHtml(input: string): string {
     return input.replace(/<[^>]*?>/g, '');
@@ -64,15 +78,24 @@ export class FeedReader {
     }
 
     private async loadSeenEntries(): Promise<void> {
-        const accountData = await this.matrixClient.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: any) => {
-            if (err.statusCode === 404) {
-                return {} as AccountData;
-            } else {
-                throw err;
+        try {
+            const accountData = await this.matrixClient.getAccountData<any>(FeedReader.seenEntriesEventType).catch((err: any) => {
+                if (err.statusCode === 404) {
+                    return {};
+                } else {
+                    throw err;
+                }
+            });
+            if (!validateAccountData(accountData)) {
+                const errors = validateAccountData.errors!.map(e => `${e.instancePath} ${e.message}`);
+                throw new Error(`Invalid account data: ${errors.join(', ')}`);
             }
-        });
-        for (const url in accountData) {
-            this.seenEntries.set(url, accountData[url]);
+            for (const url in accountData) {
+                this.seenEntries.set(url, accountData[url]);
+            }
+        } catch (err: unknown) {
+            log.error(`Failed to load seen feed entries from accountData: ${err}. This may result in skipped entries`);
+            // no need to wipe it manually, next saveSeenEntries() will make it right
         }
     }
 
