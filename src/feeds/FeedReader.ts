@@ -97,6 +97,10 @@ export class FeedReader {
                 const feed = await (new Parser()).parseString(res.data);
                 const seenGuids = this.seenEntries.get(url) || [];
                 const seenGuidsSet = new Set(seenGuids);
+                let initialSync = false;
+                if (seenGuidsSet.size === 0) {
+                    initialSync = true;
+                }
                 const newGuids = [];
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
                 for (const item of feed.items) {
@@ -106,10 +110,16 @@ export class FeedReader {
                         continue;
                     }
                     newGuids.push(guid);
+
+                    if (initialSync) {
+                        log.debug(`Skipping entry ${guid} since we're performing an initial sync`);
+                        continue;
+                    }
                     if (seenGuidsSet.has(guid)) {
                         log.debug('Skipping already seen entry', guid);
                         continue;
                     }
+
                     const entry = {
                         feed: { title: stripHtml(feed.title!), url: url.toString() },
                         title: stripHtml(item.title!),
