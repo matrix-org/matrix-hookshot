@@ -72,4 +72,3 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | nodejs_heap_space_size_available_bytes | Process heap space size available from Node.js in bytes. | space |
 | nodejs_version_info | Node.js version info. | version, major, minor, patch |
 | nodejs_gc_duration_seconds | Garbage collection duration by kind, one of major, minor, incremental or weakcb. | kind |
-Done in 2.19s.
