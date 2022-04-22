@@ -89,7 +89,9 @@ export class FeedReader {
 
         let seenEntriesChanged = false;
 
-        await Promise.all(this.observedFeedUrls.map(async (url) => {
+        const fetchingStarted = (new Date()).getTime();
+
+        for (const url of this.observedFeedUrls) {
             try {
                 const res = await axios.get(url.toString());
                 const feed = await (new Parser()).parseString(res.data);
@@ -135,10 +137,22 @@ export class FeedReader {
                 log.error(error.message);
                 this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: error });
             }
-        }));
+        }
         if (seenEntriesChanged) await this.saveSeenEntries();
+
+        const elapsed = (new Date()).getTime() - fetchingStarted;
+
+        let sleepFor: number;
+        if (elapsed > this.config.pollIntervalSeconds * 1000) {
+            log.warn(`It tooks us longer to update the feeds than the configured pool interval (${elapsed / 1000}s)`);
+            sleepFor = 0;
+        } else {
+            sleepFor = this.config.pollIntervalSeconds * 1000 - elapsed;
+            log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
+        }
+
         setTimeout(() => {
             void this.pollFeeds();
-        }, this.config.pollIntervalSeconds * 1000);
+        }, sleepFor);
     }
 }
