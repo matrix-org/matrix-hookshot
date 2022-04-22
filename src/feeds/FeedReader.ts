@@ -118,12 +118,14 @@ export class FeedReader {
             try {
                 const res = await axios.get(url.toString());
                 const feed = await (new Parser()).parseString(res.data);
-                const seenGuids = this.seenEntries.get(url) || [];
-                const seenGuidsSet = new Set(seenGuids);
                 let initialSync = false;
-                if (seenGuidsSet.size === 0) {
+                let seenGuids = this.seenEntries.get(url);
+                if (!seenGuids) {
                     initialSync = true;
+                    seenGuids = [];
+                    seenEntriesChanged = true; // to ensure we only treat it as an initialSync once
                 }
+                const seenGuidsSet = new Set(seenGuids);
                 const newGuids = [];
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
                 for (const item of feed.items) {
