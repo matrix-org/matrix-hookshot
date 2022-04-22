@@ -4,17 +4,17 @@ import { BridgeConfigFeeds } from "../Config/Config";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, ChattyConnection, ChattyConnectionState } from "./BaseConnection";
 import markdown from "markdown-it";
 
 const log = new LogWrapper("FeedConnection");
 const md = new markdown();
 
-export interface FeedConnectionState extends IConnectionState {
+export interface FeedConnectionState extends ChattyConnectionState {
     url: string;
 }
 
-export class FeedConnection extends BaseConnection implements IConnection {
+export class FeedConnection extends ChattyConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.feed";
     static readonly EventTypes = [ FeedConnection.CanonicalEventType ];
     private hasError = false;
@@ -31,7 +31,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         private readonly as: Appservice,
         private readonly storage: IBridgeStorageProvider
     ) {
-        super(roomId, stateKey, FeedConnection.CanonicalEventType)
+        super(roomId, stateKey, FeedConnection.CanonicalEventType, state, as.botClient);
         log.info(`Connection ${this.connectionId} created for ${roomId}, ${JSON.stringify(state)}`);
     }
 
@@ -42,8 +42,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
         this.hasError = false;
         const message = `New post in ${entry.feed.title}: [${entry.title}](${entry.link})`
-        await this.as.botIntent.sendEvent(this.roomId, {
-            msgtype: 'm.notice',
+        await this.sendMessage({
             format: "org.matrix.custom.html",
             formatted_body: md.renderInline(message),
             body: message,
@@ -52,8 +51,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
     public async handleFeedError(error: FeedError): Promise<void> {
         if (!this.hasError) {
-            await this.as.botIntent.sendEvent(this.roomId, {
-                msgtype: 'm.notice',
+            await this.sendMessage({
                 format: 'm.text',
                 body: `Error fetching ${this.feedUrl}: ${error.cause.message}`
             });
