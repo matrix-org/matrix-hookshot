@@ -141,7 +141,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
         }
 
-        await this.checkUserPermissions(userId, "figma", FeedConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
 
         try {
             new URL(url);

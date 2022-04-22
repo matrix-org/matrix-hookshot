@@ -126,7 +126,7 @@ export class FeedReader {
                     // forget what we sent and resend it. Instead, we'll keep 2x the max number of items that we've ever
                     // seen from this feed, up to a max of 10,000. 
                     // Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
-                    const maxGuids = Math.min(Math.max(2 * newGuids.length, seenGuids.length), 10_000);;
+                    const maxGuids = Math.min(Math.max(2 * newGuids.length, seenGuids.length), 10_000);
                     const newSeenItems = Array.from(new Set([ ...newGuids, ...seenGuids ]).values()).slice(0, maxGuids);
                     this.seenEntries.set(url, newSeenItems);
                 }
