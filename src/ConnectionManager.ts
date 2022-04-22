@@ -426,6 +426,7 @@ export class ConnectionManager extends EventEmitter {
         }
         this.connections.splice(connectionIndex, 1);
         Metrics.connections.set(this.connections.length);
+        this.emit('connection-removed', connection);
     }
 
     /**

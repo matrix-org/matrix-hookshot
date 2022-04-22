@@ -3,7 +3,6 @@ import { IConnection, IConnectionState } from ".";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import LogWrapper from "../LogWrapper";
-import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
@@ -33,11 +32,11 @@ export class FeedConnection extends BaseConnection implements IConnection {
         private readonly storage: IBridgeStorageProvider
     ) {
         super(roomId, stateKey, FeedConnection.CanonicalEventType)
-        log.info(`FeedConnection created for ${roomId}, ${JSON.stringify(state)}`);
+        log.info(`Connection ${this.connectionId} created for ${roomId}, ${JSON.stringify(state)}`);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string): boolean {
-        return false;
+        return !!FeedConnection.EventTypes.find(e => e === eventType) && stateKey === this.feedUrl;
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
@@ -60,6 +59,11 @@ export class FeedConnection extends BaseConnection implements IConnection {
             });
             this.hasError = true;
         }
+    }
+
+    // needed to ensure that the connection is removable
+    public async onRemove(): Promise<void> {
+        log.info(`Removing connection ${this.connectionId}`);
     }
 
     toString(): string {

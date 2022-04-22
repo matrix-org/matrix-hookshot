@@ -50,8 +50,16 @@ function stripHtml(input: string): string {
     return input.replace(/<[^>]*?>/g, '');
 }
 
+function normalizeUrl(input: string): string {
+    const url = new URL(input);
+    url.hash = '';
+    return url.toString();
+}
+
 export class FeedReader {
-    private observedFeedUrls: string[];
+    private connections: FeedConnection[];
+    // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
+    private observedFeedUrls: Set<string> = new Set();
     private seenEntries: Map<string, string[]> = new Map();
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
@@ -61,12 +69,21 @@ export class FeedReader {
         private queue: MessageQueue,
         private matrixClient: MatrixClient,
     ) {
-        const feedConnections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
-        this.observedFeedUrls = feedConnections.map(c => c.feedUrl);
+        this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
+        this.calculateFeedUrls();
         connectionManager.on('new-connection', c => {
             if (c instanceof FeedConnection) {
-                log.info('New connection tracked:', c.feedUrl);
-                this.observedFeedUrls.push(c.feedUrl);
+                log.info('New connection tracked:', c.connectionId);
+                this.connections.push(c);
+                this.calculateFeedUrls();
+            }
+        });
+        connectionManager.on('connection-removed', removed => {
+            if (removed instanceof FeedConnection) {
+                log.info('Connections before removal:', this.connections.map(c => c.connectionId));
+                this.connections = this.connections.filter(c => c.connectionId !== removed.connectionId);
+                log.info('Connections after removal:', this.connections.map(c => c.connectionId));
+                this.calculateFeedUrls();
             }
         });
 
@@ -75,6 +92,19 @@ export class FeedReader {
         void this.loadSeenEntries().then(() => {
             return this.pollFeeds();
         });
+    }
+
+    private calculateFeedUrls(): void {
+        // just in case we got an invalid URL somehow
+        const normalizedUrls = [];
+        for (const conn of this.connections) {
+            try {
+                normalizedUrls.push(normalizeUrl(conn.feedUrl));
+            } catch (err: unknown) {
+                log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`);
+            }
+        }
+        this.observedFeedUrls = new Set(normalizedUrls);
     }
 
     private async loadSeenEntries(): Promise<void> {
@@ -108,13 +138,13 @@ export class FeedReader {
     }
 
     private async pollFeeds(): Promise<void> {
-        log.debug(`Checking for updates in ${this.observedFeedUrls.length} RSS/Atom feeds`);
+        log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds`);
 
         let seenEntriesChanged = false;
 
         const fetchingStarted = (new Date()).getTime();
 
-        for (const url of this.observedFeedUrls) {
+        for (const url of this.observedFeedUrls.values()) {
             try {
                 const res = await axios.get(url.toString());
                 const feed = await (new Parser()).parseString(res.data);
