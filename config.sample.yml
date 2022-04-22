@@ -81,7 +81,8 @@ generic:
   allowJsTransformationFunctions: false
   waitForComplete: false
 feeds:
-  # (Optional) Support for RSS/Atom feeds.
+  # (Optional) Configure this to enable RSS/Atom feed support
+  #
   enabled: false
   pollIntervalSeconds: 600
 provisioning:
