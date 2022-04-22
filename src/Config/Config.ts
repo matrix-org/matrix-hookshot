@@ -437,8 +437,8 @@ export class BridgeConfig {
             log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
         }
 
-        if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
-            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma or generic hooks must be configured");
+        if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma && !this.feeds) {
+            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma, feeds or generic hooks must be configured");
         }
 
         // TODO: Formalize env support
