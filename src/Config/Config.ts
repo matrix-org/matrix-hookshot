@@ -8,6 +8,7 @@ import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
+import { ApiError, ErrCode } from "../api";
 
 const log = new LogWrapper("Config");
 
@@ -181,6 +182,13 @@ export class BridgeConfigGitLab {
         this.instances = yaml.instances;
         this.webhook = yaml.webhook;
         this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+        }
     }
 }
 
@@ -524,6 +532,25 @@ export class BridgeConfig {
 
     public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel) {
         return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
+    }
+
+    public getPublicConfigForService(serviceName: string): Record<string, unknown> {
+        let config: undefined|Record<string, unknown>;
+        switch (serviceName) {
+            case "generic":
+                config = this.generic?.publicConfig;
+                break;
+            case "gitlab":
+                config = this.gitlab?.publicConfig;
+                break;
+            default:
+                throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);
+        }
+
+        if (!config) {
+            throw new ApiError("Service is not enabled", ErrCode.DisabledFeature);
+        }
+        return config;
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {

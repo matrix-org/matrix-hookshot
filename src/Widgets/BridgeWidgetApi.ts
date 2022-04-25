@@ -30,6 +30,9 @@ export class BridgeWidgetApi {
             expressApp,
             widgetTokenPrefix: "hookshot_",
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
+            openIdOverride: {
+                "beefy": new URL("http://localhost:8008")
+            }
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
@@ -72,22 +75,7 @@ export class BridgeWidgetApi {
     }
 
     private async getServiceConfig(req: ProvisioningRequest, res: Response<Record<string, unknown>>) {
-        let config: undefined|Record<string, unknown>;
-        switch (req.params.service) {
-            case "generic":
-                config = this.config.generic?.publicConfig;
-                break;
-            default:
-                throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);
-        }
-
-        if (!config) {
-            throw new ApiError("Service is not enabled", ErrCode.DisabledFeature);
-        }
-
-        res.send(
-            config
-        );
+        res.send(this.config.getPublicConfigForService(req.params.service));
     }
 
     private async getConnectionsForRequest(req: ProvisioningRequest) {

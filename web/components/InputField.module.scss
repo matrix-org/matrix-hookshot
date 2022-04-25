@@ -1,21 +1,3 @@
-.header {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-
-    img {
-        width: 52px;
-        height: 52px;
-    }
-
-    h1 {
-        margin-left: 10px;
-        font-weight: 600;
-        font-size: 18px;
-        line-height: 24px;
-    }
-}
-
 .inputField {
     width: 100%;
     margin-bottom: 12px;
@@ -46,10 +28,4 @@
         padding: 8px 12px;
         color:  var(--light-color);
     }
-}
-
-.buttonSet {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
 }
