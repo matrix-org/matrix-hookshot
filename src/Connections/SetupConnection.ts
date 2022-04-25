@@ -184,7 +184,6 @@ export class SetupConnection extends CommandConnection {
             }
             throw err;
         });
-        console.log(event);
         if (!event || Object.keys(event).length === 0) {
             throw new CommandError("Invalid feed URL", `Feed "${url}" is not currently bridged to this room`);
         }
