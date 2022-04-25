@@ -1,5 +1,3 @@
-yarn run v1.22.17
-$ /home/will/git/matrix-hookshot/node_modules/.bin/ts-node ./scripts/build-metrics-docs.ts
 Prometheus Metrics
 ==================
 
