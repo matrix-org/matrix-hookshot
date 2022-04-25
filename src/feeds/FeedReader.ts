@@ -144,7 +144,7 @@ export class FeedReader {
 
         let seenEntriesChanged = false;
 
-        const fetchingStarted = (new Date()).getTime();
+        const fetchingStarted = Date.now();
 
         for (const url of this.observedFeedUrls.values()) {
             try {
@@ -207,7 +207,7 @@ export class FeedReader {
         }
         if (seenEntriesChanged) await this.saveSeenEntries();
 
-        const elapsed = (new Date()).getTime() - fetchingStarted;
+        const elapsed = Date.now() - fetchingStarted;
         Metrics.feedFetchMs.set(elapsed);
 
         let sleepFor: number;
