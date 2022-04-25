@@ -7,14 +7,15 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { GitLabInstance } from "../Config/Config";
-import { IGitLabNote, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { IConnectionState } from "./IConnection";
+import { GetConnectionsResponseItem } from "../provisioning/api";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
-    ignoreHooks?: string[],
+    ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     pushTagsRegex?: string,
     includingLabels?: string[];
@@ -25,6 +26,42 @@ const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
 const MRRCOMMENT_DEBOUNCE_MS = 5000;
+
+
+export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState, undefined>;
+
+
+type AllowedEventsNames = 
+    "merge_request.open" |
+    "merge_request.close" |
+    "merge_request.merge" |
+    "merge_request.review" |
+    "merge_request.review.comments" |
+    `merge_request.${string}` |
+    "merge_request" |
+    "tag_push" | 
+    "push" |
+    "wiki" |
+    `wiki.${string}` |
+    "release" |
+    "release.created";
+
+const AllowedEvents: AllowedEventsNames[] = [
+    "merge_request.open",
+    "merge_request.close",
+    "merge_request.merge",
+    "merge_request.review",
+    "merge_request.review.comments",
+    "merge_request",
+    "tag_push",
+    "push",
+    "wiki",
+    "release",
+    "release.created",
+    "release.created",
+    "release",
+];
+
 
 /**
  * Handles rooms connected to a github repo.
@@ -81,6 +118,26 @@ export class GitLabRepoConnection extends CommandConnection {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "gitlab",
+            eventType: GitLabRepoConnection.CanonicalEventType,
+            type: "GitLabRepo",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: botUserId,
+        }
+    }
+
+    public getProvisionerDetails() {
+        return {
+            ...GitLabRepoConnection.getProvisionerDetails(this.as.botUserId),
+            id: this.connectionId,
+            config: {
+                ...this.state,
+            },
+        }
+    }
+
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
@@ -130,7 +187,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.open') || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -146,7 +203,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.close') || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -162,7 +219,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.merge') || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -177,7 +234,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
@@ -297,7 +354,7 @@ ${data.description}`;
     }
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.shouldSkipHook('merge_request.review', 'merge_request.review.comments')) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
             return;
         }
         log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
@@ -367,7 +424,7 @@ ${data.description}`;
         return true;
     }
 
-    private shouldSkipHook(...hookName: string[]) {
+    private shouldSkipHook(...hookName: AllowedEventsNames[]) {
         if (this.state.ignoreHooks) {
             for (const name of hookName) {
                 if (this.state.ignoreHooks?.includes(name)) {
