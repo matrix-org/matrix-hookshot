@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/figma.html"><strong aria-hidden="true">2.2.</strong> Figma</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.3.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.4.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.5.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.6.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/feeds.html"><strong aria-hidden="true">2.2.</strong> Feed</a></li><li class="chapter-item expanded "><a href="setup/figma.html"><strong aria-hidden="true">2.3.</strong> Figma</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.4.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.5.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.6.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.7.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -269,6 +269,7 @@ By default, any user on the bridge's own homeserver has full permission to use i
 <li><code>github</code></li>
 <li><code>gitlab</code></li>
 <li><code>jira</code></li>
+<li><code>feed</code></li>
 <li><code>figma</code></li>
 <li><code>webhooks</code></li>
 <li><code>*</code>, for any service.</li>
@@ -357,6 +358,7 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
 <p>You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.</p>
 <ul>
+<li><a href="./setup/feeds.html">Feeds</a></li>
 <li><a href="./setup/figma.html">Figma</a></li>
 <li><a href="./setup/github.html">GitHub</a></li>
 <li><a href="./setup/gitlab.html">GitLab</a></li>
@@ -461,6 +463,11 @@ generic:
   userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
   waitForComplete: false
+feeds:
+  # (Optional) Configure this to enable RSS/Atom feed support
+  #
+  enabled: false
+  pollIntervalSeconds: 600
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
@@ -550,6 +557,32 @@ listeners:
       - widgets
 
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="feeds"><a class="header" href="#feeds">Feeds</a></h1>
+<p>You can configure hookshot to bridge RSS/Atom feeds into Matrix.</p>
+<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<pre><code class="language-yaml">feeds:
+  # (Optional) Configure this to enable RSS/Atom feed support
+  #
+  enabled: true
+  pollIntervalSeconds: 600
+</code></pre>
+<p><code>pollIntervalSeconds</code> specifies how often each feed will be checked for updates.
+It may be checked less often if under exceptional load, but it will never be checked more often than every <code>pollIntervalSeconds</code>.</p>
+<p>Each feed will only be checked once, regardless of the number of rooms to which it's bridged.</p>
+<p>No entries will be bridged upon the “initial sync” -- all entries that exist at the moment of setup will be considered to be already seen.</p>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<h3 id="adding-new-feeds"><a class="header" href="#adding-new-feeds">Adding new feeds</a></h3>
+<p>To add a feed to your room:</p>
+<ul>
+<li>Invite the bot user to the room.</li>
+<li>Make sure the bot able to send state events (usually the Moderator power level in clients)</li>
+<li>Say <code>!hookshot feed &lt;URL&gt;</code> where <code>&lt;URL&gt;</code> links to an RSS/Atom feed you want to subscribe to.</li>
+</ul>
+<h3 id="listing-feeds"><a class="header" href="#listing-feeds">Listing feeds</a></h3>
+<p>You can list all feeds that a room you're in is currently subscribed to with <code>!hookshot feed list</code>.
+It requires no special permissions from the user issuing the command.</p>
+<h3 id="removing-feeds"><a class="header" href="#removing-feeds">Removing feeds</a></h3>
+<p>To remove a feed from a room, say <code>!hookshot feed remove &lt;URL&gt;</code>, with the URL specifying which feed you want to unsubscribe from.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="figma"><a class="header" href="#figma">Figma</a></h1>
 <h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
 <p>To bridge Figma webhooks with Hookshot, you will need:</p>
@@ -558,7 +591,7 @@ listeners:
 <li>A figma account that is on the professional tier, as the free tier does provide webhook access.</li>
 <li>Your team ID. You can get this by going to the team page on Figma, and looking for the ID in the url (e.g. 12345 in <code>https://www.figma.com/files/team/12345/...</code>)</li>
 </ul>
-<h2 id="configuration-1"><a class="header" href="#configuration-1">Configuration</a></h2>
+<h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
 <p>You can now set some configuration in the bridge <code>config.yml</code></p>
 <pre><code class="language-yaml">figma:
   publicUrl: https://example.com/hookshot/
@@ -659,7 +692,7 @@ are supported.</p>
 <p>If you have followed these steps correctly, GitHub should now be configured with hookshot 🥳.</p>
 <p>You can now follow the guide on <a href="setup/../usage/auth.html">authenticating with GitHub</a>, and then <a href="setup/../usage/room_configuration/github_repo.html#setting-up">bridging a room</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h1>
-<h2 id="configuration-2"><a class="header" href="#configuration-2">Configuration</a></h2>
+<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
 <p>GitLab configuration is fairly straight-forward:</p>
 <pre><code class="language-yaml">  # (Optional) Configure this to enable GitLab support
   #
@@ -703,7 +736,7 @@ You will want to give the URL of the public address for the hookshot webhooks po
 secret value by appending <code>?secret=your-webhook-secret</code>. The secret value can be anything, but should
 be reasonably secure and should also be stored in the <code>config.yml</code> file.</p>
 <p>Ensure that you enable all the events that you wish to be bridge.</p>
-<h2 id="configuration-3"><a class="header" href="#configuration-3">Configuration</a></h2>
+<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
 <p>You can now set some configuration in the bridge <code>config.yml</code></p>
 <pre><code class="language-yaml">jira:
   webhook:
@@ -791,7 +824,7 @@ These instructions use <code>openssl</code> to generate certificates, so users o
 <div style="break-before: page; page-break-before: always;"></div><h1 id="webhooks"><a class="header" href="#webhooks">Webhooks</a></h1>
 <p>Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
 by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.</p>
-<h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
+<h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
 <p>You will need to add the following configuration to the config file.</p>
 <pre><code class="language-yaml">generic:
   enabled: true
@@ -890,7 +923,7 @@ will be prefix'd with <code>Received webhook:</code>. If <code>result</code> is 
     result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
 }
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="usage"><a class="header" href="#usage">Usage</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="usage-1"><a class="header" href="#usage-1">Usage</a></h1>
 <p>This section covers how to use the bridge, once it's set up. We break these
 down into categories:</p>
 <ul>
@@ -1198,7 +1231,7 @@ a new release.</p>
 <li>Send the command <code>!hookshot github repo https://github.com/my/project</code>.</li>
 <li>If you have permission to bridge this repo, the bridge will respond with a confirmation message.</li>
 </ol>
-<h2 id="configuration-5"><a class="header" href="#configuration-5">Configuration</a></h2>
+<h2 id="configuration-6"><a class="header" href="#configuration-6">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
 <table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
 <tr><td>ignoreHooks</td><td>Choose to exclude notifications for some event types</td><td>Array of: <a href="usage/room_configuration/github_repo.html#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
@@ -1261,6 +1294,11 @@ a new release.</p>
 <tr><td>matrix_api_calls</td><td>The number of Matrix client API calls made</td><td>method</td></tr>
 <tr><td>matrix_api_calls_failed</td><td>The number of Matrix client API calls which failed</td><td>method</td></tr>
 <tr><td>matrix_appservice_events</td><td>The number of events sent over the AS API</td><td></td></tr>
+</tbody></table>
+<h2 id="feed"><a class="header" href="#feed">feed</a></h2>
+<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
+<tr><td>feed_count</td><td>The number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
+<tr><td>feed_fetch_ms</td><td>The time taken for hookshot to fetch all feeds</td><td></td></tr>
 </tbody></table>
 <h2 id="process"><a class="header" href="#process">process</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
@@ -1525,7 +1563,7 @@ so there can be no guarantees about client support or stability of the feature).
 <p>Hookshot supports using widgets to configure connections in rooms. Widgets allow users to view and configure rooms without the need to type commands. The widget feature is designed to complement
 the existing command system, rather than replace it.</p>
 <p><img alt="Example of a configuration widget" src="advanced/./widgets.png" style="display: block; margin-left: auto; width: 500px; margin-right: auto;"></img></p>
-<h3 id="configuration-6"><a class="header" href="#configuration-6">Configuration</a></h3>
+<h3 id="configuration-7"><a class="header" href="#configuration-7">Configuration</a></h3>
 <pre><code class="language-yaml">widgets:
   addToAdminRooms: false
   roomSetupWidget:
