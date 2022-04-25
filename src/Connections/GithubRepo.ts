@@ -21,6 +21,7 @@ import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
 import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -48,6 +49,7 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     newIssue?: {
         labels: string[];
     };
+    useThreads?: boolean;
 }
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
@@ -150,7 +152,7 @@ function validateState(state: Record<string, unknown>): GitHubRepoConnectionStat
  */
 export class GitHubRepoConnection extends CommandConnection implements IConnection {
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        tokenStore: UserTokenStore, githubInstance: GithubInstance, config: BridgeConfigGitHub) {
+        tokenStore: UserTokenStore, githubInstance: GithubInstance, config: BridgeConfigGitHub, store: IBridgeStorageProvider) {
         const validData = validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
@@ -183,7 +185,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         const stateEventKey = `${validData.org}/${validData.repo}`;
         return {
             stateEventContent: validData,
-            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, stateEventKey, githubInstance, config),
+            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, store, stateEventKey, githubInstance, config),
         }
     }
 
@@ -281,6 +283,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         private readonly as: Appservice,
         private state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
+        private readonly store: IBridgeStorageProvider,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
         private readonly config: BridgeConfigGitHub,
@@ -295,6 +298,32 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 state.commandPrefix || "!gh",
                 "github",
             );
+    }
+
+    protected async setThreadForRemoteId(eventId: string, remoteId: string|number) {
+        // Store regardless of configuration, in case the user wants to turn it on.
+        await this.store.setEventIdForRemoteId(`${this.connectionId}/${remoteId}`, eventId);
+        log.debug(`Stored thread eventId for ${remoteId} as ${eventId}`);
+    }
+
+    protected async getThreadForRemoteId(remoteId: string|number, renderInTimeline = false): Promise<Record<string, unknown>|undefined> {
+        const parentEventId = this.state.useThreads && await this.store.getEventIdForRemoteId(`${this.connectionId}/${remoteId}`);
+        log.debug(`Found ${parentEventId || "no eventId"} for ${remoteId}`);
+        if (!parentEventId) {
+            return;
+        }
+
+        return { 
+            "m.relates_to": {
+                rel_type: renderInTimeline ? undefined : "m.thread",
+                event_id: parentEventId,
+                // Needed to prevent clients from showing these as actual replies
+                is_falling_back: true,
+                "m.in_reply_to": {
+                    event_id: parentEventId,
+                }
+            },
+        }
     }
 
     public get hotlinkIssues() {
@@ -582,13 +611,14 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const content = emoji.emojify(message);
         const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const eventId = await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
+        await this.setThreadForRemoteId(eventId, event.issue.id);
     }
 
     public async onIssueStateChange(event: IssuesEditedEvent|IssuesReopenedEvent|IssuesClosedEvent) {
@@ -628,13 +658,18 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             }
         }
         const content = `**${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"${withComment}`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const thread = await this.getThreadForRemoteId(event.issue.id, true);
+        const eventId = await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
+            ...thread,
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
+        if (!thread) {
+            this.setThreadForRemoteId(eventId, event.issue.id);
+        }
     }
 
     public async onIssueEdited(event: IssuesEditedEvent) {
@@ -647,13 +682,18 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         log.info(`onIssueEdited ${this.roomId} ${this.org}/${this.repo} #${event.issue.number}`);
         const orgRepoName = event.repository.full_name;
         const content = `**${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const thread = await this.getThreadForRemoteId(event.issue.id);
+        const eventId = await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
+            ...thread,
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
         });
+        if (!thread) {
+            this.setThreadForRemoteId(eventId, event.issue.id);
+        }
     }
 
     public async onIssueLabeled(event: IssuesLabeledEvent) {
@@ -678,12 +718,15 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             const orgRepoName = event.repository.full_name;
             const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
             const content = `**${event.sender.login}** labeled issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-            this.as.botIntent.sendEvent(this.roomId, {
-                msgtype: "m.notice",
-                body: content + (plain.length > 0 ? ` with labels ${plain}`: ""),
-                formatted_body: md.renderInline(content) + (html.length > 0 ? ` with labels ${html}`: ""),
-                format: "org.matrix.custom.html",
-                ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
+            this.getThreadForRemoteId(event.issue.id).then((thread) => {
+                return this.as.botIntent.sendEvent(this.roomId, {
+                    msgtype: "m.notice",
+                    body: content + (plain.length > 0 ? ` with labels ${plain}`: ""),
+                    formatted_body: md.renderInline(content) + (html.length > 0 ? ` with labels ${html}`: ""),
+                    format: "org.matrix.custom.html",
+                    ...thread,
+                    ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
+                })
             }).catch(ex  => {
                 log.error('Failed to send onIssueLabeled message', ex);
             });
@@ -736,14 +779,19 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
         const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));  
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const thread = await this.getThreadForRemoteId(event.pull_request.id);
+        const eventId = await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: "") + diffContent,
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: "") + diffContentHtml,
             format: "org.matrix.custom.html",
+            ...thread,
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
             ...FormatUtil.getPartialBodyForGitHubPR(event.repository, event.pull_request),
         });
+        if (!thread) {
+            this.setThreadForRemoteId(eventId, event.pull_request.id);
+        }
     }
 
     public async onPRReadyForReview(event: PullRequestReadyForReviewEvent) {
@@ -759,14 +807,18 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
         const orgRepoName = event.repository.full_name;
         const content = emoji.emojify(`**${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review "${event.pull_request.title}"`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const thread = await this.getThreadForRemoteId(event.pull_request.id, true);
+        const eventId = await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            // TODO: Fix types.
+            ...thread,
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
         });
+        if (!thread) {
+            this.setThreadForRemoteId(eventId, event.pull_request.id);
+        }
     }
 
     public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {
@@ -792,14 +844,18 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             return;
         }
         const content = emoji.emojify(`**${event.sender.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const thread = await this.getThreadForRemoteId(event.pull_request.id, true);
+        const eventId = await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            // TODO: Fix types.
+            ...thread,
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
         });
+        if (!thread) {
+            this.setThreadForRemoteId(eventId, event.pull_request.id);
+        }
     }
 
     public async onPRClosed(event: PullRequestClosedEvent) {
@@ -838,11 +894,13 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
 
         const content = emoji.emojify(`**${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`);
+        const thread = await this.getThreadForRemoteId(event.pull_request.id, true);
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
+            ...thread,
             // TODO: Fix types.
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
         });

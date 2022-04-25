@@ -2,6 +2,7 @@ import { MemoryStorageProvider as MSP } from "matrix-bot-sdk";
 import { IBridgeStorageProvider } from "./StorageProvider";
 import { IssuesGetResponseData } from "../Github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
+import QuickLRU from "@alloc/quick-lru";
 
 export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();
@@ -9,6 +10,9 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private reviewData: Map<string, string> = new Map();
     private figmaCommentIds: Map<string, string> = new Map();
     private widgetSessions: Map<string, ProvisionSession> = new Map();
+
+    // Set to a suitably large, but bounded size.
+    private eventIdForRemoteId = new QuickLRU<string, string>({ maxSize: 5000 });
 
     constructor() {
         super();
@@ -54,16 +58,26 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     public async getSessionForToken(token: string) {
        return this.widgetSessions.get(token) || null;
     }
+
     public async createSession(session: ProvisionSession) {
         this.widgetSessions.set(session.token, session);
     }
+
     public async  deleteSession(token: string) {
         this.widgetSessions.delete(token);
     }
+
     public async deleteAllSessions(userId: string) {
         [...this.widgetSessions.values()]
             .filter(s => s.userId === userId)
             .forEach(s => this.widgetSessions.delete(s.token));
     }
 
+    public async getEventIdForRemoteId(remoteId: string) {
+        return this.eventIdForRemoteId.get(remoteId) ?? null;
+    }
+
+    public async setEventIdForRemoteId(remoteId: string, eventId: string) {
+        this.eventIdForRemoteId.set(remoteId, eventId);
+    }
 }

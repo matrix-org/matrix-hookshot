@@ -11,4 +11,6 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     getPRReviewData(repo: string, issueNumber: string, scope?: string): Promise<any|null>;
     setFigmaCommentEventId(roomId: string, figmaCommentId: string, eventId: string): Promise<void>;
     getFigmaCommentEventId(roomId: string, figmaCommentId: string): Promise<string|null>;
+    setEventIdForRemoteId(remoteId: string, eventId: string): Promise<void>;
+    getEventIdForRemoteId(remoteId: string): Promise<string|null>;
 }
