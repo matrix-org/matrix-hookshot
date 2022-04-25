@@ -23,11 +23,11 @@ export class FeedError extends Error {
 
 export interface FeedEntry {
     feed: {
-        title: string,
+        title: string|null,
         url:   string,
     },
-    title: string,
-    link:  string,
+    title: string|null,
+    link:  string|null,
 }
 
 interface AccountData {
@@ -178,9 +178,12 @@ export class FeedReader {
                     }
 
                     const entry = {
-                        feed: { title: stripHtml(feed.title!), url: url.toString() },
-                        title: stripHtml(item.title!),
-                        link: item.link!,
+                        feed: {
+                            title: feed.title ? stripHtml(feed.title) : null,
+                            url: url.toString()
+                        },
+                        title: item.title ? stripHtml(item.title) : null,
+                        link: item.link || null,
                     };
 
                     log.debug('New entry:', entry);

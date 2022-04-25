@@ -41,7 +41,19 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
         this.hasError = false;
-        const message = `New post in ${entry.feed.title}: [${entry.title}](${entry.link})`
+
+        let entryDetails;
+        if (entry.title && entry.link) {
+            entryDetails = `[${entry.title}](${entry.link})`;
+        } else {
+            entryDetails = entry.title || entry.link;
+        }
+
+        let message = `New post in ${entry.feed.title || entry.feed.url}`;
+        if (entryDetails) {
+            message += `: ${entryDetails}`;
+        }
+
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: 'm.notice',
             format: "org.matrix.custom.html",
