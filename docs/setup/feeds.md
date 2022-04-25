@@ -19,11 +19,21 @@ Each feed will only be checked once, regardless of the number of rooms to which 
 
 No entries will be bridged upon the “initial sync” -- all entries that exist at the moment of setup will be considered to be already seen.
 
-## Adding a feed
+## Usage
+
+### Adding new feeds
 
 To add a feed to your room:
+
   - Invite the bot user to the room.
   - Make sure the bot able to send state events (usually the Moderator power level in clients)
   - Say `!hookshot feed <URL>` where `<URL>` links to an RSS/Atom feed you want to subscribe to.
 
-There is currently no easy way to remove a feed from a room, except for manually editing its state event.
+### Listing feeds
+
+You can list all feeds that a room you're in is currently subscribed to with `!hookshot feed list`.
+It requires no special permissions from the user issuing the command.
+
+### Removing feeds
+
+To remove a feed from a room, say `!hookshot feed remove <URL>`, with the URL specifying which feed you want to unsubscribe from.

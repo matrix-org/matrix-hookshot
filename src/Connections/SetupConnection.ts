@@ -154,6 +154,45 @@ export class SetupConnection extends CommandConnection {
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
+    @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feed"})
+    public async onFeedList() {
+        const urls = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return []; // not an error to us
+            }
+            throw err;
+        }).then(events =>
+            events.filter(
+                (ev: any) => ev.type === FeedConnection.CanonicalEventType && ev.content.url
+            ).map(ev => ev.content.url)
+        );
+
+        if (urls.length === 0) {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
+        } else {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(`Currently subscribed to these feeds:\n\n${urls.map(url => ' * ' + url + '\n')}`));
+        }
+    }
+
+    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    public async onFeedRemove(userId: string, url: string) {
+        await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
+
+        const event = await this.as.botClient.getRoomStateEvent(this.roomId, FeedConnection.CanonicalEventType, url).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return null; // not an error to us
+            }
+            throw err;
+        });
+        console.log(event);
+        if (!event || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid feed URL", `Feed "${url}" is not currently bridged to this room`);
+        }
+
+        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from \`${url}\``));
+    }
+
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
     public async onSetupWidget() {
         if (!this.config.widgets?.roomSetupWidget) {
