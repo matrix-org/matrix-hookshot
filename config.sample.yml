@@ -80,6 +80,11 @@ generic:
   userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
   waitForComplete: false
+feeds:
+  # (Optional) Configure this to enable RSS/Atom feed support
+  #
+  enabled: false
+  pollIntervalSeconds: 600
 provisioning:
   # (Optional) Provisioning API for integration managers
   #

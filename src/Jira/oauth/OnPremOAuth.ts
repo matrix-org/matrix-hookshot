@@ -132,7 +132,7 @@ export class JiraOnPremOAuth implements JiraOAuth {
 
     private prepareParameters(oauthToken: string|null, method: Method, urlStr: string, extraParams: Record<string, string> = {}) {
         const oauthParameters: Record<string, string> = {
-            oauth_timestamp: Math.floor( (new Date()).getTime() / 1000 ).toString(),
+            oauth_timestamp: Math.floor( Date.now() / 1000 ).toString(),
             oauth_nonce: JiraOnPremOAuth.nonce(),
             oauth_version: "1.0",
             oauth_signature_method: "RSA-SHA1",

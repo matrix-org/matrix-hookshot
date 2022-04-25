@@ -64,7 +64,7 @@ export interface IConnection {
      * If supported, this is sent when a user attempts to remove the connection from a room. The connection
      *  state should be removed and any resources should be cleaned away.
      */
-    onRemove?: () => void;
+    onRemove?: () => Promise<void>;
 
     toString(): string;
 }

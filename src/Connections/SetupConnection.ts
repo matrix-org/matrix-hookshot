@@ -10,6 +10,7 @@ import { v4 as uuid } from "uuid";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
+import { FeedConnection } from "./FeedConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
@@ -45,6 +46,7 @@ export class SetupConnection extends CommandConnection {
                 this.config.figma ? "figma": "",
                 this.config.jira ? "jira": "",
                 this.config.generic?.enabled ? "webhook": "",
+                this.config.feeds?.enabled ? "feed" : "",
                 this.config.widgets?.roomSetupWidget ? "widget" : "",
             ];
             this.includeTitlesInHelp = false;
@@ -55,15 +57,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.githubInstance || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
         }
-        if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for GitHub.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "github", GitHubRepoConnection.CanonicalEventType);
+
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
@@ -84,15 +80,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira.");
         }
-        if (!this.config.checkPermission(userId, "jira", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for Jira.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+
         const jiraClient = await this.tokenStore.getJiraForUser(userId, urlStr);
         if (!jiraClient) {
             throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
@@ -113,15 +103,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
         }
-        if (!this.config.checkPermission(userId, "webhooks", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for generic webhooks.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
+
         if (!name || name.length < 3 || name.length > 64) {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
@@ -139,15 +123,9 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.figma) {
             throw new CommandError("not-configured", "The bridge is not configured to support Figma.");
         }
-        if (!this.config.checkPermission(userId, "figma", BridgePermissionLevel.manageConnections)) {
-            throw new CommandError('You are not permitted to provision connections for Figma.');
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
-            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
-        }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, GitHubRepoConnection.CanonicalEventType, true)) {
-            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
-        }
+
+        await this.checkUserPermissions(userId, "figma", FigmaFileConnection.CanonicalEventType);
+
         const res = /https:\/\/www\.figma\.com\/file\/(\w+).+/.exec(url);
         if (!res) {
             throw new CommandError("Invalid Figma url", "The Figma file url you entered was not valid. It should be in the format of `https://figma.com/file/FILEID/...`.");
@@ -157,6 +135,63 @@ export class SetupConnection extends CommandConnection {
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
+    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    public async onFeed(userId: string, url: string) {
+        if (!this.config.feeds?.enabled) {
+            throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
+        }
+
+        await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
+
+        try {
+            new URL(url);
+            // TODO: fetch and check content-type?
+        } catch {
+            throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+        }
+
+        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {url});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
+    }
+
+    @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feed"})
+    public async onFeedList() {
+        const urls = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return []; // not an error to us
+            }
+            throw err;
+        }).then(events =>
+            events.filter(
+                (ev: any) => ev.type === FeedConnection.CanonicalEventType && ev.content.url
+            ).map(ev => ev.content.url)
+        );
+
+        if (urls.length === 0) {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
+        } else {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(`Currently subscribed to these feeds:\n\n${urls.map(url => ' * ' + url + '\n')}`));
+        }
+    }
+
+    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    public async onFeedRemove(userId: string, url: string) {
+        await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
+
+        const event = await this.as.botClient.getRoomStateEvent(this.roomId, FeedConnection.CanonicalEventType, url).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return null; // not an error to us
+            }
+            throw err;
+        });
+        if (!event || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid feed URL", `Feed "${url}" is not currently bridged to this room`);
+        }
+
+        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from \`${url}\``));
+    }
+
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
     public async onSetupWidget() {
         if (!this.config.widgets?.roomSetupWidget) {
@@ -164,6 +199,18 @@ export class SetupConnection extends CommandConnection {
         }
         if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.as.botIntent, this.config.widgets)) {
             await this.as.botClient.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
+        }
+    }
+
+    private async checkUserPermissions(userId: string, service: string, stateEventType: string): Promise<void> {
+        if (!this.config.checkPermission(userId, service, BridgePermissionLevel.manageConnections)) {
+            throw new CommandError(`You are not permitted to provision connections for ${service}.`);
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
+        }
+        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, stateEventType, true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
         }
     }
 }

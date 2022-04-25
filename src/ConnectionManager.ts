@@ -18,13 +18,14 @@ import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { ApiError, ErrCode } from "./api";
 import { UserTokenStore } from "./UserTokenStore";
 import {v4 as uuid} from "uuid";
-import { FigmaFileConnection } from "./Connections/FigmaFileConnection";
+import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
+import EventEmitter from "events";
 
 const log = new LogWrapper("ConnectionManager");
 
-export class ConnectionManager {
+export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
 
@@ -39,8 +40,9 @@ export class ConnectionManager {
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly storage: IBridgeStorageProvider,
-        private readonly github?: GithubInstance) {
-
+        private readonly github?: GithubInstance
+    ) {
+        super();
     }
 
     /**
@@ -54,6 +56,7 @@ export class ConnectionManager {
         for (const connection of connections) {
             if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
                 this.connections.push(connection);
+                this.emit('new-connection', connection);
             }
         }
         Metrics.connections.set(this.connections.length);
@@ -125,7 +128,7 @@ export class ConnectionManager {
         throw new ApiError(`Connection type not known`);
     }
 
-    private assertStateAllowed(state: StateEvent<any>, serviceType: "github"|"gitlab"|"jira"|"figma"|"webhooks") {
+    private assertStateAllowed(state: StateEvent<any>, serviceType: "github"|"gitlab"|"jira"|"figma"|"webhooks"|"feed") {
         if (state.sender === this.as.botUserId) {
             return;
         }
@@ -243,6 +246,14 @@ export class ConnectionManager {
             }
             this.assertStateAllowed(state, "figma");
             return new FigmaFileConnection(roomId, state.stateKey, state.content, this.config.figma, this.as, this.storage);
+        }
+
+        if (FeedConnection.EventTypes.includes(state.type)) {
+            if (!this.config.feeds?.enabled) {
+                throw Error('RSS/Atom feeds are not configured');
+            }
+            this.assertStateAllowed(state, "feed");
+            return new FeedConnection(roomId, state.stateKey, state.content, this.config.feeds, this.as, this.storage);
         }
 
         if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
@@ -374,6 +385,10 @@ export class ConnectionManager {
     public getForFigmaFile(fileKey: string, instanceName: string): FigmaFileConnection[] {
         return this.connections.filter((c) => (c instanceof FigmaFileConnection && (c.fileId === fileKey || c.instanceName === instanceName))) as FigmaFileConnection[];
     }
+
+    public getConnectionsForFeedUrl(url: string): FeedConnection[] {
+        return this.connections.filter(c => c instanceof FeedConnection && c.feedUrl === url) as FeedConnection[];
+    }
     
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
@@ -411,6 +426,7 @@ export class ConnectionManager {
         }
         this.connections.splice(connectionIndex, 1);
         Metrics.connections.set(this.connections.length);
+        this.emit('connection-removed', connection);
     }
 
     /**
