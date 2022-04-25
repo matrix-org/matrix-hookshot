@@ -13,7 +13,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN yarn --ignore-scripts
 RUN node node_modules/esbuild/install.js
-RUN yarn build
+RUN yarn build --pure-lockfile
 
 # Stage 1: The actual container
 FROM node:16
@@ -23,7 +23,7 @@ COPY --from=builder /src/public/ /bin/matrix-hookshot/public/
 COPY --from=builder /src/package.json /bin/matrix-hookshot/
 COPY --from=builder /src/yarn.lock /bin/matrix-hookshot/
 WORKDIR /bin/matrix-hookshot
-RUN yarn --production
+RUN yarn --production --pure-lockfile && yarn cache clean
 
 VOLUME /data
 EXPOSE 9993
