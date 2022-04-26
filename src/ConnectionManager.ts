@@ -447,4 +447,23 @@ export class ConnectionManager extends EventEmitter {
         }
         this.enabledForProvisioning[details.type] = details;
     }
+
+
+    /**
+     * Get a list of possible targets for a given connection type when provisioning
+     * @param userId 
+     * @param arg1 
+     */
+    async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
+        if (type === GitLabRepoConnection.CanonicalEventType) {
+            if (!this.config.gitlab) {
+                throw new ApiError('GitLab is not configured', ErrCode.DisabledFeature);
+            }
+            if (!this.config.checkPermission(userId, "gitlab", BridgePermissionLevel.manageConnections)) {
+                throw new ApiError('User is not permitted to provision connections for GitLab', ErrCode.ForbiddenUser);
+            }
+            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.gitlab, filters);
+        }
+        throw new ApiError(`Connection type not known`, ErrCode.NotFound);
+    }
 }

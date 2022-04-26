@@ -12,6 +12,7 @@ export interface ConnectionConfigurationProps<SConfig, ConnectionType extends Ge
     onSave: (newConfig: ConnectionState) => void,
     existingConnection?: ConnectionType;
     onRemove?: () => void,
+    api: BridgeAPI;
 }
 
 interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState> {
@@ -72,6 +73,7 @@ export const RoomConfig: FunctionComponent<IRoomConfigProps<any, any, any>> = fu
             { canEditRoom && <section>
                 <h2>{text.createNew}</h2>
                 {serviceConfig && <ConnectionConfigComponent
+                    api={api}
                     serviceConfig={serviceConfig}
                     onSave={(config) => {
                         api.createConnection(roomId, connectionEventType, config).then(() => {
@@ -88,6 +90,7 @@ export const RoomConfig: FunctionComponent<IRoomConfigProps<any, any, any>> = fu
                 <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
                 { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                         <ConnectionConfigComponent
+                            api={api}
                             serviceConfig={serviceConfig}
                             existingConnection={c}
                             onSave={(config) => {

@@ -28,4 +28,15 @@
         padding: 8px 12px;
         color:  var(--light-color);
     }
+
+    select {
+        border: 1px solid #E3E8F0;
+        box-sizing: border-box;
+        border-radius: 8px;
+        width: 100%;
+        font-size: 14px;
+        background: #FFF;
+        padding: 8px 12px;
+        color:  var(--light-color);
+    }
 }

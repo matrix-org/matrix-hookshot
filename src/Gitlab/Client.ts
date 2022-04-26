@@ -1,9 +1,10 @@
 import axios from "axios";
 import { GitLabInstance } from "../Config/Config";
-import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts } from "./Types";
+import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts, AccessLevel, SimpleProject } from "./Types";
 import LogWrapper from "../LogWrapper";
 import { URLSearchParams } from "url";
 import UserAgent from "../UserAgent";
+import { toHash } from "ajv/dist/compile/util";
 
 const log = new LogWrapper("GitLabClient");
 
@@ -71,6 +72,29 @@ export class GitLabClient {
         }
     }
 
+    private async listProjects(minAccess: AccessLevel, inGroup?: ProjectId, idAfter?: number, search?: string): Promise<SimpleProject[]> {
+        try {
+            const path = inGroup ? `api/v4/groups/${getProjectId(inGroup)}/projects` : 'api/v4/projects';
+            return (await axios.get(path, {
+                ...this.defaultConfig,
+                params: {
+                    archived: false,
+                    min_access_level: minAccess,
+                    simple: true,
+                    pagination: "keyset",
+                    per_page: 50,
+                    order_by: "id",
+                    sort: "asc",
+                    id_after: idAfter,
+                    search,
+                }
+                })).data;
+        } catch (ex) {
+            log.warn(`Failed to get project:`, ex);
+            throw ex;
+        }
+    }
+
     private async getProjectHooks(id: ProjectId): Promise<ProjectHook[]> {
         try {
             return (await axios.get(`api/v4/projects/${getProjectId(id)}/hooks`, this.defaultConfig)).data;
@@ -122,6 +146,7 @@ export class GitLabClient {
     get projects() {
         return {
             get: this.getProject.bind(this),
+            list: this.listProjects.bind(this),
             hooks: {
                 list: this.getProjectHooks.bind(this),
                 add: this.addProjectHook.bind(this),

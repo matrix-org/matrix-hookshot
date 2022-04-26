@@ -75,10 +75,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>
-        <ButtonSet 
-            save={ canEdit && ({text: existingConnection ? "Save" : "Add webhook", onClick: onSaveClick})}
-            remove={ canEdit && existingConnection && ({text: "Remove webhook", onClick: onRemoveClick})}
-        />
+        <ButtonSet>
+            { canEdit && <Button onClick={onSaveClick}>{ existingConnection ? "Save" : "Add webhook" }</Button>}
+            { canEdit && existingConnection && <Button intent="remove" onClick={onRemoveClick}>Remove webhook</Button>}
+        </ButtonSet>
     </div>;
 };
 
@@ -97,6 +97,7 @@ export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps>
         api={api}
         roomId={roomId}
         type="generic"
+        connectionEventType="uk.half-shot.matrix-hookshot.generic.hook"
         text={({
             header: 'Generic Webhooks',
             createNew: 'Create new webhook',

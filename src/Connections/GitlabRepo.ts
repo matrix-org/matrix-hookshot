@@ -24,6 +24,17 @@ export interface GitLabRepoConnectionState extends IConnectionState {
     excludingLabels?: string[];
 }
 
+
+export interface GitLabRepoConnectionInstanceTarget {
+    name: string;
+}
+export interface GitLabRepoConnectionProjectTarget {
+    state: GitLabRepoConnectionState;
+    name: string;
+}
+
+export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitLabRepoConnectionProjectTarget;
+
 const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
@@ -61,6 +72,13 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release",
     "release.created",
 ];
+
+export interface GitLabTargetFilter {
+    instance?: string;
+    parent?: string;
+    after?: string;
+    search?: string;
+}
 
 
 function validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
@@ -158,6 +176,48 @@ export class GitLabRepoConnection extends CommandConnection {
         }
     }
 
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "gitlab",
+            eventType: GitLabRepoConnection.CanonicalEventType,
+            type: "GitLabRepo",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: botUserId,
+        }
+    }
+
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitLab, filters: GitLabTargetFilter = {}): Promise<GitLabRepoConnectionTarget[]> {
+        // Search for all repos under the user's control.
+
+        if (!filters.instance) {
+            const results: GitLabRepoConnectionInstanceTarget[] = [];
+            for (const [name, instance] of Object.entries(config.instances)) {
+                const client = await tokenStore.getGitLabForUser(userId, instance.url);
+                if (client) {
+                    results.push({
+                        name,
+                    } as GitLabRepoConnectionInstanceTarget);
+                }
+            }
+            return results;
+        }
+        // If we have an instance, search under it.
+        const instanceUrl = config.instances[filters.instance]?.url;
+        const client = instanceUrl && await tokenStore.getGitLabForUser(userId, instanceUrl);
+        if (!client) {
+            throw new ApiError('Instance is not known or you do not have access to it.', ErrCode.NotFound);
+        }
+        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10);
+        const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, after, filters.search);
+        return allProjects.map(p => ({
+            state: {
+                instance: filters.instance,
+                path: p.path_with_namespace,
+            },
+            name: p.name,
+        })) as GitLabRepoConnectionProjectTarget[];
+    }
+
     constructor(roomId: string,
         stateKey: string,
         private readonly as: Appservice,
@@ -194,16 +254,6 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
-    }
-
-    public static getProvisionerDetails(botUserId: string) {
-        return {
-            service: "gitlab",
-            eventType: GitLabRepoConnection.CanonicalEventType,
-            type: "GitLabRepo",
-            // TODO: Add ability to configure the bot per connnection type.
-            botUserId: botUserId,
-        }
     }
 
     public getProvisionerDetails() {

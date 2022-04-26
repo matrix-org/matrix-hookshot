@@ -3,7 +3,7 @@ import { AdminRoom } from "../AdminRoom";
 import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../Config/Config";
-import { GetConnectionsForServiceResponse, WidgetConfigurationSection, WidgetConfigurationType } from "./BridgeWidgetInterface";
+import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
@@ -40,9 +40,10 @@ export class BridgeWidgetApi {
         this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
         this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsForService.bind(this));
         this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
-        // TODO: Ideally this would be a PATCH, but needs https://github.com/matrix-org/matrix-appservice-bridge/pull/397 to land to support PATCH.
         this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
+        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
         this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', this.deleteConnection.bind(this));
+        this.api.addRoute("get", '/v1/targets/:type', this.getConnectionTargets.bind(this));
     }
 
     private async getRoomFromRequest(req: ProvisioningRequest): Promise<AdminRoom> {
@@ -150,7 +151,6 @@ export class BridgeWidgetApi {
         res.send(connection.getProvisionerDetails(true));
     }
 
-
     private async deleteConnection(req: ProvisioningRequest, res: Response<{ok: true}>) {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
@@ -167,5 +167,14 @@ export class BridgeWidgetApi {
         }
         await this.connMan.purgeConnection(roomId, connectionId);
         res.send({ok: true});
+    }
+
+    private async getConnectionTargets(req: ProvisioningRequest, res: Response) {
+        if (!req.userId) {
+            throw Error('Cannot get connections without a valid userId');
+        }
+        const type = req.params.type as string;
+        const connections = await this.connMan.getConnectionTargets(req.userId, type, req.query);
+        res.send(connections);
     }
 }
