@@ -72,7 +72,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     </div>;
 }
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<unknown, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, serviceConfig, existingConnection, onSave, onRemove }) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<unknown, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [ignoredHooks, setIgnoredHooks] = useState<string[]>(existingConnection?.config.ignoreHooks || []);
     const setIgnoredHook = useCallback(evt => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
