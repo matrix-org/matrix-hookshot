@@ -84,7 +84,6 @@ export class SetupConnection extends CommandConnection {
 
         await this.checkUserPermissions(userId, "gitlab", GitLabRepoConnection.CanonicalEventType);
 
-        // Determine gitlab instance by URL
         const {name, instance} = this.config.gitlab.getInstanceByProjectUrl(url) || {};
         if (!instance || !name) {
             throw new CommandError("not-configured", "No instance found that matches the provided URL.");
