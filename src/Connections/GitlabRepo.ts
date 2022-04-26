@@ -6,11 +6,13 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
-import { GitLabInstance } from "../Config/Config";
+import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { IConnectionState } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
+import { ErrCode, ApiError } from "../api"
+import { AccessLevel } from "../Gitlab/Types";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -58,10 +60,37 @@ const AllowedEvents: AllowedEventsNames[] = [
     "wiki",
     "release",
     "release.created",
-    "release.created",
-    "release",
 ];
 
+
+function validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
+    if (typeof state.instance !== "string") {
+        throw new ApiError("Expected a 'instance' property", ErrCode.BadValue);
+    }
+    if (typeof state.path !== "string") {
+        throw new ApiError("Expected a 'path' property", ErrCode.BadValue);
+    }
+    const res: GitLabRepoConnectionState = {
+        instance: state.instance,
+        path: state.path,
+    }
+    if (state.commandPrefix) {
+        if (typeof state.commandPrefix !== "string") {
+            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
+        }
+        if (state.commandPrefix.length < 2 || state.commandPrefix.length > 24) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
+        }
+        res.commandPrefix = state.commandPrefix;
+    }
+    if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
+        if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
+            throw new ApiError(`'events' can only contain ${AllowedEvents.join(", ")}`, ErrCode.BadValue);
+        }
+        res.ignoreHooks = state.ignoreHooks;
+    }
+    return res;
+}
 
 /**
  * Handles rooms connected to a github repo.
@@ -79,6 +108,55 @@ export class GitLabRepoConnection extends CommandConnection {
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
 
     private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
+
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instance: GitLabInstance, gitlabConfig: BridgeConfigGitLab) {
+        const validData = validateState(data);
+        const client = await tokenStore.getGitLabForUser(requester, instance.url);
+        if (!client) {
+            throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);
+        }
+        let permissionLevel;
+        let project;
+        try {
+            project = await client.projects.get(validData.path);
+            permissionLevel = Math.max(project.permissions.group_access?.access_level || 0, project.permissions.project_access?.access_level || 0) as AccessLevel;
+        } catch (ex) {
+            throw new ApiError("Could not determine if the user has access to this project, does the project exist?", ErrCode.ForbiddenUser);
+        }
+
+        if (permissionLevel < AccessLevel.Developer) {
+            throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
+        }
+
+        // Try to setup a webhook
+        if (gitlabConfig.webhook.publicUrl) {
+            const hooks = await client.projects.hooks.list(project.id);
+            const hasHook = hooks.find(h => h.url === gitlabConfig.webhook.publicUrl);
+            if (!hasHook) {
+                log.info(`Creating webhook for ${validData.path}`);
+                await client.projects.hooks.add(project.id, {
+                    url: gitlabConfig.webhook.publicUrl,
+                    token: gitlabConfig.webhook.secret,
+                    enable_ssl_verification: true,
+                    // TODO: Determine which of these actually interests the user.
+                    issues_events: true,
+                    merge_requests_events: true,
+                    push_events: true,
+                    releases_events: true,
+                    tag_push_events: true,
+                    wiki_page_events: true,
+                });
+            }
+        } else {
+            log.info(`Not creating webhook, webhookUrl is not defined in config`);
+        }
+
+        const stateEventKey = `${validData.instance}/${validData.path}`;
+        return {
+            stateEventContent: validData,
+            connection: new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance),
+        }
+    }
 
     constructor(roomId: string,
         stateKey: string,

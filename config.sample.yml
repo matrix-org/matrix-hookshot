@@ -44,6 +44,7 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+    publicUrl: https://example.com/hookshot/
   userIdPrefix:
     # (Optional) Prefix used when creating ghost users for GitLab accounts.
     #
