@@ -162,6 +162,7 @@ export interface GitLabInstance {
 
 export interface BridgeConfigGitLabYAML {
     webhook: {
+        publicUrl?: string;
         secret: string;
     },
     instances: {[name: string]: GitLabInstance};
@@ -171,6 +172,7 @@ export interface BridgeConfigGitLabYAML {
 export class BridgeConfigGitLab {
     readonly instances: {[name: string]: GitLabInstance};
     readonly webhook: {
+        publicUrl?: string;
         secret: string;
     };
 
@@ -181,6 +183,15 @@ export class BridgeConfigGitLab {
         this.instances = yaml.instances;
         this.webhook = yaml.webhook;
         this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
+    }
+
+    public getInstanceByProjectUrl(url: string): {name: string, instance: GitLabInstance}|null {
+        for (const [name, instance] of Object.entries(this.instances)) {
+            if (url.startsWith(instance.url)) {
+                return {name, instance};
+            }
+        }
+        return null;
     }
 }
 

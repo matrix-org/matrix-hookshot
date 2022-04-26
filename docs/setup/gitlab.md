@@ -12,6 +12,7 @@ GitLab configuration is fairly straight-forward:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+    publicUrl: https://example.com/webhooks/
 ```
 
 You need to list all the instances you plan to connect to in the `config.yml`. This is
@@ -21,31 +22,10 @@ to specify an instance.
 You should generate a webhook `secret` (e.g. `pwgen -n 64 -s 1`) and then use this as your
 "Secret token" when adding webhooks.
 
+The `publicUrl` must be the URL where GitLab webhook events are received (i.e. the path to `/`
+for your `webhooks` listener).
+
 ## Adding a repository
 
-Adding a repository is a case of navigating to the settings page, and then adding a new webhook.
-You will want to give the URL of the public address for the hookshot webhooks port on the `/` path.
+You can now follow the guide on [authenticating with GitLab](../usage/auth.md), and then [bridging a room](../usage/room_configuration/gitlab_project.md#setting-up)
 
-You should use the value of `webhook.secret` from your config as your "Secret token".
-
-You should add the events you wish to trigger on. Hookshot currently supports:
-
-- Push events
-- Tag events
-- Issues events
-- Merge request events
-- Releases events
-
-You will need to do this each time you want to a repository to hookshot. 
-
-To then bridge a room to GitLab, you will need to add a `uk.half-shot.matrix-hookshot.gitlab.repository`
- *state event* to a room containing a content of:
-
-```json5
-{
-    "instance": "gitlab", // your instance name
-    "path": "yourusername/repo" // the full path to the repo
-}
-```
-
-Once this is done, you are bridged 🥳.

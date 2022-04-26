@@ -8,6 +8,18 @@ export interface GitLabAuthor {
     web_url: string;
 }
 
+// https://docs.gitlab.com/ee/api/access_requests.html#valid-access-levels
+export enum AccessLevel {
+    NoAccess = 0,
+    MinimalAccess = 5,
+    Guest = 10,
+    Reporter = 20,
+    Developer = 30,
+    Maintainer = 40,
+    // Only valid to set for groups 
+    Owner = 50,
+}
+
 export interface GetUserResponse {
     id: number;
     username: string;
@@ -153,3 +165,57 @@ export interface CreateIssueNoteResponse {
     commands_changes: unknown;
 }
   
+export interface GetProjectResponse {
+    id: number;
+    name: string;
+    path_with_namespace: string;
+    title: string;
+    description: string;
+    visibility: "private"|"internal"|"public",
+    state: 'opened'|'closed';
+    owner: {
+        id: number;
+        name: string;
+    };
+    permissions: {
+        project_access?: {
+          access_level: AccessLevel;
+        },
+        group_access?: {
+          access_level: AccessLevel;
+        }
+    };
+    author: GitLabAuthor;
+    references: {
+        short: string;
+        relative: string;
+        full: string;
+    }
+    web_url: string;
+}
+
+export interface ProjectHookOpts {
+    url: string;
+    token: string;
+    push_events?: true;
+    push_events_branch_filter?: string;
+    issues_events?: boolean;
+    confidential_issues_events?: boolean;
+    merge_requests_events?: boolean;
+    tag_push_events?: boolean;
+    note_events?: boolean;
+    confidential_note_events?: boolean;
+    job_events?: boolean;
+    pipeline_events?: boolean;
+    wiki_page_events?: boolean;
+    deployment_events?: boolean;
+    releases_events?: boolean;
+    enable_ssl_verification?: boolean;
+}
+
+export interface ProjectHook extends ProjectHookOpts {
+    id: number;
+    token: never;
+    project_id: 3;
+    created_at?: string;
+}

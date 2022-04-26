@@ -76,6 +76,7 @@ export const DefaultConfig = new BridgeConfig({
         },
         webhook: {
             secret: "secrettoken",
+            publicUrl: "https://example.com/hookshot/"
         },
         userIdPrefix: "_gitlab_",
     },
