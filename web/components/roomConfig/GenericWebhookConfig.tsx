@@ -39,13 +39,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             name: nameRef?.current?.value || existingConnection?.config.name,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
-        if (!existingConnection) {
-            // Clear fields
-            nameRef.current.value = "";
-            setTransFn(EXAMPLE_SCRIPT);
-            setTransFnEnabled(false);
-        }
-    }, [onSave, nameRef, transFn, setTransFnEnabled, setTransFn, existingConnection, transFnEnabled]);
+    }, [onSave, nameRef, transFn, existingConnection, transFnEnabled]);
 
     const onRemoveClick = useCallback(() => {
         onRemove();

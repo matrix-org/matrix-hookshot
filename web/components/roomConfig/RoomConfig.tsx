@@ -61,6 +61,9 @@ export const RoomConfig: FunctionComponent<IRoomConfigProps<any, any, any>> = fu
 
     }
 
+    // We need to increment this every time we create a connection in order to properly reset the state.
+    const [ newConnectionKey, setNewConnectionKey ] = useState<number>(0);
+
     return <>
         <main>
             {
@@ -73,12 +76,14 @@ export const RoomConfig: FunctionComponent<IRoomConfigProps<any, any, any>> = fu
             { canEditRoom && <section>
                 <h2>{text.createNew}</h2>
                 {serviceConfig && <ConnectionConfigComponent
+                    key={newConnectionKey}
                     api={api}
                     serviceConfig={serviceConfig}
                     onSave={(config) => {
                         api.createConnection(roomId, connectionEventType, config).then(() => {
                             // Force reload
                             setConnections(null);
+                            setNewConnectionKey(newConnectionKey+1);
                         }).catch(ex => {
                             console.warn("Failed to create connection", ex);
                             setError("Failed to create connection");

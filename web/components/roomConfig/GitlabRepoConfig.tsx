@@ -14,6 +14,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     const [results, setResults] = useState<GitLabRepoConnectionProjectTarget[]|null>(null);
     const [instances, setInstances] = useState<GitLabRepoConnectionInstanceTarget[]|null>(null);
     const [debounceTimer, setDebounceTimer] = useState<number>(null);
+    const [currentProjectPath, setCurrentProjectPath] = useState<string|null>(null);
 
     const searchFn = useCallback(() => {
         api.getConnectionTargets<GitLabRepoConnectionTarget>(EventType, filter).then(res => {
@@ -44,8 +45,11 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
 
     useEffect(() => {
         const hasResult = results?.find(n => n.name === filter.search);
-        hasResult && onPicked(hasResult.state);
-    }, [onPicked, results, filter]);
+        if (hasResult) {
+            onPicked(hasResult.state);
+            setCurrentProjectPath(hasResult.state.path);
+        }
+    }, [onPicked, results, filter, setCurrentProjectPath]);
 
 
 
@@ -59,6 +63,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
             </select>
         </InputField>
         <InputField visible={instances?.length > 0} label="Project" noPadding={true}>
+            <small>{currentProjectPath ?? ""}</small>
             <input onChange={updateSearchFn} list="gitlab-projects" type="text" />
             <datalist id="gitlab-projects">
                 {results?.map(i => <option path={i.state.path} value={i.name} key={i.name} />)}
@@ -91,8 +96,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<un
             commandPrefix: commandPrefixRef.current.value,
         });
     }, [existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, onSave]);
-
-    console.log(canEdit, existingConnection, !existingConnection && !newInstanceState);
     
     return <div>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setNewInstanceState} />}
@@ -135,7 +138,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<un
         </InputField>
         <ButtonSet>
             { canEdit && <Button disabled={!existingConnection && !newInstanceState} onClick={onSaveCb}>{ existingConnection ? "Save" : "Add project" }</Button>}
-            { canEdit && existingConnection && <Button intent="remove" disabled={!existingConnection || !newInstanceState} onClick={onRemove}>Remove project</Button>}
+            { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove project</Button>}
         </ButtonSet>
     </div>;
 };

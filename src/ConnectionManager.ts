@@ -125,6 +125,24 @@ export class ConnectionManager extends EventEmitter {
             this.push(res.connection);
             return res.connection;
         }
+        if (GitLabRepoConnection.EventTypes.includes(type)) {
+            if (!this.config.gitlab) {
+                throw Error('Generic hook support not supported');
+            }
+            if (!this.config.checkPermission(userId, "gitlab", BridgePermissionLevel.manageConnections)) {
+                throw new ApiError('User is not permitted to provision connections for generic webhooks', ErrCode.ForbiddenUser);
+            }
+            const res = await GitLabRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, data.instance as string, this.config.gitlab);
+            const existing = this.getAllConnectionsOfType(GitLabRepoConnection).find(c => c.stateKey === res.connection.stateKey);
+            if (existing) {
+                throw new ApiError("A gitlab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {
+                    existingConnection: existing.getProvisionerDetails()
+                });
+            }
+            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GitLabRepoConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
+            this.push(res.connection);
+            return res.connection;
+        }
         throw new ApiError(`Connection type not known`);
     }
 

@@ -127,8 +127,9 @@ export class GitLabRepoConnection extends CommandConnection {
 
     private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
 
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instance: GitLabInstance, gitlabConfig: BridgeConfigGitLab) {
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instanceName: string, gitlabConfig: BridgeConfigGitLab) {
         const validData = validateState(data);
+        const instance = gitlabConfig.instances[instanceName];
         const client = await tokenStore.getGitLabForUser(requester, instance.url);
         if (!client) {
             throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);
@@ -561,6 +562,29 @@ ${data.description}`;
             }
         }
         return false;
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, 
+            {
+                ...validatedConfig,
+            }
+        );
+    }
+
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+        // TODO: Clean up webhooks
     }
 }
 
