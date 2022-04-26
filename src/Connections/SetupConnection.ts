@@ -78,7 +78,7 @@ export class SetupConnection extends CommandConnection {
     @botCommand("gitlab project", { help: "Create a connection for a GitHub project. (You must be logged in with GitLab to do this.)", requiredArgs: ["url"], includeUserId: true, category: "gitlab"})
     public async onGitLabRepo(userId: string, url: string) {
         if (!this.config.gitlab) {
-            throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
+            throw new CommandError("not-configured", "The bridge is not configured to support GitLab.");
         }
         url = url.toLowerCase();
 

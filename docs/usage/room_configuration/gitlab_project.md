@@ -7,7 +7,7 @@ This connection type connects a GitLab project (e.g. https://gitlab.matrix.org/m
 
 To set up a connection to a GitLab project in a new room:
 
-(NB you must have permission to bridge GitHub repositories before you can use this command, see [auth](../auth.html#gitlab).)
+(NB you must have permission to bridge GitLab repositories before you can use this command, see [auth](../auth.html#gitlab).)
 
 1. Create a new, unencrypted room. It can be public or private.
 2. Invite the bridge bot (e.g. `@hookshot:example.com`).

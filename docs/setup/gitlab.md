@@ -22,7 +22,7 @@ to specify an instance.
 You should generate a webhook `secret` (e.g. `pwgen -n 64 -s 1`) and then use this as your
 "Secret token" when adding webhooks.
 
-The `publicUrl` must be the URL where GitLab webhook events are recieved (i.e. the path to `/`
+The `publicUrl` must be the URL where GitLab webhook events are received (i.e. the path to `/`
 for your `webhooks` listener).
 
 ## Adding a repository
