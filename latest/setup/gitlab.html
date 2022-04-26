@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/feeds.html"><strong aria-hidden="true">2.2.</strong> Feed</a></li><li class="chapter-item expanded "><a href="../setup/figma.html"><strong aria-hidden="true">2.3.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.4.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html" class="active"><strong aria-hidden="true">2.5.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.6.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.7.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="../advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../setup/feeds.html"><strong aria-hidden="true">2.2.</strong> Feed</a></li><li class="chapter-item expanded "><a href="../setup/figma.html"><strong aria-hidden="true">2.3.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../setup/github.html"><strong aria-hidden="true">2.4.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../setup/gitlab.html" class="active"><strong aria-hidden="true">2.5.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../setup/jira.html"><strong aria-hidden="true">2.6.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../setup/webhooks.html"><strong aria-hidden="true">2.7.</strong> Webhooks</a></li></ol></li><li class="chapter-item expanded "><a href="../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li><li class="chapter-item expanded "><a href="../usage/room_configuration/gitlab_project.html"><strong aria-hidden="true">3.3.2.</strong> GitLab Project</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../advanced/provisioning.html"><strong aria-hidden="true">5.</strong> Provisioning</a></li><li class="chapter-item expanded "><a href="../advanced/workers.html"><strong aria-hidden="true">6.</strong> Workers</a></li><li class="chapter-item expanded "><a href="../advanced/widgets.html"><strong aria-hidden="true">7.</strong> 🪀 Widgets</a></li></ol>            </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
 
@@ -160,33 +160,17 @@
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+    publicUrl: https://example.com/webhooks/
 </code></pre>
 <p>You need to list all the instances you plan to connect to in the <code>config.yml</code>. This is
 used so that users can give a short name like <code>gitlab</code> or <code>matrix.org</code> when they want
 to specify an instance.</p>
 <p>You should generate a webhook <code>secret</code> (e.g. <code>pwgen -n 64 -s 1</code>) and then use this as your
 &quot;Secret token&quot; when adding webhooks.</p>
+<p>The <code>publicUrl</code> must be the URL where GitLab webhook events are received (i.e. the path to <code>/</code>
+for your <code>webhooks</code> listener).</p>
 <h2 id="adding-a-repository"><a class="header" href="#adding-a-repository">Adding a repository</a></h2>
-<p>Adding a repository is a case of navigating to the settings page, and then adding a new webhook.
-You will want to give the URL of the public address for the hookshot webhooks port on the <code>/</code> path.</p>
-<p>You should use the value of <code>webhook.secret</code> from your config as your &quot;Secret token&quot;.</p>
-<p>You should add the events you wish to trigger on. Hookshot currently supports:</p>
-<ul>
-<li>Push events</li>
-<li>Tag events</li>
-<li>Issues events</li>
-<li>Merge request events</li>
-<li>Releases events</li>
-</ul>
-<p>You will need to do this each time you want to a repository to hookshot. </p>
-<p>To then bridge a room to GitLab, you will need to add a <code>uk.half-shot.matrix-hookshot.gitlab.repository</code>
-<em>state event</em> to a room containing a content of:</p>
-<pre><code class="language-json5">{
-    &quot;instance&quot;: &quot;gitlab&quot;, // your instance name
-    &quot;path&quot;: &quot;yourusername/repo&quot; // the full path to the repo
-}
-</code></pre>
-<p>Once this is done, you are bridged 🥳.</p>
+<p>You can now follow the guide on <a href="../usage/auth.html">authenticating with GitLab</a>, and then <a href="../usage/room_configuration/gitlab_project.html#setting-up">bridging a room</a></p>
 
                     </main>
 
