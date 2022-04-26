@@ -14,6 +14,7 @@ import { FeedConnection } from "./FeedConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
+import { GitLabRepoConnection } from "./GitlabRepo";
 const md = new markdown();
 
 /**
@@ -72,6 +73,34 @@ export class SetupConnection extends CommandConnection {
         const res = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.as, this.tokenStore, this.githubInstance, this.config.github);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, url, res.stateEventContent);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${org}/${repo}`);
+    }
+
+    @botCommand("gitlab project", { help: "Create a connection for a GitHub project. (You must be logged in with GitLab to do this.)", requiredArgs: ["url"], includeUserId: true, category: "gitlab"})
+    public async onGitLabRepo(userId: string, url: string) {
+        if (!this.config.gitlab) {
+            throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
+        }
+        url = url.toLowerCase();
+
+        await this.checkUserPermissions(userId, "gitlab", GitLabRepoConnection.CanonicalEventType);
+
+        // Determine gitlab instance by URL
+        const {name, instance} = this.config.gitlab.getInstanceByProjectUrl(url) || {};
+        if (!instance || !name) {
+            throw new CommandError("not-configured", "No instance found that matches the provided URL.");
+        }
+
+        const client = await this.tokenStore.getGitLabForUser(userId, instance.url);
+        if (!client) {
+            throw new CommandError("User not logged in", "You are not logged into this GitLab instance. Start a DM with this bot and use the command `gitlab personaltoken`.");
+        }
+        const path = url.slice(instance.url.length + 1);
+        if (!path) {
+            throw new CommandError("Invalid GitLab url", "The GitLab project url you entered was not valid.");
+        }
+        const res = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.as, this.tokenStore, instance, this.config.gitlab);
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, url, res.stateEventContent);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${path}`);
     }
 
     @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: "jira"})

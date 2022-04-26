@@ -1,11 +1,17 @@
 import axios from "axios";
 import { GitLabInstance } from "../Config/Config";
-import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse } from "./Types";
+import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts } from "./Types";
 import LogWrapper from "../LogWrapper";
 import { URLSearchParams } from "url";
 import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("GitLabClient");
+
+type ProjectId = string|number|string[];
+
+function getProjectId(id: ProjectId) {
+    return encodeURIComponent(Array.isArray(id) ? id.join("/") : id);
+}
 export class GitLabClient {
     constructor(private instanceUrl: string, private token: string) {
 
@@ -55,11 +61,30 @@ export class GitLabClient {
         return (await axios.put(`api/v4/projects/${opts.id}/issues/${opts.issue_iid}`, opts, this.defaultConfig)).data;
     }
 
-    private async getProject(projectParts: string[]): Promise<GetIssueResponse> {
+
+    private async getProject(id: ProjectId): Promise<GetProjectResponse> {
         try {
-            return (await axios.get(`api/v4/projects/${projectParts.join("%2F")}`, this.defaultConfig)).data;
+            return (await axios.get(`api/v4/projects/${getProjectId(id)}`, this.defaultConfig)).data;
         } catch (ex) {
-            log.warn(`Failed to get issue:`, ex);
+            log.warn(`Failed to get project:`, ex);
+            throw ex;
+        }
+    }
+
+    private async getProjectHooks(id: ProjectId): Promise<ProjectHook[]> {
+        try {
+            return (await axios.get(`api/v4/projects/${getProjectId(id)}/hooks`, this.defaultConfig)).data;
+        } catch (ex) {
+            log.warn(`Failed to get project hooks:`, ex);
+            throw ex;
+        }
+    }
+
+    private async addProjectHook(id: ProjectId, opts: ProjectHookOpts): Promise<ProjectHook> {
+        try {
+            return (await axios.post(`api/v4/projects/${getProjectId(id)}/hooks`, opts, this.defaultConfig)).data;
+        } catch (ex) {
+            log.warn(`Failed to create project hook:`, ex);
             throw ex;
         }
     }
@@ -97,6 +122,10 @@ export class GitLabClient {
     get projects() {
         return {
             get: this.getProject.bind(this),
+            hooks: {
+                list: this.getProjectHooks.bind(this),
+                add: this.addProjectHook.bind(this),
+            }
         }
     }
 
