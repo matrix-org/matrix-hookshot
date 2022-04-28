@@ -9,7 +9,6 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
-import { config } from "process";
 
 const log = new LogWrapper("Config");
 

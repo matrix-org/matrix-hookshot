@@ -66,7 +66,7 @@ export interface IConnection {
      * @props purgeRemoteConfig Should the remote configuration for the connection be purged (in the case that
      * other connections may be sharing a remote resource).
      */
-    onRemove?: (purgeRemoteConfig: boolean) => Promise<void>;
+    onRemove?: () => Promise<void>;
 
     toString(): string;
 }

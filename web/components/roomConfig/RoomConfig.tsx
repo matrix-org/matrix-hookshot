@@ -1,4 +1,4 @@
-import { h, FunctionComponent, Fragment } from "preact";
+import { h, FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { ListItem } from "../ListItem";
 import BridgeAPI from "../../BridgeAPI";
