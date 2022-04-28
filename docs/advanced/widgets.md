@@ -42,6 +42,8 @@ widgets:
   publicUrl: http://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
+#  openIdOverrides:
+#    my-local-server: {}
 ```
 
 The admin room feature is still very barebones so while it's included here for completeness, most instances
@@ -59,6 +61,9 @@ Unless you know what you are doing, it is recommended to not include this key. T
 
 `branding` allows you to change the strings used for various bits of widget UI. At the moment you can:
  - Set `widgetTitle` to change the title of the widget that is created.
+
+`openIdOverrides` allows you to configure the correct federation endpoints for a given set of Matrix server names. This is useful if you are
+testing/developing hookshot in a local dev environment. Production environments should not use this configuration.
 
 In addition to setting up the widgets config, you must bind a listener for the widgets resource in your `listeners` config.
 

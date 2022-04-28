@@ -527,6 +527,10 @@ export class BridgeConfig {
         if (this.widgets && !hasWidgetListener) {
             throw new ConfigError(`listeners`, "You have enabled the widgets feature, but not included a widgets listener.");
         }
+
+        if (this.widgets && this.widgets.openIdOverrides) {
+            log.warn("The `widgets.openIdOverrides` config value SHOULD NOT be used in a production environment.")
+        }
     }
 
     public async prefillMembershipCache(client: MatrixClient) {
