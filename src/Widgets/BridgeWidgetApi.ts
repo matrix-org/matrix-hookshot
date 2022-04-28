@@ -30,9 +30,7 @@ export class BridgeWidgetApi {
             expressApp,
             widgetTokenPrefix: "hookshot_",
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
-            openIdOverride: {
-                "beefy": new URL("http://localhost:8008")
-            }
+            openIdOverride: config.widgets?.openIdOverrides,
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
@@ -173,7 +171,7 @@ export class BridgeWidgetApi {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
-        const type = req.params.type as string;
+        const type = req.params.type;
         const connections = await this.connMan.getConnectionTargets(req.userId, type, req.query);
         res.send(connections);
     }

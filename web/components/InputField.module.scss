@@ -11,7 +11,7 @@
         max-width: calc(100% - 20px);
         padding: 0 2px;
         color:  var(--light-color);
-        background: #FFF;
+        background: var(--background-color);
     }
 
     label.nopad {
@@ -35,7 +35,7 @@
         border-radius: 8px;
         width: 100%;
         font-size: 14px;
-        background: #FFF;
+        background: var(--background-color); 
         padding: 8px 12px;
         color:  var(--light-color);
     }

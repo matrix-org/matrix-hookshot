@@ -22,6 +22,7 @@ import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
+import { BaseConnection } from "./Connections/BaseConnection";
 
 const log = new LogWrapper("ConnectionManager");
 
@@ -75,12 +76,12 @@ export class ConnectionManager extends EventEmitter {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
         const existingConnections = await this.getAllConnectionsForRoom(roomId);
         if (JiraProjectConnection.EventTypes.includes(type)) {
+            if (!this.config.jira) {
+                throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
+            }
             if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
                 // TODO: Support this.
                 throw Error("Cannot support multiple connections of the same type yet");
-            }
-            if (!this.config.jira) {
-                throw Error('JIRA is not configured');
             }
             if (!this.config.checkPermission(userId, "jira", BridgePermissionLevel.manageConnections)) {
                 throw new ApiError('User is not permitted to provision connections for Jira', ErrCode.ForbiddenUser);
@@ -91,12 +92,12 @@ export class ConnectionManager extends EventEmitter {
             return res.connection;
         }
         if (GitHubRepoConnection.EventTypes.includes(type)) {
+            if (!this.config.github || !this.config.github.oauth || !this.github) {
+                throw new ApiError('GitHub integration is not configured', ErrCode.DisabledFeature);
+            }
             if (existingConnections.find(c => c instanceof GitHubRepoConnection)) {
                 // TODO: Support this.
                 throw Error("Cannot support multiple connections of the same type yet");
-            }
-            if (!this.config.github || !this.config.github.oauth || !this.github) {
-                throw Error('GitHub is not configured');
             }
             if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
                 throw new ApiError('User is not permitted to provision connections for GitHub', ErrCode.ForbiddenUser);
@@ -108,7 +109,7 @@ export class ConnectionManager extends EventEmitter {
         }
         if (GenericHookConnection.EventTypes.includes(type)) {
             if (!this.config.generic) {
-                throw Error('Generic hook support not supported');
+                throw new ApiError('Generic Webhook integration is not configured', ErrCode.DisabledFeature);
             }
             if (!this.config.checkPermission(userId, "webhooks", BridgePermissionLevel.manageConnections)) {
                 throw new ApiError('User is not permitted to provision connections for generic webhooks', ErrCode.ForbiddenUser);
@@ -127,15 +128,15 @@ export class ConnectionManager extends EventEmitter {
         }
         if (GitLabRepoConnection.EventTypes.includes(type)) {
             if (!this.config.gitlab) {
-                throw Error('Generic hook support not supported');
+                throw new ApiError('GitLab integration is not configured', ErrCode.DisabledFeature);
             }
             if (!this.config.checkPermission(userId, "gitlab", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for generic webhooks', ErrCode.ForbiddenUser);
+                throw new ApiError('User is not permitted to provision connections for GitLab', ErrCode.ForbiddenUser);
             }
             const res = await GitLabRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, data.instance as string, this.config.gitlab);
             const existing = this.getAllConnectionsOfType(GitLabRepoConnection).find(c => c.stateKey === res.connection.stateKey);
             if (existing) {
-                throw new ApiError("A gitlab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {
+                throw new ApiError("A GitLab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {
                     existingConnection: existing.getProvisionerDetails()
                 });
             }
@@ -437,6 +438,8 @@ export class ConnectionManager extends EventEmitter {
         if (requireNoRemoveHandler && !connection.onRemove) {
             throw Error("Connection doesn't support removal, and so cannot be safely removed");
         }
+        const prototype = Object.getPrototypeOf(connection);
+        const isLastConnectionOfType = this.connections.find(c => c)
         await connection.onRemove?.();
         const connectionIndex = this.connections.indexOf(connection);
         if (connectionIndex === -1) {

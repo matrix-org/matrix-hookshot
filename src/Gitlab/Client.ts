@@ -4,15 +4,13 @@ import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse
 import LogWrapper from "../LogWrapper";
 import { URLSearchParams } from "url";
 import UserAgent from "../UserAgent";
-import { toHash } from "ajv/dist/compile/util";
 
 const log = new LogWrapper("GitLabClient");
 
-type ProjectId = string|number|string[];
-
-function getProjectId(id: ProjectId) {
-    return encodeURIComponent(Array.isArray(id) ? id.join("/") : id);
-}
+/**
+ * A GitLab project used inside a URL may either be the ID of the project, or the encoded path of the project.
+ */
+type ProjectId = string|number;
 export class GitLabClient {
     constructor(private instanceUrl: string, private token: string) {
 
@@ -46,7 +44,7 @@ export class GitLabClient {
     }
 
     private async createIssue(opts: CreateIssueOpts): Promise<CreateIssueResponse> {
-        return (await axios.post(`api/v4/projects/${opts.id}/issues`, opts, this.defaultConfig)).data;
+        return (await axios.post(`api/v4/projects/${encodeURIComponent(opts.id)}/issues`, opts, this.defaultConfig)).data;
     }
 
     private async getIssue(opts: GetIssueOpts): Promise<GetIssueResponse> {
@@ -59,13 +57,13 @@ export class GitLabClient {
     }
 
     private async editIssue(opts: EditIssueOpts): Promise<CreateIssueResponse> {
-        return (await axios.put(`api/v4/projects/${opts.id}/issues/${opts.issue_iid}`, opts, this.defaultConfig)).data;
+        return (await axios.put(`api/v4/projects/${encodeURIComponent(opts.id)}/issues/${opts.issue_iid}`, opts, this.defaultConfig)).data;
     }
 
 
     private async getProject(id: ProjectId): Promise<GetProjectResponse> {
         try {
-            return (await axios.get(`api/v4/projects/${getProjectId(id)}`, this.defaultConfig)).data;
+            return (await axios.get(`api/v4/projects/${encodeURIComponent(id)}`, this.defaultConfig)).data;
         } catch (ex) {
             log.warn(`Failed to get project:`, ex);
             throw ex;
@@ -74,7 +72,7 @@ export class GitLabClient {
 
     private async listProjects(minAccess: AccessLevel, inGroup?: ProjectId, idAfter?: number, search?: string): Promise<SimpleProject[]> {
         try {
-            const path = inGroup ? `api/v4/groups/${getProjectId(inGroup)}/projects` : 'api/v4/projects';
+            const path = inGroup ? `api/v4/groups/${encodeURIComponent(inGroup)}/projects` : 'api/v4/projects';
             return (await axios.get(path, {
                 ...this.defaultConfig,
                 params: {
@@ -90,14 +88,14 @@ export class GitLabClient {
                 }
                 })).data;
         } catch (ex) {
-            log.warn(`Failed to get project:`, ex);
+            log.warn(`Failed to get projects:`, ex);
             throw ex;
         }
     }
 
     private async getProjectHooks(id: ProjectId): Promise<ProjectHook[]> {
         try {
-            return (await axios.get(`api/v4/projects/${getProjectId(id)}/hooks`, this.defaultConfig)).data;
+            return (await axios.get(`api/v4/projects/${encodeURIComponent(id)}/hooks`, this.defaultConfig)).data;
         } catch (ex) {
             log.warn(`Failed to get project hooks:`, ex);
             throw ex;
@@ -106,7 +104,7 @@ export class GitLabClient {
 
     private async addProjectHook(id: ProjectId, opts: ProjectHookOpts): Promise<ProjectHook> {
         try {
-            return (await axios.post(`api/v4/projects/${getProjectId(id)}/hooks`, opts, this.defaultConfig)).data;
+            return (await axios.post(`api/v4/projects/${encodeURIComponent(id)}/hooks`, opts, this.defaultConfig)).data;
         } catch (ex) {
             log.warn(`Failed to create project hook:`, ex);
             throw ex;

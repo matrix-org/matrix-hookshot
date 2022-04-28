@@ -95,11 +95,12 @@ function validateState(state: Record<string, unknown>): GitLabRepoConnectionStat
     if (state.commandPrefix) {
         if (typeof state.commandPrefix !== "string") {
             throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
-        }
-        if (state.commandPrefix.length < 2 || state.commandPrefix.length > 24) {
+        } else if (state.commandPrefix.length >= 2 || state.commandPrefix.length <= 24) {
+            res.commandPrefix = state.commandPrefix;
+        } else if (state.commandPrefix.length > 0) {
             throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
         }
-        res.commandPrefix = state.commandPrefix;
+        // Otherwise empty string, ignore.
     }
     if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
         if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
@@ -182,8 +183,7 @@ export class GitLabRepoConnection extends CommandConnection {
             service: "gitlab",
             eventType: GitLabRepoConnection.CanonicalEventType,
             type: "GitLabRepo",
-            // TODO: Add ability to configure the bot per connnection type.
-            botUserId: botUserId,
+            botUserId,
         }
     }
 
@@ -208,7 +208,7 @@ export class GitLabRepoConnection extends CommandConnection {
         if (!client) {
             throw new ApiError('Instance is not known or you do not have access to it.', ErrCode.NotFound);
         }
-        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10);
+        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10); 
         const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, after, filters.search);
         return allProjects.map(p => ({
             state: {
@@ -275,7 +275,7 @@ export class GitLabRepoConnection extends CommandConnection {
             throw Error('Not logged in');
         }
         const res = await client.issues.create({
-            id: encodeURIComponent(this.path),
+            id: this.path,
             title,
             description,
             labels: labels ? labels.split(",") : undefined,
@@ -299,7 +299,7 @@ export class GitLabRepoConnection extends CommandConnection {
         }
 
         await client.issues.edit({
-            id: encodeURIComponent(this.state.path),
+            id: this.state.path,
             issue_iid: number,
             state_event: "close",
         });
@@ -566,10 +566,7 @@ ${data.description}`;
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = validateState(config);
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, 
-            {
-                ...validatedConfig,
-            }
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig
         );
     }
 

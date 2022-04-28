@@ -1,5 +1,5 @@
 import { h, FunctionComponent, Fragment } from "preact";
-import { useState } from "preact/hooks"
+import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { ListItem } from "../ListItem";
 import BridgeAPI from "../../BridgeAPI";
 import ErrorPane from "../ErrorPane";
@@ -28,97 +28,100 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     };
     connectionEventType: string;
     listItemName: (c: ConnectionType) => string,
-    connetionConfigComponent: FunctionComponent<ConnectionConfigurationProps<SConfig, ConnectionType, ConnectionState>>;
+    connectionConfigComponent: FunctionComponent<ConnectionConfigurationProps<SConfig, ConnectionType, ConnectionState>>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const RoomConfig: FunctionComponent<IRoomConfigProps<any, any, any>> = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
+export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
-    const ConnectionConfigComponent = props.connetionConfigComponent;
+    const ConnectionConfigComponent = props.connectionConfigComponent;
     const [ error, setError ] = useState<null|string>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
     const [ serviceConfig, setServiceConfig ] = useState<SConfig|null>(null);
     const [ canEditRoom, setCanEditRoom ] = useState<boolean>(false);
-    if (connections === null) {
-        api.getConnectionsForService<ConnectionType>(roomId, type)
-        .then(res => {
+    // We need to increment this every time we create a connection in order to properly reset the state.
+    const [ newConnectionKey, incrementConnectionKey ] = useReducer<number, undefined>(n => n+1, 0);
+
+    useEffect(() => {
+        const fn = (async () => {
+        try {
+            const res = await api.getConnectionsForService<ConnectionType>(roomId, type);
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
-        })
-        .catch(ex => {
+        } catch (ex) {
             console.warn("Failed to fetch existing connections", ex);
             setError("Failed to fetch existing connections");
+        }
         });
-    }
+        fn();
+    }, [api, roomId, type, newConnectionKey]);
 
-    if (serviceConfig === null) {
-        api.getServiceConfig<SConfig>(type)
-        .then((res) => setServiceConfig(res))
-        .catch(ex => {
+    useEffect(() => {
+        const fn = (async () => {
+        try {
+            const res = await api.getServiceConfig<SConfig>(type);
+            setServiceConfig(res);
+        } catch (ex) {
             console.warn("Failed to fetch service config", ex);
             setError("Failed to fetch service config");
+        }
         });
+        fn();
+    }, [api, type]);
 
-    }
+    const handleSaveOnCreation = useCallback((config) => {
+        api.createConnection(roomId, connectionEventType, config).then(() => {
+            // Force reload
+            incrementConnectionKey(undefined);
+        }).catch(ex => {
+            console.warn("Failed to create connection", ex);
+            setError("Failed to create connection");
+        });
+    }, [api, roomId, connectionEventType]);
 
-    // We need to increment this every time we create a connection in order to properly reset the state.
-    const [ newConnectionKey, setNewConnectionKey ] = useState<number>(0);
-
-    return <>
-        <main>
-            {
-                error && <ErrorPane header="Error">{error}</ErrorPane>
+    return <main>
+        {
+            error && <ErrorPane header="Error">{error}</ErrorPane>
+        }
+        <header className={style.header}>
+            <img src={headerImg} />
+            <h1>{text.header}</h1> 
+        </header>
+        { canEditRoom && <section>
+            <h2>{text.createNew}</h2>
+            {serviceConfig && <ConnectionConfigComponent
+                key={newConnectionKey}
+                api={api}
+                serviceConfig={serviceConfig}
+                onSave={handleSaveOnCreation}
+            />}
+        </section>}
+        <section>
+            <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
+            { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
+                    <ConnectionConfigComponent
+                        api={api}
+                        serviceConfig={serviceConfig}
+                        existingConnection={c}
+                        onSave={(config) => {
+                            api.updateConnection(roomId, c.id, config).then(() => {
+                                // Force reload
+                                incrementConnectionKey(undefined);
+                            }).catch(ex => {
+                                console.warn("Failed to create connection", ex);
+                                setError("Failed to create connection");
+                            });
+                        }}
+                        onRemove={() => {
+                            api.removeConnection(roomId, c.id).then(() => {
+                                setConnections(conn => conn.filter(conn => c.id !== conn.id));
+                            }).catch(ex => {
+                                console.warn("Failed to remove connection", ex);
+                                setError("Failed to remove connection");
+                            });
+                        }}
+                    />
+                </ListItem>)
             }
-            <header className={style.header}>
-                <img src={headerImg} />
-                <h1>{text.header}</h1> 
-            </header>
-            { canEditRoom && <section>
-                <h2>{text.createNew}</h2>
-                {serviceConfig && <ConnectionConfigComponent
-                    key={newConnectionKey}
-                    api={api}
-                    serviceConfig={serviceConfig}
-                    onSave={(config) => {
-                        api.createConnection(roomId, connectionEventType, config).then(() => {
-                            // Force reload
-                            setConnections(null);
-                            setNewConnectionKey(newConnectionKey+1);
-                        }).catch(ex => {
-                            console.warn("Failed to create connection", ex);
-                            setError("Failed to create connection");
-                        });
-                    }}
-                />}
-            </section>}
-            <section>
-                <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
-                { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
-                        <ConnectionConfigComponent
-                            api={api}
-                            serviceConfig={serviceConfig}
-                            existingConnection={c}
-                            onSave={(config) => {
-                                api.updateConnection(roomId, c.id, config).then(() => {
-                                    // Force reload
-                                    setConnections(null);
-                                }).catch(ex => {
-                                    console.warn("Failed to create connection", ex);
-                                    setError("Failed to create connection");
-                                });
-                            }}
-                            onRemove={() => {
-                                api.removeConnection(roomId, c.id).then(() => {
-                                    setConnections(connections.filter(conn => c.id !== conn.id));
-                                }).catch(ex => {
-                                    console.warn("Failed to remove connection", ex);
-                                    setError("Failed to remove connection");
-                                });
-                            }}
-                        />
-                    </ListItem>)
-                }
-            </section>
-        </main>
-    </>;
+        </section>
+    </main>;
 };

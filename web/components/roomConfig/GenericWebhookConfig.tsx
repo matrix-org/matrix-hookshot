@@ -34,19 +34,19 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
     const nameRef = createRef<HTMLInputElement>();
 
-    const onSaveClick = useCallback(() => {
+    const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
+    const handleSave = useCallback((evt: Event) => {
+        evt.preventDefault();
+        if (!canEdit) {
+            return;
+        }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
-    }, [onSave, nameRef, transFn, existingConnection, transFnEnabled]);
+    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled]);
 
-    const onRemoveClick = useCallback(() => {
-        onRemove();
-    }, [onRemove]);
-
-    const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
-    return <div>
+    return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="Friendly name" noPadding={true}>
             <input ref={nameRef} disabled={!canEdit} placeholder="My webhook" type="text" value={existingConnection?.config.name} />
         </InputField>
@@ -56,7 +56,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         </InputField>
 
         <InputField visible={serviceConfig.allowJsTransformationFunctions} label="Enable Transformation JavaScript" noPadding={true}>
-            <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={() => setTransFnEnabled(!transFnEnabled)} />
+            <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={useCallback(() => setTransFnEnabled(v => !v), [])} />
         </InputField>
 
         <InputField visible={transFnEnabled} noPadding={true}>
@@ -70,10 +70,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>
         <ButtonSet>
-            { canEdit && <Button onClick={onSaveClick}>{ existingConnection ? "Save" : "Add webhook" }</Button>}
-            { canEdit && existingConnection && <Button intent="remove" onClick={onRemoveClick}>Remove webhook</Button>}
+            { canEdit && <Button>{ existingConnection ? "Save" : "Add webhook" }</Button>}
+            { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove webhook</Button>}
         </ButtonSet>
-    </div>;
+    </form>;
 };
 
 interface IGenericWebhookConfigProps {
@@ -85,20 +85,24 @@ interface ServiceConfig {
     allowJsTransformationFunctions: boolean
 }
 
+const RoomConfigText = {
+    header: 'Generic Webhooks',
+    createNew: 'Create new webhook',
+    listCanEdit: 'Your webhooks',
+    listCantEdit: 'Configured webhooks',
+};
+
+const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
+
 export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
-    return <RoomConfig
+    return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
         headerImg="./icons/webhook.png"
         api={api}
         roomId={roomId}
         type="generic"
         connectionEventType="uk.half-shot.matrix-hookshot.generic.hook"
-        text={({
-            header: 'Generic Webhooks',
-            createNew: 'Create new webhook',
-            listCanEdit: 'Your webhooks',
-            listCantEdit: 'Configured webhooks',
-        })}
-        listItemName={(c) => (c as GenericHookResponseItem).config.name}
-        connetionConfigComponent={ConnectionConfiguration}
+        text={RoomConfigText}
+        listItemName={RoomConfigListItemFunc}
+        connectionConfigComponent={ConnectionConfiguration}
     />;
 };

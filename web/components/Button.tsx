@@ -6,5 +6,5 @@ export function Button(props: { [key: string]: unknown, intent?: string}) {
     if (props.intent === "remove") {
         className += ` ${  style.remove}`;
     }
-    return <button className={className} {...props} />;
+    return <button type="button" className={className} {...props} />;
 } 

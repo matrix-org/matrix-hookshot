@@ -9,6 +9,7 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
+import { config } from "process";
 
 const log = new LogWrapper("Config");
 
@@ -266,6 +267,7 @@ interface BridgeWidgetConfigYAML {
     branding?: {
         widgetTitle: string,
     }
+    openIdOverrides?: Record<string, string>;
 }
 
 export class BridgeWidgetConfig {
@@ -278,6 +280,8 @@ export class BridgeWidgetConfig {
     public readonly branding: {
         widgetTitle: string,
     }
+    @configKey("For testing only: A set of homeserver servernames mapped to their Server-Server API endpoints. This can be used if your local homeserver doesn't lookup via SRV or .well-known.")
+    public readonly openIdOverrides?: Record<string, URL>;
     constructor(yaml: BridgeWidgetConfigYAML) {
         this.addToAdminRooms = yaml.addToAdminRooms || false;
         this.disallowedIpRanges = yaml.disallowedIpRanges;
@@ -292,6 +296,12 @@ export class BridgeWidgetConfig {
         this.branding = yaml.branding || {
             widgetTitle: "Hookshot Configuration"
         };
+        if (yaml.openIdOverrides) {
+            this.openIdOverrides = {};
+            for (const [serverName, urlStr] of Object.entries(yaml.openIdOverrides)) {
+                this.openIdOverrides[serverName] = new URL(urlStr);
+            }
+        }
     }
 }
 
