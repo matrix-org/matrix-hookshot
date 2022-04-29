@@ -22,7 +22,6 @@ import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
-import { BaseConnection } from "./Connections/BaseConnection";
 
 const log = new LogWrapper("ConnectionManager");
 
@@ -438,8 +437,6 @@ export class ConnectionManager extends EventEmitter {
         if (requireNoRemoveHandler && !connection.onRemove) {
             throw Error("Connection doesn't support removal, and so cannot be safely removed");
         }
-        const prototype = Object.getPrototypeOf(connection);
-        const isLastConnectionOfType = this.connections.find(c => c)
         await connection.onRemove?.();
         const connectionIndex = this.connections.indexOf(connection);
         if (connectionIndex === -1) {
