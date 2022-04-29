@@ -41,9 +41,6 @@ export const DefaultConfig = new BridgeConfig({
         disallowedIpRanges: DefaultDisallowedIpRanges,
         branding: {
             widgetTitle: "Hookshot Configuration"
-        },
-        openIdOverrides: {
-            "my-local-server": "http://localhost:8008"
         }
     },
     bot: {

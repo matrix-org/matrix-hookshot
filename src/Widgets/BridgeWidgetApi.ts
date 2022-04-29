@@ -30,7 +30,6 @@ export class BridgeWidgetApi {
             expressApp,
             widgetTokenPrefix: "hookshot_",
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
-            openIdOverride: config.widgets?.openIdOverrides,
         });
         this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
         this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
