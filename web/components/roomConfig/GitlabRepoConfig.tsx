@@ -113,7 +113,7 @@ const EventCheckbox: FunctionComponent<{
             x-event-name={eventName}
             checked={!ignoredHooks.includes(eventName)}
             onChange={onChange} />
-            {{ children }}
+            { children }
         </label>
     </li>;
 };

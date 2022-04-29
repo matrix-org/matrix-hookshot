@@ -14,6 +14,12 @@
         background: var(--background-color);
     }
 
+    ul > label {
+        position: relative;
+        left: auto;
+        margin: auto;
+    }
+
     label.nopad {
         position: relative;
         margin: 0;
