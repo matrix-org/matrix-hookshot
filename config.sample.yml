@@ -146,6 +146,10 @@ widgets:
   publicUrl: http://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
+  openIdOverrides:
+    # For testing only: A set of homeserver servernames mapped to their Server-Server API endpoints. This can be used if your local homeserver doesn't lookup via SRV or .well-known.
+    #
+    my-local-server: {}
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
   #
