@@ -131,6 +131,9 @@ export class GitLabRepoConnection extends CommandConnection {
     public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instanceName: string, gitlabConfig: BridgeConfigGitLab) {
         const validData = validateState(data);
         const instance = gitlabConfig.instances[instanceName];
+        if (!instance) {
+            throw Error(`provisionConnection provided an instanceName of ${instanceName} but the instance does not exist`);
+        }
         const client = await tokenStore.getGitLabForUser(requester, instance.url);
         if (!client) {
             throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);

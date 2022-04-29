@@ -70,7 +70,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>
         <ButtonSet>
-            { canEdit && <Button>{ existingConnection ? "Save" : "Add webhook" }</Button>}
+            { canEdit && <Button type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
             { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove webhook</Button>}
         </ButtonSet>
     </form>;

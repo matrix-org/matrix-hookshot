@@ -42,30 +42,22 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     const [ newConnectionKey, incrementConnectionKey ] = useReducer<number, undefined>(n => n+1, 0);
 
     useEffect(() => {
-        const fn = (async () => {
-        try {
-            const res = await api.getConnectionsForService<ConnectionType>(roomId, type);
+        api.getConnectionsForService<ConnectionType>(roomId, type).then(res => {
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
-        } catch (ex) {
+        }).catch(ex => {
             console.warn("Failed to fetch existing connections", ex);
             setError("Failed to fetch existing connections");
-        }
         });
-        fn();
     }, [api, roomId, type, newConnectionKey]);
 
     useEffect(() => {
-        const fn = (async () => {
-        try {
-            const res = await api.getServiceConfig<SConfig>(type);
-            setServiceConfig(res);
-        } catch (ex) {
-            console.warn("Failed to fetch service config", ex);
-            setError("Failed to fetch service config");
-        }
-        });
-        fn();
+        api.getServiceConfig<SConfig>(type)
+            .then(setServiceConfig)
+            .catch(ex => {
+                console.warn("Failed to fetch service config", ex);
+                setError("Failed to fetch service config");
+            })
     }, [api, type]);
 
     const handleSaveOnCreation = useCallback((config) => {
