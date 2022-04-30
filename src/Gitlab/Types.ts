@@ -219,3 +219,10 @@ export interface ProjectHook extends ProjectHookOpts {
     project_id: 3;
     created_at?: string;
 }
+
+export interface SimpleProject {
+    id: string;
+    name: string;
+    path: string;
+    path_with_namespace: string;
+}

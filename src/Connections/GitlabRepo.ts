@@ -24,6 +24,17 @@ export interface GitLabRepoConnectionState extends IConnectionState {
     excludingLabels?: string[];
 }
 
+
+export interface GitLabRepoConnectionInstanceTarget {
+    name: string;
+}
+export interface GitLabRepoConnectionProjectTarget {
+    state: GitLabRepoConnectionState;
+    name: string;
+}
+
+export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitLabRepoConnectionProjectTarget;
+
 const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
@@ -62,6 +73,13 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release.created",
 ];
 
+export interface GitLabTargetFilter {
+    instance?: string;
+    parent?: string;
+    after?: string;
+    search?: string;
+}
+
 
 function validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
     if (typeof state.instance !== "string") {
@@ -77,11 +95,12 @@ function validateState(state: Record<string, unknown>): GitLabRepoConnectionStat
     if (state.commandPrefix) {
         if (typeof state.commandPrefix !== "string") {
             throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
-        }
-        if (state.commandPrefix.length < 2 || state.commandPrefix.length > 24) {
+        } else if (state.commandPrefix.length >= 2 || state.commandPrefix.length <= 24) {
+            res.commandPrefix = state.commandPrefix;
+        } else if (state.commandPrefix.length > 0) {
             throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
         }
-        res.commandPrefix = state.commandPrefix;
+        // Otherwise empty string, ignore.
     }
     if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
         if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
@@ -109,8 +128,12 @@ export class GitLabRepoConnection extends CommandConnection {
 
     private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
 
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instance: GitLabInstance, gitlabConfig: BridgeConfigGitLab) {
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instanceName: string, gitlabConfig: BridgeConfigGitLab) {
         const validData = validateState(data);
+        const instance = gitlabConfig.instances[instanceName];
+        if (!instance) {
+            throw Error(`provisionConnection provided an instanceName of ${instanceName} but the instance does not exist`);
+        }
         const client = await tokenStore.getGitLabForUser(requester, instance.url);
         if (!client) {
             throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);
@@ -158,6 +181,47 @@ export class GitLabRepoConnection extends CommandConnection {
         }
     }
 
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "gitlab",
+            eventType: GitLabRepoConnection.CanonicalEventType,
+            type: "GitLabRepo",
+            botUserId,
+        }
+    }
+
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitLab, filters: GitLabTargetFilter = {}): Promise<GitLabRepoConnectionTarget[]> {
+        // Search for all repos under the user's control.
+
+        if (!filters.instance) {
+            const results: GitLabRepoConnectionInstanceTarget[] = [];
+            for (const [name, instance] of Object.entries(config.instances)) {
+                const client = await tokenStore.getGitLabForUser(userId, instance.url);
+                if (client) {
+                    results.push({
+                        name,
+                    } as GitLabRepoConnectionInstanceTarget);
+                }
+            }
+            return results;
+        }
+        // If we have an instance, search under it.
+        const instanceUrl = config.instances[filters.instance]?.url;
+        const client = instanceUrl && await tokenStore.getGitLabForUser(userId, instanceUrl);
+        if (!client) {
+            throw new ApiError('Instance is not known or you do not have access to it.', ErrCode.NotFound);
+        }
+        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10); 
+        const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, after, filters.search);
+        return allProjects.map(p => ({
+            state: {
+                instance: filters.instance,
+                path: p.path_with_namespace,
+            },
+            name: p.name,
+        })) as GitLabRepoConnectionProjectTarget[];
+    }
+
     constructor(roomId: string,
         stateKey: string,
         private readonly as: Appservice,
@@ -196,16 +260,6 @@ export class GitLabRepoConnection extends CommandConnection {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
-    public static getProvisionerDetails(botUserId: string) {
-        return {
-            service: "gitlab",
-            eventType: GitLabRepoConnection.CanonicalEventType,
-            type: "GitLabRepo",
-            // TODO: Add ability to configure the bot per connnection type.
-            botUserId: botUserId,
-        }
-    }
-
     public getProvisionerDetails() {
         return {
             ...GitLabRepoConnection.getProvisionerDetails(this.as.botUserId),
@@ -224,7 +278,7 @@ export class GitLabRepoConnection extends CommandConnection {
             throw Error('Not logged in');
         }
         const res = await client.issues.create({
-            id: encodeURIComponent(this.path),
+            id: this.path,
             title,
             description,
             labels: labels ? labels.split(",") : undefined,
@@ -248,7 +302,7 @@ export class GitLabRepoConnection extends CommandConnection {
         }
 
         await client.issues.edit({
-            id: encodeURIComponent(this.state.path),
+            id: this.state.path,
             issue_iid: number,
             state_event: "close",
         });
@@ -511,6 +565,26 @@ ${data.description}`;
             }
         }
         return false;
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig
+        );
+    }
+
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+        // TODO: Clean up webhooks
     }
 }
 

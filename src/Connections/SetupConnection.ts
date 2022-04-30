@@ -97,7 +97,7 @@ export class SetupConnection extends CommandConnection {
         if (!path) {
             throw new CommandError("Invalid GitLab url", "The GitLab project url you entered was not valid.");
         }
-        const res = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.as, this.tokenStore, instance, this.config.gitlab);
+        const res = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.as, this.tokenStore, name, this.config.gitlab);
         await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, url, res.stateEventContent);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${path}`);
     }
