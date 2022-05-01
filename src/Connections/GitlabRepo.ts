@@ -222,12 +222,16 @@ export class GitLabRepoConnection extends CommandConnection {
             return;
         }
         const branchname = event.ref.replace("refs/heads/", "");
-        const commitsurl = `${event.project.homepage}/-/commits/${branchname}`
+        const commitsurl = `${event.project.homepage}/-/commits/${branchname}`;
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
         const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
 
+        const maxCommits = 5;
+        const tooManyCommits = event.commits.total_commits_count > maxCommits;
+        const displayedCommits = tooManyCommits ? 1 : maxCommits;
+        
         // Take the top 5 commits. The array is ordered in reverse.
-        const commits = event.commits.reverse().slice(0,5).map(commit => {
+        const commits = event.commits.reverse().slice(0,displayedCommits).map(commit => {
             return `[\`${commit.id.slice(0,8)}\`](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
         }).join('\n - ');
 
@@ -238,6 +242,9 @@ export class GitLabRepoConnection extends CommandConnection {
             content += `\n - ${commits}\n`;
         } else if (event.commits.length === 1) {
             content += ` - ${commits}`;
+        }
+        if tooManyCommits {
+            content += `. View [${event.commits.total_commits_count - 1} more](${commitsurl}).`;
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
