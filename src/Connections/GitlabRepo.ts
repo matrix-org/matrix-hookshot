@@ -227,7 +227,7 @@ export class GitLabRepoConnection extends CommandConnection {
         const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
 
         const maxCommits = 5;
-        const tooManyCommits = event.commits.total_commits_count > maxCommits;
+        const tooManyCommits = event.total_commits_count > maxCommits;
         const displayedCommits = tooManyCommits ? 1 : maxCommits;
         
         // Take the top 5 commits. The array is ordered in reverse.
@@ -243,8 +243,8 @@ export class GitLabRepoConnection extends CommandConnection {
         } else if (event.commits.length === 1) {
             content += ` - ${commits}`;
         }
-        if tooManyCommits {
-            content += `. View [${event.commits.total_commits_count - 1} more](${commitsurl}).`;
+        if (tooManyCommits) {
+            content += `. View [${event.total_commits_count - 1} more](${commitsurl}).`;
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
