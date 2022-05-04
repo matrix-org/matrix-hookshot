@@ -1,5 +1,5 @@
-import { IConnection, IConnectionState } from "./IConnection";
-import { Appservice } from "matrix-bot-sdk";
+import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
@@ -13,6 +13,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
+import { ConnectionManager } from "../ConnectionManager";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
@@ -49,6 +50,7 @@ const md = new markdownit();
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class JiraProjectConnection extends CommandConnection implements IConnection {
 
 
@@ -59,10 +61,18 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         JiraProjectConnection.CanonicalEventType,
         JiraProjectConnection.LegacyCanonicalEventType,
     ];
+    static readonly ServiceCategory = "jira";
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, existingConnections, tokenStore, config}: ProvisionConnectionOpts) {
+        if (!config.jira) {
+            throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
+        }
+        if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
+            // TODO: Support this.
+            throw Error("Cannot support multiple connections of the same type yet");
+        }
         const validData = validateJiraConnectionState(data);
         log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
         const jiraClient = await tokenStore.getJiraForUser(userId, validData.url);
@@ -84,8 +94,17 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         } catch (ex) {
             throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
         }
+        await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, connection.stateKey, validData);
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
-        return {stateEventContent: validData, connection};
+        return {connection};
+    }
+    
+    static createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {config, as, tokenStore}: InstantiateConnectionOpts) {
+        if (!config.jira) {
+            throw Error('JIRA is not configured');
+        }
+        const connectionConfig = validateJiraConnectionState(state.content);
+        return new JiraProjectConnection(roomId, as, connectionConfig, state.stateKey, tokenStore);
     }
     
     public get projectId() {

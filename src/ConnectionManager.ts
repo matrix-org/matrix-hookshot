@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
+import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, InstantiateConnectionOpts, JiraProjectConnection, ProvisionConnectionOpts } from "./Connections";
 import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
@@ -25,9 +25,26 @@ import EventEmitter from "events";
 
 const log = new LogWrapper("ConnectionManager");
 
+export interface ConnectionDeclaration<C extends IConnection = IConnection> {
+    EventTypes: string[];
+    ServiceCategory: string;
+    provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C}>;
+    createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>
+}
+
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
+
+    private static connectionTypes: ConnectionDeclaration[] = [];
+
+    public static registerConnectionType<T extends IConnection>(option: ConnectionDeclaration<T>) {
+        // Event type clashes
+        if (this.connectionTypes.find(o => !!option.EventTypes.find(f => o.EventTypes.includes(f)))) {
+            throw Error(`Provisioning connection for ${option.EventTypes[0]} has a event type clash with another connection`);
+        }
+        this.connectionTypes.push(option);
+    }
 
     public get size() {
         return this.connections.length;
@@ -74,79 +91,28 @@ export class ConnectionManager extends EventEmitter {
     public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
         const existingConnections = await this.getAllConnectionsForRoom(roomId);
-        if (JiraProjectConnection.EventTypes.includes(type)) {
-            if (!this.config.jira) {
-                throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
+        const connectionType = ConnectionManager.connectionTypes.find(c => c.EventTypes.includes(type));
+        if (connectionType?.provisionConnection) {
+            if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
+                throw new ApiError(`User is not permitted to provision connections for this type of service.`, ErrCode.ForbiddenUser);
             }
-            if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
-                // TODO: Support this.
-                throw Error("Cannot support multiple connections of the same type yet");
-            }
-            if (!this.config.checkPermission(userId, "jira", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for Jira', ErrCode.ForbiddenUser);
-            }
-            const res = await JiraProjectConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore);
-            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
-            this.push(res.connection);
-            return res.connection;
-        }
-        if (GitHubRepoConnection.EventTypes.includes(type)) {
-            if (!this.config.github || !this.config.github.oauth || !this.github) {
-                throw new ApiError('GitHub integration is not configured', ErrCode.DisabledFeature);
-            }
-            if (existingConnections.find(c => c instanceof GitHubRepoConnection)) {
-                // TODO: Support this.
-                throw Error("Cannot support multiple connections of the same type yet");
-            }
-            if (!this.config.checkPermission(userId, "github", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for GitHub', ErrCode.ForbiddenUser);
-            }
-            const res = await GitHubRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, this.github, this.config.github);
-            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GitHubRepoConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
-            this.push(res.connection);
-            return res.connection;
-        }
-        if (GenericHookConnection.EventTypes.includes(type)) {
-            if (!this.config.generic) {
-                throw new ApiError('Generic Webhook integration is not configured', ErrCode.DisabledFeature);
-            }
-            if (!this.config.checkPermission(userId, "webhooks", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for generic webhooks', ErrCode.ForbiddenUser);
-            }
-            const res = await GenericHookConnection.provisionConnection(roomId, this.as, data, this.config.generic, this.messageClient);
-            const existing = this.getAllConnectionsOfType(GenericHookConnection).find(c => c.stateKey === res.connection.stateKey);
-            if (existing) {
-                throw new ApiError("A generic webhook with this name already exists", ErrCode.ConflictingConnection, -1, {
-                    existingConnection: existing.getProvisionerDetails()
-                });
-            }
-            await GenericHookConnection.ensureRoomAccountData(roomId, this.as, res.connection.hookId, res.connection.stateKey);
-            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GenericHookConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
-            this.push(res.connection);
-            return res.connection;
-        }
-        if (GitLabRepoConnection.EventTypes.includes(type)) {
-            if (!this.config.gitlab) {
-                throw new ApiError('GitLab integration is not configured', ErrCode.DisabledFeature);
-            }
-            if (!this.config.checkPermission(userId, "gitlab", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for GitLab', ErrCode.ForbiddenUser);
-            }
-            const res = await GitLabRepoConnection.provisionConnection(roomId, userId, data, this.as, this.tokenStore, data.instance as string, this.config.gitlab);
-            const existing = this.getAllConnectionsOfType(GitLabRepoConnection).find(c => c.stateKey === res.connection.stateKey);
-            if (existing) {
-                throw new ApiError("A GitLab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {
-                    existingConnection: existing.getProvisionerDetails()
-                });
-            }
-            await this.as.botIntent.underlyingClient.sendStateEvent(roomId, GitLabRepoConnection.CanonicalEventType, res.connection.stateKey, res.stateEventContent);
-            this.push(res.connection);
-            return res.connection;
+            const { connection } = await connectionType.provisionConnection(roomId, userId, data, {
+                as: this.as,
+                config: this.config,
+                tokenStore: this.tokenStore,
+                commentProcessor: this.commentProcessor,
+                messageClient: this.messageClient,
+                storage: this.storage,
+                github: this.github,
+                existingConnections,
+            });
+            this.push(connection);
+            return connection;
         }
         throw new ApiError(`Connection type not known`);
     }
 
-    private assertStateAllowed(state: StateEvent<any>, serviceType: "github"|"gitlab"|"jira"|"figma"|"webhooks"|"feed") {
+    private assertStateAllowed(state: StateEvent<any>, serviceType: string) {
         if (state.sender === this.as.botUserId) {
             return;
         }
@@ -160,6 +126,20 @@ export class ConnectionManager extends EventEmitter {
         if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
+        }
+
+        const connectionType = ConnectionManager.connectionTypes.find(c => c.EventTypes.includes(state.type));
+        if (connectionType) {
+            this.assertStateAllowed(state, connectionType.ServiceCategory);
+            return connectionType.createConnectionForState(roomId, state, {
+                as: this.as,
+                config: this.config,
+                tokenStore: this.tokenStore,
+                commentProcessor: this.commentProcessor,
+                messageClient: this.messageClient,
+                storage: this.storage,
+                github: this.github,
+            });
         }
 
 

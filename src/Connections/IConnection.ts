@@ -1,8 +1,15 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { IRichReplyMetadata } from "matrix-bot-sdk";
-import { BridgePermissionLevel } from "../Config/Config";
+import { Appservice, IRichReplyMetadata } from "matrix-bot-sdk";
+import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
+import { UserTokenStore } from "../UserTokenStore";
+import { CommentProcessor } from "../CommentProcessor";
+import { MessageSenderClient } from "../MatrixSender";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { GithubInstance } from "../Github/GithubInstance";
+import "reflect-metadata";
+import { ConnectionDeclaration, ConnectionManager } from "../ConnectionManager";
 
 export type PermissionCheckFn = (service: string, level: BridgePermissionLevel) => boolean;
 
@@ -69,4 +76,23 @@ export interface IConnection {
     onRemove?: () => Promise<void>;
 
     toString(): string;
+}
+
+export interface InstantiateConnectionOpts {
+    as: Appservice,
+    config: BridgeConfig,
+    tokenStore: UserTokenStore,
+    commentProcessor: CommentProcessor,
+    messageClient: MessageSenderClient,
+    storage: IBridgeStorageProvider,
+    github?: GithubInstance,
+}
+export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
+    existingConnections: IConnection[],
+}
+
+
+export function Connection<T extends ConnectionDeclaration>(constructor: T) {
+    ConnectionManager.registerConnectionType(constructor);
+    return constructor;
 }
