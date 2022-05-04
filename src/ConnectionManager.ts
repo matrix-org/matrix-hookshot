@@ -212,14 +212,6 @@ export class ConnectionManager extends EventEmitter {
             );
         }
 
-        if (JiraProjectConnection.EventTypes.includes(state.type)) {
-            if (!this.config.jira) {
-                throw Error('JIRA is not configured');
-            }
-            this.assertStateAllowed(state, "jira");
-            return new JiraProjectConnection(roomId, this.as, state.content, state.stateKey, this.tokenStore);
-        }
-
         if (FigmaFileConnection.EventTypes.includes(state.type)) {
             if (!this.config.figma) {
                 throw Error('Figma is not configured');
@@ -356,7 +348,6 @@ export class ConnectionManager extends EventEmitter {
                 c.interestedInProject(project) &&
                 c.isInterestedInHookEvent(eventName))) as JiraProjectConnection[];
     }
-
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {
         return this.connections.filter((c) => (c instanceof GenericHookConnection && c.hookId === hookId)) as GenericHookConnection[];
