@@ -64,10 +64,11 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, existingConnections, tokenStore, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {getAllConnectionsOfType, as, tokenStore, config}: ProvisionConnectionOpts) {
         if (!config.jira) {
             throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
         }
+        const existingConnections = getAllConnectionsOfType(JiraProjectConnection);
         if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
             // TODO: Support this.
             throw Error("Cannot support multiple connections of the same type yet");

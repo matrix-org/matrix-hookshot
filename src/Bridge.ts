@@ -831,14 +831,22 @@ export class Bridge {
                     break;
                 }
             }
-            if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
+            if (!handled && this.connectionManager && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
                         new SetupConnection(
-                            roomId, this.as, this.tokenStore, this.config, 
+                            roomId,
+                            {
+                                config: this.config,
+                                as: this.as,
+                                tokenStore: this.tokenStore,
+                                commentProcessor: this.commentProcessor,
+                                messageClient: this.messageClient,
+                                storage: this.storage,
+                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this),
+                            },
                             this.getOrCreateAdminRoom.bind(this),
-                            this.github,
                         )
                     ).onMessageEvent(event, checkPermission);
                 } catch (ex) {

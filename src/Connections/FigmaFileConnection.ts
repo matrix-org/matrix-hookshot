@@ -1,4 +1,4 @@
-import { Appservice, MatrixClient } from "matrix-bot-sdk";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
@@ -6,17 +6,19 @@ import { IConnection, IConnectionState } from ".";
 import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigFigma } from "../Config/Config";
+import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 
 const log = new LogWrapper("FigmaFileConnection");
 
 export interface FigmaFileConnectionState extends IConnectionState {
-    fileId?: string;
+    fileId: string;
     instanceName?: string;
 }
 
 const THREAD_RELATION_TYPE = "m.thread";
 
 const md = markdownit();
+@Connection
 export class FigmaFileConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.figma.file";
     static readonly LegacyEventType = "uk.half-shot.matrix-figma.file"; // Magically import from matrix-figma
@@ -25,11 +27,40 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         FigmaFileConnection.CanonicalEventType,
         FigmaFileConnection.LegacyEventType,
     ];
+    static readonly ServiceCategory = "figma";
 
-    public static async createState(roomId: string, fileId: string, client: MatrixClient) {
-        await client.sendStateEvent(roomId, FigmaFileConnection.CanonicalEventType, fileId, {
-            fileId: fileId,
-        } as FigmaFileConnectionState);
+    
+    public static validateState(data: Record<string, unknown>): FigmaFileConnectionState {
+        if (!data.fileId || typeof data.fileId !== "string") {
+            throw Error('Missing or invalid fileId');
+        }
+        if (data.instanceName && typeof data.instanceName !== "string") {
+            throw Error('Invalid instanceName');
+        }
+        return {
+            instanceName: typeof data.instanceName === "string" ? data.instanceName : undefined,
+            fileId: data.fileId,
+        }
+    }
+
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, storage}: InstantiateConnectionOpts) {
+        if (!config.figma) {
+            throw Error('Figma is not configured');
+        }
+        return new FigmaFileConnection(roomId, event.stateKey, event.content, config.figma, as, storage);
+    }
+
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, config, storage}: ProvisionConnectionOpts) {
+        if (!config.figma) {
+            throw Error('Figma is not configured');
+        }
+        const validState = this.validateState(data);
+        const connection = new FigmaFileConnection(roomId, validState.fileId, validState, config.figma, as, storage);
+        await as.botClient.sendStateEvent(roomId, FigmaFileConnection.CanonicalEventType, validState.fileId, validState);
+        return {
+            connection,
+            stateEventContent: validState,
+        }
     }
 
 

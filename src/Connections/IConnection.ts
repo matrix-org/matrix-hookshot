@@ -98,7 +98,8 @@ export interface InstantiateConnectionOpts {
     github?: GithubInstance,
 }
 export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
-    existingConnections: IConnection[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[],
 }
 
 

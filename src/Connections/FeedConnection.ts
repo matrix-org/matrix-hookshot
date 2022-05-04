@@ -1,11 +1,12 @@
-import {Appservice} from "matrix-bot-sdk";
-import { IConnection, IConnectionState } from ".";
+import {Appservice, StateEvent} from "matrix-bot-sdk";
+import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
+import { Connection } from "./IConnection";
 
 const log = new LogWrapper("FeedConnection");
 const md = new markdown();
@@ -14,9 +15,20 @@ export interface FeedConnectionState extends IConnectionState {
     url: string;
 }
 
+@Connection
 export class FeedConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.feed";
     static readonly EventTypes = [ FeedConnection.CanonicalEventType ];
+    static readonly ServiceCategory = "feed";
+
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, storage}: InstantiateConnectionOpts) {
+        if (!config.feeds?.enabled) {
+            throw Error('RSS/Atom feeds are not configured');
+        }
+        return new FeedConnection(roomId, event.stateKey, event.content, config.feeds, as, storage);
+    }
+
+
     private hasError = false;
 
     public get feedUrl(): string {

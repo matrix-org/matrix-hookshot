@@ -8,7 +8,6 @@ import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
-import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
@@ -17,7 +16,6 @@ import { MessageSenderClient } from "./MatrixSender";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { ApiError, ErrCode } from "./api";
 import { UserTokenStore } from "./UserTokenStore";
-import {v4 as uuid} from "uuid";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
@@ -73,7 +71,6 @@ export class ConnectionManager extends EventEmitter {
      */
     public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
-        const existingConnections = await this.getAllConnectionsForRoom(roomId);
         const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
@@ -87,7 +84,7 @@ export class ConnectionManager extends EventEmitter {
                 messageClient: this.messageClient,
                 storage: this.storage,
                 github: this.github,
-                existingConnections,
+                getAllConnectionsOfType: this.getAllConnectionsOfType.bind(this),
             });
             this.push(connection);
             return connection;
@@ -110,150 +107,20 @@ export class ConnectionManager extends EventEmitter {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
-
         const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(state.type));
-        if (connectionType) {
-            this.assertStateAllowed(state, connectionType.ServiceCategory);
-            return connectionType.createConnectionForState(roomId, state, {
-                as: this.as,
-                config: this.config,
-                tokenStore: this.tokenStore,
-                commentProcessor: this.commentProcessor,
-                messageClient: this.messageClient,
-                storage: this.storage,
-                github: this.github,
-            });
+        if (!connectionType) {
+            return;
         }
-
-        if (GitHubRepoConnection.EventTypes.includes(state.type)) {
-            if (!this.github || !this.config.github) {
-                throw Error('GitHub is not configured');
-            }
-            this.assertStateAllowed(state, "github");
-            return new GitHubRepoConnection(roomId, this.as, state.content, this.tokenStore, state.stateKey, this.github, this.config.github);
-        }
-
-        if (GitHubDiscussionConnection.EventTypes.includes(state.type)) {
-            if (!this.github || !this.config.github) {
-                throw Error('GitHub is not configured');
-            }
-            this.assertStateAllowed(state, "github");
-            return new GitHubDiscussionConnection(
-                roomId, this.as, state.content, state.stateKey, this.tokenStore, this.commentProcessor,
-                this.messageClient, this.config.github,
-            );
-        }
-    
-        if (GitHubDiscussionSpace.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-            this.assertStateAllowed(state, "github");
-
-            return new GitHubDiscussionSpace(
-                await this.as.botClient.getSpace(roomId), state.content, state.stateKey
-            );
-        }
-
-        if (GitHubIssueConnection.EventTypes.includes(state.type)) {
-            if (!this.github || !this.config.github) {
-                throw Error('GitHub is not configured');
-            }
-            
-            this.assertStateAllowed(state, "github");
-            const issue = new GitHubIssueConnection(
-                roomId, this.as, state.content, state.stateKey || "", this.tokenStore,
-                this.commentProcessor, this.messageClient, this.github, this.config.github,
-            );
-            await issue.syncIssueState();
-            return issue;
-        }
-
-        if (GitHubUserSpace.EventTypes.includes(state.type)) {
-            if (!this.github) {
-                throw Error('GitHub is not configured');
-            }
-
-            this.assertStateAllowed(state, "github");
-            return new GitHubUserSpace(
-                await this.as.botClient.getSpace(roomId), state.content, state.stateKey
-            );
-        }
-        
-        if (GitLabRepoConnection.EventTypes.includes(state.type)) {
-            if (!this.config.gitlab) {
-                throw Error('GitLab is not configured');
-            }
-            
-            this.assertStateAllowed(state, "gitlab");
-            const instance = this.config.gitlab.instances[state.content.instance];
-            if (!instance) {
-                throw Error('Instance name not recognised');
-            }
-            return new GitLabRepoConnection(roomId, state.stateKey, this.as, state.content, this.tokenStore, instance);
-        }
-
-        if (GitLabIssueConnection.EventTypes.includes(state.type)) {
-            if (!this.github || !this.config.gitlab) {
-                throw Error('GitLab is not configured');
-            }
-            this.assertStateAllowed(state, "gitlab");
-            const instance = this.config.gitlab.instances[state.content.instance];
-            return new GitLabIssueConnection(
-                roomId,
-                this.as,
-                state.content,
-                state.stateKey as string, 
-                this.tokenStore,
-                this.commentProcessor,
-                this.messageClient,
-                instance,
-                this.config.gitlab,
-            );
-        }
-
-        if (FigmaFileConnection.EventTypes.includes(state.type)) {
-            if (!this.config.figma) {
-                throw Error('Figma is not configured');
-            }
-            this.assertStateAllowed(state, "figma");
-            return new FigmaFileConnection(roomId, state.stateKey, state.content, this.config.figma, this.as, this.storage);
-        }
-
-        if (FeedConnection.EventTypes.includes(state.type)) {
-            if (!this.config.feeds?.enabled) {
-                throw Error('RSS/Atom feeds are not configured');
-            }
-            this.assertStateAllowed(state, "feed");
-            return new FeedConnection(roomId, state.stateKey, state.content, this.config.feeds, this.as, this.storage);
-        }
-
-        if (GenericHookConnection.EventTypes.includes(state.type) && this.config.generic?.enabled) {
-            if (!this.config.generic) {
-                throw Error('Generic webhooks are not configured');
-            }
-            this.assertStateAllowed(state, "webhooks");
-            // Generic hooks store the hookId in the account data
-            const acctData = await this.as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
-            // hookId => stateKey
-            let hookId = Object.entries(acctData).find(([, v]) => v === state.stateKey)?.[0];
-            if (!hookId) {
-                hookId = uuid();
-                log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
-                await GenericHookConnection.ensureRoomAccountData(roomId, this.as, hookId, state.stateKey);
-            }
-
-            return new GenericHookConnection(
-                roomId,
-                state.content,
-                hookId,
-                state.stateKey,
-                this.messageClient,
-                this.config.generic,
-                this.as,
-            );
-        }
-        return;
+        this.assertStateAllowed(state, connectionType.ServiceCategory);
+        return connectionType.createConnectionForState(roomId, state, {
+            as: this.as,
+            config: this.config,
+            tokenStore: this.tokenStore,
+            commentProcessor: this.commentProcessor,
+            messageClient: this.messageClient,
+            storage: this.storage,
+            github: this.github,
+        });
     }
 
     public async createConnectionsForRoomId(roomId: string) {
