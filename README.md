@@ -33,7 +33,7 @@ This bridge supports:
 
 Documentation can be found on [GitHub Pages](https://matrix-org.github.io/matrix-hookshot).
 
-You can build the documentaion yourself by:
+You can build the documentation yourself by:
 ```sh
 # cargo install mdbook
 mdbook build
