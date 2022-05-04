@@ -2,10 +2,8 @@ import { expect } from "chai";
 import { createMessageQueue } from "../src/MessageQueue/MessageQueue";
 
 const mq = createMessageQueue({
-    queue: {
-        monolithic: true,
-    },
-} as any);
+    monolithic: true,
+});
 
 describe("MessageQueueTest", () => {
     describe("LocalMq", () => {

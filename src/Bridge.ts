@@ -5,7 +5,6 @@ import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Co
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
-import { GenericHookConnection } from "./Connections";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
@@ -515,7 +514,10 @@ export class Bridge {
                     instance = CLOUD_INSTANCE;
                 } else {
                     tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
-                    instance = new URL(this.config.jira.url!).host;
+                    if (!this.config.jira.url) {
+                        throw Error('Expected jira.url to be defined');
+                    }
+                    instance = new URL(this.config.jira.url).host;
                 }
                 await this.tokenStore.storeJiraToken(userId, {
                     access_token: tokenInfo.access_token,

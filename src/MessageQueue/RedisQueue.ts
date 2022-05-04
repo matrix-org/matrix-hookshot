@@ -1,7 +1,7 @@
 
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessageOut } from "./Types";
 import { Redis, default as redis } from "ioredis";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig, BridgeConfigQueue } from "../Config/Config";
 import { EventEmitter } from "events";
 import LogWrapper from "../LogWrapper";
 
@@ -21,11 +21,11 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     private redisPub: Redis;
     private redis: Redis;
     private myUuid: string;
-    constructor(config: BridgeConfig) {
+    constructor(config: BridgeConfigQueue) {
         super();
-        this.redisSub = new redis(config.queue.port, config.queue.host);
-        this.redisPub = new redis(config.queue.port, config.queue.host);
-        this.redis = new redis(config.queue.port, config.queue.host);
+        this.redisSub = new redis(config.port, config.host);
+        this.redisPub = new redis(config.port, config.host);
+        this.redis = new redis(config.port, config.host);
         this.myUuid = uuid();
         this.redisSub.on("pmessage", (_: string, channel: string, message: string) => {
             const msg = JSON.parse(message) as MessageQueueMessageOut<unknown>;

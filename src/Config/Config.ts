@@ -314,7 +314,7 @@ interface BridgeConfigWebhook {
     bindAddress?: string;
 }
 
-interface BridgeConfigQueue {
+export interface BridgeConfigQueue {
     monolithic: boolean;
     port?: number;
     host?: string;

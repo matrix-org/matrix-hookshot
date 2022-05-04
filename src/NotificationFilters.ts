@@ -49,7 +49,7 @@ export class NotifFilter {
         };
     }
 
-    public shouldInviteToRoom(user: string, repo: string, org: string): boolean {
+    public shouldInviteToRoom(): boolean {
         return false;
     }
 

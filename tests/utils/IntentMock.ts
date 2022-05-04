@@ -8,7 +8,7 @@ export class IntentMock {
     public readonly underlyingClient = new MatrixClientMock();
     public sentEvents: {roomId: string, content: any}[] = [];
 
-    static create(userId?: string){
+    static create(){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new this() as any;
     }
