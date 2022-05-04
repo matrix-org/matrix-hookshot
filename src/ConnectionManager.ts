@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, InstantiateConnectionOpts, JiraProjectConnection, ProvisionConnectionOpts } from "./Connections";
+import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
 import { GenericHookAccountData } from "./Connections/GenericHook";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
@@ -25,26 +25,9 @@ import EventEmitter from "events";
 
 const log = new LogWrapper("ConnectionManager");
 
-export interface ConnectionDeclaration<C extends IConnection = IConnection> {
-    EventTypes: string[];
-    ServiceCategory: string;
-    provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C}>;
-    createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>
-}
-
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
-
-    private static connectionTypes: ConnectionDeclaration[] = [];
-
-    public static registerConnectionType<T extends IConnection>(option: ConnectionDeclaration<T>) {
-        // Event type clashes
-        if (this.connectionTypes.find(o => !!option.EventTypes.find(f => o.EventTypes.includes(f)))) {
-            throw Error(`Provisioning connection for ${option.EventTypes[0]} has a event type clash with another connection`);
-        }
-        this.connectionTypes.push(option);
-    }
 
     public get size() {
         return this.connections.length;
@@ -91,7 +74,7 @@ export class ConnectionManager extends EventEmitter {
     public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
         const existingConnections = await this.getAllConnectionsForRoom(roomId);
-        const connectionType = ConnectionManager.connectionTypes.find(c => c.EventTypes.includes(type));
+        const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
                 throw new ApiError(`User is not permitted to provision connections for this type of service.`, ErrCode.ForbiddenUser);
@@ -128,7 +111,7 @@ export class ConnectionManager extends EventEmitter {
             return;
         }
 
-        const connectionType = ConnectionManager.connectionTypes.find(c => c.EventTypes.includes(state.type));
+        const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(state.type));
         if (connectionType) {
             this.assertStateAllowed(state, connectionType.ServiceCategory);
             return connectionType.createConnectionForState(roomId, state, {
@@ -141,7 +124,6 @@ export class ConnectionManager extends EventEmitter {
                 github: this.github,
             });
         }
-
 
         if (GitHubRepoConnection.EventTypes.includes(state.type)) {
             if (!this.github || !this.config.github) {
@@ -450,7 +432,7 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Get a list of possible targets for a given connection type when provisioning
      * @param userId 
-     * @param arg1 
+     * @param type 
      */
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
         if (type === GitLabRepoConnection.CanonicalEventType) {
