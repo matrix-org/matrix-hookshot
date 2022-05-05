@@ -24,6 +24,8 @@ export interface GitLabRepoConnectionState extends IConnectionState {
 const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
+const PUSH_MAX_COMMITS = 5;
+
 /**
  * Handles rooms connected to a github repo.
  */
@@ -226,9 +228,8 @@ export class GitLabRepoConnection extends CommandConnection {
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
         const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
 
-        const maxCommits = 5;
-        const tooManyCommits = event.total_commits_count > maxCommits;
-        const displayedCommits = tooManyCommits ? 1 : maxCommits;
+        const tooManyCommits = event.total_commits_count > PUSH_MAX_COMMITS;
+        const displayedCommits = tooManyCommits ? 1 : PUSH_MAX_COMMITS;
         
         // Take the top 5 commits. The array is ordered in reverse.
         const commits = event.commits.reverse().slice(0,displayedCommits).map(commit => {
