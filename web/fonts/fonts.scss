@@ -14,8 +14,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 400;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-Regular.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-Regular.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-Regular.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-Regular.woff?v=3.18") format("woff");
 }
 @font-face {
     font-family: 'Inter';
@@ -23,8 +23,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 400;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-Italic.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-Italic.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-Italic.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-Italic.woff?v=3.18") format("woff");
 }
 
 @font-face {
@@ -33,8 +33,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 500;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-Medium.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-Medium.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-Medium.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-Medium.woff?v=3.18") format("woff");
 }
 @font-face {
     font-family: 'Inter';
@@ -42,8 +42,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 500;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-MediumItalic.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-MediumItalic.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-MediumItalic.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-MediumItalic.woff?v=3.18") format("woff");
 }
 
 @font-face {
@@ -52,8 +52,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 600;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-SemiBold.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-SemiBold.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-SemiBold.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-SemiBold.woff?v=3.18") format("woff");
 }
 @font-face {
     font-family: 'Inter';
@@ -61,8 +61,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 600;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-SemiBoldItalic.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-SemiBoldItalic.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-SemiBoldItalic.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-SemiBoldItalic.woff?v=3.18") format("woff");
 }
 
 @font-face {
@@ -71,8 +71,8 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 700;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-Bold.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-Bold.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-Bold.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-Bold.woff?v=3.18") format("woff");
 }
 @font-face {
     font-family: 'Inter';
@@ -80,6 +80,6 @@ $inter-unicode-range: U+0000-20e2,U+20e4-23ce,U+23d0-24c1,U+24c3-259f,U+25c2-266
     font-weight: 700;
     font-display: swap;
     unicode-range: $inter-unicode-range;
-    src: url("./fonts/Inter/Inter-BoldItalic.woff2?v=3.18") format("woff2"),
-        url("./fonts/Inter/Inter-BoldItalic.woff?v=3.18") format("woff");
+    src: url("./Inter/Inter-BoldItalic.woff2?v=3.18") format("woff2"),
+        url("./Inter/Inter-BoldItalic.woff?v=3.18") format("woff");
 }

@@ -7,6 +7,10 @@ import { ConnectionCard } from "./ConnectionCard";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
 
+import GitHubIcon from "../icons/github.png";
+import GitLabIcon from "../icons/gitlab.png";
+import WebhookIcon from "../icons/webhook.png";
+
 
 interface IProps {
     widgetApi: WidgetApi,
