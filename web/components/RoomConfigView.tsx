@@ -6,6 +6,7 @@ import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
+import { GitHubRepoConfig } from "./roomConfig/GitHubRepoConfig";
 
 
 interface IProps {
@@ -16,7 +17,7 @@ interface IProps {
 }
 
 export default function RoomConfigView(props: IProps) {
-    const [ activeConnectionType, setActiveConnectionType ] = useState<null|"generic"|"gitlab">(null);
+    const [ activeConnectionType, setActiveConnectionType ] = useState<null|"generic"|"gitlab"|"github">(null);
 
     let content;
 
@@ -24,24 +25,25 @@ export default function RoomConfigView(props: IProps) {
         content = <>
             {activeConnectionType === "generic" && <GenericWebhookConfig roomId={props.roomId} api={props.bridgeApi} />}
             {activeConnectionType === "gitlab" && <GitlabRepoConfig roomId={props.roomId} api={props.bridgeApi} />}
+            {activeConnectionType === "github" && <GitHubRepoConfig roomId={props.roomId} api={props.bridgeApi} />}
         </>;
     } else {
         content = <>
             <section>
                 <h2> Integrations </h2>
-                {props.supportedServices["generic"] && <ConnectionCard
-                    imageSrc="./icons/webhook.png"
-                    serviceName="Generic Webhook"
-                    description="Create a webhook which can be used to connect any service to Matrix"
-                    onClick={() => setActiveConnectionType("generic")}
+                {props.supportedServices.github && <ConnectionCard
+                    imageSrc="./icons/github.png"
+                    serviceName="GitHub"
+                    description="Connect the room to a GitHub repository"
+                    onClick={() => setActiveConnectionType("github")}
                 />}
-                {props.supportedServices["gitlab"] && <ConnectionCard
+                {props.supportedServices.gitlab && <ConnectionCard
                     imageSrc="./icons/gitlab.png"
                     serviceName="GitLab"
                     description="Connect the room to a GitLab project"
                     onClick={() => setActiveConnectionType("gitlab")}
                 />}
-                {props.supportedServices["generic"] && <ConnectionCard
+                {props.supportedServices.generic && <ConnectionCard
                     imageSrc="./icons/webhook.png"
                     serviceName="Generic Webhook"
                     description="Create a webhook which can be used to connect any service to Matrix"
