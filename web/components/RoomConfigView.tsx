@@ -29,12 +29,6 @@ export default function RoomConfigView(props: IProps) {
         content = <>
             <section>
                 <h2> Integrations </h2>
-                {props.supportedServices["generic"] && <ConnectionCard
-                    imageSrc="./icons/webhook.png"
-                    serviceName="Generic Webhook"
-                    description="Create a webhook which can be used to connect any service to Matrix"
-                    onClick={() => setActiveConnectionType("generic")}
-                />}
                 {props.supportedServices["gitlab"] && <ConnectionCard
                     imageSrc="./icons/gitlab.png"
                     serviceName="GitLab"
