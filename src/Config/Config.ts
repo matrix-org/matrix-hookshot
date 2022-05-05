@@ -270,7 +270,8 @@ export class BridgeWidgetConfig {
     public readonly branding: {
         widgetTitle: string,
     }
-    @configKey("For testing only: A set of homeserver servernames mapped to their Server-Server API endpoints. This can be used if your local homeserver doesn't lookup via SRV or .well-known.")
+
+    @hideKey()
     public readonly openIdOverrides?: Record<string, URL>;
     constructor(yaml: BridgeWidgetConfigYAML) {
         this.addToAdminRooms = yaml.addToAdminRooms || false;

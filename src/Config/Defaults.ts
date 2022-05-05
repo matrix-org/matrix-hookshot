@@ -42,9 +42,6 @@ export const DefaultConfig = new BridgeConfig({
         branding: {
             widgetTitle: "Hookshot Configuration"
         },
-        openIdOverrides: {
-            "my-local-server": "http://localhost:8008"
-        }
     },
     bot: {
         displayname: "GitHub Bot",
