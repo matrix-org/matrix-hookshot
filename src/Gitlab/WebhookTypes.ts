@@ -95,6 +95,7 @@ export interface IGitLabWebhookPushEvent {
     ref: string;
     user_id: number;
     user_name: string;
+    user_email: string;
     project: IGitlabProject;
     repository: IGitlabRepository;
     commits: [{

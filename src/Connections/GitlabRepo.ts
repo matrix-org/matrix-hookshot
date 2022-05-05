@@ -226,10 +226,10 @@ export class GitLabRepoConnection extends CommandConnection {
         const branchname = event.ref.replace("refs/heads/", "");
         const commitsurl = `${event.project.homepage}/-/commits/${branchname}`;
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
-        const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
+        const shouldName = !event.commits.every(c => c.author.email === event.user_email);
 
         const tooManyCommits = event.total_commits_count > PUSH_MAX_COMMITS;
-        const displayedCommits = tooManyCommits ? 1 : PUSH_MAX_COMMITS;
+        const displayedCommits = tooManyCommits ? 1 : Math.min(event.total_commits_count, PUSH_MAX_COMMITS);
         
         // Take the top 5 commits. The array is ordered in reverse.
         const commits = event.commits.reverse().slice(0,displayedCommits).map(commit => {
@@ -239,13 +239,13 @@ export class GitLabRepoConnection extends CommandConnection {
         let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
         + ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
 
-        if (event.commits.length >= 2) {
+        if (displayedCommits >= 2) {
             content += `\n - ${commits}\n`;
-        } else if (event.commits.length === 1) {
-            content += ` - ${commits}`;
+        } else if (displayedCommits === 1) {
+            content += `: ${commits}`;
         }
         if (tooManyCommits) {
-            content += `. View [${event.total_commits_count - 1} more](${commitsurl}).`;
+            content += `, and [${event.total_commits_count - 1} more](${commitsurl}) commits`;
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
