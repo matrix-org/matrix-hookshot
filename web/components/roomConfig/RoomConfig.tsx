@@ -2,7 +2,7 @@ import { h, FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { ListItem } from "../ListItem";
 import BridgeAPI from "../../BridgeAPI";
-import ErrorPane from "../ErrorPane";
+import { ErrorPane } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 

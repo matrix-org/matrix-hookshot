@@ -3,10 +3,7 @@ import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
 import BridgeAPI from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
-import InputField from "../InputField";
-import ButtonSet from "../ButtonSet";
-import { Button } from "../Button";
-import ErrorPane from "../ErrorPane";
+import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
 
