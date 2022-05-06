@@ -170,22 +170,23 @@ export interface IGitLabWebhookReleaseEvent {
     }
 }
 
+export interface IGitLabNote {
+    id: number;
+    note: string;
+    noteable_type: 'MergeRequest';
+    author_id: number;
+    noteable_id: number;
+    description: string;
+}
+
 export interface IGitLabWebhookNoteEvent {
     user: IGitlabUser;
     event_type: string;
     project: IGitlabProject;
-    issue: IGitlabIssue;
-    repository: {
-        name: string;
-        url: string;
-        description: string;
-        homepage: string;
-    };
-    object_attributes: {
-        id: number;
-        noteable_id: number;
-        description: string;
-    }
+    issue?: IGitlabIssue;
+    repository: IGitlabRepository;
+    object_attributes: IGitLabNote;
+    merge_request?: IGitlabMergeRequest;
 }
 export interface IGitLabWebhookIssueStateEvent {
     user: IGitlabUser;

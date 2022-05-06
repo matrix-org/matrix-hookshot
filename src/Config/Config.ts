@@ -8,6 +8,7 @@ import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
+import { ApiError, ErrCode } from "../api";
 
 const log = new LogWrapper("Config");
 
@@ -162,6 +163,7 @@ export interface GitLabInstance {
 
 export interface BridgeConfigGitLabYAML {
     webhook: {
+        publicUrl?: string;
         secret: string;
     },
     instances: {[name: string]: GitLabInstance};
@@ -171,6 +173,7 @@ export interface BridgeConfigGitLabYAML {
 export class BridgeConfigGitLab {
     readonly instances: {[name: string]: GitLabInstance};
     readonly webhook: {
+        publicUrl?: string;
         secret: string;
     };
 
@@ -182,6 +185,28 @@ export class BridgeConfigGitLab {
         this.webhook = yaml.webhook;
         this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
     }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+        }
+    }
+
+
+    public getInstanceByProjectUrl(url: string): {name: string, instance: GitLabInstance}|null {
+        for (const [name, instance] of Object.entries(this.instances)) {
+            if (url.startsWith(instance.url)) {
+                return {name, instance};
+            }
+        }
+        return null;
+    }
+}
+
+export interface BridgeConfigFeeds {
+    enabled: boolean;
+    pollIntervalSeconds: number;
 }
 
 export interface BridgeConfigFigma {
@@ -323,6 +348,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
+    feeds?: BridgeConfigFeeds;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHub;
     gitlab?: BridgeConfigGitLabYAML;
@@ -362,6 +388,8 @@ export class BridgeConfig {
     public readonly generic?: BridgeConfigGenericWebhooks;
     @configKey("Configure this to enable Figma support", true)
     public readonly figma?: BridgeConfigFigma;
+    @configKey("Configure this to enable RSS/Atom feed support", true)
+    public readonly feeds?: BridgeConfigFeeds;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
@@ -395,6 +423,7 @@ export class BridgeConfig {
         this.figma = configData.figma;
         this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
+        this.feeds = configData.feeds;
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
@@ -428,8 +457,8 @@ export class BridgeConfig {
             log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
         }
 
-        if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma) {
-            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma or generic hooks must be configured");
+        if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma && !this.feeds) {
+            throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma, feeds or generic hooks must be configured");
         }
 
         // TODO: Formalize env support
@@ -515,6 +544,25 @@ export class BridgeConfig {
 
     public checkPermission(mxid: string, service: string, permission: BridgePermissionLevel) {
         return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
+    }
+
+    public getPublicConfigForService(serviceName: string): Record<string, unknown> {
+        let config: undefined|Record<string, unknown>;
+        switch (serviceName) {
+            case "generic":
+                config = this.generic?.publicConfig;
+                break;
+            case "gitlab":
+                config = this.gitlab?.publicConfig;
+                break;
+            default:
+                throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);
+        }
+
+        if (!config) {
+            throw new ApiError("Service is not enabled", ErrCode.DisabledFeature);
+        }
+        return config;
     }
 
     static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {

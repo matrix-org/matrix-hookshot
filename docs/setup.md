@@ -103,6 +103,7 @@ Each permission set can have a services. The `service` field can be:
 - `github`
 - `gitlab`
 - `jira`
+- `feed`
 - `figma`
 - `webhooks`
 - `*`, for any service.
@@ -204,6 +205,7 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
 
 You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.
 
+- [Feeds](./setup/feeds.md)
 - [Figma](./setup/figma.md)
 - [GitHub](./setup/github.md)
 - [GitLab](./setup/gitlab.md)

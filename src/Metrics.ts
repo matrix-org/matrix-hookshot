@@ -11,6 +11,8 @@ export class Metrics {
     public readonly provisioningHttpRequest = new Counter({ name: "hookshot_provisioning_http_request", help: "Number of requests made to the hookshot webhooks handler", labelNames: ["path", "method"], registers: [this.registry]});
 
     public readonly messageQueuePushes = new Counter({ name: "hookshot_queue_event_pushes", help: "Number of events pushed through the queue", labelNames: ["event"], registers: [this.registry]});
+    public readonly connectionsEventFailed = new Counter({ name: "hookshot_connection_event_failed", help: "The number of events that failed to process", labelNames: ["event", "connectionId"], registers: [this.registry]});
+    public readonly connections = new Gauge({ name: "hookshot_connections", help: "The number of active hookshot connections", labelNames: ["service"], registers: [this.registry]});
 
     public readonly notificationsPush = new Counter({ name: "hookshot_notifications_push", help: "Number of notifications pushed", labelNames: ["service"], registers: [this.registry]});
     public readonly notificationsServiceUp = new Gauge({ name: "hookshot_notifications_service_up", help: "Is the notification service up or down", labelNames: ["service"], registers: [this.registry]});
@@ -20,6 +22,10 @@ export class Metrics {
     private readonly matrixApiCallsFailed = new Counter({ name: "matrix_api_calls_failed", help: "The number of Matrix client API calls which failed", labelNames: ["method"], registers: [this.registry]});
 
     public readonly matrixAppserviceEvents = new Counter({ name: "matrix_appservice_events", help: "The number of events sent over the AS API", labelNames: [], registers: [this.registry]});
+
+    public readonly feedsCount = new Gauge({ name: "feed_count", help: "The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
+    public readonly feedFetchMs = new Gauge({ name: "feed_fetch_ms", help: "The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
+
 
     constructor(private registry: Registry = register) {
         this.expressRouter.get('/metrics', this.metricsFunc.bind(this));

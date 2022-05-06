@@ -76,6 +76,7 @@ export const DefaultConfig = new BridgeConfig({
         },
         webhook: {
             secret: "secrettoken",
+            publicUrl: "https://example.com/hookshot/"
         },
         userIdPrefix: "_gitlab_",
     },
@@ -105,6 +106,10 @@ export const DefaultConfig = new BridgeConfig({
                 passcode: "your-webhook-passcode",
             }
         }
+    },
+    feeds: {
+        enabled: false,
+        pollIntervalSeconds: 600,
     },
     provisioning: {
         secret: "!secretToken"

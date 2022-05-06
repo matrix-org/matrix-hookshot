@@ -10,7 +10,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
@@ -42,6 +42,7 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { CLOUD_INSTANCE } from "./Jira/Client";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
+import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -71,6 +72,7 @@ export class Bridge {
             this.storage = new MemoryStorageProvider();
         }
         this.as = getAppservice(this.config, this.registration, this.storage);
+        Metrics.registerMatrixSdkMetrics(this.as);
         this.queue = createMessageQueue(this.config);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
@@ -136,6 +138,16 @@ export class Bridge {
         await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
+
+        if (this.config.feeds?.enabled) {
+            new FeedReader(
+                this.config.feeds,
+                this.connectionManager,
+                this.queue,
+                this.as.botClient,
+            );
+        }
+
     
         if (this.config.provisioning) {
             const routers = [];
@@ -195,6 +207,7 @@ export class Bridge {
         this.queue.subscribe("gitlab.*");
         this.queue.subscribe("jira.*");
         this.queue.subscribe("figma.*");
+        this.queue.subscribe("feed.*");
 
         const validateRepoIssue = (data: GitHubWebhookTypes.IssuesEvent|GitHubWebhookTypes.IssueCommentEvent) => {
             if (!data.repository || !data.issue) {
@@ -398,9 +411,14 @@ export class Bridge {
             } as GitHubOAuthToken));
         });
 
-        this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection>(
+        this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
             "gitlab.note.created",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.issue.iid), 
+            (data) => { 
+                const iid = data.issue?.iid || data.merge_request?.iid;
+                return [
+                    ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []), 
+                    ...connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+                ]},
             (c, data) => c.onCommentCreated(data),
         );
 
@@ -539,31 +557,48 @@ export class Bridge {
                 });
             }
 
-            const promises = Promise.all(connections.map(async (c, index) => {
-                // TODO: Support webhook responses to more than one room
-                if (index !== 0) {
-                    await c.onGenericHook(data.hookData);
-                    return;
+            let didPush = false;
+            await Promise.all(connections.map(async (c, index) => {
+                try {
+                    // TODO: Support webhook responses to more than one room
+                    if (index !== 0) {
+                        await c.onGenericHook(data.hookData);
+                        return;
+                    }
+                    let successful: boolean|null = null;
+                    if (this.config.generic?.waitForComplete) {
+                        successful = await c.onGenericHook(data.hookData);
+                    }
+                    await this.queue.push<GenericWebhookEventResult>({
+                        data: {successful},
+                        sender: "Bridge",
+                        messageId,
+                        eventName: "response.generic-webhook.event",
+                    });
+                    didPush = true;
+                    if (!this.config.generic?.waitForComplete) {
+                        await c.onGenericHook(data.hookData);
+                    }
                 }
-                let successful: boolean|null = null;
-                if (this.config.generic?.waitForComplete) {
-                    successful = await c.onGenericHook(data.hookData);
+                catch (ex) {
+                    log.warn(`Failed to handle generic webhook`, ex);
+                    Metrics.connectionsEventFailed.inc({
+                        event: "generic-webhook.event",
+                        connectionId: c.connectionId
+                    });
                 }
+            }));
+
+            // We didn't manage to complete sending the event or even sending a failure.
+            if (!didPush) {
                 await this.queue.push<GenericWebhookEventResult>({
-                    data: {successful},
+                    data: {
+                        successful: false
+                    },
                     sender: "Bridge",
                     messageId,
                     eventName: "response.generic-webhook.event",
                 });
-                if (!this.config.generic?.waitForComplete) {
-                    await c.onGenericHook(data.hookData);
-                }
-            }));
-            
-            try {
-                await promises;
-            } catch (ex) {
-                log.warn(`Failed to handle generic webhooks(s)`, ex);
             }
         });
 
@@ -572,6 +607,17 @@ export class Bridge {
             (data) => connManager.getForFigmaFile(data.payload.file_key, data.instanceName),
             (c, data) => c.handleNewComment(data.payload),
         )
+
+        this.bindHandlerToQueue<FeedEntry, FeedConnection>(
+            "feed.entry",
+            (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
+            (c, data) => c.handleFeedEntry(data),
+        );
+        this.bindHandlerToQueue<FeedError, FeedConnection>(
+            "feed.error",
+            (data) => connManager.getConnectionsForFeedUrl(data.url),
+            (c, data) => c.handleFeedError(data),
+        );
 
         // Set the name and avatar of the bot
         if (this.config.bot) {
@@ -685,6 +731,7 @@ export class Bridge {
                 try {
                     await handler(connection, msg.data);
                 } catch (ex) {
+                    Metrics.connectionsEventFailed.inc({ event, connectionId: connection.connectionId });
                     log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
                 }
             })

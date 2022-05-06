@@ -44,6 +44,7 @@ gitlab:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
+    publicUrl: https://example.com/hookshot/
   userIdPrefix:
     # (Optional) Prefix used when creating ghost users for GitLab accounts.
     #
@@ -80,6 +81,11 @@ generic:
   userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
   waitForComplete: false
+feeds:
+  # (Optional) Configure this to enable RSS/Atom feed support
+  #
+  enabled: false
+  pollIntervalSeconds: 600
 provisioning:
   # (Optional) Provisioning API for integration managers
   #

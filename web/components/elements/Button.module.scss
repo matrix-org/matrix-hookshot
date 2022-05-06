@@ -15,6 +15,10 @@
     cursor: pointer;
 }
 
+.button:disabled {
+    background-color:  var(--primary-color-disabled);
+}
+
 .remove {
     color: #FF5B55;
     background-color: transparent;

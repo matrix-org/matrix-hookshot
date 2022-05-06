@@ -346,12 +346,11 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
         const instance = this.config.gitlab.instances[instanceName];
         if (!instance) {
-            return this.sendNotice("The bridge is not configured for this GitLab instance.");
+            return this.sendNotice("The bridge is not configured for this GitLab instance. Ask your administrator for a list of instances.");
         }
         try {
             const client = new GitLabClient(instance.url, accessToken);
             me = await client.user();
-            client.issues
         } catch (ex) {
             log.error("Gitlab auth error:", ex);
             return this.sendNotice("Could not authenticate with GitLab. Is your token correct?");

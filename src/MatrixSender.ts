@@ -5,6 +5,7 @@ import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matr
 import LogWrapper from "./LogWrapper";
 import { v4 as uuid } from "uuid";
 import { getAppservice } from "./appservice";
+import Metrics from "./Metrics";
 
 export interface IMatrixSendMessage {
     sender: string|null;
@@ -30,6 +31,7 @@ export class MatrixSender {
     constructor(private config: BridgeConfig, registration: IAppserviceRegistration) {
         this.mq = createMessageQueue(this.config);
         this.as = getAppservice(config, registration, new MemoryStorageProvider());
+        Metrics.registerMatrixSdkMetrics(this.as);
     }
 
     public listen() {

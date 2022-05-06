@@ -870,7 +870,6 @@ ${event.release.body}`;
             format: "org.matrix.custom.html",
         });
     }
-
     public async onEvent(evt: MatrixEvent<unknown>) {
         const octokit = await this.tokenStore.getOctokitForUser(evt.sender);
         if (!octokit) {

@@ -126,4 +126,9 @@ export default class BridgeAPI {
     removeConnection(roomId: string, connectionId: string) {
         return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
     }
+
+    getConnectionTargets<R>(type: string, filters?: unknown): Promise<R[]> {
+        const searchParams = filters && new URLSearchParams(filters as Record<string, string>);
+        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? '?' : ''}${searchParams}`);
+    }
 }

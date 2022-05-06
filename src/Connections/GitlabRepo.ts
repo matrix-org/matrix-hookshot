@@ -6,25 +6,111 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
-import { GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
+import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { IConnectionState } from "./IConnection";
+import { GetConnectionsResponseItem } from "../provisioning/api";
+import { ErrCode, ApiError } from "../api"
+import { AccessLevel } from "../Gitlab/Types";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
-    ignoreHooks?: string[],
+    ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     pushTagsRegex?: string,
     includingLabels?: string[];
     excludingLabels?: string[];
 }
 
+
+export interface GitLabRepoConnectionInstanceTarget {
+    name: string;
+}
+export interface GitLabRepoConnectionProjectTarget {
+    state: GitLabRepoConnectionState;
+    name: string;
+}
+
+export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitLabRepoConnectionProjectTarget;
+
 const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
 const PUSH_MAX_COMMITS = 5;
+const MRRCOMMENT_DEBOUNCE_MS = 5000;
+
+
+export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState, undefined>;
+
+
+type AllowedEventsNames = 
+    "merge_request.open" |
+    "merge_request.close" |
+    "merge_request.merge" |
+    "merge_request.review" |
+    "merge_request.review.comments" |
+    `merge_request.${string}` |
+    "merge_request" |
+    "tag_push" | 
+    "push" |
+    "wiki" |
+    `wiki.${string}` |
+    "release" |
+    "release.created";
+
+const AllowedEvents: AllowedEventsNames[] = [
+    "merge_request.open",
+    "merge_request.close",
+    "merge_request.merge",
+    "merge_request.review",
+    "merge_request.review.comments",
+    "merge_request",
+    "tag_push",
+    "push",
+    "wiki",
+    "release",
+    "release.created",
+];
+
+export interface GitLabTargetFilter {
+    instance?: string;
+    parent?: string;
+    after?: string;
+    search?: string;
+}
+
+
+function validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
+    if (typeof state.instance !== "string") {
+        throw new ApiError("Expected a 'instance' property", ErrCode.BadValue);
+    }
+    if (typeof state.path !== "string") {
+        throw new ApiError("Expected a 'path' property", ErrCode.BadValue);
+    }
+    const res: GitLabRepoConnectionState = {
+        instance: state.instance,
+        path: state.path,
+    }
+    if (state.commandPrefix) {
+        if (typeof state.commandPrefix !== "string") {
+            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
+        } else if (state.commandPrefix.length >= 2 || state.commandPrefix.length <= 24) {
+            res.commandPrefix = state.commandPrefix;
+        } else if (state.commandPrefix.length > 0) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
+        }
+        // Otherwise empty string, ignore.
+    }
+    if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
+        if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
+            throw new ApiError(`'events' can only contain ${AllowedEvents.join(", ")}`, ErrCode.BadValue);
+        }
+        res.ignoreHooks = state.ignoreHooks;
+    }
+    return res;
+}
 
 /**
  * Handles rooms connected to a github repo.
@@ -40,6 +126,102 @@ export class GitLabRepoConnection extends CommandConnection {
     
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
+
+    private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
+
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instanceName: string, gitlabConfig: BridgeConfigGitLab) {
+        const validData = validateState(data);
+        const instance = gitlabConfig.instances[instanceName];
+        if (!instance) {
+            throw Error(`provisionConnection provided an instanceName of ${instanceName} but the instance does not exist`);
+        }
+        const client = await tokenStore.getGitLabForUser(requester, instance.url);
+        if (!client) {
+            throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);
+        }
+        let permissionLevel;
+        let project;
+        try {
+            project = await client.projects.get(validData.path);
+            permissionLevel = Math.max(project.permissions.group_access?.access_level || 0, project.permissions.project_access?.access_level || 0) as AccessLevel;
+        } catch (ex) {
+            throw new ApiError("Could not determine if the user has access to this project, does the project exist?", ErrCode.ForbiddenUser);
+        }
+
+        if (permissionLevel < AccessLevel.Developer) {
+            throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
+        }
+
+        // Try to setup a webhook
+        if (gitlabConfig.webhook.publicUrl) {
+            const hooks = await client.projects.hooks.list(project.id);
+            const hasHook = hooks.find(h => h.url === gitlabConfig.webhook.publicUrl);
+            if (!hasHook) {
+                log.info(`Creating webhook for ${validData.path}`);
+                await client.projects.hooks.add(project.id, {
+                    url: gitlabConfig.webhook.publicUrl,
+                    token: gitlabConfig.webhook.secret,
+                    enable_ssl_verification: true,
+                    // TODO: Determine which of these actually interests the user.
+                    issues_events: true,
+                    merge_requests_events: true,
+                    push_events: true,
+                    releases_events: true,
+                    tag_push_events: true,
+                    wiki_page_events: true,
+                });
+            }
+        } else {
+            log.info(`Not creating webhook, webhookUrl is not defined in config`);
+        }
+
+        const stateEventKey = `${validData.instance}/${validData.path}`;
+        return {
+            stateEventContent: validData,
+            connection: new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance),
+        }
+    }
+
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "gitlab",
+            eventType: GitLabRepoConnection.CanonicalEventType,
+            type: "GitLabRepo",
+            botUserId,
+        }
+    }
+
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitLab, filters: GitLabTargetFilter = {}): Promise<GitLabRepoConnectionTarget[]> {
+        // Search for all repos under the user's control.
+
+        if (!filters.instance) {
+            const results: GitLabRepoConnectionInstanceTarget[] = [];
+            for (const [name, instance] of Object.entries(config.instances)) {
+                const client = await tokenStore.getGitLabForUser(userId, instance.url);
+                if (client) {
+                    results.push({
+                        name,
+                    } as GitLabRepoConnectionInstanceTarget);
+                }
+            }
+            return results;
+        }
+        // If we have an instance, search under it.
+        const instanceUrl = config.instances[filters.instance]?.url;
+        const client = instanceUrl && await tokenStore.getGitLabForUser(userId, instanceUrl);
+        if (!client) {
+            throw new ApiError('Instance is not known or you do not have access to it.', ErrCode.NotFound);
+        }
+        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10); 
+        const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, after, filters.search);
+        return allProjects.map(p => ({
+            state: {
+                instance: filters.instance,
+                path: p.path_with_namespace,
+            },
+            name: p.name,
+        })) as GitLabRepoConnectionProjectTarget[];
+    }
 
     constructor(roomId: string,
         stateKey: string,
@@ -79,6 +261,16 @@ export class GitLabRepoConnection extends CommandConnection {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
+    public getProvisionerDetails() {
+        return {
+            ...GitLabRepoConnection.getProvisionerDetails(this.as.botUserId),
+            id: this.connectionId,
+            config: {
+                ...this.state,
+            },
+        }
+    }
+
     @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
     public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
@@ -87,7 +279,7 @@ export class GitLabRepoConnection extends CommandConnection {
             throw Error('Not logged in');
         }
         const res = await client.issues.create({
-            id: encodeURIComponent(this.path),
+            id: this.path,
             title,
             description,
             labels: labels ? labels.split(",") : undefined,
@@ -111,7 +303,7 @@ export class GitLabRepoConnection extends CommandConnection {
         }
 
         await client.issues.edit({
-            id: encodeURIComponent(this.state.path),
+            id: this.state.path,
             issue_iid: number,
             state_event: "close",
         });
@@ -128,7 +320,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.open') || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -144,7 +336,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.close') || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -160,7 +352,7 @@ export class GitLabRepoConnection extends CommandConnection {
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
         log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
-        if (this.shouldSkipHook('merge_request.merge') || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
         this.validateMREvent(event);
@@ -175,7 +367,7 @@ export class GitLabRepoConnection extends CommandConnection {
     }
 
     public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
@@ -300,6 +492,60 @@ ${data.description}`;
         });
     }
 
+    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
+            return;
+        }
+        log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
+        const uniqueId = `${event.merge_request?.iid}/${event.object_attributes.author_id}`;
+
+        if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
+            // Not a MR comment
+            return;
+        }
+
+        if (event.object_attributes.author_id === event.merge_request.author_id) {
+            // If it's the same author, ignore
+            return;
+        }
+
+        const mergeRequest = event.merge_request;
+
+        const renderFn = () => {
+            const result = this.debounceMRComments.get(uniqueId);
+            if (!result) {
+                // Always defined, but for type checking purposes.
+                return;
+            }
+            const orgRepoName = event.project.path_with_namespace;
+            const comments = result.comments !== 1 ? `${result.comments} comments` : '1 comment';
+            const content = `**${result.author}** reviewed MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}" with ${comments}`;
+            this.as.botIntent.sendEvent(this.roomId, {
+                msgtype: "m.notice",
+                body: content,
+                formatted_body: md.renderInline(content),
+                format: "org.matrix.custom.html",
+            }).catch(ex  => {
+                log.error('Failed to send onCommentCreated message', ex);
+            });
+        };
+
+        const existing = this.debounceMRComments.get(uniqueId);
+        if (existing) {
+            clearTimeout(existing.timeout);
+            existing.comments = existing.comments + 1;
+            existing.timeout = setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS);
+        } else {
+            this.debounceMRComments.set(uniqueId, {
+                comments: 1,
+                author: event.user.name,
+                timeout: setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS),
+            })
+        }
+
+    }
+
+
     public toString() {
         return `GitLabRepo ${this.instance.url}/${this.path}`;
     }
@@ -317,7 +563,7 @@ ${data.description}`;
         return true;
     }
 
-    private shouldSkipHook(...hookName: string[]) {
+    private shouldSkipHook(...hookName: AllowedEventsNames[]) {
         if (this.state.ignoreHooks) {
             for (const name of hookName) {
                 if (this.state.ignoreHooks?.includes(name)) {
@@ -326,6 +572,26 @@ ${data.description}`;
             }
         }
         return false;
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig
+        );
+    }
+
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+        // TODO: Clean up webhooks
     }
 }
 
