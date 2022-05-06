@@ -1,3 +1,12 @@
+1.6.1 (2022-05-06)
+==================
+
+Bugfixes
+--------
+
+- Fix a bug where widgets would not load if hosted on a subpath (e.g. `/hookshot` instead of `/`) ([\#340](https://github.com/matrix-org/matrix-hookshot/issues/340))
+
+
 1.6.0 (2022-05-06)
 ==================
 
