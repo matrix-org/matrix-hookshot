@@ -4,9 +4,9 @@ import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import LogWrapper from "./LogWrapper";
-import { CLOUD_INSTANCE, isJiraCloudInstance, JiraClient } from "./Jira/Client";
+import { isJiraCloudInstance, JiraClient } from "./Jira/Client";
 import { JiraStoredToken } from "./Jira/Types";
-import { BridgeConfig, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
+import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
 import { v4 as uuid } from "uuid";
 import { GitHubOAuthToken } from "./Github/Types";
 import { ApiError, ErrCode } from "./api";
@@ -202,15 +202,15 @@ export class UserTokenStore {
             throw Error('Jira not configured');
         }
 
-        let instance = instanceUrl ? new URL(instanceUrl).host : CLOUD_INSTANCE;
+        let instance = instanceUrl && new URL(instanceUrl).host;
 
-        if (isJiraCloudInstance(instance)) {
-            instance = CLOUD_INSTANCE;
+        if (!instance || isJiraCloudInstance(instance)) {
+            instance = BridgeConfigJira.CLOUD_INSTANCE_NAME;
         }
 
         let jsonData = await this.getUserToken("jira", userId, instance);
         // XXX: Legacy fallback
-        if (!jsonData && instance === CLOUD_INSTANCE) {
+        if (!jsonData && instance === BridgeConfigJira.CLOUD_INSTANCE_NAME) {
             jsonData = await this.getUserToken("jira", userId);
         }
         if (!jsonData) {
@@ -219,9 +219,9 @@ export class UserTokenStore {
         const storedToken = JSON.parse(jsonData) as JiraStoredToken;
         if (!storedToken.instance) {
             // Legacy stored tokens don't include the cloud instance string.
-            storedToken.instance = CLOUD_INSTANCE;
+            storedToken.instance = BridgeConfigJira.CLOUD_INSTANCE_NAME;
         }
-        if (storedToken.instance === CLOUD_INSTANCE) {
+        if (storedToken.instance === BridgeConfigJira.CLOUD_INSTANCE_NAME) {
             return new JiraCloudClient(storedToken, (data) => {
                 return this.storeJiraToken(userId, data);
             }, this.config.jira, instance);

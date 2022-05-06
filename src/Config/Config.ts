@@ -355,11 +355,11 @@ export interface BridgeConfigRoot {
     figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeeds;
     generic?: BridgeGenericWebhooksConfigYAML;
-    github?: BridgeConfigGitHub;
+    github?: BridgeConfigGitHubYAML;
     gitlab?: BridgeConfigGitLabYAML;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
-    jira?: BridgeConfigJira;
+    jira?: BridgeConfigJiraYAML;
     logging: BridgeConfigLogging;
     passFile: string;
     queue: BridgeConfigQueue;
