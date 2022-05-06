@@ -4,6 +4,7 @@ import BridgeAPI from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
+import GitLabIcon from "../../icons/gitlab.png";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
 
@@ -190,7 +191,7 @@ const RoomConfigListItemFunc = (c: GitLabRepoResponseItem) => c.config.path;
 
 export const GitlabRepoConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
     return <RoomConfig<never, GitLabRepoResponseItem, GitLabRepoConnectionState>
-        headerImg="./icons/gitlab.png"
+        headerImg={GitLabIcon}
         api={api}
         roomId={roomId}
         type="gitlab"
