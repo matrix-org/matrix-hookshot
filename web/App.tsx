@@ -3,7 +3,7 @@ import { h, Component } from 'preact';
 import WA from 'matrix-widget-api';
 import BridgeAPI, { BridgeAPIError } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
-import ErrorPane from './components/elements';
+import { ErrorPane } from './components/elements';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
 
