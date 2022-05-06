@@ -16,7 +16,7 @@ RUN node node_modules/esbuild/install.js
 RUN yarn build --pure-lockfile
 
 # Stage 1: The actual container
-FROM node:16
+FROM node:16-slim
 
 COPY --from=builder /src/lib/ /bin/matrix-hookshot/
 COPY --from=builder /src/public/ /bin/matrix-hookshot/public/
