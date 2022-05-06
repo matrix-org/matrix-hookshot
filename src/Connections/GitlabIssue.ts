@@ -1,5 +1,5 @@
-import { IConnection } from "./IConnection";
-import { Appservice } from "matrix-bot-sdk";
+import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
@@ -33,19 +33,34 @@ const log = new LogWrapper("GitLabIssueConnection");
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitLabIssueConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.issue";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.issue";
-
     static readonly EventTypes = [
         GitLabIssueConnection.CanonicalEventType,
         GitLabIssueConnection.LegacyCanonicalEventType,
     ];
-
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
+    static readonly ServiceCategory = "gitlab";
 
     static getTopicString(authorName: string, state: string) {
         `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
+    }
+
+    public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
+        config, as, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts) {
+        if (!config.gitlab) {
+            throw Error('GitHub is not configured');
+        }
+        const instance = config.gitlab.instances[event.content.instance];
+        if (!instance) {
+            throw Error('Instance name not recognised');
+        }
+        return new GitLabIssueConnection(
+            roomId, as, event.content, event.stateKey || "", tokenStore,
+            commentProcessor, messageClient, instance, config.gitlab,
+        );
     }
 
     public static async createRoomForIssue(instanceName: string, instance: GitLabInstance,

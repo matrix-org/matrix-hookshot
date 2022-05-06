@@ -29,7 +29,7 @@ export class MatrixSender {
     private mq: MessageQueue;
     private as: Appservice;
     constructor(private config: BridgeConfig, registration: IAppserviceRegistration) {
-        this.mq = createMessageQueue(this.config);
+        this.mq = createMessageQueue(this.config.queue);
         this.as = getAppservice(config, registration, new MemoryStorageProvider());
         Metrics.registerMatrixSdkMetrics(this.as);
     }

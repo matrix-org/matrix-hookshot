@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Appservice, IRichReplyMetadata } from "matrix-bot-sdk";
+import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
-import { IConnection, IConnectionState } from "./IConnection";
+import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -148,9 +148,12 @@ function validateState(state: Record<string, unknown>): GitHubRepoConnectionStat
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitHubRepoConnection extends CommandConnection implements IConnection {
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, as: Appservice,
-        tokenStore: UserTokenStore, githubInstance: GithubInstance, config: BridgeConfigGitHub) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, tokenStore, github, config}: ProvisionConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
         const validData = validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
@@ -168,7 +171,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         if (permissionLevel !== "admin" && permissionLevel !== "write") {
             throw new ApiError("You must at least have write permissions to bridge this repository", ErrCode.ForbiddenUser);
         }
-        const appOctokit = await githubInstance.getSafeOctokitForRepo(validData.org, validData.repo);
+        const appOctokit = await github.getSafeOctokitForRepo(validData.org, validData.repo);
         if (!appOctokit) {
             throw new ApiError(
                 "You need to add a GitHub App to this organisation / repository before you can bridge it. Open the link to add the app, and then retry this request",
@@ -176,26 +179,33 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 -1,
                 {
                     // E.g. https://github.com/apps/matrix-bridge/installations/new
-                    installUrl: githubInstance.newInstallationUrl,
+                    installUrl: github.newInstallationUrl,
                 }
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
+        await as.botClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,
-            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, stateEventKey, githubInstance, config),
+            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, stateEventKey, github, config.github),
         }
     }
 
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.repository";
-
     static readonly EventTypes = [
         GitHubRepoConnection.CanonicalEventType,
         GitHubRepoConnection.LegacyCanonicalEventType,
     ];
-
+    static readonly ServiceCategory = "github";
     static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
+
+    static async createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
+        return new GitHubRepoConnection(roomId, as, validateState(state.content), tokenStore, state.stateKey, github, config.github);
+    }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
         const parts = result?.slice(1);

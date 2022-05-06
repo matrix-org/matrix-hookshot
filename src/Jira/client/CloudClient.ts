@@ -4,7 +4,7 @@ import QuickLRU from "@alloc/quick-lru";
 import { JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject, JiraCloudProjectSearchResponse, JiraStoredToken } from '../Types';
 import { BridgeConfigJira, BridgeConfigJiraCloudOAuth } from '../../Config/Config';
 import LogWrapper from '../../LogWrapper';
-import { CLOUD_INSTANCE, HookshotJiraApi, JiraClient } from '../Client';
+import { HookshotJiraApi, JiraClient } from '../Client';
 import JiraApi from 'jira-client';
 
 const log = new LogWrapper("JiraCloudClient");
@@ -129,7 +129,7 @@ export class JiraCloudClient implements JiraClient {
             expires_in: data.expires_in,
             refresh_token: data.refresh_token,
             access_token: data.access_token,
-            instance: CLOUD_INSTANCE,
+            instance: this.config.instanceName,
         };
         this.onTokenRefreshed(this.storedToken);
     }

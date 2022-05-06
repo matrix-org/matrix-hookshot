@@ -2,7 +2,6 @@ import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
 import LogWrapper from "../LogWrapper";
-import { CLOUD_INSTANCE } from "./Client";
 
 const log = new LogWrapper('JiraBotCommands');
 
@@ -25,7 +24,7 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
             this.sendNotice(`Bot is not configured with JIRA OAuth support.`);
             return;
         }
-        if (await this.tokenStore.clearUserToken("jira", this.userId, this.config.jira.url || CLOUD_INSTANCE)) {
+        if (await this.tokenStore.clearUserToken("jira", this.userId, this.config.jira.instanceName)) {
             return this.sendNotice(`Your JIRA account has been unlinked from your Matrix user.`);
         }
         return this.sendNotice(`No JIRA account was linked to your Matrix user.`);

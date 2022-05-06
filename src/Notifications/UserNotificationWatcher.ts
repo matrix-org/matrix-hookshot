@@ -26,7 +26,7 @@ export class UserNotificationWatcher {
     private queue: MessageQueue;
 
     constructor(private readonly config: BridgeConfig) {
-        this.queue = createMessageQueue(config);
+        this.queue = createMessageQueue(config.queue);
         this.matrixMessageSender = new MessageSenderClient(this.queue);
     }
 

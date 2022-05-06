@@ -1,5 +1,5 @@
-import { IConnection } from "./IConnection";
-import { Appservice, Space } from "matrix-bot-sdk";
+import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
+import { Appservice, Space, StateEvent } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
 import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
@@ -16,6 +16,7 @@ export interface GitHubUserSpaceConnectionState {
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitHubUserSpace extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.user.space";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.user.space";
@@ -25,6 +26,17 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
     ];
 
     static readonly QueryRoomRegex = /#github_(.+):.*/;
+    static readonly ServiceCategory = "github";
+
+    public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
+        github, config, as}: InstantiateConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
+        return new GitHubUserSpace(
+            await as.botClient.getSpace(roomId), event.content, event.stateKey
+        );
+    }
 
     static async onQueryRoom(result: RegExpExecArray, opts: {githubInstance: GithubInstance, as: Appservice}): Promise<Record<string, unknown>> {
         if (!result || result.length < 1) {

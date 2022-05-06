@@ -1,13 +1,10 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
-import { Appservice } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
 import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection } from ".";
 import { CommandError } from "../errors";
-import { UserTokenStore } from "../UserTokenStore";
-import { GithubInstance } from "../Github/GithubInstance";
 import { v4 as uuid } from "uuid";
-import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
+import { BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { FeedConnection } from "./FeedConnection";
@@ -15,6 +12,7 @@ import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
+import { ProvisionConnectionOpts } from "./IConnection";
 const md = new markdown();
 
 /**
@@ -26,17 +24,22 @@ export class SetupConnection extends CommandConnection {
     static botCommands: BotCommands;
     static helpMessage: HelpFunction;
 
+    private get config() {
+        return this.provisionOpts.config;
+    }
+
+    private get as() {
+        return this.provisionOpts.as;
+    }
+
     constructor(public readonly roomId: string,
-        private readonly as: Appservice,
-        private readonly tokenStore: UserTokenStore,
-        private readonly config: BridgeConfig,
-        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
-        private readonly githubInstance?: GithubInstance,) {
+        private readonly provisionOpts: ProvisionConnectionOpts,
+        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,) {
             super(
                 roomId,
                 "",
                 "",
-                as.botClient,
+                provisionOpts.as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,
                 "!hookshot",
@@ -55,13 +58,12 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("github repo", { help: "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this.)", requiredArgs: ["url"], includeUserId: true, category: "github"})
     public async onGitHubRepo(userId: string, url: string) {
-        if (!this.githubInstance || !this.config.github) {
+        if (!this.provisionOpts.github || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
         }
 
         await this.checkUserPermissions(userId, "github", GitHubRepoConnection.CanonicalEventType);
-
-        const octokit = await this.tokenStore.getOctokitForUser(userId);
+        const octokit = await this.provisionOpts.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
         }
@@ -70,9 +72,8 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid.");
         }
         const [, org, repo] = urlParts;
-        const res = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.as, this.tokenStore, this.githubInstance, this.config.github);
-        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, url, res.stateEventContent);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${org}/${repo}`);
+        const {connection} = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.provisionOpts);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.org}/${connection.repo}`);
     }
 
     @botCommand("gitlab project", { help: "Create a connection for a GitHub project. (You must be logged in with GitLab to do this.)", requiredArgs: ["url"], includeUserId: true, category: "gitlab"})
@@ -89,7 +90,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("not-configured", "No instance found that matches the provided URL.");
         }
 
-        const client = await this.tokenStore.getGitLabForUser(userId, instance.url);
+        const client = await this.provisionOpts.tokenStore.getGitLabForUser(userId, instance.url);
         if (!client) {
             throw new CommandError("User not logged in", "You are not logged into this GitLab instance. Start a DM with this bot and use the command `gitlab personaltoken`.");
         }
@@ -97,9 +98,8 @@ export class SetupConnection extends CommandConnection {
         if (!path) {
             throw new CommandError("Invalid GitLab url", "The GitLab project url you entered was not valid.");
         }
-        const res = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.as, this.tokenStore, name, this.config.gitlab);
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, url, res.stateEventContent);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${path}`);
+        const {connection} = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.path}`);
     }
 
     @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: "jira"})
@@ -111,7 +111,7 @@ export class SetupConnection extends CommandConnection {
 
         await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
 
-        const jiraClient = await this.tokenStore.getJiraForUser(userId, urlStr);
+        const jiraClient = await this.provisionOpts.tokenStore.getJiraForUser(userId, urlStr);
         if (!jiraClient) {
             throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
         }
@@ -121,8 +121,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`.");
         }
         const safeUrl = `https://${url.host}/projects/${projectKey}`;
-        const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.as, this.tokenStore);
-        await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, safeUrl, res.stateEventContent);
+        const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
     }
 
@@ -139,8 +138,7 @@ export class SetupConnection extends CommandConnection {
         }
         const hookId = uuid();
         const url = `${this.config.generic.urlPrefix}${this.config.generic.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
-        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.as, hookId, name);
-        await this.as.botClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {hookId, name});
+        await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
         const adminRoom = await this.getOrCreateAdminRoom(userId);
         await adminRoom.sendNotice(md.renderInline(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`));
         return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
@@ -159,7 +157,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid Figma url", "The Figma file url you entered was not valid. It should be in the format of `https://figma.com/file/FILEID/...`.");
         }
         const [, fileId] = res;
-        await this.as.botClient.sendStateEvent(this.roomId, FigmaFileConnection.CanonicalEventType, fileId, {fileId});
+        await FigmaFileConnection.provisionConnection(this.roomId, userId, { fileId }, this.provisionOpts);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
