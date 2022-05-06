@@ -2,12 +2,10 @@ import { h, FunctionComponent, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { Button } from "../Button";
 import BridgeAPI from "../../BridgeAPI";
 import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
-import InputField from "../InputField";
-import ButtonSet from "../ButtonSet";
+import { InputField, ButtonSet, Button } from "../elements";
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {

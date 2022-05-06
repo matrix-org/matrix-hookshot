@@ -1,5 +1,5 @@
 import { h } from "preact";
-import { Button } from "../Button";
+import { Button } from "../elements";
 
 export default function GeneralConfig() {
     return <div>
