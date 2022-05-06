@@ -826,7 +826,7 @@ export class Bridge {
                     break;
                 }
             }
-            if (!handled && this.connectionManager && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
+            if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
                 try {
                     await (
