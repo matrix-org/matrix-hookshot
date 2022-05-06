@@ -5,6 +5,7 @@ import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import GitLabIcon from "../../icons/gitlab.png";
+import style from "./GitlabRepoConfig.module.scss";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
 
@@ -104,7 +105,7 @@ const EventCheckbox: FunctionComponent<{
     parentEvent?: string,
 }> = ({ignoredHooks, onChange, eventName, parentEvent, children}) => {
     return <li>
-        <label>
+        <label className={style.checkboxLabel}>
             <input
             disabled={parentEvent && ignoredHooks.includes(parentEvent)}
             type="checkbox"
@@ -161,6 +162,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.close" onChange={toggleIgnoredHook}>Closed</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.merge" onChange={toggleIgnoredHook}>Merged</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.review" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
+                </ul>
+                <EventCheckbox ignoredHooks={ignoredHooks} eventName="issue" onChange={toggleIgnoredHook}>Issues</EventCheckbox>
+                <ul>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="issue" eventName="issue.created" onChange={toggleIgnoredHook}>Opened</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="issue" eventName="issue.closed" onChange={toggleIgnoredHook}>Closed</EventCheckbox>
                 </ul>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="push" onChange={toggleIgnoredHook}>Pushes</EventCheckbox>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="tag_push" onChange={toggleIgnoredHook}>Tag pushes</EventCheckbox>

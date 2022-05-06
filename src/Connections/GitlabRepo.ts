@@ -52,6 +52,9 @@ type AllowedEventsNames =
     "merge_request.review.comments" |
     `merge_request.${string}` |
     "merge_request" |
+    "issue.created" |
+    "issue.closed" |
+    "issue" | 
     "tag_push" | 
     "push" |
     "wiki" |
@@ -66,6 +69,9 @@ const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.review",
     "merge_request.review.comments",
     "merge_request",
+    "issue.created",
+    "issue.closed",
+    "issue",
     "tag_push",
     "push",
     "wiki",
