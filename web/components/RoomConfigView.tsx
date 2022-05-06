@@ -18,32 +18,47 @@ interface IProps {
     roomId: string,
 }
 
+enum ConnectionType {
+    Generic = "generic",
+    Gitlab  = "gitlab",
+}
+
+const connections = {
+    [ConnectionType.Gitlab]: {
+        displayName: 'Gitlab',
+        description: "Connect the room to a GitLab project",
+        icon: GitLabIcon,
+        component: GitlabRepoConfig,
+    },
+    [ConnectionType.Generic]: {
+        displayName: 'Generic Webhook',
+        description: "Create a webhook which can be used to connect any service to Matrix",
+        icon: WebhookIcon,
+        component: GenericWebhookConfig,
+    },
+};
+
 export default function RoomConfigView(props: IProps) {
-    const [ activeConnectionType, setActiveConnectionType ] = useState<null|"generic"|"gitlab">(null);
+    const [ activeConnectionType, setActiveConnectionType ] = useState<ConnectionType|null>(null);
 
     let content;
 
     if (activeConnectionType) {
-        content = <>
-            {activeConnectionType === "generic" && <GenericWebhookConfig roomId={props.roomId} api={props.bridgeApi} />}
-            {activeConnectionType === "gitlab" && <GitlabRepoConfig roomId={props.roomId} api={props.bridgeApi} />}
-        </>;
+        const ConfigComponent = connections[activeConnectionType].component;
+        content = <ConfigComponent roomId={props.roomId} api={props.bridgeApi} />;
     } else {
         content = <>
             <section>
                 <h2> Integrations </h2>
-                {props.supportedServices.gitlab && <ConnectionCard
-                    imageSrc={GitLabIcon}
-                    serviceName="GitLab"
-                    description="Connect the room to a GitLab project"
-                    onClick={() => setActiveConnectionType("gitlab")}
-                />}
-                {props.supportedServices.generic && <ConnectionCard
-                    imageSrc={WebhookIcon}
-                    serviceName="Generic Webhook"
-                    description="Create a webhook which can be used to connect any service to Matrix"
-                    onClick={() => setActiveConnectionType("generic")}
-                />}
+                {Object.keys(connections).filter(service => props.supportedServices[service]).map((connectionType: ConnectionType) => {
+                    const connection = connections[connectionType];
+                    return <ConnectionCard
+                        serviceName={connection.displayName}
+                        description={connection.description}
+                        imageSrc={connection.icon}
+                        onClick={() => setActiveConnectionType(connectionType)}
+                    />
+                })}
             </section>
         </>;
     }
