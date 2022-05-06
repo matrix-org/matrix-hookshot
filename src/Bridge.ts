@@ -38,7 +38,6 @@ import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
 import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
-import { CLOUD_INSTANCE } from "./Jira/Client";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
@@ -508,21 +507,15 @@ export class Bridge {
             }
             try {
                 let tokenInfo: JiraOAuthResult;
-                let instance;
                 if ("code" in msg.data) {
                     tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.code);
-                    instance = CLOUD_INSTANCE;
                 } else {
                     tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
-                    if (!this.config.jira.url) {
-                        throw Error('Expected jira.url to be defined');
-                    }
-                    instance = new URL(this.config.jira.url).host;
                 }
                 await this.tokenStore.storeJiraToken(userId, {
                     access_token: tokenInfo.access_token,
                     refresh_token: tokenInfo.refresh_token,
-                    instance,
+                    instance: this.config.jira.instanceName,
                     expires_in: tokenInfo.expires_in,
                 });
 

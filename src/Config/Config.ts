@@ -108,6 +108,8 @@ export interface BridgeConfigJiraYAML {
 
 }
 export class BridgeConfigJira implements BridgeConfigJiraYAML {
+    static CLOUD_INSTANCE_NAME = "api.atlassian.com";
+    
     @configKey("Webhook settings for JIRA")
     readonly webhook: {
         secret: string;
@@ -123,13 +125,16 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
     @hideKey()
     readonly instanceUrl?: URL;
 
+    @hideKey()
+    readonly instanceName: string;
+
     constructor(yaml: BridgeConfigJiraYAML) {
         assert.ok(yaml.webhook);
         assert.ok(yaml.webhook.secret);
         this.webhook = yaml.webhook;
         this.url = yaml.url;
         this.instanceUrl = yaml.url !== undefined ? new URL(yaml.url) : undefined;
-
+        this.instanceName = this.instanceUrl?.host || BridgeConfigJira.CLOUD_INSTANCE_NAME;
         if (!yaml.oauth) {
             return;
         }
