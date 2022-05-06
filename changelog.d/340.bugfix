@@ -1,1 +1,0 @@
-Fix a bug where widgets would not load if hosted on a subpath (e.g. `/hookshot` instead of `/`)
