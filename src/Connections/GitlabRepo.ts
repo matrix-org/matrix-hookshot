@@ -435,9 +435,9 @@ export class GitLabRepoConnection extends CommandConnection {
             content += `\n - ${commits}\n`;
         } else if (displayedCommits === 1) {
             content += `: ${commits}`;
-        }
-        if (tooManyCommits) {
-            content += `, and [${event.total_commits_count - 1} more](${commitsurl}) commits`;
+            if (tooManyCommits) {
+                content += `, and [${event.total_commits_count - 1} more](${commitsurl}) commits`;
+            }
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
