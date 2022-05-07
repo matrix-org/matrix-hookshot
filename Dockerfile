@@ -16,14 +16,15 @@ RUN node node_modules/esbuild/install.js
 RUN yarn build --pure-lockfile
 
 # Stage 1: The actual container
-FROM node:16
+FROM node:16-slim
 
 COPY --from=builder /src/lib/ /bin/matrix-hookshot/
 COPY --from=builder /src/public/ /bin/matrix-hookshot/public/
 COPY --from=builder /src/package.json /bin/matrix-hookshot/
 COPY --from=builder /src/yarn.lock /bin/matrix-hookshot/
 WORKDIR /bin/matrix-hookshot
-RUN yarn --production --pure-lockfile && yarn cache clean
+# --ignore-scripts so we don't try to build
+RUN yarn --ignore-scripts --production --pure-lockfile && yarn cache clean
 
 VOLUME /data
 EXPOSE 9993

@@ -15,10 +15,8 @@ function createGenericHook(state: GenericHookConnectionState = {
     name: "some-name"
 }, config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}): [GenericHookConnection, MessageQueue] {
     const mq = createMessageQueue({
-        queue: {
-            monolithic: true,
-        },
-    } as any);
+            monolithic: true
+    });
     mq.subscribe('*');
     const messageClient = new MessageSenderClient(mq);
     const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), AppserviceMock.create())

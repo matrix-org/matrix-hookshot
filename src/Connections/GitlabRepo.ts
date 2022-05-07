@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { UserTokenStore } from "../UserTokenStore";
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
@@ -9,7 +9,7 @@ import LogWrapper from "../LogWrapper";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
-import { IConnectionState } from "./IConnection";
+import { Connection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
@@ -115,6 +115,7 @@ function validateState(state: Record<string, unknown>): GitLabRepoConnectionStat
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitLabRepoConnection extends CommandConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
@@ -126,14 +127,29 @@ export class GitLabRepoConnection extends CommandConnection {
     
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
+    static ServiceCategory = "gitlab";
 
-    private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
-
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, as: Appservice, tokenStore: UserTokenStore, instanceName: string, gitlabConfig: BridgeConfigGitLab) {
-        const validData = validateState(data);
-        const instance = gitlabConfig.instances[instanceName];
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
+        if (!github || !config.gitlab) {
+            throw Error('GitLab is not configured');
+        }
+        const state = validateState(event.content);
+        const instance = config.gitlab.instances[state.instance];
         if (!instance) {
-            throw Error(`provisionConnection provided an instanceName of ${instanceName} but the instance does not exist`);
+            throw Error('Instance name not recognised');
+        }
+        return new GitLabRepoConnection(roomId, event.stateKey, as, state, tokenStore, instance);
+    }
+
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { config, as, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
+        if (!config.gitlab) {
+            throw Error('GitLab is not configured');
+        }
+        const gitlabConfig = config.gitlab;
+        const validData = validateState(data);
+        const instance = gitlabConfig.instances[validData.instance];
+        if (!instance) {
+            throw Error(`provisionConnection provided an instanceName of ${validData.instance} but the instance does not exist`);
         }
         const client = await tokenStore.getGitLabForUser(requester, instance.url);
         if (!client) {
@@ -150,6 +166,17 @@ export class GitLabRepoConnection extends CommandConnection {
 
         if (permissionLevel < AccessLevel.Developer) {
             throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
+        }
+
+        const stateEventKey = `${validData.instance}/${validData.path}`;
+        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance);
+        const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
+        const existing = existingConnections.find(c => c instanceof GitLabRepoConnection && c.stateKey === connection.stateKey) as undefined|GitLabRepoConnection;
+
+        if (existing) {
+            throw new ApiError("A GitLab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {
+                existingConnection: existing.getProvisionerDetails()
+            });
         }
 
         // Try to setup a webhook
@@ -174,12 +201,8 @@ export class GitLabRepoConnection extends CommandConnection {
         } else {
             log.info(`Not creating webhook, webhookUrl is not defined in config`);
         }
-
-        const stateEventKey = `${validData.instance}/${validData.path}`;
-        return {
-            stateEventContent: validData,
-            connection: new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance),
-        }
+        await as.botIntent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.stateKey, validData);
+        return {connection};
     }
 
     public static getProvisionerDetails(botUserId: string) {
@@ -222,6 +245,8 @@ export class GitLabRepoConnection extends CommandConnection {
             name: p.name,
         })) as GitLabRepoConnectionProjectTarget[];
     }
+
+    private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
 
     constructor(roomId: string,
         stateKey: string,

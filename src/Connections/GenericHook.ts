@@ -1,15 +1,16 @@
-import { IConnection, IConnectionState } from "./IConnection";
+import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import LogWrapper from "../LogWrapper";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
 import { VMScript as Script, NodeVM } from "vm2";
 import { MatrixEvent } from "../MatrixEvent";
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { v4 as uuid} from "uuid";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
+
 export interface GenericHookConnectionState extends IConnectionState {
     /**
      * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
@@ -59,13 +60,14 @@ const TRANSFORMATION_TIMEOUT_MS = 500;
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
 
-    static validateState(state: Record<string, unknown>, allowJsTransformationFunctions: boolean): GenericHookConnectionState {
+    static validateState(state: Record<string, unknown>, allowJsTransformationFunctions?: boolean): GenericHookConnectionState {
         const {name, transformationFunction} = state;
         let transformationFunctionResult: string|undefined;
         if (transformationFunction) {
-            if (!allowJsTransformationFunctions) {
+            if (allowJsTransformationFunctions !== undefined && !allowJsTransformationFunctions) {
                 throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
             }
             if (typeof transformationFunction !== "string") {
@@ -85,13 +87,41 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         };
     }
 
-    static async provisionConnection(roomId: string, as: Appservice, data: Record<string, unknown> = {}, config: BridgeConfigGenericWebhooks, messageClient: MessageSenderClient) {
-        const hookId = uuid();
-        const validState: GenericHookConnectionState = {
-            ...GenericHookConnection.validateState(data, config.allowJsTransformationFunctions || false),
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, config, messageClient}: InstantiateConnectionOpts) {
+        if (!config.generic) {
+            throw Error('Generic webhooks are not configured');
+        }
+        // Generic hooks store the hookId in the account data
+        const acctData = await as.botClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
+        const state = this.validateState(event.content);
+        // hookId => stateKey
+        let hookId = Object.entries(acctData).find(([, v]) => v === event.stateKey)?.[0];
+        if (!hookId) {
+            hookId = uuid();
+            log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
+            await GenericHookConnection.ensureRoomAccountData(roomId, as, hookId, event.stateKey);
+        }
+
+        return new GenericHookConnection(
+            roomId,
+            state,
             hookId,
-        };
-        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config, as);
+            event.stateKey,
+            messageClient,
+            config.generic,
+            as,
+        );
+    }
+
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, config, messageClient}: ProvisionConnectionOpts) {
+        if (!config.generic) {
+            throw Error('Generic Webhooks are not configured');
+        }
+        const hookId = uuid();
+        const validState = GenericHookConnection.validateState(data, config.generic.allowJsTransformationFunctions || false);
+        await GenericHookConnection.ensureRoomAccountData(roomId, as, hookId, validState.name);
+        await as.botClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
+        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config.generic, as);
         return {
             connection,
             stateEventContent: validState,
@@ -118,6 +148,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.generic.hook";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.generic.hook";
+    static readonly ServiceCategory = "webhooks";
 
     static readonly EventTypes = [
         GenericHookConnection.CanonicalEventType,

@@ -1,5 +1,5 @@
-import { IConnection } from "./IConnection";
-import { Appservice } from "matrix-bot-sdk";
+import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
@@ -28,6 +28,7 @@ const md = new markdown();
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitHubDiscussionConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.discussion";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.discussion";
@@ -38,6 +39,18 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
     ];
 
     static readonly QueryRoomRegex = /#github_disc_(.+)_(.+)_(\d+):.*/;
+    static readonly ServiceCategory = "github";
+
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {
+        github, config, as, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
+        return new GitHubDiscussionConnection(
+            roomId, as, event.content, event.stateKey, tokenStore, commentProcessor,
+            messageClient, config.github,
+        );
+    }
 
     readonly sentEvents = new Set<string>(); //TODO: Set some reasonable limits
 

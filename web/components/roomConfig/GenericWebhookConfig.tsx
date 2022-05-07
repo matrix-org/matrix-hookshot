@@ -6,6 +6,7 @@ import BridgeAPI from "../../BridgeAPI";
 import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
+import WebhookIcon from "../../icons/webhook.png";
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
@@ -94,7 +95,7 @@ const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
 
 export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
     return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
-        headerImg="./icons/webhook.png"
+        headerImg={WebhookIcon}
         api={api}
         roomId={roomId}
         type="generic"

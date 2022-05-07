@@ -13,8 +13,6 @@ export interface JiraClient {
     getClientForResource(res: JiraAPIAccessibleResource): Promise<HookshotJiraApi|null>;
 }
 
-export const CLOUD_INSTANCE = "api.atlassian.com";
-
 export class JiraApiError extends Error {
     constructor(readonly errorMessages: string[], readonly errors: { description: string}) {
         super();
