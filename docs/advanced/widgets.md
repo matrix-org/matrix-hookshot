@@ -42,8 +42,8 @@ widgets:
   publicUrl: http://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
-#  openIdOverrides:
-#    my-local-server: {}
+  openIdOverrides:
+    my-local-server: "http://localhost"
 ```
 
 The admin room feature is still very barebones so while it's included here for completeness, most instances
@@ -63,7 +63,10 @@ Unless you know what you are doing, it is recommended to not include this key. T
  - Set `widgetTitle` to change the title of the widget that is created.
 
 `openIdOverrides` allows you to configure the correct federation endpoints for a given set of Matrix server names. This is useful if you are
-testing/developing hookshot in a local dev environment. Production environments should not use this configuration.
+testing/developing hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
+should be resolvable). The config takes a mapping of Matrix server name => base path for federation.
+E.g. if your server name was `my-local-server` and you federation was readable via http://localhost/_matrix/federation,
+you would put configure `my-local-server: "http://localhost`.
 
 In addition to setting up the widgets config, you must bind a listener for the widgets resource in your `listeners` config.
 
