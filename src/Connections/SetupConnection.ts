@@ -169,6 +169,7 @@ export class SetupConnection extends CommandConnection {
 
         await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
 
+        // provisionConnection will check it again, but won't give us a nice CommandError on failure
         try {
             new URL(url);
             // TODO: fetch and check content-type?
@@ -176,7 +177,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
         }
 
-        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {url});
+        await FeedConnection.provisionConnection(this.roomId, userId, { url }, this.provisionOpts);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 

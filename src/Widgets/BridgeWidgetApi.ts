@@ -70,6 +70,7 @@ export class BridgeWidgetApi {
             generic: !!this.config.generic,
             jira: !!this.config.jira,
             figma: !!this.config.figma,
+            feeds: !!this.config.feeds,
         });
     }
 

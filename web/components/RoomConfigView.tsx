@@ -4,9 +4,11 @@ import { useState } from "preact/hooks"
 import BridgeAPI from "../BridgeAPI";
 import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
+import { FeedsConfig } from "./roomConfig/FeedsConfig";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
 
+import FeedsIcon from "../icons/feeds.png";
 import GitLabIcon from "../icons/gitlab.png";
 import WebhookIcon from "../icons/webhook.png";
 
@@ -19,11 +21,18 @@ interface IProps {
 }
 
 enum ConnectionType {
+    Feeds   = "feeds",
     Generic = "generic",
     Gitlab  = "gitlab",
 }
 
 const connections = {
+    [ConnectionType.Feeds]: {
+        displayName: "RSS/Atom Feeds",
+        description: "Subscribe to an RSS/Atom feed",
+        icon: FeedsIcon,
+        component: FeedsConfig,
+    },
     [ConnectionType.Gitlab]: {
         displayName: 'Gitlab',
         description: "Connect the room to a GitLab project",

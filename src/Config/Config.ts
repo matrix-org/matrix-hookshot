@@ -209,9 +209,26 @@ export class BridgeConfigGitLab {
     }
 }
 
-export interface BridgeConfigFeeds {
+export interface BridgeConfigFeedsYAML {
     enabled: boolean;
     pollIntervalSeconds: number;
+}
+
+export class BridgeConfigFeeds {
+    public enabled: boolean;
+    public pollIntervalSeconds: number;
+
+    constructor(yaml: BridgeConfigFeedsYAML) {
+        this.enabled = yaml.enabled;
+        this.pollIntervalSeconds = yaml.pollIntervalSeconds;
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            pollIntervalSeconds: this.pollIntervalSeconds,
+        }
+    }
 }
 
 export interface BridgeConfigFigma {
@@ -363,7 +380,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
-    feeds?: BridgeConfigFeeds;
+    feeds?: BridgeConfigFeedsYAML;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHubYAML;
     gitlab?: BridgeConfigGitLabYAML;
@@ -438,7 +455,7 @@ export class BridgeConfig {
         this.figma = configData.figma;
         this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
-        this.feeds = configData.feeds;
+        this.feeds = configData.feeds && new BridgeConfigFeeds(configData.feeds);
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
@@ -568,6 +585,9 @@ export class BridgeConfig {
     public getPublicConfigForService(serviceName: string): Record<string, unknown> {
         let config: undefined|Record<string, unknown>;
         switch (serviceName) {
+            case "feeds":
+                config = this.feeds?.publicConfig;
+                break;
             case "generic":
                 config = this.generic?.publicConfig;
                 break;

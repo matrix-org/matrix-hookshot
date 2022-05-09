@@ -6,7 +6,8 @@ import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
-import { Connection } from "./IConnection";
+import { Connection, ProvisionConnectionOpts } from "./IConnection";
+import { GetConnectionsResponseItem } from "../provisioning/api";
 
 const log = new LogWrapper("FeedConnection");
 const md = new markdown();
@@ -14,6 +15,8 @@ const md = new markdown();
 export interface FeedConnectionState extends IConnectionState {
     url: string;
 }
+
+export type FeedResponseItem = GetConnectionsResponseItem<FeedConnectionState, object>;
 
 @Connection
 export class FeedConnection extends BaseConnection implements IConnection {
@@ -28,6 +31,52 @@ export class FeedConnection extends BaseConnection implements IConnection {
         return new FeedConnection(roomId, event.stateKey, event.content, config.feeds, as, storage);
     }
 
+    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {as, config, storage}: ProvisionConnectionOpts) {
+        if (!config.feeds?.enabled) {
+            throw Error('RSS/Atom feeds are not configured');
+        }
+
+        const url = data.url;
+        if (typeof url !== 'string') {
+            throw new Error('No URL specified');
+        }
+        try {
+            new URL(url);
+            // TODO: fetch and check content-type?
+        } catch {
+            throw new Error(`${url} doesn't look like a valid feed URL`);
+        }
+
+        const state = { url };
+
+        const connection = new FeedConnection(roomId, url, state, config.feeds!, as, storage);
+        await as.botClient.sendStateEvent(roomId, FeedConnection.CanonicalEventType, url, state);
+
+        return {
+            connection,
+            stateEventContent: { url },
+        }
+    }
+
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "feeds",
+            eventType: FeedConnection.CanonicalEventType,
+            type: "Feed",
+            // TODO: Add ability to configure the bot per connnection type.
+            botUserId: botUserId,
+        }
+    }
+
+    public getProvisionerDetails(showSecrets = false): FeedResponseItem {
+        return {
+            ...FeedConnection.getProvisionerDetails(this.as.botUserId),
+            id: this.connectionId,
+            config: {
+                url: this.feedUrl
+            },
+        }
+    }
 
     private hasError = false;
 
