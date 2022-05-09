@@ -150,13 +150,11 @@ const ConnectionStateSchema = {
         nullable: true,
         oneOf: [{
             type: "object",
-            nullable: true,
             properties: {
                 prefix: {type: "string"},
             },
         }, {
             type: "boolean",
-            nullable: true,
         }],
     }
   },
