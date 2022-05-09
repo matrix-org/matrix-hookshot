@@ -1,3 +1,5 @@
+
+import { expect } from "chai";
 export class MatrixClientMock {
     async setDisplayName() {
         return;
@@ -28,6 +30,17 @@ export class IntentMock {
             roomId,
             content,
         });
+    }
+    
+    expectNoEvent() {
+        expect(this.sentEvents).to.be.empty;
+    }
+
+    expectEventBodyContains(matcher: string|RegExp, eventIndex?: number) {
+        if (eventIndex !== undefined) {
+            expect(this.sentEvents[eventIndex].content.body.includes(matcher)).to.be.true;
+        }
+        expect(!!this.sentEvents.find(ev => ev.content.body.includes(matcher))).to.be.true;
     }
 
     async ensureRegistered() {
