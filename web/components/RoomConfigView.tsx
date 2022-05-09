@@ -64,6 +64,7 @@ export default function RoomConfigView(props: IProps) {
                     return <ConnectionCard
                         serviceName={connection.displayName}
                         description={connection.description}
+                        key={connectionType}
                         imageSrc={connection.icon}
                         onClick={() => setActiveConnectionType(connectionType)}
                     />
