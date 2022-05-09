@@ -35,7 +35,7 @@ interface IQueryRoomOpts {
 }
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
-    ignoreHooks?: string[],
+    ignoreHooks?: AllowedEventsNames[],
     commandPrefix?: string;
     showIssueRoomLink?: boolean;
     prDiff?: {
@@ -217,7 +217,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 	static validateState(state: Record<string, unknown>): GitHubRepoConnectionState {
         const validator = new Ajv().compile(ConnectionStateSchema);
         if (validator(state)) {
-            return state as GitHubRepoConnectionState;
+            return state;
         }
         throw new ValidatorApiError(validator.errors || []);
     }
