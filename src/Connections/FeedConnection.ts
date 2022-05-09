@@ -5,6 +5,7 @@ import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
+import axios from "axios";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
@@ -31,6 +32,20 @@ export class FeedConnection extends BaseConnection implements IConnection {
         return new FeedConnection(roomId, event.stateKey, event.content, config.feeds, as, storage);
     }
 
+    static async validateUrl(url: string): Promise<void> {
+        try {
+            new URL(url);
+            const res = await axios.get(url);
+            const contentType = res.headers['content-type'];
+            // we're deliberately liberal here, since different things pop up in the wild
+            if (!contentType.match(/xml/)) {
+                throw new Error(`${contentType} doesn't look like an RSS/Atom feed`);
+            }
+        } catch (err) {
+            throw new Error(`${url} doesn't look like a valid feed URL: ${err}`);
+        }
+    }
+
     static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {as, config, storage}: ProvisionConnectionOpts) {
         if (!config.feeds?.enabled) {
             throw Error('RSS/Atom feeds are not configured');
@@ -40,12 +55,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         if (typeof url !== 'string') {
             throw new Error('No URL specified');
         }
-        try {
-            new URL(url);
-            // TODO: fetch and check content-type?
-        } catch {
-            throw new Error(`${url} doesn't look like a valid feed URL`);
-        }
+        await FeedConnection.validateUrl(url);
 
         const state = { url };
 

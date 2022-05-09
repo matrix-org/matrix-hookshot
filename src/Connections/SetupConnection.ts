@@ -13,7 +13,9 @@ import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
 import { ProvisionConnectionOpts } from "./IConnection";
+import LogWrapper from "../LogWrapper";
 const md = new markdown();
+const log = new LogWrapper("SetupConnection");
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
@@ -171,9 +173,9 @@ export class SetupConnection extends CommandConnection {
 
         // provisionConnection will check it again, but won't give us a nice CommandError on failure
         try {
-            new URL(url);
-            // TODO: fetch and check content-type?
-        } catch {
+            await FeedConnection.validateUrl(url);
+        } catch (err: unknown) {
+            log.error(`Feed URL '${url}' failed validation: ${err}`);
             throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
         }
 
