@@ -68,7 +68,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         }
     }
 
-    public getProvisionerDetails(showSecrets = false): FeedResponseItem {
+    public getProvisionerDetails(): FeedResponseItem {
         return {
             ...FeedConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
