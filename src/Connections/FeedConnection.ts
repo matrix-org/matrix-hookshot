@@ -59,7 +59,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
         const state = { url };
 
-        const connection = new FeedConnection(roomId, url, state, config.feeds!, as, storage);
+        const connection = new FeedConnection(roomId, url, state, config.feeds, as, storage);
         await as.botClient.sendStateEvent(roomId, FeedConnection.CanonicalEventType, url, state);
 
         return {
