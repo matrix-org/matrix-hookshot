@@ -74,21 +74,19 @@ export class FeedReader {
         this.calculateFeedUrls();
         connectionManager.on('new-connection', c => {
             if (c instanceof FeedConnection) {
-                log.info('New connection tracked:', c.connectionId);
+                log.debug('New connection tracked:', c.connectionId);
                 this.connections.push(c);
                 this.calculateFeedUrls();
             }
         });
         connectionManager.on('connection-removed', removed => {
             if (removed instanceof FeedConnection) {
-                log.info('Connections before removal:', this.connections.map(c => c.connectionId));
                 this.connections = this.connections.filter(c => c.connectionId !== removed.connectionId);
-                log.info('Connections after removal:', this.connections.map(c => c.connectionId));
                 this.calculateFeedUrls();
             }
         });
 
-        log.info('Loaded feed URLs:', this.observedFeedUrls);
+        log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
         void this.loadSeenEntries().then(() => {
             return this.pollFeeds();
