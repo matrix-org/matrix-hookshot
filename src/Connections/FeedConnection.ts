@@ -137,6 +137,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     // needed to ensure that the connection is removable
     public async onRemove(): Promise<void> {
         log.info(`Removing connection ${this.connectionId}`);
+        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, this.feedUrl, {});
     }
 
     toString(): string {
