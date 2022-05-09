@@ -100,8 +100,6 @@ const ConnectionStateSchema = {
         type: "array",
         items: {
             type: "string",
-            enum: AllowedEvents,
-            nullable: true,
         },
         nullable: true,
     },
@@ -212,9 +210,13 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
 @Connection
 export class GitHubRepoConnection extends CommandConnection implements IConnection {
 
-	static validateState(state: Record<string, unknown>): GitHubRepoConnectionState {
+	static validateState(state: Record<string, unknown>, isExistingState = false): GitHubRepoConnectionState {
         const validator = new Ajv().compile(ConnectionStateSchema);
         if (validator(state)) {
+            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            }
             return state;
         }
         throw new ValidatorApiError(validator.errors || []);
@@ -274,7 +276,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubRepoConnection(roomId, as, this.validateState(state.content), tokenStore, state.stateKey, github, config.github);
+        return new GitHubRepoConnection(roomId, as, this.validateState(state.content, true), tokenStore, state.stateKey, github, config.github);
     }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {

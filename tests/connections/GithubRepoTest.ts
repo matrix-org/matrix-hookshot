@@ -64,6 +64,29 @@ function createConnection(state: Record<string, unknown> = {}) {
 }
 
 describe("GitHubRepoConnection", () => {
+	describe("validateState", () => {
+		it("can validate a completes state config", () => {
+			GitHubRepoConnection.validateState({
+				org: "foo",
+				repo: "bar",
+				ignoreHooks: ["issue", "pull_request", "release"],
+				commandPrefix: "!foo",
+				showIssueRoomLink: true,
+				prDiff: {
+					enabled: true,
+					maxLines: 55
+				},
+				includingLabels: ["this", "and", "that"],
+				excludingLabels: ["not", "those"],
+				hotlinkIssues: {
+					prefix: "foo"
+				},
+				newIssue: {
+					labels: ["this", "and", "that"]
+				}
+			} as GitHubRepoConnectionState as unknown as Record<string, unknown>);
+		});
+	});
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
 			const { connection, as } = createConnection();

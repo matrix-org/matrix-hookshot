@@ -144,9 +144,13 @@ export class GitLabRepoConnection extends CommandConnection {
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
 
-	static validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
-        const validator = new Ajv().compile(ConnectionStateSchema);
+	static validateState(state: Record<string, unknown>, isExistingState = false): GitLabRepoConnectionState {
+        const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
         if (validator(state)) {
+            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            }
             return state;
         }
         throw new ValidatorApiError(validator.errors || []);
@@ -156,7 +160,7 @@ export class GitLabRepoConnection extends CommandConnection {
         if (!github || !config.gitlab) {
             throw Error('GitLab is not configured');
         }
-        const state = this.validateState(event.content);
+        const state = this.validateState(event.content, true);
         const instance = config.gitlab.instances[state.instance];
         if (!instance) {
             throw Error('Instance name not recognised');
