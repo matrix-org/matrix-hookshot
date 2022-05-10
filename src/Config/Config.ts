@@ -108,6 +108,8 @@ export interface BridgeConfigJiraYAML {
 
 }
 export class BridgeConfigJira implements BridgeConfigJiraYAML {
+    static CLOUD_INSTANCE_NAME = "api.atlassian.com";
+    
     @configKey("Webhook settings for JIRA")
     readonly webhook: {
         secret: string;
@@ -123,13 +125,16 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
     @hideKey()
     readonly instanceUrl?: URL;
 
+    @hideKey()
+    readonly instanceName: string;
+
     constructor(yaml: BridgeConfigJiraYAML) {
         assert.ok(yaml.webhook);
         assert.ok(yaml.webhook.secret);
         this.webhook = yaml.webhook;
         this.url = yaml.url;
         this.instanceUrl = yaml.url !== undefined ? new URL(yaml.url) : undefined;
-
+        this.instanceName = this.instanceUrl?.host || BridgeConfigJira.CLOUD_INSTANCE_NAME;
         if (!yaml.oauth) {
             return;
         }
@@ -266,6 +271,7 @@ interface BridgeWidgetConfigYAML {
     branding?: {
         widgetTitle: string,
     }
+    openIdOverrides?: Record<string, string>;
 }
 
 export class BridgeWidgetConfig {
@@ -278,6 +284,9 @@ export class BridgeWidgetConfig {
     public readonly branding: {
         widgetTitle: string,
     }
+
+    @hideKey()
+    public readonly openIdOverrides?: Record<string, URL>;
     constructor(yaml: BridgeWidgetConfigYAML) {
         this.addToAdminRooms = yaml.addToAdminRooms || false;
         this.disallowedIpRanges = yaml.disallowedIpRanges;
@@ -292,6 +301,12 @@ export class BridgeWidgetConfig {
         this.branding = yaml.branding || {
             widgetTitle: "Hookshot Configuration"
         };
+        if (yaml.openIdOverrides) {
+            this.openIdOverrides = {};
+            for (const [serverName, urlStr] of Object.entries(yaml.openIdOverrides)) {
+                this.openIdOverrides[serverName] = new URL(urlStr);
+            }
+        }
     }
 }
 
@@ -314,7 +329,7 @@ interface BridgeConfigWebhook {
     bindAddress?: string;
 }
 
-interface BridgeConfigQueue {
+export interface BridgeConfigQueue {
     monolithic: boolean;
     port?: number;
     host?: string;
@@ -350,11 +365,11 @@ export interface BridgeConfigRoot {
     figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeeds;
     generic?: BridgeGenericWebhooksConfigYAML;
-    github?: BridgeConfigGitHub;
+    github?: BridgeConfigGitHubYAML;
     gitlab?: BridgeConfigGitLabYAML;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
-    jira?: BridgeConfigJira;
+    jira?: BridgeConfigJiraYAML;
     logging: BridgeConfigLogging;
     passFile: string;
     queue: BridgeConfigQueue;
@@ -517,6 +532,10 @@ export class BridgeConfig {
         const hasWidgetListener = !!this.listeners.find(l => l.resources.includes('widgets'));
         if (this.widgets && !hasWidgetListener) {
             throw new ConfigError(`listeners`, "You have enabled the widgets feature, but not included a widgets listener.");
+        }
+
+        if (this.widgets && this.widgets.openIdOverrides) {
+            log.warn("The `widgets.openIdOverrides` config value SHOULD NOT be used in a production environment.")
         }
     }
 

@@ -41,7 +41,7 @@ export const DefaultConfig = new BridgeConfig({
         disallowedIpRanges: DefaultDisallowedIpRanges,
         branding: {
             widgetTitle: "Hookshot Configuration"
-        }
+        },
     },
     bot: {
         displayname: "GitHub Bot",

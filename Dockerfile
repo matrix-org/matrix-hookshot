@@ -28,6 +28,7 @@ COPY --from=builder /src/public/ /bin/matrix-hookshot/public/
 COPY --from=builder /src/package.json /bin/matrix-hookshot/
 COPY --from=builder /src/yarn.lock /bin/matrix-hookshot/
 WORKDIR /bin/matrix-hookshot
+
 # --ignore-scripts so we don't try to build
 RUN yarn --ignore-scripts --production --pure-lockfile && yarn cache clean
 

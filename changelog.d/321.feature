@@ -1,1 +1,0 @@
-Add new `!hookshot gitlab project` command to configure project bridges in rooms. See [the docs](https://matrix-org.github.io/matrix-hookshot/latest/usage/room_configuration/gitlab_project.html) for instructions.

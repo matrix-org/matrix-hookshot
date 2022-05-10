@@ -1,5 +1,5 @@
-import { IConnection } from "./IConnection";
-import { Appservice } from "matrix-bot-sdk";
+import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import LogWrapper from "../LogWrapper";
 import { ProjectsGetResponseData } from "../Github/Types";
 import { BaseConnection } from "./BaseConnection";
@@ -14,14 +14,22 @@ const log = new LogWrapper("GitHubProjectConnection");
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitHubProjectConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.project";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.project";
-
+    static readonly ServiceCategory = "github";
     static readonly EventTypes = [
         GitHubProjectConnection.CanonicalEventType,
         GitHubProjectConnection.LegacyCanonicalEventType,
     ];
+
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as}: InstantiateConnectionOpts) {
+        if (!config.github) {
+            throw Error('GitHub is not configured');
+        }
+        return new GitHubProjectConnection(roomId, as, event.content, event.stateKey);
+    }
 
     static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {
         log.info(`Fetching ${project.name} ${project.id}`);

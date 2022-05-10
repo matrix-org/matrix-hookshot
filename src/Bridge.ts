@@ -5,12 +5,11 @@ import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Co
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
-import { GenericHookConnection } from "./Connections";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
@@ -39,7 +38,6 @@ import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
 import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
-import { CLOUD_INSTANCE } from "./Jira/Client";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
@@ -73,7 +71,7 @@ export class Bridge {
         }
         this.as = getAppservice(this.config, this.registration, this.storage);
         Metrics.registerMatrixSdkMetrics(this.as);
-        this.queue = createMessageQueue(this.config);
+        this.queue = createMessageQueue(this.config.queue);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
@@ -509,18 +507,15 @@ export class Bridge {
             }
             try {
                 let tokenInfo: JiraOAuthResult;
-                let instance;
                 if ("code" in msg.data) {
                     tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.code);
-                    instance = CLOUD_INSTANCE;
                 } else {
                     tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
-                    instance = new URL(this.config.jira.url!).host;
                 }
                 await this.tokenStore.storeJiraToken(userId, {
                     access_token: tokenInfo.access_token,
                     refresh_token: tokenInfo.refresh_token,
-                    instance,
+                    instance: this.config.jira.instanceName,
                     expires_in: tokenInfo.expires_in,
                 });
 
@@ -836,9 +831,17 @@ export class Bridge {
                 try {
                     await (
                         new SetupConnection(
-                            roomId, this.as, this.tokenStore, this.config, 
+                            roomId,
+                            {
+                                config: this.config,
+                                as: this.as,
+                                tokenStore: this.tokenStore,
+                                commentProcessor: this.commentProcessor,
+                                messageClient: this.messageClient,
+                                storage: this.storage,
+                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this),
+                            },
                             this.getOrCreateAdminRoom.bind(this),
-                            this.github,
                         )
                     ).onMessageEvent(event, checkPermission);
                 } catch (ex) {

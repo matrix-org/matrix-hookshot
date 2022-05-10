@@ -5,7 +5,7 @@ import preact from '@preact/preset-vite'
 export default defineConfig({
   plugins: [preact()],
   root: 'web',
-  base: '/widgetapi/v1/static/',
+  base: '',
   build: {
     outDir: '../public',
     emptyOutDir: true,

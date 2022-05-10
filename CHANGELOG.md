@@ -1,3 +1,36 @@
+1.6.1 (2022-05-06)
+==================
+
+Bugfixes
+--------
+
+- Fix a bug where widgets would not load if hosted on a subpath (e.g. `/hookshot` instead of `/`) ([\#340](https://github.com/matrix-org/matrix-hookshot/issues/340))
+
+
+1.6.0 (2022-05-06)
+==================
+
+Features
+--------
+
+- Add new `hookshot_connection_event(_failed)` metrics for tracking succesful event handling.
+  Reinstate `matrix_*` metrics which were previously not being recorded. ([\#312](https://github.com/matrix-org/matrix-hookshot/issues/312))
+- Send a notice when a GitLab merge request gets some review comments. ([\#314](https://github.com/matrix-org/matrix-hookshot/issues/314))
+- Add RSS/Atom feed support ([\#315](https://github.com/matrix-org/matrix-hookshot/issues/315))
+- Add support for GitLab in the widgets configuration UI. ([\#320](https://github.com/matrix-org/matrix-hookshot/issues/320))
+- Add new `!hookshot gitlab project` command to configure project bridges in rooms. See [the docs](https://matrix-org.github.io/matrix-hookshot/latest/usage/room_configuration/gitlab_project.html) for instructions. ([\#321](https://github.com/matrix-org/matrix-hookshot/issues/321))
+
+
+Internal Changes
+----------------
+
+- Reduce Docker image size. ([\#319](https://github.com/matrix-org/matrix-hookshot/issues/319))
+- Refactor connection handling logic to improve developer experience. ([\#330](https://github.com/matrix-org/matrix-hookshot/issues/330))
+- Restructure widget web components. ([\#332](https://github.com/matrix-org/matrix-hookshot/issues/332))
+- Replace 'snowpack' with 'vite' for building the widget web components. ([\#334](https://github.com/matrix-org/matrix-hookshot/issues/334))
+- The docker image has been shrunk by 78%, and now takes up 300MB. ([\#336](https://github.com/matrix-org/matrix-hookshot/issues/336))
+
+
 1.5.0 (2022-04-14)
 ==================
 

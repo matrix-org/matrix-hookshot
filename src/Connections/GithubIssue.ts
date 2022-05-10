@@ -1,5 +1,5 @@
-import { IConnection } from "./IConnection";
-import { Appservice } from "matrix-bot-sdk";
+import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
+import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { UserTokenStore } from "../UserTokenStore";
@@ -38,6 +38,7 @@ interface IQueryRoomOpts {
 /**
  * Handles rooms connected to a github repo.
  */
+@Connection
 export class GitHubIssueConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.github.issue";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.bridge";
@@ -48,9 +49,23 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
     ];
 
     static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
+    static readonly ServiceCategory = "github";
 
     static generateAliasLocalpart(org: string, repo: string, issueNo: string|number) {
         return `github_${org}_${repo}_${issueNo}`;
+    }
+
+    public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
+        github, config, as, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
+        const issue = new GitHubIssueConnection(
+            roomId, as, event.content, event.stateKey || "", tokenStore,
+            commentProcessor, messageClient, github, config.github,
+        );
+        await issue.syncIssueState();
+        return issue;
     }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
