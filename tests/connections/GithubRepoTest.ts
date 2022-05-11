@@ -8,6 +8,7 @@ import { AppserviceMock } from "../utils/AppserviceMock";
 import { UserTokenStoreMock } from "../utils/UserTokenStoreMock";
 import { expect } from "chai";
 import { MessageEvent, TextualMessageEventContent } from "matrix-bot-sdk";
+import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 
 const ROOM_ID = "!foo:bar";
 
@@ -37,7 +38,7 @@ const GITHUB_ISSUE_CREATED_PAYLOAD = {
 // The type is quite complex for a test.
 };
 
-function createConnection(state: Record<string, unknown> = {}) {
+function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
 	const mq = createMessageQueue({
 		monolithic: true
 	});
@@ -52,7 +53,7 @@ function createConnection(state: Record<string, unknown> = {}) {
 			org: "a-fake-org",
 			repo: "a-fake-repo",
 			...state,
-		}),
+		}, isExistingState),
 		tokenStore,
 		"state_key",
 		githubInstance,
@@ -85,6 +86,38 @@ describe("GitHubRepoConnection", () => {
 					labels: ["this", "and", "that"]
 				}
 			} as GitHubRepoConnectionState as unknown as Record<string, unknown>);
+		});
+		it("will disallow invalid state", () => {
+			try {
+				GitHubRepoConnection.validateState({
+					org: "foo",
+					repo: false,
+				});
+			} catch (ex) {
+				if (ex instanceof ValidatorApiError === false || ex.errcode !== ErrCode.BadValue) {
+					throw ex;
+				}
+			}
+		});
+		it("will disallow ignoreHooks to contains invalid enums if this is new state", () => {
+			try {
+				GitHubRepoConnection.validateState({
+					org: "foo",
+					repo: "bar",
+					ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+				}, false);
+			} catch (ex) {
+				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
+					throw ex;
+				}
+			}
+		});
+		it("will allow ignoreHooks to contains invalid enums if this is old state", () => {
+			GitHubRepoConnection.validateState({
+				org: "foo",
+				repo: "bar",
+				ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+			}, true);
 		});
 	});
 	describe("onIssueCreated", () => {

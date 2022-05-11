@@ -117,7 +117,10 @@ const ConnectionStateSchema = {
         type: "object",
         properties: {
             enabled: {type: "boolean"},
-            maxLines: {type: "number"},
+            maxLines: {
+                type: "number",
+                minimum: 1,
+            },
         },
         nullable: true,
         required: ["enabled"],
@@ -130,7 +133,7 @@ const ConnectionStateSchema = {
                 items: {type: "string"},
             },
         },
-        required: [],
+        required: ["labels"],
         nullable: true,
     },
     includingLabels: {
@@ -148,6 +151,7 @@ const ConnectionStateSchema = {
         nullable: true,
         oneOf: [{
             type: "object",
+            required: ["prefix"],
             properties: {
                 prefix: {type: "string"},
             },
