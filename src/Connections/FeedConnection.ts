@@ -14,7 +14,8 @@ const log = new LogWrapper("FeedConnection");
 const md = new markdown();
 
 export interface FeedConnectionState extends IConnectionState {
-    url: string;
+    url:    string;
+    label?: string;
 }
 
 export type FeedResponseItem = GetConnectionsResponseItem<FeedConnectionState, object>;
@@ -56,15 +57,18 @@ export class FeedConnection extends BaseConnection implements IConnection {
             throw new Error('No URL specified');
         }
         await FeedConnection.validateUrl(url);
+        if (typeof data.label !== 'undefined' && typeof data.label !== 'string') {
+            throw new Error('Label must be a string');
+        }
 
-        const state = { url };
+        const state = { url, label: data.label };
 
         const connection = new FeedConnection(roomId, url, state, config.feeds, as, storage);
         await as.botClient.sendStateEvent(roomId, FeedConnection.CanonicalEventType, url, state);
 
         return {
             connection,
-            stateEventContent: { url },
+            stateEventContent: state,
         }
     }
 
@@ -83,7 +87,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
             ...FeedConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
             config: {
-                url: this.feedUrl
+                url: this.feedUrl,
+                label: this.state.label,
             },
         }
     }
@@ -120,7 +125,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             entryDetails = entry.title || entry.link;
         }
 
-        let message = `New post in ${entry.feed.title || entry.feed.url}`;
+        let message = `New post in ${this.state.label || entry.feed.title || entry.feed.url}`;
         if (entryDetails) {
             message += `: ${entryDetails}`;
         }

@@ -8,7 +8,8 @@ import { Button, ButtonSet, InputField } from "../elements";
 import FeedsIcon from "../../icons/feeds.png";
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove}) => {
-    const nameRef = createRef<HTMLInputElement>();
+    const urlRef = createRef<HTMLInputElement>();
+    const labelRef = createRef<HTMLInputElement>();
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
     const handleSave = useCallback((evt: Event) => {
@@ -17,13 +18,15 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             return;
         }
         onSave({
-            url: nameRef?.current?.value || existingConnection?.config.url,
+            url:   urlRef?.current?.value || existingConnection?.config.url,
+            label: labelRef?.current?.value || existingConnection?.config.label,
         });
-    }, [canEdit, onSave, nameRef, existingConnection]);
+    }, [canEdit, onSave, urlRef, existingConnection]);
 
     return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="URL" noPadding={true}>
-            <input ref={nameRef} disabled={!canEdit} placeholder="Feed URL" type="text" value={existingConnection?.config.url} />
+            <input ref={urlRef} disabled={!canEdit} placeholder="Feed URL" type="text" value={existingConnection?.config.url} />
+            <input ref={labelRef} disabled={!canEdit} placeholder="Label (optional)" type="text" value={existingConnection?.config.label} />
         </InputField>
 
         <ButtonSet>
@@ -49,7 +52,7 @@ const RoomConfigText = {
     listCantEdit: 'Feeds subscribed to',
 };
 
-const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.url;
+const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
 export const FeedsConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>

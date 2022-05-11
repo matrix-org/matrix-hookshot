@@ -7,7 +7,7 @@ import { v4 as uuid } from "uuid";
 import { BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
-import { FeedConnection } from "./FeedConnection";
+import { FeedConnection, FeedConnectionState } from "./FeedConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
@@ -163,8 +163,8 @@ export class SetupConnection extends CommandConnection {
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
-    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
-    public async onFeed(userId: string, url: string) {
+    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], optionalArgs: ["label"], includeUserId: true, category: "feed"})
+    public async onFeed(userId: string, url: string, label?: string) {
         if (!this.config.feeds?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
         }
@@ -179,13 +179,13 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
         }
 
-        await FeedConnection.provisionConnection(this.roomId, userId, { url }, this.provisionOpts);
+        await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
     @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feed"})
     public async onFeedList() {
-        const urls = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+        const feeds: FeedConnectionState[] = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
                 return []; // not an error to us
             }
@@ -193,13 +193,24 @@ export class SetupConnection extends CommandConnection {
         }).then(events =>
             events.filter(
                 (ev: any) => ev.type === FeedConnection.CanonicalEventType && ev.content.url
-            ).map(ev => ev.content.url)
+            ).map(ev => ev.content)
         );
 
-        if (urls.length === 0) {
+        if (feeds.length === 0) {
             return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
         } else {
-            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(`Currently subscribed to these feeds:\n\n${urls.map(url => ' * ' + url + '\n')}`));
+
+            const feedDescriptions = feeds.map(feed => {
+                if (feed.label) {
+                    return `[${feed.label}](${feed.url})`;
+                }
+                return feed.url;
+            });
+
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(
+                'Currently subscribed to these feeds:\n\n' +
+                 feedDescriptions.map(desc => ` - ${desc}`).join('\n')
+            ));
         }
     }
 
