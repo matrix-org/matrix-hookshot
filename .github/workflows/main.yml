@@ -66,5 +66,10 @@ jobs:
         with:
             toolchain: stable
             profile: minimal
+      # Needed for redis tests
+      - name: Start Redis
+        uses: TEST_REDIS_QUEUE_HOST=localhost supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: 6
       - run: yarn
       - run: yarn test
