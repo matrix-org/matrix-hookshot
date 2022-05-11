@@ -1,5 +1,5 @@
 import { h, FunctionComponent, createRef } from "preact";
-import { useCallback, useState } from "preact/hooks"
+import { useCallback } from "preact/hooks"
 import BridgeAPI from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
@@ -21,7 +21,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             url:   urlRef?.current?.value || existingConnection?.config.url,
             label: labelRef?.current?.value || existingConnection?.config.label,
         });
-    }, [canEdit, onSave, urlRef, existingConnection]);
+    }, [canEdit, onSave, urlRef, labelRef, existingConnection]);
 
     return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="URL" noPadding={true}>
