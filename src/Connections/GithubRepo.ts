@@ -223,7 +223,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
             }
             return state;
         }
-        throw new ValidatorApiError(validator.errors || []);
+        throw new ValidatorApiError(validator.errors);
     }
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, tokenStore, github, config}: ProvisionConnectionOpts) {

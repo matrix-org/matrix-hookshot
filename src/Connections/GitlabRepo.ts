@@ -87,8 +87,6 @@ const ConnectionStateSchema = {
             type: "array",
             items: {
                 type: "string",
-                enum: AllowedEvents,
-                nullable: true,
             },
             nullable: true,
         },
@@ -153,7 +151,7 @@ export class GitLabRepoConnection extends CommandConnection {
             }
             return state;
         }
-        throw new ValidatorApiError(validator.errors || []);
+        throw new ValidatorApiError(validator.errors);
     }
 
     static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {

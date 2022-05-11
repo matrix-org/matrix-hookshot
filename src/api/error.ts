@@ -95,7 +95,10 @@ export class ApiError extends Error implements IApiError {
 }
 
 export class ValidatorApiError extends ApiError {
-    constructor(errors: ErrorObject[]) {
+    constructor(errors?: ErrorObject[]|null) {
+        if (!errors) {
+            throw Error('ValidatorApiError thrown but no errors were found. This is possibly a bug.')
+        }
         const errorStrings = errors.map(e => `${e.instancePath}: ${e.message}`).join(", ");
         super(`Failed to validate: ${errorStrings}`, ErrCode.BadValue, -1, {
             validationErrors: errors.map(e => ({message: e.message, path: e.instancePath}))
