@@ -33,14 +33,19 @@ export class IntentMock {
     }
     
     expectNoEvent() {
-        expect(this.sentEvents).to.be.empty;
+        expect(this.sentEvents, 'Expected no events to be sent.').to.be.empty;
     }
 
     expectEventBodyContains(matcher: string|RegExp, eventIndex?: number) {
         if (eventIndex !== undefined) {
-            expect(this.sentEvents[eventIndex].content.body.includes(matcher)).to.be.true;
+            expect(this.sentEvents[eventIndex], `Expected event ${eventIndex} to exist`).to.not.be.undefined;
+            const body = this.sentEvents[eventIndex].content.body;
+            expect(
+                body.includes(matcher),
+                `Expected event body ${eventIndex} to match '${matcher}'.\nMessage was: '${body}'`
+            ).to.be.true;
         }
-        expect(!!this.sentEvents.find(ev => ev.content.body.includes(matcher))).to.be.true;
+        expect(!!this.sentEvents.find(ev => ev.content.body.includes(matcher)), `Expected any event body to match '${matcher}'`).to.be.true;
     }
 
     async ensureRegistered() {
