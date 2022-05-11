@@ -1,13 +1,9 @@
-import { BridgeConfigGitHub } from "../../src/Config/Config";
 import { GitHubRepoConnection, GitHubRepoConnectionState } from "../../src/Connections/GithubRepo"
 import { GithubInstance } from "../../src/Github/GithubInstance";
 import { createMessageQueue } from "../../src/MessageQueue";
 import { UserTokenStore } from "../../src/UserTokenStore";
 import { DefaultConfig } from "../../src/Config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
-import { UserTokenStoreMock } from "../utils/UserTokenStoreMock";
-import { expect } from "chai";
-import { MessageEvent, TextualMessageEventContent } from "matrix-bot-sdk";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 
 const ROOM_ID = "!foo:bar";
@@ -35,7 +31,6 @@ const GITHUB_ISSUE_CREATED_PAYLOAD = {
 		id: 1234,
 		html_url: `https://github.com/${GITHUB_ORG_REPO.org}/${GITHUB_ORG_REPO.repo}`,
 	}
-// The type is quite complex for a test.
 };
 
 function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
@@ -43,7 +38,6 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		monolithic: true
 	});
 	mq.subscribe('*');
-	const tokenStore = UserTokenStoreMock.create();
 	const as = AppserviceMock.create();
 	const githubInstance = new GithubInstance("foo", "bar");
 	const connection = new GitHubRepoConnection(
@@ -54,7 +48,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 			repo: "a-fake-repo",
 			...state,
 		}, isExistingState),
-		tokenStore,
+		{} as UserTokenStore,
 		"state_key",
 		githubInstance,
 		// Default config always contains GitHub
