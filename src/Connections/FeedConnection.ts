@@ -36,7 +36,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     static async validateUrl(url: string): Promise<void> {
         try {
             new URL(url);
-            const res = await axios.get(url);
+            const res = await axios.head(url).catch(_ => axios.get(url));
             const contentType = res.headers['content-type'];
             // we're deliberately liberal here, since different things pop up in the wild
             if (!contentType.match(/xml/)) {
