@@ -199,7 +199,6 @@ export class SetupConnection extends CommandConnection {
         if (feeds.length === 0) {
             return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
         } else {
-
             const feedDescriptions = feeds.map(feed => {
                 if (feed.label) {
                     return `[${feed.label}](${feed.url})`;
