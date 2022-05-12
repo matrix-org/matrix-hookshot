@@ -175,7 +175,7 @@ export class SetupConnection extends CommandConnection {
         try {
             await FeedConnection.validateUrl(url);
         } catch (err: unknown) {
-            log.error(`Feed URL '${url}' failed validation: ${err}`);
+            log.debug(`Feed URL '${url}' failed validation: ${err}`);
             throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
         }
 
