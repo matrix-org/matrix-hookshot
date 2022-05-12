@@ -839,6 +839,7 @@ export class Bridge {
                                 commentProcessor: this.commentProcessor,
                                 messageClient: this.messageClient,
                                 storage: this.storage,
+                                github: this.github,
                                 getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this),
                             },
                             this.getOrCreateAdminRoom.bind(this),
