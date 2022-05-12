@@ -1,1 +1,1 @@
-Add a setup widgets for feeds
+Add a new setup widget for feeds
