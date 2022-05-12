@@ -11,8 +11,9 @@ import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { ErrCode, ApiError } from "../api"
+import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
+import Ajv, { JSONSchemaType } from "ajv";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -74,42 +75,55 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release.created",
 ];
 
+const ConnectionStateSchema = {
+    type: "object",
+    properties: {
+        priority: {
+            type: "number",
+            nullable: true,
+        },
+        instance: { type: "string" },
+        path: { type: "string" },
+        ignoreHooks: {
+            type: "array",
+            items: {
+                type: "string",
+            },
+            nullable: true,
+        },
+        commandPrefix: {
+            type: "string",
+            minLength: 2,
+            nullable: true,
+            maxLength: 24,
+        },
+        pushTagsRegex: {
+            type: "string",
+            nullable: true,
+            },
+        includingLabels: {
+            type: "array",
+            nullable: true,
+            items: {type: "string"},
+        },
+        excludingLabels: {
+            type: "array",
+            nullable: true,
+            items: {type: "string"},
+        }
+    },
+    required: [
+      "instance",
+      "path"
+    ],
+    additionalProperties: true
+} as JSONSchemaType<GitLabRepoConnectionState>;
+
 export interface GitLabTargetFilter {
     instance?: string;
     parent?: string;
     after?: string;
     search?: string;
-}
-
-
-function validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
-    if (typeof state.instance !== "string") {
-        throw new ApiError("Expected a 'instance' property", ErrCode.BadValue);
-    }
-    if (typeof state.path !== "string") {
-        throw new ApiError("Expected a 'path' property", ErrCode.BadValue);
-    }
-    const res: GitLabRepoConnectionState = {
-        instance: state.instance,
-        path: state.path,
-    }
-    if (state.commandPrefix) {
-        if (typeof state.commandPrefix !== "string") {
-            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
-        } else if (state.commandPrefix.length >= 2 || state.commandPrefix.length <= 24) {
-            res.commandPrefix = state.commandPrefix;
-        } else if (state.commandPrefix.length > 0) {
-            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
-        }
-        // Otherwise empty string, ignore.
-    }
-    if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
-        if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
-            throw new ApiError(`'events' can only contain ${AllowedEvents.join(", ")}`, ErrCode.BadValue);
-        }
-        res.ignoreHooks = state.ignoreHooks;
-    }
-    return res;
 }
 
 /**
@@ -129,11 +143,23 @@ export class GitLabRepoConnection extends CommandConnection {
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
 
+	static validateState(state: Record<string, unknown>, isExistingState = false): GitLabRepoConnectionState {
+        const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
+        if (validator(state)) {
+            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            }
+            return state;
+        }
+        throw new ValidatorApiError(validator.errors);
+    }
+
     static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
         if (!github || !config.gitlab) {
             throw Error('GitLab is not configured');
         }
-        const state = validateState(event.content);
+        const state = this.validateState(event.content, true);
         const instance = config.gitlab.instances[state.instance];
         if (!instance) {
             throw Error('Instance name not recognised');
@@ -146,7 +172,7 @@ export class GitLabRepoConnection extends CommandConnection {
             throw Error('GitLab is not configured');
         }
         const gitlabConfig = config.gitlab;
-        const validData = validateState(data);
+        const validData = this.validateState(data);
         const instance = gitlabConfig.instances[validData.instance];
         if (!instance) {
             throw Error(`provisionConnection provided an instanceName of ${validData.instance} but the instance does not exist`);
@@ -600,9 +626,8 @@ ${data.description}`;
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
-        const validatedConfig = validateState(config);
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig
-        );
+        const validatedConfig = GitLabRepoConnection.validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
     }
 
 
