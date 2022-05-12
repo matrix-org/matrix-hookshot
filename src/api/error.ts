@@ -1,3 +1,4 @@
+import { ErrorObject } from "ajv";
 import { NextFunction, Response, Request } from "express";
 import { IApiError } from "matrix-appservice-bridge";
 import LogWrapper from "../LogWrapper";
@@ -92,6 +93,19 @@ export class ApiError extends Error implements IApiError {
         return response.status(this.statusCode).send(this.jsonBody);
     }
 }
+
+export class ValidatorApiError extends ApiError {
+    constructor(errors?: ErrorObject[]|null) {
+        if (!errors) {
+            throw Error('ValidatorApiError thrown but no errors were found. This is possibly a bug.')
+        }
+        const errorStrings = errors.map(e => `${e.instancePath}: ${e.message}`).join(", ");
+        super(`Failed to validate: ${errorStrings}`, ErrCode.BadValue, -1, {
+            validationErrors: errors.map(e => ({message: e.message, path: e.instancePath}))
+        });
+    }
+}
+
 
 export function errorMiddleware(log: LogWrapper) {
     return (err: unknown, _req: Request, res: Response, next: NextFunction) => {
