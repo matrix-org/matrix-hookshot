@@ -1,3 +1,27 @@
+ 1.7.0 (2022-05-12)
+===================
+
+Features
+--------
+
+- Improve GitLab push hook formatting: markdown commit hashes, link "N commits" to the list of commits, if there are more commits than can be shown only link instead, and show commiter unless a single person committed and pushed. ([\#309](https://github.com/matrix-org/matrix-hookshot/issues/309))
+- Add `widgets.openIdOverrides` config option for developers to statically define server name <-> federation endpoints for openId lookups. ([\#326](https://github.com/matrix-org/matrix-hookshot/issues/326))
+- Add a new setup widget for feeds ([\#345](https://github.com/matrix-org/matrix-hookshot/issues/345))
+
+
+Bugfixes
+--------
+
+- Docker images can now be built cross-platform. Thanks @ptman for getting arm64 builds going! ([\#339](https://github.com/matrix-org/matrix-hookshot/issues/339))
+- Fix regression where GitHubRepo and GitLabRepo connection config options were not being honoured ([\#346](https://github.com/matrix-org/matrix-hookshot/issues/346))
+
+
+Improved Documentation
+----------------------
+
+- Fix spacing of non-emoji icons in the docs navbar ([\#341](https://github.com/matrix-org/matrix-hookshot/issues/341))
+
+
 1.6.1 (2022-05-06)
 ==================
 

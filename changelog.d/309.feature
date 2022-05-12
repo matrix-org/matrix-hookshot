@@ -1,1 +1,0 @@
-Improve GitLab push hook formatting: markdown commit hashes, link "N commits" to the list of commits, if there are more commits than can be shown only link instead, and show commiter unless a single person committed and pushed.
