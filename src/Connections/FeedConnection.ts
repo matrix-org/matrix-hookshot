@@ -1,5 +1,6 @@
 import {Appservice, StateEvent} from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
+import { ApiError, ErrCode } from "../api";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import LogWrapper from "../LogWrapper";
@@ -49,16 +50,20 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
     static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {as, config, storage}: ProvisionConnectionOpts) {
         if (!config.feeds?.enabled) {
-            throw Error('RSS/Atom feeds are not configured');
+            throw new ApiError('RSS/Atom feeds are not configured', ErrCode.DisabledFeature);
         }
 
         const url = data.url;
         if (typeof url !== 'string') {
-            throw new Error('No URL specified');
+            throw new ApiError('No URL specified', ErrCode.BadValue);
         }
-        await FeedConnection.validateUrl(url);
+        try {
+            await FeedConnection.validateUrl(url);
+        } catch (err: any) {
+            throw new ApiError(err.toString(), ErrCode.BadValue);
+        }
         if (typeof data.label !== 'undefined' && typeof data.label !== 'string') {
-            throw new Error('Label must be a string');
+            throw new ApiError('Label must be a string', ErrCode.BadValue);
         }
 
         const state = { url, label: data.label };
