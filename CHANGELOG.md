@@ -1,3 +1,19 @@
+1.7.1 (2022-05-23)
+==================
+
+Bugfixes
+--------
+
+- Match UserAgent version to Hookshot's version. Fixes #359. Thanks to @tadzik ([\#360](https://github.com/matrix-org/matrix-hookshot/issues/360))
+- Fixed an issue that prevented GitLab repo connections from working if GitHub support is disabled. ([\#362](https://github.com/matrix-org/matrix-hookshot/issues/362))
+
+
+Internal Changes
+----------------
+
+- Update towncrier to 21.9.0 ([\#353](https://github.com/matrix-org/matrix-hookshot/issues/353))
+
+
 1 (2022-05-12)
 ==============
 

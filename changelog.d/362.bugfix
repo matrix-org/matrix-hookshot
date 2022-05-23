@@ -1,1 +1,0 @@
-Fixed an issue that prevented GitLab repo connections from working if GitHub support is disabled.
