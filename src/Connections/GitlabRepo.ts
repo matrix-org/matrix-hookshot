@@ -155,8 +155,8 @@ export class GitLabRepoConnection extends CommandConnection {
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
-        if (!github || !config.gitlab) {
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, config}: InstantiateConnectionOpts) {
+        if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
         const state = this.validateState(event.content, true);
