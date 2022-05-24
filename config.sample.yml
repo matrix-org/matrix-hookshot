@@ -11,6 +11,10 @@ bridge:
 github:
   # (Optional) Configure this to enable GitHub support
   #
+  enterpriseUrl:
+    # (Optional) URL for enterprise deployments. Do not include /api/v3
+    #
+    ""
   auth:
     # Authentication for the GitHub App.
     #
@@ -36,6 +40,7 @@ github:
     # (Optional) Prefix used when creating ghost users for GitHub accounts.
     #
     _github_
+  baseUrl: {}
 gitlab:
   # (Optional) Configure this to enable GitLab support
   #
