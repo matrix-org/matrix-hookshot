@@ -30,6 +30,7 @@ export enum BridgePermissionLevel {
 }
 
 interface BridgeConfigGitHubYAML {
+    enterpriseUrl: string;
     auth: {
         id: number|string;
         privateKeyFile: string;
@@ -73,6 +74,11 @@ export class BridgeConfigGitHub {
 
     @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
     readonly userIdPrefix: string;
+    
+    @configKey("URL for enterprise deployments. Do not include /api/v3", true)
+    private enterpriseUrl = "";
+
+    public readonly baseUrl: URL;
 
     constructor(yaml: BridgeConfigGitHubYAML) {
         this.auth = yaml.auth;
@@ -80,6 +86,7 @@ export class BridgeConfigGitHub {
         this.oauth = yaml.oauth;
         this.defaultOptions = yaml.defaultOptions;
         this.userIdPrefix = yaml.userIdPrefix || "_github_";
+        this.baseUrl = new URL(yaml.enterpriseUrl ?? "https://github.com");
     }
 }
 

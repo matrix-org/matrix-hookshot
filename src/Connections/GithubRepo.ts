@@ -308,7 +308,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         }
 
         // URL hack so we don't need to fetch the repo itself.
-        const orgRepoName = repoRes.url.substr("https://api.github.com/repos/".length);
+        const orgRepoName = repoRes.full_name;
         let avatarUrl = undefined;
         try {
             const profile = await octokit.users.getByUsername({

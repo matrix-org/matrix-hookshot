@@ -9,7 +9,7 @@ import LogWrapper from "../LogWrapper";
 const log = new LogWrapper('GitHubBotCommands');
 
 
-export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, state: string) {
+export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, baseUrl: URL, state: string) {
     const q = qs.stringify({
         client_id: clientId,
         redirect_uri: redirectUri,
@@ -29,7 +29,7 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub OAuth support.");
         }
         const state = this.tokenStore.createStateForOAuth(this.userId);
-        return this.sendNotice(`Open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, state)} to link your account to the bridge.`);
+        return this.sendNotice(`Open ${generateGitHubOAuthUrl(this.config.github.oauth.client_id, this.config.github.oauth.redirect_uri, this.config.github.baseUrl, state)} to link your account to the bridge.`);
     }
 
     @botCommand("github setpersonaltoken", {help: "Set your personal access token for GitHub", requiredArgs: ['accessToken'], category: "github"})
@@ -39,7 +39,7 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         }
         let me;
         try {
-            const octokit = GithubInstance.createUserOctokit(accessToken);
+            const octokit = GithubInstance.createUserOctokit(accessToken, this.config.github.baseUrl);
             me = await octokit.users.getAuthenticated();
         } catch (ex) {
             log.error("Failed to auth with GitHub", ex);

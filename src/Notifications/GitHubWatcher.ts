@@ -38,9 +38,9 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     public readonly type = "github";
     public readonly instanceUrl = undefined;
 
-    constructor(token: string, public userId: string, public roomId: string, since: number, private participating = false) {
+    constructor(token: string, baseUrl: URL, public userId: string, public roomId: string, since: number, private participating = false) {
         super();
-        this.octoKit =  GithubInstance.createUserOctokit(token);
+        this.octoKit =  GithubInstance.createUserOctokit(token, baseUrl);
         this.lastReadTs = since;
     }
 

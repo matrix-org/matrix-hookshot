@@ -96,7 +96,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         }
 
         // URL hack so we don't need to fetch the repo itself.
-        const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
+        const orgRepoName = issue.repository?.full_name;
         let avatarUrl = undefined;
         try {
             const profile = await octokit.users.getByUsername({
@@ -128,15 +128,15 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
 
         return {
             visibility: "public",
-            name: FormatUtil.formatIssueRoomName(issue),
+            name: FormatUtil.formatIssueRoomName(issue, issue.repository || {full_name: "Not known"}),
             topic: FormatUtil.formatRoomTopic(issue),
             preset: "public_chat",
             initial_state: [
                 {
                     type: this.CanonicalEventType,
                     content: {
-                        org: orgRepoName.split("/")[0],
-                        repo: orgRepoName.split("/")[1],
+                        org: orgRepoName?.split("/")[0],
+                        repo: orgRepoName?.split("/")[1],
                         issues: [String(issue.number)],
                         comments_processed: -1,
                         state: "open",
@@ -334,7 +334,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         // TODO: Fix types
         if (event.issue && event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
-                name: FormatUtil.formatIssueRoomName(event.issue),
+                name: FormatUtil.formatIssueRoomName(event.issue, event.repository),
             });
         }
     }

@@ -24,7 +24,7 @@ export class GithubInstance {
     private readonly installationsCache = new Map<number, Installation>();
     private internalAppSlug?: string;
 
-    constructor (private readonly appId: number|string, private readonly privateKey: string) {
+    constructor (private readonly appId: number|string, private readonly privateKey: string, private readonly baseUrl: URL) {
         this.appId = parseInt(appId as string, 10);
     }
 
@@ -39,16 +39,24 @@ export class GithubInstance {
         return this.internalOctokit;
     }
 
+    public static baseOctokitConfig(baseUrl: URL) {
+        return {
+            userAgent: UserAgent,
+            baseUrl: baseUrl && new URL("/api/v3", baseUrl).toString(),
+        }
+    }
 
-    public static createUserOctokit(token: string) {
+
+    public static createUserOctokit(token: string, baseUrl: URL) {
         return new Octokit({
             auth: token,
-            userAgent: UserAgent,
+            ...this.baseOctokitConfig(baseUrl)
         });
     }
 
-    public static async refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string): Promise<GitHubOAuthTokenResponse> {
-        const accessTokenRes = await axios.post(`https://github.com/login/oauth/access_token?${qs.encode({
+    public static async refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string, baseUrl: URL): Promise<GitHubOAuthTokenResponse> {
+        const url = new URL("/login/oauth/access_token", baseUrl);
+        const accessTokenRes = await axios.post(`${url}?${qs.encode({
             client_id: clientId,
             client_secret: clientSecret,
             refresh_token: refreshToken,
@@ -84,7 +92,7 @@ export class GithubInstance {
                 privateKey: this.privateKey,
                 installationId,
             },
-            userAgent: UserAgent,
+            ...GithubInstance.baseOctokitConfig(this.baseUrl),
         });
     }
 
@@ -99,7 +107,7 @@ export class GithubInstance {
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
-            userAgent: UserAgent,
+            ...GithubInstance.baseOctokitConfig(this.baseUrl),
         });
 
 
@@ -147,8 +155,7 @@ export class GithubInstance {
     }
 
     public get newInstallationUrl() {
-        // E.g. https://github.com/apps/matrix-bridge/installations/new
-        return `https://github.com/apps/${this.appSlug}/installations/new`;
+        return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
     }
 }
 
