@@ -60,6 +60,9 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
             if (!repoRes.owner) {
                 throw Error('Repo has no owner!');
             }
+            if (repoRes.private) {
+                throw Error('Refusing to bridge private repo');
+            }
         } catch (ex) {
             log.error("Failed to get repo:", ex);
             throw Error("Could not find repo");

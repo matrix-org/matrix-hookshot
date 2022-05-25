@@ -93,6 +93,9 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
                 owner,
                 repo: repoName,
             })).data;
+            if (repo.private) {
+                throw Error('Refusing to bridge private repo');
+            }
         } catch (ex) {
             log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
