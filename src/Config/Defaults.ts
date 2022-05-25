@@ -67,7 +67,6 @@ export const DefaultConfig = new BridgeConfig({
             }
         },
         userIdPrefix: "_github_",
-        enterpriseUrl: "https://your-enterpries-address.com",
     },
     gitlab: {
         instances: {

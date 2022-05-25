@@ -30,7 +30,7 @@ export enum BridgePermissionLevel {
 }
 
 interface BridgeConfigGitHubYAML {
-    enterpriseUrl: string;
+    enterpriseUrl?: string;
     auth: {
         id: number|string;
         privateKeyFile: string;
@@ -76,7 +76,7 @@ export class BridgeConfigGitHub {
     readonly userIdPrefix: string;
     
     @configKey("URL for enterprise deployments. Does not include /api/v3", true)
-    private enterpriseUrl = "";
+    private enterpriseUrl?: string;
     @hideKey()
     public readonly baseUrl: URL;
 

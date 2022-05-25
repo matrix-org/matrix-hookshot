@@ -11,10 +11,6 @@ bridge:
 github:
   # (Optional) Configure this to enable GitHub support
   #
-  enterpriseUrl:
-    # (Optional) URL for enterprise deployments. Does not include /api/v3
-    #
-    ""
   auth:
     # Authentication for the GitHub App.
     #
