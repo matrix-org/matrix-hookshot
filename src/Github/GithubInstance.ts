@@ -155,7 +155,12 @@ export class GithubInstance {
     }
 
     public get newInstallationUrl() {
-        return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
+        if (this.baseUrl.hostname === "github.com") {
+            // Cloud
+            return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
+        }
+        // Enterprise
+        return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);
     }
 }
 

@@ -15,7 +15,7 @@ export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, ba
         redirect_uri: redirectUri,
         state: state,
     });
-    const url = `https://github.com/login/oauth/authorize?${q}`;
+    const url = `${new URL("/login/oauth/authorize", baseUrl)}?${q}`;
     return url;
 }
 

@@ -76,20 +76,23 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         }
 
         const owner = parts[0];
-        const repo = parts[1];
+        const repoName = parts[1];
         const issueNumber = parseInt(parts[2], 10);
 
-        log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
+        log.info(`Fetching ${owner}/${repoName}/${issueNumber}`);
         let issue: IssuesGetResponseData;
-        const octokit = opts.githubInstance.getOctokitForRepo(owner, repo);
+        let repo: ReposGetResponseData;
+        const octokit = opts.githubInstance.getOctokitForRepo(owner, repoName);
         try {
             issue = (await octokit.issues.get({
                 owner,
-                repo,
+                repo: repoName,
                 issue_number: issueNumber,
-            // Typing issue
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            })).data as any;
+            })).data;
+            repo = (await octokit.repos.get({
+                owner,
+                repo: repoName,
+            })).data;
         } catch (ex) {
             log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
@@ -128,7 +131,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
 
         return {
             visibility: "public",
-            name: FormatUtil.formatIssueRoomName(issue, issue.repository || {full_name: "Not known"}),
+            name: FormatUtil.formatIssueRoomName(issue, repo),
             topic: FormatUtil.formatRoomTopic(issue),
             preset: "public_chat",
             initial_state: [

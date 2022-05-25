@@ -75,9 +75,9 @@ export class BridgeConfigGitHub {
     @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
     readonly userIdPrefix: string;
     
-    @configKey("URL for enterprise deployments. Do not include /api/v3", true)
+    @configKey("URL for enterprise deployments. Does not include /api/v3", true)
     private enterpriseUrl = "";
-
+    @hideKey()
     public readonly baseUrl: URL;
 
     constructor(yaml: BridgeConfigGitHubYAML) {
