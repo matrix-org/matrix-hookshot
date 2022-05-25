@@ -80,7 +80,10 @@ Check your token is still valid, and then turn notifications back on.`, "m.notic
         let task: NotificationWatcherTask;
         const key = UserNotificationWatcher.constructMapKey(data.userId, data.type, data.instanceUrl);
         if (data.type === "github") {
-            task = new GitHubWatcher(data.token, data.userId, data.roomId, data.since, data.filterParticipating);
+            if (!this.config.github) {
+                throw Error('GitHub is not configured');
+            }
+            task = new GitHubWatcher(data.token, this.config.github.baseUrl, data.userId, data.roomId, data.since, data.filterParticipating);
         } else if (data.type === "gitlab" && data.instanceUrl) {
             task = new GitLabWatcher(data.token, data.instanceUrl, data.userId, data.roomId, data.since);
         } else {

@@ -39,7 +39,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 	});
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
-	const githubInstance = new GithubInstance("foo", "bar");
+	const githubInstance = new GithubInstance("foo", "bar", new URL("https://github.com"));
 	const connection = new GitHubRepoConnection(
 		ROOM_ID,
 		as,

@@ -191,7 +191,8 @@ export class Webhooks extends EventEmitter {
             if (!exists) {
                 return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
             }
-            const accessTokenRes = await axios.post(`https://github.com/login/oauth/access_token?${qs.encode({
+            const accessTokenUrl = new URL("/login/oauth/access_token", this.config.github.baseUrl);
+            const accessTokenRes = await axios.post(`${accessTokenUrl}?${qs.encode({
                 client_id: this.config.github.oauth.client_id,
                 client_secret: this.config.github.oauth.client_secret,
                 code: req.query.code as string,

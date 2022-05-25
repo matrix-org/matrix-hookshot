@@ -76,27 +76,30 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         }
 
         const owner = parts[0];
-        const repo = parts[1];
+        const repoName = parts[1];
         const issueNumber = parseInt(parts[2], 10);
 
-        log.info(`Fetching ${owner}/${repo}/${issueNumber}`);
+        log.info(`Fetching ${owner}/${repoName}/${issueNumber}`);
         let issue: IssuesGetResponseData;
-        const octokit = opts.githubInstance.getOctokitForRepo(owner, repo);
+        let repo: ReposGetResponseData;
+        const octokit = opts.githubInstance.getOctokitForRepo(owner, repoName);
         try {
             issue = (await octokit.issues.get({
                 owner,
-                repo,
+                repo: repoName,
                 issue_number: issueNumber,
-            // Typing issue
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            })).data as any;
+            })).data;
+            repo = (await octokit.repos.get({
+                owner,
+                repo: repoName,
+            })).data;
         } catch (ex) {
             log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
         }
 
         // URL hack so we don't need to fetch the repo itself.
-        const orgRepoName = issue.repository_url.substr("https://api.github.com/repos/".length);
+        const orgRepoName = issue.repository?.full_name;
         let avatarUrl = undefined;
         try {
             const profile = await octokit.users.getByUsername({
@@ -128,15 +131,15 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
 
         return {
             visibility: "public",
-            name: FormatUtil.formatIssueRoomName(issue),
+            name: FormatUtil.formatIssueRoomName(issue, repo),
             topic: FormatUtil.formatRoomTopic(issue),
             preset: "public_chat",
             initial_state: [
                 {
                     type: this.CanonicalEventType,
                     content: {
-                        org: orgRepoName.split("/")[0],
-                        repo: orgRepoName.split("/")[1],
+                        org: orgRepoName?.split("/")[0],
+                        repo: orgRepoName?.split("/")[1],
                         issues: [String(issue.number)],
                         comments_processed: -1,
                         state: "open",
@@ -334,7 +337,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         // TODO: Fix types
         if (event.issue && event.changes.title) {
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
-                name: FormatUtil.formatIssueRoomName(event.issue),
+                name: FormatUtil.formatIssueRoomName(event.issue, event.repository),
             });
         }
     }

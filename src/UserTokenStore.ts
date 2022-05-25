@@ -162,8 +162,9 @@ export class UserTokenStore {
                 // Needs a refresh.
                 const refreshResult = await GithubInstance.refreshAccessToken(
                     senderToken.refresh_token, 
-                    this.config.github?.oauth?.client_id,
-                    this.config.github?.oauth?.client_secret,
+                    this.config.github.oauth?.client_id,
+                    this.config.github.oauth?.client_secret,
+                    this.config.github.baseUrl
                 );
                 if (!senderToken.access_token) {
                     throw Error('Refresh token response had the wrong response format!');
@@ -185,8 +186,11 @@ export class UserTokenStore {
     }
 
     public async getOctokitForUser(userId: string) {
+        if (!this.config.github) {
+            throw Error('GitHub is not configured');
+        }
         const res = await this.getGitHubToken(userId);
-        return res ? GithubInstance.createUserOctokit(res) : null;
+        return res ? GithubInstance.createUserOctokit(res, this.config.github.baseUrl) : null;
     }
 
     public async getGitLabForUser(userId: string, instanceUrl: string) {

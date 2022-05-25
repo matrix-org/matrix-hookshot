@@ -49,7 +49,7 @@ describe("FormatUtilTest", () => {
         );
     });
     it("should correctly formats a issue room name", () => {
-        expect(FormatUtil.formatIssueRoomName(SIMPLE_ISSUE)).to.equal(
+        expect(FormatUtil.formatIssueRoomName(SIMPLE_ISSUE, SIMPLE_REPO)).to.equal(
             "evilcorp/lab#123: A simple title",
         );
     });
