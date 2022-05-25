@@ -24,11 +24,6 @@ jobs:
 
       - run: mdbook build
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: docs
-          path: ./book
-
       - name: Deploy latest
         uses: peaceiris/actions-gh-pages@v3
         # Only push if this is main, otherwise we just want to build
