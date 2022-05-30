@@ -86,7 +86,7 @@ export class BridgeConfigGitHub {
         this.oauth = yaml.oauth;
         this.defaultOptions = yaml.defaultOptions;
         this.userIdPrefix = yaml.userIdPrefix || "_github_";
-        this.baseUrl = new URL(yaml.enterpriseUrl ?? "https://github.com");
+        this.baseUrl = new URL(yaml.enterpriseUrl ?? "https://api.github.com");
     }
 }
 

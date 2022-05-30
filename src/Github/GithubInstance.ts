@@ -42,7 +42,7 @@ export class GithubInstance {
     public static baseOctokitConfig(baseUrl: URL) {
         return {
             userAgent: UserAgent,
-            baseUrl: baseUrl && new URL("/api/v3", baseUrl).toString(),
+            baseUrl: baseUrl.toString().substring(0, baseUrl.toString().length-1),
         }
     }
 
