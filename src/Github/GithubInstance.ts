@@ -42,7 +42,7 @@ export class GithubInstance {
     public static baseOctokitConfig(baseUrl: URL) {
         return {
             userAgent: UserAgent,
-            baseUrl: baseUrl.toString().substring(0, baseUrl.toString().length-1),
+            baseUrl: baseUrl.toString(),
         }
     }
 
@@ -155,7 +155,7 @@ export class GithubInstance {
     }
 
     public get newInstallationUrl() {
-        if (this.baseUrl.hostname === "github.com") {
+        if (this.baseUrl.hostname === "api.github.com") {
             // Cloud
             return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
         }

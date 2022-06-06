@@ -77,6 +77,7 @@ export class BridgeConfigGitHub {
     
     @configKey("URL for enterprise deployments. Does not include /api/v3", true)
     private enterpriseUrl?: string;
+
     @hideKey()
     public readonly baseUrl: URL;
 
