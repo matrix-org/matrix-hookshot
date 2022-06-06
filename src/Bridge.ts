@@ -1142,7 +1142,7 @@ export class Bridge {
 
     private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
         const adminRoom = new AdminRoom(
-            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config,
+            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config, this.connectionManager!,
         );
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {

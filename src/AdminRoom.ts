@@ -5,6 +5,7 @@ import { botCommand, compileBotCommands, handleCommand, BotCommands, HelpFunctio
 import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 import { Endpoints } from "@octokit/types";
+import { ConnectionManager } from "./ConnectionManager";
 import { FormatUtil } from "./FormatUtil";
 import { GetUserResponse } from "./Gitlab/Types";
 import { GitHubBotCommands } from "./Github/AdminCommands";
@@ -17,6 +18,7 @@ import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
 import LogWrapper from "./LogWrapper";
 import markdown from "markdown-it";
+import {GitHubDiscussionSpace, GitHubIssueConnection, GitHubRepoConnection} from "./Connections";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -44,7 +46,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
                 notifContent: NotificationFilterStateContent,
                 botIntent: Intent,
                 tokenStore: UserTokenStore,
-                config: BridgeConfig) {
+                config: BridgeConfig,
+                private connectionManager: ConnectionManager,
+               ) {
         super(botIntent, roomId, tokenStore, config, data);
         this.notifFilter = new NotifFilter(notifContent);
     }
@@ -126,14 +130,28 @@ export class AdminRoom extends AdminRoomCommandHandler {
         });
     }
 
-    @botCommand("help", "This help text")
+    @botCommand("help", { help: "This help text", category: "general" })
     public async helpCommand() {
         const enabledCategories = [
+            "general",
             this.config.github ? "github" : "",
             this.config.gitlab ? "gitlab" : "",
             this.config.jira ? "jira" : "",
         ];
         return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage(undefined, enabledCategories));
+    }
+
+    @botCommand("disconnect", { help: "Remove a connection", requiredArgs: ['roomId', 'id'], category: "general" })
+    public async disconnect(roomId: string, id: string) {
+        // it's stupid that we need roomId -- shouldn't `id` identify the connection?
+        const conn = this.connectionManager.getConnectionById(roomId, id);
+        try {
+            await this.connectionManager.purgeConnection(roomId, id);
+            await this.sendNotice('Connection removed successfully');
+        } catch (err: unknown) {
+            log.debug(`Failed to purge connection: ${err}`);
+            await this.sendNotice('Connection could not be removed: see debug logs for details');
+        }
     }
 
     @botCommand("github notifications toggle", { help: "Toggle enabling/disabling GitHub notifications in this room", category: "github"})
@@ -183,6 +201,35 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice(`Notifications are enabled, ${this.notificationsParticipating("github") ? "Showing only events you are particiapting in." : "Showing all events."}`);
     }
 
+    @botCommand("github list-connections", {help: "List currently bridged Github rooms", category: "github"})
+    public async listGithubConnections() {
+        if (!this.config.github) {
+            return this.sendNotice("The bridge is not configured with GitHub support.");
+        }
+
+        const connections = {
+            repos: this.connectionManager.getAllConnectionsOfType(GitHubRepoConnection),
+            issues: this.connectionManager.getAllConnectionsOfType(GitHubIssueConnection),
+            discussions: this.connectionManager.getAllConnectionsOfType(GitHubDiscussionSpace),
+        };
+
+        const reposFormatted = connections.repos.map(c => ` - ${c.org}/${c.repo} (ID: \`${c.connectionId}\`, Room: \`${c.roomId}\`)`).join('\n');
+        const issuesFormatted = connections.issues.map(c => ` - ${c.org}/${c.repo}/${c.issueNumber} (ID: \`${c.connectionId}\`), Room: \`${c.roomId}\``).join('\n');
+        const discussionsFormatted = connections.discussions.map(c => ` - ${c.owner}/${c.repo} (ID: \`${c.connectionId}\`), Room: \`${c.roomId}\``).join('\n');
+
+        const content = [
+            connections.repos.length > 0       ? `Repositories:\n${reposFormatted}`      : '',
+            connections.issues.length > 0      ? `Issues:\n${issuesFormatted}`           : '',
+            connections.discussions.length > 0 ? `Discussions:\n${discussionsFormatted}` : '',
+        ].join('\n\n') || 'No Github bridges';
+
+        return this.botIntent.sendEvent(this.roomId,{
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html"
+        });
+    }
 
     @botCommand("github project list-for-user", {help: "List GitHub projects for a user", optionalArgs:['user', 'repo'], category: "github"})
     private async listGitHubProjectsForUser(username?: string, repo?: string) {
