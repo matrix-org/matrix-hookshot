@@ -9,6 +9,7 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
+import { GITHUB_CLOUD_URL } from "../Github/GithubInstance";
 
 const log = new LogWrapper("Config");
 
@@ -87,7 +88,7 @@ export class BridgeConfigGitHub {
         this.oauth = yaml.oauth;
         this.defaultOptions = yaml.defaultOptions;
         this.userIdPrefix = yaml.userIdPrefix || "_github_";
-        this.baseUrl = new URL(yaml.enterpriseUrl ?? "https://api.github.com");
+        this.baseUrl = yaml.enterpriseUrl ? new URL(yaml.enterpriseUrl) : GITHUB_CLOUD_URL;
     }
 }
 
