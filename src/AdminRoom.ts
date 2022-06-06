@@ -5,6 +5,7 @@ import { botCommand, compileBotCommands, handleCommand, BotCommands, HelpFunctio
 import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
 import { Endpoints } from "@octokit/types";
+import { GitHubDiscussionSpace, GitHubIssueConnection, GitHubRepoConnection } from "./Connections";
 import { ConnectionManager } from "./ConnectionManager";
 import { FormatUtil } from "./FormatUtil";
 import { GetUserResponse } from "./Gitlab/Types";
@@ -18,10 +19,15 @@ import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
 import LogWrapper from "./LogWrapper";
 import markdown from "markdown-it";
-import {GitHubDiscussionSpace, GitHubIssueConnection, GitHubRepoConnection} from "./Connections";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
+enum Category {
+    ConnectionManagement = "Connection Management",
+    Github               = "Github",
+    Gitlab               = "Gitlab",
+    Jira                 = "Jira",
+}
 
 const md = new markdown();
 const log = new LogWrapper('AdminRoom');
@@ -130,19 +136,24 @@ export class AdminRoom extends AdminRoomCommandHandler {
         });
     }
 
-    @botCommand("help", { help: "This help text", category: "general" })
+    @botCommand("help", { help: "This help text" })
     public async helpCommand() {
         const enabledCategories = [
-            "general",
-            this.config.github ? "github" : "",
-            this.config.gitlab ? "gitlab" : "",
-            this.config.jira ? "jira" : "",
+            this.canManageConnections() ? Category.ConnectionManagement : '',
+            this.config.github ? Category.Github : "",
+            this.config.gitlab ? Category.Gitlab : "",
+            this.config.jira ? Category.Jira : "",
         ];
         return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage(undefined, enabledCategories));
     }
 
-    @botCommand("disconnect", { help: "Remove a connection", requiredArgs: ['roomId', 'id'], category: "general" })
+    @botCommand("disconnect", { help: "Remove a connection", requiredArgs: ['roomId', 'id'], category: Category.ConnectionManagement })
     public async disconnect(roomId: string, id: string) {
+        if (!this.canManageConnections()) {
+            await this.sendNotice("Insufficient permissions.");
+            return;
+        }
+
         // it's stupid that we need roomId -- shouldn't `id` identify the connection?
         const conn = this.connectionManager.getConnectionById(roomId, id);
         try {
@@ -154,7 +165,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
     }
 
-    @botCommand("github notifications toggle", { help: "Toggle enabling/disabling GitHub notifications in this room", category: "github"})
+    @botCommand("github notifications toggle", { help: "Toggle enabling/disabling GitHub notifications in this room", category: Category.Github})
     public async setGitHubNotificationsStateToggle() {
         const newData = await this.saveAccountData((data) => {
             return {
@@ -170,7 +181,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         await this.sendNotice(`${newData.github?.notifications?.enabled ? "En" : "Dis"}abled GitHub notifcations`);
     }
 
-    @botCommand("github notifications filter participating", {help: "Toggle enabling/disabling GitHub notifications in this room", category: "github"})
+    @botCommand("github notifications filter participating", {help: "Toggle enabling/disabling GitHub notifications in this room", category: Category.Github})
     private async setGitHubNotificationsStateParticipating() {
         const newData = await this.saveAccountData((data) => {
             if (!data.github?.notifications?.enabled) {
@@ -193,7 +204,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice(`Showing all events.`);
     }
 
-    @botCommand("github notifications", {help: "Show the current notification settings", category: "github"})
+    @botCommand("github notifications", {help: "Show the current notification settings", category: Category.Github})
     public async getGitHubNotificationsState() {
         if (!this.notificationsEnabled("github")) {
             return this.sendNotice(`Notifications are disabled.`);
@@ -201,10 +212,15 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice(`Notifications are enabled, ${this.notificationsParticipating("github") ? "Showing only events you are particiapting in." : "Showing all events."}`);
     }
 
-    @botCommand("github list-connections", {help: "List currently bridged Github rooms", category: "github"})
+    @botCommand("github list-connections", {help: "List currently bridged Github rooms", category: Category.ConnectionManagement})
     public async listGithubConnections() {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
+        }
+
+        if (!this.canManageConnections()) {
+            await this.sendNotice("Insufficient permissions.");
+            return;
         }
 
         const connections = {
@@ -231,7 +247,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         });
     }
 
-    @botCommand("github project list-for-user", {help: "List GitHub projects for a user", optionalArgs:['user', 'repo'], category: "github"})
+    @botCommand("github project list-for-user", {help: "List GitHub projects for a user", optionalArgs:['user', 'repo'], category: Category.Github})
     private async listGitHubProjectsForUser(username?: string, repo?: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
@@ -272,7 +288,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         });
     }
 
-    @botCommand("github project list-for-org", {help: "List GitHub projects for an org", requiredArgs: ['org'], optionalArgs: ['repo'], category: "github"})
+    @botCommand("github project list-for-org", {help: "List GitHub projects for an org", requiredArgs: ['org'], optionalArgs: ['repo'], category: Category.Github})
     private async listGitHubProjectsForOrg(org: string, repo?: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
@@ -310,7 +326,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         });
     }
 
-    @botCommand("github project open", {help: "Open a GitHub project as a room", requiredArgs: ['projectId'], category: "github"})
+    @botCommand("github project open", {help: "Open a GitHub project as a room", requiredArgs: ['projectId'], category: Category.Github})
     private async openProject(projectId: string) {
         if (!this.config.github) {
             return this.sendNotice("The bridge is not configured with GitHub support.");
@@ -334,7 +350,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         }
     }
 
-    @botCommand("github discussion open", {help: "Open a discussion room", requiredArgs: ['owner', 'repo', 'number'], category: "github"})
+    @botCommand("github discussion open", {help: "Open a discussion room", requiredArgs: ['owner', 'repo', 'number'], category: Category.Github})
     private async listDiscussions(owner: string, repo: string, numberStr: string) {
         const number = parseInt(numberStr);
         if (!this.config.github) {
@@ -360,7 +376,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
     /* GitLab commands */
 
-    @botCommand("gitlab open issue", {help: "Open or join a issue room for GitLab", requiredArgs: ['url'], category: "gitlab"})
+    @botCommand("gitlab open issue", {help: "Open or join a issue room for GitLab", requiredArgs: ['url'], category: Category.Gitlab})
     private async gitLabOpenIssue(url: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support.");
@@ -385,7 +401,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
     }
 
-    @botCommand("gitlab personaltoken", {help: "Set your personal access token for GitLab", requiredArgs: ['instanceName', 'accessToken'], category: "gitlab"})
+    @botCommand("gitlab personaltoken", {help: "Set your personal access token for GitLab", requiredArgs: ['instanceName', 'accessToken'], category: Category.Gitlab})
     public async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
         let me: GetUserResponse;
         if (!this.config.gitlab) {
@@ -406,7 +422,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
     }
 
-    @botCommand("gitlab hastoken", {help: "Check if you have a token stored for GitLab", requiredArgs: ["instanceName"], category: "gitlab"})
+    @botCommand("gitlab hastoken", {help: "Check if you have a token stored for GitLab", requiredArgs: ["instanceName"], category: Category.Gitlab})
     public async gitlabHasPersonalToken(instanceName: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support.");
@@ -468,6 +484,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
             await this.sendNotice(`Filter "${name}" enabled for notifications.`);
         }
         return this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
+    }
+
+    private canManageConnections(): boolean {
+        return this.config.checkPermissionAny(this.userId, BridgePermissionLevel.manageConnections);
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
