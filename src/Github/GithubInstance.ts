@@ -42,11 +42,13 @@ export class GithubInstance {
     }
 
     public static baseOctokitConfig(baseUrl: URL) {
+        // Enterprise GitHub uses a /api/v3 basepath (https://github.com/octokit/octokit.js#constructor-options)
+        // Cloud uses api.github.com
+        const url = baseUrl.hostname === GITHUB_CLOUD_URL.hostname ? baseUrl : new URL("/api/v3", baseUrl);
         return {
             userAgent: UserAgent,
-            // Enterprise GitHub uses a /api/v3 basepath (https://github.com/octokit/octokit.js#constructor-options)
-            // Cloud uses api.github.com
-            baseUrl: baseUrl.hostname === GITHUB_CLOUD_URL.hostname ? baseUrl.toString() : new URL("/api/v3", baseUrl).toString(),
+            // Remove trailing slash, which is always included in URL objects.
+            baseUrl: url.toString().substring(0,-1),
         }
     }
 
