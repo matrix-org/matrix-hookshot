@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import { h, Component } from 'preact';
-import WA from 'matrix-widget-api';
+import WA, { MatrixCapabilities } from 'matrix-widget-api';
 import BridgeAPI, { BridgeAPIError } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import { ErrorPane } from './components/elements';
@@ -55,6 +55,7 @@ export default class App extends Component<void, IState> {
         const widgetKind = qs.get('kind') as "invite"|"admin"|"roomConfig";
         // Fetch via config.
         this.widgetApi = new WA.WidgetApi(widgetId);
+        this.widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
         this.widgetApi.on("ready", () => {
             console.log("Widget ready:", this);
         });
