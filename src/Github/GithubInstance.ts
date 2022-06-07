@@ -10,6 +10,8 @@ import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("GithubInstance");
 
+export const GITHUB_CLOUD_URL = new URL("https://api.github.com");
+
 interface Installation {
     account: {
         login?: string;
@@ -42,7 +44,9 @@ export class GithubInstance {
     public static baseOctokitConfig(baseUrl: URL) {
         return {
             userAgent: UserAgent,
-            baseUrl: baseUrl && new URL("/api/v3", baseUrl).toString(),
+            // Enterprise GitHub uses a /api/v3 basepath (https://github.com/octokit/octokit.js#constructor-options)
+            // Cloud uses api.github.com
+            baseUrl: baseUrl.hostname === GITHUB_CLOUD_URL.hostname ? baseUrl.toString() : new URL("/api/v3", baseUrl).toString(),
         }
     }
 
@@ -155,11 +159,11 @@ export class GithubInstance {
     }
 
     public get newInstallationUrl() {
-        if (this.baseUrl.hostname === "github.com") {
+        if (this.baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
             // Cloud
             return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
         }
-        // Enterprise
+        // Enterprise (yes, i know right)
         return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);
     }
 }
