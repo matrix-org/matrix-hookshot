@@ -1,0 +1,1 @@
+Widgets now request the RequireClient permission to verify the users identity.
