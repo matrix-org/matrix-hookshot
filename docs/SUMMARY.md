@@ -17,6 +17,9 @@
     - [GitLab Project](./usage/room_configuration/gitlab_project.md)
 - [📊 Metrics](./metrics.md)
 
+# 🧑‍💻 Development
+- [Contributing](./contributing.md)
+
 # 🥼 Advanced
 
 - [Provisioning](./advanced/provisioning.md)

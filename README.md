@@ -42,4 +42,4 @@ sensible-browser book/index.html
 
 ## Contact
 
-We have a bridge support room you can drop into at [#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk), or you can reach me at [@Half-Shot:half-shot.uk](https://matrix.to/#/@Half-Shot:half-shot.uk)
+We have a bridge support room you can drop into at [#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk).
