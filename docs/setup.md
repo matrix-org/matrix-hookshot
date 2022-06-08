@@ -113,7 +113,7 @@ The `level` can be:
  - `login` All the above, and can also log in to the bridge.
  - `notifications` All the above, and can also bridge their notifications.
  - `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
- - `admin` All permissions. Currently, there are no admin features so this exists as a placeholder.
+ - `admin` All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.
 
 When permissions are checked, if a user matches any of the permission set and one
 of those grants the right level for a service, they are allowed access. If none of the 
