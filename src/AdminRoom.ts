@@ -139,7 +139,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("help", { help: "This help text" })
     public async helpCommand() {
         const enabledCategories = [
-            this.canManageConnections() ? Category.ConnectionManagement : '',
+            this.canAdminConnections('github') ? Category.ConnectionManagement : '',
             this.config.github ? Category.Github : "",
             this.config.gitlab ? Category.Gitlab : "",
             this.config.jira ? Category.Jira : "",
@@ -149,7 +149,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
     @botCommand("disconnect", { help: "Remove a connection", requiredArgs: ['roomId', 'id'], category: Category.ConnectionManagement })
     public async disconnect(roomId: string, id: string) {
-        if (!this.canManageConnections()) {
+        if (!this.canAdminConnections('github')) {
             await this.sendNotice("Insufficient permissions.");
             return;
         }
@@ -218,7 +218,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return this.sendNotice("The bridge is not configured with GitHub support.");
         }
 
-        if (!this.canManageConnections()) {
+        if (!this.canAdminConnections('github')) {
             await this.sendNotice("Insufficient permissions.");
             return;
         }
@@ -486,8 +486,8 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.botIntent.underlyingClient.sendStateEvent(this.roomId, NotifFilter.StateType, "", this.notifFilter.getStateContent());
     }
 
-    private canManageConnections(): boolean {
-        return this.config.checkPermissionAny(this.userId, BridgePermissionLevel.manageConnections);
+    private canAdminConnections(service: string): boolean {
+        return this.config.checkPermission(this.userId, service, BridgePermissionLevel.admin);
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
