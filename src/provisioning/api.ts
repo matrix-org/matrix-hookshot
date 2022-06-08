@@ -1,6 +1,6 @@
 import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 export interface GetConnectionTypeResponseItem {
     eventType: string;
@@ -16,7 +16,7 @@ export interface GetConnectionsResponseItem<Config = object, Secrets = object> e
     canEdit?: boolean;
 }
 
-const log = new LogWrapper("Provisioner.api");
+const log = new Logger("Provisioner.api");
 
 export async function assertUserPermissionsInRoom(userId: string, roomId: string, requiredPermission: "read"|"write", intent: Intent) {
     try {

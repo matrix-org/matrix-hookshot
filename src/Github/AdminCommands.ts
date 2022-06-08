@@ -4,9 +4,9 @@ import { botCommand } from "../BotCommands";
 import { CommandError, TokenError, TokenErrorCode } from "../errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
-const log = new LogWrapper('GitHubBotCommands');
+const log = new Logger('GitHubBotCommands');
 
 
 export function generateGitHubOAuthUrl(clientId: string, redirectUri: string, baseUrl: URL, state: string) {

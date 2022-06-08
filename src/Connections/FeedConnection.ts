@@ -3,7 +3,7 @@ import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
 import axios from "axios";
@@ -11,7 +11,7 @@ import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 
-const log = new LogWrapper("FeedConnection");
+const log = new Logger("FeedConnection");
 const md = new markdown();
 
 export interface FeedConnectionState extends IConnectionState {

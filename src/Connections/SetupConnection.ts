@@ -13,9 +13,9 @@ import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
 import { ProvisionConnectionOpts } from "./IConnection";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 const md = new markdown();
-const log = new LogWrapper("SetupConnection");
+const log = new Logger("SetupConnection");
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has

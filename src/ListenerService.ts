@@ -1,6 +1,6 @@
 import { Server } from "http";
 import { Application, default as expressApp, Router } from "express";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 // Appserices can't be handled yet because the bot-sdk maintains control of it.
 // See https://github.com/turt2live/matrix-bot-sdk/issues/191
@@ -13,7 +13,7 @@ export interface BridgeConfigListener {
     resources: Array<ResourceName>;
 }
 
-const log = new LogWrapper("ListenerService");
+const log = new Logger("ListenerService");
 
 export class ListenerService {
     private readonly listeners: {

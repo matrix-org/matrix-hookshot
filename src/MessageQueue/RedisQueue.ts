@@ -3,11 +3,11 @@ import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMes
 import { Redis, default as redis } from "ioredis";
 import { BridgeConfig, BridgeConfigQueue } from "../Config/Config";
 import { EventEmitter } from "events";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 import {v4 as uuid} from "uuid";
 
-const log = new LogWrapper("RedisMq");
+const log = new Logger("RedisMq");
 
 const CONSUMER_TRACK_PREFIX = "consumers.";
 

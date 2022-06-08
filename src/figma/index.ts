@@ -3,7 +3,7 @@ import * as Figma from 'figma-js';
 import { MatrixClient } from "matrix-bot-sdk";
 export * from "./router";
 export * from "./types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 
 interface FigmaWebhookDefinition {
@@ -14,7 +14,7 @@ interface FigmaWebhookDefinition {
     description: string;
 }
 
-const log = new LogWrapper('FigmaWebhooks');
+const log = new Logger('FigmaWebhooks');
  
 export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrixClient: MatrixClient) {
     const publicUrl = figmaConfig.publicUrl;

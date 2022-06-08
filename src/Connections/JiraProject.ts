@@ -1,6 +1,6 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
@@ -43,7 +43,7 @@ function validateJiraConnectionState(state: JiraProjectConnectionState) {
     return {url, commandPrefix, events, priority};
 }
 
-const log = new LogWrapper("JiraProjectConnection");
+const log = new Logger("JiraProjectConnection");
 const md = new markdownit();
 
 /**

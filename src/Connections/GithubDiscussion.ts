@@ -10,7 +10,7 @@ import emoji from "node-emoji";
 import markdown from "markdown-it";
 import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../Github/GithubInstance";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import { BridgeConfigGitHub } from "../Config/Config";
 export interface GitHubDiscussionConnectionState {
@@ -22,7 +22,7 @@ export interface GitHubDiscussionConnectionState {
     category: number;
 }
 
-const log = new LogWrapper("GitHubDiscussion");
+const log = new Logger("GitHubDiscussion");
 const md = new markdown();
 
 /**

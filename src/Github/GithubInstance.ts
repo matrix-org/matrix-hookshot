@@ -1,6 +1,6 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
@@ -8,7 +8,7 @@ import axios from "axios";
 import qs from "querystring";
 import UserAgent from "../UserAgent";
 
-const log = new LogWrapper("GithubInstance");
+const log = new Logger("GithubInstance");
 
 export const GITHUB_CLOUD_URL = new URL("https://api.github.com");
 

@@ -2,9 +2,9 @@ import { BridgeConfigFigma } from "../Config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Request, Response, Router, json } from "express";
 import { FigmaPayload } from "./types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
-const log = new LogWrapper('FigmaWebhooksRouter');
+const log = new Logger('FigmaWebhooksRouter');
 export class FigmaWebhooksRouter {
     constructor(private readonly config: BridgeConfigFigma, private readonly queue: MessageQueue) { }
 

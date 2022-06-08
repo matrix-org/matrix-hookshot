@@ -1,7 +1,7 @@
 import { ErrorObject } from "ajv";
 import { NextFunction, Response, Request } from "express";
 import { IApiError } from "matrix-appservice-bridge";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 export enum ErrCode {
     // Errors are prefixed with HS_
@@ -107,7 +107,7 @@ export class ValidatorApiError extends ApiError {
 }
 
 
-export function errorMiddleware(log: LogWrapper) {
+export function errorMiddleware(log: Logger) {
     return (err: unknown, _req: Request, res: Response, next: NextFunction) => {
         if (!err) {
             next();

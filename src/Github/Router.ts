@@ -3,10 +3,10 @@ import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
 import { UserTokenStore } from "../UserTokenStore";
 import { generateGitHubOAuthUrl } from "./AdminCommands";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { GithubInstance } from "./GithubInstance";
 
-const log = new LogWrapper("GitHubProvisionerRouter");
+const log = new Logger("GitHubProvisionerRouter");
 interface GitHubAccountStatus {
     loggedIn: boolean;
     username?: string;

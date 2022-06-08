@@ -1,18 +1,25 @@
 import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
 import { MatrixSender } from "../MatrixSender";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import Metrics from "../Metrics";
 import { ListenerService } from "../ListenerService";
+import { LogService } from "matrix-bot-sdk";
 
 
-const log = new LogWrapper("App");
+const log = new Logger("App");
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
     const registrationFile = process.argv[3] || "./registration.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
-    LogWrapper.configureLogging(config.logging);
+    Logger.configure({
+        console: config.logging.level,
+        colorize: config.logging.colorize,
+        json: config.logging.json,
+        timestampFormat: config.logging.timestampFormat
+    });
+    LogService.setLogger(Logger.logServiceLogger);
     const listener = new ListenerService(config.listeners);
     const sender = new MatrixSender(config, registration);
     if (config.metrics) {

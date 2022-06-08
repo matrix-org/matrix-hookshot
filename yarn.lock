@@ -1159,7 +1159,7 @@
     "@types/qs" "*"
     "@types/range-parser" "*"
 
-"@types/express@^4.17.13", "@types/express@^4.17.7", "@types/express@^4.17.8":
+"@types/express@^4.17.13", "@types/express@^4.17.8":
   version "4.17.13"
   resolved "https://registry.yarnpkg.com/@types/express/-/express-4.17.13.tgz#a76e2995728999bab51a33fabce1d705a3709034"
   integrity sha512-6bSZTPaTIACxn48l50SR+axgrqm6qXFIxrdAKaG6PaJk3+zuUr35hBlgT7vOmJcum+OEaIBLtHV/qloEAFITeA==
@@ -2246,13 +2246,6 @@ domelementtype@^2.0.1, domelementtype@^2.2.0:
   resolved "https://registry.yarnpkg.com/domelementtype/-/domelementtype-2.3.0.tgz#5c45e8e869952626331d7aab326d01daf65d589d"
   integrity sha512-OLETBj6w0OsagBwdXnPdN0cnMfF9opN69co+7ZrbfPGrdpPVNBUj02spi6B1N7wChLQiPn4CSH/zJvXw56gmHw==
 
-domhandler@^3.0.0:
-  version "3.3.0"
-  resolved "https://registry.yarnpkg.com/domhandler/-/domhandler-3.3.0.tgz#6db7ea46e4617eb15cf875df68b2b8524ce0037a"
-  integrity sha512-J1C5rIANUbuYK+FuFL98650rihynUOEzRLxW+90bKZRWB6A1X1Tf82GxR1qAWLyfNPRvjqfip3Q5tdYlmAa9lA==
-  dependencies:
-    domelementtype "^2.0.1"
-
 domhandler@^4.0.0, domhandler@^4.2.0:
   version "4.3.1"
   resolved "https://registry.yarnpkg.com/domhandler/-/domhandler-4.3.1.tgz#8d792033416f59d68bc03a5aa7b018c1ca89279c"
@@ -2260,7 +2253,7 @@ domhandler@^4.0.0, domhandler@^4.2.0:
   dependencies:
     domelementtype "^2.2.0"
 
-domutils@^2.0.0, domutils@^2.5.2:
+domutils@^2.5.2:
   version "2.8.0"
   resolved "https://registry.yarnpkg.com/domutils/-/domutils-2.8.0.tgz#4437def5db6e2d1f5d6ee859bd95ca7d02048135"
   integrity sha512-w96Cjofp72M5IIhpjgobBimYEfoPjx1Vx0BSX9P30WBdZW2WIKU0T1Bd0kz2eNZ9ikjKgHbEyKx8BB6H1L3h3A==
@@ -3166,17 +3159,6 @@ he@1.2.0, he@^1.2.0:
   resolved "https://registry.yarnpkg.com/he/-/he-1.2.0.tgz#84ae65fa7eafb165fddb61566ae14baf05664f0f"
   integrity sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==
 
-html-to-text@^6.0.0:
-  version "6.0.0"
-  resolved "https://registry.yarnpkg.com/html-to-text/-/html-to-text-6.0.0.tgz#8b48adb1b781a8378f374c5bb481864a169f59f4"
-  integrity sha512-r0KNC5aqCAItsjlgtirW6RW25c92Ee3ybQj8z//4Sl4suE3HIPqM4deGpYCUJULLjtVPEP1+Ma+1ZeX1iMsCiA==
-  dependencies:
-    deepmerge "^4.2.2"
-    he "^1.2.0"
-    htmlparser2 "^4.1.0"
-    lodash "^4.17.20"
-    minimist "^1.2.5"
-
 html-to-text@^8.1.0:
   version "8.1.0"
   resolved "https://registry.yarnpkg.com/html-to-text/-/html-to-text-8.1.0.tgz#0c35fc452e6eccb275669adb8bcc61d93ec43ed5"
@@ -3193,16 +3175,6 @@ htmlencode@^0.0.4:
   version "0.0.4"
   resolved "https://registry.yarnpkg.com/htmlencode/-/htmlencode-0.0.4.tgz#f7e2d6afbe18a87a78e63ba3308e753766740e3f"
   integrity sha1-9+LWr74YqHp45jujMI51N2Z0Dj8=
-
-htmlparser2@^4.1.0:
-  version "4.1.0"
-  resolved "https://registry.yarnpkg.com/htmlparser2/-/htmlparser2-4.1.0.tgz#9a4ef161f2e4625ebf7dfbe6c0a2f52d18a59e78"
-  integrity sha512-4zDq1a1zhE4gQso/c5LP1OtrhYTncXNSpvJYtWJBtXAETPlMfi3IFNjGuQbYLuVY4ZR0QMqRVvo4Pdy9KLyP8Q==
-  dependencies:
-    domelementtype "^2.0.1"
-    domhandler "^3.0.0"
-    domutils "^2.0.0"
-    entities "^2.0.0"
 
 htmlparser2@^6.0.0, htmlparser2@^6.1.0:
   version "6.1.0"
@@ -3783,7 +3755,7 @@ lodash.once@^4.0.0:
   resolved "https://registry.yarnpkg.com/lodash.once/-/lodash.once-4.1.1.tgz#0dd3971213c7c56df880977d504c88fb471a97ac"
   integrity sha1-DdOXEhPHxW34gJd9UEyI+0cal6w=
 
-lodash@4, lodash@^4.17.19, lodash@^4.17.20, lodash@^4.17.21:
+lodash@4, lodash@^4.17.19, lodash@^4.17.21:
   version "4.17.21"
   resolved "https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz#679591c564c3bffaae8454cf0b3df370c3d6911c"
   integrity sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==
@@ -3818,7 +3790,7 @@ loose-envify@^1.4.0:
   dependencies:
     js-tokens "^3.0.0 || ^4.0.0"
 
-lowdb@^1, lowdb@^1.0.0:
+lowdb@^1:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/lowdb/-/lowdb-1.0.0.tgz#5243be6b22786ccce30e50c9a33eac36b20c8064"
   integrity sha512-2+x8esE/Wb9SQ1F9IHaYWfsC9FIecLOPrK4g17FGEayjUWH172H6nwicRovGvSE2CPZouc2MCIqCI7h9d+GftQ==
@@ -3887,30 +3859,32 @@ matrix-appservice@^0.10.0:
     js-yaml "^4.1.0"
     morgan "^1.10.0"
 
-matrix-bot-sdk@^0.5.19:
-  version "0.5.19"
-  resolved "https://registry.yarnpkg.com/matrix-bot-sdk/-/matrix-bot-sdk-0.5.19.tgz#6ce13359ab53ea0af9dc3ebcbe288c5f6d9c02c6"
-  integrity sha512-RIPyvQPkOVp2yTKeDgp5rcn6z/DiKdHb6E8c69K+utai8ypRGtfDRj0PGqP+1XzqC9Wb1OFrESCUB5t0ffdC9g==
+matrix-bot-sdk@^0.6.0-beta.2:
+  version "0.6.0-beta.7"
+  resolved "https://registry.yarnpkg.com/matrix-bot-sdk/-/matrix-bot-sdk-0.6.0-beta.7.tgz#b437cbe977b03c7754ff4857531e1deee684b4e4"
+  integrity sha512-UzpHmrvc4sXbSs4BwxZffY075RdCOMY/42UhxzJ/QeGsRCaogjBjFOkwbzMEUk4ixSnr5qsAJeMnlxrnuFK/8w==
   dependencies:
-    "@types/express" "^4.17.7"
-    chalk "^4.1.0"
-    express "^4.17.1"
+    "@turt2live/matrix-sdk-crypto-nodejs" "^0.1.0-beta.10"
+    "@types/express" "^4.17.13"
+    another-json "^0.2.0"
+    chalk "^4"
+    express "^4.17.2"
     glob-to-regexp "^0.4.1"
     hash.js "^1.1.7"
-    html-to-text "^6.0.0"
+    html-to-text "^8.1.0"
     htmlencode "^0.0.4"
-    lowdb "^1.0.0"
+    lowdb "^1"
     lru-cache "^6.0.0"
     mkdirp "^1.0.4"
     morgan "^1.10.0"
     request "^2.88.2"
     request-promise "^4.2.6"
-    sanitize-html "^2.3.2"
+    sanitize-html "^2.6.1"
 
-matrix-bot-sdk@^0.6.0-beta.2:
-  version "0.6.0-beta.7"
-  resolved "https://registry.yarnpkg.com/matrix-bot-sdk/-/matrix-bot-sdk-0.6.0-beta.7.tgz#b437cbe977b03c7754ff4857531e1deee684b4e4"
-  integrity sha512-UzpHmrvc4sXbSs4BwxZffY075RdCOMY/42UhxzJ/QeGsRCaogjBjFOkwbzMEUk4ixSnr5qsAJeMnlxrnuFK/8w==
+matrix-bot-sdk@^0.6.0-beta.8:
+  version "0.6.0-beta.8"
+  resolved "https://registry.yarnpkg.com/matrix-bot-sdk/-/matrix-bot-sdk-0.6.0-beta.8.tgz#efd2919de04392af7b99cf119ded7164a503c91d"
+  integrity sha512-3jfKtiGFBklvuyzo9VyB5ueUdi41H9KLnvq3pjYVr/dRkCjumZ9q7PZ/P363ptnP1lBi9g20Z4dkuiNwongbDw==
   dependencies:
     "@turt2live/matrix-sdk-crypto-nodejs" "^0.1.0-beta.10"
     "@types/express" "^4.17.13"
@@ -4835,18 +4809,6 @@ safe-stable-stringify@^1.1.0:
   version "2.1.2"
   resolved "https://registry.yarnpkg.com/safer-buffer/-/safer-buffer-2.1.2.tgz#44fa161b0187b9549dd84bb91802f9bd8385cd6a"
   integrity sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==
-
-sanitize-html@^2.3.2:
-  version "2.6.1"
-  resolved "https://registry.yarnpkg.com/sanitize-html/-/sanitize-html-2.6.1.tgz#5d37c08e189c61c0631560a889b10d9d155d000e"
-  integrity sha512-DzjSz3H5qDntD7s1TcWCSoRPmNR8UmA+y+xZQOvWgjATe2Br9ZW73+vD3Pj6Snrg0RuEuJdXgrKvnYuiuixRkA==
-  dependencies:
-    deepmerge "^4.2.2"
-    escape-string-regexp "^4.0.0"
-    htmlparser2 "^6.0.0"
-    is-plain-object "^5.0.0"
-    parse-srcset "^1.0.2"
-    postcss "^8.3.11"
 
 sanitize-html@^2.6.1:
   version "2.7.0"

@@ -1,12 +1,12 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Space, StateEvent } from "matrix-bot-sdk";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
 import { GithubInstance } from "../Github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
 
-const log = new LogWrapper("GitHubOwnerSpace");
+const log = new Logger("GitHubOwnerSpace");
 
 export interface GitHubUserSpaceConnectionState {
     username: string;

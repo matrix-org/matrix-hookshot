@@ -1,5 +1,5 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
 import { VMScript as Script, NodeVM } from "vm2";
@@ -52,7 +52,7 @@ interface WebhookTransformationResult {
     empty?: boolean;
 }
 
-const log = new LogWrapper("GenericHookConnection");
+const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;

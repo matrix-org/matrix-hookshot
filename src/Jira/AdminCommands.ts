@@ -1,9 +1,9 @@
 import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
-const log = new LogWrapper('JiraBotCommands');
+const log = new Logger('JiraBotCommands');
 
 export class JiraBotCommands extends AdminRoomCommandHandler {
     @botCommand("jira login", {help: "Log in to JIRA", category: "jira"})

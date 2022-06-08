@@ -1,6 +1,6 @@
 import { IssuesGetResponseData } from "../Github/Types";
 import { Redis, default as redis } from "ioredis";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 import { IBridgeStorageProvider } from "./StorageProvider";
 import { IFilterInfo } from "matrix-bot-sdk";
@@ -23,7 +23,7 @@ const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
 const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
-const log = new LogWrapper("RedisASProvider");
+const log = new Logger("RedisASProvider");
 
 export class RedisStorageProvider implements IBridgeStorageProvider {
     private redis: Redis;

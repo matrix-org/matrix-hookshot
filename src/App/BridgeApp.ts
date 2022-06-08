@@ -1,15 +1,15 @@
 import { Bridge } from "../Bridge";
-import LogWrapper from "../LogWrapper";
 
 import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
 import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
-import { Logging } from "matrix-appservice-bridge";
+import { Logger } from "matrix-appservice-bridge";
+import { LogService } from "matrix-bot-sdk";
 
-LogWrapper.configureLogging({level: "info"});
-const log = new LogWrapper("App");
+Logger.configure({console: "info"});
+const log = new Logger("App");
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
@@ -17,10 +17,13 @@ async function start() {
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
     const listener = new ListenerService(config.listeners);
-    LogWrapper.configureLogging(config.logging);
-    // Bridge SDK doesn't support trace, use "debug" instead.
-    const bridgeSdkLevel = config.logging.level === "trace" ? "debug" : config.logging.level;
-    Logging.configure({console: bridgeSdkLevel });
+    Logger.configure({
+        console: config.logging.level,
+        colorize: config.logging.colorize,
+        json: config.logging.json,
+        timestampFormat: config.logging.timestampFormat
+    });
+    LogService.setLogger(Logger.logServiceLogger);
 
     if (config.queue.monolithic) {
         const matrixSender = new MatrixSender(config, registration);

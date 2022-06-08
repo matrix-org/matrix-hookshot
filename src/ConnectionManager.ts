@@ -11,7 +11,7 @@ import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnecti
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { ApiError, ErrCode } from "./api";
@@ -21,7 +21,7 @@ import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 
-const log = new LogWrapper("ConnectionManager");
+const log = new Logger("ConnectionManager");
 
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
