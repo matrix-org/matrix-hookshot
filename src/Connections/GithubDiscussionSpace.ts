@@ -167,4 +167,17 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
         log.info(`Adding connection to ${this.toString()}`);
         await this.space.addChildRoom(discussion.roomId);
     }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            
+            await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey);
+            await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.LegacyCanonicalEventType, this.stateKey);
+            await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+    }
 }

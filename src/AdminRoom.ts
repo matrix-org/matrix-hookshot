@@ -156,8 +156,12 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
         // it's stupid that we need roomId -- shouldn't `id` identify the connection?
         const conn = this.connectionManager.getConnectionById(roomId, id);
+        if (!conn) {
+            await this.sendNotice("Connection not found");
+            return;
+        }
         try {
-            await this.connectionManager.purgeConnection(roomId, id);
+            await this.connectionManager.purgeConnection(conn.roomId, conn.connectionId);
             await this.sendNotice('Connection removed successfully');
         } catch (err: unknown) {
             log.debug(`Failed to purge connection: ${err}`);
@@ -230,8 +234,8 @@ export class AdminRoom extends AdminRoomCommandHandler {
         };
 
         const reposFormatted = connections.repos.map(c => ` - ${c.org}/${c.repo} (ID: \`${c.connectionId}\`, Room: \`${c.roomId}\`)`).join('\n');
-        const issuesFormatted = connections.issues.map(c => ` - ${c.org}/${c.repo}/${c.issueNumber} (ID: \`${c.connectionId}\`), Room: \`${c.roomId}\``).join('\n');
-        const discussionsFormatted = connections.discussions.map(c => ` - ${c.owner}/${c.repo} (ID: \`${c.connectionId}\`), Room: \`${c.roomId}\``).join('\n');
+        const issuesFormatted = connections.issues.map(c => ` - ${c.org}/${c.repo}/${c.issueNumber} (Room: \`${c.roomId}\`, ID: \`${c.connectionId}\`)`).join('\n');
+        const discussionsFormatted = connections.discussions.map(c => ` - ${c.owner}/${c.repo} (Room: \`${c.roomId}\`, ID: \`${c.connectionId}\`)`).join('\n');
 
         const content = [
             connections.repos.length > 0       ? `Repositories:\n${reposFormatted}`      : '',

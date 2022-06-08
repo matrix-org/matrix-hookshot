@@ -155,4 +155,16 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             'uk.half-shot.matrix-hookshot.github.discussion.comment_id': data.comment.id,
         }, 'm.room.message', intent.userId);
     }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitHubDiscussionConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
+    }
 }
