@@ -139,10 +139,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
     @botCommand("help", { help: "This help text" })
     public async helpCommand() {
         const enabledCategories = [
-            this.canAdminConnections('github') ? Category.ConnectionManagement : '',
             this.config.github ? Category.Github : "",
             this.config.gitlab ? Category.Gitlab : "",
             this.config.jira ? Category.Jira : "",
+            this.canAdminConnections('github') ? Category.ConnectionManagement : '',
         ];
         return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage(undefined, enabledCategories));
     }
