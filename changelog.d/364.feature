@@ -1,1 +1,0 @@
-Add support for GitHub enterprise. You can now specify the URL via `enterpriseUrl` in the config file.

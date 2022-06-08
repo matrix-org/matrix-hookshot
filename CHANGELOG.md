@@ -1,3 +1,32 @@
+1.7.2 (2022-06-08)
+==================
+
+Features
+--------
+
+- Add support for GitHub enterprise. You can now specify the URL via `enterpriseUrl` in the config file. ([\#364](https://github.com/matrix-org/matrix-hookshot/issues/364))
+- Add ability for bridge admins to remove GitHub connections using the admin room. ([\#367](https://github.com/matrix-org/matrix-hookshot/issues/367))
+
+
+Bugfixes
+--------
+
+- Fix Github API URLs ([\#366](https://github.com/matrix-org/matrix-hookshot/issues/366))
+
+
+Improved Documentation
+----------------------
+
+- Add CONTRIBUTING.md guide. ([\#134](https://github.com/matrix-org/matrix-hookshot/issues/134))
+- Suggest using https for cloning hookshot, rather than git. ([\#355](https://github.com/matrix-org/matrix-hookshot/issues/355))
+
+
+Internal Changes
+----------------
+
+- Widgets now request the RequireClient permission to verify the users identity. ([\#370](https://github.com/matrix-org/matrix-hookshot/issues/370))
+
+
 1.7.1 (2022-05-23)
 ==================
 
