@@ -60,6 +60,9 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
             if (!repoRes.owner) {
                 throw Error('Repo has no owner!');
             }
+            if (repoRes.private) {
+                throw Error('Refusing to bridge private repo');
+            }
         } catch (ex) {
             log.error("Failed to get repo:", ex);
             throw Error("Could not find repo");
@@ -163,5 +166,18 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
     public async onDiscussionCreated(discussion: GitHubDiscussionConnection) {
         log.info(`Adding connection to ${this.toString()}`);
         await this.space.addChildRoom(discussion.roomId);
+    }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            
+            await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey);
+            await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.LegacyCanonicalEventType, this.stateKey);
+            await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
     }
 }

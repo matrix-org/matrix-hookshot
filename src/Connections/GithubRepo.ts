@@ -302,6 +302,9 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 owner,
                 repo,
             })).data;
+            if (repoRes.private) {
+                throw Error('Refusing to bridge private repo');
+            }
         } catch (ex) {
             log.error("Failed to get repo:", ex);
             throw Error("Could not find repo");

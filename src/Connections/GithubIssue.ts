@@ -93,6 +93,9 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
                 owner,
                 repo: repoName,
             })).data;
+            if (repo.private) {
+                throw Error('Refusing to bridge private repo');
+            }
         } catch (ex) {
             log.error("Failed to get issue:", ex);
             throw Error("Could not find issue");
@@ -339,6 +342,18 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
             await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
                 name: FormatUtil.formatIssueRoomName(event.issue, event.repository),
             });
+        }
+    }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubIssueConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitHubIssueConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubIssueConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitHubIssueConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
     }
 
