@@ -1,4 +1,4 @@
-import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
+import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
 import LogWrapper from "../LogWrapper";
@@ -6,7 +6,7 @@ import LogWrapper from "../LogWrapper";
 const log = new LogWrapper('JiraBotCommands');
 
 export class JiraBotCommands extends AdminRoomCommandHandler {
-    @botCommand("jira login", {help: "Log in to JIRA", category: "jira"})
+    @botCommand("jira login", {help: "Log in to JIRA", category: Category.Jira})
     public async loginCommand() {
         if (!this.config.jira?.oauth || !this.tokenStore.jiraOAuth) {
             this.sendNotice(`Bot is not configured with JIRA OAuth support.`);
@@ -18,7 +18,7 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
     }
 
 
-    @botCommand("jira logout", {help: "Clear any login information", category: "jira"})
+    @botCommand("jira logout", {help: "Clear any login information", category: Category.Jira})
     public async logout() {
         if (!this.config.jira?.oauth || !this.tokenStore.jiraOAuth) {
             this.sendNotice(`Bot is not configured with JIRA OAuth support.`);
@@ -30,7 +30,7 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
         return this.sendNotice(`No JIRA account was linked to your Matrix user.`);
     }
 
-    @botCommand("jira whoami", {help: "Determine JIRA identity", category: "jira"})
+    @botCommand("jira whoami", {help: "Determine JIRA identity", category: Category.Jira})
     public async whoami() {
         if (!this.config.jira) {
             await this.sendNotice(`Bot is not configured with JIRA OAuth support.`);

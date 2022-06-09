@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import "reflect-metadata";
-import { AdminAccountData, AdminRoomCommandHandler } from "./AdminRoomCommandHandler";
+import { AdminAccountData, AdminRoomCommandHandler, Category } from "./AdminRoomCommandHandler";
 import { botCommand, compileBotCommands, handleCommand, BotCommands, HelpFunction } from "./BotCommands";
 import { BridgeConfig, BridgePermissionLevel } from "./Config/Config";
 import { BridgeRoomState, BridgeRoomStateGitHub } from "./Widgets/BridgeWidgetInterface";
@@ -21,13 +21,6 @@ import LogWrapper from "./LogWrapper";
 import markdown from "markdown-it";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
-
-enum Category {
-    ConnectionManagement = "Connection Management",
-    Github               = "Github",
-    Gitlab               = "Gitlab",
-    Jira                 = "Jira",
-}
 
 const md = new markdown();
 const log = new LogWrapper('AdminRoom');
