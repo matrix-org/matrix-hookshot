@@ -1,3 +1,12 @@
+1.7.3 (2022-06-09)
+==================
+
+Bugfixes
+--------
+
+- Reinstate missing `github` authentication commands in admin room. ([\#372](https://github.com/matrix-org/matrix-hookshot/issues/372))
+
+
 1.7.2 (2022-06-08)
 ==================
 
