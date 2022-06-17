@@ -2,7 +2,6 @@ import { Router, Request, Response, NextFunction } from "express";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
 import { UserTokenStore } from "../UserTokenStore";
-import { generateGitHubOAuthUrl } from "./AdminCommands";
 import LogWrapper from "../LogWrapper";
 import { GithubInstance } from "./GithubInstance";
 
@@ -45,8 +44,17 @@ export class GitHubProvisionerRouter {
         if (!this.config.oauth) {
             throw new ApiError("GitHub is not configured to support OAuth", ErrCode.UnsupportedOperation);
         }
+        const userUrl = GithubInstance.generateOAuthUrl(
+            this.config.baseUrl,
+            "authorize",
+            {
+                redirect_uri: this.config.oauth.redirect_uri,
+                client_id: this.config.oauth.client_id,
+                state: this.tokenStore.createStateForOAuth(req.query.userId)
+            }
+        );
         res.send({
-            user_url: generateGitHubOAuthUrl(this.config.oauth.client_id, this.config.oauth.redirect_uri, this.config.baseUrl, this.tokenStore.createStateForOAuth(req.query.userId)),
+            user_url: userUrl,
             org_url: this.githubInstance.newInstallationUrl.toString(),
         });
     }

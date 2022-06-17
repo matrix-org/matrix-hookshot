@@ -14,6 +14,7 @@ import { GitHubOAuthTokenResponse } from "./Github/Types";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
+import { GithubInstance } from "./Github/GithubInstance";
 
 const log = new LogWrapper("Webhooks");
 
@@ -191,15 +192,14 @@ export class Webhooks extends EventEmitter {
             if (!exists) {
                 return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
             }
-            const accessTokenUrl = new URL("/login/oauth/access_token", this.config.github.baseUrl);
-            const accessTokenRes = await axios.post(`${accessTokenUrl}?${qs.encode({
+            const accessTokenUrl = GithubInstance.generateOAuthUrl(this.config.github.baseUrl, "access_token", {
                 client_id: this.config.github.oauth.client_id,
                 client_secret: this.config.github.oauth.client_secret,
                 code: req.query.code as string,
                 redirect_uri: this.config.github.oauth.redirect_uri,
                 state: req.query.state as string,
-            })}`);
-            // eslint-disable-next-line camelcase
+            });
+            const accessTokenRes = await axios.post(accessTokenUrl);
             const result = qs.parse(accessTokenRes.data) as GitHubOAuthTokenResponse|{error: string, error_description: string, error_uri: string};
             if ("error" in result) {
                 return res.status(500).send(`<p><b>GitHub Error</b>: ${result.error} ${result.error_description}</p>`);
