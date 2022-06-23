@@ -131,7 +131,7 @@ if (data.counter === undefined) {
 
 ### V1 API
 
-The v1 API expects `result` to be a string. The string will be automatically interpreted as markdown and transformed into HTML. All webhook messages
+The v1 API expects `result` to be a string. The string will be automatically interpreted as Markdown and transformed into HTML. All webhook messages
 will be prefix'd with `Received webhook:`. If `result` is falsey (undefined, false or null) then the message will be `No content`.
 
 #### Example script
