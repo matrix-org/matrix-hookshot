@@ -1,1 +1,1 @@
-Fix webhook command not sending right UUID
+Fixed setup webhook command not providing the right URL.
