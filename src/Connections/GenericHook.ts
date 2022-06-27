@@ -224,6 +224,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             } catch (ex) {
                 await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + ex);
             }
+        } else {
+            this.transformationFunction = undefined;
         }
         this.state = validatedConfig;
     }
