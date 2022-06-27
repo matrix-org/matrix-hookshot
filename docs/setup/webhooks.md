@@ -98,6 +98,7 @@ Scripts are executed syncronously and expect the `result` variable to be set.
 
 If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
 for a more precise error.
+The contents of the JSON object are provided with the message as well and can be accessed by the “view source” function of your client.
 
 ### V2 API
 
@@ -112,6 +113,12 @@ The `v2` api expects an object to be returned from the `result` variable.
   "msgtype": "some.type", // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
 }
 ```
+
+If no HTML value is provided, `plain` will be interpreted as markdown by
+[MarkdownIt.renderInline](https://markdown-it.github.io/markdown-it/#MarkdownIt.renderInline)
+which does not support paragraph tags (`<p>`).
+If paragraphs are needed a custom `html` value must be provided.
+A value for `plain` is still mandatory even if a value for HTML is given.
 
 #### Example script
 
