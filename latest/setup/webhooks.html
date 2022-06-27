@@ -242,7 +242,7 @@ for a more precise error.</p>
 }
 </code></pre>
 <h3 id="v1-api"><a class="header" href="#v1-api">V1 API</a></h3>
-<p>The v1 API expects <code>result</code> to be a string. The string will be automatically transformed into markdown. All webhook messages
+<p>The v1 API expects <code>result</code> to be a string. The string will be automatically interpreted as Markdown and transformed into HTML. All webhook messages
 will be prefix'd with <code>Received webhook:</code>. If <code>result</code> is falsey (undefined, false or null) then the message will be <code>No content</code>.</p>
 <h4 id="example-script-1"><a class="header" href="#example-script-1">Example script</a></h4>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
