@@ -21,6 +21,16 @@ interface Installation {
     matchesRepository: string[];
 }
 
+interface OAuthUrlParameters {
+    [key: string]: string|undefined;
+    state?: string;
+    client_id?: string;
+    redirect_uri?: string;
+    client_secret?: string,
+    refresh_token?: string,
+    grant_type?: 'refresh_token',
+}
+
 export class GithubInstance {
     private internalOctokit!: Octokit;
     private readonly installationsCache = new Map<number, Installation>();
@@ -61,13 +71,13 @@ export class GithubInstance {
     }
 
     public static async refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string, baseUrl: URL): Promise<GitHubOAuthTokenResponse> {
-        const url = new URL("/login/oauth/access_token", baseUrl);
-        const accessTokenRes = await axios.post(`${url}?${qs.encode({
+        const url = GithubInstance.generateOAuthUrl(baseUrl, "access_token", {
             client_id: clientId,
             client_secret: clientSecret,
             refresh_token: refreshToken,
             grant_type: 'refresh_token',
-        })}`);
+        });
+        const accessTokenRes = await axios.post(`${url}?${qs.encode()}`);
         return qs.decode(accessTokenRes.data) as unknown as GitHubOAuthTokenResponse;
     }
 
@@ -167,6 +177,16 @@ export class GithubInstance {
         }
         // Enterprise (yes, i know right)
         return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);
+    }
+
+    public static generateOAuthUrl(baseUrl: URL, action: "authorize"|"access_token", params: OAuthUrlParameters) {
+        const q = qs.stringify(params);
+        if (baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
+            // Cloud doesn't use `api.` for oauth.
+            baseUrl = new URL("https://github.com");
+        }
+        const rawUrl = baseUrl.toString();
+        return rawUrl + `${rawUrl.endsWith('/') ? '' : '/'}` + `login/oauth/${action}?${q}`;
     }
 }
 
