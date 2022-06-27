@@ -24,14 +24,14 @@ describe("GitHub", () => {
         });
         it("can generate an access_token URL for the cloud URL", () => {
 			expect(
-				GithubInstance.generateOAuthUrl(GITHUB_CLOUD_URL, "authorize", {
+				GithubInstance.generateOAuthUrl(GITHUB_CLOUD_URL, "access_token", {
 					client_id: "123",
 					client_secret: "the-secret",
 					code: "the-code",
 					redirect_uri: "456",
 					state: "my_state",
 				})
-			).equals('https://github.com/login/oauth/authorize?client_id=123&client_secret=the-secret&code=the-code&redirect_uri=456&state=my_state');
+			).equals('https://github.com/login/oauth/access_token?client_id=123&client_secret=the-secret&code=the-code&redirect_uri=456&state=my_state');
         });
         it("can generate an access_token URL for enterprise URLs", () => {
 			expect(
