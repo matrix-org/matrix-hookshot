@@ -76,6 +76,7 @@ export class Bridge {
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
+        this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
     }
@@ -1187,5 +1188,33 @@ export class Bridge {
         }
         log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
+    }
+
+    private onTokenUpdated(type: string, userId: string, token: string, instanceUrl?: string) {
+        let instanceName: string|undefined;
+        if (type === "gitlab") {
+            // TODO: Refactor our API to depend on either instanceUrl or instanceName.
+            instanceName =  Object.entries(this.config.gitlab?.instances || {}).find(i => i[1].url === instanceUrl)?.[0];
+        } else if (type === "github") {
+            // Nothing to do.
+        } else {
+            return;
+        }
+        const adminRoom = this.adminRooms.get(userId);
+        if (adminRoom?.notificationsEnabled(type, instanceName)) {
+            log.debug(`Token was updated for ${userId} (${type}), notifying notification watcher`);
+            this.queue.push<NotificationsEnableEvent>({
+                eventName: "notifications.user.enable",
+                sender: "Bridge",
+                data: {
+                    userId: adminRoom.userId,
+                    roomId: adminRoom.roomId,
+                    token,
+                    filterParticipating: adminRoom.notificationsParticipating("github"),
+                    type,
+                    instanceUrl,
+                },
+            }).catch(ex => log.error(`Failed to push notifications.user.enable:`, ex));
+        }
     }
 }

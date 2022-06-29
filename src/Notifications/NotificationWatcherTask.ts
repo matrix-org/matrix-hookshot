@@ -8,6 +8,7 @@ export interface NotificationWatcherTask extends EventEmitter {
     instanceUrl?: string;
     roomId: string;
     failureCount: number;
+    since: number;
     start(intervalMs: number): void;
     stop(): void;
 }

@@ -16,6 +16,7 @@ import { JiraOnPremOAuth } from "./Jira/oauth/OnPremOAuth";
 import { JiraOnPremClient } from "./Jira/client/OnPremClient";
 import { JiraCloudClient } from "./Jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "./errors";
+import { TypedEmitter } from "tiny-typed-emitter";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -52,12 +53,17 @@ function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?:
 
 const MAX_TOKEN_PART_SIZE = 128;
 const OAUTH_TIMEOUT_MS = 1000 * 60 * 30;
-export class UserTokenStore {
+
+interface Emitter {
+    onNewToken: (type: TokenType, userId: string, token: string, instanceUrl?: string) => void,
+}
+export class UserTokenStore extends TypedEmitter<Emitter> {
     private key!: Buffer;
     private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
     public readonly jiraOAuth?: JiraOAuth;
     constructor(private keyPath: string, private intent: Intent, private config: BridgeConfig) {
+        super();
         this.userTokens = new Map();
         if (config.jira?.oauth) {
             if ("client_id" in config.jira.oauth) {
@@ -94,6 +100,7 @@ export class UserTokenStore {
         this.userTokens.set(key, token);
         log.info(`Stored new ${type} token for ${userId}`);
         log.debug(`Stored`, data);
+        this.emit("onNewToken", type, userId, token, instanceUrl);
     }
 
     public async clearUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<boolean> {

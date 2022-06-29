@@ -21,7 +21,7 @@ const log = new LogWrapper("Webhooks");
 export interface NotificationsEnableEvent {
     userId: string;
     roomId: string;
-    since: number;
+    since?: number;
     token: string;
     filterParticipating: boolean;
     type: "github"|"gitlab";
