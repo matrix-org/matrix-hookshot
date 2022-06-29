@@ -24,6 +24,8 @@ This bridge supports:
   - Commands (create new issues)
 - Generic webhooks
   - Webhooks (via GET, PUT or POST with optional transformation functions)
+- RSS/Atom feeds
+  - New entries
 
 ## Setup
 
