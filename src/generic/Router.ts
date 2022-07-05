@@ -11,6 +11,7 @@ export class GenericWebhooksRouter {
     constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false, private readonly allowGet: boolean) { }
 
     private onWebhook(req: Request<{hookId: string}, unknown, unknown, unknown>, res: Response<{ok: true}|{ok: false, error: string}>, next: NextFunction) {
+
         if (req.method === "GET" && !this.allowGet) {
             throw new ApiError("Invalid Method. Expecting PUT or POST", ErrCode.MethodNotAllowed);
         }

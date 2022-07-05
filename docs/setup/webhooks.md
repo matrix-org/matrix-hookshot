@@ -13,6 +13,7 @@ generic:
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   waitForComplete: false
+  enableHttpGet: false
   # userIdPrefix: webhook_
 ```
 
@@ -32,6 +33,9 @@ webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/w
 `waitForComplete` causes the bridge to wait until the webhook is processed before sending a response. Some services prefer you always
 respond with a 200 as soon as the webhook has entered processing (`false`) while others prefer to know if the resulting Matrix message
 has been sent (`true`). By default this is `false`.
+
+`enableHttpGet` means that webhooks can be triggered by `GET` requests, in addition to `POST` and `PUT`. This was previously on by default,
+but is now disabled due to concerns mentioned below.
 
 You may set a `userIdPrefix` to create a specific user for each new webhook connection in a room. For example, a connection with a name
 like `example` for a prefix of `webhook_` will create a user called `@webhook_example:example.com`. If you enable this option,
@@ -56,9 +60,7 @@ To add a webhook to your room:
 
 ## Webhook Handling
 
-Hookshot handles HTTP requests with a method of `GET`, `POST` or `PUT`.
-
-If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.
+Hookshot handles `POST` and `PUT` HTTP requests by default.
 
 If the body contains a `text` key, then that key will be used as a message body in Matrix (aka `body`). This text will be automatically converted from Markdown to HTML (unless
 a `html` key is provided.).
@@ -68,6 +70,11 @@ If the body contains a `html` key, then that key will be used as the HTML messag
 If the body *also* contains a `username` key, then the message will be prepended by the given username. This will be prepended to both `text` and `html`.
 
 If the body does NOT contain a `text` field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
+
+### GET requests
+
+In previous versions of hookshot, it would also handle the `GET` HTTP method. This was disabled due to concerns that it was too easy for the webhook to be
+inadvetently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.
 
 ## JavaScript Transformations
 
