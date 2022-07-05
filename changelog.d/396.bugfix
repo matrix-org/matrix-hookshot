@@ -1,0 +1,1 @@
+Floats in JSON payloads sent to generic webhooks are now handled properly. See the [documentation](https://matrix-org.github.io/matrix-hookshot/1.8.0/setup/webhooks.html#webhook-handling) for more information.
