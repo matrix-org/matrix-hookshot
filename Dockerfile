@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y build-essential cmake
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN yarn --ignore-scripts --pure-lockfile
 RUN node node_modules/esbuild/install.js
-RUN RUST_LOG=cargo=debug yarn build
+RUN yarn build
 
 
 # Stage 1: The actual container
