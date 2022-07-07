@@ -256,6 +256,7 @@ export interface BridgeGenericWebhooksConfigYAML {
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
     waitForComplete?: boolean;
+    enableHttpGet?: boolean;
 }
 
 export class BridgeConfigGenericWebhooks {
@@ -264,11 +265,13 @@ export class BridgeConfigGenericWebhooks {
     public readonly userIdPrefix?: string;
     public readonly allowJsTransformationFunctions?: boolean;
     public readonly waitForComplete?: boolean;
+    public readonly enableHttpGet: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
         if (typeof yaml.urlPrefix !== "string") {
             throw new ConfigError("generic.urlPrefix", "is not defined or not a string");
         }
         this.enabled = yaml.enabled || false;
+        this.enableHttpGet = yaml.enableHttpGet || false;
         this.urlPrefix = yaml.urlPrefix;
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;

@@ -62,9 +62,9 @@ export class Webhooks extends EventEmitter {
             this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
         }
         if (this.config.generic) {
-            this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue).getRouter());
+            this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue, false, this.config.generic.enableHttpGet).getRouter());
             // TODO: Remove old deprecated endpoint
-            this.expressRouter.use(new GenericWebhooksRouter(this.queue, true).getRouter());
+            this.expressRouter.use(new GenericWebhooksRouter(this.queue, true, this.config.generic.enableHttpGet).getRouter());
         }
         this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),

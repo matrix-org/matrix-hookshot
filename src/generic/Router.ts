@@ -8,11 +8,16 @@ const WEBHOOK_RESPONSE_TIMEOUT = 5000;
 
 const log = new LogWrapper('GenericWebhooksRouter');
 export class GenericWebhooksRouter {
-    constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false) { }
+    constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false, private readonly allowGet: boolean) { }
 
     private onWebhook(req: Request<{hookId: string}, unknown, unknown, unknown>, res: Response<{ok: true}|{ok: false, error: string}>, next: NextFunction) {
+
+        if (req.method === "GET" && !this.allowGet) {
+            throw new ApiError("Invalid Method. Expecting PUT or POST", ErrCode.MethodNotAllowed);
+        }
+
         if (!['PUT', 'GET', 'POST'].includes(req.method)) {
-            throw new ApiError("Wrong METHOD. Expecting PUT, GET or POST", ErrCode.MethodNotAllowed);
+            throw new ApiError("Invalid Method. Expecting PUT, GET or POST", ErrCode.MethodNotAllowed);
         }
     
         let body;
