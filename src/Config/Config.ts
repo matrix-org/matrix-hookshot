@@ -256,7 +256,7 @@ export interface BridgeGenericWebhooksConfigYAML {
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
     waitForComplete?: boolean;
-    enableHttpGet: boolean;
+    enableHttpGet?: boolean;
 }
 
 export class BridgeConfigGenericWebhooks {

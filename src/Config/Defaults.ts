@@ -91,11 +91,12 @@ export const DefaultConfig = new BridgeConfig({
         },
     },
     generic: {
-        enabled: false,
-        urlPrefix: "https://example.com/webhook/",
         allowJsTransformationFunctions: false,
+        enabled: false,
+        enableHttpGet: false,
+        urlPrefix: "https://example.com/webhook/",
+        userIdPrefix: "_webhooks_",
         waitForComplete: false,
-        userIdPrefix: "_webhooks_"
     },
     figma: {
         publicUrl: "https://example.com/hookshot/",
