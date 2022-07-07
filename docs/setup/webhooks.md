@@ -62,6 +62,10 @@ To add a webhook to your room:
 
 Hookshot handles `POST` and `PUT` HTTP requests by default.
 
+Hookshot handles HTTP requests with a method of `GET`, `POST` or `PUT`.
+
+If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.
+
 If the body contains a `text` key, then that key will be used as a message body in Matrix (aka `body`). This text will be automatically converted from Markdown to HTML (unless
 a `html` key is provided.).
 
@@ -75,6 +79,15 @@ If the body does NOT contain a `text` field, the full JSON payload will be sent 
 
 In previous versions of hookshot, it would also handle the `GET` HTTP method. This was disabled due to concerns that it was too easy for the webhook to be
 inadvetently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.
+
+Hookshot will insert the full content of the body into a key under the Matrix event called `uk.half-shot.hookshot.webhook_data`, which may be useful if you have
+other integrations that would like to make use of the raw request body.
+
+<section class="notice">
+Matrix does NOT support floating point values in JSON, so the <code>uk.half-shot.hookshot.webhook_data</code> field will automatically convert any float values
+to a string representation of that value. This change is <strong>not applied</strong> to the JavaScript transformation <code>data</code>
+variable, so it will contain proper float values.
+</section>
 
 ## JavaScript Transformations
 

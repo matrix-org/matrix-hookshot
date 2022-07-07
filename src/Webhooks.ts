@@ -81,9 +81,17 @@ export class Webhooks extends EventEmitter {
     private onGitLabPayload(body: IGitLabWebhookEvent) {
         if (body.object_kind === "merge_request") {
             const action = (body as unknown as IGitLabWebhookMREvent).object_attributes.action;
+            if (!action) {
+                log.warn("Got gitlab.merge_request but no action field, which usually means someone pressed the test webhooks button.");
+                return null;
+            }
             return `gitlab.merge_request.${action}`;
         } else if (body.object_kind === "issue") {
             const action = (body as unknown as IGitLabWebhookIssueStateEvent).object_attributes.action;
+            if (!action) {
+                log.warn("Got gitlab.issue but no action field, which usually means someone pressed the test webhooks button.");
+                return null;
+            }
             return `gitlab.issue.${action}`;
         } else if (body.object_kind === "note") {
             return `gitlab.note.created`;
@@ -93,6 +101,10 @@ export class Webhooks extends EventEmitter {
             return "gitlab.wiki_page";
         } else if (body.object_kind === "release") {
             const action = (body as unknown as IGitLabWebhookReleaseEvent).action;
+            if (!action) {
+                log.warn("Got gitlab.release but no action field, which usually means someone pressed the test webhooks button.");
+                return null;
+            }
             return `gitlab.release.${action}`;
         } else if (body.object_kind === "push") {
             return `gitlab.push`;

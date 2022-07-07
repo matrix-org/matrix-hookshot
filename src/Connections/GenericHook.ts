@@ -56,12 +56,47 @@ const log = new LogWrapper("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;
+const SANITIZE_MAX_DEPTH = 5;
+const SANITIZE_MAX_BREADTH = 25;
 
 /**
  * Handles rooms connected to a github repo.
  */
 @Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
+
+    /**
+     * Ensures a JSON payload is compatible with Matrix JSON requirements, such
+     * as disallowing floating point values.
+     * 
+     * If the `depth` exceeds `SANITIZE_MAX_DEPTH`, the value of `data` will be immediately returned.
+     * If the object contains more than `SANITIZE_MAX_BREADTH` entries, the remaining entries will not be checked.
+     * 
+     * @param data The data to santise
+     * @param depth The depth of the current object relative to the root.
+     * @returns 
+     */
+    static sanitiseObjectForMatrixJSON(data: unknown, depth = 0): unknown {
+        if (typeof data === "number" && !Number.isInteger(data)) {
+            return data.toString();
+        }
+        if (depth > SANITIZE_MAX_DEPTH || typeof data !== "object" || data === null) {
+            return data;
+        }
+        if (Array.isArray(data)) {
+            return data.map((d, i) => i > SANITIZE_MAX_BREADTH ? d : this.sanitiseObjectForMatrixJSON(d, depth + 1));
+        }
+        let breadth = 0;
+        const obj: Record<string, unknown> = { ...data };
+        for (const [key, value] of Object.entries(data)) {
+            breadth++;
+            if (breadth > SANITIZE_MAX_BREADTH) {
+                break;
+            }
+            obj[key] = this.sanitiseObjectForMatrixJSON(value, depth + 1);
+        }
+        return obj;
+    }
 
     static validateState(state: Record<string, unknown>, allowJsTransformationFunctions?: boolean): GenericHookConnectionState {
         const {name, transformationFunction} = state;
@@ -336,12 +371,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const sender = this.getUserId();
         await this.ensureDisplayname();
 
+        // Matrix cannot handle float data, so make sure we parse out any floats.
+        const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
+        
         await this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: content.msgtype || "m.notice",
             body: content.plain,
             formatted_body: content.html || md.renderInline(content.plain),
             format: "org.matrix.custom.html",
-            "uk.half-shot.hookshot.webhook_data": data,
+            "uk.half-shot.hookshot.webhook_data": safeData,
         }, 'm.room.message', sender);
         return success;
 
