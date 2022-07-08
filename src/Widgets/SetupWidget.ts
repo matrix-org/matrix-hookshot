@@ -23,7 +23,7 @@ export class SetupWidget {
         return false;
     }
 
-    private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string) {
+    private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string): Promise<boolean> {
         log.info(`Running SetupRoomConfigWidget for ${roomId}`);
         try {
             const res = await botIntent.underlyingClient.getRoomStateEvent(
@@ -58,6 +58,6 @@ export class SetupWidget {
                 "waitForIframeLoad": true,
             }
         );
-        return false;
+        return true;
     }
 }
