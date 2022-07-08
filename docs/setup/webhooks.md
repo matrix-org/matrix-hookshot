@@ -78,7 +78,7 @@ If the body does NOT contain a `text` field, the full JSON payload will be sent 
 ### GET requests
 
 In previous versions of hookshot, it would also handle the `GET` HTTP method. This was disabled due to concerns that it was too easy for the webhook to be
-inadvetently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.
+inadvertently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.
 
 Hookshot will insert the full content of the body into a key under the Matrix event called `uk.half-shot.hookshot.webhook_data`, which may be useful if you have
 other integrations that would like to make use of the raw request body.
@@ -99,12 +99,12 @@ in your room to prevent users from tampering with the script.
 This bridge supports creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.
 
-The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
+The input is parsed and executed within a separate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
 With that said, the feature is disabled by default and `allowJsTransformationFunctions` must be enabled in the config.
 
 The code snippets can be edited by editing the Matrix state event corresponding to this connection (with a state type of `uk.half-shot.matrix-hookshot.generic.hook`).
 Because this is a fairly advanced feature, this documentation won't go into how to edit state events from your client.
-Please seek out documentation from your client on how to achieve this. 
+Please seek out documentation from your client on how to achieve this.
 
 The script string should be set within the state event under the `transformationFunction` key.
 
@@ -114,7 +114,7 @@ Transformation scripts have a versioned API. You can check the version of the AP
 at runtime by checking the `HookshotApiVersion` variable. If the variable is undefined, it should be considered `v1`.
 
 The execution environment will contain a `data` variable, which will be the body of the incoming request (JSON will be parsed into an `Object`).
-Scripts are executed syncronously and expect the `result` variable to be set.
+Scripts are executed synchronously and expect the `result` variable to be set.
 
 If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
 for a more precise error.
@@ -152,7 +152,7 @@ if (data.counter === undefined) {
 ### V1 API
 
 The v1 API expects `result` to be a string. The string will be automatically interpreted as Markdown and transformed into HTML. All webhook messages
-will be prefix'd with `Received webhook:`. If `result` is falsey (undefined, false or null) then the message will be `No content`.
+will be prefixed with `Received webhook:`. If `result` is falsey (undefined, false or null) then the message will be `No content`.
 
 #### Example script
 

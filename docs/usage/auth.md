@@ -55,4 +55,4 @@ have the endpoints required accessible from the internet. Authentication is requ
 - Say `jira login` to get the URL to authenticate via.
 - Click the URL sent by the bot.
 - Follow the steps, ensuring you authenticate with the right user.
-- If all goes well, you will now be connected. You can check the status and authorisatied instances by saying `jira whoami`
+- If all goes well, you will now be connected. You can check the status of authenticated instances by saying `jira whoami`
