@@ -141,7 +141,7 @@ export class SetupConnection extends CommandConnection {
         const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
         const url = `${this.config.generic.urlPrefix}${this.config.generic.urlPrefix.endsWith('/') ? '' : '/'}${c.connection.hookId}`;
         const adminRoom = await this.getOrCreateAdminRoom(userId);
-        await adminRoom.sendNotice(md.renderInline(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`));
+        await adminRoom.sendHtmlNotice(md.renderInline(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`));
         return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }
 

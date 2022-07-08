@@ -50,7 +50,10 @@ export abstract class AdminRoomCommandHandler extends EventEmitter {
         super();
     }
     public async sendNotice(noticeText: string) {
-        return this.botIntent.sendText(this.roomId, noticeText, "m.notice");
+        return this.botIntent.underlyingClient.sendNotice(this.roomId, noticeText);
+    }
+    public async sendHtmlNotice(noticeHtml: string) {
+        return this.botIntent.underlyingClient.sendHtmlNotice(this.roomId, noticeHtml);
     }
 
 }
