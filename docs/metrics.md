@@ -10,6 +10,8 @@ metrics:
   port: 9002
 ```
 
+An example dashboard that can be used with [Grafana](https://grafana.com) can be found at [/contrib/hookshot-dashboard.json](/contrib/hookshot-dashboard.json).
+
 Below is the generated list of Prometheus metrics for Hookshot.
 
 
