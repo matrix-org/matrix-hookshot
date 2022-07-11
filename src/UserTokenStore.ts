@@ -87,9 +87,10 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         }
         const key = tokenKey(type, userId, false, instanceUrl);
         const tokenParts: string[] = [];
-        while (token && token.length > 0) {
-            const part = token.slice(0, MAX_TOKEN_PART_SIZE);
-            token = token.substring(MAX_TOKEN_PART_SIZE);
+        let tokenSource = token;
+        while (tokenSource && tokenSource.length > 0) {
+            const part = tokenSource.slice(0, MAX_TOKEN_PART_SIZE);
+            tokenSource = tokenSource.substring(MAX_TOKEN_PART_SIZE);
             tokenParts.push(publicEncrypt(this.key, Buffer.from(part)).toString("base64"));
         }
         const data: StoredTokenData = {
@@ -146,19 +147,22 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         return null;
     }
 
+    public static parseGitHubToken(token: string): GitHubOAuthToken {
+        if (!token.startsWith('{')) {
+            // Old style token
+            return { access_token: token, token_type: 'pat' };
+        } else {
+            return JSON.parse(token);
+        }
+    }
+
     public async getGitHubToken(userId: string) {
         const storeTokenResponse = await this.getUserToken("github", userId);
         if (!storeTokenResponse) {
             return null;
         }
 
-        let senderToken: GitHubOAuthToken;
-        if (!storeTokenResponse.startsWith('{')) {
-            // Old style token
-            senderToken = { access_token: storeTokenResponse, token_type: 'pat' };
-        } else {
-            senderToken = JSON.parse(storeTokenResponse);
-        }
+        let senderToken = UserTokenStore.parseGitHubToken(storeTokenResponse);
         const date = Date.now();
         if (senderToken.expires_in && senderToken.expires_in < date) {
             log.info(`GitHub access token for ${userId} has expired ${senderToken.expires_in} < ${date}, attempting refresh`);
