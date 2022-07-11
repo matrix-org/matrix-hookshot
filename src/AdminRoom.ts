@@ -60,7 +60,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.widgetAccessToken === token;
     }
 
-    public notificationsEnabled(type: "github"|"gitlab", instanceName?: string) {
+    public notificationsEnabled(type: string, instanceName?: string) {
         if (type === "github") {
             return this.data.github?.notifications?.enabled;
         }
