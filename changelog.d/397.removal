@@ -1,2 +1,0 @@
-Generic webhooks will no longer respond to `GET` requests by default. Users should consider using the `POST` or `PUT` methods instead.
-`GET` support can be enabled using the config flag `generic.enableHttpGet`.

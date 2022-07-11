@@ -1,1 +1,0 @@
-Fixed generic webhook connections not updating when a previously configured transformation function is removed from state.

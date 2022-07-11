@@ -1,1 +1,0 @@
-Mention that the GitLab test hooks button doesn't send properly formed requests in all cases, and should not be relied upon when testing Hookshot.

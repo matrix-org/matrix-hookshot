@@ -1,3 +1,43 @@
+1.8.0 (2022-07-11)
+==================
+
+Bugfixes
+--------
+
+- GitHub OAuth URLs for Cloud now use the correct endpoint. ([\#377](https://github.com/matrix-org/matrix-hookshot/issues/377))
+- Fixed setup webhook command not providing the right URL. ([\#379](https://github.com/matrix-org/matrix-hookshot/issues/379))
+- Fixed generic webhook connections not updating when a previously configured transformation function is removed from state. ([\#383](https://github.com/matrix-org/matrix-hookshot/issues/383))
+- Fix malformed webhook link in AdminRoom. ([\#384](https://github.com/matrix-org/matrix-hookshot/issues/384))
+- GitHub admin room notifications will now continue to work if you reauthenticate with GitHub. ([\#388](https://github.com/matrix-org/matrix-hookshot/issues/388))
+- Floats in JSON payloads sent to generic webhooks are now handled properly. See the [documentation](https://matrix-org.github.io/matrix-hookshot/1.8.0/setup/webhooks.html#webhook-handling) for more information. ([\#396](https://github.com/matrix-org/matrix-hookshot/issues/396))
+- Allow replying with the proper notice message when a widget is set up. ([\#403](https://github.com/matrix-org/matrix-hookshot/issues/403))
+- Stringify provision connection data object in logs. ([\#404](https://github.com/matrix-org/matrix-hookshot/issues/404))
+- Fix an issue where GitLab repos could not be bridged if they were already bridged to another room. ([\#406](https://github.com/matrix-org/matrix-hookshot/issues/406))
+
+
+Improved Documentation
+----------------------
+
+- Clarify wording in Generic Hook Setup docs ([\#381](https://github.com/matrix-org/matrix-hookshot/issues/381))
+- Mention RSS/Atom feed support in the project's README. ([\#389](https://github.com/matrix-org/matrix-hookshot/issues/389))
+- Mention that the GitLab test hooks button doesn't send properly formed requests in all cases, and should not be relied upon when testing Hookshot. ([\#398](https://github.com/matrix-org/matrix-hookshot/issues/398))
+- Correct some typos in documentation pages. ([\#401](https://github.com/matrix-org/matrix-hookshot/issues/401))
+
+
+Deprecations and Removals
+-------------------------
+
+- Generic webhooks will no longer respond to `GET` requests by default. Users should consider using the `POST` or `PUT` methods instead.
+  `GET` support can be enabled using the config flag `generic.enableHttpGet`. ([\#397](https://github.com/matrix-org/matrix-hookshot/issues/397))
+
+
+Internal Changes
+----------------
+
+- Add a .node-version file. ([\#376](https://github.com/matrix-org/matrix-hookshot/issues/376))
+- Enable CI for Node 18. ([\#399](https://github.com/matrix-org/matrix-hookshot/issues/399))
+
+
 1.7.3 (2022-06-09)
 ==================
 
