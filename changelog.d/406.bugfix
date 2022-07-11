@@ -1,0 +1,1 @@
+Fix an issue where GitLab repos could not be bridged if they were already bridged to another room.
