@@ -181,7 +181,7 @@ yarn # or npm i
 <p>Where <code>/etc/matrix-hookshot</code> would contain the configuration files <code>config.yml</code> and <code>registration.yml</code>. The <code>passKey</code> file should also be stored alongside these files. In your config, you should use the path <code>/data/passkey.pem</code>.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>Copy the <code>config.sample.yml</code> to a new file <code>config.yml</code>. The sample config is also hosted
-<a href="./setup/sample-configuration.html">here</a> for your convienence.</p>
+<a href="./setup/sample-configuration.html">here</a> for your convenience.</p>
 <p>You should read and fill this in as the bridge will not start without a complete config.</p>
 <p>You may validate your config without starting the service by running <code>yarn validate-config</code>.
 For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml</code></p>
@@ -237,12 +237,12 @@ By default, any user on the bridge's own homeserver has full permission to use i
 <li><code>admin</code> All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.</li>
 </ul>
 <p>When permissions are checked, if a user matches any of the permission set and one
-of those grants the right level for a service, they are allowed access. If none of the 
-definitions match, they are denined.</p>
+of those grants the right level for a service, they are allowed access. If none of the
+definitions match, they are denied.</p>
 <h4 id="example"><a class="header" href="#example">Example</a></h4>
 <p>A typical setup might be.</p>
 <pre><code class="language-yaml">permissions:
-  # Allo all users to send commands to existing services
+  # Allow all users to send commands to existing services
   - actor: *
     services:
       - service: *
@@ -295,8 +295,8 @@ definitions match, they are denined.</p>
 <p>At a minimum, you should bind the <code>webhooks</code> resource to a port and address. You can have multiple resources on the same
 port, or one on each. Each listener MUST listen on a unique port.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
-excercise to the user.</p>
+is recommended to factor hookshot into your load balancer configuration, but currently this process is left as an
+exercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
 <li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
@@ -306,7 +306,7 @@ Note that OAuth requests also go through this listener.</li>
 <li>The <code>widgets</code> resource handles resources under <code>/widgetapi/v1...</code>. This may only be bound to <strong>one</strong> listener at present.</li>
 </ul>
 <section class="notice">
-Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
+Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>

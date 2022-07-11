@@ -154,7 +154,7 @@
 <p>This section is not complete yet for end users. For developers, you can read the documentation for the API below:</p>
 <h2 id="provisioning-api-for-matrix-hookshot"><a class="header" href="#provisioning-api-for-matrix-hookshot">Provisioning API for matrix-hookshot</a></h2>
 <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
-<p>This document describes how to integrate with <code>matrix-hookshot</code>'s provisoning API.</p>
+<p>This document describes how to integrate with <code>matrix-hookshot</code>'s provisioning API.</p>
 <p>Requests made to the bridge must be against the API listener defined in the config under <code>provisioning</code>, not
 the appservice or webhook listeners.</p>
 <p>Requests should always be authenticated with the secret given in the config, inside the <code>Authorization</code> header.
@@ -165,7 +165,7 @@ Authorization: Bearer secret
 <p>APIs are versioned independently so two endpoints on the latest version may not always have the same version.</p>
 <h1 id="apis"><a class="header" href="#apis">APIs</a></h1>
 <h2 id="get-v1health"><a class="header" href="#get-v1health">GET /v1/health</a></h2>
-<p>Request the status of the provisoning API.</p>
+<p>Request the status of the provisioning API.</p>
 <h3 id="response"><a class="header" href="#response">Response</a></h3>
 <pre><code>HTTP 200
 {}

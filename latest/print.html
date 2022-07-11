@@ -232,7 +232,7 @@ yarn # or npm i
 <p>Where <code>/etc/matrix-hookshot</code> would contain the configuration files <code>config.yml</code> and <code>registration.yml</code>. The <code>passKey</code> file should also be stored alongside these files. In your config, you should use the path <code>/data/passkey.pem</code>.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>Copy the <code>config.sample.yml</code> to a new file <code>config.yml</code>. The sample config is also hosted
-<a href="./setup/sample-configuration.html">here</a> for your convienence.</p>
+<a href="./setup/sample-configuration.html">here</a> for your convenience.</p>
 <p>You should read and fill this in as the bridge will not start without a complete config.</p>
 <p>You may validate your config without starting the service by running <code>yarn validate-config</code>.
 For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml</code></p>
@@ -288,12 +288,12 @@ By default, any user on the bridge's own homeserver has full permission to use i
 <li><code>admin</code> All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.</li>
 </ul>
 <p>When permissions are checked, if a user matches any of the permission set and one
-of those grants the right level for a service, they are allowed access. If none of the 
-definitions match, they are denined.</p>
+of those grants the right level for a service, they are allowed access. If none of the
+definitions match, they are denied.</p>
 <h4 id="example"><a class="header" href="#example">Example</a></h4>
 <p>A typical setup might be.</p>
 <pre><code class="language-yaml">permissions:
-  # Allo all users to send commands to existing services
+  # Allow all users to send commands to existing services
   - actor: *
     services:
       - service: *
@@ -346,8 +346,8 @@ definitions match, they are denined.</p>
 <p>At a minimum, you should bind the <code>webhooks</code> resource to a port and address. You can have multiple resources on the same
 port, or one on each. Each listener MUST listen on a unique port.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
-excercise to the user.</p>
+is recommended to factor hookshot into your load balancer configuration, but currently this process is left as an
+exercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
 <li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
@@ -357,7 +357,7 @@ Note that OAuth requests also go through this listener.</li>
 <li>The <code>widgets</code> resource handles resources under <code>/widgetapi/v1...</code>. This may only be bound to <strong>one</strong> listener at present.</li>
 </ul>
 <section class="notice">
-Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
+Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
@@ -383,8 +383,8 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
   timestampFormat: HH:mm:ss:SSS
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sample-configuration"><a class="header" href="#sample-configuration">Sample Configuration</a></h1>
-<p>Below is a sample bridge configuration file. The configuration file 
-can be tweaked to change the behaviour of your bridge. A bridge of the server is 
+<p>Below is a sample bridge configuration file. The configuration file
+can be tweaked to change the behaviour of your bridge. A bridge of the server is
 required to apply any changes made to this file.</p>
 <pre><code class="language-yaml"># This is an example configuration file
 
@@ -637,7 +637,7 @@ You <strong>MUST</strong> also provide a secret, which should match the <code>gi
 <li>Contents (<code>read</code>)</li>
 <li>Discussions (<code>read &amp; write</code>)</li>
 <li>Issues (<code>read &amp; write</code>)</li>
-<li>Metadata </li>
+<li>Metadata</li>
 <li>Projects (<code>read &amp; write</code>)</li>
 <li>Pull requests (<code>read &amp; write</code>)</li>
 </ul>
@@ -724,7 +724,7 @@ for your <code>webhooks</code> listener).</p>
 The GitLab hooks "test" button allows you to check that your webhooks are configured properly. The
 merge request, issue and release notifications lack a <code>action</code> field in the body of the
 request which means they <strong>won't show up in the room</strong>. You can check the logs to see
-if the request made it through, however. 
+if the request made it through, however.
 </section>
 <h2 id="adding-a-repository"><a class="header" href="#adding-a-repository">Adding a repository</a></h2>
 <p>You can now follow the guide on <a href="setup/../usage/auth.html">authenticating with GitLab</a>, and then <a href="setup/../usage/room_configuration/gitlab_project.html#setting-up">bridging a room</a></p>
@@ -732,7 +732,7 @@ if the request made it through, however.
 <h2 id="adding-a-webhook-to-a-jira-organisation"><a class="header" href="#adding-a-webhook-to-a-jira-organisation">Adding a webhook to a JIRA Organisation</a></h2>
 <p>This should be done for all JIRA organisations you wish to bridge. The setup steps are the same for both On-Prem and Cloud.</p>
 <p>You need to go to the <code>WebHooks</code> configuration page under Settings &gt; System.</p>
-<p>Next, add a webhook that points to <code>/</code> on the public webhooks address for hookshot. You should also include a 
+<p>Next, add a webhook that points to <code>/</code> on the public webhooks address for hookshot. You should also include a
 secret value by appending <code>?secret=your-webhook-secret</code>. The secret value can be anything, but should
 be reasonably secure and should also be stored in the <code>config.yml</code> file.</p>
 <p>Ensure that you enable all the events that you wish to be bridge.</p>
@@ -750,7 +750,7 @@ be reasonably secure and should also be stored in the <code>config.yml</code> fi
 depending on whether you are running a on-premise/enterprise instance or using Atlassian's cloud service.</p>
 <h2 id="jira-oauth-for-cloud"><a class="header" href="#jira-oauth-for-cloud">JIRA OAuth for Cloud</a></h2>
 <p>You will need a Atlassian account with the ability to use the developer tools in order to create the app.</p>
-<p>You'll first need to head to https://developer.atlassian.com/console/myapps/create-3lo-app/ to create a 
+<p>You'll first need to head to https://developer.atlassian.com/console/myapps/create-3lo-app/ to create a
 &quot;OAuth 2.0 (3LO)&quot; integration.</p>
 <p>Once named and created, you will need to:</p>
 <ol>
@@ -783,7 +783,7 @@ These instructions use <code>openssl</code> to generate certificates, so users o
     secret: Ieph7iecheiThoo1othaineewieSh1koh2chainohtooyoh4waht1oetoaSoh6oh
   oauth:
     # Another secret key generated by you.
-    consumerKey: secret-consumer-key  
+    consumerKey: secret-consumer-key
     # Path to a private key. Generate this with `openssl genrsa -out jira_privatekey.pem 4096`
     privateKey: jira_privatekey.pem
     # The path to your webhooks listener on the &quot;/jira/oauth&quot; path.
@@ -877,7 +877,7 @@ a <code>html</code> key is provided.).</p>
 <p>If the body does NOT contain a <code>text</code> field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
 <h3 id="get-requests"><a class="header" href="#get-requests">GET requests</a></h3>
 <p>In previous versions of hookshot, it would also handle the <code>GET</code> HTTP method. This was disabled due to concerns that it was too easy for the webhook to be
-inadvetently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.</p>
+inadvertently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.</p>
 <p>Hookshot will insert the full content of the body into a key under the Matrix event called <code>uk.half-shot.hookshot.webhook_data</code>, which may be useful if you have
 other integrations that would like to make use of the raw request body.</p>
 <section class="notice">
@@ -892,17 +892,17 @@ in your room to prevent users from tampering with the script.
 </section>
 <p>This bridge supports creating small JavaScript snippets to translate an incoming webhook payload into a message for the room, giving
 you a very powerful ability to generate messages based on whatever input is coming in.</p>
-<p>The input is parsed and exectuted within a seperate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
+<p>The input is parsed and executed within a separate JavaScript Virtual Machine context, and is limited to an execution time of 2 seconds.
 With that said, the feature is disabled by default and <code>allowJsTransformationFunctions</code> must be enabled in the config.</p>
 <p>The code snippets can be edited by editing the Matrix state event corresponding to this connection (with a state type of <code>uk.half-shot.matrix-hookshot.generic.hook</code>).
 Because this is a fairly advanced feature, this documentation won't go into how to edit state events from your client.
-Please seek out documentation from your client on how to achieve this. </p>
+Please seek out documentation from your client on how to achieve this.</p>
 <p>The script string should be set within the state event under the <code>transformationFunction</code> key.</p>
 <h3 id="script-api"><a class="header" href="#script-api">Script API</a></h3>
 <p>Transformation scripts have a versioned API. You can check the version of the API that the hookshot instance supports
 at runtime by checking the <code>HookshotApiVersion</code> variable. If the variable is undefined, it should be considered <code>v1</code>.</p>
 <p>The execution environment will contain a <code>data</code> variable, which will be the body of the incoming request (JSON will be parsed into an <code>Object</code>).
-Scripts are executed syncronously and expect the <code>result</code> variable to be set.</p>
+Scripts are executed synchronously and expect the <code>result</code> variable to be set.</p>
 <p>If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
 for a more precise error.</p>
 <h3 id="v2-api"><a class="header" href="#v2-api">V2 API</a></h3>
@@ -928,7 +928,7 @@ for a more precise error.</p>
 </code></pre>
 <h3 id="v1-api"><a class="header" href="#v1-api">V1 API</a></h3>
 <p>The v1 API expects <code>result</code> to be a string. The string will be automatically interpreted as Markdown and transformed into HTML. All webhook messages
-will be prefix'd with <code>Received webhook:</code>. If <code>result</code> is falsey (undefined, false or null) then the message will be <code>No content</code>.</p>
+will be prefixed with <code>Received webhook:</code>. If <code>result</code> is falsey (undefined, false or null) then the message will be <code>No content</code>.</p>
 <h4 id="example-script-1"><a class="header" href="#example-script-1">Example script</a></h4>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
 <pre><code class="language-js">if (data.counter &gt; data.maxValue) {
@@ -1043,12 +1043,12 @@ have the endpoints required accessible from the internet. Authentication is requ
 <li>Say <code>jira login</code> to get the URL to authenticate via.</li>
 <li>Click the URL sent by the bot.</li>
 <li>Follow the steps, ensuring you authenticate with the right user.</li>
-<li>If all goes well, you will now be connected. You can check the status and authorisatied instances by saying <code>jira whoami</code></li>
+<li>If all goes well, you will now be connected. You can check the status of authenticated instances by saying <code>jira whoami</code></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="room-configuration"><a class="header" href="#room-configuration">Room Configuration</a></h1>
 <p>Hookshot works off the principle of <strong>Connections</strong>.</p>
 <p>A room can have many connections to different services. The connections are defined
-in the room state of a room. A connection defines the service it connects to, the 
+in the room state of a room. A connection defines the service it connects to, the
 type of integration (e.g. GitHub repo, Jira Project) and any additional configuration.</p>
 <figure>
 <svg
@@ -1220,9 +1220,9 @@ type of integration (e.g. GitHub repo, Jira Project) and any additional configur
 </figure>
 <p>Hookshot supports several connection types, which are defined under the Room Configuration
 heading.</p>
-<p>The availablilty of connection types depends on the configuration provided to hookshot.</p>
+<p>The availability of connection types depends on the configuration provided to hookshot.</p>
 <h3 id="the-hookshot-command"><a class="header" href="#the-hookshot-command">The <code>!hookshot</code> command</a></h3>
-<p>Rooms can be bridged by inviting the hookshot bot into a room, and then running the 
+<p>Rooms can be bridged by inviting the hookshot bot into a room, and then running the
 <code>!hookshot</code> command. Running <code>!hookshot help</code> will give you some details, but you should
 see the documentation provided for information on each connection type.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="github-repository"><a class="header" href="#github-repository">GitHub Repository</a></h1>
@@ -1438,7 +1438,7 @@ which help us determine which services are affected by an issue.</li>
 <p>This section is not complete yet for end users. For developers, you can read the documentation for the API below:</p>
 <h2 id="provisioning-api-for-matrix-hookshot"><a class="header" href="#provisioning-api-for-matrix-hookshot">Provisioning API for matrix-hookshot</a></h2>
 <h1 id="overview"><a class="header" href="#overview">Overview</a></h1>
-<p>This document describes how to integrate with <code>matrix-hookshot</code>'s provisoning API.</p>
+<p>This document describes how to integrate with <code>matrix-hookshot</code>'s provisioning API.</p>
 <p>Requests made to the bridge must be against the API listener defined in the config under <code>provisioning</code>, not
 the appservice or webhook listeners.</p>
 <p>Requests should always be authenticated with the secret given in the config, inside the <code>Authorization</code> header.
@@ -1449,7 +1449,7 @@ Authorization: Bearer secret
 <p>APIs are versioned independently so two endpoints on the latest version may not always have the same version.</p>
 <h1 id="apis"><a class="header" href="#apis">APIs</a></h1>
 <h2 id="get-v1health"><a class="header" href="#get-v1health">GET /v1/health</a></h2>
-<p>Request the status of the provisoning API.</p>
+<p>Request the status of the provisioning API.</p>
 <h3 id="response"><a class="header" href="#response">Response</a></h3>
 <pre><code>HTTP 200
 {}
@@ -1650,7 +1650,7 @@ This feature is <b>experimental</b> and should only be used when you are reachin
 </code></pre>
 <p>Once that is done, you can simply start the processes by name using yarn:</p>
 <pre><code>yarn start:webhooks
-yarn start:matrixsender 
+yarn start:matrixsender
 yarn start:app
 </code></pre>
 <p>Be aware that you will need to start all worker types when running in worker mode, as the service does not allow a hybrid worker approach.</p>
@@ -1699,9 +1699,9 @@ should leave <code>addToAdminRooms</code> off (as it is by default). This flag w
 This can be enabled by setting <code>roomSetupWidget</code> to an object. You can add the widget by saying <code>!hookshot setup-widget</code> in any room.
 When <code>addOnInvite</code> is true, the bridge will add a widget to rooms when the bot is invited, and the room has <strong>no existing connections</strong>.</p>
 <p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
-Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convienence.</p>
-<p><code>publicUrl</code> should be set to the publically reachable address for the widget <code>public</code> content. By default, hookshot hosts this content on the
-<code>widgets</code> listener under <code>/widgetapi/v1/static</code>. </p>
+Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convenience.</p>
+<p><code>publicUrl</code> should be set to the publicly reachable address for the widget <code>public</code> content. By default, hookshot hosts this content on the
+<code>widgets</code> listener under <code>/widgetapi/v1/static</code>.</p>
 <p><code>branding</code> allows you to change the strings used for various bits of widget UI. At the moment you can:</p>
 <ul>
 <li>Set <code>widgetTitle</code> to change the title of the widget that is created.</li>
@@ -1709,8 +1709,8 @@ Unless you know what you are doing, it is recommended to not include this key. T
 <p><code>openIdOverrides</code> allows you to configure the correct federation endpoints for a given set of Matrix server names. This is useful if you are
 testing/developing hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
 should be resolvable). The config takes a mapping of Matrix server name =&gt; base path for federation.
-E.g. if your server name was <code>my-local-server</code> and you federation was readable via http://localhost/_matrix/federation,
-you would put configure <code>my-local-server: &quot;http://localhost</code>.</p>
+E.g. if your server name was <code>my-local-server</code> and your federation was readable via http://localhost/_matrix/federation,
+you would put configure <code>my-local-server: &quot;http://localhost&quot;</code>.</p>
 <p>In addition to setting up the widgets config, you must bind a listener for the widgets resource in your <code>listeners</code> config.</p>
 <pre><code class="language-yaml">listeners:
   - port: 5069
@@ -1720,7 +1720,7 @@ you would put configure <code>my-local-server: &quot;http://localhost</code>.</p
 </code></pre>
 <p>See the <a href="advanced/../setup#listeners-configuration">setup page</a> for more information on listeners.</p>
 <h3 id="api"><a class="header" href="#api">API</a></h3>
-<p>The API for widgets is currently in flux due to being fairly new, and it's not reccomended
+<p>The API for widgets is currently in flux due to being fairly new, and it's not recommended
 to develop against it at this time. At a future date this API will be merged with the existing
 provisioning API and the details will be published.</p>
 
