@@ -70,7 +70,7 @@ export class ConnectionManager extends EventEmitter {
      * @returns The resulting connection.
      */
     public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
-        log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with ${data}`);
+        log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with data ${JSON.stringify(data)}`);
         const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
