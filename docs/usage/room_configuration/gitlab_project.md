@@ -22,7 +22,7 @@ To set up a connection to a GitLab project in a new room:
 This connection supports a few options which can be defined in the room state:
 
 | Option | Description | Allowed values | Default |
-|--------|-------------|----------------|---------| 
+|--------|-------------|----------------|---------|
 |ignoreHooks|Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
 |commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gh`|
 |pushTagsRegex|Only mention pushed tags which match this regex|Regex string|*empty*|

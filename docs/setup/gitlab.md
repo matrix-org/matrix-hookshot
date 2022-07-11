@@ -30,7 +30,7 @@ for your `webhooks` listener).
 The GitLab hooks "test" button allows you to check that your webhooks are configured properly. The
 merge request, issue and release notifications lack a <code>action</code> field in the body of the
 request which means they <strong>won't show up in the room</strong>. You can check the logs to see
-if the request made it through, however. 
+if the request made it through, however.
 </section>
 
 ## Adding a repository

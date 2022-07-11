@@ -12,7 +12,7 @@ You **must** have administrative access to an existing homeserver in order to se
 Hookshot requires the homeserver to be configured with its appservice registration.
 
 
-## Local installation 
+## Local installation
 
 This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.
 
@@ -51,7 +51,7 @@ Where `/etc/matrix-hookshot` would contain the configuration files `config.yml` 
 ## Configuration
 
 Copy the `config.sample.yml` to a new file `config.yml`. The sample config is also hosted
-[here](./setup/sample-configuration.md) for your convienence.
+[here](./setup/sample-configuration.md) for your convenience.
 
 You should read and fill this in as the bridge will not start without a complete config.
 
@@ -116,8 +116,8 @@ The `level` can be:
  - `admin` All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.
 
 When permissions are checked, if a user matches any of the permission set and one
-of those grants the right level for a service, they are allowed access. If none of the 
-definitions match, they are denined.
+of those grants the right level for a service, they are allowed access. If none of the
+definitions match, they are denied.
 
 #### Example
 
@@ -125,7 +125,7 @@ A typical setup might be.
 
 ```yaml
 permissions:
-  # Allo all users to send commands to existing services
+  # Allow all users to send commands to existing services
   - actor: *
     services:
       - service: *
@@ -184,8 +184,8 @@ At a minimum, you should bind the `webhooks` resource to a port and address. You
 port, or one on each. Each listener MUST listen on a unique port.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is recommended to factor hookshot into your load balancer configuration, but currrently this process is left as an
-excercise to the user.
+is recommended to factor hookshot into your load balancer configuration, but currently this process is left as an
+exercise to the user.
 
 In terms of API endpoints:
 
@@ -196,7 +196,7 @@ In terms of API endpoints:
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
 
 <section class="notice">
-Please note that the appservice HTTP listener is configured <strong>seperately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
+Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
 

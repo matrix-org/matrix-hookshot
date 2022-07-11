@@ -18,7 +18,7 @@ You will need to enable the following permissions:
     - Contents (`read`)
     - Discussions (`read & write`)
     - Issues (`read & write`)
-    - Metadata 
+    - Metadata
     - Projects (`read & write`)
     - Pull requests (`read & write`)
  - Organisation
