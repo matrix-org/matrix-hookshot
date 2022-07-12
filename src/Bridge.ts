@@ -1183,7 +1183,7 @@ export class Bridge {
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
-        if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
+        if (this.config.widgets?.addToAdminRooms) {
             await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
         }
         log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);

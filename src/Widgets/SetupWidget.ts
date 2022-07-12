@@ -54,7 +54,7 @@ export class SetupWidget {
                 "id": stateKey,
                 "name": config.branding.widgetTitle,
                 "type": "m.custom",
-                "url": `${config?.publicUrl}/#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`,
+                "url": `${config.publicUrl}/#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`,
                 "waitForIframeLoad": true,
             }
         );

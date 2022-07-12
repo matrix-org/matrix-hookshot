@@ -267,7 +267,7 @@ export class BridgeConfigGenericWebhooks {
     public readonly waitForComplete?: boolean;
     public readonly enableHttpGet: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
-        if (typeof yaml.urlPrefix !== "string") {
+        if (typeof yaml.urlPrefix !== "string" || !yaml.urlPrefix) {
             throw new ConfigError("generic.urlPrefix", "is not defined or not a string");
         }
         this.enabled = yaml.enabled || false;
@@ -323,7 +323,7 @@ export class BridgeWidgetConfig {
         if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
             throw new ConfigError("widgets.disallowedIpRanges", "must be a string array");
         }
-        if (typeof yaml.publicUrl !== "string") {
+        if (typeof yaml.publicUrl !== "string" || !yaml.publicUrl) {
             throw new ConfigError("widgets.publicUrl", "is not defined or not a string");
         }
         this.publicUrl = yaml.publicUrl;
