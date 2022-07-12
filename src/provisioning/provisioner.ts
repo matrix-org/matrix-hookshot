@@ -70,7 +70,6 @@ export class Provisioner {
             (...args) => this.checkUserPermission("write", ...args),
             this.deleteConnection.bind(this),
         );
-        this.expressRouter.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
     }
 
     private checkAuth(req: Request, _res: Response, next: NextFunction) {
