@@ -143,11 +143,16 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
         if (keyIsHidden(obj, key)) {
             return;
         }
-        
+
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
             newNode = YAML.createNode({});
             renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq);
+        } else if (typeof value === "function") {
+            if (value.length !== 0) {
+                throw Error("Only zero-argument functions are allowed as config values");
+            }
+            newNode = YAML.createNode(value());
         } else {
             newNode = YAML.createNode(value);
         }

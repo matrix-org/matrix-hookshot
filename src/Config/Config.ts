@@ -265,19 +265,24 @@ export interface BridgeGenericWebhooksConfigYAML {
 
 export class BridgeConfigGenericWebhooks {
     public readonly enabled: boolean;
-    public readonly urlPrefix: URL;
+
+    @hideKey()
+    public readonly parsedUrlPrefix: URL;
+    public readonly urlPrefix: () => string;
+
     public readonly userIdPrefix?: string;
     public readonly allowJsTransformationFunctions?: boolean;
     public readonly waitForComplete?: boolean;
     public readonly enableHttpGet: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
+        this.enabled = yaml.enabled || false;
+        this.enableHttpGet = yaml.enableHttpGet || false;
         try {
-            this.urlPrefix = makePrefixedUrl(yaml.urlPrefix);
+            this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
+            this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
         } catch (err) {
             throw new ConfigError("generic.urlPrefix", "is not defined or not a valid URL");
         }
-        this.enabled = yaml.enabled || false;
-        this.enableHttpGet = yaml.enableHttpGet || false;
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
@@ -310,7 +315,11 @@ interface BridgeWidgetConfigYAML {
 
 export class BridgeWidgetConfig {
     public readonly addToAdminRooms: boolean;
-    public readonly publicUrl: URL;
+
+    @hideKey()
+    public readonly parsedPublicUrl: URL;
+    public readonly publicUrl: () => string;
+
     public readonly roomSetupWidget?: {
         addOnInvite?: boolean;
     };
@@ -329,7 +338,8 @@ export class BridgeWidgetConfig {
             throw new ConfigError("widgets.disallowedIpRanges", "must be a string array");
         }
         try {
-            this.publicUrl = makePrefixedUrl(yaml.publicUrl)
+            this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
+            this.publicUrl = () => { return this.parsedPublicUrl.href; }
         } catch (err) {
             throw new ConfigError("widgets.publicUrl", "is not defined or not a valid URL");
         }
