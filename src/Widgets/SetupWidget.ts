@@ -8,7 +8,7 @@ const log = new LogWrapper("SetupWidget");
 export class SetupWidget {
 
     static async SetupAdminRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
-        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.RoomConfiguration, "bridge_control")) {
+        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.Settings, "bridge_control")) {
             await botIntent.sendText(roomId, `If your client supports it, you can open the "${config.branding.widgetTitle}" widget to configure hookshot.`);
             return true;
         }
