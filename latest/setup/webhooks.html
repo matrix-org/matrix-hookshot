@@ -198,12 +198,22 @@ namespaces:
 <h2 id="webhook-handling"><a class="header" href="#webhook-handling">Webhook Handling</a></h2>
 <p>Hookshot handles <code>POST</code> and <code>PUT</code> HTTP requests by default.</p>
 <p>Hookshot handles HTTP requests with a method of <code>GET</code>, <code>POST</code> or <code>PUT</code>.</p>
-<p>If the request is a <code>GET</code> request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.</p>
+<p>If the request is a <code>GET</code> request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a supported payload.</p>
 <p>If the body contains a <code>text</code> key, then that key will be used as a message body in Matrix (aka <code>body</code>). This text will be automatically converted from Markdown to HTML (unless
 a <code>html</code> key is provided.).</p>
 <p>If the body contains a <code>html</code> key, then that key will be used as the HTML message body in Matrix (aka <code>formatted_body</code>). A <code>text</code> key fallback MUST still be provided.</p>
 <p>If the body <em>also</em> contains a <code>username</code> key, then the message will be prepended by the given username. This will be prepended to both <code>text</code> and <code>html</code>.</p>
-<p>If the body does NOT contain a <code>text</code> field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
+<p>If the body does NOT contain a <code>text</code> field, the full payload will be sent to the room. This can be adapted into a message by creating a <strong>JavaScript transformation function</strong>.</p>
+<h3 id="payload-formats"><a class="header" href="#payload-formats">Payload formats</a></h3>
+<p>If the request is a <code>POST</code>/<code>PUT</code>, the body of the request will be decoded and stored inside the event. Currently, Hookshot supports:</p>
+<ul>
+<li>XML, when the <code>Content-Type</code> header ends in <code>/xml</code> or <code>+xml</code>.</li>
+<li>Web form data, when the <code>Content-Type</code> header is <code>application/x-www-form-urlencoded</code>.</li>
+<li>JSON, when the <code>Content-Type</code> header is <code>application/json</code>.</li>
+<li>Text, when the <code>Content-Type</code> header begins with <code>text/</code>.</li>
+</ul>
+<p>Decoding is done in the order given above. E.g. <code>text/xml</code> would be parsed as XML. Any formats not described above are not
+decoded.</p>
 <h3 id="get-requests"><a class="header" href="#get-requests">GET requests</a></h3>
 <p>In previous versions of hookshot, it would also handle the <code>GET</code> HTTP method. This was disabled due to concerns that it was too easy for the webhook to be
 inadvertently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.</p>
@@ -230,7 +240,7 @@ Please seek out documentation from your client on how to achieve this.</p>
 <h3 id="script-api"><a class="header" href="#script-api">Script API</a></h3>
 <p>Transformation scripts have a versioned API. You can check the version of the API that the hookshot instance supports
 at runtime by checking the <code>HookshotApiVersion</code> variable. If the variable is undefined, it should be considered <code>v1</code>.</p>
-<p>The execution environment will contain a <code>data</code> variable, which will be the body of the incoming request (JSON will be parsed into an <code>Object</code>).
+<p>The execution environment will contain a <code>data</code> variable, which will be the body of the incoming request (see <a href="#payload-formats">Payload formats</a>).
 Scripts are executed synchronously and expect the <code>result</code> variable to be set.</p>
 <p>If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
 for a more precise error.</p>
