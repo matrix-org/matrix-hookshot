@@ -1,0 +1,1 @@
+Add package scripts for cleaning build files (which can be run with `yarn clean`).
