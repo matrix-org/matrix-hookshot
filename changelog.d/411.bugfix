@@ -1,0 +1,1 @@
+If `widgets.addToAdminRooms` is set, add the admin widget to a DM room the bot is invited to, instead of the non-admin widget.
