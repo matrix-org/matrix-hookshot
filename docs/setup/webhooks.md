@@ -81,6 +81,7 @@ If the request is a `POST`/`PUT`, the body of the request will be decoded and st
 
 - XML, when the `Content-Type` header ends in `/xml` or `+xml`.
 - JSON, when the `Content-Type` header is `application/json`.
+- Web form data, when the `Content-Type` header is `application/x-www-form-urlencoded`.
 - Text, when the `Content-Type` header begins with `text/`.
 
 Decoding is done in the order given above. E.g. `text/xml` would be parsed as XML. Any formats not described above are not

@@ -3,8 +3,8 @@ import { Router, default as express, NextFunction, Request, Response } from "exp
 import { ConnectionManager } from "../ConnectionManager";
 import LogWrapper from "../LogWrapper";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
-import { ApiError, ErrCode, errorMiddleware } from "../api";
-import { Intent, MembershipEventContent, PowerLevelsEvent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import { ApiError, ErrCode } from "../api";
+import { Intent } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
 
 const log = new LogWrapper("Provisioner");
