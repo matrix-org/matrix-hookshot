@@ -31,7 +31,7 @@ To authenticate with a personal access token:
 
 1. Send the generated token to the bridge by saying `github setpersonaltoken %your-token%`. You can redact
   the message afterwards if you like.
-1. The bridge will have connected you. You can check the status at any time by saying `github hastoken`
+1. The bridge will have connected you. You can check the status at any time by saying `github status`.
 
 ## GitLab
 

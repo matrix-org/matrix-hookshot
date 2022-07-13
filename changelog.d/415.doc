@@ -1,0 +1,1 @@
+Mention the correct command for checking the status of GitHub authentication (`github status` instead of `github hastoken`).
