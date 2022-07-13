@@ -64,7 +64,7 @@ Hookshot handles `POST` and `PUT` HTTP requests by default.
 
 Hookshot handles HTTP requests with a method of `GET`, `POST` or `PUT`.
 
-If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a JSON payload.
+If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a supported payload.
 
 If the body contains a `text` key, then that key will be used as a message body in Matrix (aka `body`). This text will be automatically converted from Markdown to HTML (unless
 a `html` key is provided.).
@@ -73,7 +73,19 @@ If the body contains a `html` key, then that key will be used as the HTML messag
 
 If the body *also* contains a `username` key, then the message will be prepended by the given username. This will be prepended to both `text` and `html`.
 
-If the body does NOT contain a `text` field, the full JSON payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
+If the body does NOT contain a `text` field, the full payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
+
+### Payload formats
+
+If the request is a `POST`/`PUT`, the body of the request will be decoded and stored inside the event. Currently, Hookshot supports:
+
+- XML, when the `Content-Type` header ends in `/xml` or `+xml`.
+- Web form data, when the `Content-Type` header is `application/x-www-form-urlencoded`.
+- JSON, when the `Content-Type` header is `application/json`.
+- Text, when the `Content-Type` header begins with `text/`.
+
+Decoding is done in the order given above. E.g. `text/xml` would be parsed as XML. Any formats not described above are not
+decoded.
 
 ### GET requests
 
@@ -113,7 +125,7 @@ The script string should be set within the state event under the `transformation
 Transformation scripts have a versioned API. You can check the version of the API that the hookshot instance supports
 at runtime by checking the `HookshotApiVersion` variable. If the variable is undefined, it should be considered `v1`.
 
-The execution environment will contain a `data` variable, which will be the body of the incoming request (JSON will be parsed into an `Object`).
+The execution environment will contain a `data` variable, which will be the body of the incoming request (see [Payload formats](#payload-formats)).
 Scripts are executed synchronously and expect the `result` variable to be set.
 
 If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge

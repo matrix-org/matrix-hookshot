@@ -1,0 +1,1 @@
+Added support for decoding XML payloads when handling generic webhooks.
