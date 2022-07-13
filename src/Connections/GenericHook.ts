@@ -27,7 +27,7 @@ export interface GenericHookSecrets {
     /**
      * The public URL for the webhook.
      */
-    url: string;
+    url: URL;
     /**
      * The hookId of the webhook.
      */
@@ -404,7 +404,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 name: this.state.name,
             },
             ...(showSecrets ? { secrets: {
-                url: `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`,
+                url: new URL(this.hookId, this.config.parsedUrlPrefix),
                 hookId: this.hookId,
             } as GenericHookSecrets} : undefined)
         }

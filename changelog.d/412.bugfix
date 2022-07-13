@@ -1,0 +1,1 @@
+Disallow empty and invalid values for the `widgets.publicUrl` and `generic.urlPrefix` configuration settings.

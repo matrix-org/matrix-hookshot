@@ -13,6 +13,10 @@ import { GITHUB_CLOUD_URL } from "../Github/GithubInstance";
 
 const log = new LogWrapper("Config");
 
+function makePrefixedUrl(urlString: string): URL {
+    return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
+}
+
 export const ValidLogLevelStrings = [
     LogLevel.ERROR.toString(),
     LogLevel.WARN.toString(),
@@ -261,18 +265,24 @@ export interface BridgeGenericWebhooksConfigYAML {
 
 export class BridgeConfigGenericWebhooks {
     public readonly enabled: boolean;
-    public readonly urlPrefix: string;
+
+    @hideKey()
+    public readonly parsedUrlPrefix: URL;
+    public readonly urlPrefix: () => string;
+
     public readonly userIdPrefix?: string;
     public readonly allowJsTransformationFunctions?: boolean;
     public readonly waitForComplete?: boolean;
     public readonly enableHttpGet: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
-        if (typeof yaml.urlPrefix !== "string") {
-            throw new ConfigError("generic.urlPrefix", "is not defined or not a string");
-        }
         this.enabled = yaml.enabled || false;
         this.enableHttpGet = yaml.enableHttpGet || false;
-        this.urlPrefix = yaml.urlPrefix;
+        try {
+            this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
+            this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
+        } catch (err) {
+            throw new ConfigError("generic.urlPrefix", "is not defined or not a valid URL");
+        }
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
@@ -305,7 +315,11 @@ interface BridgeWidgetConfigYAML {
 
 export class BridgeWidgetConfig {
     public readonly addToAdminRooms: boolean;
-    public readonly publicUrl: string;
+
+    @hideKey()
+    public readonly parsedPublicUrl: URL;
+    public readonly publicUrl: () => string;
+
     public readonly roomSetupWidget?: {
         addOnInvite?: boolean;
     };
@@ -323,10 +337,12 @@ export class BridgeWidgetConfig {
         if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
             throw new ConfigError("widgets.disallowedIpRanges", "must be a string array");
         }
-        if (typeof yaml.publicUrl !== "string") {
-            throw new ConfigError("widgets.publicUrl", "is not defined or not a string");
+        try {
+            this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
+            this.publicUrl = () => { return this.parsedPublicUrl.href; }
+        } catch (err) {
+            throw new ConfigError("widgets.publicUrl", "is not defined or not a valid URL");
         }
-        this.publicUrl = yaml.publicUrl;
         this.branding = yaml.branding || {
             widgetTitle: "Hookshot Configuration"
         };
