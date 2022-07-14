@@ -197,9 +197,17 @@ This is a limitation of GitHub's API.
 the message afterwards if you like.</p>
 </li>
 <li>
-<p>The bridge will have connected you. You can check the status at any time by saying <code>github hastoken</code></p>
+<p>The bridge will have connected you.</p>
 </li>
 </ol>
+<p>To authenticate via OAuth, you will need to have configured OAuth support in your config.yml, and have the endpoints required accessible from the internet.</p>
+<ul>
+<li>Say <code>github login</code> to get the URL to authenticate via.</li>
+<li>Click the URL sent by the bot.</li>
+<li>Follow the steps, ensuring you authenticate with the right user.</li>
+<li>If all goes well, you will now be connected.</li>
+</ul>
+<p>You can check the status of authenticated instances by saying <code>github status</code>.</p>
 <h2 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h2>
 <p>You can authenticate with GitLab by supplying a Personal Access Token. OAuth-style authentication isn't supported
 yet.</p>
