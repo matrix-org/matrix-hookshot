@@ -234,7 +234,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
             connections.repos.length > 0       ? `Repositories:\n${reposFormatted}`      : '',
             connections.issues.length > 0      ? `Issues:\n${issuesFormatted}`           : '',
             connections.discussions.length > 0 ? `Discussions:\n${discussionsFormatted}` : '',
-        ].join('\n\n') || 'No Github bridges';
+        ].filter(v => !!v).join('\n\n') || 'No GitHub bridges';
 
         return this.botIntent.sendEvent(this.roomId,{
             msgtype: "m.notice",
