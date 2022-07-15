@@ -187,7 +187,7 @@ yarn # or npm i
 For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml</code></p>
 <p>Copy <code>registration.sample.yml</code> into <code>registration.yml</code> and fill in:</p>
 <ul>
-<li>At a minimum, you will need to replace the <code>as_token</code> and <code>hs_token</code> and change the domain part of the namespaces.</li>
+<li>At a minimum, you will need to replace the <code>as_token</code> and <code>hs_token</code> and change the domain part of the namespaces. The sample config can be also found at our <a href="https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml">github repo</a> for your convienence.</li>
 </ul>
 <p>You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a>.</p>
