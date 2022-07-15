@@ -53,7 +53,7 @@
     "jira-client": "^8.0.0",
     "markdown-it": "^12.3.2",
     "matrix-appservice-bridge": "^4.0.1",
-    "matrix-bot-sdk": "^0.5.19",
+    "matrix-bot-sdk": "^0.6.0",
     "matrix-widget-api": "^0.1.0-beta.18",
     "micromatch": "^4.0.4",
     "mime": "^3.0.0",
