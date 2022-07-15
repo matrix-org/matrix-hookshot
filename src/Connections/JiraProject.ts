@@ -21,7 +21,6 @@ export interface JiraProjectConnectionState extends IConnectionState {
     id?: string;
     url?: string;
     events?: JiraAllowedEventsNames[],
-    commandPrefix?: string;
 }
 
 function validateJiraConnectionState(state: JiraProjectConnectionState) {
@@ -50,7 +49,7 @@ const md = new markdownit();
  * Handles rooms connected to a Jira project.
  */
 @Connection
-export class JiraProjectConnection extends CommandConnection implements IConnection {
+export class JiraProjectConnection extends CommandConnection<JiraProjectConnectionState> implements IConnection {
 
 
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.jira.project";
@@ -151,17 +150,18 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        private state: JiraProjectConnectionState,
+        state: JiraProjectConnectionState,
         stateKey: string,
         private readonly tokenStore: UserTokenStore,) {
             super(
                 roomId,
                 stateKey,
                 JiraProjectConnection.CanonicalEventType,
+                state,
                 as.botClient,
                 JiraProjectConnection.botCommands,
                 JiraProjectConnection.helpMessage,
-                state.commandPrefix || "!jira",
+                "!jira",
                 "jira"
             );
             if (state.url) {
@@ -178,9 +178,8 @@ export class JiraProjectConnection extends CommandConnection implements IConnect
         return JiraProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
-    public async onStateUpdate(event: MatrixEvent<unknown>) {
-        const validatedConfig = validateJiraConnectionState(event.content as JiraProjectConnectionState);
-        this.state = validatedConfig;
+    protected validateConnectionState(content: unknown) {
+        return validateJiraConnectionState(super.validateConnectionState(content));
     }
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {

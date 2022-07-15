@@ -3,31 +3,40 @@ import LogWrapper from "../LogWrapper";
 import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
-import { PermissionCheckFn } from ".";
+import { IConnectionState, PermissionCheckFn } from ".";
 const log = new LogWrapper("CommandConnection");
 
 /**
  * Connection class that handles commands for a given connection. Should be used
  * by connections expecting to handle user input.
  */
-export abstract class CommandConnection extends BaseConnection {
+export abstract class CommandConnection<StateType extends IConnectionState = IConnectionState> extends BaseConnection {
     protected enabledHelpCategories?: string[];
     protected includeTitlesInHelp?: boolean;
     constructor(
         roomId: string,
         stateKey: string,
         canonicalStateType: string,
+        protected state: StateType,
         private readonly botClient: MatrixClient,
         private readonly botCommands: BotCommands,
         private readonly helpMessage: HelpFunction,
-        protected readonly stateCommandPrefix: string,
+        protected readonly defaultCommandPrefix: string,
         protected readonly serviceName?: string,
     ) {
         super(roomId, stateKey, canonicalStateType);
-    }  
+    }
 
     protected get commandPrefix() {
-        return this.stateCommandPrefix + " ";
+        return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
+    }
+
+    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        this.state = this.validateConnectionState(stateEv.content);
+    }
+
+    protected validateConnectionState(content: unknown): StateType {
+        return content as StateType;
     }
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn) {

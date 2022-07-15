@@ -41,6 +41,8 @@ export class SetupConnection extends CommandConnection {
                 roomId,
                 "",
                 "",
+                // TODO Consider storing room-specific config in state.
+                {},
                 provisionOpts.as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,
