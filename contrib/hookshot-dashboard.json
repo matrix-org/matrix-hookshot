@@ -25,7 +25,7 @@
     "fiscalYearStartMonth": 0,
     "graphTooltip": 2,
     "id": 32,
-    "iteration": 1657554420631,
+    "iteration": 1657993149444,
     "links": [],
     "liveNow": false,
     "panels": [
@@ -158,6 +158,7 @@
           "y": 1
         },
         "id": 12,
+        "interval": "$interval",
         "options": {
           "colorMode": "none",
           "graphMode": "area",
@@ -179,8 +180,12 @@
               "type": "prometheus",
               "uid": "${datasource}"
             },
-            "editorMode": "code",
-            "expr": "rate(process_cpu_seconds_total[$__rate_interval])",
+            "editorMode": "builder",
+            "exemplar": false,
+            "expr": "irate(process_cpu_seconds_total[$__interval])",
+            "format": "time_series",
+            "instant": false,
+            "interval": "$delta",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -304,6 +309,7 @@
               }
             },
             "mappings": [],
+            "min": 0,
             "thresholds": {
               "mode": "absolute",
               "steps": [
@@ -394,6 +400,7 @@
               }
             },
             "mappings": [],
+            "min": 0,
             "thresholds": {
               "mode": "absolute",
               "steps": [
@@ -541,7 +548,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes[$__interval])",
+            "expr": "idelta(hookshot_queue_event_pushes[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -633,7 +641,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes{event=~\".*matrix.*\"}[$__interval])",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\".*matrix.*\"}[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -724,8 +733,9 @@
               "type": "prometheus",
               "uid": "${datasource}"
             },
-            "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes{event=~\"notifications.*\"}[$__interval])",
+            "editorMode": "code",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"notifications.*\"}[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -817,7 +827,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes{event=~\"github.*\"}[$__interval])",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"github.*\"}[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -909,7 +920,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes{event=~\"gitlab.*\"}[$__interval])",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"gitlab.*\"}[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -1001,7 +1013,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes{event=~\"jira.*\"}[$__interval])",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"jira.*\"}[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -1093,7 +1106,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(hookshot_queue_event_pushes{event=~\"figma.*\"}[$__interval])",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"figma.*\"}[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
@@ -1246,6 +1260,7 @@
               }
             },
             "mappings": [],
+            "min": 0,
             "thresholds": {
               "mode": "absolute",
               "steps": [
@@ -1259,7 +1274,7 @@
                 }
               ]
             },
-            "unit": "dtdurationms"
+            "unit": "none"
           },
           "overrides": []
         },
@@ -1295,7 +1310,7 @@
             "refId": "A"
           }
         ],
-        "title": "Feed Fetch Time",
+        "title": "Feed Fetch Time (ms)",
         "type": "timeseries"
       },
       {
@@ -1397,7 +1412,8 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(matrix_api_calls[$__interval])",
+            "expr": "idelta(matrix_api_calls[$__interval])",
+            "interval": "$delta",
             "legendFormat": "{{method}}",
             "range": true,
             "refId": "A"
@@ -1488,8 +1504,9 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "changes(matrix_api_calls_failed[$__interval])",
+            "expr": "idelta(matrix_api_calls_failed[$__interval])",
             "hide": false,
+            "interval": "$delta",
             "legendFormat": "{{method}}",
             "range": true,
             "refId": "B"
@@ -1581,10 +1598,10 @@
             },
             "editorMode": "builder",
             "exemplar": false,
-            "expr": "changes(matrix_appservice_events[$__interval])",
+            "expr": "idelta(matrix_appservice_events[$__interval])",
             "hide": false,
             "instant": false,
-            "interval": "",
+            "interval": "$delta",
             "legendFormat": "matrix_appservice_events",
             "range": true,
             "refId": "C"
@@ -1594,7 +1611,7 @@
         "type": "timeseries"
       }
     ],
-    "refresh": "",
+    "refresh": "5m",
     "schemaVersion": 36,
     "style": "dark",
     "tags": [],
@@ -1673,6 +1690,66 @@
           "refresh": 2,
           "skipUrlSync": false,
           "type": "interval"
+        },
+        {
+          "auto": false,
+          "auto_count": 30,
+          "auto_min": "10s",
+          "current": {
+            "selected": false,
+            "text": "10m",
+            "value": "10m"
+          },
+          "hide": 0,
+          "label": "2x Interval",
+          "name": "delta",
+          "options": [
+            {
+              "selected": false,
+              "text": "2m",
+              "value": "2m"
+            },
+            {
+              "selected": true,
+              "text": "10m",
+              "value": "10m"
+            },
+            {
+              "selected": false,
+              "text": "20m",
+              "value": "20m"
+            },
+            {
+              "selected": false,
+              "text": "1h",
+              "value": "1h"
+            },
+            {
+              "selected": false,
+              "text": "2h",
+              "value": "2h"
+            },
+            {
+              "selected": false,
+              "text": "12h",
+              "value": "12h"
+            },
+            {
+              "selected": false,
+              "text": "1d",
+              "value": "1d"
+            },
+            {
+              "selected": false,
+              "text": "2d",
+              "value": "2d"
+            }
+          ],
+          "query": "2m,10m,20m,1h,2h,12h,1d,2d",
+          "queryValue": "",
+          "refresh": 2,
+          "skipUrlSync": false,
+          "type": "interval"
         }
       ]
     },
@@ -1684,6 +1761,6 @@
     "timezone": "browser",
     "title": "Hookshot",
     "uid": "O1TjVf67k",
-    "version": 12,
+    "version": 18,
     "weekStart": ""
   }
