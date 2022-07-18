@@ -1,3 +1,33 @@
+1.8.1 (2022-07-18)
+==================
+
+Features
+--------
+
+- Added support for decoding XML payloads when handling generic webhooks. ([\#410](https://github.com/matrix-org/matrix-hookshot/issues/410))
+
+
+Bugfixes
+--------
+
+- If `widgets.addToAdminRooms` is set, add the admin widget to a DM room the bot is invited to, instead of the non-admin widget. ([\#411](https://github.com/matrix-org/matrix-hookshot/issues/411))
+- Disallow empty and invalid values for the `widgets.publicUrl` and `generic.urlPrefix` configuration settings. ([\#412](https://github.com/matrix-org/matrix-hookshot/issues/412))
+- Post a non-empty message in response to `github list-connections` when no connections are present. ([\#416](https://github.com/matrix-org/matrix-hookshot/issues/416))
+
+
+Improved Documentation
+----------------------
+
+- Add deeplink for registration.sample.yml to setup documentation ([\#374](https://github.com/matrix-org/matrix-hookshot/issues/374))
+- Update GitHub authentication documentation: list the steps for OAuth login (`github login`), and mention the correct command for checking GitHub authentication status (`github status`). ([\#415](https://github.com/matrix-org/matrix-hookshot/issues/415))
+
+
+Internal Changes
+----------------
+
+- Add package scripts for cleaning build files (which can be run with `yarn clean`). ([\#414](https://github.com/matrix-org/matrix-hookshot/issues/414))
+
+
 1.8.0 (2022-07-11)
 ==================
 
