@@ -25,7 +25,7 @@
     "fiscalYearStartMonth": 0,
     "graphTooltip": 2,
     "id": 32,
-    "iteration": 1657993149444,
+    "iteration": 1658135600288,
     "links": [],
     "liveNow": false,
     "panels": [
@@ -37,89 +37,8 @@
           "y": 0
         },
         "id": 26,
-        "title": "Process",
+        "title": "Overview",
         "type": "row"
-      },
-      {
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${datasource}"
-        },
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "mappings": [
-              {
-                "options": {
-                  "0": {
-                    "index": 1,
-                    "text": "DOWN"
-                  },
-                  "1": {
-                    "index": 0,
-                    "text": "UP"
-                  }
-                },
-                "type": "value"
-              }
-            ],
-            "max": 1,
-            "min": 0,
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "color": "green",
-                  "value": null
-                },
-                {
-                  "color": "red",
-                  "value": 80
-                }
-              ]
-            }
-          },
-          "overrides": []
-        },
-        "gridPos": {
-          "h": 4,
-          "w": 3,
-          "x": 0,
-          "y": 1
-        },
-        "id": 14,
-        "options": {
-          "colorMode": "none",
-          "graphMode": "area",
-          "justifyMode": "auto",
-          "orientation": "auto",
-          "reduceOptions": {
-            "calcs": [
-              "lastNotNull"
-            ],
-            "fields": "",
-            "values": false
-          },
-          "textMode": "auto"
-        },
-        "pluginVersion": "9.0.2",
-        "targets": [
-          {
-            "datasource": {
-              "type": "prometheus",
-              "uid": "${datasource}"
-            },
-            "editorMode": "builder",
-            "expr": "hookshot_notifications_service_up",
-            "legendFormat": "{{__name__}}",
-            "range": true,
-            "refId": "A"
-          }
-        ],
-        "title": "Up",
-        "type": "stat"
       },
       {
         "datasource": {
@@ -154,7 +73,7 @@
         "gridPos": {
           "h": 4,
           "w": 3,
-          "x": 3,
+          "x": 0,
           "y": 1
         },
         "id": 12,
@@ -221,7 +140,7 @@
         "gridPos": {
           "h": 4,
           "w": 3,
-          "x": 6,
+          "x": 3,
           "y": 1
         },
         "id": 10,
@@ -258,19 +177,6 @@
         "type": "stat"
       },
       {
-        "collapsed": false,
-        "gridPos": {
-          "h": 1,
-          "w": 24,
-          "x": 0,
-          "y": 5
-        },
-        "id": 6,
-        "panels": [],
-        "title": "Webhooks",
-        "type": "row"
-      },
-      {
         "datasource": {
           "type": "prometheus",
           "uid": "${datasource}"
@@ -278,48 +184,15 @@
         "fieldConfig": {
           "defaults": {
             "color": {
-              "mode": "palette-classic"
-            },
-            "custom": {
-              "axisLabel": "",
-              "axisPlacement": "auto",
-              "barAlignment": 0,
-              "drawStyle": "line",
-              "fillOpacity": 0,
-              "gradientMode": "none",
-              "hideFrom": {
-                "legend": false,
-                "tooltip": false,
-                "viz": false
-              },
-              "lineInterpolation": "linear",
-              "lineWidth": 1,
-              "pointSize": 5,
-              "scaleDistribution": {
-                "type": "linear"
-              },
-              "showPoints": "auto",
-              "spanNulls": false,
-              "stacking": {
-                "group": "A",
-                "mode": "none"
-              },
-              "thresholdsStyle": {
-                "mode": "off"
-              }
+              "mode": "thresholds"
             },
             "mappings": [],
-            "min": 0,
             "thresholds": {
               "mode": "absolute",
               "steps": [
                 {
                   "color": "green",
                   "value": null
-                },
-                {
-                  "color": "red",
-                  "value": 80
                 }
               ]
             }
@@ -327,24 +200,28 @@
           "overrides": []
         },
         "gridPos": {
-          "h": 8,
-          "w": 12,
-          "x": 0,
-          "y": 6
+          "h": 4,
+          "w": 3,
+          "x": 6,
+          "y": 1
         },
         "id": 16,
         "interval": "$interval",
         "options": {
-          "legend": {
-            "calcs": [],
-            "displayMode": "list",
-            "placement": "bottom"
+          "colorMode": "none",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
           },
-          "tooltip": {
-            "mode": "single",
-            "sort": "none"
-          }
+          "textMode": "auto"
         },
+        "pluginVersion": "9.0.2",
         "targets": [
           {
             "datasource": {
@@ -359,7 +236,7 @@
           }
         ],
         "title": "Connections",
-        "type": "timeseries"
+        "type": "stat"
       },
       {
         "datasource": {
@@ -369,14 +246,15 @@
         "fieldConfig": {
           "defaults": {
             "color": {
-              "mode": "palette-classic"
+              "fixedColor": "dark-red",
+              "mode": "fixed"
             },
             "custom": {
               "axisLabel": "",
               "axisPlacement": "auto",
               "barAlignment": 0,
-              "drawStyle": "line",
-              "fillOpacity": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 100,
               "gradientMode": "none",
               "hideFrom": {
                 "legend": false,
@@ -400,7 +278,6 @@
               }
             },
             "mappings": [],
-            "min": 0,
             "thresholds": {
               "mode": "absolute",
               "steps": [
@@ -418,12 +295,12 @@
           "overrides": []
         },
         "gridPos": {
-          "h": 8,
-          "w": 12,
-          "x": 12,
-          "y": 6
+          "h": 4,
+          "w": 3,
+          "x": 9,
+          "y": 1
         },
-        "id": 17,
+        "id": 40,
         "interval": "$interval",
         "options": {
           "legend": {
@@ -443,6 +320,150 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
+            "expr": "idelta(hookshot_connection_event_failed[$__interval])",
+            "interval": "$delta",
+            "legendFormat": "{{__name__}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Connection Events Failed",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [
+              {
+                "options": {
+                  "0": {
+                    "index": 1,
+                    "text": "DOWN"
+                  },
+                  "1": {
+                    "index": 0,
+                    "text": "UP"
+                  }
+                },
+                "type": "value"
+              }
+            ],
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 3,
+          "x": 12,
+          "y": 1
+        },
+        "id": 14,
+        "options": {
+          "colorMode": "none",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "9.0.2",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "builder",
+            "expr": "hookshot_notifications_service_up",
+            "legendFormat": "{{__name__}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Notifications Service Up",
+        "type": "stat"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 4,
+          "w": 3,
+          "x": 15,
+          "y": 1
+        },
+        "id": 17,
+        "interval": "$interval",
+        "options": {
+          "colorMode": "none",
+          "graphMode": "area",
+          "justifyMode": "auto",
+          "orientation": "auto",
+          "reduceOptions": {
+            "calcs": [
+              "lastNotNull"
+            ],
+            "fields": "",
+            "values": false
+          },
+          "textMode": "auto"
+        },
+        "pluginVersion": "9.0.2",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "builder",
             "expr": "hookshot_notifications_watchers",
             "legendFormat": "{{__name__}}",
             "range": true,
@@ -450,7 +471,7 @@
           }
         ],
         "title": "Notifications Watchers",
-        "type": "timeseries"
+        "type": "stat"
       },
       {
         "collapsed": false,
@@ -458,7 +479,7 @@
           "h": 1,
           "w": 24,
           "x": 0,
-          "y": 14
+          "y": 5
         },
         "id": 28,
         "panels": [],
@@ -525,7 +546,7 @@
           "h": 8,
           "w": 8,
           "x": 0,
-          "y": 15
+          "y": 6
         },
         "id": 18,
         "interval": "$interval",
@@ -618,7 +639,7 @@
           "h": 8,
           "w": 8,
           "x": 8,
-          "y": 15
+          "y": 6
         },
         "id": 34,
         "interval": "$interval",
@@ -711,7 +732,7 @@
           "h": 8,
           "w": 8,
           "x": 16,
-          "y": 15
+          "y": 6
         },
         "id": 33,
         "interval": "$interval",
@@ -733,12 +754,26 @@
               "type": "prometheus",
               "uid": "${datasource}"
             },
-            "editorMode": "code",
+            "editorMode": "builder",
             "expr": "idelta(hookshot_queue_event_pushes{event=~\"notifications.*\"}[$__interval])",
+            "hide": false,
             "interval": "$delta",
             "legendFormat": "{{event}}",
             "range": true,
             "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "builder",
+            "expr": "idelta(hookshot_notifications_push[$__interval])",
+            "hide": true,
+            "interval": "$delta",
+            "legendFormat": "{{event}}",
+            "range": true,
+            "refId": "B"
           }
         ],
         "title": "Notifications Event Pushes",
@@ -802,9 +837,9 @@
         },
         "gridPos": {
           "h": 8,
-          "w": 12,
+          "w": 8,
           "x": 0,
-          "y": 23
+          "y": 14
         },
         "id": 29,
         "interval": "$interval",
@@ -895,9 +930,9 @@
         },
         "gridPos": {
           "h": 8,
-          "w": 12,
-          "x": 12,
-          "y": 23
+          "w": 8,
+          "x": 8,
+          "y": 14
         },
         "id": 30,
         "interval": "$interval",
@@ -922,9 +957,24 @@
             "editorMode": "builder",
             "expr": "idelta(hookshot_queue_event_pushes{event=~\"gitlab.*\"}[$__interval])",
             "interval": "$delta",
-            "legendFormat": "{{event}}",
+            "legendFormat": "idelta(metric)",
             "range": true,
             "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "builder",
+            "exemplar": false,
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"gitlab.*\"}[$__interval])",
+            "hide": false,
+            "instant": false,
+            "interval": "$delta",
+            "legendFormat": "metric",
+            "range": true,
+            "refId": "B"
           }
         ],
         "title": "GitLab Event Pushes",
@@ -988,9 +1038,117 @@
         },
         "gridPos": {
           "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 14
+        },
+        "id": 41,
+        "interval": "$interval",
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi",
+            "sort": "none"
+          }
+        },
+        "pluginVersion": "9.0.2",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"generic-webhook.*\"}[$__interval])",
+            "interval": "$delta",
+            "legendFormat": "{{event}}",
+            "range": true,
+            "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "exemplar": false,
+            "expr": "idelta(hookshot_queue_event_pushes{event=~\"response.generic-webhook.*\"}[$__interval])",
+            "hide": false,
+            "instant": false,
+            "interval": "$delta",
+            "legendFormat": "{{event}}",
+            "range": true,
+            "refId": "B"
+          }
+        ],
+        "title": "Generic Event Pushes",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 100,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "normal"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            },
+            "unit": "none"
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
           "w": 12,
           "x": 0,
-          "y": 31
+          "y": 22
         },
         "id": 31,
         "interval": "$interval",
@@ -1083,7 +1241,7 @@
           "h": 8,
           "w": 12,
           "x": 12,
-          "y": 31
+          "y": 22
         },
         "id": 32,
         "interval": "$interval",
@@ -1122,7 +1280,7 @@
           "h": 1,
           "w": 24,
           "x": 0,
-          "y": 39
+          "y": 30
         },
         "id": 4,
         "panels": [],
@@ -1188,7 +1346,7 @@
           "h": 9,
           "w": 12,
           "x": 0,
-          "y": 40
+          "y": 31
         },
         "id": 2,
         "interval": "$interval",
@@ -1282,7 +1440,7 @@
           "h": 9,
           "w": 12,
           "x": 12,
-          "y": 40
+          "y": 31
         },
         "id": 8,
         "interval": "10m",
@@ -1311,6 +1469,217 @@
           }
         ],
         "title": "Feed Fetch Time (ms)",
+        "type": "timeseries"
+      },
+      {
+        "collapsed": false,
+        "gridPos": {
+          "h": 1,
+          "w": 24,
+          "x": 0,
+          "y": 40
+        },
+        "id": 36,
+        "panels": [],
+        "title": "HTTP Requests",
+        "type": "row"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 100,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 41
+        },
+        "id": 38,
+        "interval": "$interval",
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "builder",
+            "exemplar": false,
+            "expr": "idelta(hookshot_webhooks_http_request[$__interval])",
+            "hide": false,
+            "instant": false,
+            "interval": "$delta",
+            "legendFormat": "{{method}} - {{path}}",
+            "range": true,
+            "refId": "A"
+          },
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "builder",
+            "expr": "hookshot_webhooks_http_request",
+            "hide": true,
+            "interval": "$delta",
+            "legendFormat": "{{method}} - {{path}}",
+            "range": true,
+            "refId": "B"
+          }
+        ],
+        "title": "Webhooks HTTP Requests",
+        "type": "timeseries"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "custom": {
+              "axisLabel": "",
+              "axisPlacement": "auto",
+              "barAlignment": 0,
+              "drawStyle": "bars",
+              "fillOpacity": 100,
+              "gradientMode": "none",
+              "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+              },
+              "lineInterpolation": "linear",
+              "lineWidth": 1,
+              "pointSize": 5,
+              "scaleDistribution": {
+                "type": "linear"
+              },
+              "showPoints": "auto",
+              "spanNulls": false,
+              "stacking": {
+                "group": "A",
+                "mode": "none"
+              },
+              "thresholdsStyle": {
+                "mode": "off"
+              }
+            },
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "red",
+                  "value": 80
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 41
+        },
+        "id": 39,
+        "interval": "$interval",
+        "options": {
+          "legend": {
+            "calcs": [],
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "single",
+            "sort": "none"
+          }
+        },
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "expr": "idelta(hookshot_provisioning_http_request[$__interval])",
+            "interval": "$delta",
+            "legendFormat": "{{path}}",
+            "range": true,
+            "refId": "A"
+          }
+        ],
+        "title": "Provisioning HTTP Requests",
         "type": "timeseries"
       },
       {
@@ -1438,7 +1807,7 @@
               "barAlignment": 0,
               "drawStyle": "bars",
               "fillOpacity": 100,
-              "gradientMode": "none",
+              "gradientMode": "scheme",
               "hideFrom": {
                 "legend": false,
                 "tooltip": false,
@@ -1470,7 +1839,7 @@
                 },
                 {
                   "color": "red",
-                  "value": 80
+                  "value": 0
                 }
               ]
             },
@@ -1696,7 +2065,7 @@
           "auto_count": 30,
           "auto_min": "10s",
           "current": {
-            "selected": false,
+            "selected": true,
             "text": "10m",
             "value": "10m"
           },
@@ -1761,6 +2130,6 @@
     "timezone": "browser",
     "title": "Hookshot",
     "uid": "O1TjVf67k",
-    "version": 18,
+    "version": 20,
     "weekStart": ""
   }
