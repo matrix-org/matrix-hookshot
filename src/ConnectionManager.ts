@@ -293,15 +293,24 @@ export class ConnectionManager extends EventEmitter {
      * @param type 
      */
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
-        if (type === GitLabRepoConnection.CanonicalEventType) {
-            if (!this.config.gitlab) {
-                throw new ApiError('GitLab is not configured', ErrCode.DisabledFeature);
-            }
-            if (!this.config.checkPermission(userId, "gitlab", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for GitLab', ErrCode.ForbiddenUser);
-            }
-            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.gitlab, filters);
+        switch (type) {
+        case GitLabRepoConnection.CanonicalEventType:
+            this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
+            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.gitlab!, filters);
+        case GitHubRepoConnection.CanonicalEventType:
+            this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
+            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.github!);
+        default:
+            throw new ApiError(`Connection type not known`, ErrCode.NotFound);
         }
-        throw new ApiError(`Connection type not known`, ErrCode.NotFound);
+    }
+
+    private validateConnectionTarget(userId: string, configObject: unknown, serviceName: string, serviceId: string) {
+        if (!configObject) {
+            throw new ApiError(`${serviceName} is not configured`, ErrCode.DisabledFeature);
+        }
+        if (!this.config.checkPermission(userId, serviceId, BridgePermissionLevel.manageConnections)) {
+            throw new ApiError(`User is not permitted to provision connections for ${serviceName}`, ErrCode.ForbiddenUser);
+        }
     }
 }

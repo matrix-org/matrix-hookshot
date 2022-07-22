@@ -1,6 +1,6 @@
 import { h, FunctionComponent, createRef } from "preact";
 import { useCallback } from "preact/hooks"
-import BridgeAPI from "../../BridgeAPI";
+import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { Button, ButtonSet, InputField } from "../elements";
@@ -17,10 +17,13 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         if (!canEdit) {
             return;
         }
-        onSave({
-            url:   urlRef?.current?.value || existingConnection?.config.url,
-            label: labelRef?.current?.value || existingConnection?.config.label,
-        });
+        const url = urlRef?.current?.value || existingConnection?.config.url;
+        if (url) {
+            onSave({
+                url:   url,
+                label: labelRef?.current?.value || existingConnection?.config.label,
+            });
+        }
     }, [canEdit, onSave, urlRef, labelRef, existingConnection]);
 
     return <form onSubmit={handleSave}>
@@ -36,11 +39,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     </form>;
 };
 
-interface IGenericWebhookConfigProps {
-    api: BridgeAPI,
-    roomId: string,
-}
-
 interface ServiceConfig {
     pollIntervalSeconds: number,
 }
@@ -54,7 +52,7 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
-export const FeedsConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
+export const FeedsConfig: BridgeConfig = ({ api, roomId }) => {
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
         api={api}

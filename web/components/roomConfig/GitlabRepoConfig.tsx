@@ -1,6 +1,6 @@
 import { h, FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
-import BridgeAPI from "../../BridgeAPI";
+import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
@@ -12,15 +12,16 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     const [filter, setFilter] = useState<GitLabTargetFilter>({});
     const [results, setResults] = useState<GitLabRepoConnectionProjectTarget[]|null>(null);
     const [instances, setInstances] = useState<GitLabRepoConnectionInstanceTarget[]|null>(null);
-    const [debounceTimer, setDebounceTimer] = useState<number>(null);
+    const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
     const [currentProjectPath, setCurrentProjectPath] = useState<string|null>(null);
     const [searchError, setSearchError] = useState<string|null>(null);
 
+    const emptyArray = [];
     const searchFn = useCallback(async() => {
         try {
             const res = await api.getConnectionTargets<GitLabRepoConnectionTarget>(EventType, filter);
             if (!filter.instance) {
-                setInstances(res);
+                setInstances(res.length === 0 ? emptyArray : res);
                 if (res[0]) {
                     setFilter({instance: res[0].name, search: ""});
                 }
@@ -82,12 +83,12 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         {instances === null && <p> Loading GitLab instances. </p>}
         {instances?.length === 0 && <p> You are not logged into any GitLab instances. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
-        <InputField visible={instances?.length > 0} label="GitLab Instance" noPadding={true}>
+        <InputField visible={instances ? instances.length > 0 : false} label="GitLab Instance" noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}
             </select>
         </InputField>
-        <InputField visible={instances?.length > 0} label="Project" noPadding={true}>
+        <InputField visible={instances ? instances.length > 0 : false} label="Project" noPadding={true}>
             <small>{currentProjectPath ?? ""}</small>
             <input onChange={updateSearchFn} value={filter.search} list="gitlab-projects" type="text" />
             <datalist id="gitlab-projects">
@@ -121,9 +122,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 
     const toggleIgnoredHook = useCallback(evt => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
-        setIgnoredHooks(ignoredHooks => (
-            ignoredHooks.includes(key) ? ignoredHooks.filter(k => k !== key) : [...ignoredHooks, key]
-        ));
+        if (key) {
+            setIgnoredHooks(ignoredHooks => (
+                ignoredHooks.includes(key) ? ignoredHooks.filter(k => k !== key) : [...ignoredHooks, key]
+            ));
+        }
     }, []);
     const [newInstanceState, setNewInstanceState] = useState<GitLabRepoConnectionState|null>(null);
 
@@ -134,11 +137,14 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         if (!canEdit || !existingConnection && !newInstanceState) {
             return;
         }
-        onSave({
-            ...(existingConnection?.config || newInstanceState),
-            ignoreHooks: ignoredHooks as any[],
-            commandPrefix: commandPrefixRef.current.value,
-        });
+        const state = existingConnection?.config || newInstanceState;
+        if (state) {
+            onSave({
+                ...(state),
+                ignoreHooks: ignoredHooks as any[],
+                commandPrefix: commandPrefixRef.current?.value,
+            });
+        }
     }, [canEdit, existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, onSave]);
     
     return <form onSubmit={handleSave}>
@@ -175,11 +181,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     </form>;
 };
 
-interface IGenericWebhookConfigProps {
-    api: BridgeAPI,
-    roomId: string,
-}
-
 const RoomConfigText = {
     header: 'GitLab Projects',
     createNew: 'Add new GitLab project',
@@ -189,7 +190,7 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitLabRepoResponseItem) => c.config.path;
 
-export const GitlabRepoConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
+export const GitlabRepoConfig: BridgeConfig = ({ api, roomId }) => {
     return <RoomConfig<never, GitLabRepoResponseItem, GitLabRepoConnectionState>
         headerImg={GitLabIcon}
         api={api}

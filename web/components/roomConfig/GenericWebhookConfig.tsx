@@ -2,7 +2,7 @@ import { h, FunctionComponent, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import BridgeAPI from "../../BridgeAPI";
+import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
 import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
@@ -40,7 +40,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             return;
         }
         onSave({
-            name: nameRef?.current?.value || existingConnection?.config.name,
+            name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
     }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled]);

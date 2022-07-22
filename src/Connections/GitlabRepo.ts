@@ -42,7 +42,7 @@ const PUSH_MAX_COMMITS = 5;
 const MRRCOMMENT_DEBOUNCE_MS = 5000;
 
 
-export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState, undefined>;
+export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
 
 type AllowedEventsNames = 
