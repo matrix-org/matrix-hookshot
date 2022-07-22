@@ -2,7 +2,7 @@ import { h, FunctionComponent, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
+import { BridgeAPI } from "../../BridgeAPI";
 import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
