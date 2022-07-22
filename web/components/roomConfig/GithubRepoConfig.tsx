@@ -31,7 +31,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
                 console.warn(`Failed to get connection targets from query:`, ex);
             }
         }
-    }, [api, filter]);
+    }, [api]);
 
     const updateSearchFn = useCallback((evt: InputEvent) => {
         setFilter((evt.target as HTMLInputElement).value);

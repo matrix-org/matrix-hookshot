@@ -20,7 +20,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         const url = urlRef?.current?.value || existingConnection?.config.url;
         if (url) {
             onSave({
-                url:   url,
+                url,
                 label: labelRef?.current?.value || existingConnection?.config.label,
             });
         }
