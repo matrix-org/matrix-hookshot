@@ -9,12 +9,16 @@ import GitHubIcon from "../../icons/github.png";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 
+function getRepoFullName(state: GitHubRepoConnectionState) {
+    return `${state.org}/${state.repo}`;
+}
+
 const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitHubRepoConnectionState) => void}> = ({api, onPicked}) => {
     const [filter, setFilter] = useState<string>("");
     const [results, setResults] = useState<GitHubRepoConnectionTarget[]|null>(null);
     const [isConnected, setIsConnected] = useState<boolean|null>(null);
     const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
-    const [currentRepo, setCurrentRepo] = useState<string|null>(null);
+    const [currentRepo, setCurrentRepo] = useState<string>("");
     const [searchError, setSearchError] = useState<string|null>(null);
 
     const searchFn = useCallback(async() => {
@@ -54,12 +58,12 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         const hasResult = results?.find(n => n.name === filter);
         if (hasResult) {
             onPicked(hasResult.state);
-            setCurrentRepo(hasResult.state.repo);
+            setCurrentRepo(hasResult.name);
         }
     }, [onPicked, results, filter]);
 
     const repoListResults = useMemo(
-        () => results?.map(i => <option repo={i.state.repo} value={i.name} key={i.name} />),
+        () => results?.map(i => <option repo={i.state.repo} org={i.state.org} value={i.name} key={i.name} />),
         [results]
     );
 
@@ -69,7 +73,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         {isConnected === false && <p> You are not logged into GitHub. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
         <InputField visible={!!isConnected} label="Repository" noPadding={true}>
-            <small>{currentRepo ?? ""}</small>
+            <small>{currentRepo}</small>
             <input onChange={updateSearchFn} value={filter} list="github-repos" type="text" />
             <datalist id="github-repos">
                 {repoListResults}
@@ -130,7 +134,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setConnectionState} />}
         <InputField visible={!!existingConnection} label="Repository" noPadding={true}>
-            <input disabled={true} type="text" value={existingConnection?.config.repo} />
+            <input disabled={true} type="text" value={existingConnection ? getRepoFullName(existingConnection.config) : undefined} />
         </InputField>
         <InputField visible={!!existingConnection || !!connectionState} ref={commandPrefixRef} label="Command Prefix" noPadding={true}>
             <input type="text" value={existingConnection?.config.commandPrefix} placeholder="!gh" />
@@ -170,7 +174,7 @@ const RoomConfigText = {
     listCantEdit: 'Connected repositories',
 };
 
-const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => c.config.repo;
+const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
 export const GithubRepoConfig: BridgeConfig = ({ api, roomId }) => {
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
