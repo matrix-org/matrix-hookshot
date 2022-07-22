@@ -16,12 +16,11 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     const [currentProjectPath, setCurrentProjectPath] = useState<string|null>(null);
     const [searchError, setSearchError] = useState<string|null>(null);
 
-    const emptyArray = [];
     const searchFn = useCallback(async() => {
         try {
             const res = await api.getConnectionTargets<GitLabRepoConnectionTarget>(EventType, filter);
             if (!filter.instance) {
-                setInstances(res.length === 0 ? emptyArray : res);
+                setInstances(res);
                 if (res[0]) {
                     setFilter({instance: res[0].name, search: ""});
                 }
