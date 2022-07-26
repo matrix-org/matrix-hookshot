@@ -3,7 +3,7 @@
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+import { MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";

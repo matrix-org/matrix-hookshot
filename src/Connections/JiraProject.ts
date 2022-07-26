@@ -7,7 +7,7 @@ import markdownit from "markdown-it";
 import { generateJiraWebLinkFromIssue } from "../Jira";
 import { JiraProject } from "../Jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
-import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
