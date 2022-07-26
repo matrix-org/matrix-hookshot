@@ -303,6 +303,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         return this.state.priority || super.priority;
     }
 
+    protected validateConnectionState(content: unknown) {
+        return content as GitLabRepoConnectionState;
+    }
+
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }

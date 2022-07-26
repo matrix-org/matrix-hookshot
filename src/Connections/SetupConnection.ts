@@ -12,7 +12,7 @@ import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
-import { ProvisionConnectionOpts } from "./IConnection";
+import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
 import LogWrapper from "../LogWrapper";
 const md = new markdown();
 const log = new LogWrapper("SetupConnection");
@@ -32,6 +32,11 @@ export class SetupConnection extends CommandConnection {
 
     private get as() {
         return this.provisionOpts.as;
+    }
+
+    protected validateConnectionState(content: unknown) {
+        log.warn("SetupConnection has no state to be validated");
+        return content as IConnectionState;
     }
 
     constructor(public readonly roomId: string,

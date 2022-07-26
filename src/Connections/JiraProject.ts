@@ -23,7 +23,7 @@ export interface JiraProjectConnectionState extends IConnectionState {
     events?: JiraAllowedEventsNames[],
 }
 
-function validateJiraConnectionState(state: JiraProjectConnectionState) {
+function validateJiraConnectionState(state: unknown) {
     const {url, commandPrefix, events, priority} = state as JiraProjectConnectionState;
     if (url === undefined) {
         throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
@@ -179,7 +179,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     protected validateConnectionState(content: unknown) {
-        return validateJiraConnectionState(super.validateConnectionState(content));
+        return validateJiraConnectionState(content);
     }
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {

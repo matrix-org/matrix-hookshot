@@ -415,6 +415,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         return this.state.priority || super.priority;
     }
 
+    protected validateConnectionState(content: unknown) {
+        return content as GitHubRepoConnectionState;
+    }
+
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
