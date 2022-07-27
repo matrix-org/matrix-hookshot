@@ -6,4 +6,4 @@ on:
 
 jobs:
   signoff:
-    uses: matrix-org/matrix-appservice-bridge/.github/workflows/signoff.yml
+    uses: matrix-org/matrix-appservice-bridge/.github/workflows/signoff.yml@develop
