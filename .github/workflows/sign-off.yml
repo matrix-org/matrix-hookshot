@@ -5,5 +5,12 @@ on:
     types: [opened, edited, synchronize]
 
 jobs:
+  testdata:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR for sign-off text
+        uses: actions/github-script@v6
+        with:
+          script: console.log(context.payload.pull_request.author_association)
   signoff:
     uses: matrix-org/matrix-appservice-bridge/.github/workflows/sign-off.yml@develop
