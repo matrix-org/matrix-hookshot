@@ -301,7 +301,7 @@ export class ConnectionManager extends EventEmitter {
             this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
             return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.github!);
         default:
-            throw new ApiError(`Connection type not known`, ErrCode.NotFound);
+            throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);
         }
     }
 
