@@ -19,12 +19,12 @@ const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
 export interface JiraProjectConnectionState extends IConnectionState {
     // legacy field, prefer url
     id?: string;
-    url?: string;
+    url: string;
     events?: JiraAllowedEventsNames[],
 }
 
-function validateJiraConnectionState(state: unknown) {
-    const {url, commandPrefix, events, priority} = state as JiraProjectConnectionState;
+function validateJiraConnectionState(state: unknown): JiraProjectConnectionState {
+    const {url, commandPrefix, events, priority} = state as Partial<JiraProjectConnectionState>;
     if (url === undefined) {
         throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
     }
@@ -82,7 +82,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!jiraResourceClient) {
             throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
         }
-        const connection = new JiraProjectConnection(roomId, as, data, validData.url, tokenStore);
+        const connection = new JiraProjectConnection(roomId, as, validData, validData.url, tokenStore);
         log.debug(`projectKey for ${validData.url} is ${connection.projectKey}`);
         if (!connection.projectKey) {
             throw Error('Expected projectKey to be defined');
