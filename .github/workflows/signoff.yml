@@ -1,0 +1,9 @@
+name: Contribution requirements
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  signoff:
+    uses: matrix-org/matrix-appservice-bridge/.github/workflows/signoff.yml
