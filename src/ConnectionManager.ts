@@ -294,12 +294,14 @@ export class ConnectionManager extends EventEmitter {
      */
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
         switch (type) {
-        case GitLabRepoConnection.CanonicalEventType:
-            const gitlabConfig = this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
-            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, gitlabConfig, filters);
-        case GitHubRepoConnection.CanonicalEventType:
-            const githubConfig = this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
-            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, githubConfig);
+        case GitLabRepoConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
+            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
+        }
+        case GitHubRepoConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
+            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject);
+        }
         default:
             throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);
         }
