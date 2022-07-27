@@ -295,22 +295,23 @@ export class ConnectionManager extends EventEmitter {
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
         switch (type) {
         case GitLabRepoConnection.CanonicalEventType:
-            this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
-            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.gitlab!, filters);
+            const gitlabConfig = this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
+            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, gitlabConfig, filters);
         case GitHubRepoConnection.CanonicalEventType:
-            this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
-            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.github!);
+            const githubConfig = this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
+            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, githubConfig);
         default:
             throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);
         }
     }
 
-    private validateConnectionTarget(userId: string, configObject: unknown, serviceName: string, serviceId: string) {
+    private validateConnectionTarget<T>(userId: string, configObject: T|undefined, serviceName: string, serviceId: string): T {
         if (!configObject) {
             throw new ApiError(`${serviceName} is not configured`, ErrCode.DisabledFeature);
         }
         if (!this.config.checkPermission(userId, serviceId, BridgePermissionLevel.manageConnections)) {
             throw new ApiError(`User is not permitted to provision connections for ${serviceName}`, ErrCode.ForbiddenUser);
         }
+        return configObject;
     }
 }
