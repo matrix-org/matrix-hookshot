@@ -223,7 +223,7 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
 @Connection
 export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
 
-	static validateState(state: Record<string, unknown>, isExistingState = false): GitHubRepoConnectionState {
+	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
         const validator = new Ajv().compile(ConnectionStateSchema);
         if (validator(state)) {
             // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
@@ -426,7 +426,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     protected validateConnectionState(content: unknown) {
-        return content as GitHubRepoConnectionState;
+        return GitHubRepoConnection.validateState(content);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
