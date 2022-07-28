@@ -209,7 +209,7 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub repo.
  */
 @Connection
 export class GitHubRepoConnection extends CommandConnection implements IConnection {

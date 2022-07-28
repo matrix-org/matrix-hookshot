@@ -127,7 +127,7 @@ export interface GitLabTargetFilter {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitLab repo.
  */
 @Connection
 export class GitLabRepoConnection extends CommandConnection {

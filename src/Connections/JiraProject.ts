@@ -47,7 +47,7 @@ const log = new LogWrapper("JiraProjectConnection");
 const md = new markdownit();
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a Jira project.
  */
 @Connection
 export class JiraProjectConnection extends CommandConnection implements IConnection {

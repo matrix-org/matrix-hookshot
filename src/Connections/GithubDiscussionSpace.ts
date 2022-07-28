@@ -15,7 +15,7 @@ export interface GitHubDiscussionSpaceConnectionState {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles spaces connected to a GitHub discussion.
  */
 @Connection
 export class GitHubDiscussionSpace extends BaseConnection implements IConnection {
