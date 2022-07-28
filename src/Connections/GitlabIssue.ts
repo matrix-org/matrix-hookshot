@@ -31,7 +31,7 @@ const log = new LogWrapper("GitLabIssueConnection");
 // }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitLab issue.
  */
 @Connection
 export class GitLabIssueConnection extends BaseConnection implements IConnection {

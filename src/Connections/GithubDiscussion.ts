@@ -26,7 +26,7 @@ const log = new LogWrapper("GitHubDiscussion");
 const md = new markdown();
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub discussion.
  */
 @Connection
 export class GitHubDiscussionConnection extends BaseConnection implements IConnection {

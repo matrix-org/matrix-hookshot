@@ -60,7 +60,7 @@ const SANITIZE_MAX_DEPTH = 5;
 const SANITIZE_MAX_BREADTH = 25;
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a generic webhook.
  */
 @Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
