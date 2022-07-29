@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { h, Component } from 'preact';
 import WA, { MatrixCapabilities } from 'matrix-widget-api';
-import BridgeAPI, { BridgeAPIError } from './BridgeAPI';
+import { BridgeAPI, BridgeAPIError } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import { ErrorPane } from './components/elements';
 import AdminSettings from './components/AdminSettings';
@@ -72,7 +72,7 @@ export default class App extends Component<void, IState> {
         const widgetApiUrl = new URL(`${window.location.origin}${window.location.pathname.replace("/widgetapi/v1/static", "")}`);
         this.bridgeApi = await BridgeAPI.getBridgeAPI(widgetApiUrl.toString(), this.widgetApi);
         const { userId } = await this.bridgeApi.verify();
-        const roomState = widgetKind === "admin" && await this.bridgeApi.state();
+        const roomState = widgetKind === "admin" ? await this.bridgeApi.state() : undefined;
         const supportedServices = await this.bridgeApi.getEnabledConfigSections();
         // Calling setState is ok because we've awaited a network request.
         // eslint-disable-next-line react/no-did-mount-set-state

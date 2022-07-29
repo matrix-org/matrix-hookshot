@@ -42,7 +42,7 @@ const PUSH_MAX_COMMITS = 5;
 const MRRCOMMENT_DEBOUNCE_MS = 5000;
 
 
-export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState, undefined>;
+export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
 
 type AllowedEventsNames = 
@@ -142,7 +142,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
 
-	static validateState(state: Record<string, unknown>, isExistingState = false): GitLabRepoConnectionState {
+	static validateState(state: unknown, isExistingState = false): GitLabRepoConnectionState {
         const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
         if (validator(state)) {
             // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
@@ -304,7 +304,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     protected validateConnectionState(content: unknown) {
-        return content as GitLabRepoConnectionState;
+        return GitLabRepoConnection.validateState(content);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

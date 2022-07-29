@@ -94,6 +94,13 @@ export class BridgeConfigGitHub {
         this.userIdPrefix = yaml.userIdPrefix || "_github_";
         this.baseUrl = yaml.enterpriseUrl ? new URL(yaml.enterpriseUrl) : GITHUB_CLOUD_URL;
     }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+        }
+    }
 }
 
 export interface BridgeConfigJiraCloudOAuth {
@@ -618,6 +625,9 @@ export class BridgeConfig {
                 break;
             case "generic":
                 config = this.generic?.publicConfig;
+                break;
+            case "github":
+                config = this.github?.publicConfig;
                 break;
             case "gitlab":
                 config = this.gitlab?.publicConfig;

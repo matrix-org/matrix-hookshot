@@ -4,6 +4,7 @@ import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../Bo
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -54,6 +55,15 @@ export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
     repo: string;
 }
+
+
+export interface GitHubRepoConnectionTarget {
+    state: GitHubRepoConnectionState;
+    name: string;
+}
+
+
+export type GitHubRepoResponseItem = GetConnectionsResponseItem<GitHubRepoConnectionState>;
 
 
 type AllowedEventsNames = 
@@ -213,7 +223,7 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
 @Connection
 export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
 
-	static validateState(state: Record<string, unknown>, isExistingState = false): GitHubRepoConnectionState {
+	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
         const validator = new Ajv().compile(ConnectionStateSchema);
         if (validator(state)) {
             // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
@@ -416,7 +426,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     protected validateConnectionState(content: unknown) {
-        return content as GitHubRepoConnectionState;
+        return GitHubRepoConnection.validateState(content);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -1040,6 +1050,32 @@ ${event.release.body}`;
                 ...this.state,
             },
         }
+    }
+
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitHub): Promise<GitHubRepoConnectionTarget[]> {
+        // Search for all repos under the user's control.
+        const octokit = await tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
+        }
+        const allRepos = await octokit.repos.listForAuthenticatedUser({
+            baseUrl: config.baseUrl.href.replace(/\/$/, ""),
+        });
+        return allRepos.data.filter(r => r.permissions?.admin).map(r => {
+            const splitRepoName = r.full_name.split("/");
+            return {
+                state: {
+                    org: splitRepoName[0],
+                    repo: splitRepoName[1],
+                },
+                name: r.full_name,
+            };
+        }) as GitHubRepoConnectionTarget[];
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = GitHubRepoConnection.validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
     }
 
     public async onRemove() {

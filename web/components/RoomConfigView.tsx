@@ -1,14 +1,15 @@
 import { WidgetApi } from "matrix-widget-api";
-import { h, Fragment } from "preact";
 import { useState } from "preact/hooks"
-import BridgeAPI from "../BridgeAPI";
+import { BridgeAPI, BridgeConfig } from "../BridgeAPI";
 import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
 import { FeedsConfig } from "./roomConfig/FeedsConfig";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
+import { GithubRepoConfig } from "./roomConfig/GithubRepoConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
 
 import FeedsIcon from "../icons/feeds.png";
+import GitHubIcon from "../icons/github.png";
 import GitLabIcon from "../icons/gitlab.png";
 import WebhookIcon from "../icons/webhook.png";
 
@@ -23,15 +24,29 @@ interface IProps {
 enum ConnectionType {
     Feeds   = "feeds",
     Generic = "generic",
+    Github  = "github",
     Gitlab  = "gitlab",
 }
 
-const connections = {
+interface IConnectionProps {
+    displayName: string,
+    description: string,
+    icon: string,
+    component: BridgeConfig,
+}
+
+const connections: Record<ConnectionType, IConnectionProps> = {
     [ConnectionType.Feeds]: {
         displayName: "RSS/Atom Feeds",
         description: "Subscribe to an RSS/Atom feed",
         icon: FeedsIcon,
         component: FeedsConfig,
+    },
+    [ConnectionType.Github]: {
+        displayName: 'Github',
+        description: "Connect the room to a GitHub project",
+        icon: GitHubIcon,
+        component: GithubRepoConfig,
     },
     [ConnectionType.Gitlab]: {
         displayName: 'Gitlab',
@@ -59,7 +74,7 @@ export default function RoomConfigView(props: IProps) {
         content = <>
             <section>
                 <h2> Integrations </h2>
-                {Object.keys(connections).filter(service => props.supportedServices[service]).map((connectionType: ConnectionType) => {
+                {(Object.keys(connections) as Array<ConnectionType>).filter(service => props.supportedServices[service]).map((connectionType: ConnectionType) => {
                     const connection = connections[connectionType];
                     return <ConnectionCard
                         serviceName={connection.displayName}
