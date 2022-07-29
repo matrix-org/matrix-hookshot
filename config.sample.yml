@@ -5,7 +5,7 @@ bridge:
   #
   domain: example.com
   url: http://localhost:8008
-  mediaUrl: http://example.com
+  mediaUrl: https://example.com
   port: 9993
   bindAddress: 127.0.0.1
 github:
