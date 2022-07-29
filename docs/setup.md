@@ -54,6 +54,7 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 [here](./setup/sample-configuration.md) for your convenience.
 
 You should read and fill this in as the bridge will not start without a complete config.
+Sections and items marked as `Optional` need to either be configured if you want to use the respective feature, or removed/commented out to disable the feature.
 
 You may validate your config without starting the service by running `yarn validate-config`.
 For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml`
@@ -71,7 +72,7 @@ In addition to providing the registration file above, you also need to tell Hook
 bridge:
   domain: example.com # The homeserver's server name.
   url: http://localhost:8008 # The URL where Hookshot can reach the client-server API.
-  mediaUrl: https://example.com # Optional. The url where media hosted on the homeserver is reachable (this should be publically reachable from the internet)
+  mediaUrl: https://example.com # Optional. The url where media hosted on the homeserver is reachable (this should be publically reachable from the internet).
   port: 9993 # The port where hookshot will listen for appservice requests.
   bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
 ```
@@ -211,6 +212,8 @@ You will need to configure some services. Each service has its own documentation
 - [GitLab](./setup/gitlab.md)
 - [Jira](./setup/jira.md)
 - [Webhooks](./setup/webhooks.md)
+
+If you do not want to use a service, remove related configuration sections marked `Optional` to disable it.
 
 ### Logging
 
