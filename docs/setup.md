@@ -12,7 +12,7 @@ You **must** have administrative access to an existing homeserver in order to se
 Hookshot requires the homeserver to be configured with its appservice registration.
 
 
-## Local installation
+## Manual installation
 
 This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.
 
@@ -227,3 +227,9 @@ logging:
   #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
   timestampFormat: HH:mm:ss:SSS
 ```
+
+### Starting the bridge
+
+Finally after everything is configured, start the bridge using the method matching your installation method:
+Use `yarn start` to start a manually installed bridge and `docker run` or `docker-compose up -d` or similar with docker.
+Don't forget to restart your homeserver so that your registration file is loaded.
