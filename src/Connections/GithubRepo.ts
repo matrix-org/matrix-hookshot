@@ -1061,7 +1061,7 @@ ${event.release.body}`;
         const allRepos = await octokit.repos.listForAuthenticatedUser({
             baseUrl: config.baseUrl.href.replace(/\/$/, ""),
         });
-        return allRepos.data.map(r => {
+        return allRepos.data.filter(r => r.permissions?.admin).map(r => {
             const splitRepoName = r.full_name.split("/");
             return {
                 state: {
