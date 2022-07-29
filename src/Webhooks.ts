@@ -15,6 +15,7 @@ import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
 import { GithubInstance } from "./Github/GithubInstance";
+import QuickLRU from "@alloc/quick-lru";
 
 const log = new LogWrapper("Webhooks");
 
@@ -37,8 +38,9 @@ export interface NotificationsDisableEvent {
 export class Webhooks extends EventEmitter {
     
     public readonly expressRouter = Router();
-    private queue: MessageQueue;
-    private ghWebhooks?: OctokitWebhooks;
+    private readonly queue: MessageQueue;
+    private readonly ghWebhooks?: OctokitWebhooks;
+    private readonly guids = new QuickLRU<string, void>({ maxAge: 5000, maxSize: 100 });
     constructor(private config: BridgeConfig) {
         super();
         this.expressRouter.use((req, _res, next) => {
@@ -139,15 +141,20 @@ export class Webhooks extends EventEmitter {
         try {
             let eventName: string|null = null;
             const body = req.body;
-            if (req.headers['x-hub-signature']) {
+            const githubGuid = req.headers['x-github-delivery'] as string|undefined;
+            if (githubGuid) {
                 if (!this.ghWebhooks) {
                     log.warn(`Not configured for GitHub webhooks, but got a GitHub event`)
                     res.sendStatus(500);
                     return;
                 }
                 res.sendStatus(200);
+                if (this.guids.has(githubGuid)) {
+                    return;
+                }
+                this.guids.set(githubGuid);
                 this.ghWebhooks.verifyAndReceive({
-                    id: req.headers["x-github-delivery"] as string,
+                    id: githubGuid as string,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     name: req.headers["x-github-event"] as any,
                     payload: body,
