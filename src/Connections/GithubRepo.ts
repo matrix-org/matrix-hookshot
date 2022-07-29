@@ -36,7 +36,6 @@ interface IQueryRoomOpts {
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
     ignoreHooks?: AllowedEventsNames[],
-    commandPrefix?: string;
     showIssueRoomLink?: boolean;
     prDiff?: {
         enabled: boolean;
@@ -212,7 +211,7 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
  * Handles rooms connected to a GitHub repo.
  */
 @Connection
-export class GitHubRepoConnection extends CommandConnection implements IConnection {
+export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
 
 	static validateState(state: Record<string, unknown>, isExistingState = false): GitHubRepoConnectionState {
         const validator = new Ajv().compile(ConnectionStateSchema);
@@ -368,7 +367,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        private state: GitHubRepoConnectionState,
+        state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
@@ -378,10 +377,11 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 roomId,
                 stateKey,
                 GitHubRepoConnection.CanonicalEventType,
+                state,
                 as.botClient,
                 GitHubRepoConnection.botCommands,
                 GitHubRepoConnection.helpMessage,
-                state.commandPrefix || "!gh",
+                "!gh",
                 "github",
             );
     }
@@ -415,8 +415,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return this.state.priority || super.priority;
     }
 
-    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        this.state = stateEv.content as GitHubRepoConnectionState;
+    protected validateConnectionState(content: unknown) {
+        return content as GitHubRepoConnectionState;
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

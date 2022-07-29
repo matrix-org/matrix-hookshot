@@ -14,6 +14,7 @@ export type PermissionCheckFn = (service: string, level: BridgePermissionLevel) 
 
 export interface IConnectionState {
     priority?: number;
+    commandPrefix?: string;
 }
 
 export interface IConnection {
