@@ -115,7 +115,8 @@ The input is parsed and executed within a separate JavaScript Virtual Machine co
 With that said, the feature is disabled by default and `allowJsTransformationFunctions` must be enabled in the config.
 
 The code snippets can be edited by editing the Matrix state event corresponding to this connection (with a state type of `uk.half-shot.matrix-hookshot.generic.hook`).
-Because this is a fairly advanced feature, this documentation won't go into how to edit state events from your client.
+The easiest way to to this is through the [Hookshot Configuration widget](../advanced/widgets.md) if enabled.
+Because this is a fairly advanced feature, this documentation won't go into how to edit state events from your client directly.
 Please seek out documentation from your client on how to achieve this.
 
 The script string should be set within the state event under the `transformationFunction` key.
