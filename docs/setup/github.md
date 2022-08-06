@@ -63,7 +63,7 @@ github:
   oauth:
     client_id: foo
     client_secret: bar
-    redirect_uri: https://example.com/bridge_oauth/
+    redirect_uri: https://example.com/oauth/
   defaultOptions:
     showIssueRoomLink: false
 ```
