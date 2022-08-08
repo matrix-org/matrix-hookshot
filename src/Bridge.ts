@@ -9,7 +9,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection, AlertmanagerConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
@@ -41,6 +41,7 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
+import { IAlertmanagerEvent } from "./alertmanager/types";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -617,6 +618,12 @@ export class Bridge {
             "feed.error",
             (data) => connManager.getConnectionsForFeedUrl(data.url),
             (c, data) => c.handleFeedError(data),
+        );
+
+        this.bindHandlerToQueue<IAlertmanagerEvent, AlertmanagerConnection>(
+            "alertmanager.event",
+            (data) => connManager.getConnectionsForAlertmanager(data.room_id), 
+            (c, data) => c.onAmEvent(data),
         );
 
         // Set the name and avatar of the bot

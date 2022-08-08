@@ -466,6 +466,9 @@ export class BridgeConfig {
     @configKey("Prometheus metrics support", true)
     public readonly metrics?: BridgeConfigMetrics;
 
+    @configKey("Configure this to enable support for alert manager", true)
+    public readonly alertmanager?: BridgeConfigAlertmanager;
+
     @configKey(`HTTP Listener configuration.
  Bind resource endpoints to ports and addresses.
  'port' must be specified. Each listener must listen on a unique port.

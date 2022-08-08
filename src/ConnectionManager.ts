@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
+import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection, AlertmanagerConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
@@ -218,6 +218,10 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {
         return this.connections.filter((c) => (c instanceof GenericHookConnection && c.hookId === hookId)) as GenericHookConnection[];
+    }
+
+    public getConnectionsForAlertmanager(roomId: string): AlertmanagerConnection[] {
+        return this.connections.filter((c) => (c instanceof AlertmanagerConnection && c.roomId === roomId)) as AlertmanagerConnection[];
     }
 
     public getForFigmaFile(fileKey: string, instanceName: string): FigmaFileConnection[] {

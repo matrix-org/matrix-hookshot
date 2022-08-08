@@ -9,12 +9,34 @@ import { MessageSenderClient } from "../MatrixSender";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { GithubInstance } from "../Github/GithubInstance";
 import "reflect-metadata";
+import { ApiError, ErrCode } from "../api";
 
 export type PermissionCheckFn = (service: string, level: BridgePermissionLevel) => boolean;
 
 export interface IConnectionState {
     priority?: number;
     commandPrefix?: string;
+}
+
+export function validateConnectionState(state: unknown): IConnectionState {
+    const {commandPrefix, priority} = state as Partial<IConnectionState>;
+    if (commandPrefix) {
+        if (typeof commandPrefix !== "string") {
+            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
+        }
+        if (commandPrefix.length < 2 || commandPrefix.length > 24) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
+        }
+    }
+    if (priority !== undefined) {
+        if (typeof priority !== "number") {
+            throw new ApiError("Expected 'number' to be a string", ErrCode.BadValue);
+        }
+        if (Number.isSafeInteger(priority)) {
+            throw new ApiError("Expected 'number' to be a safe integer", ErrCode.BadValue);
+        }
+    }
+    return {commandPrefix, priority};
 }
 
 export interface IConnection {
