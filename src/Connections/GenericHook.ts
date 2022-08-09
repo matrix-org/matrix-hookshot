@@ -36,6 +36,8 @@ export interface GenericHookSecrets {
 
 export type GenericHookResponseItem = GetConnectionsResponseItem<GenericHookConnectionState, GenericHookSecrets>;
 
+const MatrixUriEventRegex = /^matrix:(roomid|r)\/(.+:.+)\/[a-zA-Z0-9+/]+/;
+
 /** */
 export interface GenericHookAccountData {
     /**
@@ -306,6 +308,28 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         });
         vm.setGlobal('HookshotApiVersion', 'v2');
         vm.setGlobal('data', data);
+        vm.setGlobal('loadMatrixScript', async (scriptPath: string) => {
+            if (typeof scriptPath !== "string") {
+                throw Error('loadMatrixScript takes a string')
+            }
+            const matrixUri = MatrixUriEventRegex.exec(scriptPath);
+            if (!matrixUri) {
+                throw Error('Not a valid matrix path. Use the event URI scheme from https://spec.matrix.org/v1.3/appendices/#matrix-uri-scheme');
+            }
+            let roomId = "!" + matrixUri[2];
+            if (matrixUri[1] === "r") {
+                // RoomAlias -> resolve
+                roomId = await this.as.botClient.resolveRoom("#" + matrixUri[2]);
+            }
+            const eventData = await this.as.botClient.getEvent(roomId, matrixUri[3]);
+            if (typeof eventData.content.transformationFunction !== "string") {
+                throw Error('Event did not contain a transformation function!');
+            }
+            // Add a callback to run the script in a seperate context.
+            return () => {
+                vm.run(eventData.content.transformationFunction);
+            }
+        });
         vm.run(this.transformationFunction);
         const result = vm.getGlobal('result');
 
