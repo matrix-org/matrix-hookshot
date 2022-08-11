@@ -48,7 +48,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16
-      - run: yarn --ignore-scripts
+      - run: yarn # Need to build to get rust bindings
       - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
   
   test:
