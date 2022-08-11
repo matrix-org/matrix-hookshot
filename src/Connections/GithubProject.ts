@@ -44,7 +44,7 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
         const roomId = await as.botClient.createRoom({
             visibility: "private",
             name: `${project.name}`,
-            topic: project.body,
+            topic: project.body || undefined,
             preset: "private_chat",
             invite: [inviteUser],
             initial_state: [
