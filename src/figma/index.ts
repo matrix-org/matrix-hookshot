@@ -1,7 +1,7 @@
 import { BridgeConfigFigma } from "../Config/Config";
 import * as Figma from 'figma-js';
 import { MatrixClient } from "matrix-bot-sdk";
-import { AxiosError, isAxiosError } from "axios";
+import { AxiosError } from "axios";
 import LogWrapper from "../LogWrapper";
 
 export * from "./router";
