@@ -322,7 +322,7 @@
             "editorMode": "builder",
             "expr": "idelta(hookshot_connection_event_failed[$__interval])",
             "interval": "$delta",
-            "legendFormat": "{{__name__}}",
+            "legendFormat": "{{ event }}",
             "range": true,
             "refId": "A"
           }
