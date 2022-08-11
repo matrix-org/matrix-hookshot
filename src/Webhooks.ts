@@ -6,7 +6,7 @@ import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
-import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { EmitterWebhookEvent, EmitterWebhookEventName, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./Jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
@@ -40,7 +40,7 @@ export class Webhooks extends EventEmitter {
     public readonly expressRouter = Router();
     private readonly queue: MessageQueue;
     private readonly ghWebhooks?: OctokitWebhooks;
-    private readonly guids = new QuickLRU<string, void>({ maxAge: 5000, maxSize: 100 });
+    private readonly handledGuids = new QuickLRU<string, void>({ maxAge: 5000, maxSize: 100 });
     constructor(private config: BridgeConfig) {
         super();
         this.expressRouter.use((req, _res, next) => {
@@ -149,14 +149,13 @@ export class Webhooks extends EventEmitter {
                     return;
                 }
                 res.sendStatus(200);
-                if (this.guids.has(githubGuid)) {
+                if (this.handledGuids.has(githubGuid)) {
                     return;
                 }
-                this.guids.set(githubGuid);
+                this.handledGuids.set(githubGuid);
                 this.ghWebhooks.verifyAndReceive({
                     id: githubGuid as string,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    name: req.headers["x-github-event"] as any,
+                    name: req.headers["x-github-event"] as EmitterWebhookEventName,
                     payload: body,
                     signature: req.headers["x-hub-signature-256"] as string,
                 }).catch((err) => {
