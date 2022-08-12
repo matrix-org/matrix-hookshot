@@ -64,7 +64,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                     if (axiosErr.isAxiosError) {
                         log.error(`Failed to update webhook: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
                     }
-                    throw Error(`Could not update an Figma webhook for instance ${instanceName}`);
+                    throw Error(`Could not update an Figma webhook for instance ${instanceName}: ${ex}`);
                 }
             }
         } else {
@@ -84,7 +84,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                 if (axiosErr.isAxiosError) {
                     log.error(`Failed to create webhook: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
                 }
-                throw Error(`Could not create a Figma webhook for instance ${instanceName}`);
+                throw Error(`Could not create a Figma webhook for instance ${instanceName}: ${ex}`);
             }
         }
     }
