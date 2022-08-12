@@ -6,7 +6,7 @@ import LogWrapper from "./LogWrapper";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
-import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { EmitterWebhookEvent, EmitterWebhookEventName, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./Jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
@@ -15,6 +15,7 @@ import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
 import { GithubInstance } from "./Github/GithubInstance";
+import QuickLRU from "@alloc/quick-lru";
 
 const log = new LogWrapper("Webhooks");
 
@@ -37,8 +38,9 @@ export interface NotificationsDisableEvent {
 export class Webhooks extends EventEmitter {
     
     public readonly expressRouter = Router();
-    private queue: MessageQueue;
-    private ghWebhooks?: OctokitWebhooks;
+    private readonly queue: MessageQueue;
+    private readonly ghWebhooks?: OctokitWebhooks;
+    private readonly handledGuids = new QuickLRU<string, void>({ maxAge: 5000, maxSize: 100 });
     constructor(private config: BridgeConfig) {
         super();
         this.expressRouter.use((req, _res, next) => {
@@ -139,17 +141,21 @@ export class Webhooks extends EventEmitter {
         try {
             let eventName: string|null = null;
             const body = req.body;
-            if (req.headers['x-hub-signature']) {
+            const githubGuid = req.headers['x-github-delivery'] as string|undefined;
+            if (githubGuid) {
                 if (!this.ghWebhooks) {
                     log.warn(`Not configured for GitHub webhooks, but got a GitHub event`)
                     res.sendStatus(500);
                     return;
                 }
                 res.sendStatus(200);
+                if (this.handledGuids.has(githubGuid)) {
+                    return;
+                }
+                this.handledGuids.set(githubGuid);
                 this.ghWebhooks.verifyAndReceive({
-                    id: req.headers["x-github-delivery"] as string,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    name: req.headers["x-github-event"] as any,
+                    id: githubGuid as string,
+                    name: req.headers["x-github-event"] as EmitterWebhookEventName,
                     payload: body,
                     signature: req.headers["x-hub-signature-256"] as string,
                 }).catch((err) => {
