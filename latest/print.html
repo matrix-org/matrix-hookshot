@@ -209,7 +209,7 @@ Hookshot memory requirements may increase depending on the traffic and the numbe
 <p>You <strong>must</strong> have administrative access to an existing homeserver in order to set up Hookshot, as
 Hookshot requires the homeserver to be configured with its appservice registration.</p>
 <h2 id="local-installation"><a class="header" href="#local-installation">Local installation</a></h2>
-<p>This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.</p>
+<p>This bridge requires at least Node 16 and Rust installed.</p>
 <p>To install Node.JS, <a href="https://github.com/nvm-sh/nvm">nvm</a> is a good option.</p>
 <p>To install Rust, <a href="https://rustup.rs/">rustup</a> is the preferred solution to stay up to date.</p>
 <p>To clone and install, run:</p>
@@ -1418,33 +1418,138 @@ There are 3 variables at the top of the dashboard:</p>
 </tbody></table>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>
 <h2 id="matrixorg-bridges"><a class="header" href="#matrixorg-bridges">Matrix.org Bridges</a></h2>
-<h1 id="filing-issues"><a class="header" href="#filing-issues">Filing Issues</a></h1>
-<p>A good issue can mean the difference between a quick fix and a long, painful fixing process. That's why the
-following guidelines exist:</p>
+<h1 id="contributing-1"><a class="header" href="#contributing-1">Contributing</a></h1>
+<p>Hello there 👋. This contributing file is used amongst the matrix.org bridge repositories and should be followed when
+making any contribution. If you are reading this, that means you are going to be contributing to some free software,
+and that's great! Thank you!</p>
+<h2 id="-getting-in-touch"><a class="header" href="#-getting-in-touch">🗨️ Getting in touch</a></h2>
+<p>As a Matrix-based project we use chat rooms heavily for coodinating work. When getting involved with an issue or pull
+request, feel free to reach out to us in one of the project rooms. The project room for the repository you are working
+on should be visible from the README.md file.</p>
+<p>Be aware that by interacting with our Matrix rooms and/or GitHub repositories, you are agreeing to abide by the
+<a href="https://matrix.org/legal/code-of-conduct">Matrix.org code of conduct</a>.</p>
+<h2 id="-filing-issues"><a class="header" href="#-filing-issues">✍️ Filing issues</a></h2>
+<p>We use the GitHub issue tracker for issue filing. A good issue can mean the difference between a quick fix and a long,
+painful fixing process. That's why the following guidelines exist:</p>
 <ul>
-<li>Use the <a href="https://github.com/matrix-org/matrix-appservice-bridge/issues">Github issue tracker</a> to file your issues.</li>
-<li>Write a short title which neatly summaries the <em>problem</em>. Do <strong>not</strong> write the <em>solution</em> in the issue title.
+<li>If you are reporting a bug:
+<ul>
+<li>Write a short title which neatly summaries the <em>problem</em>.
+Do <strong>not</strong> write the <em>solution</em> in the issue title.
 For example: <code>Cannot create a nick with | in it</code> is a good issue title. <code>Filter nicks according to RFC 2812</code>
 is not a good issue title.</li>
-<li>Give a summary and as much information (along with proposed solutions) as possible in the body of the issue.</li>
-<li>Include reproduction steps where possible.</li>
-<li>Provide the commit SHA or version number of the <code>matrix-appservice-bridge</code> being used.</li>
+<li>Give a summary and as much information (along with proposed solutions) as possible in the description of the issue.</li>
+<li>Please either mention which version of the bridge you are using, or the commit hash.</li>
 </ul>
-<h1 id="making-pull-requests"><a class="header" href="#making-pull-requests">Making Pull Requests</a></h1>
-<p>This project follows &quot;git flow&quot; semantics. In practice, this means:</p>
+</li>
+<li>If it's a feature:
 <ul>
-<li>The <code>master</code> branch is latest current stable release.</li>
-<li>The <code>develop</code> branch is where all the new code ends up.</li>
-<li>When forking the project, fork from <code>develop</code> and then write your code.</li>
-<li>Make sure your new code passes all the code checks (tests and linting). Do this by running
-<code>yarn test &amp;&amp; yarn lint</code>.</li>
-<li>Create a pull request. If this PR fixes an issue, link to it by referring to its number.</li>
-<li>PRs from community members must be signed off as per Synapse's <a href="https://github.com/matrix-org/synapse/blob/master/CONTRIBUTING.md#sign-off">Sign off section</a></li>
-<li>Create a changelog entry in <code>changelog.d</code>. A changelog filename should be <code>${GithubPRNumber}.{bugfix|misc|feature|doc|removal}</code>
-The change should include information that is useful to the user rather than the developer.
-You can choose to sign your changelog entry to be credited by appending something like &quot;Thanks to @Half-Shot&quot;
-at the end of the file, on the same line.</li>
+<li>Your title should be a quick summary such as &quot;Add ability to send encrypted files&quot;</li>
+<li>Your description should describe the outcome, not the solution.
+<ul>
+<li>For instance: &quot;A function exists which can be used to send encrypted files to Matrix rooms&quot;.</li>
+<li>Not: &quot;There should be a MatrixClient.sendEncryptedFile() so the Foobar bridge can send encrypted images&quot;</li>
 </ul>
+</li>
+</ul>
+</li>
+</ul>
+<p>Issues will be categorised according to <a href="https://github.com/matrix-org/synapse/issues/9460">Synapse's rules</a>. To summarise:</p>
+<ul>
+<li>Your issue will be catagorised as one of the following types by the maintainer team:
+<ul>
+<li><strong>T-Defect</strong>: Bugs, crashes, hangs, vulnerabilities, or other reported problems.</li>
+<li><strong>T-Enhancement</strong>: New features, changes in functionality, performance boosts, user-facing improvements.</li>
+<li><strong>T-Documentation</strong>: Improvements or additions to documentation.</li>
+</ul>
+</li>
+<li>You <em>may</em> have a severity assigned as an estimate to understand how bad the problem is and how many users are affected.</li>
+</ul>
+<p>The assigned labels are at the maintainers' discretion, and we will make every effort to be transparent when triaging.
+We do not, as a rule, assign priority labeling to issues.</p>
+<h2 id="contributing-documentation"><a class="header" href="#contributing-documentation">Contributing documentation</a></h2>
+<p>Documentation is important to us, as bridges are complex beasts and rely on good documentation for both
+administrators and users. There are a couple of things to keep in mind when when writing documentation
+for bridge projects:</p>
+<ul>
+<li>Use <a href="https://en.wikipedia.org/wiki/Plain_English">Plain English</a> when documenting. Assume a non-native speaker audience.</li>
+<li>Please take care to proofread.</li>
+<li>Documentation should be written for both end users of the bridge, as well as system administrators. It should always be
+made clear in the text which class of user you are targetting.</li>
+</ul>
+<h2 id="contributing-code"><a class="header" href="#contributing-code">Contributing code</a></h2>
+<p>First of all, thank you for considering making a change to one of our projects. Every change no matter the size makes a difference! </p>
+<h3 id="-code-style"><a class="header" href="#-code-style">🖌️ Code style</a></h3>
+<p>Each repository contains an <code>eslint</code> configuration which will dictate the style of the code. All code should be written in
+TypeScript. At time of writing, we target ES2020 (the latest version supported by Node 14). The CI will lint your code automatically,
+but you can save yourself some time by running (<code>yarn lint</code>/<code>npm lint</code>) to check locally.</p>
+<h3 id="-tests--ci"><a class="header" href="#-tests--ci">🧪 Tests / CI</a></h3>
+<p>To test your changes, you can run the <code>test</code> command with either <code>yarn test</code> or <code>npm test</code>. Some projects may have additional
+testing constraints noted in the project-specific section below.</p>
+<p>Please be aware that reviewers will expect CI to be passing before your changes will be approved, and priority will be given to
+PRs that pass CI when reviewing too. If you can't get the CI to pass, please reach out to us either via the PR or in the project
+Matrix room (and do not assume that it's always your change that caused the test to fail!).</p>
+<p><strong>As a rule, code does not get merged onto the <code>develop</code> branch without all CI tests passing.</strong></p>
+<h3 id="tips-for-good-quality-submissions"><a class="header" href="#tips-for-good-quality-submissions">Tips for good quality submissions</a></h3>
+<ul>
+<li>When writing new features, remember to document them in the repository's chosen documentation system.</li>
+<li>PRs should aim to be as constrained as possible: Do not attempt to solve multiple isolated issues in a single PR.
+<ul>
+<li>A good indication is that your changelog entry contains multiple statements. That usually means you need to consider splitting up your PR :)</li>
+</ul>
+</li>
+<li>It's totally okay to submit draft PRs with the intention of getting feedback. Please use the GitHub comments feature to comment
+on lines you would like assistance with.</li>
+<li>Avoid writing TODOs / XXX comments in code. If you must, create an issue first with the details and link to it in the code.</li>
+</ul>
+<h3 id="-pull-requests"><a class="header" href="#-pull-requests">⬇️ Pull Requests</a></h3>
+<p>When making a pull request, please ensure it [the PR] follows these best practises:</p>
+<ul>
+<li>
+<p>Targets <code>develop</code> (unless it explicitly depends upon another feature, then depend on that branch and comment to that effect in the PR body).</p>
+</li>
+<li>
+<p>Is updated via rebase mechanisms when <code>develop</code> changes, rather than merge commits (reduces noise).</p>
+</li>
+<li>
+<p>Is <a href="https://matrix-org.github.io/synapse/latest/development/contributing_guide.html#sign-off">signed off</a>. Matrix.org projects require that the
+sign off process has been followed in its entirety.</p>
+</li>
+<li>
+<p>Has a <a href="https://matrix-org.github.io/synapse/latest/development/contributing_guide.html#changelog">changelog entry</a> in <code>changelog.d</code>.
+A changelog filename should be <code>${GithubPRNumber}.{bugfix|misc|feature|doc|removal}</code>.
+The change should include information that is useful to the user rather than the developer.</p>
+<p>You can choose to sign your changelog entry to be credited by appending something like &quot;Thanks to @Half-Shot&quot;
+at the end of the file, on the same line.</p>
+<p>You may be wondering how to determine your <code>GithubPRNumber</code> number ahead of time. <a href="https://matrix-org.github.io/synapse/latest/development/contributing_guide.html#how-do-i-know-what-to-call-the-changelog-file-before-i-create-the-pr">Synapse offers some useful
+hints</a> for this.</p>
+</li>
+<li>
+<p>Is passing CI. As noted above, please feel free to call out any CI issues you cannot fix.</p>
+</li>
+<li>
+<p>Calls out any issue it may fix with a &quot;Fixes #issue-no&quot; in the body.</p>
+</li>
+</ul>
+<p>When PRs are merged, we will squash the commits down to a single commit. Because of this, do not be afraid to
+make multiple commits to a branch rather than amending and force pushing existing commits.</p>
+<p>We aim to review all PRs in a timely manner, though be aware that larger PRs will take more thought.</p>
+<h3 id="-review-process"><a class="header" href="#-review-process">✔️ Review process</a></h3>
+<p>We aim to review all PRs from the community promptly, although we can't offer firm time commitments. If you think
+your PR has been forgotten and it's been a while, do not hesistate to politely ping in the correct project room.</p>
+<p>When reviewing a PR, a maintainer will:</p>
+<ul>
+<li>Constructively call out areas for improvement. Code reviews are as much about learning as getting code good,
+so conversations always seek to improve <em>mutual</em> understanding.</li>
+<li>Resolve a comment thread when they are satisifed. The author of the code may 👍 a review comment to say
+they have acknowledged the message and will make the change.</li>
+<li>Approve a PR which is ready to merge, or nearly ready with some minor tweaks or optional improvements.</li>
+</ul>
+<h2 id="-thats-it"><a class="header" href="#-thats-it">🏁 That's it!</a></h2>
+<p>This guide aims to cover all bases to get new contributors started, but it won't be able to satisfy every question. If
+you have any other questions, please seek us out in any of the project rooms and we will be happy to assist! Other than that,
+thanks for taking the time to read this and improving our projects for
+the benefit of all 😄</p>
 <h2 id="hookshot-1"><a class="header" href="#hookshot-1">Hookshot</a></h2>
 <p>Hi there! Please read the <a href="https://github.com/matrix-org/matrix-appservice-bridge/blob/develop/CONTRIBUTING.md">CONTRIBUTING.md</a> guide for all matrix.org bridge
 projects.</p>
