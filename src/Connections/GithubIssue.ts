@@ -36,7 +36,7 @@ interface IQueryRoomOpts {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub issue.
  */
 @Connection
 export class GitHubIssueConnection extends BaseConnection implements IConnection {

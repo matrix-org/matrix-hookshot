@@ -45,8 +45,8 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
     const botCommands: BotCommands = {};
     const cmdStrs: {[category: string]: string[]} = {};
     prototypes.forEach(prototype => {
-        Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
-            const b = Reflect.getMetadata(botCommandSymbol, prototype, propetyKey);
+        Object.getOwnPropertyNames(prototype).forEach(propertyKey => {
+            const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
             if (b) {
                 const category = b.category || "default";
                 const requiredArgs = b.requiredArgs?.join(" ") || "";
@@ -55,7 +55,7 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
                 cmdStrs[category].push(` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}`);
                 // We know that these types are safe.
                 botCommands[b.prefix as string] = {
-                    fn: prototype[propetyKey],
+                    fn: prototype[propertyKey],
                     help: b.help,
                     requiredArgs: b.requiredArgs,
                     optionalArgs: b.optionalArgs,

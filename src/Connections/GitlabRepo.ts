@@ -3,13 +3,13 @@
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+import { MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
-import { Connection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
@@ -19,7 +19,6 @@ export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
     ignoreHooks?: AllowedEventsNames[],
-    commandPrefix?: string;
     pushTagsRegex?: string,
     includingLabels?: string[];
     excludingLabels?: string[];
@@ -43,7 +42,7 @@ const PUSH_MAX_COMMITS = 5;
 const MRRCOMMENT_DEBOUNCE_MS = 5000;
 
 
-export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState, undefined>;
+export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
 
 type AllowedEventsNames = 
@@ -127,10 +126,10 @@ export interface GitLabTargetFilter {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitLab repo.
  */
 @Connection
-export class GitLabRepoConnection extends CommandConnection {
+export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnectionState> implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
 
@@ -143,7 +142,7 @@ export class GitLabRepoConnection extends CommandConnection {
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
 
-	static validateState(state: Record<string, unknown>, isExistingState = false): GitLabRepoConnectionState {
+	static validateState(state: unknown, isExistingState = false): GitLabRepoConnectionState {
         const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
         if (validator(state)) {
             // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
@@ -277,17 +276,18 @@ export class GitLabRepoConnection extends CommandConnection {
     constructor(roomId: string,
         stateKey: string,
         private readonly as: Appservice,
-        private state: GitLabRepoConnectionState,
+        state: GitLabRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance) {
             super(
                 roomId,
                 stateKey,
                 GitLabRepoConnection.CanonicalEventType,
+                state,
                 as.botClient,
                 GitLabRepoConnection.botCommands,
                 GitLabRepoConnection.helpMessage,
-                state.commandPrefix || "!gl",
+                "!gl",
                 "gitlab",
             )
             if (!state.path || !state.instance) {
@@ -303,9 +303,8 @@ export class GitLabRepoConnection extends CommandConnection {
         return this.state.priority || super.priority;
     }
 
-    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        const state = stateEv.content as GitLabRepoConnectionState;
-        this.state = state;
+    protected validateConnectionState(content: unknown) {
+        return GitLabRepoConnection.validateState(content);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

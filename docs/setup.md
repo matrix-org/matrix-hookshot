@@ -59,7 +59,7 @@ You may validate your config without starting the service by running `yarn valid
 For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml`
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
-- At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces.
+- At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).

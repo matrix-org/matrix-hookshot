@@ -1,4 +1,4 @@
-import { Application, Response } from "express";
+import { Application, NextFunction, Response } from "express";
 import { AdminRoom } from "../AdminRoom";
 import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../api";
@@ -32,16 +32,26 @@ export class BridgeWidgetApi {
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
             openIdOverride: config.widgets?.openIdOverrides,
         });
-        this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
-        this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
-        this.api.addRoute("get", '/v1/service/:service/config', this.getServiceConfig.bind(this));
-        this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
-        this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsForService.bind(this));
-        this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
-        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
-        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
-        this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', this.deleteConnection.bind(this));
-        this.api.addRoute("get", '/v1/targets/:type', this.getConnectionTargets.bind(this));
+        const wrapHandler = (handler: (req: ProvisioningRequest, res: Response, next?: NextFunction) => Promise<unknown>) => {
+            return async (req: ProvisioningRequest, res: Response, next?: NextFunction) => {
+                try {
+                    await handler.call(this, req, res);
+                } catch (ex) {
+                    // Pass to error handler without the req
+                    next?.(ex);
+                }
+            }
+        }
+        this.api.addRoute("get", "/v1/state", wrapHandler(this.getRoomState));
+        this.api.addRoute("get", '/v1/config/sections', wrapHandler(this.getConfigSections));
+        this.api.addRoute("get", '/v1/service/:service/config', wrapHandler(this.getServiceConfig));
+        this.api.addRoute("get", '/v1/:roomId/connections', wrapHandler(this.getConnections));
+        this.api.addRoute("get", '/v1/:roomId/connections/:service', wrapHandler(this.getConnectionsForService));
+        this.api.addRoute("post", '/v1/:roomId/connections/:type', wrapHandler(this.createConnection));
+        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
+        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
+        this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', wrapHandler(this.deleteConnection));
+        this.api.addRoute("get", '/v1/targets/:type', wrapHandler(this.getConnectionTargets));
     }
 
     private async getRoomFromRequest(req: ProvisioningRequest): Promise<AdminRoom> {
@@ -98,7 +108,7 @@ export class BridgeWidgetApi {
             if (!c.canEdit) {
                 delete c.secrets;
             }
-    }
+        }
 
         return {
             connections,

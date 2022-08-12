@@ -1,6 +1,6 @@
 import { h, FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
-import BridgeAPI from "../../BridgeAPI";
+import { BridgeAPI } from "../../BridgeAPI";
 import { ErrorPane, ListItem } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";

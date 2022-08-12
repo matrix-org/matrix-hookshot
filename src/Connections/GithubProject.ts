@@ -12,7 +12,7 @@ export interface GitHubProjectConnectionState {
 const log = new LogWrapper("GitHubProjectConnection");
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub project.
  */
 @Connection
 export class GitHubProjectConnection extends BaseConnection implements IConnection {
