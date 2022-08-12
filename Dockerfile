@@ -33,9 +33,6 @@ COPY --from=builder /src/yarn.lock /src/package.json ./
 # --ignore-scripts so we don't try to build
 RUN yarn --ignore-scripts --production --pure-lockfile && yarn cache clean
 
-# Copy rust bindings for crypto, since we built them in the previous step.
-COPY --from=builder /src/node_modules/@turt2live/matrix-sdk-crypto-nodejs /bin/matrix-hookshot/node_modules/@turt2live/matrix-sdk-crypto-nodejs
-
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
 

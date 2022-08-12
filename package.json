@@ -11,7 +11,7 @@
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "scripts": {
     "build:web": "vite build",
@@ -52,9 +52,9 @@
     "ioredis": "^4.28.0",
     "jira-client": "^8.0.0",
     "markdown-it": "^12.3.2",
-    "matrix-appservice-bridge": "^4.0.1",
-    "matrix-bot-sdk": "^0.5.19",
-    "matrix-widget-api": "^0.1.0-beta.18",
+    "matrix-appservice-bridge": "^5.0.0",
+    "matrix-bot-sdk": "^0.6.1",
+    "matrix-widget-api": "^1.0.0",
     "micromatch": "^4.0.4",
     "mime": "^3.0.0",
     "node-emoji": "^1.11.0",
