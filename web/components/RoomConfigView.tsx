@@ -18,6 +18,7 @@ interface IProps {
     widgetApi: WidgetApi,
     bridgeApi: BridgeAPI,
     supportedServices: {[service: string]: boolean},
+    serviceScope?: string,
     roomId: string,
 }
 
@@ -63,7 +64,8 @@ const connections: Record<ConnectionType, IConnectionProps> = {
 };
 
 export default function RoomConfigView(props: IProps) {
-    const [ activeConnectionType, setActiveConnectionType ] = useState<ConnectionType|null>(null);
+    const serviceScope = props.serviceScope && props.supportedServices[props.serviceScope] ? props.serviceScope as ConnectionType : null;
+    const [ activeConnectionType, setActiveConnectionType ] = useState<ConnectionType|null>(serviceScope);
 
     let content;
 
@@ -90,7 +92,11 @@ export default function RoomConfigView(props: IProps) {
 
     return <div className={style.root}>
         <header>
-            {activeConnectionType && <span className={style.backButton} onClick={() => setActiveConnectionType(null)}><span className="chevron" /> Browse integrations</span>}
+            {!serviceScope && activeConnectionType &&
+                <span className={style.backButton} onClick={() => setActiveConnectionType(null)}>
+                    <span className="chevron" /> Browse integrations
+                </span>
+            }
         </header>
         {content}
     </div>;
