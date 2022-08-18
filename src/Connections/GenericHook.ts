@@ -377,7 +377,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         await this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: content.msgtype || "m.notice",
             body: content.plain,
-            formatted_body: content.html || md.renderInline(content.plain),
+            // render can output redundant trailing newlines, so trim it.
+            formatted_body: content.html || md.render(content.plain).trim(),
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": safeData,
         }, 'm.room.message', sender);
