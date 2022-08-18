@@ -250,7 +250,7 @@ describe("GenericHookConnection", () => {
     });
     it("will import a script from another room", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
-        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: `const f = await loadMatrixScript("matrix://!foo:bar/$baz:bar"); f();`}, {
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: `const f = loadMatrixScript("matrix://!foo:bar/$baz:bar").then(f) f();`}, {
                 enabled: true,
                 urlPrefix: "https://example.com/webhookurl",
                 allowJsTransformationFunctions: true,
