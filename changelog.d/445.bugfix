@@ -1,0 +1,1 @@
+Fixed issue where `!hookshot gitlab project` commands would fail with a "Failed to handle command." error.
