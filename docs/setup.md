@@ -94,10 +94,12 @@ permissions:
 ```
 
 You must configure a set of "actors" with access to services. An `actor` can be:
-- A MxID (also known as a User ID) e.g. `@Half-Shot:half-shot.uk`
+- A MxID (also known as a User ID) e.g. `"@Half-Shot:half-shot.uk"`
 - A homeserver domain e.g. `matrix.org`
-- A roomId. This will allow any member of this room to complete actions. e.g. `!TlZdPIYrhwNvXlBiEk:half-shot.uk`
+- A roomId. This will allow any member of this room to complete actions. e.g. `"!TlZdPIYrhwNvXlBiEk:half-shot.uk"`
 - `*`, to match all users.
+
+MxIDs and room IDs *must* be wrapped in quotes.
 
 Each permission set can have a services. The `service` field can be:
 - `github`
@@ -131,7 +133,7 @@ permissions:
       - service: *
         level: commands
   # Allow any user that is part of this space to manage github connections
-  - actor: !TlZdPIYrhwNvXlBiEk:half-shot.uk
+  - actor: "!TlZdPIYrhwNvXlBiEk:half-shot.uk"
     services:
       - service: github
         level: manageConnections
@@ -153,7 +155,7 @@ permissions:
       - service: *
         level: manageConnections
   # Allow this specific user to do any action
-  - actor: @alice:example.com
+  - actor: "@alice:example.com"
     services:
       - service: *
         level: admin
