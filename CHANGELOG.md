@@ -1,8 +1,16 @@
+2.0.1 (2022-08-22)
+==================
+
+Bugfixes
+--------
+
+- Fix issue that would cause the bridge not to start when using Docker. ([\#448](https://github.com/matrix-org/matrix-hookshot/issues/448))
+
+
 2.0.0 (2022-08-22)
 ==================
 
-**Minimum Node.JS version is now 16. Updated matrix-bot-sdk to 0.6.0.** ([\#417](https://github.com/matrix-org/matrix-hookshot/issues/417))
-
+**Please note:** Minimum Node.JS version is now 16
 
 Features
 --------
