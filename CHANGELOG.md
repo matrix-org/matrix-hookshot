@@ -1,3 +1,42 @@
+2.0.0 (2022-08-22)
+==================
+
+**Minimum Node.JS version is now 16. Updated matrix-bot-sdk to 0.6.0.** ([\#417](https://github.com/matrix-org/matrix-hookshot/issues/417))
+
+
+Features
+--------
+
+- Add a configuration widget for GitHub. ([\#420](https://github.com/matrix-org/matrix-hookshot/issues/420))
+- Add query parameter to scope room config widget to a particular service. ([\#441](https://github.com/matrix-org/matrix-hookshot/issues/441))
+
+
+Bugfixes
+--------
+
+- Fix GitHub notices sometimes coming through multiple times if GitHub sends multiple copies of a webhook. ([\#429](https://github.com/matrix-org/matrix-hookshot/issues/429))
+- Headers and paragraphs now rendered properly when outputted from a Generic webhook transformation function. ([\#443](https://github.com/matrix-org/matrix-hookshot/issues/443))
+- Fixed issue where `!hookshot gitlab project` commands would fail with a "Failed to handle command." error. ([\#445](https://github.com/matrix-org/matrix-hookshot/issues/445))
+
+
+Deprecations and Removals
+-------------------------
+
+- Minimum Node.JS version is now 16. Updated matrix-bot-sdk to 0.6.0. ([\#417](https://github.com/matrix-org/matrix-hookshot/issues/417))
+
+
+Internal Changes
+----------------
+
+- Add Grafana dashboard including documentation. Contributed by @HarHarLinks ([\#407](https://github.com/matrix-org/matrix-hookshot/issues/407))
+- Refactor the way room state is tracked for room-specific configuration, to increase code reuse. ([\#418](https://github.com/matrix-org/matrix-hookshot/issues/418))
+- Add a new PR template body and a CODEOWNERS file. ([\#425](https://github.com/matrix-org/matrix-hookshot/issues/425))
+- Add new CI workflow to check for signoffs. ([\#427](https://github.com/matrix-org/matrix-hookshot/issues/427))
+- Correct the docstrings of some connection classes. ([\#428](https://github.com/matrix-org/matrix-hookshot/issues/428))
+- Optimize docker image rebuilds. ([\#438](https://github.com/matrix-org/matrix-hookshot/issues/438))
+- Better error logging when validating Figma webhooks on startup. ([\#440](https://github.com/matrix-org/matrix-hookshot/issues/440))
+
+
 1.8.1 (2022-07-18)
 ==================
 

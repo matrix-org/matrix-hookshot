@@ -1,1 +1,0 @@
-Refactor the way room state is tracked for room-specific configuration, to increase code reuse.

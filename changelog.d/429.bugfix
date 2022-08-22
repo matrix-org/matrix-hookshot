@@ -1,1 +1,0 @@
-Fix GitHub notices sometimes coming through multiple times if GitHub sends multiple copies of a webhook.
