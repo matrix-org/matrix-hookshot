@@ -1,0 +1,1 @@
+Fix issue that would cause the bridge not to start when using Docker.
