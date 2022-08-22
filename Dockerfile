@@ -30,8 +30,8 @@ WORKDIR /bin/matrix-hookshot
 
 COPY --from=builder /src/yarn.lock /src/package.json ./
 
-# --ignore-scripts so we don't try to build
-RUN yarn --ignore-scripts --production --pure-lockfile && yarn cache clean
+
+RUN yarn --production --pure-lockfile && yarn cache clean
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
