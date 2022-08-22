@@ -213,7 +213,7 @@ export class FeedReader {
 
         let sleepFor: number;
         if (elapsed > this.config.pollIntervalSeconds * 1000) {
-            log.warn(`It tooks us longer to update the feeds than the configured pool interval (${elapsed / 1000}s)`);
+            log.warn(`It took us longer to update the feeds than the configured pool interval (${elapsed / 1000}s)`);
             sleepFor = 0;
         } else {
             sleepFor = this.config.pollIntervalSeconds * 1000 - elapsed;
