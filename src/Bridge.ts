@@ -845,7 +845,7 @@ export class Bridge {
                                 messageClient: this.messageClient,
                                 storage: this.storage,
                                 github: this.github,
-                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this),
+                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
                             this.getOrCreateAdminRoom.bind(this),
                         )

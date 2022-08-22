@@ -46,8 +46,8 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
             // Not for us.
             return false;
         }
-        if ("error" in commandResult) {
-            const { humanError, error} = commandResult;
+        if ("error" in commandResult || "humanError" in commandResult) {
+            const { humanError, error } = commandResult;
             await this.botClient.sendEvent(this.roomId, "m.reaction", {
                 "m.relates_to": {
                     rel_type: "m.annotation",
