@@ -213,11 +213,12 @@ By default, any user on the bridge's own homeserver has full permission to use i
 </code></pre>
 <p>You must configure a set of &quot;actors&quot; with access to services. An <code>actor</code> can be:</p>
 <ul>
-<li>A MxID (also known as a User ID) e.g. <code>@Half-Shot:half-shot.uk</code></li>
+<li>A MxID (also known as a User ID) e.g. <code>&quot;@Half-Shot:half-shot.uk&quot;</code></li>
 <li>A homeserver domain e.g. <code>matrix.org</code></li>
-<li>A roomId. This will allow any member of this room to complete actions. e.g. <code>!TlZdPIYrhwNvXlBiEk:half-shot.uk</code></li>
-<li><code>*</code>, to match all users.</li>
+<li>A roomId. This will allow any member of this room to complete actions. e.g. <code>&quot;!TlZdPIYrhwNvXlBiEk:half-shot.uk&quot;</code></li>
+<li><code>&quot;*&quot;</code>, to match all users.</li>
 </ul>
+<p>MxIDs. room IDs and <code>*</code> <strong>must</strong> be wrapped in quotes.</p>
 <p>Each permission set can have a services. The <code>service</code> field can be:</p>
 <ul>
 <li><code>github</code></li>
@@ -243,12 +244,12 @@ definitions match, they are denied.</p>
 <p>A typical setup might be.</p>
 <pre><code class="language-yaml">permissions:
   # Allow all users to send commands to existing services
-  - actor: *
+  - actor: &quot;*&quot;
     services:
-      - service: *
+      - service: &quot;*&quot;
         level: commands
   # Allow any user that is part of this space to manage github connections
-  - actor: !TlZdPIYrhwNvXlBiEk:half-shot.uk
+  - actor: &quot;!TlZdPIYrhwNvXlBiEk:half-shot.uk&quot;
     services:
       - service: github
         level: manageConnections
@@ -262,17 +263,17 @@ definitions match, they are denied.</p>
   # Allow users on this domain to enable notifications on any service.
   - actor: engineering.example.com
     services:
-      - service: *
+      - service: &quot;*&quot;
         level: notifications
   # Allow users on this domain to create connections.
   - actor: management.example.com
     services:
-      - service: *
+      - service: &quot;*&quot;
         level: manageConnections
   # Allow this specific user to do any action
-  - actor: @alice:example.com
+  - actor: &quot;@alice:example.com&quot;
     services:
-      - service: *
+      - service: &quot;*&quot;
         level: admin
 </code></pre>
 <h3 id="listeners-configuration"><a class="header" href="#listeners-configuration">Listeners configuration</a></h3>
