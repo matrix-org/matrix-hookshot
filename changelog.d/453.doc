@@ -1,0 +1,1 @@
+Be explicit that identifiers in the permissions yaml config need to be wrapped in quotes, because they start with the characters @ and !.

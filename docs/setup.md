@@ -94,10 +94,12 @@ permissions:
 ```
 
 You must configure a set of "actors" with access to services. An `actor` can be:
-- A MxID (also known as a User ID) e.g. `@Half-Shot:half-shot.uk`
+- A MxID (also known as a User ID) e.g. `"@Half-Shot:half-shot.uk"`
 - A homeserver domain e.g. `matrix.org`
-- A roomId. This will allow any member of this room to complete actions. e.g. `!TlZdPIYrhwNvXlBiEk:half-shot.uk`
-- `*`, to match all users.
+- A roomId. This will allow any member of this room to complete actions. e.g. `"!TlZdPIYrhwNvXlBiEk:half-shot.uk"`
+- `"*"`, to match all users.
+
+MxIDs. room IDs and `*` **must** be wrapped in quotes.
 
 Each permission set can have a services. The `service` field can be:
 - `github`
@@ -126,12 +128,12 @@ A typical setup might be.
 ```yaml
 permissions:
   # Allow all users to send commands to existing services
-  - actor: *
+  - actor: "*"
     services:
-      - service: *
+      - service: "*"
         level: commands
   # Allow any user that is part of this space to manage github connections
-  - actor: !TlZdPIYrhwNvXlBiEk:half-shot.uk
+  - actor: "!TlZdPIYrhwNvXlBiEk:half-shot.uk"
     services:
       - service: github
         level: manageConnections
@@ -145,17 +147,17 @@ permissions:
   # Allow users on this domain to enable notifications on any service.
   - actor: engineering.example.com
     services:
-      - service: *
+      - service: "*"
         level: notifications
   # Allow users on this domain to create connections.
   - actor: management.example.com
     services:
-      - service: *
+      - service: "*"
         level: manageConnections
   # Allow this specific user to do any action
-  - actor: @alice:example.com
+  - actor: "@alice:example.com"
     services:
-      - service: *
+      - service: "*"
         level: admin
 ```
 
