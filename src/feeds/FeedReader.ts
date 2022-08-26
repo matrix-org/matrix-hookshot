@@ -6,9 +6,10 @@ import LogWrapper from "../LogWrapper";
 import { MessageQueue } from "../MessageQueue";
 
 import Ajv from "ajv";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import Parser from "rss-parser";
 import Metrics from "../Metrics";
+import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("FeedReader");
 
@@ -18,6 +19,20 @@ export class FeedError extends Error {
         public cause: Error,
     ) {
         super(`Error fetching feed ${url}: ${cause.message}`);
+    }
+
+    get shouldErrorBeSilent() {
+        if (axios.isAxiosError(this.cause) && this.cause.response?.status) {
+            if (this.cause.response.status % 500 < 100) {
+                // 5XX error, retry these as it might be a server screwup.
+                return true;
+            } else if (this.cause.response.status % 400 < 100) {
+                // 4XX error, actually report these because the server is explicity stating we can't read the resource.
+                return false;
+            }
+        }
+        // Err on the side of safety and report the rest
+        return false;
     }
 }
 
@@ -146,9 +161,13 @@ export class FeedReader {
 
         for (const url of this.observedFeedUrls.values()) {
             try {
-                const res = await axios.get(url.toString());
+                const res = await axios.get(url.toString(), {
+                    headers: {
+                        'User-Agent': UserAgent,
+                    },
                     // We don't want to wait forever for the feed.
                     timeout: this.config.pollTimeoutSeconds * 1000,
+                });
                 const feed = await (new Parser()).parseString(res.data);
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
@@ -202,10 +221,11 @@ export class FeedReader {
                     const newSeenItems = Array.from(new Set([ ...newGuids, ...seenGuids ]).values()).slice(0, maxGuids);
                     this.seenEntries.set(url, newSeenItems);
                 }
-            } catch (err: any) {
-                const error = new FeedError(url.toString(), err);
-                log.error(error.message);
-                this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: error });
+            } catch (err: unknown) {
+                const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
+                const feedError = new FeedError(url.toString(), error);
+                log.error("Unable to read feed:", feedError.message);
+                this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
             }
         }
         if (seenEntriesChanged) await this.saveSeenEntries();
