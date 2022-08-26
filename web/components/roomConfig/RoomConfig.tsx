@@ -1,6 +1,6 @@
 import { h, FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
-import { BridgeAPI } from "../../BridgeAPI";
+import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
 import { ErrorPane, ListItem } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
@@ -33,7 +33,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
     const ConnectionConfigComponent = props.connectionConfigComponent;
-    const [ error, setError ] = useState<null|string>(null);
+    const [ error, setError ] = useState<null|{header?: string, message: string}>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
     const [ serviceConfig, setServiceConfig ] = useState<SConfig|null>(null);
     const [ canEditRoom, setCanEditRoom ] = useState<boolean>(false);
@@ -44,18 +44,28 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         api.getConnectionsForService<ConnectionType>(roomId, type).then(res => {
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
+            setError(null);
         }).catch(ex => {
             console.warn("Failed to fetch existing connections", ex);
-            setError("Failed to fetch existing connections");
+            setError({
+                header: "Failed to fetch existing connections",
+                message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
+            });
         });
     }, [api, roomId, type, newConnectionKey]);
 
     useEffect(() => {
         api.getServiceConfig<SConfig>(type)
             .then(setServiceConfig)
+            .then(() => {
+                setError(null);
+            })
             .catch(ex => {
                 console.warn("Failed to fetch service config", ex);
-                setError("Failed to fetch service config");
+                setError({
+                    header: "Failed to fetch service config",
+                    message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
+                });
             })
     }, [api, type]);
 
@@ -63,15 +73,19 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         api.createConnection(roomId, connectionEventType, config).then(() => {
             // Force reload
             incrementConnectionKey(undefined);
+            setError(null);
         }).catch(ex => {
             console.warn("Failed to create connection", ex);
-            setError("Failed to create connection");
+            setError({
+                header: "Failed to create connection",
+                message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
+            });
         });
     }, [api, roomId, connectionEventType]);
 
     return <main>
         {
-            error && <ErrorPane header="Error">{error}</ErrorPane>
+            error && <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
         }
         <header className={style.header}>
             <img src={headerImg} />
@@ -97,17 +111,25 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                             api.updateConnection(roomId, c.id, config).then(() => {
                                 // Force reload
                                 incrementConnectionKey(undefined);
+                                setError(null);
                             }).catch(ex => {
                                 console.warn("Failed to create connection", ex);
-                                setError("Failed to create connection");
+                                setError({
+                                    header: "Failed to create connection",
+                                    message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
+                                });
                             });
                         }}
                         onRemove={() => {
                             api.removeConnection(roomId, c.id).then(() => {
                                 setConnections(conn => conn.filter(conn => c.id !== conn.id));
+                                setError(null);
                             }).catch(ex => {
                                 console.warn("Failed to remove connection", ex);
-                                setError("Failed to remove connection");
+                                setError({
+                                    header: "Failed to remove connection",
+                                    message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
+                                });
                             });
                         }}
                     />
