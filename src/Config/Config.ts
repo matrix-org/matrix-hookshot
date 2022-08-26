@@ -232,15 +232,20 @@ export class BridgeConfigGitLab {
 export interface BridgeConfigFeedsYAML {
     enabled: boolean;
     pollIntervalSeconds: number;
+    pollTimeoutSeconds?: number;
 }
 
 export class BridgeConfigFeeds {
     public enabled: boolean;
     public pollIntervalSeconds: number;
+    public pollTimeoutSeconds: number;
 
     constructor(yaml: BridgeConfigFeedsYAML) {
         this.enabled = yaml.enabled;
         this.pollIntervalSeconds = yaml.pollIntervalSeconds;
+        assert.strictEqual(typeof this.pollIntervalSeconds, "number");
+        this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 10;
+        assert.strictEqual(typeof this.pollTimeoutSeconds, "number");
     }
 
     @hideKey()

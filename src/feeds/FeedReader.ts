@@ -65,10 +65,10 @@ export class FeedReader {
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
     constructor(
-        private config: BridgeConfigFeeds,
-        private connectionManager: ConnectionManager,
-        private queue: MessageQueue,
-        private matrixClient: MatrixClient,
+        private readonly config: BridgeConfigFeeds,
+        private readonly connectionManager: ConnectionManager,
+        private readonly queue: MessageQueue,
+        private readonly matrixClient: MatrixClient,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
         this.calculateFeedUrls();
@@ -147,6 +147,8 @@ export class FeedReader {
         for (const url of this.observedFeedUrls.values()) {
             try {
                 const res = await axios.get(url.toString());
+                    // We don't want to wait forever for the feed.
+                    timeout: this.config.pollTimeoutSeconds * 1000,
                 const feed = await (new Parser()).parseString(res.data);
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
