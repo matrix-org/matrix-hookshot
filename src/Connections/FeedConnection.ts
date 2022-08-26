@@ -113,18 +113,13 @@ export class FeedConnection extends BaseConnection implements IConnection {
                 label: this.state.label,
             },
             secrets: {
-                lastResults: [...this.lastResults.entriesDescending()].map(entry => {
-                    if (entry[1] === true) {
-                        return {timestamp: entry[0], ok: true}
-                    }
-                    return { timestamp: entry[0], ok: false, error: entry[1].message };
-                })
+                lastResults: [...this.lastResults.entriesDescending()].map(e => e[1]),
             }
         }
     }
 
     private hasError = false;
-    private readonly lastResults = new QuickLRU<number, FeedError|true>({ maxSize: 5 });
+    private readonly lastResults = new QuickLRU<string, LastResultOk|LastResultFail>({ maxSize: 5 });
     // Simply for fast lookup.
     private lastResult: FeedError|true = true;
 
@@ -149,7 +144,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
-        this.lastResults.set(Date.now(), true);
+        this.lastResults.set(entry.fetchKey, {ok: true, timestamp: Date.now()});
         this.lastResult = true;
         this.hasError = false;
 
@@ -174,7 +169,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedError(error: FeedError): Promise<void> {
-        this.lastResults.set(Date.now(), error);
+        this.lastResults.set(error.fetchKey, {ok: false, timestamp: Date.now(), error: error.message});
         const wasLastResultSuccessful = this.lastResult === true;
         this.lastResult = error;
         if (wasLastResultSuccessful && error.shouldErrorBeSilent) {

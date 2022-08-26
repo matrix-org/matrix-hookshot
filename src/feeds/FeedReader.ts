@@ -6,10 +6,11 @@ import LogWrapper from "../LogWrapper";
 import { MessageQueue } from "../MessageQueue";
 
 import Ajv from "ajv";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import Parser from "rss-parser";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
+import { randomUUID } from "crypto";
 
 const log = new LogWrapper("FeedReader");
 
@@ -17,6 +18,7 @@ export class FeedError extends Error {
     constructor(
         public url: string,
         public cause: Error,
+        public readonly fetchKey: string,
     ) {
         super(`Error fetching feed ${url}: ${cause.message}`);
     }
@@ -47,6 +49,10 @@ export interface FeedEntry {
     },
     title: string|null,
     link:  string|null,
+    /**
+     * Unique key to identify the specific fetch across entries.
+     */
+    fetchKey: string,
 }
 
 interface AccountData {
@@ -164,6 +170,7 @@ export class FeedReader {
         const fetchingStarted = Date.now();
 
         for (const url of this.observedFeedUrls.values()) {
+            const fetchKey = randomUUID();
             try {
                 const res = await axios.get(url.toString(), {
                     headers: {
@@ -207,6 +214,7 @@ export class FeedReader {
                         },
                         title: item.title ? stripHtml(item.title) : null,
                         link: item.link || null,
+                        fetchKey
                     };
 
                     log.debug('New entry:', entry);
@@ -227,7 +235,7 @@ export class FeedReader {
                 }
             } catch (err: unknown) {
                 const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
-                const feedError = new FeedError(url.toString(), error);
+                const feedError = new FeedError(url.toString(), error, fetchKey);
                 log.error("Unable to read feed:", feedError.message);
                 this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
             }
