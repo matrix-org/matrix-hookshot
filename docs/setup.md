@@ -12,7 +12,7 @@ You **must** have administrative access to an existing homeserver in order to se
 Hookshot requires the homeserver to be configured with its appservice registration.
 
 
-## Manual installation
+## Manual installation (via yarn)
 
 This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.
 
