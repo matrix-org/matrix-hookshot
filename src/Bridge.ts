@@ -613,6 +613,11 @@ export class Bridge {
             (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
             (c, data) => c.handleFeedEntry(data),
         );
+        this.bindHandlerToQueue<FeedEntry, FeedConnection>(
+            "feed.success",
+            (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
+            c => c.handleFeedSuccess(),
+        );
         this.bindHandlerToQueue<FeedError, FeedConnection>(
             "feed.error",
             (data) => connManager.getConnectionsForFeedUrl(data.url),
