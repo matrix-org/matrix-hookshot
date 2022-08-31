@@ -1,0 +1,1 @@
+Hookshot now waits for Redis to be ready before handling traffic.
