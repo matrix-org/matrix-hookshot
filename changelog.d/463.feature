@@ -1,0 +1,1 @@
+JSON logging output now includes new keys such as `error` and `args`.
