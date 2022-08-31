@@ -7,9 +7,12 @@ import { BridgeConfigLogging } from "./Config/Config";
 type MsgType = string|Error|any|{error?: string};
 
 function isMessageNoise(messageOrObject: MsgType[]) {
-    const error = messageOrObject[0]?.error || messageOrObject[1]?.error ||messageOrObject[1]?.body?.error;
+    const error = messageOrObject[0]?.error || messageOrObject[1]?.error || messageOrObject[1]?.body?.error;
     const errcode = messageOrObject[0]?.errcode || messageOrObject[1]?.errcode;
     if (errcode === "M_NOT_FOUND" && error === "Room account data not found") {
+        return true;
+    }
+    if (errcode === "M_NOT_FOUND" && error === "Account data not found") {
         return true;
     }
     if (errcode === "M_NOT_FOUND" && error === "Event not found.") {
@@ -20,10 +23,30 @@ function isMessageNoise(messageOrObject: MsgType[]) {
     }
     return false;
 }
+
+interface HookshotLogInfo extends winston.Logform.TransformableInfo {
+    data: MsgType[];
+}
 export default class LogWrapper {
 
-    public static configureLogging(cfg: BridgeConfigLogging) {
+    static formatMsgTypeArray(...data: MsgType[]): string {
+        data = data.flat();
+        return data.map(obj => {
+            if (typeof obj === "string") {
+                return obj;
+            }
+            return util.inspect(obj);
+        }).join(" ");
+    }
 
+    static messageFormatter(info: HookshotLogInfo): string {
+        const logPrefix = `${info.level} ${info.timestamp} [${info.module}] `;
+        return logPrefix + this.formatMsgTypeArray(info.data);
+    }
+
+    static winstonLog: winston.Logger;
+
+    public static configureLogging(cfg: BridgeConfigLogging) {
         if (typeof cfg === "string") {
             cfg = { level: cfg };
         }
@@ -47,17 +70,35 @@ export default class LogWrapper {
         }
 
         if (cfg.json) {
+            formatters.push((format((info) => {
+                const hsData = {...info as HookshotLogInfo}.data;
+                const firstArg = hsData.shift();
+                const result: winston.Logform.TransformableInfo = {
+                    level: info.level,
+                    module: info.module,
+                    timestamp: info.timestamp,
+                    // Find the first instance of an error, subsequent errors are treated as args.
+                    error: hsData.find(d => d instanceof Error)?.message,
+                    message: "", // Always filled out
+                    args: hsData.length ? hsData : undefined,
+                };
+
+                if (typeof firstArg === "string") {
+                    result.message = firstArg;
+                } else if (firstArg instanceof Error) {
+                    result.message = firstArg.message;
+                } else {
+                    result.message = util.inspect(firstArg);
+                }
+
+                return result;
+            }))()),
             formatters.push(winston.format.json());
         } else {
-            formatters.push(winston.format.printf(
-                (info) => {
-                    return `${info.level} ${info.timestamp} [${info.module}] ${info.message}`;
-                },
-            ));
+            formatters.push(winston.format.printf(i => LogWrapper.messageFormatter(i as HookshotLogInfo)));
         }
 
-
-        const log = winston.createLogger({
+        const log = this.winstonLog = winston.createLogger({
             level: cfg.level,
             transports: [
                 new winston.transports.Console({
@@ -65,48 +106,42 @@ export default class LogWrapper {
                 }),
             ],
         });
-        const getMessageString = (messageOrObject: MsgType[]) => {
-            messageOrObject = messageOrObject.flat();
-            const messageParts: string[] = [];
-            messageOrObject.forEach((obj) => {
-                if (typeof(obj) === "string") {
-                    messageParts.push(obj);
-                    return;
-                }
-                messageParts.push(util.inspect(obj));
-            });
-            return messageParts.join(" ");
-        };
+
+        function formatBotSdkMessage(module: string, ...messageOrObject: MsgType[]) {
+            return { module, data: [LogWrapper.formatMsgTypeArray(messageOrObject)] };
+        }
+
         LogService.setLogger({
             info: (module: string, ...messageOrObject: MsgType[]) => {
                 // These are noisy, redirect to debug.
-                if (module.startsWith("MatrixLiteClient")) {
-                    log.debug(getMessageString(messageOrObject), { module });
+                if (module.startsWith("MatrixLiteClient") || module.startsWith("MatrixHttpClient")) {
+                    log.log("debug", formatBotSdkMessage(module, ...messageOrObject));
                     return;
                 }
-                log.info(getMessageString(messageOrObject), { module });
+                log.log("info", formatBotSdkMessage(module, ...messageOrObject));
             },
             warn: (module: string, ...messageOrObject: MsgType[]) => {
                 if (isMessageNoise(messageOrObject)) {
-                    log.debug(getMessageString(messageOrObject), { module });
-                    return; // This is just noise :|
+                    log.debug(formatBotSdkMessage(module, ...messageOrObject));
+                    return;
                 }
-                log.warn(getMessageString(messageOrObject), { module });
+                log.log("warn", formatBotSdkMessage(module, ...messageOrObject));
             },
             error: (module: string, ...messageOrObject: MsgType[]) => {
                 if (isMessageNoise(messageOrObject)) {
-                    log.debug(getMessageString(messageOrObject), { module });
-                    return; // This is just noise :|
+                    log.log("debug", formatBotSdkMessage(module, ...messageOrObject));
+                    return;
                 }
-                log.error(getMessageString(messageOrObject), { module });
+                log.log("error", formatBotSdkMessage(module, ...messageOrObject));
             },
             debug: (module: string, ...messageOrObject: MsgType[]) => {
-                log.debug(getMessageString(messageOrObject), { module });
+                log.log("debug", formatBotSdkMessage(module, ...messageOrObject));
             },
             trace: (module: string, ...messageOrObject: MsgType[]) => {
-                log.verbose(getMessageString(messageOrObject), { module });
+                log.log("verbose", formatBotSdkMessage(module, ...messageOrObject));
             },
         });
+
         LogService.setLevel(LogLevel.fromString(cfg.level));
         LogService.debug("LogWrapper", "Reconfigured logging");
     }
@@ -119,7 +154,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public debug(...messageOrObject: MsgType[]) {
-        LogService.debug(this.module, ...messageOrObject);
+        LogWrapper.winstonLog.debug("debug", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -127,7 +162,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public error(...messageOrObject: MsgType[]) {
-        LogService.error(this.module, ...messageOrObject);
+        LogWrapper.winstonLog.debug("error", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -135,7 +170,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public info(...messageOrObject: MsgType[]) {
-        LogService.info(this.module, ...messageOrObject);
+        LogWrapper.winstonLog.debug("info", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -143,6 +178,6 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public warn(...messageOrObject: MsgType[]) {
-        LogService.warn(this.module, ...messageOrObject);
+        LogWrapper.winstonLog.debug("warn", { module: this.module, data: messageOrObject });
     }
 }
