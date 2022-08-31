@@ -11,7 +11,7 @@ import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import QuickLRU from "@alloc/quick-lru";
-
+import { StatusCodes } from "http-status-codes"; 
 const log = new LogWrapper("FeedConnection");
 const md = new markdown();
 
@@ -65,7 +65,11 @@ export class FeedConnection extends BaseConnection implements IConnection {
         const contentType = res.headers['content-type'];
         // we're deliberately liberal here, since different things pop up in the wild
         if (!contentType.match(/xml/)) {
-            throw new ApiError(`Feed responded with a content type of "${contentType}", which doesn't look like an RSS/Atom feed`);
+            throw new ApiError(
+                `Feed responded with a content type of "${contentType}", which doesn't look like an RSS/Atom feed`,
+                ErrCode.BadValue,
+                StatusCodes.UNSUPPORTED_MEDIA_TYPE
+            );
         }
     }
 
