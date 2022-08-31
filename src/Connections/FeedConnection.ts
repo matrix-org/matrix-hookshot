@@ -183,6 +183,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             timestamp: Date.now(),
             error: error.message,
         });
+        this.lastResults.splice(MAX_LAST_RESULT_ITEMS-1, 1);
         const wasLastResultSuccessful = this.lastResults[0]?.ok !== false;
         if (wasLastResultSuccessful && error.shouldErrorBeSilent) {
             // To avoid short term failures bubbling up, if the error is serious, we still bubble.
