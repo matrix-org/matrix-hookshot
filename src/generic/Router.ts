@@ -26,7 +26,6 @@ export class GenericWebhooksRouter {
         } else {
             body = req.body;
         }
-    
         this.queue.pushWait<GenericWebhookEvent, GenericWebhookEventResult>({
             eventName: 'generic-webhook.event',
             sender: "GithubWebhooks",
@@ -81,7 +80,7 @@ export class GenericWebhooksRouter {
             '/:hookId',
             GenericWebhooksRouter.xmlHandler,
             express.urlencoded({ extended: false }),
-            express.json(),
+            express.json({ type: 'application/json'}),
             express.text({ type: 'text/*'}),
             this.onWebhook.bind(this),
         );

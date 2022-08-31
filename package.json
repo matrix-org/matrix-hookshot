@@ -100,6 +100,7 @@
     "eslint-plugin-mocha": "^9.0.0",
     "mini.css": "^3.0.1",
     "mocha": "^8.2.1",
+    "node-mocks-http": "^1.11.0",
     "preact": "^10.5.15",
     "rimraf": "^3.0.2",
     "sass": "^1.51.0",
