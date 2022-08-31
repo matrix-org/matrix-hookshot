@@ -124,8 +124,7 @@ export class Webhooks extends EventEmitter {
     private async onGitHubPayload({id, name, payload}: EmitterWebhookEvent) {
         const action = (payload as unknown as {action: string|undefined}).action;
         const eventName =  `github.${name}${action ? `.${action}` : ""}`;
-        log.info(`Got GitHub webhook event ${id} ${eventName}`);
-        log.debug("Payload:", payload);
+        log.info(`Got GitHub webhook event ${id} ${eventName}`, payload);
         try {
             await this.queue.push({
                 eventName,
@@ -186,7 +185,7 @@ export class Webhooks extends EventEmitter {
     }
 
     public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string}> , res: Response) {
-        log.info(`Got new oauth request for ${req.query.state}`);
+        log.info(`Got new oauth request`, { state: req.query.state });
         try {
             if (!this.config.github || !this.config.github.oauth) {
                 return res.status(500).send(`<p>Bridge is not configured with OAuth support</p>`);
