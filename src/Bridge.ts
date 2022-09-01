@@ -88,6 +88,8 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.storage.connect?.();
+        await this.queue.connect?.();
 
         // Fetch all room state
         let joinedRooms: string[]|undefined;
@@ -98,7 +100,7 @@ export class Bridge {
                 log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
+                log.warn("Failed to connect to homeserver, retrying in 5s", ex);
                 await new Promise((r) => setTimeout(r, 5000));
             }
         }
