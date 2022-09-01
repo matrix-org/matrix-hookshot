@@ -5,10 +5,11 @@ import { CommandError, TokenError, TokenErrorCode } from "../errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
 import LogWrapper from "../LogWrapper";
+import { BridgePermissionLevel } from "../Config/Config";
 
 const log = new LogWrapper('GitHubBotCommands');
 export class GitHubBotCommands extends AdminRoomCommandHandler {
-    @botCommand("github login", {help: "Log in to GitHub", category: Category.Github})
+    @botCommand("github login", {help: "Log in to GitHub", category: Category.Github, permissionLevel: BridgePermissionLevel.login})
     public async loginCommand() {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
@@ -29,7 +30,7 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         return this.sendNotice(`Open ${url} to link your account to the bridge.`);
     }
 
-    @botCommand("github setpersonaltoken", {help: "Set your personal access token for GitHub", requiredArgs: ['accessToken'], category: Category.Github})
+    @botCommand("github setpersonaltoken", {help: "Set your personal access token for GitHub", requiredArgs: ['accessToken'], category: Category.Github, permissionLevel: BridgePermissionLevel.login})
     public async setGHPersonalAccessToken(accessToken: string) {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
@@ -43,11 +44,11 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
             await this.sendNotice("Could not authenticate with GitHub. Is your token correct?");
             return;
         }
-        await this.sendNotice(`Connected as ${me.data.login}. Token stored.`);
         await this.tokenStore.storeUserToken("github", this.userId, JSON.stringify({access_token: accessToken, token_type: 'pat'} as GitHubOAuthToken));
+        await this.sendNotice(`Connected as ${me.data.login}. Token stored.`);
     }
 
-    @botCommand("github status", {help: "Check the status of your GitHub authentication", category: Category.Github})
+    @botCommand("github status", {help: "Check the status of your GitHub authentication", category: Category.Github, permissionLevel: BridgePermissionLevel.login})
     public async getTokenStatus() {
         if (!this.config.github) {
             throw new CommandError("no-github-support", "The bridge is not configured with GitHub support.");
