@@ -60,11 +60,8 @@
     "micromatch": "^4.0.4",
     "mime": "^3.0.0",
     "node-emoji": "^1.11.0",
-<<<<<<< HEAD
     "nyc": "^15.1.0",
-=======
     "node-fetch": "^2",
->>>>>>> 367d258 (Switch to using express for testing)
     "prom-client": "^14.0.1",
     "reflect-metadata": "^0.1.13",
     "rss-parser": "^3.12.0",
