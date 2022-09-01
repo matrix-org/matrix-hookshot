@@ -229,3 +229,34 @@ logging:
   #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
   timestampFormat: HH:mm:ss:SSS
 ```
+
+
+#### JSON Logging
+
+Enabling the `json` option will configure hookshot to output structured JSON logs. The schema looks like:
+
+```json5
+{
+    // The level of the log.
+    "level": "WARN",
+    // The log message.
+    "message": "Failed to connect to homeserver",
+    // The module which emitted the log line.
+    "module": "Bridge",
+    // The timestamp of the log line.
+    "timestamp": "11:45:02:198",
+    // Optional error field, if the log includes an Error
+    "error": "connect ECONNREFUSED 127.0.0.1:8008",
+    // Additional context, possibly including the error body.
+    "args": [
+        {
+            "address": "127.0.0.1",
+            "code": "ECONNREFUSED",
+            "errno": -111,
+            "port": 8008,
+            "syscall": "connect"
+        },
+        "retrying in 5s"
+    ]
+}
+```
