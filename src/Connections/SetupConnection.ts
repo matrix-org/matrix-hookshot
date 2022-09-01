@@ -14,6 +14,7 @@ import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
 import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
 import LogWrapper from "../LogWrapper";
+import { ApiError } from "matrix-appservice-bridge";
 const md = new markdown();
 const log = new LogWrapper("SetupConnection");
 
@@ -182,7 +183,11 @@ export class SetupConnection extends CommandConnection {
             await FeedConnection.validateUrl(url);
         } catch (err: unknown) {
             log.debug(`Feed URL '${url}' failed validation: ${err}`);
-            throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            if (err instanceof ApiError) {
+                throw new CommandError("Invalid URL", err.error);
+            } else {
+                throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            }
         }
 
         await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
