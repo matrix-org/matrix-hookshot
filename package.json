@@ -1,6 +1,6 @@
 {
   "name": "matrix-hookshot",
-  "version": "1.6.1",
+  "version": "2.0.1",
   "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.",
   "main": "lib/app.js",
   "repository": "https://github.com/matrix-org/matrix-hookshot",
@@ -11,7 +11,7 @@
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=16"
   },
   "scripts": {
     "build:web": "vite build",
@@ -21,6 +21,11 @@
     "build:docs": "ts-node scripts/build-metrics-docs.ts > docs/metrics.md && mdbook build",
     "dev:web": "vite dev",
     "build": "scripts/build-app.sh",
+    "clean:web": "rimraf public/",
+    "clean:app": "tsc --build tsconfig.json --clean",
+    "clean:app:rs": "rimraf src/libRs.d.ts target/",
+    "clean:docs": "mdbook clean",
+    "clean": "scripts/clean.sh",
     "prepare": "yarn build",
     "start": "node --require source-map-support/register lib/App/BridgeApp.js",
     "start:app": "node --require source-map-support/register lib/App/BridgeApp.js",
@@ -45,12 +50,13 @@
     "cors": "^2.8.5",
     "express": "^4.17.1",
     "figma-js": "^1.14.0",
-    "ioredis": "^4.28.0",
+    "ioredis": "^5.2.3",
+    "http-status-codes": "^2.2.0",
     "jira-client": "^8.0.0",
     "markdown-it": "^12.3.2",
-    "matrix-appservice-bridge": "^4.0.1",
-    "matrix-bot-sdk": "^0.5.19",
-    "matrix-widget-api": "^0.1.0-beta.18",
+    "matrix-appservice-bridge": "^5.0.0",
+    "matrix-bot-sdk": "^0.6.1",
+    "matrix-widget-api": "^1.0.0",
     "micromatch": "^4.0.4",
     "mime": "^3.0.0",
     "node-emoji": "^1.11.0",
@@ -60,9 +66,11 @@
     "rss-parser": "^3.12.0",
     "source-map-support": "^0.5.21",
     "string-argv": "^0.3.1",
+    "tiny-typed-emitter": "^2.1.0",
     "uuid": "^8.3.2",
     "vm2": "^3.9.6",
     "winston": "^3.3.3",
+    "xml2js": "^0.4.23",
     "yaml": "^1.10.2"
   },
   "devDependencies": {
@@ -74,15 +82,15 @@
     "@types/chai": "^4.2.22",
     "@types/cors": "^2.8.12",
     "@types/express": "^4.17.13",
-    "@types/ioredis": "^4.28.1",
     "@types/jira-client": "^7.1.0",
     "@types/markdown-it": "^12.2.3",
     "@types/micromatch": "^4.0.1",
     "@types/mime": "^2.0.3",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^14",
+    "@types/node": "^16",
     "@types/node-emoji": "^1.8.1",
     "@types/uuid": "^8.3.3",
+    "@types/xml2js": "^0.4.11",
     "@typescript-eslint/eslint-plugin": "^5.4.0",
     "@typescript-eslint/parser": "^5.4.0",
     "@uiw/react-codemirror": "^4.5.3",
@@ -93,9 +101,11 @@
     "mini.css": "^3.0.1",
     "mocha": "^8.2.1",
     "preact": "^10.5.15",
+    "rimraf": "^3.0.2",
     "sass": "^1.51.0",
     "ts-node": "^10.4.0",
     "typescript": "^4.5.2",
-    "vite": "^2.9.8"
+    "vite": "^2.9.13",
+    "vite-svg-loader": "^3.4.0"
   }
 }

@@ -2,6 +2,7 @@
 import { expect } from "chai";
 import { AdminRoom } from "../src/AdminRoom";
 import { DefaultConfig } from "../src/Config/Defaults";
+import { ConnectionManager } from "../src/ConnectionManager";
 import { NotifFilter } from "../src/NotificationFilters";
 import { UserTokenStore } from "../src/UserTokenStore";
 import { IntentMock } from "./utils/IntentMock";
@@ -14,7 +15,7 @@ function createAdminRoom(data: any = {admin_user: "@admin:bar"}): [AdminRoom, In
         data.admin_user = "@admin:bar";
     }
     const tokenStore = new UserTokenStore("notapath", intent, DefaultConfig);
-    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, DefaultConfig), intent];
+    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, DefaultConfig, {} as ConnectionManager), intent];
 }
 
 describe("AdminRoom", () => {
@@ -24,7 +25,7 @@ describe("AdminRoom", () => {
         expect(intent.sentEvents).to.have.lengthOf(1);
         expect(intent.sentEvents[0]).to.deep.equal({
             roomId: ROOM_ID,
-            content: AdminRoom.helpMessage(undefined, ["github", "gitlab", "jira"]),
+            content: AdminRoom.helpMessage(undefined, ["Github", "Gitlab", "Jira"]),
         });
     });
 })

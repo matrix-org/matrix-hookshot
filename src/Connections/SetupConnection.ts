@@ -7,13 +7,16 @@ import { v4 as uuid } from "uuid";
 import { BridgePermissionLevel } from "../Config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
-import { FeedConnection } from "./FeedConnection";
+import { FeedConnection, FeedConnectionState } from "./FeedConnection";
 import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
-import { ProvisionConnectionOpts } from "./IConnection";
+import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
+import LogWrapper from "../LogWrapper";
+import { ApiError } from "matrix-appservice-bridge";
 const md = new markdown();
+const log = new LogWrapper("SetupConnection");
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
@@ -32,6 +35,11 @@ export class SetupConnection extends CommandConnection {
         return this.provisionOpts.as;
     }
 
+    protected validateConnectionState(content: unknown) {
+        log.warn("SetupConnection has no state to be validated");
+        return content as IConnectionState;
+    }
+
     constructor(public readonly roomId: string,
         private readonly provisionOpts: ProvisionConnectionOpts,
         private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,) {
@@ -39,6 +47,8 @@ export class SetupConnection extends CommandConnection {
                 roomId,
                 "",
                 "",
+                // TODO Consider storing room-specific config in state.
+                {},
                 provisionOpts.as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,
@@ -136,11 +146,10 @@ export class SetupConnection extends CommandConnection {
         if (!name || name.length < 3 || name.length > 64) {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
-        const hookId = uuid();
-        const url = `${this.config.generic.urlPrefix}${this.config.generic.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
-        await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(userId);
-        await adminRoom.sendNotice(md.renderInline(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`));
+        await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use ${url}.`);
         return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }
 
@@ -161,28 +170,33 @@ export class SetupConnection extends CommandConnection {
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
-    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
-    public async onFeed(userId: string, url: string) {
+    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], optionalArgs: ["label"], includeUserId: true, category: "feed"})
+    public async onFeed(userId: string, url: string, label?: string) {
         if (!this.config.feeds?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
         }
 
         await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
 
+        // provisionConnection will check it again, but won't give us a nice CommandError on failure
         try {
-            new URL(url);
-            // TODO: fetch and check content-type?
-        } catch {
-            throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            await FeedConnection.validateUrl(url);
+        } catch (err: unknown) {
+            log.debug(`Feed URL '${url}' failed validation: ${err}`);
+            if (err instanceof ApiError) {
+                throw new CommandError("Invalid URL", err.error);
+            } else {
+                throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            }
         }
 
-        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {url});
+        await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
     @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feed"})
     public async onFeedList() {
-        const urls = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+        const feeds: FeedConnectionState[] = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
                 return []; // not an error to us
             }
@@ -190,13 +204,23 @@ export class SetupConnection extends CommandConnection {
         }).then(events =>
             events.filter(
                 (ev: any) => ev.type === FeedConnection.CanonicalEventType && ev.content.url
-            ).map(ev => ev.content.url)
+            ).map(ev => ev.content)
         );
 
-        if (urls.length === 0) {
+        if (feeds.length === 0) {
             return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
         } else {
-            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(`Currently subscribed to these feeds:\n\n${urls.map(url => ' * ' + url + '\n')}`));
+            const feedDescriptions = feeds.map(feed => {
+                if (feed.label) {
+                    return `[${feed.label}](${feed.url})`;
+                }
+                return feed.url;
+            });
+
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(
+                'Currently subscribed to these feeds:\n\n' +
+                 feedDescriptions.map(desc => ` - ${desc}`).join('\n')
+            ));
         }
     }
 

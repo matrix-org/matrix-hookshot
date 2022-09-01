@@ -3,6 +3,15 @@ import { Intent } from "matrix-bot-sdk";
 import { BridgeConfig } from "./Config/Config";
 import { UserTokenStore } from "./UserTokenStore";
 
+
+export enum Category {
+    ConnectionManagement = "Connection Management",
+    Github               = "Github",
+    Gitlab               = "Gitlab",
+    Jira                 = "Jira",
+}
+
+
 export interface AdminAccountData {
     // eslint-disable-next-line camelcase
     admin_user: string;

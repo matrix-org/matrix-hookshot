@@ -39,7 +39,7 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16
-      - run: yarn
+      - run: yarn # Need to build scripts to get rust bindings
       - run: yarn --silent ts-node src/Config/Defaults.ts --config | diff config.sample.yml - 
 
   metrics-docs:
@@ -50,14 +50,14 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16
-      - run: yarn --ignore-scripts
+      - run: yarn # Need to build scripts to get rust bindings
       - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
   
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node_version: [14, 16]
+        node_version: [16, 18]
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node_version }}

@@ -3,22 +3,22 @@
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
+import { MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import LogWrapper from "../LogWrapper";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
-import { Connection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { ErrCode, ApiError } from "../api"
+import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
+import Ajv, { JSONSchemaType } from "ajv";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
     ignoreHooks?: AllowedEventsNames[],
-    commandPrefix?: string;
     pushTagsRegex?: string,
     includingLabels?: string[];
     excludingLabels?: string[];
@@ -38,10 +38,11 @@ export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitL
 const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
+const PUSH_MAX_COMMITS = 5;
 const MRRCOMMENT_DEBOUNCE_MS = 5000;
 
 
-export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState, undefined>;
+export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
 
 type AllowedEventsNames = 
@@ -73,6 +74,50 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release.created",
 ];
 
+const ConnectionStateSchema = {
+    type: "object",
+    properties: {
+        priority: {
+            type: "number",
+            nullable: true,
+        },
+        instance: { type: "string" },
+        path: { type: "string" },
+        ignoreHooks: {
+            type: "array",
+            items: {
+                type: "string",
+            },
+            nullable: true,
+        },
+        commandPrefix: {
+            type: "string",
+            minLength: 2,
+            nullable: true,
+            maxLength: 24,
+        },
+        pushTagsRegex: {
+            type: "string",
+            nullable: true,
+            },
+        includingLabels: {
+            type: "array",
+            nullable: true,
+            items: {type: "string"},
+        },
+        excludingLabels: {
+            type: "array",
+            nullable: true,
+            items: {type: "string"},
+        }
+    },
+    required: [
+      "instance",
+      "path"
+    ],
+    additionalProperties: true
+} as JSONSchemaType<GitLabRepoConnectionState>;
+
 export interface GitLabTargetFilter {
     instance?: string;
     parent?: string;
@@ -80,42 +125,11 @@ export interface GitLabTargetFilter {
     search?: string;
 }
 
-
-function validateState(state: Record<string, unknown>): GitLabRepoConnectionState {
-    if (typeof state.instance !== "string") {
-        throw new ApiError("Expected a 'instance' property", ErrCode.BadValue);
-    }
-    if (typeof state.path !== "string") {
-        throw new ApiError("Expected a 'path' property", ErrCode.BadValue);
-    }
-    const res: GitLabRepoConnectionState = {
-        instance: state.instance,
-        path: state.path,
-    }
-    if (state.commandPrefix) {
-        if (typeof state.commandPrefix !== "string") {
-            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
-        } else if (state.commandPrefix.length >= 2 || state.commandPrefix.length <= 24) {
-            res.commandPrefix = state.commandPrefix;
-        } else if (state.commandPrefix.length > 0) {
-            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
-        }
-        // Otherwise empty string, ignore.
-    }
-    if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
-        if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
-            throw new ApiError(`'events' can only contain ${AllowedEvents.join(", ")}`, ErrCode.BadValue);
-        }
-        res.ignoreHooks = state.ignoreHooks;
-    }
-    return res;
-}
-
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitLab repo.
  */
 @Connection
-export class GitLabRepoConnection extends CommandConnection {
+export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnectionState> implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
 
@@ -128,11 +142,23 @@ export class GitLabRepoConnection extends CommandConnection {
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
-        if (!github || !config.gitlab) {
+	static validateState(state: unknown, isExistingState = false): GitLabRepoConnectionState {
+        const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
+        if (validator(state)) {
+            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            }
+            return state;
+        }
+        throw new ValidatorApiError(validator.errors);
+    }
+
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, config}: InstantiateConnectionOpts) {
+        if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
-        const state = validateState(event.content);
+        const state = this.validateState(event.content, true);
         const instance = config.gitlab.instances[state.instance];
         if (!instance) {
             throw Error('Instance name not recognised');
@@ -145,7 +171,7 @@ export class GitLabRepoConnection extends CommandConnection {
             throw Error('GitLab is not configured');
         }
         const gitlabConfig = config.gitlab;
-        const validData = validateState(data);
+        const validData = this.validateState(data);
         const instance = gitlabConfig.instances[validData.instance];
         if (!instance) {
             throw Error(`provisionConnection provided an instanceName of ${validData.instance} but the instance does not exist`);
@@ -170,7 +196,7 @@ export class GitLabRepoConnection extends CommandConnection {
         const stateEventKey = `${validData.instance}/${validData.path}`;
         const connection = new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance);
         const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
-        const existing = existingConnections.find(c => c instanceof GitLabRepoConnection && c.stateKey === connection.stateKey) as undefined|GitLabRepoConnection;
+        const existing = existingConnections.find(c => c.roomId === roomId && c.stateKey === connection.stateKey);
 
         if (existing) {
             throw new ApiError("A GitLab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {
@@ -250,17 +276,18 @@ export class GitLabRepoConnection extends CommandConnection {
     constructor(roomId: string,
         stateKey: string,
         private readonly as: Appservice,
-        private state: GitLabRepoConnectionState,
+        state: GitLabRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance) {
             super(
                 roomId,
                 stateKey,
                 GitLabRepoConnection.CanonicalEventType,
+                state,
                 as.botClient,
                 GitLabRepoConnection.botCommands,
                 GitLabRepoConnection.helpMessage,
-                state.commandPrefix || "!gl",
+                "!gl",
                 "gitlab",
             )
             if (!state.path || !state.instance) {
@@ -276,9 +303,8 @@ export class GitLabRepoConnection extends CommandConnection {
         return this.state.priority || super.priority;
     }
 
-    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        const state = stateEv.content as GitLabRepoConnectionState;
-        this.state = state;
+    protected validateConnectionState(content: unknown) {
+        return GitLabRepoConnection.validateState(content);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -440,22 +466,28 @@ export class GitLabRepoConnection extends CommandConnection {
             return;
         }
         const branchname = event.ref.replace("refs/heads/", "");
-        const commitsurl = `${event.project.homepage}/-/commit/${event.after}`
+        const commitsurl = `${event.project.homepage}/-/commits/${branchname}`;
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
-        const shouldName = !event.commits.every(c => c.author.name === event.commits[0]?.author.name);
+        const shouldName = !event.commits.every(c => c.author.email === event.user_email);
 
+        const tooManyCommits = event.total_commits_count > PUSH_MAX_COMMITS;
+        const displayedCommits = tooManyCommits ? 1 : Math.min(event.total_commits_count, PUSH_MAX_COMMITS);
+        
         // Take the top 5 commits. The array is ordered in reverse.
-        const commits = event.commits.reverse().slice(0,5).map(commit => {
-            return `[${commit.id.slice(0,8)}](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
+        const commits = event.commits.reverse().slice(0,displayedCommits).map(commit => {
+            return `[\`${commit.id.slice(0,8)}\`](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
         }).join('\n - ');
 
         let content = `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s": ""}](${commitsurl})`
         + ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
 
-        if (event.commits.length >= 2) {
+        if (displayedCommits >= 2) {
             content += `\n - ${commits}\n`;
-        } else if (event.commits.length === 1) {
-            content += ` - ${commits}`;
+        } else if (displayedCommits === 1) {
+            content += `: ${commits}`;
+            if (tooManyCommits) {
+                content += `, and [${event.total_commits_count - 1} more](${commitsurl}) commits`;
+            }
         }
 
         await this.as.botIntent.sendEvent(this.roomId, {
@@ -593,9 +625,8 @@ ${data.description}`;
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
-        const validatedConfig = validateState(config);
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig
-        );
+        const validatedConfig = GitLabRepoConnection.validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
     }
 
 

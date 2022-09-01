@@ -31,7 +31,7 @@ const log = new LogWrapper("GitLabIssueConnection");
 // }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitLab issue.
  */
 @Connection
 export class GitLabIssueConnection extends BaseConnection implements IConnection {
@@ -44,8 +44,8 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
     static readonly ServiceCategory = "gitlab";
 
-    static getTopicString(authorName: string, state: string) {
-        `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
+    static getTopicString(authorName: string, state: string): string {
+        return `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
     }
 
     public static async createConnectionForState(roomId: string, event: StateEvent<any>, {

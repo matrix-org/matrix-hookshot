@@ -27,7 +27,7 @@ export async function assertUserPermissionsInRoom(userId: string, roomId: string
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
     } catch (ex) {
-        if (ex.body.errcode === "M_NOT_FOUND") {
+        if (isNotFoundError(ex)) {
             throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
         }
         log.warn(`Failed to find member event for ${userId} in room ${roomId}`, ex);
@@ -40,7 +40,7 @@ export async function assertUserPermissionsInRoom(userId: string, roomId: string
             throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
         }
     } catch (ex) {
-        if (ex.body.errcode === "M_NOT_FOUND") {
+        if (isNotFoundError(ex)) {
             throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
         }
         log.warn(`Failed to find member event for ${userId} in room ${roomId}`, ex);
@@ -73,4 +73,10 @@ export async function assertUserPermissionsInRoom(userId: string, roomId: string
     } else {
         throw new ApiError(`User has a PL of ${userPl} but needs at least ${requiredPl}.`, ErrCode.ForbiddenUser);
     }
+}
+
+// TODO Use MatrixError as a type once matrix-bot-sdk is updated to a version that exports it
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isNotFoundError(ex: any) {
+    return "M_NOT_FOUND" == (ex instanceof ApiError ? ex.jsonBody.errcode : ex.body?.errcode ?? "");
 }

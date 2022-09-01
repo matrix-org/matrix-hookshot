@@ -4,6 +4,7 @@ import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../Bo
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -18,9 +19,11 @@ import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
-import { ApiError, ErrCode } from "../api";
+import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
+import Ajv, { JSONSchemaType } from "ajv";
+
 const log = new LogWrapper("GitHubRepoConnection");
 const md = new markdown();
 
@@ -34,7 +37,6 @@ interface IQueryRoomOpts {
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
     ignoreHooks?: AllowedEventsNames[],
-    commandPrefix?: string;
     showIssueRoomLink?: boolean;
     prDiff?: {
         enabled: boolean;
@@ -55,27 +57,14 @@ export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
 }
 
 
-const GITHUB_REACTION_CONTENT: {[emoji: string]: string} = {
-    "👍": "+1",
-    "👎": "-1",
-    "😄": "laugh",
-    "🎉": "hooray",
-    "😕": "confused",
-    "❤️": "heart",
-    "🚀": "rocket",
-    "👀": "eyes",
+export interface GitHubRepoConnectionTarget {
+    state: GitHubRepoConnectionState;
+    name: string;
 }
 
-const ALLOWED_REACTIONS = {
-    "🗑️": "close",
-    "🚮": "close",
-    "👐": "open",
-}
 
-const EMOJI_TO_REVIEW_STATE = {
-    '✅✔️☑️': 'APPROVE',
-    '🔴🚫⛔️': 'REQUEST_CHANGES',
-};
+export type GitHubRepoResponseItem = GetConnectionsResponseItem<GitHubRepoConnectionState>;
+
 
 type AllowedEventsNames = 
     "issue.changed" |
@@ -107,6 +96,119 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release",
 ];
 
+const ConnectionStateSchema = {
+  type: "object",
+  properties: {
+    priority: {
+        type: "number",
+        nullable: true,
+    },
+    org: {type: "string"},
+    repo: {type: "string"},
+    ignoreHooks: {
+        type: "array",
+        items: {
+            type: "string",
+        },
+        nullable: true,
+    },
+    commandPrefix: {
+        type: "string",
+        minLength: 2,
+        nullable: true,
+        maxLength: 24,
+    },
+    showIssueRoomLink: { 
+        type: "boolean",
+        nullable: true,
+    },
+    prDiff: {
+        type: "object",
+        properties: {
+            enabled: {type: "boolean"},
+            maxLines: {
+                type: "number",
+                minimum: 1,
+            },
+        },
+        nullable: true,
+        required: ["enabled"],
+    },
+    newIssue: {
+        type: "object",
+        properties: {
+            labels: {
+                type: "array",
+                items: {type: "string"},
+            },
+        },
+        required: ["labels"],
+        nullable: true,
+    },
+    includingLabels: {
+        type: "array",
+        nullable: true,
+        items: {type: "string"},
+    },
+    excludingLabels: {
+        type: "array",
+        nullable: true,
+        items: {type: "string"},
+    },
+    hotlinkIssues: {
+        type: "object",
+        nullable: true,
+        oneOf: [{
+            type: "object",
+            required: ["prefix"],
+            properties: {
+                prefix: {type: "string"},
+            },
+        }, {
+            type: "boolean",
+        }],
+    }
+  },
+  required: [
+    "org",
+    "repo"
+  ],
+  additionalProperties: true
+} as JSONSchemaType<GitHubRepoConnectionState>;
+
+type ReactionOptions = 
+| "+1"
+| "-1"
+| "laugh"
+| "confused"
+| "heart"
+| "hooray"
+| "rocket"
+| "eyes";
+
+
+const GITHUB_REACTION_CONTENT: {[emoji: string]: ReactionOptions} = {
+    "👍": "+1",
+    "👎": "-1",
+    "😄": "laugh",
+    "🎉": "hooray",
+    "😕": "confused",
+    "❤️": "heart",
+    "🚀": "rocket",
+    "👀": "eyes",
+}
+
+const ALLOWED_REACTIONS = {
+    "🗑️": "close",
+    "🚮": "close",
+    "👐": "open",
+}
+
+const EMOJI_TO_REVIEW_STATE = {
+    '✅✔️☑️': 'APPROVE',
+    '🔴🚫⛔️': 'REQUEST_CHANGES',
+};
+
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
 const DEFAULT_HOTLINK_PREFIX = "#";
@@ -115,46 +217,29 @@ function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
 }
 
-function validateState(state: Record<string, unknown>): GitHubRepoConnectionState {
-    if (typeof state.org !== "string") {
-        throw new ApiError("Expected a 'org' property", ErrCode.BadValue);
-    }
-    if (typeof state.repo !== "string") {
-        throw new ApiError("Expected a 'repo' property", ErrCode.BadValue);
-    }
-    const res: GitHubRepoConnectionState = {
-        org: state.org,
-        repo: state.repo,
-    }
-    if (state.commandPrefix) {
-        if (typeof state.commandPrefix !== "string") {
-            throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
-        }
-        if (state.commandPrefix.length < 2 || state.commandPrefix.length > 24) {
-            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
-        }
-        res.commandPrefix = state.commandPrefix;
-    }
-    if (state.ignoreHooks && Array.isArray(state.ignoreHooks)) {
-        if (state.ignoreHooks?.find((ev) => !AllowedEvents.includes(ev))?.length) {
-            throw new ApiError(`'events' can only contain ${AllowedEvents.join(", ")}`, ErrCode.BadValue);
-        }
-        res.ignoreHooks = state.ignoreHooks;
-    }
-    return res;
-}
-
-
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub repo.
  */
 @Connection
-export class GitHubRepoConnection extends CommandConnection implements IConnection {
+export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
+
+	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
+        const validator = new Ajv().compile(ConnectionStateSchema);
+        if (validator(state)) {
+            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            }
+            return state;
+        }
+        throw new ValidatorApiError(validator.errors);
+    }
+
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, tokenStore, github, config}: ProvisionConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        const validData = validateState(data);
+        const validData = this.validateState(data);
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
@@ -204,7 +289,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubRepoConnection(roomId, as, validateState(state.content), tokenStore, state.stateKey, github, config.github);
+        return new GitHubRepoConnection(roomId, as, this.validateState(state.content, true), tokenStore, state.stateKey, github, config.github);
     }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
@@ -226,13 +311,16 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 owner,
                 repo,
             })).data;
+            if (repoRes.private) {
+                throw Error('Refusing to bridge private repo');
+            }
         } catch (ex) {
             log.error("Failed to get repo:", ex);
             throw Error("Could not find repo");
         }
 
         // URL hack so we don't need to fetch the repo itself.
-        const orgRepoName = repoRes.url.substr("https://api.github.com/repos/".length);
+        const orgRepoName = repoRes.full_name;
         let avatarUrl = undefined;
         try {
             const profile = await octokit.users.getByUsername({
@@ -289,7 +377,7 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        private state: GitHubRepoConnectionState,
+        state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
@@ -299,10 +387,11 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
                 roomId,
                 stateKey,
                 GitHubRepoConnection.CanonicalEventType,
+                state,
                 as.botClient,
                 GitHubRepoConnection.botCommands,
                 GitHubRepoConnection.helpMessage,
-                state.commandPrefix || "!gh",
+                "!gh",
                 "github",
             );
     }
@@ -336,8 +425,8 @@ export class GitHubRepoConnection extends CommandConnection implements IConnecti
         return this.state.priority || super.priority;
     }
 
-    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        this.state = stateEv.content as GitHubRepoConnectionState;
+    protected validateConnectionState(content: unknown) {
+        return GitHubRepoConnection.validateState(content);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -902,7 +991,7 @@ ${event.release.body}`;
                     owner: this.org,
                     repo: this.repo,
                     issue_number: issueContent.number,
-                    content: reactionName as any,
+                    content: reactionName as ReactionOptions,
                     mediaType: {
                       previews: [
                         // Needed as this is a preview
@@ -963,6 +1052,32 @@ ${event.release.body}`;
         }
     }
 
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitHub): Promise<GitHubRepoConnectionTarget[]> {
+        // Search for all repos under the user's control.
+        const octokit = await tokenStore.getOctokitForUser(userId);
+        if (!octokit) {
+            throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
+        }
+        const allRepos = await octokit.repos.listForAuthenticatedUser({
+            baseUrl: config.baseUrl.href.replace(/\/$/, ""),
+        });
+        return allRepos.data.filter(r => r.permissions?.admin).map(r => {
+            const splitRepoName = r.full_name.split("/");
+            return {
+                state: {
+                    org: splitRepoName[0],
+                    repo: splitRepoName[1],
+                },
+                name: r.full_name,
+            };
+        }) as GitHubRepoConnectionTarget[];
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        const validatedConfig = GitHubRepoConnection.validateState(config);
+        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+    }
+
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
@@ -975,7 +1090,7 @@ ${event.release.body}`;
         }
     }
 
-    public matchesLabelFilter(itemWithLabels: {labels?: {name: string}[]}): boolean {
+    private matchesLabelFilter(itemWithLabels: {labels?: {name: string}[]}): boolean {
         const labels = itemWithLabels.labels?.map(l => l.name) || [];
         if (this.state.excludingLabels?.length) {
             if (this.state.excludingLabels.find(l => labels.includes(l))) {

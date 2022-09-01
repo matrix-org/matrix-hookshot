@@ -76,6 +76,7 @@ export class Bridge {
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
+        this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
     }
@@ -87,6 +88,8 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.storage.connect?.();
+        await this.queue.connect?.();
 
         // Fetch all room state
         let joinedRooms: string[]|undefined;
@@ -97,7 +100,7 @@ export class Bridge {
                 log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
+                log.warn("Failed to connect to homeserver, retrying in 5s", ex);
                 await new Promise((r) => setTimeout(r, 5000));
             }
         }
@@ -105,7 +108,11 @@ export class Bridge {
         await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
-            this.github = new GithubInstance(this.config.github.auth.id, await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'));
+            this.github = new GithubInstance(
+                this.config.github.auth.id,
+                await fs.readFile(this.config.github.auth.privateKeyFile, 'utf-8'),
+                this.config.github.baseUrl,
+            );
             await this.github.start();
         }
 
@@ -608,6 +615,11 @@ export class Bridge {
             (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
             (c, data) => c.handleFeedEntry(data),
         );
+        this.bindHandlerToQueue<FeedEntry, FeedConnection>(
+            "feed.success",
+            (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
+            c => c.handleFeedSuccess(),
+        );
         this.bindHandlerToQueue<FeedError, FeedConnection>(
             "feed.error",
             (data) => connManager.getConnectionsForFeedUrl(data.url),
@@ -839,7 +851,8 @@ export class Bridge {
                                 commentProcessor: this.commentProcessor,
                                 messageClient: this.messageClient,
                                 storage: this.storage,
-                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this),
+                                github: this.github,
+                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
                             this.getOrCreateAdminRoom.bind(this),
                         )
@@ -888,7 +901,6 @@ export class Bridge {
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
-        this.config.addMemberToCache(roomId, matrixEvent.sender);
         if (this.as.botUserId !== matrixEvent.sender) {
             // Only act on bot joins
             return;
@@ -910,8 +922,12 @@ export class Bridge {
             return;
         }
         if (event.state_key !== undefined) {
-            if (event.type === "m.room.member" && event.content.membership !== "join") {
-                this.config.removeMemberFromCache(roomId, event.state_key);
+            if (event.type === "m.room.member") {
+                if (event.content.membership === "join") {
+                    this.config.addMemberToCache(roomId, event.state_key);
+                } else {
+                    this.config.removeMemberFromCache(roomId, event.state_key);
+                }
                 return;
             }
             // A state update, hurrah!
@@ -1136,9 +1152,14 @@ export class Bridge {
     }
 
     private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
+        if (!this.connectionManager) {
+            throw Error('setUpAdminRoom() called before connectionManager was ready');
+        }
+
         const adminRoom = new AdminRoom(
-            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config,
+            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config, this.connectionManager,
         );
+
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
             const [connection] = this.connectionManager?.getForGitHubProject(project.id) || [];
@@ -1172,10 +1193,40 @@ export class Bridge {
             return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
-        if (this.config.widgets?.addToAdminRooms && this.config.widgets.publicUrl) {
+        if (this.config.widgets?.addToAdminRooms) {
             await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
         }
         log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
+    }
+
+    private onTokenUpdated(type: string, userId: string, token: string, instanceUrl?: string) {
+        let instanceName: string|undefined;
+        if (type === "gitlab") {
+            // TODO: Refactor our API to depend on either instanceUrl or instanceName.
+            instanceName =  Object.entries(this.config.gitlab?.instances || {}).find(i => i[1].url === instanceUrl)?.[0];
+        } else if (type === "github") {
+            // GitHub tokens are special
+            token = UserTokenStore.parseGitHubToken(token).access_token;
+        } else {
+            return;
+        }
+        for (const adminRoom of [...this.adminRooms.values()].filter(r => r.userId === userId)) {
+            if (adminRoom?.notificationsEnabled(type, instanceName)) {
+                log.debug(`Token was updated for ${userId} (${type}), notifying notification watcher`);
+                this.queue.push<NotificationsEnableEvent>({
+                    eventName: "notifications.user.enable",
+                    sender: "Bridge",
+                    data: {
+                        userId: adminRoom.userId,
+                        roomId: adminRoom.roomId,
+                        token,
+                        filterParticipating: adminRoom.notificationsParticipating("github"),
+                        type,
+                        instanceUrl,
+                    },
+                }).catch(ex => log.error(`Failed to push notifications.user.enable:`, ex));
+            }
+        }
     }
 }

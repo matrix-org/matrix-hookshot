@@ -8,7 +8,7 @@ const log = new LogWrapper("SetupWidget");
 export class SetupWidget {
 
     static async SetupAdminRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
-        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.RoomConfiguration, "bridge_control")) {
+        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.Settings, "bridge_control")) {
             await botIntent.sendText(roomId, `If your client supports it, you can open the "${config.branding.widgetTitle}" widget to configure hookshot.`);
             return true;
         }
@@ -23,7 +23,7 @@ export class SetupWidget {
         return false;
     }
 
-    private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string) {
+    private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string): Promise<boolean> {
         log.info(`Running SetupRoomConfigWidget for ${roomId}`);
         try {
             const res = await botIntent.underlyingClient.getRoomStateEvent(
@@ -54,10 +54,10 @@ export class SetupWidget {
                 "id": stateKey,
                 "name": config.branding.widgetTitle,
                 "type": "m.custom",
-                "url": `${config?.publicUrl}/#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`,
+                "url": new URL(`#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`, config.parsedPublicUrl).href,
                 "waitForIframeLoad": true,
             }
         );
-        return false;
+        return true;
     }
 }

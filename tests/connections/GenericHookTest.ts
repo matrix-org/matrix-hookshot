@@ -2,8 +2,8 @@
 import { expect } from "chai";
 import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/Config/Config";
 import { GenericHookConnection, GenericHookConnectionState } from "../../src/Connections/GenericHook";
-import { MessageSenderClient } from "../../src/MatrixSender";
-import { createMessageQueue, MessageQueue } from "../../src/MessageQueue";
+import { MessageSenderClient, IMatrixSendMessage } from "../../src/MatrixSender";
+import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
 import { AppserviceMock } from "../utils/AppserviceMock";
 
 const ROOM_ID = "!foo:bar";
@@ -13,25 +13,23 @@ const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${da
 
 function createGenericHook(state: GenericHookConnectionState = {
     name: "some-name"
-}, config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}): [GenericHookConnection, MessageQueue] {
-    const mq = createMessageQueue({
-            monolithic: true
-    });
+}, config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}): [GenericHookConnection, LocalMQ] {
+    const mq = new LocalMQ();
     mq.subscribe('*');
     const messageClient = new MessageSenderClient(mq);
     const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), AppserviceMock.create())
     return [connection, mq];
 }
 
-function handleMessage(mq: MessageQueue) {
-    return new Promise(r => mq.on('matrix.message', (msg) => {
+function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
+    return new Promise(r => mq.once('matrix.message', (msg) => {
         mq.push({
             eventName: 'response.matrix.message',
             messageId: msg.messageId,
             sender: 'TestSender',
             data: { 'eventId': '$foo:bar' },
         });
-        r(msg.data);
+        r(msg.data as IMatrixSendMessage);
     })); 
 }
 
@@ -65,7 +63,43 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "simple-message",
                 format: "org.matrix.custom.html",
-                formatted_body: "simple-message",
+                formatted_body: "<p>simple-message</p>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event containing markdown", async () => {
+        const webhookData = {text: "**bold-message** _italic-message_"};
+        const [connection, mq] = createGenericHook();
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "**bold-message** _italic-message_",
+                format: "org.matrix.custom.html",
+                formatted_body: "<p><strong>bold-message</strong> <em>italic-message</em></p>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event containing markdown with newlines", async () => {
+        const webhookData = {text: "# Oh wow\n\n`some-code`"};
+        const [connection, mq] = createGenericHook();
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "# Oh wow\n\n`some-code`",
+                format: "org.matrix.custom.html",
+                formatted_body: "<h1>Oh wow</h1>\n<p><code>some-code</code></p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -124,7 +158,7 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
                 format: "org.matrix.custom.html",
-                formatted_body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
+                formatted_body: "<p>Received webhook: The answer to 'What is the meaning of life?' is 42</p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -147,7 +181,7 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "The answer to 'What is the meaning of life?' is 42",
                 format: "org.matrix.custom.html",
-                formatted_body: "The answer to 'What is the meaning of life?' is 42",
+                formatted_body: "<p>The answer to 'What is the meaning of life?' is 42</p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -170,11 +204,49 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "Webhook received but failed to process via transformation function",
                 format: "org.matrix.custom.html",
-                formatted_body: "Webhook received but failed to process via transformation function",
+                formatted_body: "<p>Webhook received but failed to process via transformation function</p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
             type: 'm.room.message',
         });
+    });
+    it("will handle a message containing floats", async () => {
+        const [connection, mq] = createGenericHook();
+        let messagePromise = handleMessage(mq);
+        await connection.onGenericHook({ simple: 1.2345 });
+        let message = await messagePromise;
+        expect(message.roomId).to.equal(ROOM_ID);
+        expect(message.sender).to.equal(connection.getUserId());
+        expect(message.content["uk.half-shot.hookshot.webhook_data"]).to.deep.equal({ simple: "1.2345" });
+
+        messagePromise = handleMessage(mq);
+        await connection.onGenericHook({
+            a: {
+                deep: {
+                    object: {
+                        containing: 1.2345
+                    }
+                }
+            }
+        });
+        message = await messagePromise;
+        expect(message.roomId).to.equal(ROOM_ID);
+        expect(message.sender).to.equal(connection.getUserId());
+        expect(message.content["uk.half-shot.hookshot.webhook_data"]).to.deep.equal({ a: { deep: { object: { containing: "1.2345" }}} });
+
+        messagePromise = handleMessage(mq);
+        await connection.onGenericHook({
+            an_array_of: [1.2345, 6.789],
+            floats: true,
+        });
+        message = await messagePromise;
+        expect(message.roomId).to.equal(ROOM_ID);
+        expect(message.sender).to.equal(connection.getUserId());
+        expect(message.content["uk.half-shot.hookshot.webhook_data"]).to.deep.equal({
+            an_array_of: ["1.2345", "6.789"],
+            floats: true,
+        });
+
     });
 })

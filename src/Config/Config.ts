@@ -9,8 +9,13 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
+import { GITHUB_CLOUD_URL } from "../Github/GithubInstance";
 
 const log = new LogWrapper("Config");
+
+function makePrefixedUrl(urlString: string): URL {
+    return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
+}
 
 export const ValidLogLevelStrings = [
     LogLevel.ERROR.toString(),
@@ -30,6 +35,7 @@ export enum BridgePermissionLevel {
 }
 
 interface BridgeConfigGitHubYAML {
+    enterpriseUrl?: string;
     auth: {
         id: number|string;
         privateKeyFile: string;
@@ -73,6 +79,12 @@ export class BridgeConfigGitHub {
 
     @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
     readonly userIdPrefix: string;
+    
+    @configKey("URL for enterprise deployments. Does not include /api/v3", true)
+    private enterpriseUrl?: string;
+
+    @hideKey()
+    public readonly baseUrl: URL;
 
     constructor(yaml: BridgeConfigGitHubYAML) {
         this.auth = yaml.auth;
@@ -80,6 +92,14 @@ export class BridgeConfigGitHub {
         this.oauth = yaml.oauth;
         this.defaultOptions = yaml.defaultOptions;
         this.userIdPrefix = yaml.userIdPrefix || "_github_";
+        this.baseUrl = yaml.enterpriseUrl ? new URL(yaml.enterpriseUrl) : GITHUB_CLOUD_URL;
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+        }
     }
 }
 
@@ -209,9 +229,31 @@ export class BridgeConfigGitLab {
     }
 }
 
-export interface BridgeConfigFeeds {
+export interface BridgeConfigFeedsYAML {
     enabled: boolean;
     pollIntervalSeconds: number;
+    pollTimeoutSeconds?: number;
+}
+
+export class BridgeConfigFeeds {
+    public enabled: boolean;
+    public pollIntervalSeconds: number;
+    public pollTimeoutSeconds: number;
+
+    constructor(yaml: BridgeConfigFeedsYAML) {
+        this.enabled = yaml.enabled;
+        this.pollIntervalSeconds = yaml.pollIntervalSeconds;
+        assert.strictEqual(typeof this.pollIntervalSeconds, "number");
+        this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 10;
+        assert.strictEqual(typeof this.pollTimeoutSeconds, "number");
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            pollIntervalSeconds: this.pollIntervalSeconds,
+        }
+    }
 }
 
 export interface BridgeConfigFigma {
@@ -230,20 +272,29 @@ export interface BridgeGenericWebhooksConfigYAML {
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
     waitForComplete?: boolean;
+    enableHttpGet?: boolean;
 }
 
 export class BridgeConfigGenericWebhooks {
     public readonly enabled: boolean;
-    public readonly urlPrefix: string;
+
+    @hideKey()
+    public readonly parsedUrlPrefix: URL;
+    public readonly urlPrefix: () => string;
+
     public readonly userIdPrefix?: string;
     public readonly allowJsTransformationFunctions?: boolean;
     public readonly waitForComplete?: boolean;
+    public readonly enableHttpGet: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
-        if (typeof yaml.urlPrefix !== "string") {
-            throw new ConfigError("generic.urlPrefix", "is not defined or not a string");
-        }
         this.enabled = yaml.enabled || false;
-        this.urlPrefix = yaml.urlPrefix;
+        this.enableHttpGet = yaml.enableHttpGet || false;
+        try {
+            this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
+            this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
+        } catch (err) {
+            throw new ConfigError("generic.urlPrefix", "is not defined or not a valid URL");
+        }
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
@@ -276,7 +327,11 @@ interface BridgeWidgetConfigYAML {
 
 export class BridgeWidgetConfig {
     public readonly addToAdminRooms: boolean;
-    public readonly publicUrl: string;
+
+    @hideKey()
+    public readonly parsedPublicUrl: URL;
+    public readonly publicUrl: () => string;
+
     public readonly roomSetupWidget?: {
         addOnInvite?: boolean;
     };
@@ -294,10 +349,12 @@ export class BridgeWidgetConfig {
         if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
             throw new ConfigError("widgets.disallowedIpRanges", "must be a string array");
         }
-        if (typeof yaml.publicUrl !== "string") {
-            throw new ConfigError("widgets.publicUrl", "is not defined or not a string");
+        try {
+            this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
+            this.publicUrl = () => { return this.parsedPublicUrl.href; }
+        } catch (err) {
+            throw new ConfigError("widgets.publicUrl", "is not defined or not a valid URL");
         }
-        this.publicUrl = yaml.publicUrl;
         this.branding = yaml.branding || {
             widgetTitle: "Hookshot Configuration"
         };
@@ -363,7 +420,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     figma?: BridgeConfigFigma;
-    feeds?: BridgeConfigFeeds;
+    feeds?: BridgeConfigFeedsYAML;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHubYAML;
     gitlab?: BridgeConfigGitLabYAML;
@@ -438,7 +495,7 @@ export class BridgeConfig {
         this.figma = configData.figma;
         this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
-        this.feeds = configData.feeds;
+        this.feeds = configData.feeds && new BridgeConfigFeeds(configData.feeds);
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
@@ -568,8 +625,14 @@ export class BridgeConfig {
     public getPublicConfigForService(serviceName: string): Record<string, unknown> {
         let config: undefined|Record<string, unknown>;
         switch (serviceName) {
+            case "feeds":
+                config = this.feeds?.publicConfig;
+                break;
             case "generic":
                 config = this.generic?.publicConfig;
+                break;
+            case "github":
+                config = this.github?.publicConfig;
                 break;
             case "gitlab":
                 config = this.gitlab?.publicConfig;

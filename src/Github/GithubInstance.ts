@@ -10,6 +10,8 @@ import UserAgent from "../UserAgent";
 
 const log = new LogWrapper("GithubInstance");
 
+export const GITHUB_CLOUD_URL = new URL("https://api.github.com");
+
 interface Installation {
     account: {
         login?: string;
@@ -19,12 +21,22 @@ interface Installation {
     matchesRepository: string[];
 }
 
+interface OAuthUrlParameters {
+    [key: string]: string|undefined;
+    state?: string;
+    client_id?: string;
+    redirect_uri?: string;
+    client_secret?: string,
+    refresh_token?: string,
+    grant_type?: 'refresh_token',
+}
+
 export class GithubInstance {
     private internalOctokit!: Octokit;
     private readonly installationsCache = new Map<number, Installation>();
     private internalAppSlug?: string;
 
-    constructor (private readonly appId: number|string, private readonly privateKey: string) {
+    constructor (private readonly appId: number|string, private readonly privateKey: string, private readonly baseUrl: URL) {
         this.appId = parseInt(appId as string, 10);
     }
 
@@ -39,21 +51,33 @@ export class GithubInstance {
         return this.internalOctokit;
     }
 
+    public static baseOctokitConfig(baseUrl: URL) {
+        // Enterprise GitHub uses a /api/v3 basepath (https://github.com/octokit/octokit.js#constructor-options)
+        // Cloud uses api.github.com
+        const url = baseUrl.hostname === GITHUB_CLOUD_URL.hostname ? baseUrl : new URL("/api/v3", baseUrl);
+        return {
+            userAgent: UserAgent,
+            // Remove trailing slash, which is always included in URL objects.
+            baseUrl: url.toString().substring(0,-1),
+        }
+    }
 
-    public static createUserOctokit(token: string) {
+
+    public static createUserOctokit(token: string, baseUrl: URL) {
         return new Octokit({
             auth: token,
-            userAgent: UserAgent,
+            ...this.baseOctokitConfig(baseUrl)
         });
     }
 
-    public static async refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string): Promise<GitHubOAuthTokenResponse> {
-        const accessTokenRes = await axios.post(`https://github.com/login/oauth/access_token?${qs.encode({
+    public static async refreshAccessToken(refreshToken: string, clientId: string, clientSecret: string, baseUrl: URL): Promise<GitHubOAuthTokenResponse> {
+        const url = GithubInstance.generateOAuthUrl(baseUrl, "access_token", {
             client_id: clientId,
             client_secret: clientSecret,
             refresh_token: refreshToken,
             grant_type: 'refresh_token',
-        })}`);
+        });
+        const accessTokenRes = await axios.post(`${url}?${qs.encode()}`);
         return qs.decode(accessTokenRes.data) as unknown as GitHubOAuthTokenResponse;
     }
 
@@ -84,7 +108,7 @@ export class GithubInstance {
                 privateKey: this.privateKey,
                 installationId,
             },
-            userAgent: UserAgent,
+            ...GithubInstance.baseOctokitConfig(this.baseUrl),
         });
     }
 
@@ -99,7 +123,7 @@ export class GithubInstance {
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
-            userAgent: UserAgent,
+            ...GithubInstance.baseOctokitConfig(this.baseUrl),
         });
 
 
@@ -147,8 +171,22 @@ export class GithubInstance {
     }
 
     public get newInstallationUrl() {
-        // E.g. https://github.com/apps/matrix-bridge/installations/new
-        return `https://github.com/apps/${this.appSlug}/installations/new`;
+        if (this.baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
+            // Cloud
+            return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
+        }
+        // Enterprise (yes, i know right)
+        return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);
+    }
+
+    public static generateOAuthUrl(baseUrl: URL, action: "authorize"|"access_token", params: OAuthUrlParameters) {
+        const q = qs.stringify(params);
+        if (baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
+            // Cloud doesn't use `api.` for oauth.
+            baseUrl = new URL("https://github.com");
+        }
+        const rawUrl = baseUrl.toString();
+        return rawUrl + `${rawUrl.endsWith('/') ? '' : '/'}` + `login/oauth/${action}?${q}`;
     }
 }
 
