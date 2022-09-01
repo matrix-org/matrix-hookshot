@@ -19,6 +19,7 @@ jobs:
         node-version: 16
     - run: yarn --ignore-scripts
     - run: yarn lint:js
+
   lint-rust:
    runs-on: ubuntu-latest
    steps:
@@ -29,6 +30,7 @@ jobs:
           profile: minimal
           components: rustfmt
     - run: cargo fmt --all -- --check
+
   config:
     runs-on: ubuntu-latest
     steps:
@@ -67,4 +69,4 @@ jobs:
             toolchain: stable
             profile: minimal
       - run: yarn
-      - run: yarn test
+      - run: yarn test:cover
