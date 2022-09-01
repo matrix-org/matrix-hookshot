@@ -7,7 +7,6 @@ import LogWrapper from "../LogWrapper";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigFigma } from "../Config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-
 const log = new LogWrapper("FigmaFileConnection");
 
 export interface FigmaFileConnectionState extends IConnectionState {

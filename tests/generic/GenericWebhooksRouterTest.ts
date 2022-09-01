@@ -6,6 +6,8 @@ import LogWrapper from "../../src/LogWrapper";
 import { EventEmitter } from "stream";
 import { expect } from "chai";
 import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
+import { StatusCodes } from "http-status-codes";
+import querystring from 'node:querystring';
 
 const createResponse = () => mockCreateResponse({
     eventEmitter: EventEmitter,
@@ -23,7 +25,7 @@ describe("GenericWebhooksRouter", () => {
         );
     })
 
-    it("should handle a missing hook", (done) => {
+    it("should handle unknown webhook IDs", (done) => {
         mq.on('generic-webhook.event', (d) => {
             mq.push({
                 messageId: d.messageId,
@@ -38,7 +40,7 @@ describe("GenericWebhooksRouter", () => {
         const res = createResponse();
         router(req, res, NEXT);
         res.on('end', () => {
-            expect(res._getStatusCode()).to.equal(404);
+            expect(res._getStatusCode()).to.equal(StatusCodes.NOT_FOUND);
             expect(res._getData()).to.deep.equal({
                 ok: false,
                 error: 'Webhook not found',
@@ -62,7 +64,7 @@ describe("GenericWebhooksRouter", () => {
         const res = createResponse();
         router(req, res, NEXT);
         res.on('end', () => {
-            expect(res._getStatusCode()).to.equal(500);
+            expect(res._getStatusCode()).to.equal(StatusCodes.INTERNAL_SERVER_ERROR);
             expect(res._getData()).to.deep.equal({
                 ok: false,
                 error: 'Failed to process webhook',
@@ -70,6 +72,7 @@ describe("GenericWebhooksRouter", () => {
             done();
         });
     });
+
     it("should handle a deferred webhook", (done) => {
         mq.on('generic-webhook.event', (d) => {
             mq.push({
@@ -83,7 +86,64 @@ describe("GenericWebhooksRouter", () => {
         const res = createResponse();
         router(req, res, NEXT);
         res.on('end', () => {
-            expect(res._getStatusCode()).to.equal(202);
+            expect(res._getStatusCode()).to.equal(StatusCodes.ACCEPTED);
+            expect(res._getData()).to.deep.equal({
+                ok: true,
+            })
+            done();
+        });
+    });
+
+    it("should handle an XML payload", (done) => {
+        mq.on('generic-webhook.event', ({data, messageId}) => {
+            expect(data.hookId).to.equal('foo');
+            expect(data.hookData).to.deep.equal({
+                helloworld: 'bar',
+            });
+            mq.push({
+                messageId: messageId,
+                eventName: 'response.generic-webhook.event',
+                data: {
+                    successful: true,
+                },
+                sender: 'test',
+            });
+        });
+        const req = createRequest({ url: "/foo", method: "POST" });
+        req.body = '<helloworld>bar</helloworld>';
+        const res = createResponse();
+        router(req, res, NEXT);
+        res.on('end', () => {
+            expect(res._getStatusCode()).to.equal(StatusCodes.OK);
+            expect(res._getData()).to.deep.equal({
+                ok: true,
+            })
+            done();
+        });
+    });
+    it("should handle a URL encoded payload", (done) => {
+        mq.on('generic-webhook.event', ({data, messageId}) => {
+            expect(data.hookId).to.equal('foo');
+            expect(data.hookData).to.deep.equal({
+                helloworld: 'bar',
+            });
+            mq.push({
+                messageId: messageId,
+                eventName: 'response.generic-webhook.event',
+                data: {
+                    successful: true,
+                },
+                sender: 'test',
+            });
+        });
+        const req = createRequest({ url: "/foo", method: "POST", headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+        } });
+        req.body = querystring.stringify({helloworld: 'bar'});
+        const res = createResponse();
+        router(req, res, NEXT);
+        res.on('end', () => {
+            expect(res._getStatusCode()).to.equal(StatusCodes.OK);
             expect(res._getData()).to.deep.equal({
                 ok: true,
             })

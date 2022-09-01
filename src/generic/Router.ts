@@ -4,6 +4,8 @@ import LogWrapper from "../LogWrapper";
 import { ApiError, ErrCode } from "../api";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
 import * as xml from "xml2js";
+import { StatusCodes } from "http-status-codes"; 
+
 
 const WEBHOOK_RESPONSE_TIMEOUT = 5000;
 
@@ -40,13 +42,13 @@ export class GenericWebhooksRouter {
                     next();
                     return;
                 }
-                res.status(404).send({ok: false, error: "Webhook not found"});
+                res.status(StatusCodes.NOT_FOUND).send({ok: false, error: "Webhook not found"});
             } else if (response.successful) {
-                res.status(200).send({ok: true});
+                res.status(StatusCodes.OK).send({ok: true});
             } else if (response.successful === false) {
-                res.status(500).send({ok: false, error: "Failed to process webhook"});
+                res.status(StatusCodes.INTERNAL_SERVER_ERROR).send({ok: false, error: "Failed to process webhook"});
             } else {
-                res.status(202).send({ok: true});
+                res.status(StatusCodes.ACCEPTED).send({ok: true});
             }
         }).catch((err) => {
             log.error(`Failed to emit payload: ${err}`);
