@@ -332,6 +332,32 @@ in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sd
   #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
   timestampFormat: HH:mm:ss:SSS
 </code></pre>
+<h4 id="json-logging"><a class="header" href="#json-logging">JSON Logging</a></h4>
+<p>Enabling the <code>json</code> option will configure hookshot to output structured JSON logs. The schema looks like:</p>
+<pre><code class="language-json5">{
+    // The level of the log.
+    &quot;level&quot;: &quot;WARN&quot;,
+    // The log message.
+    &quot;message&quot;: &quot;Failed to connect to homeserver&quot;,
+    // The module which emitted the log line.
+    &quot;module&quot;: &quot;Bridge&quot;,
+    // The timestamp of the log line.
+    &quot;timestamp&quot;: &quot;11:45:02:198&quot;,
+    // Optional error field, if the log includes an Error
+    &quot;error&quot;: &quot;connect ECONNREFUSED 127.0.0.1:8008&quot;,
+    // Additional context, possibly including the error body.
+    &quot;args&quot;: [
+        {
+            &quot;address&quot;: &quot;127.0.0.1&quot;,
+            &quot;code&quot;: &quot;ECONNREFUSED&quot;,
+            &quot;errno&quot;: -111,
+            &quot;port&quot;: 8008,
+            &quot;syscall&quot;: &quot;connect&quot;
+        },
+        &quot;retrying in 5s&quot;
+    ]
+}
+</code></pre>
 
                     </main>
 
