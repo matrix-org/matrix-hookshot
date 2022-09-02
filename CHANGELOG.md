@@ -1,3 +1,12 @@
+2.1.1 (2022-09-02)
+==================
+
+Bugfixes
+--------
+
+- Fixed issue where log lines would only be outputted when the `logging.level` is `debug`. ([\#467](https://github.com/matrix-org/matrix-hookshot/issues/467))
+
+
 2.1.0 (2022-09-02)
 ==================
 
