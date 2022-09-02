@@ -169,7 +169,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public error(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("error", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.error("error", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -177,7 +177,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public info(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("info", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.info("info", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -185,6 +185,6 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public warn(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("warn", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.warn("warn", { module: this.module, data: messageOrObject });
     }
 }
