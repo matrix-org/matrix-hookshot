@@ -88,6 +88,7 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.tokenStore.load();
         await this.storage.connect?.();
         await this.queue.connect?.();
 
@@ -140,7 +141,6 @@ export class Bridge {
         }
 
 
-        await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
 
