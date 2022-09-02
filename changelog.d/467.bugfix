@@ -1,0 +1,1 @@
+Fixed issue where log lines would only be outputted when the `logging.level` is `debug`.
