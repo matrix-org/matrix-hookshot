@@ -56,7 +56,7 @@ export interface FeedEntry {
 }
 
 export interface FeedSuccess {
-    url: string;
+    url: string,
 }
 
 interface AccountData {
