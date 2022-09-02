@@ -1,3 +1,35 @@
+2.1.0 (2022-09-02)
+==================
+
+Features
+--------
+
+- Add support for ARM64 docker images. ([\#458](https://github.com/matrix-org/matrix-hookshot/issues/458))
+- Added new config option `feeds.pollTimeoutSeconds` to explictly set how long to wait for a feed response. ([\#459](https://github.com/matrix-org/matrix-hookshot/issues/459))
+- JSON logging output now includes new keys such as `error` and `args`. ([\#463](https://github.com/matrix-org/matrix-hookshot/issues/463))
+
+
+Bugfixes
+--------
+
+- Fix error when responding to a provisioning request for a room that the Hookshot bot isn't yet a member of. ([\#457](https://github.com/matrix-org/matrix-hookshot/issues/457))
+- Fix a bug users without "login" permissions could run login commands for GitHub/GitLab/JIRA, but get an error when attempting to store the token. Users now have their permissions checked earlier. ([\#461](https://github.com/matrix-org/matrix-hookshot/issues/461))
+- Hookshot now waits for Redis to be ready before handling traffic. ([\#462](https://github.com/matrix-org/matrix-hookshot/issues/462))
+- Fix room membership going stale for rooms used in the permissions config. ([\#464](https://github.com/matrix-org/matrix-hookshot/issues/464))
+
+
+Improved Documentation
+----------------------
+
+- Be explicit that identifiers in the permissions yaml config need to be wrapped in quotes, because they start with the characters @ and !. ([\#453](https://github.com/matrix-org/matrix-hookshot/issues/453))
+
+
+Internal Changes
+----------------
+
+- Track coverage of tests. ([\#351](https://github.com/matrix-org/matrix-hookshot/issues/351))
+
+
 2.0.1 (2022-08-22)
 ==================
 
