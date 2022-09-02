@@ -49,6 +49,11 @@ async function start() {
 }
 
 start().catch((ex) => {
-    log.error("BridgeApp encountered an error and has stopped:", ex);
+    if (LogWrapper.configured) {
+        log.error("BridgeApp encountered an error and has stopped:", ex);
+    } else {
+        // eslint-disable-next-line no-console
+        console.error("BridgeApp encountered an error and has stopped", ex);
+    }
     process.exit(1);
 });

@@ -29,6 +29,12 @@ interface HookshotLogInfo extends winston.Logform.TransformableInfo {
 }
 export default class LogWrapper {
 
+    private static isConfigured: boolean;
+
+    public static get configured() {
+        return this.isConfigured;
+    }
+
     static formatMsgTypeArray(...data: MsgType[]): string {
         data = data.flat();
         return data.map(obj => {
@@ -144,6 +150,7 @@ export default class LogWrapper {
 
         LogService.setLevel(LogLevel.fromString(cfg.level));
         LogService.debug("LogWrapper", "Reconfigured logging");
+        LogWrapper.isConfigured = true;
     }
 
     constructor(private module: string) { }
@@ -154,7 +161,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public debug(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("debug", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.log("debug", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -162,7 +169,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public error(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("error", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.log("error", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -170,7 +177,7 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public info(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("info", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.log("info", { module: this.module, data: messageOrObject });
     }
 
     /**
@@ -178,6 +185,6 @@ export default class LogWrapper {
      * @param {*[]} messageOrObject The data to log
      */
     public warn(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.debug("warn", { module: this.module, data: messageOrObject });
+        LogWrapper.winstonLog.log("warn", { module: this.module, data: messageOrObject });
     }
 }
