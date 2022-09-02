@@ -40,7 +40,7 @@ import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
-import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
+import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
