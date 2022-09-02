@@ -29,6 +29,12 @@ interface HookshotLogInfo extends winston.Logform.TransformableInfo {
 }
 export default class LogWrapper {
 
+    static isConfigured: boolean;
+
+    public static get configured() {
+        return this.isConfigured;
+    }
+
     static formatMsgTypeArray(...data: MsgType[]): string {
         data = data.flat();
         return data.map(obj => {
@@ -144,6 +150,7 @@ export default class LogWrapper {
 
         LogService.setLevel(LogLevel.fromString(cfg.level));
         LogService.debug("LogWrapper", "Reconfigured logging");
+        LogWrapper.isConfigured = true;
     }
 
     constructor(private module: string) { }
