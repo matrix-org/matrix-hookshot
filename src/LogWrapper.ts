@@ -29,7 +29,7 @@ interface HookshotLogInfo extends winston.Logform.TransformableInfo {
 }
 export default class LogWrapper {
 
-    static isConfigured: boolean;
+    private static isConfigured: boolean;
 
     public static get configured() {
         return this.isConfigured;
