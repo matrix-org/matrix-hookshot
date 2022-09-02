@@ -55,6 +55,10 @@ export interface FeedEntry {
     fetchKey: string,
 }
 
+export interface FeedSuccess {
+    url: string,
+}
+
 interface AccountData {
     [url: string]: string[],
 }
@@ -210,7 +214,7 @@ export class FeedReader {
                     const entry = {
                         feed: {
                             title: feed.title ? stripHtml(feed.title) : null,
-                            url: url.toString()
+                            url: url,
                         },
                         title: item.title ? stripHtml(item.title) : null,
                         link: item.link || null,
@@ -233,7 +237,7 @@ export class FeedReader {
                     const newSeenItems = Array.from(new Set([ ...newGuids, ...seenGuids ]).values()).slice(0, maxGuids);
                     this.seenEntries.set(url, newSeenItems);
                 }
-                this.queue.push<undefined>({ eventName: 'feed.success', sender: 'FeedReader', data: undefined});
+                this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url: url } });
             } catch (err: unknown) {
                 const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
                 const feedError = new FeedError(url.toString(), error, fetchKey);

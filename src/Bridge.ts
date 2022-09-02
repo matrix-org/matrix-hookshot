@@ -40,7 +40,7 @@ import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
-import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
+import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 const log = new LogWrapper("Bridge");
 
 export class Bridge {
@@ -615,9 +615,9 @@ export class Bridge {
             (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
             (c, data) => c.handleFeedEntry(data),
         );
-        this.bindHandlerToQueue<FeedEntry, FeedConnection>(
+        this.bindHandlerToQueue<FeedSuccess, FeedConnection>(
             "feed.success",
-            (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
+            (data) => connManager.getConnectionsForFeedUrl(data.url),
             c => c.handleFeedSuccess(),
         );
         this.bindHandlerToQueue<FeedError, FeedConnection>(
