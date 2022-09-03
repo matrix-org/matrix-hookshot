@@ -1,3 +1,12 @@
+2.1.2 (2022-09-03)
+==================
+
+Bugfixes
+--------
+
+- Fix a bug where reading RSS feeds could crash the process. ([\#469](https://github.com/matrix-org/matrix-hookshot/issues/469))
+
+
 2.1.1 (2022-09-02)
 ==================
 

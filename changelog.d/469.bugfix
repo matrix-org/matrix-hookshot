@@ -1,1 +1,0 @@
-Fix a bug where reading RSS feeds could crash the process.
