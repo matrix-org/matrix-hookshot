@@ -169,7 +169,7 @@ You will need to configure some listeners to make the bridge functional.
 listeners:
   # (Optional) HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
   #
   - port: 9000
     bindAddress: 0.0.0.0
@@ -180,9 +180,10 @@ listeners:
     resources:
       - metrics
       - provisioning
+      - appservice
 ```
 
-At a minimum, you should bind the `webhooks` resource to a port and address. You can have multiple resources on the same
+At a minimum, you should bind the `webhooks` and `appservice` resources to a port and address. You can have multiple resources on the same
 port, or one on each. Each listener MUST listen on a unique port.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
@@ -191,16 +192,12 @@ exercise to the user.
 
 In terms of API endpoints:
 
+- The `appservice` resource handles resources defined in [the application service spec](https://spec.matrix.org/v1.1/application-service-api/#homeserver--gt-application-service-api).
 - The `webhooks` resource handles resources under `/`, so it should be on its own listener.
   Note that OAuth requests also go through this listener.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
-
-<section class="notice">
-Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
-in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
-</section>
 
 
 ### Services configuration
