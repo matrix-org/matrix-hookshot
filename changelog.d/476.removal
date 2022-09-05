@@ -1,0 +1,1 @@
+Appservice listeners are now configured via the `listeners` configuration section. They are no longer special-cased resources. Please update your config file.
