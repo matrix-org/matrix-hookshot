@@ -198,7 +198,7 @@ In terms of API endpoints:
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
 
 <section class="notice">
-Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
+Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the <code>bridge</code> section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
 
