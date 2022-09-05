@@ -355,6 +355,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 log.debug(`Media ${uuid} requested but not used`);
                 continue;
             }
+            const regExp = new RegExp(uuid, 'g');
             try {
                 const content = await axios.get(mediaurl, {
                     timeout: GET_MEDIA_TIMEOUT,
@@ -363,9 +364,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                     }
                 })
                 const mxcUri = await this.as.botClient.uploadContent(content.data, content.headers['content-type']);
-                plain = plain.replace(uuid, mxcUri);
+                plain = plain.replace(regExp, mxcUri);
                 if (transformationResult.html) {
-                    transformationResult.html = transformationResult.html.replace(transformationResult.html, mxcUri);
+                    transformationResult.html = transformationResult.html.replace(regExp, mxcUri);
                 }
             } catch (ex) {
                 log.warn(`Failed to fetch media for transformation`, {mediaurl});
