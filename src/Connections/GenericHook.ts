@@ -11,6 +11,8 @@ import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
 import { randomUUID } from "crypto";
+import axios from "axios";
+import UserAgent from "../UserAgent";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -59,6 +61,7 @@ const md = new markdownit();
 const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 5;
 const SANITIZE_MAX_BREADTH = 25;
+const GET_MEDIA_TIMEOUT = 5000;
 
 /**
  * Handles rooms connected to a generic webhook.
@@ -353,13 +356,19 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 continue;
             }
             try {
-                const mxcUri = await this.as.botClient.uploadContentFromUrl(mediaurl);
+                const content = await axios.get(mediaurl, {
+                    timeout: GET_MEDIA_TIMEOUT,
+                    headers: {
+                        'User-Agent': UserAgent,
+                    }
+                })
+                const mxcUri = await this.as.botClient.uploadContent(content.data, content.headers['content-type']);
                 plain = plain.replace(uuid, mxcUri);
                 if (transformationResult.html) {
                     transformationResult.html = transformationResult.html.replace(transformationResult.html, mxcUri);
                 }
             } catch (ex) {
-                log.warn(`Failed to fetch media for transformation ${mediaurl}`, ex.message);
+                log.warn(`Failed to fetch media for transformation`, {mediaurl});
                 log.debug(ex);
             }
         }
