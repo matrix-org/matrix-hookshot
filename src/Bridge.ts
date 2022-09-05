@@ -725,6 +725,7 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
+        this.listener.bindResource('appservice', this.as.expressAppInstance._router);
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;

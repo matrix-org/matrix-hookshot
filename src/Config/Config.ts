@@ -372,8 +372,8 @@ interface BridgeConfigBridge {
     domain: string;
     url: string;
     mediaUrl?: string;
-    port: number;
-    bindAddress: string;
+    port?: number;
+    bindAddress?: string;
     pantalaimon?: {
         url: string;
         username: string;
@@ -584,6 +584,15 @@ export class BridgeConfig {
                 port: configData.widgets.port,
             });
             log.warn("The `widgets` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
+        }
+
+        if (this.bridge.port) {
+            this.listeners.push({
+                resources: ['appservice'],
+                port: this.bridge.port,
+                bindAddress: this.bridge.bindAddress,
+            })
+            log.warn("The `bridge` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
 
         const hasWidgetListener = !!this.listeners.find(l => l.resources.includes('widgets'));

@@ -5,8 +5,8 @@ import { errorMiddleware } from "./api";
 
 // Appserices can't be handled yet because the bot-sdk maintains control of it.
 // See https://github.com/turt2live/matrix-bot-sdk/issues/191
-export type ResourceName = "webhooks"|"widgets"|"metrics"|"provisioning";
-export const ResourceTypeArray: ResourceName[] = ["webhooks","widgets","metrics","provisioning"];
+export type ResourceName = "webhooks"|"widgets"|"metrics"|"provisioning"|"appservice";
+export const ResourceTypeArray: ResourceName[] = ["webhooks","widgets","metrics","provisioning","appservice"];
 
 export interface BridgeConfigListener {
     bindAddress?: string;
