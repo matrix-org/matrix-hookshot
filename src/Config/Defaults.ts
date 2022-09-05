@@ -10,8 +10,6 @@ export const DefaultConfig = new BridgeConfig({
         domain: "example.com",
         url: "http://localhost:8008",
         mediaUrl: "http://example.com",
-        port: 9993,
-        bindAddress: "127.0.0.1", 
     },
     queue: {
         monolithic: true,
@@ -134,6 +132,10 @@ export const DefaultConfig = new BridgeConfig({
             port: 9002,
             bindAddress: '0.0.0.0',
             resources: ['widgets'],
+        }, {
+            port: 9993,
+            bindAddress: "127.0.0.1", 
+            resources: ['appservice'],
         }
     ]
 }, {});

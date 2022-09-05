@@ -6,8 +6,6 @@ bridge:
   domain: example.com
   url: http://localhost:8008
   mediaUrl: http://example.com
-  port: 9993
-  bindAddress: 127.0.0.1
 github:
   # (Optional) Configure this to enable GitHub support
   #
@@ -160,7 +158,7 @@ listeners:
   # Bind resource endpoints to ports and addresses.
   # 'port' must be specified. Each listener must listen on a unique port.
   # 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning
+  # 'resources' may be any of webhooks, widgets, metrics, provisioning, appservice
   #
   - port: 9000
     bindAddress: 0.0.0.0
@@ -175,4 +173,8 @@ listeners:
     bindAddress: 0.0.0.0
     resources:
       - widgets
+  - port: 9993
+    bindAddress: 127.0.0.1
+    resources:
+      - appservice
 
