@@ -159,7 +159,7 @@ export default class LogWrapper {
     /**
      * Logs to the DEBUG channel
      * @param msg The message or data to log.
-     * @param additionalData Additonal context.
+     * @param additionalData Additional context.
      */
     public debug(msg: MsgType, ...additionalData: MsgType[]) {
         LogWrapper.winstonLog.log("debug", { module: this.module, data: [msg, ...additionalData] });
@@ -168,7 +168,7 @@ export default class LogWrapper {
     /**
      * Logs to the ERROR channel
      * @param msg The message or data to log.
-     * @param additionalData Additonal context.
+     * @param additionalData Additional context.
      */
     public error(msg: MsgType, ...additionalData: MsgType[]) {
         LogWrapper.winstonLog.log("error", { module: this.module, data: [msg, ...additionalData] });
@@ -177,7 +177,7 @@ export default class LogWrapper {
     /**
      * Logs to the INFO channel
      * @param msg The message or data to log.
-     * @param additionalData Additonal context.
+     * @param additionalData Additional context.
      */
     public info(msg: MsgType, ...additionalData: MsgType[]) {
         LogWrapper.winstonLog.log("info", { module: this.module, data: [msg, ...additionalData] });
@@ -186,7 +186,7 @@ export default class LogWrapper {
     /**
      * Logs to the WARN channel
      * @param msg The message or data to log.
-     * @param additionalData Additonal context.
+     * @param additionalData Additional context.
      */
     public warn(msg: MsgType, ...additionalData: MsgType[]) {
         LogWrapper.winstonLog.log("warn", { module: this.module, data: [msg, ...additionalData] });
