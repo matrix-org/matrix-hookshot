@@ -27,35 +27,25 @@ function isMessageNoise(messageOrObject: MsgType[]) {
 interface HookshotLogInfo extends winston.Logform.TransformableInfo {
     data: MsgType[];
 }
-export default class LogWrapper {
+export class GlobalLogger {
+    private isConfigured = false;
 
-    private static isConfigured: boolean;
-
-    public static get configured() {
+    public get configured() {
         return this.isConfigured;
     }
 
-    static formatMsgTypeArray(...data: MsgType[]): string {
-        data = data.flat();
-        return data.map(obj => {
-            if (typeof obj === "string") {
-                return obj;
-            }
-            return util.inspect(obj);
-        }).join(" ");
+    private winstonLog?: winston.Logger;
+
+    public get winston() {
+        return this.winstonLog;
     }
 
-    static messageFormatter(info: HookshotLogInfo): string {
-        const logPrefix = `${info.level} ${info.timestamp} [${info.module}] `;
-        return logPrefix + this.formatMsgTypeArray(info.data ?? []);
-    }
-
-    static winstonLog: winston.Logger;
-
-    public static configureLogging(cfg: BridgeConfigLogging) {
+    public configureLogging(cfg: BridgeConfigLogging, debugStream?: NodeJS.WritableStream) {
         if (typeof cfg === "string") {
             cfg = { level: cfg };
         }
+
+        this.winstonLog?.close();
 
         const formatters = [
             winston.format.timestamp({
@@ -77,7 +67,7 @@ export default class LogWrapper {
 
         if (cfg.json) {
             formatters.push((format((info) => {
-                const hsData = {...info as HookshotLogInfo}.data;
+                const hsData = [...(info as HookshotLogInfo).data];
                 const firstArg = hsData?.shift() ?? 'undefined';
                 const result: winston.Logform.TransformableInfo = {
                     level: info.level,
@@ -104,17 +94,25 @@ export default class LogWrapper {
             formatters.push(winston.format.printf(i => LogWrapper.messageFormatter(i as HookshotLogInfo)));
         }
 
+        const formatter: winston.Logform.Format = winston.format.combine(...formatters);
         const log = this.winstonLog = winston.createLogger({
             level: cfg.level,
             transports: [
+                debugStream ? new winston.transports.Stream({
+                    stream: debugStream,
+                    format: formatter,
+                }) :
                 new winston.transports.Console({
-                    format: winston.format.combine(...formatters),
+                    format: formatter,
                 }),
             ],
         });
 
         function formatBotSdkMessage(module: string, ...messageOrObject: MsgType[]) {
-            return { module, data: [LogWrapper.formatMsgTypeArray(messageOrObject)] };
+            return {
+                module,
+                data: [LogWrapper.formatMsgTypeArray(messageOrObject)]
+            };
         }
 
         LogService.setLogger({
@@ -149,11 +147,29 @@ export default class LogWrapper {
         });
 
         LogService.setLevel(LogLevel.fromString(cfg.level));
-        LogService.debug("LogWrapper", "Reconfigured logging");
-        LogWrapper.isConfigured = true;
+        //LogService.debug("LogWrapper", "Reconfigured logging");
+        this.isConfigured = true;
+    }
+}
+export default class LogWrapper {
+    static readonly root = new GlobalLogger();
+
+    static formatMsgTypeArray(...data: MsgType[]): string {
+        data = data.flat();
+        return data.map(obj => {
+            if (typeof obj === "string") {
+                return obj;
+            }
+            return util.inspect(obj);
+        }).join(" ");
     }
 
-    constructor(private module: string) {
+    static messageFormatter(info: HookshotLogInfo): string {
+        const logPrefix = `${info.level} ${info.timestamp} [${info.module}] `;
+        return logPrefix + this.formatMsgTypeArray(info.data ?? []);
+    }
+
+    constructor(private module: string, private readonly logger: GlobalLogger = LogWrapper.root) {
     }
 
     /**
@@ -162,7 +178,7 @@ export default class LogWrapper {
      * @param additionalData Additional context.
      */
     public debug(msg: MsgType, ...additionalData: MsgType[]) {
-        LogWrapper.winstonLog.log("debug", { module: this.module, data: [msg, ...additionalData] });
+        this.logger.winston?.log("debug", { module: this.module, data: [msg, ...additionalData] });
     }
 
     /**
@@ -171,7 +187,7 @@ export default class LogWrapper {
      * @param additionalData Additional context.
      */
     public error(msg: MsgType, ...additionalData: MsgType[]) {
-        LogWrapper.winstonLog.log("error", { module: this.module, data: [msg, ...additionalData] });
+        this.logger.winston?.log("error", { module: this.module, data: [msg, ...additionalData] });
     }
 
     /**
@@ -180,7 +196,7 @@ export default class LogWrapper {
      * @param additionalData Additional context.
      */
     public info(msg: MsgType, ...additionalData: MsgType[]) {
-        LogWrapper.winstonLog.log("info", { module: this.module, data: [msg, ...additionalData] });
+        this.logger.winston?.log("info", { module: this.module, data: [msg, ...additionalData] });
     }
 
     /**
@@ -189,6 +205,6 @@ export default class LogWrapper {
      * @param additionalData Additional context.
      */
     public warn(msg: MsgType, ...additionalData: MsgType[]) {
-        LogWrapper.winstonLog.log("warn", { module: this.module, data: [msg, ...additionalData] });
+        this.logger.winston?.log("warn", { module: this.module, data: [msg, ...additionalData] });
     }
 }
