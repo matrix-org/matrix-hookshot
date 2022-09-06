@@ -47,7 +47,7 @@ export default class LogWrapper {
 
     static messageFormatter(info: HookshotLogInfo): string {
         const logPrefix = `${info.level} ${info.timestamp} [${info.module}] `;
-        return logPrefix + this.formatMsgTypeArray(info.data);
+        return logPrefix + this.formatMsgTypeArray(info.data ?? []);
     }
 
     static winstonLog: winston.Logger;
@@ -78,7 +78,7 @@ export default class LogWrapper {
         if (cfg.json) {
             formatters.push((format((info) => {
                 const hsData = {...info as HookshotLogInfo}.data;
-                const firstArg = hsData.shift();
+                const firstArg = hsData?.shift() ?? 'undefined';
                 const result: winston.Logform.TransformableInfo = {
                     level: info.level,
                     module: info.module,
@@ -128,7 +128,7 @@ export default class LogWrapper {
             },
             warn: (module: string, ...messageOrObject: MsgType[]) => {
                 if (isMessageNoise(messageOrObject)) {
-                    log.debug(formatBotSdkMessage(module, ...messageOrObject));
+                    log.log("debug", formatBotSdkMessage(module, ...messageOrObject));
                     return;
                 }
                 log.log("warn", formatBotSdkMessage(module, ...messageOrObject));
@@ -153,38 +153,42 @@ export default class LogWrapper {
         LogWrapper.isConfigured = true;
     }
 
-    constructor(private module: string) { }
+    constructor(private module: string) {
+    }
 
     /**
      * Logs to the DEBUG channel
-     * @param {string} module The module being logged
-     * @param {*[]} messageOrObject The data to log
+     * @param msg The message or data to log.
+     * @param additionalData Additonal context.
      */
-    public debug(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.log("debug", { module: this.module, data: messageOrObject });
+    public debug(msg: MsgType, ...additionalData: MsgType[]) {
+        LogWrapper.winstonLog.log("debug", { module: this.module, data: [msg, ...additionalData] });
     }
 
     /**
      * Logs to the ERROR channel
-     * @param {*[]} messageOrObject The data to log
+     * @param msg The message or data to log.
+     * @param additionalData Additonal context.
      */
-    public error(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.log("error", { module: this.module, data: messageOrObject });
+    public error(msg: MsgType, ...additionalData: MsgType[]) {
+        LogWrapper.winstonLog.log("error", { module: this.module, data: [msg, ...additionalData] });
     }
 
     /**
      * Logs to the INFO channel
-     * @param {*[]} messageOrObject The data to log
+     * @param msg The message or data to log.
+     * @param additionalData Additonal context.
      */
-    public info(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.log("info", { module: this.module, data: messageOrObject });
+    public info(msg: MsgType, ...additionalData: MsgType[]) {
+        LogWrapper.winstonLog.log("info", { module: this.module, data: [msg, ...additionalData] });
     }
 
     /**
      * Logs to the WARN channel
-     * @param {*[]} messageOrObject The data to log
+     * @param msg The message or data to log.
+     * @param additionalData Additonal context.
      */
-    public warn(...messageOrObject: MsgType[]) {
-        LogWrapper.winstonLog.log("warn", { module: this.module, data: messageOrObject });
+    public warn(msg: MsgType, ...additionalData: MsgType[]) {
+        LogWrapper.winstonLog.log("warn", { module: this.module, data: [msg, ...additionalData] });
     }
 }
