@@ -1,2 +1,3 @@
 import LogWrapper from "../src/LogWrapper";
-LogWrapper.configureLogging({level: "info"});
+
+LogWrapper.root.configureLogging({level: "info"});
