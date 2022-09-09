@@ -147,7 +147,7 @@ export class GlobalLogger {
         });
 
         LogService.setLevel(LogLevel.fromString(cfg.level));
-        //LogService.debug("LogWrapper", "Reconfigured logging");
+        LogService.debug("LogWrapper", "Reconfigured logging");
         this.isConfigured = true;
     }
 }
