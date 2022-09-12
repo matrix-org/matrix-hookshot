@@ -50,7 +50,7 @@ type AllowedEventsNames =
     "merge_request.close" |
     "merge_request.merge" |
     "merge_request.review" |
-    "merge_request.update" |
+    "merge_request.ready_for_review" |
     "merge_request.review.comments" |
     `merge_request.${string}` |
     "merge_request" |
@@ -66,7 +66,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.close",
     "merge_request.merge",
     "merge_request.review",
-    "merge_request.update",
+    "merge_request.ready_for_review",
     "merge_request.review.comments",
     "merge_request",
     "tag_push",
@@ -443,7 +443,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestUpdate(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.update')) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.ready_for_review')) {
             return;
         }
         log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
