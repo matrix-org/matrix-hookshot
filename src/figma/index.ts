@@ -74,7 +74,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
         } else {
             log.info(`No webhook defined for instance ${instanceName}, creating`);
             try {
-                const res = await client.client.post(`v2/webhooks`, {
+                const res = await client.client.post(`webhooks`, {
                     passcode,
                     endpoint: publicUrl,
                     description: 'matrix-hookshot',
