@@ -537,6 +537,8 @@ ${data.description}`;
                 // Always defined, but for type checking purposes.
                 return;
             }
+            // Delete after use.
+            this.debounceMRComments.delete(uniqueId);
             const orgRepoName = project.path_with_namespace;
             let comments = '';
             if (result.comments === 1) {
