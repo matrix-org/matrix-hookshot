@@ -79,7 +79,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                     endpoint: publicUrl,
                     description: 'matrix-hookshot',
                     event_type: 'FILE_COMMENT',
-                    team_id: teamId,
+                    team_id: teamId.toString(),
                 }, axiosConfig);
                 webhookDefinition = res.data as FigmaWebhookDefinition;
                 await matrixClient.setAccountData(accountDataKey, {webhookId: webhookDefinition.id});
