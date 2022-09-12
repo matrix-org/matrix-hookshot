@@ -166,6 +166,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.close" onChange={toggleIgnoredHook}>Closed</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.merge" onChange={toggleIgnoredHook}>Merged</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.review" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
+                    {/* update is how we determine ready for review state */}
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.update" onChange={toggleIgnoredHook}>Ready for review</EventCheckbox>
                 </ul>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="push" onChange={toggleIgnoredHook}>Pushes</EventCheckbox>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="tag_push" onChange={toggleIgnoredHook}>Tag pushes</EventCheckbox>
