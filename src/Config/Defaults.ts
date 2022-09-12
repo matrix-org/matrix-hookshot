@@ -111,7 +111,7 @@ export const DefaultConfig = new BridgeConfig({
     feeds: {
         enabled: false,
         pollIntervalSeconds: 600,
-        pollTimeoutSeconds: 10,
+        pollTimeoutSeconds: 30,
     },
     provisioning: {
         secret: "!secretToken"
