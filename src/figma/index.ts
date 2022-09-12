@@ -52,7 +52,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                     }
                     throw Error(`Failed to verify Figma webhooks for ${instanceName}: ${ex.message}`);
                 }
-                log.warn(`Webhook ID stored but API returned not found, creating new one.`);
+                log.warn(`Previous webhook ID ${webhookId} stored but API returned not found, creating new one.`);
             }
         }
         if (webhookDefinition) {
