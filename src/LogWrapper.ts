@@ -68,7 +68,7 @@ export class GlobalLogger {
         if (cfg.json) {
             formatters.push((format((info) => {
                 const hsData = [...(info as HookshotLogInfo).data];
-                const firstArg = hsData?.shift() ?? 'undefined';
+                const firstArg = hsData.shift() ?? 'undefined';
                 const result: winston.Logform.TransformableInfo = {
                     level: info.level,
                     module: info.module,
@@ -94,7 +94,7 @@ export class GlobalLogger {
             formatters.push(winston.format.printf(i => LogWrapper.messageFormatter(i as HookshotLogInfo)));
         }
 
-        const formatter: winston.Logform.Format = winston.format.combine(...formatters);
+        const formatter = winston.format.combine(...formatters);
         const log = this.winstonLog = winston.createLogger({
             level: cfg.level,
             transports: [
