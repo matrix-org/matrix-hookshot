@@ -41,21 +41,25 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
         let webhookDefinition: FigmaWebhookDefinition|undefined;
         if (webhookId) {
             try {
-                webhookDefinition = (await client.client.get(`v2/webhooks/${webhookId}`, axiosConfig)).data;
+                webhookDefinition = (await client.client.get(`webhooks/${webhookId}`, axiosConfig)).data;
                 log.info(`Found existing hook for Figma instance ${instanceName} ${webhookId}`);
             } catch (ex) {
                 const axiosErr = ex as AxiosError;
-                if (axiosErr.isAxiosError) {
-                    log.error(`Failed to update webhook: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
+                if (axiosErr.response?.status !== 404) {
+                    // Missing webhook, probably not found.
+                    if (axiosErr.isAxiosError) {
+                        log.error(`Failed to update webhook: ${axiosErr.response?.status} ${axiosErr.response?.data?.message ?? ""}`)
+                    }
+                    throw Error(`Failed to verify Figma webhooks for ${instanceName}: ${ex.message}`);
                 }
-                throw Error(`Failed to verify Figma webhooks for ${instanceName}: ${ex.message}`);
+                log.warn(`Webhook ID stored but API returned not found, creating new one.`);
             }
         }
         if (webhookDefinition) {
             if (webhookDefinition.endpoint !== publicUrl || webhookDefinition.passcode !== passcode) {
                 log.info(`Existing hook ${webhookId} for ${instanceName} has stale endpoint or passcode, updating`);
                 try {
-                    await client.client.put(`v2/webhooks/${webhookId}`, {
+                    await client.client.put(`webhooks/${webhookId}`, {
                         passcode,
                         endpoint: publicUrl,
                     }, axiosConfig);
