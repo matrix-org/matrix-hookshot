@@ -564,12 +564,12 @@ export class Bridge {
                 try {
                     // TODO: Support webhook responses to more than one room
                     if (index !== 0) {
-                        await c.onGenericHook(data.hookData);
+                        await c.onGenericHook(data);
                         return;
                     }
                     let successful: boolean|null = null;
                     if (this.config.generic?.waitForComplete) {
-                        successful = await c.onGenericHook(data.hookData);
+                        successful = await c.onGenericHook(data);
                     }
                     await this.queue.push<GenericWebhookEventResult>({
                         data: {successful},
@@ -579,7 +579,7 @@ export class Bridge {
                     });
                     didPush = true;
                     if (!this.config.generic?.waitForComplete) {
-                        await c.onGenericHook(data.hookData);
+                        await c.onGenericHook(data);
                     }
                 }
                 catch (ex) {
