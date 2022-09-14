@@ -6,7 +6,7 @@ import { Logger } from "matrix-appservice-bridge";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
-import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { EmitterWebhookEvent, EmitterWebhookEventName, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./Jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
@@ -14,13 +14,15 @@ import { GitHubOAuthTokenResponse } from "./Github/Types";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
+import { GithubInstance } from "./Github/GithubInstance";
+import QuickLRU from "@alloc/quick-lru";
 
 const log = new Logger("Webhooks");
 
 export interface NotificationsEnableEvent {
     userId: string;
     roomId: string;
-    since: number;
+    since?: number;
     token: string;
     filterParticipating: boolean;
     type: "github"|"gitlab";
@@ -36,8 +38,9 @@ export interface NotificationsDisableEvent {
 export class Webhooks extends EventEmitter {
     
     public readonly expressRouter = Router();
-    private queue: MessageQueue;
-    private ghWebhooks?: OctokitWebhooks;
+    private readonly queue: MessageQueue;
+    private readonly ghWebhooks?: OctokitWebhooks;
+    private readonly handledGuids = new QuickLRU<string, void>({ maxAge: 5000, maxSize: 100 });
     constructor(private config: BridgeConfig) {
         super();
         this.expressRouter.use((req, _res, next) => {
@@ -61,9 +64,9 @@ export class Webhooks extends EventEmitter {
             this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
         }
         if (this.config.generic) {
-            this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue).getRouter());
+            this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue, false, this.config.generic.enableHttpGet).getRouter());
             // TODO: Remove old deprecated endpoint
-            this.expressRouter.use(new GenericWebhooksRouter(this.queue, true).getRouter());
+            this.expressRouter.use(new GenericWebhooksRouter(this.queue, true, this.config.generic.enableHttpGet).getRouter());
         }
         this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),
@@ -80,9 +83,17 @@ export class Webhooks extends EventEmitter {
     private onGitLabPayload(body: IGitLabWebhookEvent) {
         if (body.object_kind === "merge_request") {
             const action = (body as unknown as IGitLabWebhookMREvent).object_attributes.action;
+            if (!action) {
+                log.warn("Got gitlab.merge_request but no action field, which usually means someone pressed the test webhooks button.");
+                return null;
+            }
             return `gitlab.merge_request.${action}`;
         } else if (body.object_kind === "issue") {
             const action = (body as unknown as IGitLabWebhookIssueStateEvent).object_attributes.action;
+            if (!action) {
+                log.warn("Got gitlab.issue but no action field, which usually means someone pressed the test webhooks button.");
+                return null;
+            }
             return `gitlab.issue.${action}`;
         } else if (body.object_kind === "note") {
             return `gitlab.note.created`;
@@ -92,6 +103,10 @@ export class Webhooks extends EventEmitter {
             return "gitlab.wiki_page";
         } else if (body.object_kind === "release") {
             const action = (body as unknown as IGitLabWebhookReleaseEvent).action;
+            if (!action) {
+                log.warn("Got gitlab.release but no action field, which usually means someone pressed the test webhooks button.");
+                return null;
+            }
             return `gitlab.release.${action}`;
         } else if (body.object_kind === "push") {
             return `gitlab.push`;
@@ -109,8 +124,7 @@ export class Webhooks extends EventEmitter {
     private async onGitHubPayload({id, name, payload}: EmitterWebhookEvent) {
         const action = (payload as unknown as {action: string|undefined}).action;
         const eventName =  `github.${name}${action ? `.${action}` : ""}`;
-        log.info(`Got GitHub webhook event ${id} ${eventName}`);
-        log.debug("Payload:", payload);
+        log.debug(`Got GitHub webhook event ${id} ${eventName}`, payload);
         try {
             await this.queue.push({
                 eventName,
@@ -126,17 +140,21 @@ export class Webhooks extends EventEmitter {
         try {
             let eventName: string|null = null;
             const body = req.body;
-            if (req.headers['x-hub-signature']) {
+            const githubGuid = req.headers['x-github-delivery'] as string|undefined;
+            if (githubGuid) {
                 if (!this.ghWebhooks) {
                     log.warn(`Not configured for GitHub webhooks, but got a GitHub event`)
                     res.sendStatus(500);
                     return;
                 }
                 res.sendStatus(200);
+                if (this.handledGuids.has(githubGuid)) {
+                    return;
+                }
+                this.handledGuids.set(githubGuid);
                 this.ghWebhooks.verifyAndReceive({
-                    id: req.headers["x-github-delivery"] as string,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    name: req.headers["x-github-event"] as any,
+                    id: githubGuid as string,
+                    name: req.headers["x-github-event"] as EmitterWebhookEventName,
                     payload: body,
                     signature: req.headers["x-hub-signature-256"] as string,
                 }).catch((err) => {
@@ -167,7 +185,7 @@ export class Webhooks extends EventEmitter {
     }
 
     public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string}> , res: Response) {
-        log.info(`Got new oauth request for ${req.query.state}`);
+        log.info(`Got new oauth request`, { state: req.query.state });
         try {
             if (!this.config.github || !this.config.github.oauth) {
                 return res.status(500).send(`<p>Bridge is not configured with OAuth support</p>`);
@@ -191,15 +209,14 @@ export class Webhooks extends EventEmitter {
             if (!exists) {
                 return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
             }
-            const accessTokenUrl = new URL("/login/oauth/access_token", this.config.github.baseUrl);
-            const accessTokenRes = await axios.post(`${accessTokenUrl}?${qs.encode({
+            const accessTokenUrl = GithubInstance.generateOAuthUrl(this.config.github.baseUrl, "access_token", {
                 client_id: this.config.github.oauth.client_id,
                 client_secret: this.config.github.oauth.client_secret,
                 code: req.query.code as string,
                 redirect_uri: this.config.github.oauth.redirect_uri,
                 state: req.query.state as string,
-            })}`);
-            // eslint-disable-next-line camelcase
+            });
+            const accessTokenRes = await axios.post(accessTokenUrl);
             const result = qs.parse(accessTokenRes.data) as GitHubOAuthTokenResponse|{error: string, error_description: string, error_uri: string};
             if ("error" in result) {
                 return res.status(500).send(`<p><b>GitHub Error</b>: ${result.error} ${result.error_description}</p>`);

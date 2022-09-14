@@ -34,14 +34,16 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     private octoKit: Octokit;
     public failureCount = 0;
     private interval?: NodeJS.Timeout;
-    private lastReadTs = 0;
     public readonly type = "github";
     public readonly instanceUrl = undefined;
 
-    constructor(token: string, baseUrl: URL, public userId: string, public roomId: string, since: number, private participating = false) {
+    constructor(token: string, baseUrl: URL, public userId: string, public roomId: string, private lastReadTs: number, private participating = false) {
         super();
         this.octoKit =  GithubInstance.createUserOctokit(token, baseUrl);
-        this.lastReadTs = since;
+    }
+
+    public get since() {
+        return this.lastReadTs;
     }
 
     public start(intervalMs: number) {

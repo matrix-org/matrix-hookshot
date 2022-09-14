@@ -12,8 +12,14 @@ import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
+<<<<<<< HEAD
 import { ProvisionConnectionOpts } from "./IConnection";
 import { Logger } from "matrix-appservice-bridge";
+=======
+import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
+import LogWrapper from "../LogWrapper";
+import { ApiError } from "matrix-appservice-bridge";
+>>>>>>> origin/main
 const md = new markdown();
 const log = new Logger("SetupConnection");
 
@@ -34,6 +40,11 @@ export class SetupConnection extends CommandConnection {
         return this.provisionOpts.as;
     }
 
+    protected validateConnectionState(content: unknown) {
+        log.warn("SetupConnection has no state to be validated");
+        return content as IConnectionState;
+    }
+
     constructor(public readonly roomId: string,
         private readonly provisionOpts: ProvisionConnectionOpts,
         private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,) {
@@ -41,6 +52,8 @@ export class SetupConnection extends CommandConnection {
                 roomId,
                 "",
                 "",
+                // TODO Consider storing room-specific config in state.
+                {},
                 provisionOpts.as.botClient,
                 SetupConnection.botCommands,
                 SetupConnection.helpMessage,
@@ -138,11 +151,10 @@ export class SetupConnection extends CommandConnection {
         if (!name || name.length < 3 || name.length > 64) {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
-        const hookId = uuid();
-        const url = `${this.config.generic.urlPrefix}${this.config.generic.urlPrefix.endsWith('/') ? '' : '/'}${hookId}`;
-        await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(userId);
-        await adminRoom.sendNotice(md.renderInline(`You have bridged a webhook. Please configure your webhook source to use \`${url}\`.`));
+        await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use ${url}.`);
         return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }
 
@@ -176,7 +188,11 @@ export class SetupConnection extends CommandConnection {
             await FeedConnection.validateUrl(url);
         } catch (err: unknown) {
             log.debug(`Feed URL '${url}' failed validation: ${err}`);
-            throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            if (err instanceof ApiError) {
+                throw new CommandError("Invalid URL", err.error);
+            } else {
+                throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            }
         }
 
         await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);

@@ -91,11 +91,12 @@ export const DefaultConfig = new BridgeConfig({
         },
     },
     generic: {
-        enabled: false,
-        urlPrefix: "https://example.com/webhook/",
         allowJsTransformationFunctions: false,
+        enabled: false,
+        enableHttpGet: false,
+        urlPrefix: "https://example.com/webhook/",
+        userIdPrefix: "_webhooks_",
         waitForComplete: false,
-        userIdPrefix: "_webhooks_"
     },
     figma: {
         publicUrl: "https://example.com/hookshot/",
@@ -110,6 +111,7 @@ export const DefaultConfig = new BridgeConfig({
     feeds: {
         enabled: false,
         pollIntervalSeconds: 600,
+        pollTimeoutSeconds: 10,
     },
     provisioning: {
         secret: "!secretToken"
@@ -142,11 +144,16 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
         if (keyIsHidden(obj, key)) {
             return;
         }
-        
+
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
             newNode = YAML.createNode({});
             renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq);
+        } else if (typeof value === "function") {
+            if (value.length !== 0) {
+                throw Error("Only zero-argument functions are allowed as config values");
+            }
+            newNode = YAML.createNode(value());
         } else {
             newNode = YAML.createNode(value);
         }

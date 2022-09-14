@@ -26,7 +26,7 @@ queue:
 Once that is done, you can simply start the processes by name using yarn:
 ```
 yarn start:webhooks
-yarn start:matrixsender 
+yarn start:matrixsender
 yarn start:app
 ```
 

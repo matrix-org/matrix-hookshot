@@ -14,7 +14,7 @@ export interface GitHubUserSpaceConnectionState {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles spaces connected to a GitHub user.
  */
 @Connection
 export class GitHubUserSpace extends BaseConnection implements IConnection {

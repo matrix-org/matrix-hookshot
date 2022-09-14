@@ -17,6 +17,7 @@ export interface MessageQueue {
     pushWait: <T, X>(data: MessageQueueMessage<T>, timeout?: number, single?: boolean) => Promise<X>;
     on: <T>(eventName: string, cb: (data: MessageQueueMessageOut<T>) => void) => void;
     stop?(): void;
+    connect?(): Promise<void>;
 }
 
 export const DEFAULT_RES_TIMEOUT = 30000;

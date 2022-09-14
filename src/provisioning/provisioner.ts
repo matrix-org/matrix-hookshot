@@ -3,8 +3,8 @@ import { Router, default as express, NextFunction, Request, Response } from "exp
 import { ConnectionManager } from "../ConnectionManager";
 import { Logger } from "matrix-appservice-bridge";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
-import { ApiError, ErrCode, errorMiddleware } from "../api";
-import { Intent, MembershipEventContent, PowerLevelsEvent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import { ApiError, ErrCode } from "../api";
+import { Intent } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
 
 const log = new Logger("Provisioner");
@@ -70,7 +70,6 @@ export class Provisioner {
             (...args) => this.checkUserPermission("write", ...args),
             this.deleteConnection.bind(this),
         );
-        this.expressRouter.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
     }
 
     private checkAuth(req: Request, _res: Response, next: NextFunction) {

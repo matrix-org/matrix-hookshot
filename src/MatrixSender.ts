@@ -1,6 +1,5 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { MatrixEventContent, MatrixMessageContent } from "./MatrixEvent";
 import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { v4 as uuid } from "uuid";
@@ -11,7 +10,7 @@ export interface IMatrixSendMessage {
     sender: string|null;
     type: string;
     roomId: string;
-    content: MatrixEventContent;
+    content: Record<string, unknown>;
 }
 
 export interface IMatrixSendMessageResponse {
@@ -86,11 +85,11 @@ export class MessageSenderClient {
         return this.sendMatrixMessage(roomId, {
             msgtype,
             body: text,
-        } as MatrixMessageContent, "m.room.message", sender);
+        }, "m.room.message", sender);
     }
 
     public async sendMatrixMessage(roomId: string,
-                                   content: MatrixEventContent, eventType = "m.room.message",
+                                   content: unknown, eventType = "m.room.message",
                                    sender: string|null = null): Promise<string> {
         const result = await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse|IMatrixSendMessageFailedResponse>({
             eventName: "matrix.message",
@@ -99,7 +98,7 @@ export class MessageSenderClient {
                 roomId,
                 type: eventType,
                 sender,
-                content,
+                content: content as Record<string, undefined>,
             },
         });
 

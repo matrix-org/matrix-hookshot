@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'preact/hooks';
 import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
 import GeneralConfig from './configs/GeneralConfig';
 import style from "./AdminSettings.module.scss";
-import BridgeAPI from "../BridgeAPI";
+import { BridgeAPI } from "../BridgeAPI";
 import GitHubState from "../components/GitHubState";
 interface IProps {
     roomState: BridgeRoomState;

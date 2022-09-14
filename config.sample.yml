@@ -77,6 +77,7 @@ generic:
   #
   #
   enabled: false
+  enableHttpGet: false
   urlPrefix: https://example.com/webhook/
   userIdPrefix: _webhooks_
   allowJsTransformationFunctions: false
@@ -86,6 +87,7 @@ feeds:
   #
   enabled: false
   pollIntervalSeconds: 600
+  pollTimeoutSeconds: 10
 provisioning:
   # (Optional) Provisioning API for integration managers
   #
@@ -143,7 +145,7 @@ widgets:
     - fec0::/10
   roomSetupWidget:
     addOnInvite: false
-  publicUrl: http://example.com/widgetapi/v1/static
+  publicUrl: http://example.com/widgetapi/v1/static/
   branding:
     widgetTitle: Hookshot Configuration
 permissions:

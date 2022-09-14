@@ -1,3 +1,208 @@
+2.1.2 (2022-09-03)
+==================
+
+Bugfixes
+--------
+
+- Fix a bug where reading RSS feeds could crash the process. ([\#469](https://github.com/matrix-org/matrix-hookshot/issues/469))
+
+
+2.1.1 (2022-09-02)
+==================
+
+Bugfixes
+--------
+
+- Fixed issue where log lines would only be outputted when the `logging.level` is `debug`. ([\#467](https://github.com/matrix-org/matrix-hookshot/issues/467))
+
+
+2.1.0 (2022-09-02)
+==================
+
+Features
+--------
+
+- Add support for ARM64 docker images. ([\#458](https://github.com/matrix-org/matrix-hookshot/issues/458))
+- Added new config option `feeds.pollTimeoutSeconds` to explictly set how long to wait for a feed response. ([\#459](https://github.com/matrix-org/matrix-hookshot/issues/459))
+- JSON logging output now includes new keys such as `error` and `args`. ([\#463](https://github.com/matrix-org/matrix-hookshot/issues/463))
+
+
+Bugfixes
+--------
+
+- Fix error when responding to a provisioning request for a room that the Hookshot bot isn't yet a member of. ([\#457](https://github.com/matrix-org/matrix-hookshot/issues/457))
+- Fix a bug users without "login" permissions could run login commands for GitHub/GitLab/JIRA, but get an error when attempting to store the token. Users now have their permissions checked earlier. ([\#461](https://github.com/matrix-org/matrix-hookshot/issues/461))
+- Hookshot now waits for Redis to be ready before handling traffic. ([\#462](https://github.com/matrix-org/matrix-hookshot/issues/462))
+- Fix room membership going stale for rooms used in the permissions config. ([\#464](https://github.com/matrix-org/matrix-hookshot/issues/464))
+
+
+Improved Documentation
+----------------------
+
+- Be explicit that identifiers in the permissions yaml config need to be wrapped in quotes, because they start with the characters @ and !. ([\#453](https://github.com/matrix-org/matrix-hookshot/issues/453))
+
+
+Internal Changes
+----------------
+
+- Track coverage of tests. ([\#351](https://github.com/matrix-org/matrix-hookshot/issues/351))
+
+
+2.0.1 (2022-08-22)
+==================
+
+Bugfixes
+--------
+
+- Fix issue that would cause the bridge not to start when using Docker. ([\#448](https://github.com/matrix-org/matrix-hookshot/issues/448))
+
+
+2.0.0 (2022-08-22)
+==================
+
+**Please note:** Minimum Node.JS version is now 16
+
+Features
+--------
+
+- Add a configuration widget for GitHub. ([\#420](https://github.com/matrix-org/matrix-hookshot/issues/420))
+- Add query parameter to scope room config widget to a particular service. ([\#441](https://github.com/matrix-org/matrix-hookshot/issues/441))
+
+
+Bugfixes
+--------
+
+- Fix GitHub notices sometimes coming through multiple times if GitHub sends multiple copies of a webhook. ([\#429](https://github.com/matrix-org/matrix-hookshot/issues/429))
+- Headers and paragraphs now rendered properly when outputted from a Generic webhook transformation function. ([\#443](https://github.com/matrix-org/matrix-hookshot/issues/443))
+- Fixed issue where `!hookshot gitlab project` commands would fail with a "Failed to handle command." error. ([\#445](https://github.com/matrix-org/matrix-hookshot/issues/445))
+
+
+Deprecations and Removals
+-------------------------
+
+- Minimum Node.JS version is now 16. Updated matrix-bot-sdk to 0.6.0. ([\#417](https://github.com/matrix-org/matrix-hookshot/issues/417))
+
+
+Internal Changes
+----------------
+
+- Add Grafana dashboard including documentation. Contributed by @HarHarLinks ([\#407](https://github.com/matrix-org/matrix-hookshot/issues/407))
+- Refactor the way room state is tracked for room-specific configuration, to increase code reuse. ([\#418](https://github.com/matrix-org/matrix-hookshot/issues/418))
+- Add a new PR template body and a CODEOWNERS file. ([\#425](https://github.com/matrix-org/matrix-hookshot/issues/425))
+- Add new CI workflow to check for signoffs. ([\#427](https://github.com/matrix-org/matrix-hookshot/issues/427))
+- Correct the docstrings of some connection classes. ([\#428](https://github.com/matrix-org/matrix-hookshot/issues/428))
+- Optimize docker image rebuilds. ([\#438](https://github.com/matrix-org/matrix-hookshot/issues/438))
+- Better error logging when validating Figma webhooks on startup. ([\#440](https://github.com/matrix-org/matrix-hookshot/issues/440))
+
+
+1.8.1 (2022-07-18)
+==================
+
+Features
+--------
+
+- Added support for decoding XML payloads when handling generic webhooks. ([\#410](https://github.com/matrix-org/matrix-hookshot/issues/410))
+
+
+Bugfixes
+--------
+
+- If `widgets.addToAdminRooms` is set, add the admin widget to a DM room the bot is invited to, instead of the non-admin widget. ([\#411](https://github.com/matrix-org/matrix-hookshot/issues/411))
+- Disallow empty and invalid values for the `widgets.publicUrl` and `generic.urlPrefix` configuration settings. ([\#412](https://github.com/matrix-org/matrix-hookshot/issues/412))
+- Post a non-empty message in response to `github list-connections` when no connections are present. ([\#416](https://github.com/matrix-org/matrix-hookshot/issues/416))
+
+
+Improved Documentation
+----------------------
+
+- Add deeplink for registration.sample.yml to setup documentation ([\#374](https://github.com/matrix-org/matrix-hookshot/issues/374))
+- Update GitHub authentication documentation: list the steps for OAuth login (`github login`), and mention the correct command for checking GitHub authentication status (`github status`). ([\#415](https://github.com/matrix-org/matrix-hookshot/issues/415))
+
+
+Internal Changes
+----------------
+
+- Add package scripts for cleaning build files (which can be run with `yarn clean`). ([\#414](https://github.com/matrix-org/matrix-hookshot/issues/414))
+
+
+1.8.0 (2022-07-11)
+==================
+
+Bugfixes
+--------
+
+- GitHub OAuth URLs for Cloud now use the correct endpoint. ([\#377](https://github.com/matrix-org/matrix-hookshot/issues/377))
+- Fixed setup webhook command not providing the right URL. ([\#379](https://github.com/matrix-org/matrix-hookshot/issues/379))
+- Fixed generic webhook connections not updating when a previously configured transformation function is removed from state. ([\#383](https://github.com/matrix-org/matrix-hookshot/issues/383))
+- Fix malformed webhook link in AdminRoom. ([\#384](https://github.com/matrix-org/matrix-hookshot/issues/384))
+- GitHub admin room notifications will now continue to work if you reauthenticate with GitHub. ([\#388](https://github.com/matrix-org/matrix-hookshot/issues/388))
+- Floats in JSON payloads sent to generic webhooks are now handled properly. See the [documentation](https://matrix-org.github.io/matrix-hookshot/1.8.0/setup/webhooks.html#webhook-handling) for more information. ([\#396](https://github.com/matrix-org/matrix-hookshot/issues/396))
+- Allow replying with the proper notice message when a widget is set up. ([\#403](https://github.com/matrix-org/matrix-hookshot/issues/403))
+- Stringify provision connection data object in logs. ([\#404](https://github.com/matrix-org/matrix-hookshot/issues/404))
+- Fix an issue where GitLab repos could not be bridged if they were already bridged to another room. ([\#406](https://github.com/matrix-org/matrix-hookshot/issues/406))
+
+
+Improved Documentation
+----------------------
+
+- Clarify wording in Generic Hook Setup docs ([\#381](https://github.com/matrix-org/matrix-hookshot/issues/381))
+- Mention RSS/Atom feed support in the project's README. ([\#389](https://github.com/matrix-org/matrix-hookshot/issues/389))
+- Mention that the GitLab test hooks button doesn't send properly formed requests in all cases, and should not be relied upon when testing Hookshot. ([\#398](https://github.com/matrix-org/matrix-hookshot/issues/398))
+- Correct some typos in documentation pages. ([\#401](https://github.com/matrix-org/matrix-hookshot/issues/401))
+
+
+Deprecations and Removals
+-------------------------
+
+- Generic webhooks will no longer respond to `GET` requests by default. Users should consider using the `POST` or `PUT` methods instead.
+  `GET` support can be enabled using the config flag `generic.enableHttpGet`. ([\#397](https://github.com/matrix-org/matrix-hookshot/issues/397))
+
+
+Internal Changes
+----------------
+
+- Add a .node-version file. ([\#376](https://github.com/matrix-org/matrix-hookshot/issues/376))
+- Enable CI for Node 18. ([\#399](https://github.com/matrix-org/matrix-hookshot/issues/399))
+
+
+1.7.3 (2022-06-09)
+==================
+
+Bugfixes
+--------
+
+- Reinstate missing `github` authentication commands in admin room. ([\#372](https://github.com/matrix-org/matrix-hookshot/issues/372))
+
+
+1.7.2 (2022-06-08)
+==================
+
+Features
+--------
+
+- Add support for GitHub enterprise. You can now specify the URL via `enterpriseUrl` in the config file. ([\#364](https://github.com/matrix-org/matrix-hookshot/issues/364))
+- Add ability for bridge admins to remove GitHub connections using the admin room. ([\#367](https://github.com/matrix-org/matrix-hookshot/issues/367))
+
+
+Bugfixes
+--------
+
+- Fix Github API URLs ([\#366](https://github.com/matrix-org/matrix-hookshot/issues/366))
+
+
+Improved Documentation
+----------------------
+
+- Add CONTRIBUTING.md guide. ([\#134](https://github.com/matrix-org/matrix-hookshot/issues/134))
+- Suggest using https for cloning hookshot, rather than git. ([\#355](https://github.com/matrix-org/matrix-hookshot/issues/355))
+
+
+Internal Changes
+----------------
+
+- Widgets now request the RequireClient permission to verify the users identity. ([\#370](https://github.com/matrix-org/matrix-hookshot/issues/370))
+
+
 1.7.1 (2022-05-23)
 ==================
 

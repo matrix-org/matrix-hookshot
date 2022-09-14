@@ -1,6 +1,7 @@
 import { Server } from "http";
-import { Application, default as expressApp, Router } from "express";
 import { Logger } from "matrix-appservice-bridge";
+import { Application, default as expressApp, NextFunction, Request, Response, Router } from "express";
+import { errorMiddleware } from "./api";
 
 // Appserices can't be handled yet because the bot-sdk maintains control of it.
 // See https://github.com/turt2live/matrix-bot-sdk/issues/191
@@ -71,6 +72,8 @@ export class ListenerService {
             }
             const addr = listener.config.bindAddress || "127.0.0.1";
             listener.server = listener.app.listen(listener.config.port, addr);
+            // Always include the error handler
+            listener.app.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
             log.info(`Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)
         }
     }

@@ -12,7 +12,7 @@ export interface GitHubProjectConnectionState {
 const log = new Logger("GitHubProjectConnection");
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub project.
  */
 @Connection
 export class GitHubProjectConnection extends BaseConnection implements IConnection {
@@ -44,7 +44,7 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
         const roomId = await as.botClient.createRoom({
             visibility: "private",
             name: `${project.name}`,
-            topic: project.body,
+            topic: project.body || undefined,
             preset: "private_chat",
             invite: [inviteUser],
             initial_state: [
