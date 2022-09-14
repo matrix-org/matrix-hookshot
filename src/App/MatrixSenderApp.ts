@@ -12,7 +12,7 @@ async function start() {
     const registrationFile = process.argv[3] || "./registration.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
-    LogWrapper.configureLogging(config.logging);
+    LogWrapper.root.configureLogging(config.logging);
     const listener = new ListenerService(config.listeners);
     const sender = new MatrixSender(config, registration);
     if (config.metrics) {
