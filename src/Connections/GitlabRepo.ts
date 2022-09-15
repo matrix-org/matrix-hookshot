@@ -376,10 +376,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
+        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
@@ -392,10 +392,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
             return;
         }
+        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** closed MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
@@ -408,37 +408,13 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
+        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** merged MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
-            msgtype: "m.notice",
-            body: content,
-            formatted_body: md.renderInline(content),
-            format: "org.matrix.custom.html",
-        });
-    }
-
-    public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
-            return;
-        }
-        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
-        this.validateMREvent(event);
-        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
-            // Not interested.
-            return;
-        }
-        const emojiForReview = {
-            'approved': '✅',
-            'unapproved': '🔴'
-        }[event.object_attributes.action];
-        const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** ${emojiForReview} ${event.object_attributes.action} MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -480,10 +456,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
-        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         if (this.shouldSkipHook('tag_push')) {
             return;
         }
+        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         const tagname = event.ref.replace("refs/tags/", "");
         if (this.state.pushTagsRegex && !tagname.match(this.state.pushTagsRegex)) {
             return;
@@ -500,10 +476,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
 
     public async onGitLabPush(event: IGitLabWebhookPushEvent) {
-        log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
         if (this.shouldSkipHook('push')) {
             return;
         }
+        log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
         const branchname = event.ref.replace("refs/heads/", "");
         const commitsurl = `${event.project.homepage}/-/commits/${branchname}`;
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
@@ -539,10 +515,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     
     public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
         const attributes = data.object_attributes;
-        log.info(`onWikiPageEvent ${this.roomId} ${this.instance}/${this.path}`);
         if (this.shouldSkipHook('wiki', `wiki.${attributes.action}`)) {
             return;
         }
+        log.info(`onWikiPageEvent ${this.roomId} ${this.instance}/${this.path}`);
 
         let statement: string;
         if (attributes.action === "create") {
