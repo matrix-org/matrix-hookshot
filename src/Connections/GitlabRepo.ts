@@ -586,7 +586,7 @@ ${data.description}`;
         mergeRequest: IGitlabMergeRequest,
         project: IGitlabProject,
         additionalComments = 0,
-        approved?: true|false,
+        approved?: boolean,
     ) {
         const uniqueId = `${mergeRequest?.iid}/${user.username}`;
         const renderFn = () => {
