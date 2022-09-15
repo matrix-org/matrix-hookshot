@@ -50,6 +50,7 @@ type AllowedEventsNames =
     "merge_request.close" |
     "merge_request.merge" |
     "merge_request.review" |
+    "merge_request.ready_for_review" |
     "merge_request.review.comments" |
     `merge_request.${string}` |
     "merge_request" |
@@ -65,6 +66,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.close",
     "merge_request.merge",
     "merge_request.review",
+    "merge_request.ready_for_review",
     "merge_request.review.comments",
     "merge_request",
     "tag_push",
@@ -421,6 +423,62 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
     }
 
+    public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        this.validateMREvent(event);
+        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
+            // Not interested.
+            return;
+        }
+        const emojiForReview = {
+            'approved': '✅',
+            'unapproved': '🔴'
+        }[event.object_attributes.action];
+        const orgRepoName = event.project.path_with_namespace;
+        const content = `**${event.user.username}** ${emojiForReview} ${event.object_attributes.action} MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onMergeRequestUpdate(event: IGitLabWebhookMREvent) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.ready_for_review')) {
+            return;
+        }
+        log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        this.validateMREvent(event);
+        // Check if the MR changed to / from a draft
+        if (!event.changes.title) {
+            return;
+        }
+        const orgRepoName = event.project.path_with_namespace;
+        let content: string;
+        const wasDraft = event.changes.title.before.startsWith('Draft: ');
+        const isDraft = event.changes.title.after.startsWith('Draft: ');
+        if (wasDraft && !isDraft) {
+            // Ready for review
+            content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `;
+        } else if (!wasDraft && isDraft) {
+            // Back to draft.
+            content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
+        } else {
+            // Nothing changed, drop it.
+            return;
+        }
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
     public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
         log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         if (this.shouldSkipHook('tag_push')) {
@@ -605,7 +663,6 @@ ${data.description}`;
         }
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, 1);
     }
-
 
     public toString() {
         return `GitLabRepo ${this.instance.url}/${this.path}`;

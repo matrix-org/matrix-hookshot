@@ -41,21 +41,25 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
         let webhookDefinition: FigmaWebhookDefinition|undefined;
         if (webhookId) {
             try {
-                webhookDefinition = (await client.client.get(`v2/webhooks/${webhookId}`, axiosConfig)).data;
+                webhookDefinition = (await client.client.get(`webhooks/${webhookId}`, axiosConfig)).data;
                 log.info(`Found existing hook for Figma instance ${instanceName} ${webhookId}`);
             } catch (ex) {
                 const axiosErr = ex as AxiosError;
-                if (axiosErr.isAxiosError) {
-                    log.error(`Failed to update webhook: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
+                if (axiosErr.response?.status !== 404) {
+                    // Missing webhook, probably not found.
+                    if (axiosErr.isAxiosError) {
+                        log.error(`Failed to update webhook: ${axiosErr.response?.status} ${axiosErr.response?.data?.message ?? ""}`)
+                    }
+                    throw Error(`Failed to verify Figma webhooks for ${instanceName}: ${ex.message}`);
                 }
-                throw Error(`Failed to verify Figma webhooks for ${instanceName}: ${ex.message}`);
+                log.warn(`Previous webhook ID ${webhookId} stored but API returned not found, creating new one.`);
             }
         }
         if (webhookDefinition) {
             if (webhookDefinition.endpoint !== publicUrl || webhookDefinition.passcode !== passcode) {
                 log.info(`Existing hook ${webhookId} for ${instanceName} has stale endpoint or passcode, updating`);
                 try {
-                    await client.client.put(`v2/webhooks/${webhookId}`, {
+                    await client.client.put(`webhooks/${webhookId}`, {
                         passcode,
                         endpoint: publicUrl,
                     }, axiosConfig);
@@ -70,12 +74,12 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
         } else {
             log.info(`No webhook defined for instance ${instanceName}, creating`);
             try {
-                const res = await client.client.post(`v2/webhooks`, {
+                const res = await client.client.post(`webhooks`, {
                     passcode,
                     endpoint: publicUrl,
                     description: 'matrix-hookshot',
                     event_type: 'FILE_COMMENT',
-                    team_id: teamId,
+                    team_id: teamId.toString(),
                 }, axiosConfig);
                 webhookDefinition = res.data as FigmaWebhookDefinition;
                 await matrixClient.setAccountData(accountDataKey, {webhookId: webhookDefinition.id});

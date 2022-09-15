@@ -59,7 +59,7 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
                 msgtype: "m.notice",
                 body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command.",
             });
-            log.warn(`Failed to handle command:`, error);
+            log.warn(`Failed to handle command:`, error ?? 'Unknown error');
             return true;
         } else {
             const reaction = commandResult.result?.reaction || '✅';
