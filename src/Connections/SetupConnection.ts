@@ -12,14 +12,8 @@ import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
-<<<<<<< HEAD
-import { ProvisionConnectionOpts } from "./IConnection";
-import { Logger } from "matrix-appservice-bridge";
-=======
 import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
-import LogWrapper from "../LogWrapper";
-import { ApiError } from "matrix-appservice-bridge";
->>>>>>> origin/main
+import { ApiError, Logger } from "matrix-appservice-bridge";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 

@@ -1,14 +1,10 @@
 import { BridgeConfigFigma } from "../Config/Config";
 import * as Figma from 'figma-js';
 import { MatrixClient } from "matrix-bot-sdk";
-<<<<<<< HEAD
 export * from "./router";
 export * from "./types";
 import { Logger } from "matrix-appservice-bridge";
-=======
 import { AxiosError } from "axios";
-import LogWrapper from "../LogWrapper";
->>>>>>> origin/main
 
 export * from "./router";
 export * from "./types";
@@ -21,13 +17,8 @@ interface FigmaWebhookDefinition {
     description: string;
 }
 
-<<<<<<< HEAD
 const log = new Logger('FigmaWebhooks');
  
-=======
-const log = new LogWrapper('FigmaWebhooks');
-
->>>>>>> origin/main
 export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrixClient: MatrixClient) {
     const publicUrl = figmaConfig.publicUrl;
     const axiosConfig = { baseURL: 'https://api.figma.com/v2'};

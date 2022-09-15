@@ -19,7 +19,7 @@ async function start() {
         json: config.logging.json,
         timestampFormat: config.logging.timestampFormat
     });
-    LogService.setLogger(Logger.logServiceLogger);
+    LogService.setLogger(Logger.botSdkLogger);
     const listener = new ListenerService(config.listeners);
     const sender = new MatrixSender(config, registration);
     if (config.metrics) {

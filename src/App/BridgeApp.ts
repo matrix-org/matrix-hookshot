@@ -23,7 +23,7 @@ async function start() {
         json: config.logging.json,
         timestampFormat: config.logging.timestampFormat
     });
-    LogService.setLogger(Logger.logServiceLogger);
+    LogService.setLogger(Logger.botSdkLogger);
 
     if (config.queue.monolithic) {
         const matrixSender = new MatrixSender(config, registration);
@@ -52,7 +52,7 @@ async function start() {
 }
 
 start().catch((ex) => {
-    if (LogWrapper.root.configured) {
+    if (Logger.root.configured) {
         log.error("BridgeApp encountered an error and has stopped:", ex);
     } else {
         // eslint-disable-next-line no-console
