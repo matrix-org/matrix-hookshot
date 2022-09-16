@@ -1,7 +1,6 @@
 import { h, render } from 'preact';
 import 'preact/devtools';
 import App from './App';
-import "@fontsource/open-sans/400.css";
 import "./fonts/fonts.scss"
 import "./styling.scss";
 
