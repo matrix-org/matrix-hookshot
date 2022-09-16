@@ -1,1 +1,0 @@
-Fix Figma service not being able to create new webhooks on startup, causing a crash.
