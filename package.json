@@ -74,7 +74,7 @@
     "yaml": "^1.10.2"
   },
   "devDependencies": {
-    "@codemirror/lang-javascript": "^0.19.7",
+    "@codemirror/lang-javascript": "^6.0.2",
     "@napi-rs/cli": "^2.2.0",
     "@preact/preset-vite": "^2.2.0",
     "@types/ajv": "^1.0.0",
