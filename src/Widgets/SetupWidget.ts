@@ -1,6 +1,7 @@
 
 import { Intent } from "matrix-bot-sdk";
 import { BridgeWidgetConfig } from "../Config/Config";
+import { CommandError } from "../errors";
 import LogWrapper from "../LogWrapper";
 import { HookshotWidgetKind } from "./WidgetKind";
 const log = new LogWrapper("SetupWidget");
@@ -25,6 +26,9 @@ export class SetupWidget {
 
     private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string): Promise<boolean> {
         log.info(`Running SetupRoomConfigWidget for ${roomId}`);
+        if (!await botIntent.underlyingClient.userHasPowerLevelFor(botIntent.userId, roomId, "im.vector.modular.widgets", true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to create a widget in this room. Please promote me to an Admin/Moderator.");
+        }
         try {
             const res = await botIntent.underlyingClient.getRoomStateEvent(
                 roomId,
