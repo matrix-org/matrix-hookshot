@@ -13,12 +13,12 @@ Bugfixes
 
 - Log noisy "Got GitHub webhook event" log line at debug level. ([\#473](https://github.com/matrix-org/matrix-hookshot/issues/473))
 - Fix Figma service not being able to create new webhooks on startup, causing a crash. ([\#481](https://github.com/matrix-org/matrix-hookshot/issues/481))
+- Fix a bug where the bridge can crash when JSON logging is enabled. ([\#478](https://github.com/matrix-org/matrix-hookshot/issues/478))
 
 
 Internal Changes
 ----------------
 
-- Fix a bug where the bridge can crash when JSON logging is enabled. ([\#478](https://github.com/matrix-org/matrix-hookshot/issues/478))
 - Update codemirror and remove unused font. ([\#489](https://github.com/matrix-org/matrix-hookshot/issues/489))
 
 
