@@ -39,7 +39,7 @@ const log = new LogWrapper("GitLabRepoConnection");
 const md = new markdown();
 
 const PUSH_MAX_COMMITS = 5;
-const MRRCOMMENT_DEBOUNCE_MS = 5000;
+const MRRCOMMENT_DEBOUNCE_MS = 30000;
 
 
 export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
@@ -564,7 +564,7 @@ ${data.description}`;
         additionalComments = 0,
         approved?: boolean,
     ) {
-        const uniqueId = `${mergeRequest?.iid}/${user.username}`;
+        const uniqueId = `${mergeRequest.iid}/${user.username}`;
         const renderFn = () => {
             const result = this.debounceMRComments.get(uniqueId);
             if (!result) {
