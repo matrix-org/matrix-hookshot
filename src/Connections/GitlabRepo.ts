@@ -351,6 +351,30 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
     }
 
+    @botCommand("create-confidential", "Create a confidental issue for this repo", ["title"], ["description", "labels"], true)
+    public async onCreateConfidentialIssue(userId: string, title: string, description?: string, labels?: string) {
+        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
+        if (!client) {
+            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
+            throw Error('Not logged in');
+        }
+        const res = await client.issues.create({
+            id: this.path,
+            title,
+            description,
+            confidential: true,
+            labels: labels ? labels.split(",") : undefined,
+        });
+
+        const content = `Created confidential issue #${res.iid}: [${res.web_url}](${res.web_url})`;
+        return this.as.botIntent.sendEvent(this.roomId,{
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html"
+        });
+    }
+
     @botCommand("close", "Close an issue", ["number"], ["comment"], true)
     public async onClose(userId: string, number: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
