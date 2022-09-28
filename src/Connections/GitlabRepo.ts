@@ -14,6 +14,7 @@ import { GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
+import { CommandError } from "../errors";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -328,13 +329,17 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
     }
 
-    @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
-    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+    private async getClientForUser(userId: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
-            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
-            throw Error('Not logged in');
+            throw new CommandError('User is not logged into GitLab', 'You must be logged in to create an issue.');
         }
+        return client;
+    }
+
+    @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
+    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+        const client = await this.getClientForUser(userId);
         const res = await client.issues.create({
             id: this.path,
             title,
@@ -351,13 +356,29 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
     }
 
+    @botCommand("create-confidential", "Create a confidental issue for this repo", ["title"], ["description", "labels"], true)
+    public async onCreateConfidentialIssue(userId: string, title: string, description?: string, labels?: string) {
+        const client = await this.getClientForUser(userId);
+        const res = await client.issues.create({
+            id: this.path,
+            title,
+            description,
+            confidential: true,
+            labels: labels ? labels.split(",") : undefined,
+        });
+
+        const content = `Created confidential issue #${res.iid}: [${res.web_url}](${res.web_url})`;
+        return this.as.botIntent.sendEvent(this.roomId,{
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html"
+        });
+    }
+
     @botCommand("close", "Close an issue", ["number"], ["comment"], true)
     public async onClose(userId: string, number: string) {
-        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
-        if (!client) {
-            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
-            throw Error('Not logged in');
-        }
+        const client = await this.getClientForUser(userId);
 
         await client.issues.edit({
             id: this.state.path,
