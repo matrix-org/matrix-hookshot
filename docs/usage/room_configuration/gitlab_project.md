@@ -28,7 +28,7 @@ This connection supports a few options which can be defined in the room state:
 |pushTagsRegex|Only mention pushed tags which match this regex|Regex string|*empty*|
 |includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
-|includeCommentBody|Include the body of a comment when notifying on merge reqeuests|Boolean|false|
+|includeCommentBody|Include the body of a comment when notifying on merge requests|Boolean|false|
 
 
 ### Supported event types
