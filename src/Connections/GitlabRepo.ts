@@ -597,7 +597,7 @@ ${data.description}`;
         if (result.commentCount === 1) {
             comments = ' with one comment';
         } else if (result.commentCount > 1) {
-            comments = ` with ${result.commentNotes} comments`;
+            comments = ` with ${result.commentCount} comments`;
         }
 
         let approvalState = 'reviewed';
