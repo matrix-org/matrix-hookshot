@@ -20,6 +20,7 @@ export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
     ignoreHooks?: AllowedEventsNames[],
+    includeCommentBody?: boolean;
     pushTagsRegex?: string,
     includingLabels?: string[];
     excludingLabels?: string[];
@@ -112,7 +113,11 @@ const ConnectionStateSchema = {
             type: "array",
             nullable: true,
             items: {type: "string"},
-        }
+        },
+        includeCommentBody: {
+            type: "boolean",
+            nullable: true,
+        },
     },
     required: [
       "instance",
@@ -275,7 +280,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     private readonly debounceMRComments = new Map<string, {
-        comments: number,
+        commentCount: number,
+        comments?: string[],
         author: string,
         timeout: NodeJS.Timeout,
         approved?: boolean,
@@ -582,7 +588,7 @@ ${data.description}`;
         user: IGitlabUser,
         mergeRequest: IGitlabMergeRequest,
         project: IGitlabProject,
-        additionalComments = 0,
+        additionalComments: string[]|number,
         approved?: boolean,
     ) {
         const uniqueId = `${mergeRequest?.iid}/${user.username}`;
@@ -596,9 +602,9 @@ ${data.description}`;
             this.debounceMRComments.delete(uniqueId);
             const orgRepoName = project.path_with_namespace;
             let comments = '';
-            if (result.comments === 1) {
+            if (result.commentCount === 1) {
                 comments = ' with one comment';
-            } else if (result.comments > 1) {
+            } else if (result.commentCount > 1) {
                 comments = ` with ${result.comments} comments`;
             }
 
@@ -609,7 +615,12 @@ ${data.description}`;
                 approvalState = '🔴 unapproved';
             }
 
-            const content = `**${result.author}** ${approvalState} MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"${comments}`;
+            let content = `**${result.author}** ${approvalState} MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"${comments}`;
+
+            if (result.comments) {
+                content += "\n\n> " + result.comments.join("\n\n> ");
+            }
+
             this.as.botIntent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content,
@@ -624,11 +635,20 @@ ${data.description}`;
         if (existing) {
             clearTimeout(existing.timeout);
             existing.approved = approved;
-            existing.comments = existing.comments + additionalComments;
+            if (typeof additionalComments === "number") {
+                existing.commentCount = existing.commentCount + additionalComments;
+            } else {
+                existing.comments = [
+                    ...(existing.comments ?? []),
+                    ...additionalComments,
+                ]
+                existing.commentCount = existing.commentCount + additionalComments.length;
+            }
             existing.timeout = setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS);
         } else {
             this.debounceMRComments.set(uniqueId, {
-                comments: additionalComments,
+                commentCount: typeof additionalComments === "number" ? additionalComments : additionalComments.length,
+                comments: typeof additionalComments !== "number" ? additionalComments : undefined,
                 approved,
                 author: user.name,
                 timeout: setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS),
@@ -646,7 +666,13 @@ ${data.description}`;
             // Not interested.
             return;
         }
-        this.debounceMergeRequestReview(event.user, event.object_attributes, event.project, 0, "approved" === event.object_attributes.action);
+        this.debounceMergeRequestReview(
+            event.user,
+            event.object_attributes, 
+            event.project,
+            0,
+            "approved" === event.object_attributes.action
+        );
     }
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
@@ -658,7 +684,7 @@ ${data.description}`;
             // Not a MR comment
             return;
         }
-        this.debounceMergeRequestReview(event.user, event.merge_request, event.project, 1);
+        this.debounceMergeRequestReview(event.user, event.merge_request, event.project, this.state.includeCommentBody ? [event.object_attributes.note] : 1);
     }
 
     public toString() {
