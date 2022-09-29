@@ -26,9 +26,9 @@ This connection supports a few options which can be defined in the room state:
 |ignoreHooks|Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
 |commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gh`|
 |pushTagsRegex|Only mention pushed tags which match this regex|Regex string|*empty*|
-|prDiff|Show a diff in the room when a PR is created, subject to limits|`{enabled: boolean, maxLines: number}`|`{enabled: false}`|
 |includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|includeCommentBody|Include the body of a comment when notifying on merge reqeuests|Boolean|false|
 
 
 ### Supported event types
