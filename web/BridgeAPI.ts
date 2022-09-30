@@ -129,7 +129,7 @@ export class BridgeAPI {
         return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
     }
 
-    getConnectionTargets<R>(type: string, filters?: Record<string, never>|Record<string, string>): Promise<R[]> {
+    getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>): Promise<R[]> {
         const searchParams = filters && new URLSearchParams(filters);
         return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`);
     }
