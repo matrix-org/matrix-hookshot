@@ -1,21 +1,22 @@
 # JIRA
 
-## Adding a webhook to a JIRA Organisation
+## Adding a webhook to a JIRA Instance
 
-This should be done for all JIRA organisations you wish to bridge. The setup steps are the same for both On-Prem and Cloud.
+This should be done for the JIRA instance you wish to bridge. The setup steps are the same for both On-Prem and Cloud.
 
 You need to go to the `WebHooks` configuration page under Settings > System.
+Note that this may require administrative access to the JIRA instance.
 
 Next, add a webhook that points to `/` on the public webhooks address for hookshot. You should also include a
 secret value by appending `?secret=your-webhook-secret`. The secret value can be anything, but should
 be reasonably secure and should also be stored in the `config.yml` file.
 
-Ensure that you enable all the events that you wish to be bridge.
+Ensure that you enable all the events that you wish to be bridged.
 
 
 ## Configuration
 
-You can now set some configuration in the bridge `config.yml`
+You can now set some configuration in the bridge `config.yml`:
 
 ```yaml
 jira:
