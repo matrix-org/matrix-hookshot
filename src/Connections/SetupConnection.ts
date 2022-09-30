@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection } from ".";
+import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
 import { CommandError } from "../errors";
 import { v4 as uuid } from "uuid";
 import { BridgePermissionLevel } from "../Config/Config";
@@ -112,27 +112,91 @@ export class SetupConnection extends CommandConnection {
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.path}`);
     }
 
+    private async checkJiraLogin(userId: string, urlStr: string) {
+        const jiraClient = await this.provisionOpts.tokenStore.getJiraForUser(userId, urlStr);
+        if (!jiraClient) {
+            throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
+        }
+    }
+
+    private async getJiraProjectSafeUrl(userId: string, urlStr: string) {
+        const url = new URL(urlStr);
+        const urlParts = /\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname);
+        const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
+        if (!projectKey) {
+            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`.");
+        }
+        return `https://${url.host}/projects/${projectKey}`;
+    }
+
     @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: "jira"})
     public async onJiraProject(userId: string, urlStr: string) {
-        const url = new URL(urlStr);
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira.");
         }
 
         await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+        await this.checkJiraLogin(userId, urlStr);
+        const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
 
-        const jiraClient = await this.provisionOpts.tokenStore.getJiraForUser(userId, urlStr);
-        if (!jiraClient) {
-            throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
-        }
-        const urlParts = /.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname.toLowerCase());
-        const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
-        if (!projectKey) {
-            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`.");
-        }
-        const safeUrl = `https://${url.host}/projects/${projectKey}`;
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
+    }
+
+    @botCommand("jira list project", { help: "Show JIRA projects currently connected to.", category: "jira"})
+    public async onJiraListProject() {
+        const projects: JiraProjectConnectionState[] = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return []; // not an error to us
+            }
+            throw err;
+        }).then(events =>
+            events.filter(
+                (ev: any) => (
+                    ev.type === JiraProjectConnection.CanonicalEventType ||
+                    ev.type === JiraProjectConnection.LegacyCanonicalEventType
+                ) && ev.content.url
+            ).map(ev => ev.content)
+        );
+
+        if (projects.length === 0) {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not connected to any JIRA projects'));
+        } else {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(
+                'Currently connected to these JIRA projects:\n\n' +
+                 projects.map(project => ` - ${project.url}`).join('\n')
+            ));
+        }
+    }
+
+    @botCommand("jira remove project", { help: "Remove a connection for a JIRA project.", requiredArgs: ["url"], includeUserId: true, category: "jira"})
+    public async onJiraRemoveProject(userId: string, urlStr: string) {
+        await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+        await this.checkJiraLogin(userId, urlStr);
+        const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
+
+        const eventTypes = [
+            JiraProjectConnection.CanonicalEventType,
+            JiraProjectConnection.LegacyCanonicalEventType,
+        ];
+        let event = null;
+        let eventType = "";
+        for (eventType of eventTypes) {
+            try {
+                event = await this.as.botClient.getRoomStateEvent(this.roomId, eventType, safeUrl);
+                break;
+            } catch (err: any) {
+                if (err.body.errcode !== 'M_NOT_FOUND') {
+                    throw err;
+                }
+            }
+        }
+        if (!event || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid Jira project URL", `Feed "${urlStr}" is not currently bridged to this room`);
+        }
+
+        await this.as.botClient.sendStateEvent(this.roomId, eventType, safeUrl, {});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
     }
 
     @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: "webhook"})
