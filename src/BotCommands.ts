@@ -49,10 +49,15 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
             const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
             if (b) {
                 const category = b.category || "default";
-                const requiredArgs = b.requiredArgs?.join(" ") || "";
+                const requiredArgs = b.requiredArgs?.map((arg: string) =>  `<${arg}>`).join(" ") || "";
                 const optionalArgs = b.optionalArgs?.map((arg: string) =>  `[${arg}]`).join(" ") || "";
+                const cmdStr =
+                    ` - \`££PREFIX££${b.prefix}` +
+                    (requiredArgs ? ` ${requiredArgs}` : "") +
+                    (optionalArgs ? ` ${optionalArgs}` : "") +
+                    `\` - ${b.help}`;
                 cmdStrs[category] = cmdStrs[category] || []
-                cmdStrs[category].push(` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}`);
+                cmdStrs[category].push(cmdStr);
                 // We know that these types are safe.
                 botCommands[b.prefix as string] = {
                     fn: prototype[propertyKey],

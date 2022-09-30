@@ -59,7 +59,10 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
                 continue;
             }
             const user = await clientForResource.getCurrentUser();
-            response += `\n - ${resource.name} ${user.name} (${user.displayName || ""})`;
+            response +=
+                `\n - ${resource.name}` +
+                (user.name ? ` ${user.name}` : "") +
+                (user.displayName ? ` (${user.displayName})` : "");
         }
         await this.sendNotice(response);
     }

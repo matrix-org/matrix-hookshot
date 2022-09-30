@@ -224,7 +224,7 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
-    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom feed.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
     public async onFeedRemove(userId: string, url: string) {
         await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
 
