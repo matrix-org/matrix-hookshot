@@ -20,7 +20,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         try {
             const res = await api.getConnectionTargets<GitLabRepoConnectionTarget>(EventType, filter);
             if (!filter.instance) {
-                setInstances(res);
+                setInstances(res as GitLabRepoConnectionInstanceTarget[]);
                 if (res[0]) {
                     setFilter({instance: res[0].name, search: ""});
                 }
@@ -82,12 +82,12 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         {instances === null && <p> Loading GitLab instances. </p>}
         {instances?.length === 0 && <p> You are not logged into any GitLab instances. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
-        <InputField visible={instances ? instances.length > 0 : false} label="GitLab Instance" noPadding={true}>
+        <InputField visible={!!instances?.length} label="GitLab Instance" noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}
             </select>
         </InputField>
-        <InputField visible={instances ? instances.length > 0 : false} label="Project" noPadding={true}>
+        <InputField visible={!!instances?.length} label="Project" noPadding={true}>
             <small>{currentProjectPath ?? ""}</small>
             <input onChange={updateSearchFn} value={filter.search} list="gitlab-projects" type="text" />
             <datalist id="gitlab-projects">
