@@ -131,6 +131,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
     const commandPrefixRef = createRef<HTMLInputElement>();
+    const includeBodyRef = createRef<HTMLInputElement>();
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
         if (!canEdit || !existingConnection && !newInstanceState) {
@@ -141,6 +142,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             onSave({
                 ...(state),
                 ignoreHooks: ignoredHooks as any[],
+                includeCommentBody: includeBodyRef.current?.checked,
                 commandPrefix: commandPrefixRef.current?.value,
             });
         }
@@ -156,6 +158,9 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         </InputField>
         <InputField visible={!!existingConnection || !!newInstanceState} ref={commandPrefixRef} label="Command Prefix" noPadding={true}>
             <input type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
+        </InputField>
+        <InputField visible={!!existingConnection || !!newInstanceState} ref={includeBodyRef} label="" noPadding={true}>
+            <input disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
         </InputField>
         <InputField visible={!!existingConnection || !!newInstanceState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
