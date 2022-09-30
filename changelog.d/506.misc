@@ -1,0 +1,1 @@
+Refactor the Vite component's `tsconfig.json` file to make it compatible with the TypeScript project settings & the TypeScript language server.
