@@ -76,7 +76,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
         }
         // Things break if we depend on the thing we are clearing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchFn, filter, isConnected, instances]);
+    }, [searchFn, filter]);
 
     const onInstancePicked = useCallback((evt: InputEvent) => {
         // Reset the search string.
@@ -97,7 +97,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
 
 
     return <div>
-        {instances === null && <p> Loading JIRA connection. </p>}
+        {isConnected === null && <p> Loading JIRA connection. </p>}
         {isConnected === false && <p> You are not logged into JIRA. </p>}
         {isConnected === true && instances?.length === 0 && <p> You are not connected to any JIRA instances. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
