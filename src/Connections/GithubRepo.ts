@@ -1042,7 +1042,7 @@ ${event.release.body}`;
         }
     }
 
-    public getProvisionerDetails() {
+    public getProvisionerDetails(): GitHubRepoResponseItem {
         return {
             ...GitHubRepoConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,

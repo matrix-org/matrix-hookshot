@@ -257,7 +257,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 if (client) {
                     results.push({
                         name,
-                    } as GitLabRepoConnectionInstanceTarget);
+                    });
                 }
             }
             return results;
@@ -325,7 +325,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
-    public getProvisionerDetails() {
+    public getProvisionerDetails(): GitLabRepoResponseItem {
         return {
             ...GitLabRepoConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,

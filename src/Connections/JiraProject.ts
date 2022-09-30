@@ -234,7 +234,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         }
     }
 
-    public getProvisionerDetails() {
+    public getProvisionerDetails(): JiraProjectResponseItem {
         return {
             ...JiraProjectConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
