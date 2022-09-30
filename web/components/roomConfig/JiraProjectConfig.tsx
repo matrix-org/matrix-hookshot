@@ -21,6 +21,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
     const [filter, setFilter] = useState<JiraTargetFilter>({});
     const [results, setResults] = useState<JiraProjectConnectionProjectTarget[]|null>(null);
     const [instances, setInstances] = useState<JiraProjectConnectionInstanceTarget[]|null>(null);
+    const [isConnected, setIsConnected] = useState<boolean|null>(null);
     const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
     const [currentProject, setCurrentProject] = useState<{url: string, name: string}|null>(null);
     const [searchError, setSearchError] = useState<string|null>(null);
@@ -28,6 +29,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
     const searchFn = useCallback(async() => {
         try {
             const res = await api.getConnectionTargets<JiraProjectConnectionTarget>(EventType, filter);
+            setIsConnected(true);
             if (!filter.instanceName) {
                 setInstances(res as JiraProjectConnectionInstanceTarget[]);
                 if (res[0]) {
@@ -38,6 +40,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
             }
         } catch (ex: any) {
             if (ex?.errcode === ErrCode.ForbiddenUser) {
+                setIsConnected(false);
                 setInstances([]);
             } else {
                 setSearchError("There was an error fetching search results.");
@@ -60,7 +63,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
                 name: getProjectPrettyName(hasResult),
             });
         }
-    }, [onPicked, results, filter]);
+    }, [onPicked, results]);
 
     useEffect(() => {
         if (debounceTimer) {
@@ -73,7 +76,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
         }
         // Things break if we depend on the thing we are clearing.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchFn, filter, instances]);
+    }, [searchFn, filter, isConnected, instances]);
 
     const onInstancePicked = useCallback((evt: InputEvent) => {
         // Reset the search string.
@@ -95,7 +98,8 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
 
     return <div>
         {instances === null && <p> Loading JIRA connection. </p>}
-        {instances?.length === 0 && <p> You are not logged into JIRA. </p>}
+        {isConnected === false && <p> You are not logged into JIRA. </p>}
+        {isConnected === true && instances?.length === 0 && <p> You are not connected to any JIRA instances. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
         <InputField visible={!!instances?.length} label="JIRA Instance" noPadding={true}>
             <select onChange={onInstancePicked}>
