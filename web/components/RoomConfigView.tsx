@@ -7,10 +7,12 @@ import { FeedsConfig } from "./roomConfig/FeedsConfig";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
 import { GithubRepoConfig } from "./roomConfig/GithubRepoConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
+import { JiraProjectConfig } from "./roomConfig/JiraProjectConfig";
 
 import FeedsIcon from "../icons/feeds.png";
 import GitHubIcon from "../icons/github.png";
 import GitLabIcon from "../icons/gitlab.png";
+import JiraIcon from "../icons/jira.png";
 import WebhookIcon from "../icons/webhook.png";
 
 
@@ -27,6 +29,7 @@ enum ConnectionType {
     Generic = "generic",
     Github  = "github",
     Gitlab  = "gitlab",
+    Jira    = "jira",
 }
 
 interface IConnectionProps {
@@ -54,6 +57,12 @@ const connections: Record<ConnectionType, IConnectionProps> = {
         description: "Connect the room to a GitLab project",
         icon: GitLabIcon,
         component: GitlabRepoConfig,
+    },
+    [ConnectionType.Jira]: {
+        displayName: 'JIRA',
+        description: "Connect the room to a JIRA project",
+        icon: JiraIcon,
+        component: JiraProjectConfig,
     },
     [ConnectionType.Generic]: {
         displayName: 'Generic Webhook',

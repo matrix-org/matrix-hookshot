@@ -302,6 +302,10 @@ export class ConnectionManager extends EventEmitter {
             const configObject = this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
             return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject);
         }
+        case JiraProjectConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.jira, "JIRA", "jira");
+            return await JiraProjectConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
+        }
         default:
             throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);
         }

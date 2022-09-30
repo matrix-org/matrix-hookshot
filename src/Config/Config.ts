@@ -637,6 +637,9 @@ export class BridgeConfig {
             case "gitlab":
                 config = this.gitlab?.publicConfig;
                 break;
+            case "jira":
+                config = {};
+                break;
             default:
                 throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);
         }
