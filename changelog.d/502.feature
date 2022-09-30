@@ -1,1 +1,1 @@
-Add a configuration widget for Jira.
+Add room configuration widget for Jira.
