@@ -1,3 +1,27 @@
+2.2.0 (2022-09-16)
+==================
+
+Features
+--------
+
+- Ready/draft state changes for GitLab merge requests are now reported. ([\#480](https://github.com/matrix-org/matrix-hookshot/issues/480))
+- Merge GitLab MR approvals and comments into one message. ([\#484](https://github.com/matrix-org/matrix-hookshot/issues/484))
+
+
+Bugfixes
+--------
+
+- Log noisy "Got GitHub webhook event" log line at debug level. ([\#473](https://github.com/matrix-org/matrix-hookshot/issues/473))
+- Fix Figma service not being able to create new webhooks on startup, causing a crash. ([\#481](https://github.com/matrix-org/matrix-hookshot/issues/481))
+- Fix a bug where the bridge can crash when JSON logging is enabled. ([\#478](https://github.com/matrix-org/matrix-hookshot/issues/478))
+
+
+Internal Changes
+----------------
+
+- Update codemirror and remove unused font. ([\#489](https://github.com/matrix-org/matrix-hookshot/issues/489))
+
+
 2.1.2 (2022-09-03)
 ==================
 
