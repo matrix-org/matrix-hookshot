@@ -541,7 +541,7 @@ export class Bridge {
                 // Some users won't have an admin room and would have gone through provisioning.
                 const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
                 if (adminRoom) {
-                    await adminRoom.sendNotice(`Logged into Jira`);
+                    await adminRoom.sendNotice("Logged into Jira");
                 }
                 result = JiraOAuthRequestResult.Success;
             } catch (ex) {
