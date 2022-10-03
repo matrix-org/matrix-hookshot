@@ -299,8 +299,11 @@ export class ConnectionManager extends EventEmitter {
             return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
         }
         case GitHubRepoConnection.CanonicalEventType: {
-            const configObject = this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
-            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject);
+            this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
+            if (!this.github) {
+                throw Error("GitHub instance was never initialized");
+            }
+            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, this.github, filters);
         }
         case JiraProjectConnection.CanonicalEventType: {
             const configObject = this.validateConnectionTarget(userId, this.config.jira, "JIRA", "jira");
