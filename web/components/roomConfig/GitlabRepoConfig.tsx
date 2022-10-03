@@ -156,11 +156,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection} label="Project" noPadding={true}>
             <input disabled={true} type="text" value={existingConnection?.config.path} />
         </InputField>
-        <InputField visible={!!existingConnection || !!newInstanceState} ref={commandPrefixRef} label="Command Prefix" noPadding={true}>
-            <input type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
+        <InputField visible={!!existingConnection || !!newInstanceState} label="Command Prefix" noPadding={true}>
+            <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
         </InputField>
-        <InputField visible={!!existingConnection || !!newInstanceState} ref={includeBodyRef} label="" noPadding={true}>
-            <input disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
+        <InputField visible={!!existingConnection || !!newInstanceState} label="" noPadding={true}>
+            <input ref={includeBodyRef} disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
         </InputField>
         <InputField visible={!!existingConnection || !!newInstanceState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
