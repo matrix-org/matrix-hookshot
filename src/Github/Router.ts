@@ -4,6 +4,7 @@ import { ApiError, ErrCode } from "../api";
 import { UserTokenStore } from "../UserTokenStore";
 import LogWrapper from "../LogWrapper";
 import { GithubInstance } from "./GithubInstance";
+import { NAMELESS_ORG_PLACEHOLDER } from "./Types";
 
 const log = new LogWrapper("GitHubProvisionerRouter");
 interface GitHubAccountStatus {
@@ -74,7 +75,7 @@ export class GitHubProvisionerRouter {
             for (const install of installs.data.installations) {
                 if (install.account) {
                     organisations.push({
-                        name: install.account.login || "No name", // org or user name
+                        name: install.account.login || NAMELESS_ORG_PLACEHOLDER, // org or user name
                         avatarUrl: install.account.avatar_url,
                     });
                 } else {
@@ -110,7 +111,7 @@ export class GitHubProvisionerRouter {
 
             if (ownSelf.data.login === req.params.orgName) {
                 const userInstallation = await this.githubInstance.appOctokit.apps.getUserInstallation({username: ownSelf.data.login});
-                reposPromise = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
                     page,
                     installation_id: userInstallation.data.id,
                     per_page: perPage,
@@ -123,7 +124,7 @@ export class GitHubProvisionerRouter {
 
                 // Github will error if the authed user tries to list repos of a disallowed installation, even
                 // if we got the installation ID from the app's instance.
-                reposPromise = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
                     page,
                     installation_id: orgInstallation.data.id,
                     per_page: perPage,
