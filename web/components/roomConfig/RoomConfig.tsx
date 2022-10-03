@@ -12,6 +12,7 @@ export interface ConnectionConfigurationProps<SConfig, ConnectionType extends Ge
     onSave: (newConfig: ConnectionState) => void,
     existingConnection?: ConnectionType;
     onRemove?: () => void,
+    onRefresh?: () => void,
     api: BridgeAPI;
 }
 
@@ -42,6 +43,11 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     const [ newConnectionKey, incrementConnectionKey ] = useReducer<number, undefined>(n => n+1, 0);
 
     useEffect(() => {
+        refreshConnections();
+    }, [api, roomId, type, newConnectionKey]);
+
+
+    const refreshConnections = useCallback(() => {
         api.getConnectionsForService<ConnectionType>(roomId, type).then(res => {
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
@@ -53,10 +59,11 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
             });
         });
-    }, [api, roomId, type, newConnectionKey]);
+    }, [api, roomId, type]);
 
     useEffect(() => {
-        api.getServiceConfig<SConfig>(type)
+        if (!serviceConfig) {
+            api.getServiceConfig<SConfig>(type)
             .then(setServiceConfig)
             .then(() => {
                 setError(null);
@@ -68,7 +75,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
                 });
             })
-    }, [api, type]);
+        }
+    }, [api, type, serviceConfig]);
 
     const handleSaveOnCreation = useCallback((config: ConnectionState) => {
         api.createConnection(roomId, connectionEventType, config).then(() => {
@@ -99,6 +107,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 api={api}
                 serviceConfig={serviceConfig}
                 onSave={handleSaveOnCreation}
+                onRefresh={refreshConnections}
             />}
         </section>}
         <section>
@@ -108,6 +117,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         api={api}
                         serviceConfig={serviceConfig}
                         existingConnection={c}
+                        onRefresh={refreshConnections}
                         onSave={(config) => {
                             api.updateConnection(roomId, c.id, config).then(() => {
                                 // Force reload

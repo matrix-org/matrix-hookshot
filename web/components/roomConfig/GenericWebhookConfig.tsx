@@ -7,6 +7,7 @@ import { GenericHookConnectionState, GenericHookResponseItem } from "../../../sr
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
+import styles from "./FeedConnection.module.scss";
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
@@ -27,8 +28,38 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
 
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
 
+const RecentResults: FunctionComponent<{item: GenericHookResponseItem, onRefreshClick: MouseEvent}> = ({ item, onRefreshClick }) => {
+    if (!item.secrets) {
+        return null;
+    }
+    return <>
+        <h3>Recent requests</h3>
+        <Button onClick={onRefreshClick}> Refresh </Button> 
+        {!item.secrets.lastResults.length && <span>There have been no recent requests.</span>}
+        <ul>
+            {item.secrets.lastResults.map(item => <li className={styles.resultListItem} key={item.timestamp}>
+                {new Date(item.timestamp).toLocaleString()}: 
+                {item.ok && ` Successful request`}
+                {!item.ok && `⚠️ ${item.error}`}
+                <details>
+                    <summary>Details</summary>
+                    { item.error && <p>Error: <span>{item.error}</span></p> }
+                    <p>User-Agent: <span>{item.metadata.userAgent || "Unknown"}</span></p>
+                    <p>Content-Type: <span>{item.metadata.contentType || "Unknown"}</span></p>
+                    { item.logs && <>
+                        <p> Logs </p>
+                        <pre className={styles.logContainer}>
+                            {item.logs}
+                        </pre>
+                    </>}
+                </details>
+            </li>
+            )}
+        </ul>
+    </>;
+}
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove}) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, onRefresh}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
     const nameRef = createRef<HTMLInputElement>();
@@ -72,6 +103,9 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             { canEdit && <Button type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
             { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove webhook</Button>}
         </ButtonSet>
+
+        { existingConnection && <RecentResults onRefreshClick={onRefresh} item={existingConnection} />}
+
     </form>;
 };
 

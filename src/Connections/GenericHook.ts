@@ -10,6 +10,7 @@ import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
+import { GenericWebhookEvent } from "../generic/types";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -32,6 +33,10 @@ export interface GenericHookSecrets {
      * The hookId of the webhook.
      */
     hookId: string;
+    /**
+     * The results of webhook actions.
+     */
+    lastResults: Array<LastResult>;
 }
 
 export type GenericHookResponseItem = GetConnectionsResponseItem<GenericHookConnectionState, GenericHookSecrets>;
@@ -52,12 +57,33 @@ interface WebhookTransformationResult {
     empty?: boolean;
 }
 
+interface TransformationResult {
+    logs: string;
+    content: {
+        plain: string;
+        msgtype?: string;
+        html?: string;
+    }|null,
+}
+
+export interface LastResult {
+    timestamp: number;
+    metadata: {
+        userAgent?: string;
+        contentType?: string;
+    };
+    logs?: string;
+    ok: boolean;
+    error?: string;
+}
+
 const log = new LogWrapper("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 5;
 const SANITIZE_MAX_BREADTH = 25;
+const MAX_LAST_RESULT_ITEMS = 5;
 
 /**
  * Handles rooms connected to a generic webhook.
@@ -192,6 +218,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     private transformationFunction?: Script;
     private cachedDisplayname?: string;
+    private readonly lastResults = new Array<LastResult>();
     constructor(roomId: string,
         private state: GenericHookConnectionState,
         public readonly hookId: string,
@@ -293,27 +320,50 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
+    public executeTransformationFunction(data: unknown): TransformationResult {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
+        let logs = "";
         const vm = new NodeVM({
-            console: 'off',
+            console: 'redirect',
             wrapper: 'none',
             wasm: false,
             eval: false,
             timeout: TRANSFORMATION_TIMEOUT_MS,
-        });
-        vm.setGlobal('HookshotApiVersion', 'v2');
-        vm.setGlobal('data', data);
+        })
+        .setGlobal('HookshotApiVersion', 'v2')
+        .setGlobal('data', data)
+        .on('console.log', (msg, ...args) => {
+            logs += `\n${msg} ${args.join(' ')}`;
+        })
+        .on('console.info', (msg, ...args) => {
+            logs += `\ninfo: ${msg} ${args.join(' ')}`;
+        })
+        .on('console.warn', (msg, ...args) => {
+            logs += `\nwarn: ${msg} ${args.join(' ')}`;
+        })
+        .on('console.error', (msg, ...args) => {
+            logs += `\nerror: ${msg} ${args.join(' ')}`;
+        })
         vm.run(this.transformationFunction);
         const result = vm.getGlobal('result');
 
         // Legacy v1 api
         if (typeof result === "string") {
-            return {plain: `Received webhook: ${result}`};
+            return {
+                content: {
+                    plain: `Received webhook: ${result}`
+                },
+                logs
+            };
         } else if (typeof result !== "object") {
-            return {plain: `No content`};
+            return {
+                content: {
+                    plain: "No content"
+                },
+                logs
+            };
         }
         const transformationResult = result as WebhookTransformationResult;
         if (transformationResult.version !== "v2") {
@@ -321,7 +371,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         if (transformationResult.empty) {
-            return null; // No-op
+            return { logs, content: null }; // No-op
         }
 
         const plain = transformationResult.plain;
@@ -336,10 +386,18 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         return {
-            plain: plain,
-            html: transformationResult.html,
-            msgtype: transformationResult.msgtype,
-        }
+            content: {
+                plain,
+                html: transformationResult.html,
+                msgtype: transformationResult.msgtype,
+            },
+            logs
+        };
+    }
+
+    public addLastResult(result: LastResult) {
+        this.lastResults.unshift(result);
+        this.lastResults.splice(MAX_LAST_RESULT_ITEMS-1, 1);
     }
 
     /**
@@ -347,22 +405,38 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @param data Structured data. This may either be a string, or an object.
      * @returns `true` if the webhook completed, or `false` if it failed to complete 
      */
-    public async onGenericHook(data: unknown): Promise<boolean> {
+    public async onGenericHook(event: GenericWebhookEvent): Promise<boolean> {
+        const data = event.hookData;
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string, msgtype?: string};
         let success = true;
+        let functionResult: TransformationResult|undefined;
+        let error: string|undefined;
+
+        // Matrix cannot handle float data, so make sure we parse out any floats.
+        const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
         } else {
             try {
-                const potentialContent = this.executeTransformationFunction(data);
-                if (potentialContent === null) {
+                functionResult = this.executeTransformationFunction(data);
+                if (functionResult.content === null) {
                     // Explitly no action
+                    this.addLastResult({
+                        ok: success,
+                        timestamp: Date.now(),
+                        logs: functionResult.logs,
+                        metadata: {
+                            userAgent: event.userAgent,
+                            contentType: event.contentType,
+                        }
+                    });
                     return true;
                 }
-                content = potentialContent;
+                content = functionResult.content;
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
+                error = ex.message;
                 content = {plain: `Webhook received but failed to process via transformation function`};
                 success = false;
             }
@@ -370,9 +444,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
         const sender = this.getUserId();
         await this.ensureDisplayname();
-
-        // Matrix cannot handle float data, so make sure we parse out any floats.
-        const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
         
         await this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: content.msgtype || "m.notice",
@@ -382,8 +453,17 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": safeData,
         }, 'm.room.message', sender);
+        this.addLastResult({
+            ok: success,
+            timestamp: Date.now(),
+            logs: functionResult?.logs,
+            error,
+            metadata: {
+                userAgent: event.userAgent,
+                contentType: event.contentType,
+            }
+        });
         return success;
-
     }
 
     public static getProvisionerDetails(botUserId: string) {
@@ -407,6 +487,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             ...(showSecrets ? { secrets: {
                 url: new URL(this.hookId, this.config.parsedUrlPrefix),
                 hookId: this.hookId,
+                lastResults: this.lastResults,
             } as GenericHookSecrets} : undefined)
         }
     }

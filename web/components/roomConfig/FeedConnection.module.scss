@@ -2,3 +2,8 @@
     list-style: none;
     padding-bottom: 1rem;
 }
+
+.logContainer {
+    overflow: auto;
+    max-height: 10rem;
+}

@@ -33,6 +33,8 @@ export class GenericWebhooksRouter {
             data: {
                 hookData: body,
                 hookId: req.params.hookId,
+                userAgent: req.headers["user-agent"],
+                contentType: req.headers["content-type"],
             },
         }, WEBHOOK_RESPONSE_TIMEOUT).then((response) => {
             if (response.notFound) {
