@@ -77,7 +77,7 @@ export class SetupConnection extends CommandConnection {
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
         }
-        const urlParts = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(url.trim().toLowerCase());
+        const urlParts = /^https:\/\/github\.com\/([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+)$/.exec(url.trim());
         if (!urlParts) {
             throw new CommandError("Invalid GitHub url", "The GitHub url you entered was not valid.");
         }

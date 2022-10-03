@@ -68,8 +68,8 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
             throw Error("Could not find repo");
         }
         const state: GitHubDiscussionSpaceConnectionState = {
-            owner: repoRes.owner.login.toLowerCase(),
-            repo: repoRes.name.toLowerCase(),
+            owner: repoRes.owner.login,
+            repo: repoRes.name,
         };
 
         // URL hack so we don't need to fetch the repo itself.
@@ -106,7 +106,7 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
             name: `${state.owner}/${state.repo} Discussions`,
             topic: `GitHub discussion index for ${state.owner}/${state.repo}`,
             preset: 'public_chat',
-            room_alias_name: `github_disc_${owner.toLowerCase()}_${repo.toLowerCase()}`,
+            room_alias_name: `github_disc_${owner}_${repo}`,
             initial_state: [
                 
                 {
@@ -152,11 +152,11 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
     }
 
     public get repo() {
-        return this.state.repo.toLowerCase();
+        return this.state.repo;
     }
 
     public get owner() {
-        return this.state.owner.toLowerCase();
+        return this.state.owner;
     }
 
     public toString() {

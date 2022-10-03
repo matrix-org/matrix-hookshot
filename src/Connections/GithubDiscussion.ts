@@ -80,7 +80,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             preset: 'public_chat',
             name: `${discussion.title} (${owner}/${repo})`,
             topic: emoji.emojify(`Under ${discussion.category.emoji} ${discussion.category.name}`),
-            room_alias_name: `github_disc_${owner.toLowerCase()}_${repo.toLowerCase()}_${discussion.number}`,
+            room_alias_name: `github_disc_${owner}_${repo}_${discussion.number}`,
             initial_state: [{
                 content: state,
                 state_key: '',
@@ -131,11 +131,11 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
     }
 
     public get repo() {
-        return this.state.repo.toLowerCase();
+        return this.state.repo;
     }
 
     public get owner() {
-        return this.state.owner.toLowerCase();
+        return this.state.owner;
     }
 
     public toString() {

@@ -82,7 +82,7 @@ export class GithubInstance {
     }
 
     public getSafeOctokitForRepo(orgName: string, repoName?: string) {
-        const targetName = (repoName ? `${orgName}/${repoName}` : orgName).toLowerCase();
+        const targetName = (repoName ? `${orgName}/${repoName}` : orgName);
         for (const install of this.installationsCache.values()) {
             if (install.matchesRepository.includes(targetName) || install.matchesRepository.includes(`${targetName.split('/')[0]}/*`)) {
                 return this.createOctokitForInstallation(install.id);
@@ -146,13 +146,13 @@ export class GithubInstance {
     private async addInstallation(install: InstallationDataType, repos?: {full_name: string}[]) {
         let matchesRepository: string[] = [];
         if (install.repository_selection === "all") {
-            matchesRepository = [`${install.account?.login}/*`.toLowerCase()];
+            matchesRepository = [`${install.account?.login}/*`];
         } else if (repos) {
-            matchesRepository = repos.map(r => r.full_name.toLowerCase());
+            matchesRepository = repos.map(r => r.full_name);
         } else {
             const installOctokit = this.createOctokitForInstallation(install.id);
             const repos = await installOctokit.apps.listReposAccessibleToInstallation({ per_page: 100 });
-            matchesRepository.push(...repos.data.repositories.map(r => r.full_name.toLowerCase()));
+            matchesRepository.push(...repos.data.repositories.map(r => r.full_name));
         }
         this.installationsCache.set(install.id, {
             account: install.account,

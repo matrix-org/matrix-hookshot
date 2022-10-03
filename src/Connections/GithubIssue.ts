@@ -175,11 +175,11 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
     }
 
     public get org() {
-        return this.state.org.toLowerCase();
+        return this.state.org;
     }
 
     public get repo() {
-        return this.state.repo.toLowerCase();
+        return this.state.repo;
     }
 
     public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {

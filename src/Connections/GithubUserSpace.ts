@@ -99,16 +99,16 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
 
         return {
             visibility: "public",
-            name: `GitHub - ${name} (${state.username.toLowerCase()})`,
-            topic: `GitHub page of ${state.username.toLowerCase()}`,
+            name: `GitHub - ${name} (${state.username})`,
+            topic: `GitHub page of ${state.username}`,
             preset: 'public_chat',
-            room_alias_name: `github_${state.username.toLowerCase()}`,
+            room_alias_name: `github_${state.username}`,
             initial_state: [
                 
                 {
                     type: this.CanonicalEventType,
                     content: state,
-                    state_key: state.username.toLowerCase(),
+                    state_key: state.username,
                 },
                 avatarState,
                 {
@@ -148,7 +148,7 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
     }
 
     public get owner() {
-        return this.state.username.toLowerCase();
+        return this.state.username;
     }
 
     public toString() {
