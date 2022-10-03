@@ -449,6 +449,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = validateJiraConnectionState(config);
         await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        this.state = validatedConfig;
     }
 }
 

@@ -156,7 +156,7 @@ export class BridgeWidgetApi {
         if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
             throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
         }
-        connection.provisionerUpdateConfig(req.userId, req.body);
+        await connection.provisionerUpdateConfig(req.userId, req.body);
         res.send(connection.getProvisionerDetails(true));
     }
 

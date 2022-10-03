@@ -1133,6 +1133,7 @@ ${event.release.body}`;
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = GitHubRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        this.state = validatedConfig;
     }
 
     public async onRemove() {
