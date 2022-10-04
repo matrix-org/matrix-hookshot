@@ -130,7 +130,7 @@ export class BridgeAPI {
     }
 
     getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>): Promise<R[]> {
-        const searchParams = filters && new URLSearchParams(filters);
+        const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
         return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`);
     }
 }
