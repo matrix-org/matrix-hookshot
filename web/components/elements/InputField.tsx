@@ -5,11 +5,12 @@ interface Props {
     visible?: boolean;
     label?: string;
     noPadding: boolean;
+    innerChild?: boolean;
 }
 
-export const InputField: FunctionComponent<Props> = ({ children, visible = true, label, noPadding }) => {
-    return visible && <div className={style.inputField}>
-        {label && <label className={noPadding ? style.nopad : ""}>{label}</label>}
-        {children}
-    </div>;
+export const InputField: FunctionComponent<Props> = ({ children, visible = true, label, noPadding, innerChild = false }) => {
+    return visible ? <div className={style.inputField}>
+        {label && <label className={noPadding ? style.nopad : ""}>{innerChild && children}{label}</label>}
+        {(!label || !innerChild) && children}
+    </div> : <></>
 };
