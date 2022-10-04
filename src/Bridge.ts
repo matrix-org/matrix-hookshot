@@ -420,6 +420,12 @@ export class Bridge {
                 refresh_token: msg.data.refresh_token,
                 refresh_token_expires_in: msg.data.refresh_token_expires_in && ((parseInt(msg.data.refresh_token_expires_in) * 1000)  + Date.now()),
             } as GitHubOAuthToken));
+
+            // Some users won't have an admin room and would have gone through provisioning.
+            const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+            if (adminRoom) {
+                await adminRoom.sendNotice("Logged into GitHub");
+            }
         });
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
@@ -535,7 +541,7 @@ export class Bridge {
                 // Some users won't have an admin room and would have gone through provisioning.
                 const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
                 if (adminRoom) {
-                    await adminRoom.sendNotice(`Logged into Jira`);
+                    await adminRoom.sendNotice("Logged into Jira");
                 }
                 result = JiraOAuthRequestResult.Success;
             } catch (ex) {
