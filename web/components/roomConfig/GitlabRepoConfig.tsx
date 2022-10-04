@@ -143,7 +143,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                 ...(state),
                 ignoreHooks: ignoredHooks as any[],
                 includeCommentBody: includeBodyRef.current?.checked,
-                commandPrefix: commandPrefixRef.current?.value,
+                commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
     }, [canEdit, existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, onSave]);

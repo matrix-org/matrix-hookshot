@@ -158,7 +158,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             onSave({
                 ...(state),
                 events: allowedEvents as any[],
-                commandPrefix: commandPrefixRef.current?.value,
+                commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
     }, [canEdit, existingConnection, newConnectionState, allowedEvents, commandPrefixRef, onSave]);
