@@ -110,6 +110,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         existingConnection={c}
                         onSave={(config) => {
                             api.updateConnection(roomId, c.id, config).then(() => {
+                                c.config = config;
                                 // Force reload
                                 incrementConnectionKey(undefined);
                                 setError(null);

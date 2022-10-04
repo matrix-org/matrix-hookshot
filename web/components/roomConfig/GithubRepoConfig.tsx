@@ -161,15 +161,15 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             onSave({
                 ...(state),
                 ignoreHooks: ignoredHooks as any[],
-                commandPrefix: commandPrefixRef.current?.value,
+                commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
     }, [canEdit, existingConnection, connectionState, ignoredHooks, commandPrefixRef, onSave]);
 
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setConnectionState} />}
-        <InputField visible={!!existingConnection || !!connectionState} ref={commandPrefixRef} label="Command Prefix" noPadding={true}>
-            <input type="text" value={existingConnection?.config.commandPrefix} placeholder="!gh" />
+        <InputField visible={!!existingConnection || !!connectionState} label="Command Prefix" noPadding={true}>
+            <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gh" />
         </InputField>
         <InputField visible={!!existingConnection || !!connectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>

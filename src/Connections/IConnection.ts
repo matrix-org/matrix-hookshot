@@ -65,7 +65,7 @@ export interface IConnection {
     /**
      * If supported, this is sent when a user attempts to update the configuration of a connection.
      */
-    provisionerUpdateConfig?: <T extends Record<string, unknown>>(userId: string, config: T) => void;
+    provisionerUpdateConfig?: <T extends Record<string, unknown>>(userId: string, config: T) => Promise<void>;
 
     /**
      * If supported, this is sent when a user attempts to remove the connection from a room. The connection

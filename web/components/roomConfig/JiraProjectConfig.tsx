@@ -158,15 +158,15 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             onSave({
                 ...(state),
                 events: allowedEvents as any[],
-                commandPrefix: commandPrefixRef.current?.value,
+                commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
     }, [canEdit, existingConnection, newConnectionState, allowedEvents, commandPrefixRef, onSave]);
 
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setNewConnectionState} />}
-        <InputField visible={!!existingConnection || !!newConnectionState} ref={commandPrefixRef} label="Command Prefix" noPadding={true}>
-            <input type="text" value={existingConnection?.config.commandPrefix} placeholder="!jira" />
+        <InputField visible={!!existingConnection || !!newConnectionState} label="Command Prefix" noPadding={true}>
+            <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!jira" />
         </InputField>
         <InputField visible={!!existingConnection || !!newConnectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>

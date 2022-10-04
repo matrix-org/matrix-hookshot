@@ -432,6 +432,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 hookId: this.hookId
             }
         );
+        this.state = validatedConfig;
     }
 
     public toString() {
