@@ -1,6 +1,6 @@
 import { Application, NextFunction, Response } from "express";
 import { AdminRoom } from "../AdminRoom";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../Config/Config";
 import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
@@ -10,7 +10,7 @@ import { ConnectionManager } from "../ConnectionManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Intent, PowerLevelsEvent } from "matrix-bot-sdk";
 
-const log = new LogWrapper("BridgeWidgetApi");
+const log = new Logger("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
     private readonly api: ProvisioningApi;

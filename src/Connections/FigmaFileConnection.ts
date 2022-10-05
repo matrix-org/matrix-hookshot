@@ -3,12 +3,12 @@ import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigFigma } from "../Config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 
-const log = new LogWrapper("FigmaFileConnection");
+const log = new Logger("FigmaFileConnection");
 
 export interface FigmaFileConnectionState extends IConnectionState {
     fileId: string;

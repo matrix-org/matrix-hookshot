@@ -1,10 +1,10 @@
 
 import { Intent } from "matrix-bot-sdk";
 import { BridgeWidgetConfig } from "../Config/Config";
+import { Logger } from "matrix-appservice-bridge";
 import { CommandError } from "../errors";
-import LogWrapper from "../LogWrapper";
 import { HookshotWidgetKind } from "./WidgetKind";
-const log = new LogWrapper("SetupWidget");
+const log = new Logger("SetupWidget");
 
 export class SetupWidget {
 

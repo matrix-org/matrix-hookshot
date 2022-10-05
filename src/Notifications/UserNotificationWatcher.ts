@@ -1,5 +1,5 @@
 import { NotificationsDisableEvent, NotificationsEnableEvent } from "../Webhooks";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { createMessageQueue, MessageQueue, MessageQueueMessage } from "../MessageQueue";
 import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
@@ -17,7 +17,7 @@ export interface UserNotificationsEvent {
 const MIN_INTERVAL_MS = 15000;
 const FAILURE_THRESHOLD = 50;
 
-const log = new LogWrapper("UserNotificationWatcher");
+const log = new Logger("UserNotificationWatcher");
 
 export class UserNotificationWatcher {
     /* Key: userId:type:instanceUrl */

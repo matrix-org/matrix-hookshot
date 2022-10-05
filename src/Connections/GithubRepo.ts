@@ -13,7 +13,7 @@ import { NAMELESS_ORG_PLACEHOLDER, ReposGetResponseData } from "../Github/Types"
 import { UserTokenStore } from "../UserTokenStore";
 import axios, { AxiosError } from "axios";
 import emoji from "node-emoji";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
@@ -24,7 +24,7 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 
-const log = new LogWrapper("GitHubRepoConnection");
+const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
 
 interface IQueryRoomOpts {

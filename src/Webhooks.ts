@@ -2,7 +2,7 @@ import { BridgeConfig } from "./Config/Config";
 import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
@@ -17,7 +17,7 @@ import { GenericWebhooksRouter } from "./generic/Router";
 import { GithubInstance } from "./Github/GithubInstance";
 import QuickLRU from "@alloc/quick-lru";
 
-const log = new LogWrapper("Webhooks");
+const log = new Logger("Webhooks");
 
 export interface NotificationsEnableEvent {
     userId: string;

@@ -1,10 +1,10 @@
 import { botCommand, BotCommands, handleCommand, HelpFunction } from "../BotCommands";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
-const log = new LogWrapper("CommandConnection");
+const log = new Logger("CommandConnection");
 
 /**
  * Connection class that handles commands for a given connection. Should be used

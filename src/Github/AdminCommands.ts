@@ -1,13 +1,12 @@
-import qs from "querystring";
 import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler"
 import { botCommand } from "../BotCommands";
 import { CommandError, TokenError, TokenErrorCode } from "../errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { BridgePermissionLevel } from "../Config/Config";
 
-const log = new LogWrapper('GitHubBotCommands');
+const log = new Logger('GitHubBotCommands');
 export class GitHubBotCommands extends AdminRoomCommandHandler {
     @botCommand("github login", {help: "Log in to GitHub", category: Category.Github, permissionLevel: BridgePermissionLevel.login})
     public async loginCommand() {

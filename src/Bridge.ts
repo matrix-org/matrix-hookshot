@@ -26,7 +26,7 @@ import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { Provisioner } from "./provisioning/provisioner";
 import { JiraProvisionerRouter } from "./Jira/Router";
 import { GitHubProvisionerRouter } from "./Github/Router";
@@ -41,7 +41,7 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
-const log = new LogWrapper("Bridge");
+const log = new Logger("Bridge");
 
 export class Bridge {
     private readonly as: Appservice;
