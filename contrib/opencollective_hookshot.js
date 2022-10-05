@@ -34,13 +34,12 @@ const expenseVerbs = {
     "collective.expense.created": "Created",
     "collective.expense.approved": "Approved",
     "collective.expense.paid": "Paid",
-    // This is a guess I haven't rejected an expense yet.
+    // This is a guess. I haven't rejected an expense yet.
     "collective.expense.rejected": "Rejected"
 };
 
 const capitalise = function(string) {
-    string = string.toLowerCase();
-    return string[0].toUpperCase() + string.substring(1);
+    return string.slice(0,1).toUpperCase() + string.slice(1).toLowerCase();
 };
 
 // Handle collective.expense
@@ -68,7 +67,7 @@ if (data.type in expenseVerbs) {
     result = {empty: true};
 
 } else {
-    const stringified = JSON.stringify(data, null, "  ");
+    const stringified = JSON.stringify(data, null, 2);
     result = {plain: stringified, html: `<pre><code class="language-json">${stringified}</code></pre>`};
 };
 
