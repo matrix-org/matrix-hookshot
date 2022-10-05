@@ -1,6 +1,6 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ProjectsGetResponseData } from "../Github/Types";
 import { BaseConnection } from "./BaseConnection";
 
@@ -9,7 +9,7 @@ export interface GitHubProjectConnectionState {
     project_id: number;
     state: "open"|"closed";
 }
-const log = new LogWrapper("GitHubProjectConnection");
+const log = new Logger("GitHubProjectConnection");
 
 /**
  * Handles rooms connected to a GitHub project.

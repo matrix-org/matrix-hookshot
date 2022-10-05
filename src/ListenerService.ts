@@ -1,6 +1,6 @@
 import { Server } from "http";
+import { Logger } from "matrix-appservice-bridge";
 import { Application, default as expressApp, NextFunction, Request, Response, Router } from "express";
-import LogWrapper from "./LogWrapper";
 import { errorMiddleware } from "./api";
 
 // Appserices can't be handled yet because the bot-sdk maintains control of it.
@@ -14,7 +14,7 @@ export interface BridgeConfigListener {
     resources: Array<ResourceName>;
 }
 
-const log = new LogWrapper("ListenerService");
+const log = new Logger("ListenerService");
 
 export class ListenerService {
     private readonly listeners: {

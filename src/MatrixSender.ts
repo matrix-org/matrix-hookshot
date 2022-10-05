@@ -1,7 +1,7 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { v4 as uuid } from "uuid";
 import { getAppservice } from "./appservice";
 import Metrics from "./Metrics";
@@ -22,7 +22,7 @@ export interface IMatrixSendMessageFailedResponse {
 }
 
 
-const log = new LogWrapper("MatrixSender");
+const log = new Logger("MatrixSender");
 
 export class MatrixSender {
     private mq: MessageQueue;

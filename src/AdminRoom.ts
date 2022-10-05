@@ -17,13 +17,13 @@ import { JiraBotCommands } from "./Jira/AdminCommands";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
 const md = new markdown();
-const log = new LogWrapper('AdminRoom');
+const log = new Logger('AdminRoom');
 
 export const LEGACY_BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
 export const LEGACY_BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";

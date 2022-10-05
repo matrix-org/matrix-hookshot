@@ -2,7 +2,7 @@ import { MatrixClient } from "matrix-bot-sdk";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MessageQueue } from "../MessageQueue";
 
 import Ajv from "ajv";
@@ -12,7 +12,7 @@ import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 
-const log = new LogWrapper("FeedReader");
+const log = new Logger("FeedReader");
 
 export class FeedError extends Error {
     constructor(

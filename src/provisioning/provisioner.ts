@@ -1,13 +1,13 @@
 import { BridgeConfigProvisioning } from "../Config/Config";
 import { Router, default as express, NextFunction, Request, Response } from "express";
 import { ConnectionManager } from "../ConnectionManager";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
 import { ApiError, ErrCode } from "../api";
 import { Intent } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
 
-const log = new LogWrapper("Provisioner");
+const log = new Logger("Provisioner");
 
 // Simple validator
 const ROOM_ID_VALIDATOR = /!.+:.+/;
