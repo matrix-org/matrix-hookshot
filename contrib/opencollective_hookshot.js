@@ -60,7 +60,7 @@ if (data.type in expenseVerbs) {
     const destination = data.data.collective;
     result = {
         plain: `${capitalise(transaction.type)} from ${user.name} to ${destination.name} for ${transaction.formattedAmount}: ${transaction.description}`,
-        html: `${capitalise(transaction.type)} from ${user.name} to ${destination.name} for ${transaction.formattedAmount}: <b>${transaction.description}</b>`
+        html: `${capitalise(transaction.type)} from ${user.name} to ${destination.name} for ${transaction.formattedAmount}: <a href="https://opencollective.com/${user.slug}/transactions?searchTerm=%23${transaction.id}"><b>${transaction.description}</a></b>`
     };
 
 // Skip comments as they have no usable data currently
