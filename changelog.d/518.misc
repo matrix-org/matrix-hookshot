@@ -1,1 +1,0 @@
-Don't send empty query string in some widget API requests.

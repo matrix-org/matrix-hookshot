@@ -1,3 +1,35 @@
+2.3.0 (2022-10-05)
+==================
+
+Features
+--------
+
+- Added `create-confidential` GitLab connection command. ([\#496](https://github.com/matrix-org/matrix-hookshot/issues/496))
+- Add new GitLab connection flag `includeCommentBody`, to enable including the body of comments on MR notifications. ([\#500](https://github.com/matrix-org/matrix-hookshot/issues/500), [\#517](https://github.com/matrix-org/matrix-hookshot/issues/517))
+- Add room configuration widget for Jira. ([\#502](https://github.com/matrix-org/matrix-hookshot/issues/502))
+- Add bot commands to list and remove Jira connections. ([\#503](https://github.com/matrix-org/matrix-hookshot/issues/503))
+- Reorganize the GitHub widget to allow searching for repositories by organization. ([\#508](https://github.com/matrix-org/matrix-hookshot/issues/508))
+- Print a notice message after successfully logging in to GitHub when conversing with the bot in a DM. ([\#512](https://github.com/matrix-org/matrix-hookshot/issues/512))
+
+
+Bugfixes
+--------
+
+- Give a warning if the user attempts to add a configuration widget to the room without giving the bot permissions. ([\#491](https://github.com/matrix-org/matrix-hookshot/issues/491))
+- Improve formatting of help commands and Jira's `whoami` command. ([\#504](https://github.com/matrix-org/matrix-hookshot/issues/504))
+- Add a configuration widget for Jira. ([\#507](https://github.com/matrix-org/matrix-hookshot/issues/507))
+- Fix inactive "Command Prefix" field in configuration widgets. ([\#515](https://github.com/matrix-org/matrix-hookshot/issues/515))
+- Fix support for the "Labeled" event in the GitHub widget. ([\#519](https://github.com/matrix-org/matrix-hookshot/issues/519))
+
+
+Internal Changes
+----------------
+
+- Improve some type-checking in the codebase. ([\#505](https://github.com/matrix-org/matrix-hookshot/issues/505))
+- Refactor the Vite component's `tsconfig.json` file to make it compatible with the TypeScript project settings & the TypeScript language server. ([\#506](https://github.com/matrix-org/matrix-hookshot/issues/506))
+- Don't send empty query string in some widget API requests. ([\#518](https://github.com/matrix-org/matrix-hookshot/issues/518))
+
+
 2.2.0 (2022-09-16)
 ==================
 
