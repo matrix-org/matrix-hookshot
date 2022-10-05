@@ -1,9 +1,9 @@
 import { EventEmitter } from "events";
 import { GitLabClient } from "../Gitlab/Client";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 
-const log = new LogWrapper("GitLabWatcher");
+const log = new Logger("GitLabWatcher");
 
 export class GitLabWatcher extends EventEmitter implements NotificationWatcherTask  {
     private client: GitLabClient;

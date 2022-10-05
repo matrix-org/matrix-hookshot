@@ -1,6 +1,6 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
@@ -13,6 +13,9 @@ import { UserTokenStore } from "../UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
+import { GetConnectionsResponseItem } from "../provisioning/api";
+import { BridgeConfigJira } from "../Config/Config";
+import { HookshotJiraApi } from "../Jira/Client";
 
 type JiraAllowedEventsNames = "issue.created";
 const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
@@ -22,6 +25,27 @@ export interface JiraProjectConnectionState extends IConnectionState {
     url: string;
     events?: JiraAllowedEventsNames[],
 }
+
+
+export interface JiraProjectConnectionInstanceTarget {
+    url: string;
+    name: string;
+}
+export interface JiraProjectConnectionProjectTarget {
+    state: JiraProjectConnectionState;
+    key: string;
+    name: string;
+}
+
+export type JiraProjectConnectionTarget = JiraProjectConnectionInstanceTarget|JiraProjectConnectionProjectTarget;
+
+export interface JiraTargetFilter {
+    instanceName?: string;
+}
+
+
+export type JiraProjectResponseItem = GetConnectionsResponseItem<JiraProjectConnectionState>;
+
 
 function validateJiraConnectionState(state: unknown): JiraProjectConnectionState {
     const {url, commandPrefix, events, priority} = state as Partial<JiraProjectConnectionState>;
@@ -42,7 +66,7 @@ function validateJiraConnectionState(state: unknown): JiraProjectConnectionState
     return {url, commandPrefix, events, priority};
 }
 
-const log = new LogWrapper("JiraProjectConnection");
+const log = new Logger("JiraProjectConnection");
 const md = new markdownit();
 
 /**
@@ -210,7 +234,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         }
     }
 
-    public getProvisionerDetails() {
+    public getProvisionerDetails(): JiraProjectResponseItem {
         return {
             ...JiraProjectConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
@@ -219,7 +243,60 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             },
         }
     }
-    
+
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigJira, filters: JiraTargetFilter = {}): Promise<JiraProjectConnectionTarget[]> {
+        // Search for all projects under the user's control.
+        const jiraUser = await tokenStore.getJiraForUser(userId, config.url);
+        if (!jiraUser) {
+            throw new ApiError("User is not authenticated with JIRA", ErrCode.ForbiddenUser);
+        }
+
+        if (!filters.instanceName) {
+            const results: JiraProjectConnectionInstanceTarget[] = [];
+            try {
+                for (const resource of await jiraUser.getAccessibleResources()) {
+                    results.push({
+                        url: resource.url,
+                        name: resource.name,
+                    });
+                }
+            } catch (ex) {
+                log.warn(`Failed to fetch accessible resources for ${userId}`, ex);
+                throw new ApiError("Could not fetch accessible resources for JIRA user.", ErrCode.Unknown);
+            }
+            return results;
+        }
+        // If we have an instance, search under it.
+        let resClient: HookshotJiraApi|null;
+        try {
+            resClient = await jiraUser.getClientForName(filters.instanceName);
+        } catch (ex) {
+            log.warn(`Failed to fetch client for ${filters.instanceName} for ${userId}`, ex);
+            throw new ApiError("Could not fetch accessible resources for JIRA user.", ErrCode.Unknown);
+        }
+        if (!resClient) {
+            throw new ApiError("Instance not known or not accessible to this user.", ErrCode.ForbiddenUser);
+        }
+
+        const allProjects: JiraProjectConnectionProjectTarget[] = [];
+        try {
+            for await (const project of resClient.getAllProjects()) {
+                allProjects.push({
+                    state: {
+                        // Technically not the real URL, but good enough for hookshot!
+                        url: `${resClient.resource.url}/projects/${project.key}`,
+                    },
+                    key: project.key,
+                    name: project.name,
+                });
+            }
+        } catch (ex) {
+            log.warn(`Failed to fetch accessible projects for ${config.instanceName} / ${userId}`, ex);
+            throw new ApiError("Could not fetch accessible projects for JIRA user.", ErrCode.Unknown);
+        }
+        return allProjects;
+    }
+
     public async onJiraIssueUpdated(data: JiraIssueUpdatedEvent) {
         log.info(`onJiraIssueUpdated ${this.roomId} ${this.projectId} ${data.issue.id}`);
         const url = generateJiraWebLinkFromIssue(data.issue);
@@ -372,6 +449,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = validateJiraConnectionState(config);
         await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        this.state = validatedConfig;
     }
 }
 

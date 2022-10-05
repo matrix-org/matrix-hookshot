@@ -26,7 +26,7 @@ import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { Provisioner } from "./provisioning/provisioner";
 import { JiraProvisionerRouter } from "./Jira/Router";
 import { GitHubProvisionerRouter } from "./Github/Router";
@@ -40,8 +40,8 @@ import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
-import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
-const log = new LogWrapper("Bridge");
+import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
+const log = new Logger("Bridge");
 
 export class Bridge {
     private readonly as: Appservice;
@@ -88,6 +88,7 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.tokenStore.load();
         await this.storage.connect?.();
         await this.queue.connect?.();
 
@@ -140,7 +141,6 @@ export class Bridge {
         }
 
 
-        await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
 
@@ -358,6 +358,12 @@ export class Bridge {
             (c, data) => c.onMergeRequestReviewed(data),
         );
 
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.update",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onMergeRequestUpdate(data),
+        );
+
         this.bindHandlerToQueue<IGitLabWebhookReleaseEvent, GitLabRepoConnection>(
             "gitlab.release.create",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
@@ -414,6 +420,12 @@ export class Bridge {
                 refresh_token: msg.data.refresh_token,
                 refresh_token_expires_in: msg.data.refresh_token_expires_in && ((parseInt(msg.data.refresh_token_expires_in) * 1000)  + Date.now()),
             } as GitHubOAuthToken));
+
+            // Some users won't have an admin room and would have gone through provisioning.
+            const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+            if (adminRoom) {
+                await adminRoom.sendNotice("Logged into GitHub");
+            }
         });
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
@@ -529,7 +541,7 @@ export class Bridge {
                 // Some users won't have an admin room and would have gone through provisioning.
                 const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
                 if (adminRoom) {
-                    await adminRoom.sendNotice(`Logged into Jira`);
+                    await adminRoom.sendNotice("Logged into Jira");
                 }
                 result = JiraOAuthRequestResult.Success;
             } catch (ex) {
@@ -615,9 +627,9 @@ export class Bridge {
             (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
             (c, data) => c.handleFeedEntry(data),
         );
-        this.bindHandlerToQueue<FeedEntry, FeedConnection>(
+        this.bindHandlerToQueue<FeedSuccess, FeedConnection>(
             "feed.success",
-            (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
+            (data) => connManager.getConnectionsForFeedUrl(data.url),
             c => c.handleFeedSuccess(),
         );
         this.bindHandlerToQueue<FeedError, FeedConnection>(

@@ -1,7 +1,7 @@
 import { MessageSenderClient } from "./MatrixSender";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { FormatUtil } from "./FormatUtil";
@@ -11,7 +11,7 @@ import { components } from "@octokit/openapi-types/types";
 import { NotifFilter } from "./NotificationFilters";
 
 
-const log = new LogWrapper("NotificationProcessor");
+const log = new Logger("NotificationProcessor");
 const md = new markdown();
 
 export interface IssueDiff {

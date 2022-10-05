@@ -1,3 +1,77 @@
+2.2.0 (2022-09-16)
+==================
+
+Features
+--------
+
+- Ready/draft state changes for GitLab merge requests are now reported. ([\#480](https://github.com/matrix-org/matrix-hookshot/issues/480))
+- Merge GitLab MR approvals and comments into one message. ([\#484](https://github.com/matrix-org/matrix-hookshot/issues/484))
+
+
+Bugfixes
+--------
+
+- Log noisy "Got GitHub webhook event" log line at debug level. ([\#473](https://github.com/matrix-org/matrix-hookshot/issues/473))
+- Fix Figma service not being able to create new webhooks on startup, causing a crash. ([\#481](https://github.com/matrix-org/matrix-hookshot/issues/481))
+- Fix a bug where the bridge can crash when JSON logging is enabled. ([\#478](https://github.com/matrix-org/matrix-hookshot/issues/478))
+
+
+Internal Changes
+----------------
+
+- Update codemirror and remove unused font. ([\#489](https://github.com/matrix-org/matrix-hookshot/issues/489))
+
+
+2.1.2 (2022-09-03)
+==================
+
+Bugfixes
+--------
+
+- Fix a bug where reading RSS feeds could crash the process. ([\#469](https://github.com/matrix-org/matrix-hookshot/issues/469))
+
+
+2.1.1 (2022-09-02)
+==================
+
+Bugfixes
+--------
+
+- Fixed issue where log lines would only be outputted when the `logging.level` is `debug`. ([\#467](https://github.com/matrix-org/matrix-hookshot/issues/467))
+
+
+2.1.0 (2022-09-02)
+==================
+
+Features
+--------
+
+- Add support for ARM64 docker images. ([\#458](https://github.com/matrix-org/matrix-hookshot/issues/458))
+- Added new config option `feeds.pollTimeoutSeconds` to explictly set how long to wait for a feed response. ([\#459](https://github.com/matrix-org/matrix-hookshot/issues/459))
+- JSON logging output now includes new keys such as `error` and `args`. ([\#463](https://github.com/matrix-org/matrix-hookshot/issues/463))
+
+
+Bugfixes
+--------
+
+- Fix error when responding to a provisioning request for a room that the Hookshot bot isn't yet a member of. ([\#457](https://github.com/matrix-org/matrix-hookshot/issues/457))
+- Fix a bug users without "login" permissions could run login commands for GitHub/GitLab/JIRA, but get an error when attempting to store the token. Users now have their permissions checked earlier. ([\#461](https://github.com/matrix-org/matrix-hookshot/issues/461))
+- Hookshot now waits for Redis to be ready before handling traffic. ([\#462](https://github.com/matrix-org/matrix-hookshot/issues/462))
+- Fix room membership going stale for rooms used in the permissions config. ([\#464](https://github.com/matrix-org/matrix-hookshot/issues/464))
+
+
+Improved Documentation
+----------------------
+
+- Be explicit that identifiers in the permissions yaml config need to be wrapped in quotes, because they start with the characters @ and !. ([\#453](https://github.com/matrix-org/matrix-hookshot/issues/453))
+
+
+Internal Changes
+----------------
+
+- Track coverage of tests. ([\#351](https://github.com/matrix-org/matrix-hookshot/issues/351))
+
+
 2.0.1 (2022-08-22)
 ==================
 

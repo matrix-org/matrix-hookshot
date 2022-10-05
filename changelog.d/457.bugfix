@@ -1,1 +1,0 @@
-Fix error when responding to a provisioning request for a room that the Hookshot bot isn't yet a member of.

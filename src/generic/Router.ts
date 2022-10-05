@@ -1,6 +1,6 @@
 import { MessageQueue } from "../MessageQueue";
 import express, { NextFunction, Request, Response, Router } from "express";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
 import * as xml from "xml2js";
@@ -9,7 +9,7 @@ import { StatusCodes } from "http-status-codes";
 
 const WEBHOOK_RESPONSE_TIMEOUT = 5000;
 
-const log = new LogWrapper('GenericWebhooksRouter');
+const log = new Logger('GenericWebhooksRouter');
 export class GenericWebhooksRouter {
     constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false, private readonly allowGet: boolean) { }
 

@@ -1,10 +1,10 @@
 import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { BridgePermissionLevel } from "../Config/Config";
 
-const log = new LogWrapper('JiraBotCommands');
+const log = new Logger('JiraBotCommands');
 
 export class JiraBotCommands extends AdminRoomCommandHandler {
     @botCommand("jira login", {help: "Log in to JIRA", category: Category.Jira, permissionLevel: BridgePermissionLevel.login})
@@ -59,7 +59,10 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
                 continue;
             }
             const user = await clientForResource.getCurrentUser();
-            response += `\n - ${resource.name} ${user.name} (${user.displayName || ""})`;
+            response +=
+                `\n - ${resource.name}` +
+                (user.name ? ` ${user.name}` : "") +
+                (user.displayName ? ` (${user.displayName})` : "");
         }
         await this.sendNotice(response);
     }

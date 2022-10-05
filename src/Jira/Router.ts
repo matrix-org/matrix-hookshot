@@ -2,12 +2,12 @@ import { BridgeConfigJira } from "../Config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 
-const log = new LogWrapper("JiraRouter");
+const log = new Logger("JiraRouter");
 
 interface OAuthQueryCloud {
     state: string;

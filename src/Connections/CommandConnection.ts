@@ -1,10 +1,10 @@
 import { botCommand, BotCommands, handleCommand, HelpFunction } from "../BotCommands";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
-const log = new LogWrapper("CommandConnection");
+const log = new Logger("CommandConnection");
 
 /**
  * Connection class that handles commands for a given connection. Should be used
@@ -59,7 +59,7 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
                 msgtype: "m.notice",
                 body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command.",
             });
-            log.warn(`Failed to handle command:`, error);
+            log.warn(`Failed to handle command:`, error ?? 'Unknown error');
             return true;
         } else {
             const reaction = commandResult.result?.reaction || '✅';

@@ -1,1 +1,0 @@
-Fix a bug users without "login" permissions could run login commands for GitHub/GitLab/JIRA, but get an error when attempting to store the token. Users now have their permissions checked earlier.

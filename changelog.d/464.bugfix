@@ -1,1 +1,0 @@
-Fix room membership going stale for rooms used in the permissions config.

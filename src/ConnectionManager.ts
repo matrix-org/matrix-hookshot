@@ -11,7 +11,7 @@ import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnecti
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { ApiError, ErrCode } from "./api";
@@ -21,7 +21,7 @@ import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 
-const log = new LogWrapper("ConnectionManager");
+const log = new Logger("ConnectionManager");
 
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
@@ -299,8 +299,15 @@ export class ConnectionManager extends EventEmitter {
             return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
         }
         case GitHubRepoConnection.CanonicalEventType: {
-            const configObject = this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
-            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject);
+            this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
+            if (!this.github) {
+                throw Error("GitHub instance was never initialized");
+            }
+            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, this.github, filters);
+        }
+        case JiraProjectConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.jira, "JIRA", "jira");
+            return await JiraProjectConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
         }
         default:
             throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);

@@ -1,2 +1,2 @@
-import LogWrapper from "../src/LogWrapper";
-LogWrapper.configureLogging({level: "info"});
+import { Logger } from "matrix-appservice-bridge";
+Logger.configure({console: "info"});

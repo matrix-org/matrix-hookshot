@@ -5,20 +5,22 @@ import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
-import { IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
+import { CommandError } from "../errors";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
     ignoreHooks?: AllowedEventsNames[],
+    includeCommentBody?: boolean;
     pushTagsRegex?: string,
     includingLabels?: string[];
     excludingLabels?: string[];
@@ -35,7 +37,7 @@ export interface GitLabRepoConnectionProjectTarget {
 
 export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitLabRepoConnectionProjectTarget;
 
-const log = new LogWrapper("GitLabRepoConnection");
+const log = new Logger("GitLabRepoConnection");
 const md = new markdown();
 
 const PUSH_MAX_COMMITS = 5;
@@ -50,6 +52,7 @@ type AllowedEventsNames =
     "merge_request.close" |
     "merge_request.merge" |
     "merge_request.review" |
+    "merge_request.ready_for_review" |
     "merge_request.review.comments" |
     `merge_request.${string}` |
     "merge_request" |
@@ -65,6 +68,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.close",
     "merge_request.merge",
     "merge_request.review",
+    "merge_request.ready_for_review",
     "merge_request.review.comments",
     "merge_request",
     "tag_push",
@@ -109,7 +113,11 @@ const ConnectionStateSchema = {
             type: "array",
             nullable: true,
             items: {type: "string"},
-        }
+        },
+        includeCommentBody: {
+            type: "boolean",
+            nullable: true,
+        },
     },
     required: [
       "instance",
@@ -249,7 +257,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 if (client) {
                     results.push({
                         name,
-                    } as GitLabRepoConnectionInstanceTarget);
+                    });
                 }
             }
             return results;
@@ -271,7 +279,13 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         })) as GitLabRepoConnectionProjectTarget[];
     }
 
-    private readonly debounceMRComments = new Map<string, {comments: number, author: string, timeout: NodeJS.Timeout}>();
+    private readonly debounceMRComments = new Map<string, {
+        commentCount: number,
+        commentNotes?: string[],
+        author: string,
+        timeout: NodeJS.Timeout,
+        approved?: boolean,
+    }>();
 
     constructor(roomId: string,
         stateKey: string,
@@ -311,7 +325,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
-    public getProvisionerDetails() {
+    public getProvisionerDetails(): GitLabRepoResponseItem {
         return {
             ...GitLabRepoConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
@@ -321,13 +335,17 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
     }
 
-    @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
-    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+    private async getClientForUser(userId: string) {
         const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
         if (!client) {
-            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
-            throw Error('Not logged in');
+            throw new CommandError('User is not logged into GitLab', 'You must be logged in to create an issue.');
         }
+        return client;
+    }
+
+    @botCommand("create", "Create an issue for this repo", ["title"], ["description", "labels"], true)
+    public async onCreateIssue(userId: string, title: string, description?: string, labels?: string) {
+        const client = await this.getClientForUser(userId);
         const res = await client.issues.create({
             id: this.path,
             title,
@@ -344,13 +362,29 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
     }
 
+    @botCommand("create-confidential", "Create a confidental issue for this repo", ["title"], ["description", "labels"], true)
+    public async onCreateConfidentialIssue(userId: string, title: string, description?: string, labels?: string) {
+        const client = await this.getClientForUser(userId);
+        const res = await client.issues.create({
+            id: this.path,
+            title,
+            description,
+            confidential: true,
+            labels: labels ? labels.split(",") : undefined,
+        });
+
+        const content = `Created confidential issue #${res.iid}: [${res.web_url}](${res.web_url})`;
+        return this.as.botIntent.sendEvent(this.roomId,{
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html"
+        });
+    }
+
     @botCommand("close", "Close an issue", ["number"], ["comment"], true)
     public async onClose(userId: string, number: string) {
-        const client = await this.tokenStore.getGitLabForUser(userId, this.instance.url);
-        if (!client) {
-            await this.as.botIntent.sendText(this.roomId, "You must be logged in to create an issue.", "m.notice");
-            throw Error('Not logged in');
-        }
+        const client = await this.getClientForUser(userId);
 
         await client.issues.edit({
             id: this.state.path,
@@ -369,10 +403,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
+        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
@@ -385,10 +419,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
             return;
         }
+        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** closed MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
@@ -401,10 +435,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
-        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         if (this.shouldSkipHook('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
+        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** merged MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
@@ -416,22 +450,30 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
     }
 
-    public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
+    public async onMergeRequestUpdate(event: IGitLabWebhookMREvent) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.ready_for_review')) {
             return;
         }
-        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
         this.validateMREvent(event);
-        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
-            // Not interested.
+        // Check if the MR changed to / from a draft
+        if (!event.changes.title) {
             return;
         }
-        const emojiForReview = {
-            'approved': '✅',
-            'unapproved': '🔴'
-        }[event.object_attributes.action];
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** ${emojiForReview} ${event.object_attributes.action} MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        let content: string;
+        const wasDraft = event.changes.title.before.startsWith('Draft: ');
+        const isDraft = event.changes.title.after.startsWith('Draft: ');
+        if (wasDraft && !isDraft) {
+            // Ready for review
+            content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `;
+        } else if (!wasDraft && isDraft) {
+            // Back to draft.
+            content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
+        } else {
+            // Nothing changed, drop it.
+            return;
+        }
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -441,10 +483,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
-        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         if (this.shouldSkipHook('tag_push')) {
             return;
         }
+        log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
         const tagname = event.ref.replace("refs/tags/", "");
         if (this.state.pushTagsRegex && !tagname.match(this.state.pushTagsRegex)) {
             return;
@@ -461,10 +503,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
 
     public async onGitLabPush(event: IGitLabWebhookPushEvent) {
-        log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
         if (this.shouldSkipHook('push')) {
             return;
         }
+        log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
         const branchname = event.ref.replace("refs/heads/", "");
         const commitsurl = `${event.project.homepage}/-/commits/${branchname}`;
         const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
@@ -500,10 +542,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     
     public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
         const attributes = data.object_attributes;
-        log.info(`onWikiPageEvent ${this.roomId} ${this.instance}/${this.path}`);
         if (this.shouldSkipHook('wiki', `wiki.${attributes.action}`)) {
             return;
         }
+        log.info(`onWikiPageEvent ${this.roomId} ${this.instance}/${this.path}`);
 
         let statement: string;
         if (attributes.action === "create") {
@@ -542,59 +584,112 @@ ${data.description}`;
         });
     }
 
+    private renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject) {
+        const result = this.debounceMRComments.get(uniqueId);
+        if (!result) {
+            // Always defined, but for type checking purposes.
+            return;
+        }
+        // Delete after use.
+        this.debounceMRComments.delete(uniqueId);
+        const orgRepoName = project.path_with_namespace;
+        let comments = '';
+        if (result.commentCount === 1) {
+            comments = ' with one comment';
+        } else if (result.commentCount > 1) {
+            comments = ` with ${result.commentCount} comments`;
+        }
+
+        let approvalState = 'reviewed';
+        if (result.approved === true) {
+            approvalState = '✅ approved'
+        } else if (result.approved === false) {
+            approvalState = '🔴 unapproved';
+        }
+
+        let content = `**${result.author}** ${approvalState} MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"${comments}`;
+
+        if (result.commentNotes) {
+            content += "\n\n> " + result.commentNotes.join("\n\n> ");
+        }
+
+        this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        }).catch(ex  => {
+            log.error('Failed to send MR review message', ex);
+        });
+    }
+
+    private debounceMergeRequestReview(
+        user: IGitlabUser,
+        mergeRequest: IGitlabMergeRequest,
+        project: IGitlabProject,
+        opts: {
+            commentCount: number,
+            commentNotes?: string[],
+            approved?: boolean,
+        }
+    ) {
+        const { commentCount, commentNotes, approved } = opts;
+        const uniqueId = `${mergeRequest?.iid}/${user.username}`;
+        const existing = this.debounceMRComments.get(uniqueId);
+        if (existing) {
+            clearTimeout(existing.timeout);
+            existing.approved = approved;
+            if (commentNotes) {
+                existing.commentNotes = [...(existing.commentNotes ?? []), ...commentNotes];
+            }
+            existing.commentCount = opts.commentCount;
+            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS);
+            return;
+        }
+        this.debounceMRComments.set(uniqueId, {
+            commentCount: commentCount,
+            commentNotes: commentNotes,
+            approved,
+            author: user.name,
+            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS),
+        });
+    }
+
+    public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        this.validateMREvent(event);
+        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
+            // Not interested.
+            return;
+        }
+        this.debounceMergeRequestReview(
+            event.user,
+            event.object_attributes, 
+            event.project,
+            {
+                commentCount: 0,
+                approved: "approved" === event.object_attributes.action
+            }
+        );
+    }
+
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
         if (this.shouldSkipHook('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
             return;
         }
         log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
-        const uniqueId = `${event.merge_request?.iid}/${event.object_attributes.author_id}`;
-
         if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
             // Not a MR comment
             return;
         }
-
-        if (event.object_attributes.author_id === event.merge_request.author_id) {
-            // If it's the same author, ignore
-            return;
-        }
-
-        const mergeRequest = event.merge_request;
-
-        const renderFn = () => {
-            const result = this.debounceMRComments.get(uniqueId);
-            if (!result) {
-                // Always defined, but for type checking purposes.
-                return;
-            }
-            const orgRepoName = event.project.path_with_namespace;
-            const comments = result.comments !== 1 ? `${result.comments} comments` : '1 comment';
-            const content = `**${result.author}** reviewed MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}" with ${comments}`;
-            this.as.botIntent.sendEvent(this.roomId, {
-                msgtype: "m.notice",
-                body: content,
-                formatted_body: md.renderInline(content),
-                format: "org.matrix.custom.html",
-            }).catch(ex  => {
-                log.error('Failed to send onCommentCreated message', ex);
-            });
-        };
-
-        const existing = this.debounceMRComments.get(uniqueId);
-        if (existing) {
-            clearTimeout(existing.timeout);
-            existing.comments = existing.comments + 1;
-            existing.timeout = setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS);
-        } else {
-            this.debounceMRComments.set(uniqueId, {
-                comments: 1,
-                author: event.user.name,
-                timeout: setTimeout(renderFn, MRRCOMMENT_DEBOUNCE_MS),
-            })
-        }
-
+        this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
+            commentCount: 1,
+            commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+        });
     }
-
 
     public toString() {
         return `GitLabRepo ${this.instance.url}/${this.path}`;
@@ -627,6 +722,7 @@ ${data.description}`;
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = GitLabRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        this.state = validatedConfig;
     }
 
 

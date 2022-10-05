@@ -4,9 +4,10 @@ import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
 import { ErrorPane, ListItem } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
+import { IConnectionState } from "../../../src/Connections";
 
 
-export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState> {
+export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
     onSave: (newConfig: ConnectionState) => void,
     existingConnection?: ConnectionType;
@@ -14,7 +15,7 @@ export interface ConnectionConfigurationProps<SConfig, ConnectionType extends Ge
     api: BridgeAPI;
 }
 
-interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState> {
+interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     api: BridgeAPI;
     roomId: string;
     type: string;
@@ -30,7 +31,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     connectionConfigComponent: FunctionComponent<ConnectionConfigurationProps<SConfig, ConnectionType, ConnectionState>>;
 }
 
-export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
+export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
     const ConnectionConfigComponent = props.connectionConfigComponent;
     const [ error, setError ] = useState<null|{header?: string, message: string}>(null);
@@ -69,7 +70,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
             })
     }, [api, type]);
 
-    const handleSaveOnCreation = useCallback((config) => {
+    const handleSaveOnCreation = useCallback((config: ConnectionState) => {
         api.createConnection(roomId, connectionEventType, config).then(() => {
             // Force reload
             incrementConnectionKey(undefined);
@@ -109,6 +110,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         existingConnection={c}
                         onSave={(config) => {
                             api.updateConnection(roomId, c.id, config).then(() => {
+                                c.config = config;
                                 // Force reload
                                 incrementConnectionKey(undefined);
                                 setError(null);

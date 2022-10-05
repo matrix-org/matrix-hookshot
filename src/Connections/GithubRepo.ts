@@ -9,11 +9,11 @@ import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestO
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
-import { ReposGetResponseData } from "../Github/Types";
+import { NAMELESS_ORG_PLACEHOLDER, ReposGetResponseData } from "../Github/Types";
 import { UserTokenStore } from "../UserTokenStore";
 import axios, { AxiosError } from "axios";
 import emoji from "node-emoji";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
 import { GithubInstance } from "../Github/GithubInstance";
@@ -24,7 +24,7 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 
-const log = new LogWrapper("GitHubRepoConnection");
+const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
 
 interface IQueryRoomOpts {
@@ -57,10 +57,15 @@ export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
 }
 
 
-export interface GitHubRepoConnectionTarget {
+export interface GitHubRepoConnectionOrgTarget {
+    name: string;
+}
+export interface GitHubRepoConnectionRepoTarget {
     state: GitHubRepoConnectionState;
     name: string;
 }
+
+export type GitHubRepoConnectionTarget = GitHubRepoConnectionOrgTarget|GitHubRepoConnectionRepoTarget;
 
 
 export type GitHubRepoResponseItem = GetConnectionsResponseItem<GitHubRepoConnectionState>;
@@ -85,6 +90,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "issue.changed" ,
     "issue.created" ,
     "issue.edited" ,
+    "issue.labeled" ,
     "issue" ,
     "pull_request.closed" ,
     "pull_request.merged" ,
@@ -215,6 +221,12 @@ const DEFAULT_HOTLINK_PREFIX = "#";
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
+}
+
+export interface GitHubTargetFilter {
+    orgName?: string;
+    page?: number;
+    perPage?: number;
 }
 
 /**
@@ -1042,7 +1054,7 @@ ${event.release.body}`;
         }
     }
 
-    public getProvisionerDetails() {
+    public getProvisionerDetails(): GitHubRepoResponseItem {
         return {
             ...GitHubRepoConnection.getProvisionerDetails(this.as.botUserId),
             id: this.connectionId,
@@ -1052,30 +1064,77 @@ ${event.release.body}`;
         }
     }
 
-    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitHub): Promise<GitHubRepoConnectionTarget[]> {
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, githubInstance: GithubInstance, filters: GitHubTargetFilter = {}): Promise<GitHubRepoConnectionTarget[]> {
         // Search for all repos under the user's control.
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
         }
-        const allRepos = await octokit.repos.listForAuthenticatedUser({
-            baseUrl: config.baseUrl.href.replace(/\/$/, ""),
-        });
-        return allRepos.data.filter(r => r.permissions?.admin).map(r => {
-            const splitRepoName = r.full_name.split("/");
-            return {
-                state: {
-                    org: splitRepoName[0],
-                    repo: splitRepoName[1],
-                },
-                name: r.full_name,
-            };
-        }) as GitHubRepoConnectionTarget[];
+
+        if (!filters.orgName) {
+            const results: GitHubRepoConnectionOrgTarget[] = [];
+            try {
+                const installs = await octokit.apps.listInstallationsForAuthenticatedUser();
+                for (const install of installs.data.installations) {
+                    if (install.account) {
+                        results.push({
+                            name: install.account.login || NAMELESS_ORG_PLACEHOLDER, // org or user name
+                        });
+                    } else {
+                        log.debug(`Skipping install ${install.id}, has no attached account`);
+                    }
+                }
+            } catch (ex) {
+                log.warn(`Failed to fetch orgs for GitHub user ${userId}`, ex);
+                throw new ApiError("Could not fetch orgs for GitHub user", ErrCode.AdditionalActionRequired);
+            }
+            return results;
+        }
+        // If we have an instance, search under it.
+        const ownSelf = await octokit.users.getAuthenticated();
+
+        const page = filters.page ?? 1;
+        const perPage = filters.perPage ?? 10;
+        try {
+            let reposPromise;
+
+            if (ownSelf.data.login === filters.orgName) {
+                const userInstallation = await githubInstance.appOctokit.apps.getUserInstallation({username: ownSelf.data.login});
+                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
+                    page,
+                    installation_id: userInstallation.data.id,
+                    per_page: perPage,
+                });
+            } else {
+                const orgInstallation = await githubInstance.appOctokit.apps.getOrgInstallation({org: filters.orgName});
+
+                // Github will error if the authed user tries to list repos of a disallowed installation, even
+                // if we got the installation ID from the app's instance.
+                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
+                    page,
+                    installation_id: orgInstallation.data.id,
+                    per_page: perPage,
+                });
+            }
+            const reposRes = await reposPromise;
+            return reposRes.data.repositories
+                .map(r => ({
+                    state: {
+                        org: filters.orgName,
+                        repo: r.name,
+                    },
+                    name: r.name,
+                })) as GitHubRepoConnectionRepoTarget[];
+        } catch (ex) {
+            log.warn(`Failed to fetch accessible repos for ${filters.orgName} / ${userId}`, ex);
+            throw new ApiError("Could not fetch accessible repos for GitHub org", ErrCode.AdditionalActionRequired);
+        }
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = GitHubRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        this.state = validatedConfig;
     }
 
     public async onRemove() {
