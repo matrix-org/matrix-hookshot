@@ -5,6 +5,7 @@ import { FigmaPayload } from "./types";
 import { Logger } from "matrix-appservice-bridge";
 
 const log = new Logger('FigmaWebhooksRouter');
+
 export class FigmaWebhooksRouter {
     constructor(private readonly config: BridgeConfigFigma, private readonly queue: MessageQueue) { }
 

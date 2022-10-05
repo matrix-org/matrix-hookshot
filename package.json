@@ -80,7 +80,7 @@
     "@types/ajv": "^1.0.0",
     "@types/chai": "^4.2.22",
     "@types/cors": "^2.8.12",
-    "@types/express": "4.17.13",
+    "@types/express": "^4.17.14",
     "@types/jira-client": "^7.1.0",
     "@types/markdown-it": "^12.2.3",
     "@types/micromatch": "^4.0.1",
