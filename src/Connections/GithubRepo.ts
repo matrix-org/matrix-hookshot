@@ -90,6 +90,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "issue.changed" ,
     "issue.created" ,
     "issue.edited" ,
+    "issue.labeled" ,
     "issue" ,
     "pull_request.closed" ,
     "pull_request.merged" ,
