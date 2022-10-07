@@ -1,0 +1,2 @@
+Fix an issue where `github status` would not respond with an error if your personal token had expired.
+Fix GitHub refresh tokens occasionally not working.
