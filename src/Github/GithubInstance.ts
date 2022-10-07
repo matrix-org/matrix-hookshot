@@ -3,7 +3,7 @@ import { Octokit } from "@octokit/rest";
 import { Logger } from "matrix-appservice-bridge";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import { GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
+import { GitHubOAuthErrorResponse, GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
 import axios from "axios";
 import qs from "querystring";
 import UserAgent from "../UserAgent";
@@ -190,7 +190,7 @@ export class GithubInstance {
     }
 
     public static generateOAuthUrl(baseUrl: URL, action: "authorize"|"access_token", params: OAuthUrlParameters) {
-        const q = qs.stringify(params);
+        const q = new URLSearchParams(params as Record<string, string>);
         if (baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
             // Cloud doesn't use `api.` for oauth.
             baseUrl = new URL("https://github.com");
