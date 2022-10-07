@@ -503,7 +503,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(this.userId, service, level);
         const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this, checkPermission);
         if (!result.handled) {
-            return this.sendNotice("Command not understood.");
+            return this.sendNotice("Command not understood. For a list of commands, try `help`.");
         }
         
         if ("humanError" in result) {
