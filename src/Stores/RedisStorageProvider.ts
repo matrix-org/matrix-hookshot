@@ -26,7 +26,7 @@ const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 const log = new Logger("RedisASProvider");
 
 export class RedisStorageContextualProvider implements IStorageProvider {
-    constructor(protected readonly redis: Redis, protected readonly contextSuffix = "") { }
+    constructor(protected readonly redis: Redis, protected readonly contextSuffix = '') { }
 
     public setSyncToken(token: string|null){
         if (token === null) {
