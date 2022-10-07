@@ -63,7 +63,10 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
         } catch (ex) {
             if (ex instanceof TokenError && ex.code === TokenErrorCode.EXPIRED) {
                 await this.sendNotice("Your authentication is no longer valid, please login again.");
+                return;
             }
+            // Generic catch-all.
+            await this.sendNotice("The bridge was unable to authenticate as you, please login again.");
         }
     }
 }
