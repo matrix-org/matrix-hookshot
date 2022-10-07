@@ -5,7 +5,10 @@ import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent, PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent } from "@octokit/webhooks-types";
+import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
+    PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent,
+    WorkflowRunCompletedEvent,
+} from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
@@ -50,6 +53,9 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     newIssue?: {
         labels: string[];
     };
+    workflowRun?: {
+        matchingBranch?: string;
+    }
 }
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
@@ -84,7 +90,16 @@ type AllowedEventsNames =
     "pull_request.reviewed" |
     "pull_request" |
     "release.created" |
-    "release";
+    "release" |
+    "workflow" |
+    "workflow.run" | 
+    "workflow.run.success" |
+    "workflow.run.failure" |
+    "workflow.run.neutral" |
+    "workflow.run.cancelled" |
+    "workflow.run.timed_out" |
+    "workflow.run.action_required" |
+    "workflow.run.stale";
 
 const AllowedEvents: AllowedEventsNames[] = [
     "issue.changed" ,
@@ -100,6 +115,15 @@ const AllowedEvents: AllowedEventsNames[] = [
     "pull_request" ,
     "release.created" ,
     "release",
+    "workflow",
+    "workflow.run",
+    "workflow.run.success",
+    "workflow.run.failure",
+    "workflow.run.neutral",
+    "workflow.run.cancelled",
+    "workflow.run.timed_out",
+    "workflow.run.action_required",
+    "workflow.run.stale",
 ];
 
 const ConnectionStateSchema = {
@@ -173,6 +197,16 @@ const ConnectionStateSchema = {
         }, {
             type: "boolean",
         }],
+    },
+    workflowRun: {
+        type: "object",
+        nullable: true,
+        properties: {
+            matchingBranch: {
+                nullable: true,
+                type: "string",
+            },
+        },
     }
   },
   required: [
@@ -214,6 +248,16 @@ const EMOJI_TO_REVIEW_STATE = {
     '✅✔️☑️': 'APPROVE',
     '🔴🚫⛔️': 'REQUEST_CHANGES',
 };
+
+const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_run"]["conclusion"], string> = {
+    success: "completed sucessfully 🎉",
+    failure: "failed 😟",
+    neutral: "completed neutrally 😐",
+    cancelled: "was cancelled 🙅",
+    timed_out: "timed out ⏰",
+    action_required: "requires further action 🖱️",
+    stale: "completed, but is stale 🍞"
+}
 
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
@@ -981,6 +1025,30 @@ ${event.release.body}`;
             format: "org.matrix.custom.html",
         });
     }
+    
+    public async onWorkflowCompleted(event: WorkflowRunCompletedEvent) {
+        const workflowRun = event.workflow_run;
+        const workflowRunType = `workflow.run.${workflowRun.conclusion}`;
+        // Type safety checked above.
+        if (
+            this.shouldSkipHook('workflow', 'workflow.run', workflowRunType as AllowedEventsNames)) {
+            return;
+        }
+
+        if (this.state.workflowRun?.matchingBranch && !workflowRun.head_branch.match(this.state.workflowRun?.matchingBranch)) {
+            return;
+        }
+        log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
+        const orgRepoName = event.repository.full_name;
+        const content = `Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``;
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
     public async onEvent(evt: MatrixEvent<unknown>) {
         const octokit = await this.tokenStore.getOctokitForUser(evt.sender);
         if (!octokit) {
