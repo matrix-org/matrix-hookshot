@@ -59,7 +59,6 @@ export interface GitHubOAuthErrorResponse {
     error_uri: string;
 }
 
-
 export interface GitHubOAuthToken {
     access_token: string;
     expires_in?: number;
