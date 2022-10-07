@@ -112,6 +112,10 @@ queue:
   monolithic: true
   port: 6379
   host: localhost
+encryption:
+  # Configuration for encryption support in the bridge
+  #
+  storagePath: ./data/encryption
 logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
