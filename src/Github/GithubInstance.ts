@@ -12,6 +12,12 @@ const log = new Logger("GithubInstance");
 
 export const GITHUB_CLOUD_URL = new URL("https://api.github.com");
 
+export class GitHubOAuthError extends Error {
+    constructor(errorResponse: GitHubOAuthErrorResponse) {
+        super(`OAuth interaction failed with ${errorResponse.error}: ${errorResponse.error_description}. See ${errorResponse.error_uri}`);
+    }
+}
+
 interface Installation {
     account: {
         login?: string;
@@ -77,8 +83,12 @@ export class GithubInstance {
             refresh_token: refreshToken,
             grant_type: 'refresh_token',
         });
-        const accessTokenRes = await axios.post(`${url}?${qs.encode()}`);
-        return qs.decode(accessTokenRes.data) as unknown as GitHubOAuthTokenResponse;
+        const accessTokenRes = await axios.post(url);
+        const response: Record<string, unknown> = Object.fromEntries(new URLSearchParams(accessTokenRes.data));
+        if ('error' in response) {
+            throw new GitHubOAuthError(response as unknown as GitHubOAuthErrorResponse);
+        }
+        return response as unknown as GitHubOAuthTokenResponse;
     }
 
     public getSafeOctokitForRepo(orgName: string, repoName?: string) {

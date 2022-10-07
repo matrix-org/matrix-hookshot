@@ -53,6 +53,13 @@ export interface GitHubOAuthTokenResponse {
     token_type: 'bearer'|'pat';
 }
 
+export interface GitHubOAuthErrorResponse {
+    error: string;
+    error_description: string;
+    error_uri: string;
+}
+
+
 export interface GitHubOAuthToken {
     access_token: string;
     expires_in?: number;
