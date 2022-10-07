@@ -189,6 +189,16 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.ready_for_review" onChange={toggleIgnoredHook}>Ready for review</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.reviewed" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
                 </ul>
+                <EventCheckbox ignoredHooks={ignoredHooks} eventName="workflow.run" onChange={toggleIgnoredHook}>Workflow Runs</EventCheckbox>
+                <ul>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.success" onChange={toggleIgnoredHook}>Success</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.failure" onChange={toggleIgnoredHook}>Failed</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.neutral" onChange={toggleIgnoredHook}>Neutral</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.cancelled" onChange={toggleIgnoredHook}>Cancelled</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.timed_out" onChange={toggleIgnoredHook}>Timed Out</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.action_required" onChange={toggleIgnoredHook}>Action Required</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.stale" onChange={toggleIgnoredHook}>Stale</EventCheckbox>
+                </ul>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="release" onChange={toggleIgnoredHook}>Releases</EventCheckbox>
             </ul>
         </InputField>
