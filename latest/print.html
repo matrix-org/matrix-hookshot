@@ -1304,6 +1304,8 @@ a new release.</p>
 <tr><td>hotlinkIssues</td><td>Send a link to an issue/PR in the room when a user mentions a prefix followed by a number</td><td><code> { prefix: string }</code></td><td><code>{prefix: &quot;#&quot;}</code></td></tr>
 <tr><td>newIssue</td><td>Configuration options for new issues</td><td><code>{ labels: string[] }</code></td><td><em>empty</em></td></tr>
 <tr><td>newIssue.labels</td><td>Automatically set these labels on issues created via commands</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
+<tr><td>workflowRun</td><td>Configuration options for workflow run results</td><td><code>{ matchingBranch: string }</code></td><td><em>empty</em></td></tr>
+<tr><td>workflowRun.matchingBranch</td><td>Only report workflow runs if it matches this regex.</td><td>Regex string</td><td><em>empty</em></td></tr>
 </tbody></table>
 <h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
@@ -1323,6 +1325,17 @@ a new release.</p>
 <li>pull_request.opened</li>
 <li>pull_request.ready_for_review</li>
 <li>pull_request.reviewed</li>
+</ul>
+</li>
+<li>workflow.run
+<ul>
+<li>workflow.run.success</li>
+<li>workflow.run.failure</li>
+<li>workflow.run.neutral</li>
+<li>workflow.run.cancelled</li>
+<li>workflow.run.timed_out</li>
+<li>workflow.run.stale</li>
+<li>workflow.run.action_required</li>
 </ul>
 </li>
 <li>release
