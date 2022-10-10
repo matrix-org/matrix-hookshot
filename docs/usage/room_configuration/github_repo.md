@@ -36,6 +36,8 @@ This connection supports a few options which can be defined in the room state:
 |hotlinkIssues|Send a link to an issue/PR in the room when a user mentions a prefix followed by a number|` { prefix: string }`|`{prefix: "#"}`|
 |newIssue|Configuration options for new issues|`{ labels: string[] }`|*empty*|
 |newIssue.labels|Automatically set these labels on issues created via commands|Array of: String matching a label name|*empty*|
+|workflowRun|Configuration options for workflow run results|`{ matchingBranch: string }`|*empty*|
+|workflowRun.matchingBranch|Only report workflow runs if it matches this regex.|Regex string|*empty*|
 
 
 ### Supported event types
@@ -53,5 +55,13 @@ This connection supports sending messages when the following actions happen on t
   - pull_request.opened
   - pull_request.ready_for_review
   - pull_request.reviewed
+- workflow.run
+  - workflow.run.success
+  - workflow.run.failure
+  - workflow.run.neutral
+  - workflow.run.cancelled
+  - workflow.run.timed_out
+  - workflow.run.stale
+  - workflow.run.action_required
 - release
   - release.created
