@@ -48,7 +48,9 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
             }
         } catch (ex: any) {
             if (ex?.errcode === ErrCode.ForbiddenUser) {
-                setIsConnected(false);
+                setOrgs([]);
+            } else if (ex?.errcode === ErrCode.AdditionalActionRequired) {
+                setSearchError("You are not permitted to list GitHub installations.");
                 setOrgs([]);
             } else {
                 setSearchError("There was an error fetching search results.");
@@ -99,7 +101,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
 
 
     return <div>
-        {isConnected === null && <p> Loading GitHub connection. </p>}
+        {(isConnected === null && !searchError) && <p> Loading GitHub connection. </p>}
         {isConnected === false && <p> You are not logged into GitHub. </p>}
         {isConnected === true && orgs?.length === 0 && <p> You do not have access to any GitHub organizations. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
@@ -188,6 +190,16 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.merged" onChange={toggleIgnoredHook}>Merged</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.ready_for_review" onChange={toggleIgnoredHook}>Ready for review</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.reviewed" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
+                </ul>
+                <EventCheckbox ignoredHooks={ignoredHooks} eventName="workflow.run" onChange={toggleIgnoredHook}>Workflow Runs</EventCheckbox>
+                <ul>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.success" onChange={toggleIgnoredHook}>Success</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.failure" onChange={toggleIgnoredHook}>Failed</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.neutral" onChange={toggleIgnoredHook}>Neutral</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.cancelled" onChange={toggleIgnoredHook}>Cancelled</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.timed_out" onChange={toggleIgnoredHook}>Timed Out</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.action_required" onChange={toggleIgnoredHook}>Action Required</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.stale" onChange={toggleIgnoredHook}>Stale</EventCheckbox>
                 </ul>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="release" onChange={toggleIgnoredHook}>Releases</EventCheckbox>
             </ul>

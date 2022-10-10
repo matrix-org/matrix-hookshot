@@ -1,3 +1,10 @@
+.inputField.nopad {
+    label {
+        position: relative;
+        margin: 0;
+    }
+}
+
 .inputField {
     width: 100%;
     margin-bottom: 12px;
@@ -14,15 +21,19 @@
         background: var(--background-color);
     }
 
+    > ul {
+        padding-left: 10px;
+    }
+    
+
+    li {
+        list-style: none;
+    }
+
     ul > label {
         position: relative;
         left: auto;
         margin: auto;
-    }
-
-    label.nopad {
-        position: relative;
-        margin: 0;
     }
 
     input[type="text"] {
