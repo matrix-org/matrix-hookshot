@@ -48,7 +48,9 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
             }
         } catch (ex: any) {
             if (ex?.errcode === ErrCode.ForbiddenUser) {
-                setIsConnected(false);
+                setOrgs([]);
+            } else if (ex?.errcode === ErrCode.AdditionalActionRequired) {
+                setSearchError("You are not permitted to list GitHub installations.");
                 setOrgs([]);
             } else {
                 setSearchError("There was an error fetching search results.");
@@ -99,7 +101,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
 
 
     return <div>
-        {isConnected === null && <p> Loading GitHub connection. </p>}
+        {(isConnected === null && !searchError) && <p> Loading GitHub connection. </p>}
         {isConnected === false && <p> You are not logged into GitHub. </p>}
         {isConnected === true && orgs?.length === 0 && <p> You do not have access to any GitHub organizations. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
