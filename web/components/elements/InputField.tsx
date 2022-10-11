@@ -2,7 +2,7 @@ import { h, FunctionComponent } from "preact";
 import style from "./InputField.module.scss";
 
 interface Props {
-    className: string;
+    className?: string;
     visible?: boolean;
     label?: string;
     noPadding: boolean;
