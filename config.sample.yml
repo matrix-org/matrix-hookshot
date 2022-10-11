@@ -107,13 +107,15 @@ metrics:
   #
   enabled: true
 queue:
-  # (Optional) Message queue / cache configuration options for large scale deployments
+  # (Optional) Redis message queue / cache configuration options for large scale deployments.
+  # Must be enabled for encryption to work.
   #
   monolithic: true
   port: 6379
   host: localhost
 encryption:
-  # Configuration for encryption support in the bridge
+  # (Optional) Configuration for encryption support in the bridge.
+  # If omitted, encryption support will be disabled.
   #
   storagePath: ./data/encryption
 logging:

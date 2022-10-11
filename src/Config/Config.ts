@@ -447,9 +447,11 @@ export interface BridgeConfigRoot {
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
-    @configKey("Configuration for encryption support in the bridge")
+    @configKey(`Configuration for encryption support in the bridge.
+ If omitted, encryption support will be disabled.`, true)
     public readonly encryption?: BridgeConfigEncryption;
-    @configKey("Message queue / cache configuration options for large scale deployments", true)
+    @configKey(`Redis message queue / cache configuration options for large scale deployments.
+ Must be enabled for encryption to work.`, true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
