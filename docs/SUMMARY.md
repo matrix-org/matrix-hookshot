@@ -25,4 +25,5 @@
 
 - [Provisioning](./advanced/provisioning.md)
 - [Workers](./advanced/workers.md)
+- [🔒 Encryption](./advanced/encryption.md)
 - [🪀 Widgets](./advanced/widgets.md)

@@ -37,6 +37,7 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | matrix_api_calls | The number of Matrix client API calls made | method |
 | matrix_api_calls_failed | The number of Matrix client API calls which failed | method |
 | matrix_appservice_events | The number of events sent over the AS API |  |
+| matrix_appservice_decryption_failed | The number of events sent over the AS API that failed to decrypt |  |
 ## feed
 | Metric | Help | Labels |
 |--------|------|--------|
