@@ -311,7 +311,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 throw Error('Invalid state, missing `path` or `instance`');
             }
             this.hookFilter = new HookFilter(
-                [],
+                // GitLab allows all events by default
+                AllowedEvents,
                 [],
                 state.ignoreHooks,
             );
