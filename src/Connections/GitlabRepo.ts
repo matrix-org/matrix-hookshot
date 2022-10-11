@@ -3,7 +3,7 @@
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
-import { MatrixMessageContent } from "../MatrixEvent";
+import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
@@ -15,6 +15,7 @@ import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
 import { CommandError } from "../errors";
+import { HookFilter } from "../HookFilter";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -287,6 +288,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         approved?: boolean,
     }>();
 
+    private readonly hookFilter: HookFilter<AllowedEventsNames>;
+
     constructor(roomId: string,
         stateKey: string,
         private readonly as: Appservice,
@@ -307,6 +310,11 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             if (!state.path || !state.instance) {
                 throw Error('Invalid state, missing `path` or `instance`');
             }
+            this.hookFilter = new HookFilter(
+                [],
+                [],
+                state.ignoreHooks,
+            );
     }
 
     public get path() {
@@ -323,6 +331,11 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitLabRepoConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
+    }
+
+    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        await super.onStateUpdate(stateEv);
+        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public getProvisionerDetails(): GitLabRepoResponseItem {
@@ -403,7 +416,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestOpened(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
@@ -419,7 +432,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
@@ -435,7 +448,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
@@ -451,7 +464,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onMergeRequestUpdate(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.ready_for_review')) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.ready_for_review')) {
             return;
         }
         log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
@@ -483,7 +496,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
-        if (this.shouldSkipHook('tag_push')) {
+        if (this.hookFilter.shouldSkip('tag_push')) {
             return;
         }
         log.info(`onGitLabTagPush ${this.roomId} ${this.instance.url}/${this.path} ${event.ref}`);
@@ -503,7 +516,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
 
     public async onGitLabPush(event: IGitLabWebhookPushEvent) {
-        if (this.shouldSkipHook('push')) {
+        if (this.hookFilter.shouldSkip('push')) {
             return;
         }
         log.info(`onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`);
@@ -542,7 +555,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     
     public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
         const attributes = data.object_attributes;
-        if (this.shouldSkipHook('wiki', `wiki.${attributes.action}`)) {
+        if (this.hookFilter.shouldSkip('wiki', `wiki.${attributes.action}`)) {
             return;
         }
         log.info(`onWikiPageEvent ${this.roomId} ${this.instance}/${this.path}`);
@@ -568,7 +581,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onRelease(data: IGitLabWebhookReleaseEvent) {
-        if (this.shouldSkipHook('release', 'release.created')) {
+        if (this.hookFilter.shouldSkip('release', 'release.created')) {
             return;
         }
         log.info(`onReleaseCreated ${this.roomId} ${this.toString()} ${data.tag}`);
@@ -656,7 +669,7 @@ ${data.description}`;
     }
 
     public async onMergeRequestReviewed(event: IGitLabWebhookMREvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
             return;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
@@ -677,7 +690,7 @@ ${data.description}`;
     }
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
             return;
         }
         log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
@@ -708,23 +721,12 @@ ${data.description}`;
         return true;
     }
 
-    private shouldSkipHook(...hookName: AllowedEventsNames[]) {
-        if (this.state.ignoreHooks) {
-            for (const name of hookName) {
-                if (this.state.ignoreHooks?.includes(name)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = GitLabRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
+        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
-
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
