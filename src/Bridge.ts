@@ -911,6 +911,12 @@ export class Bridge {
             return;
         }
 
+        if (this.config.encryption) {
+            // Ensure crypto is aware of all members of this room before posting any messages,
+            // so that the bot can share room keys to all recipients first.
+            await this.as.botClient.crypto.onRoomJoin(roomId);
+        }
+
         const adminAccountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
             BRIDGE_ROOM_TYPE, roomId,
         );
