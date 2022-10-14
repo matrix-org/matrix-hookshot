@@ -782,30 +782,9 @@ export class Bridge {
 
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
             await this.as.botClient.setRoomAccountData(
-                BRIDGE_ROOM_TYPE, roomId, room.accountData,
+                BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender},
             );
-            return;
-        }
-
-        if (this.connectionManager?.isRoomConnected(roomId)) {
-            // Room has connections, don't set up a wizard.
-            return;
-        }
-
-        try {
-            // Otherwise it's a new room
-            if (this.config.widgets?.roomSetupWidget?.addOnInvite) {
-                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
-                    await this.as.botIntent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin.");
-                } else {
-                    // Set up the widget
-                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
-                }
-            }
-        } catch (ex) {
-            log.error(`Failed to set up new widget for room`, ex);
         }
     }
 
@@ -931,14 +910,40 @@ export class Bridge {
             // Only act on bot joins
             return;
         }
+
+        const adminAccountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+            BRIDGE_ROOM_TYPE, roomId,
+        );
+        if (!!adminAccountData) {
+            const room = await this.setUpAdminRoom(roomId, adminAccountData, NotifFilter.getDefaultContent());
+            await this.as.botClient.setRoomAccountData(
+                BRIDGE_ROOM_TYPE, roomId, room.accountData,
+            );
+        }
+
         if (!this.connectionManager) {
             // Not ready yet.
             return;
         }
 
         // Only fetch rooms we have no connections in yet.
-        if (!this.connectionManager.isRoomConnected(roomId)) {
+        const roomHasConnection =
+            this.connectionManager.isRoomConnected(roomId) ||
             await this.connectionManager.createConnectionsForRoomId(roomId, true);
+
+        // If room has connections or is an admin room, don't setup a wizard.
+        // Otherwise it's a new room
+        if (!roomHasConnection && !adminAccountData && this.config.widgets?.roomSetupWidget?.addOnInvite) {
+            try {
+                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
+                    await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
+                } else {
+                    // Setup the widget
+                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+                }
+            } catch (ex) {
+                log.error(`Failed to setup new widget for room`, ex);
+            }
         }
     }
 

@@ -171,6 +171,7 @@ export class ConnectionManager extends EventEmitter {
     }
 
     public async createConnectionsForRoomId(roomId: string, rollbackBadState: boolean) {
+        let connectionCreated = false;
         const state = await this.as.botClient.getRoomState(roomId);
         for (const event of state) {
             try {
@@ -178,11 +179,13 @@ export class ConnectionManager extends EventEmitter {
                 if (conn) {
                     log.debug(`Room ${roomId} is connected to: ${conn}`);
                     this.push(conn);
+                    connectionCreated = true;
                 }
             } catch (ex) {
                 log.error(`Failed to create connection for ${roomId}:`, ex);
             }
         }
+        return connectionCreated;
     }
 
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
