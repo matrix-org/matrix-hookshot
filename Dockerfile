@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y build-essential cmake
 WORKDIR /src
 
 COPY package.json yarn.lock ./
-RUN yarn --ignore-scripts --pure-lockfile
+RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
 
@@ -31,7 +31,7 @@ WORKDIR /bin/matrix-hookshot
 COPY --from=builder /src/yarn.lock /src/package.json ./
 
 
-RUN yarn --production --pure-lockfile && yarn cache clean
+RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
