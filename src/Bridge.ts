@@ -920,7 +920,7 @@ export class Bridge {
         const adminAccountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
             BRIDGE_ROOM_TYPE, roomId,
         );
-        if (!!adminAccountData) {
+        if (adminAccountData) {
             const room = await this.setUpAdminRoom(roomId, adminAccountData, NotifFilter.getDefaultContent());
             await this.as.botClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
