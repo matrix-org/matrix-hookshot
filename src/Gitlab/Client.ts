@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts, AccessLevel, SimpleProject } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
