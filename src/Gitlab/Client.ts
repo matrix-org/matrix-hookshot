@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts, AccessLevel, SimpleProject } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
@@ -134,6 +134,17 @@ export class GitLabClient {
         }
     }
 
+    public async getProjectAccessLevel(id: ProjectId): Promise<AccessLevel> {
+        try {
+            const me = await this.user();
+            const { data } = await axios.get(`api/v4/projects/${encodeURIComponent(id)}/members/${me.id}`, this.defaultConfig);
+            return data.access_level as AccessLevel;
+        } catch (ex) {
+            log.warn(`Failed to get project access level:`, ex);
+            throw ex;
+        }
+    }
+
     get issues() {
         return {
             create: this.createIssue.bind(this),
@@ -145,6 +156,7 @@ export class GitLabClient {
         return {
             get: this.getProject.bind(this),
             list: this.listProjects.bind(this),
+            getMyAccessLevel: this.getProjectAccessLevel.bind(this),
             hooks: {
                 list: this.getProjectHooks.bind(this),
                 add: this.addProjectHook.bind(this),
