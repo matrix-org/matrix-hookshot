@@ -15,6 +15,7 @@ import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
 import { CommandError } from "../errors";
+import QuickLRU from "@alloc/quick-lru";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -286,6 +287,13 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         timeout: NodeJS.Timeout,
         approved?: boolean,
     }>();
+
+    /**
+     * GitLab provides NO threading information in it's webhook response objects,
+     * so we need to determine if we've seen a comment for a line before, and
+     * skip it if we have (because it's probably a reply).
+     */
+    private readonly mergeRequestSeenLineCodes = new QuickLRU<string, undefined>({ maxSize: 100 });
 
     constructor(roomId: string,
         stateKey: string,
@@ -600,7 +608,7 @@ ${data.description}`;
             comments = ` with ${result.commentCount} comments`;
         }
 
-        let approvalState = 'reviewed';
+        let approvalState = 'commented on';
         if (result.approved === true) {
             approvalState = '✅ approved'
         } else if (result.approved === false) {
@@ -642,7 +650,7 @@ ${data.description}`;
             if (commentNotes) {
                 existing.commentNotes = [...(existing.commentNotes ?? []), ...commentNotes];
             }
-            existing.commentCount = opts.commentCount;
+            existing.commentCount = existing.commentCount + opts.commentCount;
             existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS);
             return;
         }
@@ -676,6 +684,19 @@ ${data.description}`;
         );
     }
 
+    private shouldHandleMRComment(event: IGitLabWebhookNoteEvent) {
+        // Check to see if this line has had a comment before
+        if (event.object_attributes.line_code) {
+            if (this.mergeRequestSeenLineCodes.has(event.object_attributes.line_code)) {
+                // If it has, this is probably a reply. Replies are noise, skip em.
+                return false;
+            }
+            // Otherwise, record that we have seen the line and continue (it's probably a genuine comment).
+            this.mergeRequestSeenLineCodes.set(event.object_attributes.line_code, undefined);
+        }
+        return true;
+    }
+
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
         if (this.shouldSkipHook('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
             return;
@@ -683,6 +704,10 @@ ${data.description}`;
         log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
         if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
             // Not a MR comment
+            return;
+        }
+        if (!this.shouldHandleMRComment(event)) {
+            // Skip it.
             return;
         }
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
