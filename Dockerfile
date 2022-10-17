@@ -14,11 +14,11 @@ RUN apt-get update && apt-get install -y build-essential cmake
 WORKDIR /src
 
 COPY package.json yarn.lock ./
-RUN cargo build
 RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
 
+RUN cargo build
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN node node_modules/esbuild/install.js
 RUN yarn build
