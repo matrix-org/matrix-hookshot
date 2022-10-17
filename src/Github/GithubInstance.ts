@@ -5,7 +5,6 @@ import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { GitHubOAuthErrorResponse, GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
 import axios from "axios";
-import qs from "querystring";
 import UserAgent from "../UserAgent";
 
 const log = new Logger("GithubInstance");
