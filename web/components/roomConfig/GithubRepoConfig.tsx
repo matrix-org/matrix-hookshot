@@ -6,6 +6,7 @@ import { ErrCode } from "../../../src/api";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubTargetFilter, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import GitHubIcon from "../../icons/github.png";
+import e from "express";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 const NUM_REPOS_PER_PAGE = 10;
@@ -136,9 +137,14 @@ const EventCheckbox: FunctionComponent<{
     if (enabledHooks) {
         disabled = !!(parentEvent && !enabledHooks.includes(parentEvent));
         checked = enabledHooks.includes(eventName);
-    }
-
-    if (ignoredHooks) {
+        if (ignoredHooks?.includes(eventName)) {
+            // If both are set, this was previously a on-by-default event
+            // that is now off-by-default, and so we need to check both fields.
+            disabled = !!(parentEvent && ignoredHooks.includes(parentEvent)); 
+            checked = true
+        }
+    } else if (ignoredHooks) {
+        // If enabled hooks is not set, this is on-by-default hook.
         disabled = !!(parentEvent && ignoredHooks.includes(parentEvent)); 
         checked = !ignoredHooks.includes(eventName);
     }
