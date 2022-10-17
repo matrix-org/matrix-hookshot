@@ -7,17 +7,23 @@ FROM node:16 AS builder
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
+# arm64 builds consume a lot of memory if `CARGO_NET_GIT_FETCH_WITH_CLI` is not
+# set to true, so we expose it as a build-arg.
+ARG CARGO_NET_GIT_FETCH_WITH_CLI=false
+ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
+
 # Needed to build rust things for matrix-sdk-crypto-nodejs
 # See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
+RUN apt-get update && apt-get install -y build-essential cmake time
 
 WORKDIR /src
 
 COPY package.json yarn.lock ./
-RUN yarn --ignore-scripts --pure-lockfile
+RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
 
+RUN /usr/bin/time -v cargo build --jobs 1
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN node node_modules/esbuild/install.js
 RUN yarn build
@@ -31,7 +37,7 @@ WORKDIR /bin/matrix-hookshot
 COPY --from=builder /src/yarn.lock /src/package.json ./
 
 
-RUN yarn --production --pure-lockfile && yarn cache clean
+RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
