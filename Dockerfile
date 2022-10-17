@@ -9,7 +9,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Needed to build rust things for matrix-sdk-crypto-nodejs
 # See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
+RUN apt-get update && apt-get install -y build-essential cmake time
 
 WORKDIR /src
 
