@@ -36,3 +36,8 @@ jobs:
           push: true
           tags: |
             ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:${{ env.RELEASE_VERSION }}
+
+          # arm64 builds OOM without the git fetch setting. c.f.
+          # https://github.com/rust-lang/cargo/issues/10583
+          build-args: |
+            CARGO_NET_GIT_FETCH_WITH_CLI=true
