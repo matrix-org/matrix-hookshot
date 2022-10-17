@@ -173,11 +173,11 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 // Needs a refresh.
                 const refreshResult = await GithubInstance.refreshAccessToken(
                     senderToken.refresh_token, 
-                    this.config.github.oauth?.client_id,
-                    this.config.github.oauth?.client_secret,
+                    this.config.github.oauth.client_id,
+                    this.config.github.oauth.client_secret,
                     this.config.github.baseUrl
                 );
-                if (!senderToken.access_token) {
+                if (!refreshResult.access_token) {
                     throw Error('Refresh token response had the wrong response format!');
                 }
                 senderToken = {
