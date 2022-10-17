@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y build-essential cmake
 WORKDIR /src
 
 COPY package.json yarn.lock ./
+RUN cargo build
 RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
