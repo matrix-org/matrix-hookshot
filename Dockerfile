@@ -18,7 +18,7 @@ RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
 
-RUN cargo build
+RUN /usr/bin/time -v cargo build --jobs 1
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN node node_modules/esbuild/install.js
 RUN yarn build
