@@ -183,7 +183,7 @@ export interface IGitLabNote {
     author_id: number;
     noteable_id: number;
     description: string;
-    line_code?: string;
+    discussion_id?: string;
 }
 
 export interface IGitLabWebhookNoteEvent {

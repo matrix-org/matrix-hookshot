@@ -294,7 +294,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
      * so we need to determine if we've seen a comment for a line before, and
      * skip it if we have (because it's probably a reply).
      */
-    private readonly mergeRequestSeenLineCodes = new QuickLRU<string, undefined>({ maxSize: 100 });
+    private readonly mergeRequestSeenDiscussionIds = new QuickLRU<string, undefined>({ maxSize: 100 });
 
     constructor(roomId: string,
         stateKey: string,
@@ -696,13 +696,13 @@ ${data.description}`;
 
     private shouldHandleMRComment(event: IGitLabWebhookNoteEvent) {
         // Check to see if this line has had a comment before
-        if (event.object_attributes.line_code) {
-            if (this.mergeRequestSeenLineCodes.has(event.object_attributes.line_code)) {
+        if (event.object_attributes.discussion_id) {
+            if (this.mergeRequestSeenDiscussionIds.has(event.object_attributes.discussion_id)) {
                 // If it has, this is probably a reply. Replies are noise, skip em.
                 return false;
             }
             // Otherwise, record that we have seen the line and continue (it's probably a genuine comment).
-            this.mergeRequestSeenLineCodes.set(event.object_attributes.line_code, undefined);
+            this.mergeRequestSeenDiscussionIds.set(event.object_attributes.discussion_id, undefined);
         }
         return true;
     }
