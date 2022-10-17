@@ -286,6 +286,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         author: string,
         timeout: NodeJS.Timeout,
         approved?: boolean,
+        skip?: boolean,
     }>();
 
     /**
@@ -639,6 +640,10 @@ ${data.description}`;
             commentCount: number,
             commentNotes?: string[],
             approved?: boolean,
+            /**
+             * If the MR contains only comments, skip it.
+             */
+            skip: boolean,
         }
     ) {
         const { commentCount, commentNotes, approved } = opts;
@@ -651,12 +656,16 @@ ${data.description}`;
                 existing.commentNotes = [...(existing.commentNotes ?? []), ...commentNotes];
             }
             existing.commentCount = existing.commentCount + opts.commentCount;
+            if (!opts.skip) {
+                existing.skip = false;
+            }
             existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS);
             return;
         }
         this.debounceMRComments.set(uniqueId, {
             commentCount: commentCount,
             commentNotes: commentNotes,
+            skip: opts.skip,
             approved,
             author: user.name,
             timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS),
@@ -679,7 +688,8 @@ ${data.description}`;
             event.project,
             {
                 commentCount: 0,
-                approved: "approved" === event.object_attributes.action
+                approved: "approved" === event.object_attributes.action,
+                skip: false,
             }
         );
     }
@@ -698,7 +708,7 @@ ${data.description}`;
     }
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.shouldSkipHook('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
+        if (this.shouldSkipHook('merge_request', 'merge_request.review')) {
             return;
         }
         log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
@@ -713,6 +723,7 @@ ${data.description}`;
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
             commentCount: 1,
             commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+            skip: this.shouldSkipHook('merge_request.review.comments'),
         });
     }
 
