@@ -133,6 +133,7 @@ export class BridgeWidgetApi {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
+            this.connMan.validateCommandPrefix(req.params.roomId, req.body);
             const connection = await this.connMan.provisionConnection(req.params.roomId as string, req.userId, req.params.type as string, req.body as Record<string, unknown>);
             if (!connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
@@ -156,6 +157,7 @@ export class BridgeWidgetApi {
         if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
             throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
         }
+        this.connMan.validateCommandPrefix(req.params.roomId, req.body, connection);
         await connection.provisionerUpdateConfig(req.userId, req.body);
         res.send(connection.getProvisionerDetails(true));
     }

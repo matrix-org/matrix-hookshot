@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
+import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject } from "./Jira/Types";
@@ -247,6 +247,15 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionById(roomId: string, connectionId: string) {
         return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
+    }
+
+    public validateCommandPrefix(roomId: string, config: IConnectionState, currentConnection?: IConnection) {
+        if (config.commandPrefix === undefined) return;
+        for (const c of this.getAllConnectionsForRoom(roomId)) {
+            if (c != currentConnection && c.conflictsWithCommandPrefix(config.commandPrefix)) {
+                throw new ApiError(`Command prefix "${config.commandPrefix}" is already used in this room. Please choose another prefix.`);
+            }
+        }
     }
 
     public async purgeConnection(roomId: string, connectionId: string, requireNoRemoveHandler = true) {
