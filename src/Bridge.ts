@@ -956,10 +956,10 @@ export class Bridge {
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
                         await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
                     } else {
-                        connection.onStateUpdate?.(event);
+                        await connection.onStateUpdate?.(event);
                     }
                 } catch (ex) {
-                    log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
+                    log.warn(`Connection ${connection.toString()} for ${roomId} failed to handle state update:`, ex);
                 }
             }
             if (!existingConnections.length) {

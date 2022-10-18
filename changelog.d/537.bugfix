@@ -1,0 +1,1 @@
+Fix a crash caused by invalid configuration in connection state events.
