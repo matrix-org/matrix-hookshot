@@ -77,7 +77,7 @@ export interface IConnection {
 
     toString(): string;
 
-    conflictsWithCommandPrefix(commandPrefix: string): boolean;
+    conflictsWithCommandPrefix?: (commandPrefix: string) => boolean;
 }
 
 

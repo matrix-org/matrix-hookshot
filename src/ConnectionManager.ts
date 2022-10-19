@@ -252,8 +252,11 @@ export class ConnectionManager extends EventEmitter {
     public validateCommandPrefix(roomId: string, config: IConnectionState, currentConnection?: IConnection) {
         if (config.commandPrefix === undefined) return;
         for (const c of this.getAllConnectionsForRoom(roomId)) {
-            if (c != currentConnection && c.conflictsWithCommandPrefix(config.commandPrefix)) {
-                throw new ApiError(`Command prefix "${config.commandPrefix}" is already used in this room. Please choose another prefix.`);
+            if (c != currentConnection && c.conflictsWithCommandPrefix?.(config.commandPrefix)) {
+                throw new ApiError(`Command prefix "${config.commandPrefix}" is already used in this room. Please choose another prefix.`, ErrCode.ConflictingConnection, -1, {
+                        existingConnection: c.getProvisionerDetails?.(),
+                    }
+                );
             }
         }
     }
