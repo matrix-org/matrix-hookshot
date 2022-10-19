@@ -26,6 +26,7 @@ import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
+import parseDuration from 'parse-duration';
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -273,6 +274,14 @@ export interface GitHubTargetFilter {
     perPage?: number;
 }
 
+interface SilencedHook {
+    eventNames: AllowedEventsNames[];
+    filters?: {
+        by?: string;
+    };
+    until: Date,
+}
+
 /**
  * Handles rooms connected to a GitHub repo.
  */
@@ -430,6 +439,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     static botCommands: BotCommands;
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
+
+    public tempSilencedHooks: SilencedHook[] = [];
 
     constructor(roomId: string,
         private readonly as: Appservice,
@@ -710,6 +721,32 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
 
         await this.as.botIntent.sendText(this.roomId, `Workflow started.`, "m.notice");
+    }
+
+    @botCommand("hush", "Hush an event for a period of time", ["eventNames"], ["filters", "time"], true)
+    public async onHush(userId: string, eventNamesStr: string, filters?: string, time?: string) {
+        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+            throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to hush notifications.");
+        }
+        const eventNames = eventNamesStr.split(',');
+        const invalidEventNames = eventNames.filter(s => s in AllowedEvents === false)
+        if (invalidEventNames.length) {
+            throw new CommandError(`${invalidEventNames.join(', ')} are not valid event names`);
+        }
+        const filterSet: Record<string, string> = {};
+        filters?.split(',').forEach(s => {
+            const [key,value] = s.toLowerCase().split(':');
+            filterSet[key] = value;
+        });
+        // One hour
+        const until = new Date(Date.now() + (time ? parseDuration(time) : 1000 * 60 * 60));
+        this.tempSilencedHooks.push({
+            until,
+            filters: {
+                by: filterSet.by,
+            },
+            eventNames: eventNames as AllowedEventsNames[],
+        })
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
