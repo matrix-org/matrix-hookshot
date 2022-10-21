@@ -110,11 +110,6 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!config.jira) {
             throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
         }
-        const existingConnections = getAllConnectionsOfType(JiraProjectConnection);
-        if (existingConnections.find(c => c instanceof JiraProjectConnection)) {
-            // TODO: Support this.
-            throw Error("Cannot support multiple connections of the same type yet");
-        }
         const validData = validateJiraConnectionState(data);
         log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
         const jiraClient = await tokenStore.getJiraForUser(userId, validData.url);

@@ -71,6 +71,8 @@ export interface IConnection {
     onRemove?: () => Promise<void>;
 
     toString(): string;
+
+    conflictsWithCommandPrefix?: (commandPrefix: string) => boolean;
 }
 
 
