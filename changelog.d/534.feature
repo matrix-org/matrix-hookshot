@@ -1,1 +1,0 @@
-Support Jira version events.

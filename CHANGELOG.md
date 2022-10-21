@@ -1,3 +1,33 @@
+2.4.0 (2022-10-21)
+==================
+
+Features
+--------
+
+- Add support for notifying when a GitHub workflow completes. ([\#520](https://github.com/matrix-org/matrix-hookshot/issues/520))
+- Disable GitHub workflow events by default. ([\#528](https://github.com/matrix-org/matrix-hookshot/issues/528))
+- Support Jira version events. ([\#534](https://github.com/matrix-org/matrix-hookshot/issues/534))
+- Allow multiple Jira connections at a time (either in the same room or across multiple rooms). ([\#540](https://github.com/matrix-org/matrix-hookshot/issues/540))
+
+
+Bugfixes
+--------
+
+- Mention the `help` in AdminRooms if they send an invalid command. ([\#522](https://github.com/matrix-org/matrix-hookshot/issues/522))
+- Fix an issue where `github status` would not respond with an error if your personal token had expired.
+  Fix GitHub refresh tokens occasionally not working. ([\#523](https://github.com/matrix-org/matrix-hookshot/issues/523))
+- Add support for notifying when a GitHub workflow completes. ([\#524](https://github.com/matrix-org/matrix-hookshot/issues/524))
+- Fix a crash caused by invalid configuration in connection state events. ([\#537](https://github.com/matrix-org/matrix-hookshot/issues/537))
+- Fix the Jira config widget to properly add listeners for issue creation events & expose support for issue update events. ([\#543](https://github.com/matrix-org/matrix-hookshot/issues/543))
+
+
+Internal Changes
+----------------
+
+- Use the `matrix-appservice-bridge` logging implementation. ([\#488](https://github.com/matrix-org/matrix-hookshot/issues/488))
+- Increase network timeout for Docker builds, and fix Docker build OOMing in CI for arm64 builds. ([\#535](https://github.com/matrix-org/matrix-hookshot/issues/535))
+
+
 2.3.0 (2022-10-05)
 ==================
 
