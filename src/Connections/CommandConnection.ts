@@ -31,6 +31,10 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
         return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
     }
 
+    public conflictsWithCommandPrefix(commandPrefix: string) {
+        return this.commandPrefix == commandPrefix + " ";
+    }
+
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         this.state = this.validateConnectionState(stateEv.content);
     }

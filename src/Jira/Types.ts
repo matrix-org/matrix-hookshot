@@ -68,6 +68,25 @@ export interface JiraIssue {
     }
 }
 
+export interface JiraVersion {
+    /**
+     * URL
+     */
+    self: string;
+    id: string;
+    description: string;
+    name: string;
+    archived: boolean;
+    released: boolean;
+    startDate?: string;
+    releaseDate?: string;
+    overdue: boolean;
+    userStartDate?: string;
+    userReleaseDate?: string;
+    project?: string;
+    projectId: number;
+}
+
 export interface JiraStoredToken {
     expires_in?: number;
     access_token: string;
