@@ -17,8 +17,15 @@ import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigJira } from "../Config/Config";
 import { HookshotJiraApi } from "../Jira/Client";
 
-type JiraAllowedEventsNames = "issue.created";
-const JiraAllowedEvents: JiraAllowedEventsNames[] = ["issue.created"];
+type JiraAllowedEventsNames =
+    "issue_created" |
+    "issue_updated";
+
+const JiraAllowedEvents: JiraAllowedEventsNames[] = [
+    "issue_created" ,
+    "issue_updated" ,
+];
+
 export interface JiraProjectConnectionState extends IConnectionState {
     // legacy field, prefer url
     id?: string;
@@ -48,7 +55,7 @@ export type JiraProjectResponseItem = GetConnectionsResponseItem<JiraProjectConn
 
 
 function validateJiraConnectionState(state: unknown): JiraProjectConnectionState {
-    const {url, commandPrefix, events, priority} = state as Partial<JiraProjectConnectionState>;
+    const {url, commandPrefix, priority} = state as Partial<JiraProjectConnectionState>;
     if (url === undefined) {
         throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
     }
@@ -60,7 +67,10 @@ function validateJiraConnectionState(state: unknown): JiraProjectConnectionState
             throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
         }
     }
-    if (events?.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
+    let {events} = state as Partial<JiraProjectConnectionState>;
+    if (!events || events[0] as string == 'issue.created') { // migration
+        events = ['issue_created'];
+    } else if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
         throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, ErrCode.BadValue);
     }
     return {url, commandPrefix, events, priority};
@@ -151,8 +161,8 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
     }
 
-    public isInterestedInHookEvent(eventName: string) {
-        return !this.state.events || this.state.events?.includes(eventName as JiraAllowedEventsNames);
+    public isInterestedInHookEvent(eventName: JiraAllowedEventsNames, interestedByDefault = false) {
+        return !this.state.events ? interestedByDefault : this.state.events.includes(eventName);
     }
 
     public interestedInProject(project: JiraProject) {
@@ -207,6 +217,12 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {
+        // NOTE This is the only event type that shouldn't be skipped if the state object is missing,
+        //      for backwards compatibility with issue creation having been the only supported Jira event type,
+        //      and a missing state object having been treated as wanting all events.
+        if (!this.isInterestedInHookEvent('issue_created', true)) {
+            return;
+        }
         log.info(`onIssueCreated ${this.roomId} ${this.projectId} ${data.issue.id}`);
 
         const creator = data.issue.fields.creator;
@@ -298,6 +314,9 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     public async onJiraIssueUpdated(data: JiraIssueUpdatedEvent) {
+        if (!this.isInterestedInHookEvent('issue_updated')) {
+            return;
+        }
         log.info(`onJiraIssueUpdated ${this.roomId} ${this.projectId} ${data.issue.id}`);
         const url = generateJiraWebLinkFromIssue(data.issue);
         let content = `${data.user.displayName} updated JIRA [${data.issue.key}](${url}): `;

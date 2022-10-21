@@ -506,16 +506,16 @@ export class Bridge {
     
         this.bindHandlerToQueue<JiraIssueEvent, JiraProjectConnection>(
             "jira.issue_created",
-            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_created"), 
+            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
             (c, data) => c.onJiraIssueCreated(data),
         );
 
         this.bindHandlerToQueue<JiraIssueUpdatedEvent, JiraProjectConnection>(
             "jira.issue_updated",
-            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_updated"), 
+            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
             (c, data) => c.onJiraIssueUpdated(data),
         );
-    
+
         this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
             if (!this.config.jira || !this.tokenStore.jiraOAuth) {
                 throw Error('Cannot handle, JIRA oauth support not enabled');
