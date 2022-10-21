@@ -176,6 +176,12 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox allowedEvents={allowedEvents} eventName="issue_created" onChange={toggleEvent}>Created</EventCheckbox>
                     <EventCheckbox allowedEvents={allowedEvents} eventName="issue_updated" onChange={toggleEvent}>Updated</EventCheckbox>
                 </ul>
+                Versions
+                <ul>
+                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_created" onChange={toggleEvent}>Created</EventCheckbox>
+                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_updated" onChange={toggleEvent}>Updated</EventCheckbox>
+                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_released" onChange={toggleEvent}>Released</EventCheckbox>
+                </ul>
             </ul>
         </InputField>
         <ButtonSet>

@@ -10,7 +10,7 @@ import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Co
 import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
-import { JiraProject } from "./Jira/Types";
+import { JiraProject, JiraVersion } from "./Jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
@@ -211,6 +211,10 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionsForJiraProject(project: JiraProject): JiraProjectConnection[] {
         return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.interestedInProject(project))) as JiraProjectConnection[];
+    }
+
+    public getConnectionsForJiraVersion(version: JiraVersion): JiraProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.interestedInVersion(version))) as JiraProjectConnection[];
     }
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {

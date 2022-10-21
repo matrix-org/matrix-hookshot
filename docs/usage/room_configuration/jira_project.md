@@ -40,3 +40,7 @@ This connection supports sending messages when the following actions happen on t
 - issue
   - issue_created
   - issue_updated
+- version
+  - version_created
+  - version_updated
+  - version_released
