@@ -6,7 +6,6 @@ import { ErrCode } from "../../../src/api";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubTargetFilter, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import GitHubIcon from "../../icons/github.png";
-import e from "express";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 const NUM_REPOS_PER_PAGE = 10;
