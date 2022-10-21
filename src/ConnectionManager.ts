@@ -46,16 +46,15 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Push a new connection to the manager, if this connection already
      * exists then this will no-op.
-     * NOTE: The comparison only checks that the same object instance isn't present,
-     * but not if two instances exist with the same type/state.
      * @param connection The connection instance to push.
      */
     public push(...connections: IConnection[]) {
         for (const connection of connections) {
-            if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
-                this.connections.push(connection);
-                this.emit('new-connection', connection);
+            if (this.connections.some(c => c.connectionId === connection.connectionId)) {
+                return;
             }
+            this.connections.push(connection);
+            this.emit('new-connection', connection);
         }
         Metrics.connections.set(this.connections.length);
         // Already exists, noop.
