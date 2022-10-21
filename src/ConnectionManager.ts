@@ -209,11 +209,8 @@ export class ConnectionManager extends EventEmitter {
         return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
     }
 
-    public getConnectionsForJiraProject(project: JiraProject, eventName: string): JiraProjectConnection[] {
-        return this.connections.filter((c) => 
-            (c instanceof JiraProjectConnection &&
-                c.interestedInProject(project) &&
-                c.isInterestedInHookEvent(eventName))) as JiraProjectConnection[];
+    public getConnectionsForJiraProject(project: JiraProject): JiraProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.interestedInProject(project))) as JiraProjectConnection[];
     }
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {

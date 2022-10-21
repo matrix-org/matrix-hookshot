@@ -134,7 +134,7 @@ const EventCheckbox: FunctionComponent<{
 };
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
-    const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || []);
+    const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);
 
     const toggleEvent = useCallback((evt: Event) => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
@@ -171,7 +171,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!newConnectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
             <ul>
-                <EventCheckbox allowedEvents={allowedEvents} eventName="issue.created" onChange={toggleEvent}>Issue created</EventCheckbox>
+                Issues
+                <ul>
+                    <EventCheckbox allowedEvents={allowedEvents} eventName="issue_created" onChange={toggleEvent}>Created</EventCheckbox>
+                    <EventCheckbox allowedEvents={allowedEvents} eventName="issue_updated" onChange={toggleEvent}>Updated</EventCheckbox>
+                </ul>
             </ul>
         </InputField>
         <ButtonSet>
