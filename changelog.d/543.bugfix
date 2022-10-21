@@ -1,1 +1,0 @@
-Fix the Jira config widget to properly add listeners for issue creation events & expose support for issue update events.
