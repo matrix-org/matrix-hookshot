@@ -173,7 +173,8 @@ a new release.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
 <table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
-<tr><td>ignoreHooks</td><td>Choose to exclude notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
+<tr><td>enableHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td>Enable notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
+<tr><td>ignoreHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td>Choose to exclude notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
 <tr><td>commandPrefix</td><td>Choose the prefix to use when sending commands to the bot</td><td>A string, ideally starts with &quot;!&quot;</td><td><code>!gh</code></td></tr>
 <tr><td>showIssueRoomLink</td><td>When new issues are created, provide a Matrix alias link to the issue room</td><td><code>true/false</code></td><td><code>false</code></td></tr>
 <tr><td>prDiff</td><td>Show a diff in the room when a PR is created, subject to limits</td><td><code>{enabled: boolean, maxLines: number}</code></td><td><code>{enabled: false}</code></td></tr>
@@ -185,24 +186,33 @@ a new release.</p>
 <tr><td>workflowRun</td><td>Configuration options for workflow run results</td><td><code>{ matchingBranch: string }</code></td><td><em>empty</em></td></tr>
 <tr><td>workflowRun.matchingBranch</td><td>Only report workflow runs if it matches this regex.</td><td>Regex string</td><td><em>empty</em></td></tr>
 </tbody></table>
+<div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
+<p><code>ignoreHooks</code> takes precedence over <code>enableHooks</code>.</p>
+</div>
 <h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
+<p>Note: Some of these event types are enabled by default (marked with a <code>*</code>)</p>
 <ul>
-<li>issue
+<li>issue *
 <ul>
-<li>issue.created</li>
-<li>issue.changed</li>
-<li>issue.edited</li>
-<li>issue.labeled</li>
+<li>issue.created *</li>
+<li>issue.changed *</li>
+<li>issue.edited *</li>
+<li>issue.labeled *</li>
 </ul>
 </li>
-<li>pull_request
+<li>pull_request *
 <ul>
-<li>pull_request.closed</li>
-<li>pull_request.merged</li>
-<li>pull_request.opened</li>
-<li>pull_request.ready_for_review</li>
-<li>pull_request.reviewed</li>
+<li>pull_request.closed *</li>
+<li>pull_request.merged *</li>
+<li>pull_request.opened *</li>
+<li>pull_request.ready_for_review *</li>
+<li>pull_request.reviewed *</li>
+</ul>
+</li>
+<li>release *
+<ul>
+<li>release.created *</li>
 </ul>
 </li>
 <li>workflow.run
@@ -214,11 +224,6 @@ a new release.</p>
 <li>workflow.run.timed_out</li>
 <li>workflow.run.stale</li>
 <li>workflow.run.action_required</li>
-</ul>
-</li>
-<li>release
-<ul>
-<li>release.created</li>
 </ul>
 </li>
 </ul>
