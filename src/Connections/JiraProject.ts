@@ -1,11 +1,11 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { JiraIssueEvent, JiraIssueUpdatedEvent } from "../Jira/WebhookTypes";
+import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
-import { generateJiraWebLinkFromIssue } from "../Jira";
-import { JiraProject } from "../Jira/Types";
+import { generateJiraWebLinkFromIssue, generateJiraWebLinkFromVersion } from "../Jira";
+import { JiraProject, JiraVersion } from "../Jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
@@ -19,15 +19,21 @@ import { HookshotJiraApi } from "../Jira/Client";
 
 type JiraAllowedEventsNames =
     "issue_created" |
-    "issue_updated";
+    "issue_updated" |
+    "version_created" |
+    "version_updated" |
+    "version_released";
 
 const JiraAllowedEvents: JiraAllowedEventsNames[] = [
     "issue_created" ,
     "issue_updated" ,
+    "version_created" ,
+    "version_updated" ,
+    "version_released",
 ];
 
 export interface JiraProjectConnectionState extends IConnectionState {
-    // legacy field, prefer url
+    // prefer url, but some events identify projects by id
     id?: string;
     url: string;
     events?: JiraAllowedEventsNames[],
@@ -55,7 +61,10 @@ export type JiraProjectResponseItem = GetConnectionsResponseItem<JiraProjectConn
 
 
 function validateJiraConnectionState(state: unknown): JiraProjectConnectionState {
-    const {url, commandPrefix, priority} = state as Partial<JiraProjectConnectionState>;
+    const {id, url, commandPrefix, priority} = state as Partial<JiraProjectConnectionState>;
+    if (id !== undefined && typeof id !== "string") {
+        throw new ApiError("Expected 'id' to be a string", ErrCode.BadValue);
+    }
     if (url === undefined) {
         throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
     }
@@ -73,7 +82,7 @@ function validateJiraConnectionState(state: unknown): JiraProjectConnectionState
     } else if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
         throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, ErrCode.BadValue);
     }
-    return {url, commandPrefix, events, priority};
+    return {id, url, commandPrefix, events, priority};
 }
 
 const log = new Logger("JiraProjectConnection");
@@ -122,8 +131,13 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             throw Error('Expected projectKey to be defined');
         }
         try {
-            // Just need to check that the user can access this.
-            await jiraResourceClient.getProject(connection.projectKey);
+            // Need to check that the user can access this.
+            const project = await jiraResourceClient.getProject(connection.projectKey);
+            // Fetch the project's id now, to support events that identify projects by id instead of url
+            if (connection.state.id !== undefined && connection.state.id !== project.id) {
+                log.warn(`Updating ID of project ${connection.projectKey} from ${connection.state.id} to ${project.id}`);
+                connection.state.id = project.id;
+            }
         } catch (ex) {
             throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
         }
@@ -149,7 +163,11 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     public get projectKey() {
-        const parts = this.projectUrl?.pathname.split('/');
+        return this.projectUrl ? JiraProjectConnection.getProjectKeyForUrl(this.projectUrl) : undefined;
+    }
+
+    public static getProjectKeyForUrl(projectUrl: URL) {
+        const parts = projectUrl?.pathname.split('/');
         return parts ? parts[parts.length - 1]?.toUpperCase() : undefined;
     }
 
@@ -158,7 +176,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     public toString() {
-        return `JiraProjectConnection ${this.projectId || this.projectUrl}`;
+        return `JiraProjectConnection ${this.projectUrl || this.projectId}`;
     }
 
     public isInterestedInHookEvent(eventName: JiraAllowedEventsNames, interestedByDefault = false) {
@@ -174,6 +192,10 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             return this.instanceOrigin === url.host && this.projectKey === project.key.toUpperCase();
         }
         return false;
+    }
+
+    public interestedInVersion(version: JiraVersion) {
+        return this.projectId === version.projectId.toString();
     }
 
     /**
@@ -223,7 +245,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!this.isInterestedInHookEvent('issue_created', true)) {
             return;
         }
-        log.info(`onIssueCreated ${this.roomId} ${this.projectId} ${data.issue.id}`);
+        log.info(`onIssueCreated ${this.roomId} ${this.projectUrl || this.projectId} ${data.issue.id}`);
 
         const creator = data.issue.fields.creator;
         if (!creator) {
@@ -299,6 +321,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             for await (const project of resClient.getAllProjects()) {
                 allProjects.push({
                     state: {
+                        id: project.id,
                         // Technically not the real URL, but good enough for hookshot!
                         url: `${resClient.resource.url}/projects/${project.key}`,
                     },
@@ -317,7 +340,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!this.isInterestedInHookEvent('issue_updated')) {
             return;
         }
-        log.info(`onJiraIssueUpdated ${this.roomId} ${this.projectId} ${data.issue.id}`);
+        log.info(`onJiraIssueUpdated ${this.roomId} ${this.projectUrl || this.projectId} ${data.issue.id}`);
         const url = generateJiraWebLinkFromIssue(data.issue);
         let content = `${data.user.displayName} updated JIRA [${data.issue.key}](${url}): `;
 
@@ -339,6 +362,29 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
             ...FormatUtil.getPartialBodyForJiraIssue(data.issue)
+        });
+    }
+
+    public async onJiraVersionEvent(data: JiraVersionEvent) {
+        if (!this.isInterestedInHookEvent(data.webhookEvent)) {
+            return;
+        }
+        log.info(`onJiraVersionEvent ${this.roomId} ${this.projectUrl || this.projectId} ${data.webhookEvent}`);
+        const url = generateJiraWebLinkFromVersion({
+            ...data.version,
+            projectId: data.version.projectId.toString(),
+        });
+        const action = data.webhookEvent.substring("version_".length);
+        const content =
+            `Version **${action}**` +
+            (this.projectKey && this.projectUrl ? ` for project [${this.projectKey}](${this.projectUrl})` : "") +
+            `: [${data.version.name}](${url}) (_${data.version.description}_)`;
+
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
         });
     }
 
@@ -467,8 +513,30 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         const validatedConfig = validateJiraConnectionState(config);
+        if (!validatedConfig.id) {
+            await this.updateProjectId(validatedConfig, userId);
+        }
         await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
+    }
+
+    private async updateProjectId(validatedConfig: JiraProjectConnectionState, userIdForAuth: string) {
+        const jiraClient = await this.tokenStore.getJiraForUser(userIdForAuth);
+        if (!jiraClient) {
+            log.warn(`Cannot update JIRA project ID via user ${userIdForAuth} who is not authenticted with JIRA`);
+            return;
+        }
+        const url = new URL(validatedConfig.url);
+        const jiraResourceClient = await jiraClient.getClientForUrl(url);
+        if (!jiraResourceClient) {
+            log.warn(`Cannot update JIRA project ID via user ${userIdForAuth} who is not authenticated with this JIRA instance`);
+            return;
+        }
+        const projectKey = JiraProjectConnection.getProjectKeyForUrl(url);
+        if (projectKey) {
+            const project = await jiraResourceClient.getProject(projectKey);
+            validatedConfig.id = project.id;
+        }
     }
 }
 
