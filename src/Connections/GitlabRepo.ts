@@ -655,7 +655,7 @@ ${data.description}`;
             if (commentNotes) {
                 existing.commentNotes = [...(existing.commentNotes ?? []), ...commentNotes];
             }
-            existing.commentCount = existing.commentCount + opts.commentCount;
+            existing.commentCount += opts.commentCount;
             if (!opts.skip) {
                 existing.skip = false;
             }
