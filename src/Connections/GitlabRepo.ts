@@ -15,6 +15,7 @@ import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
 import { CommandError } from "../errors";
+import QuickLRU from "@alloc/quick-lru";
 import { HookFilter } from "../HookFilter";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
@@ -286,8 +287,15 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         author: string,
         timeout: NodeJS.Timeout,
         approved?: boolean,
+        skip?: boolean,
     }>();
 
+    /**
+     * GitLab provides NO threading information in its webhook response objects,
+     * so we need to determine if we've seen a comment for a line before, and
+     * skip it if we have (because it's probably a reply).
+     */
+    private readonly mergeRequestSeenDiscussionIds = new QuickLRU<string, undefined>({ maxSize: 100 });
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
     constructor(roomId: string,
@@ -614,7 +622,7 @@ ${data.description}`;
             comments = ` with ${result.commentCount} comments`;
         }
 
-        let approvalState = 'reviewed';
+        let approvalState = 'commented on';
         if (result.approved === true) {
             approvalState = '✅ approved'
         } else if (result.approved === false) {
@@ -645,6 +653,10 @@ ${data.description}`;
             commentCount: number,
             commentNotes?: string[],
             approved?: boolean,
+            /**
+             * If the MR contains only comments, skip it.
+             */
+            skip: boolean,
         }
     ) {
         const { commentCount, commentNotes, approved } = opts;
@@ -656,13 +668,17 @@ ${data.description}`;
             if (commentNotes) {
                 existing.commentNotes = [...(existing.commentNotes ?? []), ...commentNotes];
             }
-            existing.commentCount = opts.commentCount;
+            existing.commentCount += opts.commentCount;
+            if (!opts.skip) {
+                existing.skip = false;
+            }
             existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS);
             return;
         }
         this.debounceMRComments.set(uniqueId, {
             commentCount: commentCount,
             commentNotes: commentNotes,
+            skip: opts.skip,
             approved,
             author: user.name,
             timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS),
@@ -685,13 +701,27 @@ ${data.description}`;
             event.project,
             {
                 commentCount: 0,
-                approved: "approved" === event.object_attributes.action
+                approved: "approved" === event.object_attributes.action,
+                skip: false,
             }
         );
     }
 
+    private shouldHandleMRComment(event: IGitLabWebhookNoteEvent) {
+        // Check to see if this line has had a comment before
+        if (event.object_attributes.discussion_id) {
+            if (this.mergeRequestSeenDiscussionIds.has(event.object_attributes.discussion_id)) {
+                // If it has, this is probably a reply. Skip repeated replies.
+                return false;
+            }
+            // Otherwise, record that we have seen the line and continue (it's probably a genuine comment).
+            this.mergeRequestSeenDiscussionIds.set(event.object_attributes.discussion_id, undefined);
+        }
+        return true;
+    }
+
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review', 'merge_request.review.comments')) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
             return;
         }
         log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
@@ -699,9 +729,14 @@ ${data.description}`;
             // Not a MR comment
             return;
         }
+        if (!this.shouldHandleMRComment(event)) {
+            // Skip it.
+            return;
+        }
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
             commentCount: 1,
             commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+            skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
         });
     }
 

@@ -1,0 +1,1 @@
+Do not send a notice when a user replies to a GitLab comment, or when GitLab comment notices have been disabled.
