@@ -26,6 +26,7 @@ import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
+import { HookFilter } from "../HookFilter";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -39,6 +40,7 @@ interface IQueryRoomOpts {
 }
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
+    enableHooks?: AllowedEventsNames[],
     ignoreHooks?: AllowedEventsNames[],
     showIssueRoomLink?: boolean;
     prDiff?: {
@@ -126,6 +128,16 @@ const AllowedEvents: AllowedEventsNames[] = [
     "workflow.run.stale",
 ];
 
+/**
+ * These hooks are enabled by default, unless they are
+ * specifed in the ignoreHooks option.
+ */
+const AllowHookByDefault: AllowedEventsNames[] = [
+    "issue",
+    "pull_request",
+    "release",
+];
+
 const ConnectionStateSchema = {
   type: "object",
   properties: {
@@ -136,6 +148,13 @@ const ConnectionStateSchema = {
     org: {type: "string"},
     repo: {type: "string"},
     ignoreHooks: {
+        type: "array",
+        items: {
+            type: "string",
+        },
+        nullable: true,
+    },
+    enableHooks: {
         type: "array",
         items: {
             type: "string",
@@ -429,6 +448,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     static helpMessage: HelpFunction;
     static botCommands: BotCommands;
 
+    private readonly hookFilter: HookFilter<AllowedEventsNames>;
+
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
     constructor(roomId: string,
@@ -450,6 +471,11 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 "!gh",
                 "github",
             );
+        this.hookFilter = new HookFilter(
+            AllowHookByDefault,
+            state.enableHooks,
+            state.ignoreHooks,
+        )
     }
 
     public get hotlinkIssues() {
@@ -483,6 +509,12 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     protected validateConnectionState(content: unknown) {
         return GitHubRepoConnection.validateState(content);
+    }
+
+    public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        await super.onStateUpdate(stateEv);
+        this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
+        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -713,7 +745,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
-        if (this.shouldSkipHook('issue.created', 'issue') || !this.matchesLabelFilter(event.issue)) {
+        if (this.hookFilter.shouldSkip('issue.created', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         log.info(`onIssueCreated ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
@@ -747,7 +779,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onIssueStateChange(event: IssuesEditedEvent|IssuesReopenedEvent|IssuesClosedEvent) {
-        if (this.shouldSkipHook('issue.changed', 'issue') || !this.matchesLabelFilter(event.issue)) {
+        if (this.hookFilter.shouldSkip('issue.changed', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         log.info(`onIssueStateChange ${this.roomId} ${this.org}/${this.repo} #${event.issue?.number}`);
@@ -793,7 +825,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onIssueEdited(event: IssuesEditedEvent) {
-        if (this.shouldSkipHook('issue.edited', 'issue') || !this.matchesLabelFilter(event.issue)) {
+        if (this.hookFilter.shouldSkip('issue.edited', 'issue') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
         if (!event.issue) {
@@ -812,7 +844,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onIssueLabeled(event: IssuesLabeledEvent) {
-        if (this.shouldSkipHook('issue.labeled', 'issue') || !event.label || !this.state.includingLabels?.length) {
+        if (this.hookFilter.shouldSkip('issue.labeled', 'issue') || !event.label || !this.state.includingLabels?.length) {
             return;
         }
 
@@ -866,7 +898,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onPROpened(event: PullRequestOpenedEvent) {
-        if (this.shouldSkipHook('pull_request.opened', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
+        if (this.hookFilter.shouldSkip('pull_request.opened', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPROpened ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -902,7 +934,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onPRReadyForReview(event: PullRequestReadyForReviewEvent) {
-        if (this.shouldSkipHook('pull_request.ready_for_review', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
+        if (this.hookFilter.shouldSkip('pull_request.ready_for_review', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -925,7 +957,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onPRReviewed(event: PullRequestReviewSubmittedEvent) {
-        if (this.shouldSkipHook('pull_request.reviewed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
+        if (this.hookFilter.shouldSkip('pull_request.reviewed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -958,7 +990,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onPRClosed(event: PullRequestClosedEvent) {
-        if (this.shouldSkipHook('pull_request.closed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
+        if (this.hookFilter.shouldSkip('pull_request.closed', 'pull_request') || !this.matchesLabelFilter(event.pull_request)) {
             return;
         }
         log.info(`onPRClosed ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`);
@@ -1004,7 +1036,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onReleaseCreated(event: ReleaseCreatedEvent) {
-        if (this.shouldSkipHook('release', 'release.created')) {
+        if (this.hookFilter.shouldSkip('release', 'release.created')) {
             return;
         }
         log.info(`onReleaseCreated ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
@@ -1031,7 +1063,7 @@ ${event.release.body}`;
         const workflowRunType = `workflow.run.${workflowRun.conclusion}`;
         // Type safety checked above.
         if (
-            this.shouldSkipHook('workflow', 'workflow.run', workflowRunType as AllowedEventsNames)) {
+            this.hookFilter.shouldSkip('workflow', 'workflow.run', workflowRunType as AllowedEventsNames)) {
             return;
         }
 
@@ -1099,17 +1131,6 @@ ${event.release.body}`;
 
     public toString() {
         return `GitHubRepo ${this.org}/${this.repo}`;
-    }
-
-    private shouldSkipHook(...hookName: AllowedEventsNames[]) {
-        if (this.state.ignoreHooks) {
-            for (const name of hookName) {
-                if (this.state.ignoreHooks?.includes(name)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public static getProvisionerDetails(botUserId: string) {
@@ -1203,6 +1224,8 @@ ${event.release.body}`;
         const validatedConfig = GitHubRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
+        this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
+        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public async onRemove() {

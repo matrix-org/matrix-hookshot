@@ -29,10 +29,18 @@ This connection supports a few options which can be defined in the room state:
 
 | Option | Description | Allowed values | Default |
 |--------|-------------|----------------|---------|
-|events|Choose to include notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
+|events|Choose to include notifications for some event types|Array of: [Supported event types](#supported-event-types) |`issue_created`|
 |commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!jira`|
 
 
 ### Supported event types
 
-This connection currently supports sending messages only when a `issue.created` action happens on the project.
+This connection supports sending messages when the following actions happen on the project.
+
+- issue
+  - issue_created
+  - issue_updated
+- version
+  - version_created
+  - version_updated
+  - version_released

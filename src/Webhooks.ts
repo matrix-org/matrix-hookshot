@@ -116,9 +116,9 @@ export class Webhooks extends EventEmitter {
     }
 
     private onJiraPayload(body: IJiraWebhookEvent) {
-        const webhookEvent = body.webhookEvent.replace("jira:", "");
-        log.debug(`onJiraPayload ${webhookEvent}:`, body);
-        return `jira.${webhookEvent}`;
+        body.webhookEvent = body.webhookEvent.replace("jira:", "");
+        log.debug(`onJiraPayload ${body.webhookEvent}:`, body);
+        return `jira.${body.webhookEvent}`;
     }
 
     private async onGitHubPayload({id, name, payload}: EmitterWebhookEvent) {

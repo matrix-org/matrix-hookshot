@@ -11,7 +11,7 @@ import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
-import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
+import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
@@ -506,16 +506,24 @@ export class Bridge {
     
         this.bindHandlerToQueue<JiraIssueEvent, JiraProjectConnection>(
             "jira.issue_created",
-            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_created"), 
+            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
             (c, data) => c.onJiraIssueCreated(data),
         );
 
         this.bindHandlerToQueue<JiraIssueUpdatedEvent, JiraProjectConnection>(
             "jira.issue_updated",
-            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_updated"), 
+            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
             (c, data) => c.onJiraIssueUpdated(data),
         );
-    
+
+        for (const event of ["created", "updated", "released"]) {
+            this.bindHandlerToQueue<JiraVersionEvent, JiraProjectConnection>(
+                `jira.version_${event}`,
+                (data) => connManager.getConnectionsForJiraVersion(data.version),
+                (c, data) => c.onJiraVersionEvent(data),
+            );
+        }
+
         this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
             if (!this.config.jira || !this.tokenStore.jiraOAuth) {
                 throw Error('Cannot handle, JIRA oauth support not enabled');
@@ -956,10 +964,10 @@ export class Bridge {
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
                         await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
                     } else {
-                        connection.onStateUpdate?.(event);
+                        await connection.onStateUpdate?.(event);
                     }
                 } catch (ex) {
-                    log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
+                    log.warn(`Connection ${connection.toString()} for ${roomId} failed to handle state update:`, ex);
                 }
             }
             if (!existingConnections.length) {
