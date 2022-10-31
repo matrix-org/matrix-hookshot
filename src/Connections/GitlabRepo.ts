@@ -290,7 +290,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }>();
 
     /**
-     * GitLab provides NO threading information in it's webhook response objects,
+     * GitLab provides NO threading information in its webhook response objects,
      * so we need to determine if we've seen a comment for a line before, and
      * skip it if we have (because it's probably a reply).
      */
