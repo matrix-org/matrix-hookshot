@@ -698,7 +698,7 @@ ${data.description}`;
         // Check to see if this line has had a comment before
         if (event.object_attributes.discussion_id) {
             if (this.mergeRequestSeenDiscussionIds.has(event.object_attributes.discussion_id)) {
-                // If it has, this is probably a reply. Replies are noise, skip em.
+                // If it has, this is probably a reply. Skip repeated replies.
                 return false;
             }
             // Otherwise, record that we have seen the line and continue (it's probably a genuine comment).
