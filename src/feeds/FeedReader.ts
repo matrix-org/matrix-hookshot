@@ -33,7 +33,7 @@ export class FeedError extends Error {
                 return false;
             }
         }
-        if (axios.isAxiosError(this.cause) && this.cause.code === 'ECONNRESET') {
+        if (axios.isAxiosError(this.cause) && this.cause.code && ['ECONNABORTED', 'ECONNRESET'].includes(this.cause.code)) {
             // Fuzzy match this, because it's usually a tempoary error.
             return true;
         }
