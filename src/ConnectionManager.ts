@@ -205,7 +205,7 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionsForGitLabRepo(pathWithNamespace: string): GitLabRepoConnection[] {
         pathWithNamespace = pathWithNamespace.toLowerCase();
-        return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
+        return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path.toLowerCase() === pathWithNamespace)) as GitLabRepoConnection[];
     }
 
     public getConnectionsForJiraProject(project: JiraProject): JiraProjectConnection[] {
