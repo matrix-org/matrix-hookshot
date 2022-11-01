@@ -881,6 +881,7 @@ export class Bridge {
                                 getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
                             this.getOrCreateAdminRoom.bind(this),
+                            this.connectionManager.push.bind(this.connectionManager),
                         )
                     ).onMessageEvent(event, checkPermission);
                 } catch (ex) {

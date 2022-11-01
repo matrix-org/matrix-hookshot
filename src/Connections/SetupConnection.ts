@@ -12,7 +12,7 @@ import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
-import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
+import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConnection";
 import { ApiError, Logger } from "matrix-appservice-bridge";
 const md = new markdown();
 const log = new Logger("SetupConnection");
@@ -41,7 +41,8 @@ export class SetupConnection extends CommandConnection {
 
     constructor(public readonly roomId: string,
         private readonly provisionOpts: ProvisionConnectionOpts,
-        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,) {
+        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
+        private readonly pushConnections: (...connections: IConnection[]) => void) {
             super(
                 roomId,
                 "",
@@ -82,6 +83,7 @@ export class SetupConnection extends CommandConnection {
         }
         const [, org, repo] = urlParts;
         const {connection} = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.provisionOpts);
+        this.pushConnections(connection);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.org}/${connection.repo}`);
     }
 
@@ -107,6 +109,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid GitLab url", "The GitLab project url you entered was not valid.");
         }
         const {connection} = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
+        this.pushConnections(connection);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.prettyPath}`);
     }
 
@@ -138,6 +141,7 @@ export class SetupConnection extends CommandConnection {
         const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
 
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
+        this.pushConnections(res.connection);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
     }
 
@@ -209,6 +213,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
         const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(userId);
         await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use ${url}.`);
@@ -228,7 +233,8 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid Figma url", "The Figma file url you entered was not valid. It should be in the format of `https://figma.com/file/FILEID/...`.");
         }
         const [, fileId] = res;
-        await FigmaFileConnection.provisionConnection(this.roomId, userId, { fileId }, this.provisionOpts);
+        const {connection} = await FigmaFileConnection.provisionConnection(this.roomId, userId, { fileId }, this.provisionOpts);
+        this.pushConnections(connection);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
@@ -252,7 +258,8 @@ export class SetupConnection extends CommandConnection {
             }
         }
 
-        await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
+        const {connection} = await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
+        this.pushConnections(connection);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
