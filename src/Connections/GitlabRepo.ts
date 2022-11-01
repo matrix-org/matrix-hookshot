@@ -327,7 +327,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public get path() {
-        return this.state.path?.toString();
+        return this.state.path?.toString().toLowerCase();
     }
 
     public get priority(): number {
