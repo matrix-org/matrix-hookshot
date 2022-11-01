@@ -649,8 +649,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
     }
 
-    @botCommand("assign", "Assign an issue to a user", ["number", "...users"], [], true)
-    public async onAssign(userId: string, number: string, ...users: string[]) {
+    @botCommand("assign", "Assign an issue to a user. If number is ommitted, the latest issue is used. If users is omitted, you are assigned.", [], ["number", "...users"], true)
+    public async onAssign(userId: string, number?: string, ...users: string[]) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new NotLoggedInError();
@@ -660,10 +660,30 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             users = users[0].split(",");
         }
 
+        if (users.length === 0) {
+            // Assume self.
+            users = [(await octokit.users.getAuthenticated()).data.login];
+        }
+
+        let issueNumber = number && parseInt(number, 10);
+        if (!issueNumber) {
+            const topIssue = (await octokit.issues.listForRepo({
+                owner: this.state.org,
+                repo: this.state.repo,
+                sort: "created",
+                direction: "desc",
+                per_page: 1,
+            })).data[0];
+            if (!topIssue) {
+                throw new CommandError('No issues found', 'There are no issues on this repository');
+            }
+            issueNumber = topIssue.number;
+        }
+
         await octokit.issues.addAssignees({
             repo: this.state.repo,
             owner: this.state.org,
-            issue_number: parseInt(number, 10),
+            issue_number: issueNumber,
             assignees: users,
         });
     }
