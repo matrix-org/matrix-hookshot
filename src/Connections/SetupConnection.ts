@@ -90,7 +90,6 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.gitlab) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitLab.");
         }
-        url = url.toLowerCase();
 
         await this.checkUserPermissions(userId, "gitlab", GitLabRepoConnection.CanonicalEventType);
 
