@@ -194,6 +194,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         let project;
         try {
             project = await client.projects.get(validData.path);
+            // Get the actual casing of the project path
+            validData.path = project.path_with_namespace;
             permissionLevel = Math.max(project.permissions.group_access?.access_level || 0, project.permissions.project_access?.access_level || 0) as AccessLevel;
         } catch (ex) {
             throw new ApiError("Could not determine if the user has access to this project, does the project exist?", ErrCode.ForbiddenUser);
@@ -327,7 +329,16 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public get path() {
-        return this.state.path?.toString().toLowerCase();
+        return this.state.path.toLowerCase();
+    }
+
+    /**
+     * The project's path string as returned by GitLab,
+     * with the letter casing of the path that the
+     * project was created with.
+     */
+    public get prettyPath() {
+        return this.state.path;
     }
 
     public get priority(): number {

@@ -106,8 +106,8 @@ export class SetupConnection extends CommandConnection {
         if (!path) {
             throw new CommandError("Invalid GitLab url", "The GitLab project url you entered was not valid.");
         }
-        await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${path}`);
+        const {connection} = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.prettyPath}`);
     }
 
     private async checkJiraLogin(userId: string, urlStr: string) {
