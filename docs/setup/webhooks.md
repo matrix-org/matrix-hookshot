@@ -177,3 +177,28 @@ if (data.counter > data.maxValue) {
     result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
 }
 ```
+
+
+### Functions
+
+The scripting environment exposes some convienence functions for doing advanced transformations
+of your data. 
+
+#### `getMediaUrl(url: string)`
+
+This function will take an input URL and return a deferred MXC URL, which can then be inserted
+into your response to display an image. If the input URL fails to be resolved, the deferred
+URL will be left in place.
+
+There is a maximum timeout for the fetch request of 5 seconds.
+
+#### Example
+
+```js
+const mxc = getMediaUrl(data.myimage);
+return {
+  "version": "v2" // The version of the schema being returned from the function. This is always "v2".
+  "plain": `![My image](${mxc})`, // The plaintext value to be used for the Matrix message.
+  "html": `<img src="${mxc}" alt="My image"></img>`, // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
+};
+```

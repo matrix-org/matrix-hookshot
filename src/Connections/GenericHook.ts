@@ -10,6 +10,9 @@ import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
+import { randomUUID } from "crypto";
+import axios from "axios";
+import UserAgent from "../UserAgent";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -58,6 +61,7 @@ const md = new markdownit();
 const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 5;
 const SANITIZE_MAX_BREADTH = 25;
+const GET_MEDIA_TIMEOUT = 5000;
 
 /**
  * Handles rooms connected to a generic webhook.
@@ -293,7 +297,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
+    public async executeTransformationFunction(data: unknown): Promise<{plain: string, html?: string, msgtype?: string}|null> {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -306,6 +310,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         });
         vm.setGlobal('HookshotApiVersion', 'v2');
         vm.setGlobal('data', data);
+
+        // Handle media
+        const mediaUrls = new Map<string,string>();
+        vm.setGlobal('getMediaUrl', (url: string) => {
+            const uuid = `mxc-deferred:${randomUUID()}`;
+            mediaUrls.set(uuid, url);
+            return uuid;
+        });
+
         vm.run(this.transformationFunction);
         const result = vm.getGlobal('result');
 
@@ -324,7 +337,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             return null; // No-op
         }
 
-        const plain = transformationResult.plain;
+        let plain = transformationResult.plain;
         if (typeof plain !== "string") {
             throw Error("Result returned from transformation didn't provide a string value for plain");
         }
@@ -333,6 +346,32 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         if (transformationResult.msgtype && typeof transformationResult.msgtype !== "string") {
             throw Error("Result returned from transformation didn't provide a string value for msgtype");
+        }
+
+        // Transform media
+        for (const [uuid, mediaurl] of mediaUrls) {
+            // Ensure the media exists
+            if (!plain.includes(uuid) && !transformationResult.html?.includes(uuid)) {
+                log.debug(`Media ${uuid} requested but not used`);
+                continue;
+            }
+            const regExp = new RegExp(uuid, 'g');
+            try {
+                const content = await axios.get(mediaurl, {
+                    timeout: GET_MEDIA_TIMEOUT,
+                    headers: {
+                        'User-Agent': UserAgent,
+                    }
+                })
+                const mxcUri = await this.as.botClient.uploadContent(content.data, content.headers['content-type']);
+                plain = plain.replace(regExp, mxcUri);
+                if (transformationResult.html) {
+                    transformationResult.html = transformationResult.html.replace(regExp, mxcUri);
+                }
+            } catch (ex) {
+                log.warn(`Failed to fetch media for transformation`, {mediaurl});
+                log.debug(ex);
+            }
         }
 
         return {
@@ -355,7 +394,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             content = this.transformHookData(data);
         } else {
             try {
-                const potentialContent = this.executeTransformationFunction(data);
+                const potentialContent = await this.executeTransformationFunction(data);
                 if (potentialContent === null) {
                     // Explitly no action
                     return true;
