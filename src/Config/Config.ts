@@ -209,6 +209,13 @@ export class BridgeConfigGitLab {
         this.instances = yaml.instances;
         this.webhook = yaml.webhook;
         this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
+
+        for (const name in this.instances) {
+            const url = this.instances[name].url;
+            if (url.endsWith("/")) {
+                this.instances[name].url = url.slice(0, -1);
+            }
+        }
     }
 
     @hideKey()
