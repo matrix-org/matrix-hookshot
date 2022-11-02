@@ -56,8 +56,8 @@ const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;
-const SANITIZE_MAX_DEPTH = 5;
-const SANITIZE_MAX_BREADTH = 25;
+const SANITIZE_MAX_DEPTH = 10;
+const SANITIZE_MAX_BREADTH = 50;
 
 /**
  * Handles rooms connected to a generic webhook.
