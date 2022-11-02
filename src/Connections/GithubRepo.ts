@@ -665,8 +665,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             users = [(await octokit.users.getAuthenticated()).data.login];
         }
 
-        let issueNumber = number && parseInt(number, 10);
-        if (!issueNumber) {
+        let issueNumber;
+        if (number === undefined) {
             const topIssue = (await octokit.issues.listForRepo({
                 owner: this.state.org,
                 repo: this.state.repo,
@@ -678,7 +678,9 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 throw new CommandError('No issues found', 'There are no issues on this repository');
             }
             issueNumber = topIssue.number;
-        }
+        } else {
+            issueNumber = parseInt(number, 10);
+	}
 
         await octokit.issues.addAssignees({
             repo: this.state.repo,
