@@ -78,23 +78,30 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @returns 
      */
     static sanitiseObjectForMatrixJSON(data: unknown, depth = 0, breadth = 0): unknown {
+        // Floats
         if (typeof data === "number" && !Number.isInteger(data)) {
             return data.toString();
         }
+        // Primitive types
+        if (typeof data !== "object" || data === null) {
+            return data;
+        }
+
+        // Over processing limit, return string.
         if (depth > SANITIZE_MAX_DEPTH || breadth > SANITIZE_MAX_BREADTH) {
-            if (typeof data !== "object" || data === null) {
-                return data;
-            }
             return JSON.stringify(data);
         }
+        
         if (Array.isArray(data)) {
             return data.map((d, innerBreadth) => this.sanitiseObjectForMatrixJSON(d, depth + 1, innerBreadth));
         }
+
         let objBreadth = 0;
         const obj: Record<string, unknown> = { ...data };
         for (const [key, value] of Object.entries(data)) {
             obj[key] = this.sanitiseObjectForMatrixJSON(value, depth + 1, ++objBreadth);
         }
+
         return obj;
     }
 
