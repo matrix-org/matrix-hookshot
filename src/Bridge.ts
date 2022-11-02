@@ -781,6 +781,11 @@ export class Bridge {
         if (event.state_key !== this.as.botUserId) {
             return this.as.botIntent.underlyingClient.kickUser(this.as.botUserId, roomId, "Bridge does not support DMing ghosts");
         }
+
+        if (this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
+            return this.as.botIntent.underlyingClient.kickUser(this.as.botUserId, roomId, "You do not have permission to inite this bot");
+        }
+
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
             const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
