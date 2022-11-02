@@ -649,7 +649,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
     }
 
-    @botCommand("assign", "Assign an issue to a user. If number is ommitted, the latest issue is used. If users is omitted, you are assigned.", [], ["number", "...users"], true)
+    @botCommand("assign", "Assign an issue to a user. If `number` is ommitted, the latest issue is used. If `users` is omitted, you are assigned.", [], ["number", "...users"], true)
     public async onAssign(userId: string, number?: string, ...users: string[]) {
         const octokit = await this.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
