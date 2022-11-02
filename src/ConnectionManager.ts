@@ -46,7 +46,7 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Push a new connection to the manager, if this connection already
      * exists then this will no-op.
-     * @param connection The connection instance to push.
+     * @param connections The connection instances to push.
      */
     public push(...connections: IConnection[]) {
         for (const connection of connections) {
