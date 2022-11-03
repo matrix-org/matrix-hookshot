@@ -79,7 +79,7 @@ export class BridgeConfigGitHub {
 
     @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
     readonly userIdPrefix: string;
-    
+
     @configKey("URL for enterprise deployments. Does not include /api/v3", true)
     private enterpriseUrl?: string;
 
@@ -129,12 +129,12 @@ export interface BridgeConfigJiraYAML {
 }
 export class BridgeConfigJira implements BridgeConfigJiraYAML {
     static CLOUD_INSTANCE_NAME = "api.atlassian.com";
-    
+
     @configKey("Webhook settings for JIRA")
     readonly webhook: {
         secret: string;
     };
-    
+
     // To hide the undefined for now
     @hideKey()
     @configKey("URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)", true)
@@ -411,6 +411,14 @@ interface BridgeConfigEncryption {
     storagePath: string;
 }
 
+export interface BridgeConfigServiceBot {
+    localpart: string;
+    displayname?: string;
+    avatar?: string;
+    prefix: string;
+    services: string[];
+}
+
 export interface BridgeConfigProvisioning {
     bindAddress?: string;
     port?: number;
@@ -425,6 +433,7 @@ export interface BridgeConfigMetrics {
 
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
+    serviceBots?: BridgeConfigServiceBot[];
     bridge: BridgeConfigBridge;
     encryption?: BridgeConfigEncryption;
     figma?: BridgeConfigFigma;
@@ -476,6 +485,8 @@ export class BridgeConfig {
     public readonly feeds?: BridgeConfigFeeds;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
+    @configKey("EXPERIMENTAL Define additional bot users for specific services", true)
+    public readonly serviceBots?: BridgeConfigServiceBot[];
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;
     @configKey("Provisioning API for integration managers", true)
@@ -511,6 +522,7 @@ export class BridgeConfig {
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
+        this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
         this.queue = configData.queue || {
             monolithic: true,
@@ -522,7 +534,7 @@ export class BridgeConfig {
         }
 
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
-    
+
         // To allow DEBUG as well as debug
         this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
@@ -538,7 +550,7 @@ export class BridgeConfig {
         }];
         this.bridgePermissions = new BridgePermissions(this.permissions);
 
-        if (!configData.permissions) { 
+        if (!configData.permissions) {
             log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
         }
 
@@ -565,7 +577,7 @@ export class BridgeConfig {
             });
             log.warn("The `webhook` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
-        
+
         if (configData.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
@@ -581,7 +593,7 @@ export class BridgeConfig {
             })
             log.warn("The `provisioning` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
-        
+
         if (this.metrics?.port) {
             this.listeners.push({
                 resources: ['metrics'],
@@ -590,7 +602,7 @@ export class BridgeConfig {
             })
             log.warn("The `metrics` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
-        
+
         if (configData.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
@@ -628,7 +640,7 @@ export class BridgeConfig {
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
             log.debug(`Found ${membership.length} users for ${roomEntry}`);
-        } 
+        }
     }
 
     public addMemberToCache(roomId: string, userId: string) {

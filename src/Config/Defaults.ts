@@ -11,7 +11,7 @@ export const DefaultConfig = new BridgeConfig({
         url: "http://localhost:8008",
         mediaUrl: "http://example.com",
         port: 9993,
-        bindAddress: "127.0.0.1", 
+        bindAddress: "127.0.0.1",
     },
     queue: {
         monolithic: true,
@@ -44,9 +44,18 @@ export const DefaultConfig = new BridgeConfig({
         },
     },
     bot: {
-        displayname: "GitHub Bot",
+        displayname: "Hookshot Bot",
         avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d"
     },
+    serviceBots: [
+        {
+            localpart: "feeds",
+            displayname: "Feeds",
+            avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d",
+            prefix: "!feeds",
+            services: ["feeds"],
+        },
+    ],
     github: {
         auth: {
             id: 123,
