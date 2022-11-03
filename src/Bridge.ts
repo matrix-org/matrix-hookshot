@@ -779,7 +779,7 @@ export class Bridge {
         log.info(`Got invite roomId=${roomId} from=${event.sender} to=${event.state_key}`);
         // Room joins can fail over federation
         if (event.state_key !== this.as.botUserId) {
-            return this.as.botIntent.underlyingClient.kickUser(this.as.botUserId, roomId, "Bridge does not support DMing ghosts");
+            return this.as.botIntent.underlyingClient.kickUser(event.state_key, roomId, "Bridge does not support DMing ghosts");
         }
 
         // Don't accept invites from people who can't do anything
