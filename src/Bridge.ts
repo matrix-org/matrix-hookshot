@@ -783,7 +783,7 @@ export class Bridge {
         }
 
         // Don't accept invites from people who can't do anything
-        if (this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
+        if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
             return this.as.botIntent.underlyingClient.kickUser(this.as.botUserId, roomId, "You do not have permission to inite this bot");
         }
 
