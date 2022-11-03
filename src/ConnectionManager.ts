@@ -91,7 +91,7 @@ export class ConnectionManager extends EventEmitter {
         throw new ApiError(`Connection type not known`);
     }
 
-    public assertStateAllowed(roomId: string, state: StateEvent<any>, serviceType: string) {
+    public assertStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
         if (!this.isStateAllowed(roomId, state, serviceType)) {
             this.tryRestoreState(roomId, state, serviceType);
             log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
@@ -101,12 +101,12 @@ export class ConnectionManager extends EventEmitter {
         }
     }
 
-    private isStateAllowed(roomId: string, state: StateEvent<any>, serviceType: string) {
+    private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
         return state.sender === this.as.botUserId
             || this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections);
     }
 
-    private async tryRestoreState(roomId: string, originalState: StateEvent<any>, serviceType: string) {
+    private async tryRestoreState(roomId: string, originalState: StateEvent, serviceType: string) {
         let state = originalState;
         try {
             do {
