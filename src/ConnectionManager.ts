@@ -108,6 +108,7 @@ export class ConnectionManager extends EventEmitter {
 
     private async tryRestoreState(roomId: string, originalState: StateEvent, serviceType: string) {
         let state = originalState;
+        let attemptsRemaining = 5;
         try {
             do {
                 if (state.unsigned.replaces_state) {
@@ -116,7 +117,7 @@ export class ConnectionManager extends EventEmitter {
                     await this.as.botClient.redactEvent(roomId, originalState.eventId);
                     return;
                 }
-            } while (!this.isStateAllowed(roomId, state, serviceType));
+            } while (--attemptsRemaining > 0 && !this.isStateAllowed(roomId, state, serviceType));
             await this.as.botClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
         } catch (ex) {
             log.warn(`Unable to undo state event from ${state.sender} for disallowed ${serviceType} connection management in ${roomId}`);
