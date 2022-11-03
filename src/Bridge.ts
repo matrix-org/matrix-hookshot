@@ -97,7 +97,7 @@ export class Bridge {
         while(joinedRooms === undefined) {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
+                joinedRooms = await this.as.botClient.getJoinedRooms();
                 log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
@@ -683,11 +683,11 @@ export class Bridge {
 
             // TODO: Refactor this to be a connection
             try {
-                let accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                let accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
                     BRIDGE_ROOM_TYPE, roomId,
                 );
                 if (!accountData) {
-                    accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                    accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
                         LEGACY_BRIDGE_ROOM_TYPE, roomId,
                     );
                     if (!accountData) {
@@ -701,12 +701,12 @@ export class Bridge {
 
                 let notifContent;
                 try {
-                    notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                    notifContent = await this.as.botClient.getRoomStateEvent(
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
                     try {
-                        notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                        notifContent = await this.as.botClient.getRoomStateEvent(
                             roomId, NotifFilter.LegacyStateType, "",
                         );
                     }
@@ -779,8 +779,14 @@ export class Bridge {
         log.info(`Got invite roomId=${roomId} from=${event.sender} to=${event.state_key}`);
         // Room joins can fail over federation
         if (event.state_key !== this.as.botUserId) {
-            return this.as.botIntent.underlyingClient.kickUser(this.as.botUserId, roomId, "Bridge does not support DMing ghosts");
+            return this.as.botClient.kickUser(event.state_key, roomId, "Bridge does not support DMing ghosts");
         }
+
+        // Don't accept invites from people who can't do anything
+        if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
+            return this.as.botClient.kickUser(this.as.botUserId, roomId, "You do not have permission to invite this bot.");
+        }
+
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
             const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
