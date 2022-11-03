@@ -93,7 +93,7 @@ export class ConnectionManager extends EventEmitter {
 
     public assertStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
         if (!this.isStateAllowed(roomId, state, serviceType)) {
-            this.tryRestoreState(roomId, state, serviceType);
+            void this.tryRestoreState(roomId, state, serviceType);
             log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
             return false;
         } else {
