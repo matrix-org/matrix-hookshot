@@ -1,0 +1,1 @@
+Harden against unauthorized changes to room state for connection settings.

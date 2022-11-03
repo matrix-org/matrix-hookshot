@@ -9,7 +9,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./Github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection, ConnectionDeclaration } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
@@ -959,7 +959,12 @@ export class Bridge {
             }
             // A state update, hurrah!
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
+            const state = new StateEvent(event);
             for (const connection of existingConnections) {
+                const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
+                if (!this.connectionManager.assertStateAllowed(roomId, state, cd.ServiceCategory)) {
+                    continue;
+                }
                 try {
                     // Empty object == redacted
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {

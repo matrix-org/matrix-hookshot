@@ -91,12 +91,35 @@ export class ConnectionManager extends EventEmitter {
         throw new ApiError(`Connection type not known`);
     }
 
-    private assertStateAllowed(state: StateEvent<any>, serviceType: string) {
-        if (state.sender === this.as.botUserId) {
-            return;
+    public assertStateAllowed(roomId: string, state: StateEvent<any>, serviceType: string) {
+        if (!this.isStateAllowed(roomId, state, serviceType)) {
+            this.tryRestoreState(roomId, state, serviceType);
+            log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
+            return false;
+        } else {
+            return true;
         }
-        if (!this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections)) {
-            throw new Error(`User ${state.sender} is disallowed to create state for ${serviceType}`);
+    }
+
+    private isStateAllowed(roomId: string, state: StateEvent<any>, serviceType: string) {
+        return state.sender === this.as.botUserId
+            || this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections);
+    }
+
+    private async tryRestoreState(roomId: string, originalState: StateEvent<any>, serviceType: string) {
+        let state = originalState;
+        try {
+            do {
+                if (state.unsigned.replaces_state) {
+                    state = new StateEvent(await this.as.botClient.getEvent(roomId, state.unsigned.replaces_state));
+                } else {
+                    await this.as.botClient.redactEvent(roomId, originalState.eventId);
+                    return;
+                }
+            } while (!this.isStateAllowed(roomId, state, serviceType));
+            await this.as.botClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
+        } catch (ex) {
+            log.warn(`Unable to undo state event from ${state.sender} for disallowed ${serviceType} connection management in ${roomId}`);
         }
     }
 
@@ -110,7 +133,9 @@ export class ConnectionManager extends EventEmitter {
         if (!connectionType) {
             return;
         }
-        this.assertStateAllowed(state, connectionType.ServiceCategory);
+        if (!this.assertStateAllowed(roomId, state, connectionType.ServiceCategory)) {
+            return;
+        }
         return connectionType.createConnectionForState(roomId, state, {
             as: this.as,
             config: this.config,
