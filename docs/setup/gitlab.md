@@ -35,5 +35,5 @@ if the request made it through, however.
 
 ## Adding a repository
 
-You can now follow the guide on [authenticating with GitLab](../usage/auth.md), and then [bridging a room](../usage/room_configuration/gitlab_project.md#setting-up)
+You can now follow the guide on [authenticating with GitLab](../usage/auth.md#gitlab), and then [bridging a room](../usage/room_configuration/gitlab_project.md#setting-up)
 
