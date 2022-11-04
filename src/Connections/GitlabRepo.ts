@@ -10,7 +10,7 @@ import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
@@ -217,7 +217,9 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
 
         // Try to setup a webhook
-        if (gitlabConfig.webhook.publicUrl) {
+        // Requires at least a "Maintainer" role: https://docs.gitlab.com/ee/user/permissions.html
+        let warning: ConnectionWarning | undefined;
+        if (gitlabConfig.webhook.publicUrl && permissionLevel >= AccessLevel.Maintainer) {
             const hooks = await client.projects.hooks.list(project.id);
             const hasHook = hooks.find(h => h.url === gitlabConfig.webhook.publicUrl);
             if (!hasHook) {
@@ -235,11 +237,17 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                     wiki_page_events: true,
                 });
             }
-        } else {
+        } else if (!gitlabConfig.webhook.publicUrl) {
             log.info(`Not creating webhook, webhookUrl is not defined in config`);
+        } else {
+            warning = {
+                header: "Cannot create webhook",
+                message: "You have insufficient permissions on this project to provision a webhook for it. Ask a Maintainer or Owner of the project to add the webhook for you.",
+            };
+            log.warn(`Not creating webhook, permission level is insufficient (${permissionLevel} < ${AccessLevel.Maintainer})`)
         }
         await as.botIntent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.stateKey, validData);
-        return {connection};
+        return {connection, warning};
     }
 
     public static getProvisionerDetails(botUserId: string) {

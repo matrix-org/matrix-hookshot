@@ -1,6 +1,6 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import { UserTokenStore } from "../UserTokenStore";
@@ -80,7 +80,7 @@ export interface IConnection {
 export interface ConnectionDeclaration<C extends IConnection = IConnection> {
     EventTypes: string[];
     ServiceCategory: string;
-    provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C}>;
+    provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C, warning?: ConnectionWarning}>;
     createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>
 }
 

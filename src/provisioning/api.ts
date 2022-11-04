@@ -9,11 +9,17 @@ export interface GetConnectionTypeResponseItem {
     botUserId: string;
 }
 
+export interface ConnectionWarning {
+    header: string,
+    message: string,
+}
+
 export interface GetConnectionsResponseItem<Config = object, Secrets = object> extends GetConnectionTypeResponseItem {
     id: string;
     config: Config;
     secrets?: Secrets;
     canEdit?: boolean;
+    warning?: ConnectionWarning;
 }
 
 const log = new Logger("Provisioner.api");

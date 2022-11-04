@@ -117,7 +117,7 @@ export class BridgeAPI {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(service)}`);
     }
 
-    async createConnection(roomId: string, type: string, config: IConnectionState) {
+    async createConnection(roomId: string, type: string, config: IConnectionState): Promise<GetConnectionsResponseItem> {
         return this.request('POST', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(type)}`, config);
     }
 

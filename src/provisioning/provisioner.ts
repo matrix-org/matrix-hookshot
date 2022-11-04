@@ -129,18 +129,21 @@ export class Provisioner {
         return res.send(connection.getProvisionerDetails());
     }
 
-    private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response, next: NextFunction) {
+    private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
         // Need to figure out which connections are available
         try {
             if (!req.body || typeof req.body !== "object") {
-                throw new ApiError("A JSON body must be provided.", ErrCode.BadValue);
+                throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
             this.connMan.validateCommandPrefix(req.params.roomId, req.body);
-            const connection = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
-            if (!connection.getProvisionerDetails) {
-                throw new Error('Connection supported provisioning but not getProvisionerDetails.');
+            const result = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
+            if (!result.connection.getProvisionerDetails) {
+                throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
-            res.send(connection.getProvisionerDetails(true));
+            res.send({
+                ...result.connection.getProvisionerDetails(true),
+                warning: result.warning,
+            });
         } catch (ex) {
             log.error(`Failed to create connection for ${req.params.roomId}`, ex);
             return next(ex);

@@ -34,18 +34,22 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
     const ConnectionConfigComponent = props.connectionConfigComponent;
-    const [ error, setError ] = useState<null|{header?: string, message: string}>(null);
+    const [ error, setError ] = useState<null|{header?: string, message: string, isWarning?: boolean, forPrevious?: boolean}>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
     const [ serviceConfig, setServiceConfig ] = useState<SConfig|null>(null);
     const [ canEditRoom, setCanEditRoom ] = useState<boolean>(false);
     // We need to increment this every time we create a connection in order to properly reset the state.
     const [ newConnectionKey, incrementConnectionKey ] = useReducer<number, undefined>(n => n+1, 0);
 
+    const clearCurrentError = () => {
+        setError(error => error?.forPrevious ? error : null);
+    }
+
     useEffect(() => {
         api.getConnectionsForService<ConnectionType>(roomId, type).then(res => {
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
-            setError(null);
+            clearCurrentError();
         }).catch(ex => {
             console.warn("Failed to fetch existing connections", ex);
             setError({
@@ -58,9 +62,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     useEffect(() => {
         api.getServiceConfig<SConfig>(type)
             .then(setServiceConfig)
-            .then(() => {
-                setError(null);
-            })
+            .then(clearCurrentError)
             .catch(ex => {
                 console.warn("Failed to fetch service config", ex);
                 setError({
@@ -71,10 +73,15 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     }, [api, type]);
 
     const handleSaveOnCreation = useCallback((config: ConnectionState) => {
-        api.createConnection(roomId, connectionEventType, config).then(() => {
+        api.createConnection(roomId, connectionEventType, config).then(result => {
             // Force reload
             incrementConnectionKey(undefined);
-            setError(null);
+            setError(!result.warning ? null : {
+                header: result.warning.header,
+                message: result.warning.message,
+                isWarning: true,
+                forPrevious: true,
+            });
         }).catch(ex => {
             console.warn("Failed to create connection", ex);
             setError({
@@ -86,7 +93,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
 
     return <main>
         {
-            error && <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
+            error && <ErrorPane header={error.header || "Error"} isWarning={error.isWarning}>{error.message}</ErrorPane>
         }
         <header className={style.header}>
             <img src={headerImg} />
