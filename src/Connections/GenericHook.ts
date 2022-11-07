@@ -56,8 +56,8 @@ const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;
-const SANITIZE_MAX_DEPTH = 5;
-const SANITIZE_MAX_BREADTH = 25;
+const SANITIZE_MAX_DEPTH = 10;
+const SANITIZE_MAX_BREADTH = 50;
 
 /**
  * Handles rooms connected to a generic webhook.
@@ -73,28 +73,36 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * If the object contains more than `SANITIZE_MAX_BREADTH` entries, the remaining entries will not be checked.
      * 
      * @param data The data to santise
-     * @param depth The depth of the current object relative to the root.
+     * @param depth The depth of the `data` relative to the root.
+     * @param breadth The breadth of the `data` in the parent object.
      * @returns 
      */
-    static sanitiseObjectForMatrixJSON(data: unknown, depth = 0): unknown {
+    static sanitiseObjectForMatrixJSON(data: unknown, depth = 0, breadth = 0): unknown {
+        // Floats
         if (typeof data === "number" && !Number.isInteger(data)) {
             return data.toString();
         }
-        if (depth > SANITIZE_MAX_DEPTH || typeof data !== "object" || data === null) {
+        // Primitive types
+        if (typeof data !== "object" || data === null) {
             return data;
         }
-        if (Array.isArray(data)) {
-            return data.map((d, i) => i > SANITIZE_MAX_BREADTH ? d : this.sanitiseObjectForMatrixJSON(d, depth + 1));
+
+        // Over processing limit, return string.
+        if (depth > SANITIZE_MAX_DEPTH || breadth > SANITIZE_MAX_BREADTH) {
+            return JSON.stringify(data);
         }
-        let breadth = 0;
+        
+        const newDepth = depth + 1;
+        if (Array.isArray(data)) {
+            return data.map((d, innerBreadth) => this.sanitiseObjectForMatrixJSON(d, newDepth, innerBreadth));
+        }
+
+        let objBreadth = 0;
         const obj: Record<string, unknown> = { ...data };
         for (const [key, value] of Object.entries(data)) {
-            breadth++;
-            if (breadth > SANITIZE_MAX_BREADTH) {
-                break;
-            }
-            obj[key] = this.sanitiseObjectForMatrixJSON(value, depth + 1);
+            obj[key] = this.sanitiseObjectForMatrixJSON(value, newDepth, ++objBreadth);
         }
+
         return obj;
     }
 
