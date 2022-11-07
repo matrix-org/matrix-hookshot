@@ -962,7 +962,7 @@ export class Bridge {
             const state = new StateEvent(event);
             for (const connection of existingConnections) {
                 const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
-                if (!this.connectionManager.assertStateAllowed(roomId, state, cd.ServiceCategory)) {
+                if (!this.connectionManager.verifyStateEvent(roomId, state, cd.ServiceCategory)) {
                     continue;
                 }
                 try {

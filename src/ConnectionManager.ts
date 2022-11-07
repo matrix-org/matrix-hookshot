@@ -91,7 +91,15 @@ export class ConnectionManager extends EventEmitter {
         throw new ApiError(`Connection type not known`);
     }
 
-    public assertStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
+    /**
+     * Check if a state event is sent by a user who is allowed to configure the type of connection the state event covers.
+     * If it isn't, revert the state to the last-known valid value, or redact it if that isn't possible.
+     * @param roomId The target Matrix room.
+     * @param state The state event for altering a connection in the room.
+     * @param serviceType The type of connection the state event is altering.
+     * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
+     */
+    public verifyStateEvent(roomId: string, state: StateEvent, serviceType: string) {
         if (!this.isStateAllowed(roomId, state, serviceType)) {
             void this.tryRestoreState(roomId, state, serviceType);
             log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
@@ -135,7 +143,7 @@ export class ConnectionManager extends EventEmitter {
         if (!connectionType) {
             return;
         }
-        if (!this.assertStateAllowed(roomId, state, connectionType.ServiceCategory)) {
+        if (!this.verifyStateEvent(roomId, state, connectionType.ServiceCategory)) {
             return;
         }
         return connectionType.createConnectionForState(roomId, state, {
