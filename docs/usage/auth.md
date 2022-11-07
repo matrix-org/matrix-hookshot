@@ -48,7 +48,7 @@ You can authenticate with GitLab by supplying a Personal Access Token. OAuth-sty
 yet.
 
 - You will need to have configured a GitLab instance in your config.yml for the instance you want to log in to.
-- Open https://%instance%/-/profile/personal_access_tokens (GitLab > User Settings > Access Tokens), where instance is your GitLab instance address.
+- Open **https://%instance%/-/profile/personal_access_tokens** (GitLab > User Settings > Access Tokens), where instance is your GitLab instance address.
   - For the public GitLab server, this would be "gitlab.com"
 - Give it a good name, and a sensible expiration date. For scopes you will need to tick `api`.
 - Send the generated token to the bridge by saying `gitlab personaltoken %instance% %your-token%`. You can redact
