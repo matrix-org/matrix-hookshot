@@ -13,6 +13,7 @@ import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubU
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
+import JoinedRoomsManager from "./Managers/JoinedRoomsManager";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
@@ -46,9 +47,13 @@ export class Bridge {
     private readonly commentProcessor: CommentProcessor;
     private readonly notifProcessor: NotificationProcessor;
     private readonly tokenStore: UserTokenStore;
+    // Set of user IDs for all our bot users
+    private readonly botUserIds = new Set<string>();
+    private readonly joinedRoomsManager = new JoinedRoomsManager();
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
+    private widgetApi?: BridgeWidgetApi;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -81,20 +86,23 @@ export class Bridge {
         await this.storage.connect?.();
         await this.queue.connect?.();
 
-        // Fetch all room state
-        let joinedRooms: string[]|undefined;
-        while(joinedRooms === undefined) {
-            try {
-                log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botIntent.getJoinedRooms();
-                log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
-            } catch (ex) {
-                // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver, retrying in 5s", ex);
-                await new Promise((r) => setTimeout(r, 5000));
+        // Collect user IDs of all our bots
+        this.botUserIds.add(this.as.botUserId);
+        this.config.serviceBots?.forEach(b => this.botUserIds.add(this.as.getUserId(b.localpart)));
+
+        log.info("Connecting to homeserver and fetching joined rooms...");
+
+        // Collect joined rooms for all our bots
+        for (const botUserId of this.botUserIds) {
+            const intent = this.as.getIntentForUserId(botUserId);
+            const joinedRooms = await retry(() => intent.underlyingClient.getJoinedRooms(), 3, 3000);
+            log.debug(`Bot "${botUserId}" is joined to ${joinedRooms.length} rooms`);
+
+            for (const r of joinedRooms) {
+                this.joinedRoomsManager.addJoinedRoom(r, botUserId);
             }
         }
-        
+
         await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
@@ -124,7 +132,7 @@ export class Bridge {
             );
         }
 
-    
+
         if (this.config.provisioning) {
             const routers = [];
             if (this.config.jira) {
@@ -265,114 +273,114 @@ export class Bridge {
 
         this.bindHandlerToQueue<GitHubWebhookTypes.IssuesUnlabeledEvent, GitHubRepoConnection>(
             "github.issues.unlabeled",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onIssueUnlabeled(data),
         );
         this.bindHandlerToQueue<GitHubWebhookTypes.IssuesLabeledEvent, GitHubRepoConnection>(
             "github.issues.labeled",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onIssueLabeled(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestOpenedEvent, GitHubRepoConnection>(
             "github.pull_request.opened",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPROpened(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestClosedEvent, GitHubRepoConnection>(
             "github.pull_request.closed",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPRClosed(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestReadyForReviewEvent, GitHubRepoConnection>(
             "github.pull_request.ready_for_review",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPRReadyForReview(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestReviewSubmittedEvent, GitHubRepoConnection>(
             "github.pull_request_review.submitted",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPRReviewed(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.WorkflowRunCompletedEvent, GitHubRepoConnection>(
             "github.workflow_run.completed",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onWorkflowCompleted(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.ReleasePublishedEvent, GitHubRepoConnection>(
             "github.release.published",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onReleaseCreated(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.ReleaseCreatedEvent, GitHubRepoConnection>(
             "github.release.created",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onReleaseDrafted(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.open",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestOpened(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.close",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestClosed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.merge",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestMerged(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.approved",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestReviewed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.unapproved",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestReviewed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.update",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestUpdate(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookReleaseEvent, GitLabRepoConnection>(
             "gitlab.release.create",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onRelease(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookTagPushEvent, GitLabRepoConnection>(
             "gitlab.tag_push",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onGitLabTagPush(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookPushEvent, GitLabRepoConnection>(
             "gitlab.push",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onGitLabPush(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookWikiPageEvent, GitLabRepoConnection>(
             "gitlab.wiki_page",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onWikiPageEvent(data),
         );
 
@@ -418,10 +426,10 @@ export class Bridge {
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
             "gitlab.note.created",
-            (data) => { 
+            (data) => {
                 const iid = data.issue?.iid || data.merge_request?.iid;
                 return [
-                    ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []), 
+                    ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []),
                     ...connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
                 ]},
             (c, data) => c.onCommentCreated(data),
@@ -429,19 +437,19 @@ export class Bridge {
 
         this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabIssueConnection>(
             "gitlab.issue.reopen",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid), 
+            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid),
             (c) => c.onIssueReopened(),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabIssueConnection>(
             "gitlab.issue.close",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid), 
+            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid),
             (c) => c.onIssueClosed(),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.DiscussionCommentCreatedEvent, GitHubDiscussionConnection>(
             "github.discussion_comment.created",
-            (data) => connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number), 
+            (data) => connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number),
             (c, data) => c.onDiscussionCommentCreated(data),
         );
 
@@ -485,7 +493,7 @@ export class Bridge {
                 }
             })
         });
-    
+
         this.bindHandlerToQueue<JiraIssueEvent, JiraProjectConnection>(
             "jira.issue_created",
             (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
@@ -552,7 +560,7 @@ export class Bridge {
             });
 
         });
-        
+
         this.queue.on<GenericWebhookEvent>("generic-webhook.event", async (msg) => {
             const { data, messageId } = msg;
             const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
@@ -654,7 +662,7 @@ export class Bridge {
             }
         }
 
-        await Promise.all(joinedRooms.map(async (roomId) => {
+        await Promise.all(this.joinedRoomsManager.getJoinedRooms().map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
             try {
                 await connManager.createConnectionsForRoomId(roomId, false);
@@ -716,8 +724,8 @@ export class Bridge {
             const apps = this.listener.getApplicationsForResource('widgets');
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
-            } 
-            new BridgeWidgetApi(
+            }
+            this.widgetApi = new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
@@ -725,7 +733,7 @@ export class Bridge {
                 this.connectionManager,
                 this.as.botIntent,
             );
-            
+
         }
         if (this.provisioningApi) {
             this.listener.bindResource('provisioning', this.provisioningApi.expressRouter);
@@ -778,11 +786,15 @@ export class Bridge {
     }
 
 
-    private async onRoomLeave(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
-        if (event.state_key !== this.as.botUserId) {
-            // Only interested in bot leaves.
+    private async onRoomLeave(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
+        const userId = matrixEvent.state_key;
+        if (!userId || !this.botUserIds.has(userId)) {
+            // Not for one of our bots
             return;
         }
+
+        this.joinedRoomsManager.removeJoinedRoom(roomId, userId);
+
         // If the bot has left the room, we want to vape all connections for that room.
         try {
             await this.connectionManager?.removeConnectionsForRoom(roomId);
@@ -895,23 +907,28 @@ export class Bridge {
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
-        if (this.as.botUserId !== matrixEvent.sender) {
-            // Only act on bot joins
+        const userId = matrixEvent.state_key;
+        if (!userId || !this.botUserIds.has(userId)) {
+            // Not for one of our bots
             return;
         }
+
+        this.joinedRoomsManager.addJoinedRoom(roomId, userId);
+
+        const intent = this.as.getIntentForUserId(userId);
 
         if (this.config.encryption) {
             // Ensure crypto is aware of all members of this room before posting any messages,
             // so that the bot can share room keys to all recipients first.
-            await this.as.botClient.crypto.onRoomJoin(roomId);
+            await intent.underlyingClient.crypto.onRoomJoin(roomId);
         }
 
-        const adminAccountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+        const adminAccountData = await intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
             BRIDGE_ROOM_TYPE, roomId,
         );
         if (adminAccountData) {
             const room = await this.setUpAdminRoom(roomId, adminAccountData, NotifFilter.getDefaultContent());
-            await this.as.botClient.setRoomAccountData(
+            await intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
         }
@@ -921,20 +938,28 @@ export class Bridge {
             return;
         }
 
-        // Only fetch rooms we have no connections in yet.
-        const roomHasConnection =
-            this.connectionManager.isRoomConnected(roomId) ||
-            await this.connectionManager.createConnectionsForRoomId(roomId, true);
+        // Recreate connections for the room
+        await this.connectionManager.removeConnectionsForRoom(roomId);
+        await this.connectionManager.createConnectionsForRoomId(roomId, true);
 
-        // If room has connections or is an admin room, don't setup a wizard.
+        // Only fetch rooms we have no connections in yet.
+        const roomHasConnection = this.connectionManager.isRoomConnected(roomId);
+
+        // If room has connections or is an admin room, don't set up a wizard.
         // Otherwise it's a new room
         if (!roomHasConnection && !adminAccountData && this.config.widgets?.roomSetupWidget?.addOnInvite) {
             try {
-                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
-                    await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
+                const hasPowerLevel = await intent.underlyingClient.userHasPowerLevelFor(
+                    intent.userId,
+                    roomId,
+                    "im.vector.modular.widgets",
+                    true,
+                );
+                if (!hasPowerLevel) {
+                    await intent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin");
                 } else {
                     // Setup the widget
-                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+                    await SetupWidget.SetupRoomConfigWidget(roomId, intent, this.config.widgets);
                 }
             } catch (ex) {
                 log.error(`Failed to setup new widget for room`, ex);
@@ -999,7 +1024,7 @@ export class Bridge {
                         log.error(`Failed to create setup widget for ${roomId}`, ex);
                     }
                 }
-            } 
+            }
             return;
         }
 
@@ -1164,7 +1189,7 @@ export class Bridge {
                 });
             }
         }
-        
+
     }
 
     private async getOrCreateAdminRoomForUser(userId: string): Promise<AdminRoom> {
@@ -1215,14 +1240,14 @@ export class Bridge {
             const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {
                 return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
-            } 
+            }
             const newConnection = await GitLabIssueConnection.createRoomForIssue(
                 instanceName,
                 instance,
                 res,
                 issueInfo.projects,
                 this.as,
-                this.tokenStore, 
+                this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
                 this.config.gitlab,
