@@ -1,7 +1,7 @@
 import { h, FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
-import { ErrorPane, ListItem } from "../elements";
+import { ErrorPane, ListItem, WarningPane } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
@@ -93,7 +93,11 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
 
     return <main>
         {
-            error && <ErrorPane header={error.header || "Error"} isWarning={error.isWarning}>{error.message}</ErrorPane>
+            error &&
+                (!error.isWarning
+                    ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
+                    : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
+                )
         }
         <header className={style.header}>
             <img src={headerImg} />
