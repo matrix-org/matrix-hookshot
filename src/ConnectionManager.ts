@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
+import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject, JiraVersion } from "./Jira/Types";
@@ -107,6 +107,17 @@ export class ConnectionManager extends EventEmitter {
         } else {
             return true;
         }
+    }
+
+    /**
+     * The same as {@link verifyStateEvent}, but verifies the state event against the room & service type of the given connection.
+     * @param connection The connection to verify the state event against.
+     * @param state The state event for altering a connection in the room targeted by {@link connection}.
+     * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
+     */
+    public verifyStateEventForConnection(connection: IConnection, state: StateEvent) {
+        const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
+        return !this.verifyStateEvent(connection.roomId, state, cd.ServiceCategory);
     }
 
     private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
