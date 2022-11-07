@@ -1,6 +1,7 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, IAppserviceRegistration } from "matrix-bot-sdk";
+import BotUsersManager from "./Managers/BotUsersManager";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -47,9 +48,8 @@ export class Bridge {
     private readonly commentProcessor: CommentProcessor;
     private readonly notifProcessor: NotificationProcessor;
     private readonly tokenStore: UserTokenStore;
-    // Set of user IDs for all our bot users
-    private readonly botUserIds = new Set<string>();
-    private readonly joinedRoomsManager = new JoinedRoomsManager();
+    private readonly botUsersManager;
+    private readonly joinedRoomsManager;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
@@ -62,6 +62,7 @@ export class Bridge {
     constructor(
         private config: BridgeConfig,
         private readonly listener: ListenerService,
+        private readonly registration: IAppserviceRegistration,
         private readonly as: Appservice,
         private readonly storage: IBridgeStorageProvider,
     ) {
@@ -71,6 +72,9 @@ export class Bridge {
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
         this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
+        this.joinedRoomsManager = new JoinedRoomsManager();
+        this.botUsersManager = new BotUsersManager(this.config, this.registration, this.as);
+
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
     }
@@ -86,14 +90,36 @@ export class Bridge {
         await this.storage.connect?.();
         await this.queue.connect?.();
 
-        // Collect user IDs of all our bots
-        this.botUserIds.add(this.as.botUserId);
-        this.config.serviceBots?.forEach(b => this.botUserIds.add(this.as.getUserId(b.localpart)));
+        log.info("Ensuring bot users are set up...");
+
+        // Register and set profiles for all our bots
+        for (const botUser of this.botUsersManager.botUsers) {
+            // Ensure the bot is registered
+            const intent = this.as.getIntentForUserId(botUser.userId);
+            log.debug(`Ensuring '${botUser.userId}' is registered`);
+            await intent.ensureRegistered();
+
+            // Set up the bot profile
+            let profile;
+            try {
+                profile = await intent.underlyingClient.getUserProfile(botUser.userId);
+            } catch {
+                profile = {}
+            }
+            if (botUser.avatar && profile.avatar_url !== botUser.avatar) {
+                log.info(`Setting avatar for "${botUser.userId}" to ${botUser.avatar}`);
+                await intent.underlyingClient.setAvatarUrl(botUser.avatar);
+            }
+            if (botUser.displayname && profile.displayname !== botUser.displayname) {
+                log.info(`Setting displayname for "${botUser.userId}" to ${botUser.displayname}`);
+                await intent.underlyingClient.setDisplayName(botUser.displayname);
+            }
+        }
 
         log.info("Connecting to homeserver and fetching joined rooms...");
 
         // Collect joined rooms for all our bots
-        for (const botUserId of this.botUserIds) {
+        for (const botUserId of this.botUsersManager.botUserIds) {
             const intent = this.as.getIntentForUserId(botUserId);
             const joinedRooms = await retry(() => intent.underlyingClient.getJoinedRooms(), 3, 3000);
             log.debug(`Bot "${botUserId}" is joined to ${joinedRooms.length} rooms`);
@@ -642,26 +668,6 @@ export class Bridge {
             (c, data) => c.handleFeedError(data),
         );
 
-        // Set the name and avatar of the bot
-        if (this.config.bot) {
-            // Ensure we are registered before we set a profile
-            await this.as.botIntent.ensureRegistered();
-            let profile;
-            try {
-                profile = await this.as.botClient.getUserProfile(this.as.botUserId);
-            } catch {
-                profile = {}
-            }
-            if (this.config.bot.avatar && profile.avatar_url !== this.config.bot.avatar) {
-                log.info(`Setting avatar to ${this.config.bot.avatar}`);
-                await this.as.botClient.setAvatarUrl(this.config.bot.avatar);
-            }
-            if (this.config.bot.displayname && profile.displayname !== this.config.bot.displayname) {
-                log.info(`Setting displayname to ${this.config.bot.displayname}`);
-                await this.as.botClient.setDisplayName(this.config.bot.displayname);
-            }
-        }
-
         await Promise.all(this.joinedRoomsManager.getJoinedRooms().map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
             try {
@@ -788,7 +794,7 @@ export class Bridge {
 
     private async onRoomLeave(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
         const userId = matrixEvent.state_key;
-        if (!userId || !this.botUserIds.has(userId)) {
+        if (!userId || !this.botUsersManager.isBotUser(userId)) {
             // Not for one of our bots
             return;
         }
@@ -908,7 +914,7 @@ export class Bridge {
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
         const userId = matrixEvent.state_key;
-        if (!userId || !this.botUserIds.has(userId)) {
+        if (!userId || !this.botUsersManager.isBotUser(userId)) {
             // Not for one of our bots
             return;
         }
