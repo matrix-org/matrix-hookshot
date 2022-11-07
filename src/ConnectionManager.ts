@@ -114,7 +114,8 @@ export class ConnectionManager extends EventEmitter {
                 if (state.unsigned.replaces_state) {
                     state = new StateEvent(await this.as.botClient.getEvent(roomId, state.unsigned.replaces_state));
                 } else {
-                    await this.as.botClient.redactEvent(roomId, originalState.eventId);
+                    await this.as.botClient.redactEvent(roomId, originalState.eventId,
+                        `User ${originalState.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
                     return;
                 }
             } while (--attemptsRemaining > 0 && !this.isStateAllowed(roomId, state, serviceType));
