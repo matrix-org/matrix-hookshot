@@ -92,14 +92,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             return JSON.stringify(data);
         }
         
+        const newDepth = depth + 1;
         if (Array.isArray(data)) {
-            return data.map((d, innerBreadth) => this.sanitiseObjectForMatrixJSON(d, depth + 1, innerBreadth));
+            return data.map((d, innerBreadth) => this.sanitiseObjectForMatrixJSON(d, newDepth, innerBreadth));
         }
 
         let objBreadth = 0;
         const obj: Record<string, unknown> = { ...data };
         for (const [key, value] of Object.entries(data)) {
-            obj[key] = this.sanitiseObjectForMatrixJSON(value, depth + 1, ++objBreadth);
+            obj[key] = this.sanitiseObjectForMatrixJSON(value, newDepth, ++objBreadth);
         }
 
         return obj;
