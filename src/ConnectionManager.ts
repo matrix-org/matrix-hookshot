@@ -68,14 +68,14 @@ export class ConnectionManager extends EventEmitter {
      * @param data The data corresponding to the connection state. This will be validated.
      * @returns The resulting connection.
      */
-    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
+    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>) {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with data ${JSON.stringify(data)}`);
         const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
                 throw new ApiError(`User is not permitted to provision connections for this type of service.`, ErrCode.ForbiddenUser);
             }
-            const { connection } = await connectionType.provisionConnection(roomId, userId, data, {
+            const result = await connectionType.provisionConnection(roomId, userId, data, {
                 as: this.as,
                 config: this.config,
                 tokenStore: this.tokenStore,
@@ -85,8 +85,8 @@ export class ConnectionManager extends EventEmitter {
                 github: this.github,
                 getAllConnectionsOfType: this.getAllConnectionsOfType.bind(this),
             });
-            this.push(connection);
-            return connection;
+            this.push(result.connection);
+            return result;
         }
         throw new ApiError(`Connection type not known`);
     }
