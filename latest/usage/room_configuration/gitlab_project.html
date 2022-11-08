@@ -161,8 +161,8 @@
 <li>Give the bridge bot moderator permissions or higher (power level 50) (or otherwise configure the room so the bot can edit room state).</li>
 <li>Send the command <code>!hookshot gitlab project https://mydomain/my/project</code>.</li>
 <li>If you have permission to bridge this repo, the bridge will respond with a confirmation message. (Users with <code>Developer</code> permissions or greater can bridge projects.)</li>
-<li>If you have configured the bridge with a <code>publicUrl</code> inside <code>gitlab.webhook</code>, it will automatically provision the webhook for you.</li>
-<li>Otherwise, you'll need to manually configure the webhook to point to your public address for the webhooks listener.</li>
+<li>If you have configured the bridge with a <code>publicUrl</code> inside <code>gitlab.webhook</code>, and you have <code>Maintainer</code> permissions or greater on the project, the bot will automatically provision the webhook for you.</li>
+<li>Otherwise, you'll need to manually configure the project with a webhook that points to your public address for the webhooks listener, sets the &quot;Secret token&quot; to the one you put in your Hookshot configuration (<code>gitlab.webhook.secret</code>), and enables all Triggers that need to be bridged (as Hookshot can only bridge events for enabled Triggers). This can be configured on the GitLab webpage for the project under Settings &gt; Webhook Settings. If you do not have access to this page, you must ask someone who does (i.e. someone with at least <code>Maintainer</code> permissions on the project) to add the webhook for you.</li>
 </ol>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
