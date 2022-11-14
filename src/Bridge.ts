@@ -668,10 +668,15 @@ export class Bridge {
             (c, data) => c.handleFeedError(data),
         );
 
-        await Promise.all(this.joinedRoomsManager.getJoinedRooms().map(async (roomId) => {
+        // Set up already joined rooms
+        await Promise.all(this.joinedRoomsManager.joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
+
+            const botUserId = this.joinedRoomsManager.getBotsInRoom(roomId)[0];
+            const intent = this.as.getIntentForUserId(botUserId);
+
             try {
-                await connManager.createConnectionsForRoomId(roomId, false);
+                await connManager.createConnectionsForRoomId(intent, roomId, false);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 return;
@@ -679,11 +684,11 @@ export class Bridge {
 
             // TODO: Refactor this to be a connection
             try {
-                let accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
+                let accountData = await intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                     BRIDGE_ROOM_TYPE, roomId,
                 );
                 if (!accountData) {
-                    accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
+                    accountData = await intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                         LEGACY_BRIDGE_ROOM_TYPE, roomId,
                     );
                     if (!accountData) {
@@ -691,18 +696,18 @@ export class Bridge {
                         return;
                     } else {
                         // Upgrade the room
-                        await this.as.botClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
+                        await intent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
                     }
                 }
 
                 let notifContent;
                 try {
-                    notifContent = await this.as.botClient.getRoomStateEvent(
+                    notifContent = await intent.underlyingClient.getRoomStateEvent(
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
                     try {
-                        notifContent = await this.as.botClient.getRoomStateEvent(
+                        notifContent = await intent.underlyingClient.getRoomStateEvent(
                             roomId, NotifFilter.LegacyStateType, "",
                         );
                     }
@@ -710,6 +715,7 @@ export class Bridge {
                         // No state yet
                     }
                 }
+                // TODO Pass bot intent to set up admin room
                 const adminRoom = await this.setUpAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });

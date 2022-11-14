@@ -1,47 +1,63 @@
 export default class JoinedRoomsManager {
     // Map of room ID to set of our bot user IDs in the room
-    private readonly botsInRooms: Map<string, Set<string>> = new Map();
+    private readonly _botsInRooms: Map<string, Set<string>> = new Map();
 
     /**
-     * Get the list of room IDs where at least one bot is a member.
-     * @returns List of room IDs.
+     * Gets a map of the bot users in each room.
+     *
+     * @returns Map of room IDs to the list of bot user IDs in that room.
      */
-    getJoinedRooms(): string[] {
-        return Array.from(this.botsInRooms.keys());
+    get botsInRooms(): Map<string, string[]> {
+        return new Map(Array.from(
+            this._botsInRooms,
+            ([k, v]) => [k, Array.from(v)]
+        ));
     }
 
     /**
-     * Add a bot user ID to the set of bots in a room.
+     * Gets the list of room IDs where at least one bot is a member.
+     *
+     * @returns List of room IDs.
+     */
+    get joinedRooms(): string[] {
+        return Array.from(this._botsInRooms.keys());
+    }
+
+    /**
+     * Adds a bot user ID to the set of bots in a room.
+     *
      * @param roomId
      * @param botUserId
      */
     addJoinedRoom(roomId: string, botUserId: string) {
-        const userIds = this.botsInRooms.get(roomId) ?? new Set<string>();
+        const userIds = this._botsInRooms.get(roomId) ?? new Set<string>();
         userIds.add(botUserId);
-        this.botsInRooms.set(roomId, userIds);
+        this._botsInRooms.set(roomId, userIds);
     }
 
     /**
-     * Remove a bot user ID from the set of bots in a room.
+     * Removes a bot user ID from the set of bots in a room.
+     *
      * @param roomId
      * @param botUserId
      */
     removeJoinedRoom(roomId: string, botUserId: string) {
-        const userIds = this.botsInRooms.get(roomId) ?? new Set<string>();
+        const userIds = this._botsInRooms.get(roomId) ?? new Set<string>();
         userIds.delete(botUserId);
         if (userIds.size > 0) {
-            this.botsInRooms.set(roomId, userIds);
+            this._botsInRooms.set(roomId, userIds);
         } else {
-            this.botsInRooms.delete(roomId);
+            this._botsInRooms.delete(roomId);
         }
     }
 
     /**
-     * Get the list of user IDs for all bots in a room.
+     * Gets the list of user IDs for all bots in a room.
+     *
      * @param roomId
      * @returns List of user IDs for all bots in the room.
      */
     getBotsInRoom(roomId: string) {
-        return Array.from(this.botsInRooms.get(roomId) || new Set<string>());
+        return Array.from(this._botsInRooms.get(roomId) || new Set<string>());
     }
 }
