@@ -778,20 +778,29 @@ export class Bridge {
             /* Do not handle invites from our users */
             return;
         }
-        log.info(`Got invite roomId=${roomId} from=${event.sender} to=${event.state_key}`);
-        // Room joins can fail over federation
-        if (event.state_key !== this.as.botUserId) {
-            return this.as.botClient.kickUser(event.state_key, roomId, "Bridge does not support DMing ghosts");
+        const invitedUserId = event.state_key;
+        if (!invitedUserId) {
+            return;
         }
+        log.info(`Got invite roomId=${roomId} from=${event.sender} to=${invitedUserId}`);
+
+        if (!this.botUsersManager.isBotUser(invitedUserId)) {
+            // We got an invite but it's not a configured bot user, must be for a ghost user
+            const client = this.as.getIntentForUserId(invitedUserId).underlyingClient;
+            return client.kickUser(invitedUserId, roomId, "Bridge does not support DMing ghosts");
+        }
+
+        const intent = this.as.getIntentForUserId(invitedUserId);
 
         // Don't accept invites from people who can't do anything
         if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
-            return this.as.botClient.kickUser(this.as.botUserId, roomId, "You do not have permission to invite this bot.");
+            return intent.underlyingClient.kickUser(this.as.botUserId, roomId, "You do not have permission to invite this bot.");
         }
 
-        await retry(() => this.as.botIntent.joinRoom(roomId), 5);
+        // Accept the invite
+        await retry(() => intent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            await this.as.botClient.setRoomAccountData(
+            await intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender},
             );
         }
