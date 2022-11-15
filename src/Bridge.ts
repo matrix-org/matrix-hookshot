@@ -758,7 +758,7 @@ export class Bridge {
         }
 
         if (this.connectionManager?.isRoomConnected(roomId)) {
-            // Room has connections, don't setup a wizard.
+            // Room has connections, don't set up a wizard.
             return;
         }
 
@@ -766,14 +766,14 @@ export class Bridge {
             // Otherwise it's a new room
             if (this.config.widgets?.roomSetupWidget?.addOnInvite) {
                 if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
-                    await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
+                    await this.as.botIntent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin.");
                 } else {
-                    // Setup the widget
+                    // Set up the widget
                     await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
                 }
             }
         } catch (ex) {
-            log.error(`Failed to setup new widget for room`, ex);
+            log.error(`Failed to set up new widget for room`, ex);
         }
     }
 

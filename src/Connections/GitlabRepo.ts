@@ -205,7 +205,7 @@ export class GitLabRepoConnection extends CommandConnection {
             });
         }
 
-        // Try to setup a webhook
+        // Try to set up a webhook
         if (gitlabConfig.webhook.publicUrl) {
             const hooks = await client.projects.hooks.list(project.id);
             const hasHook = hooks.find(h => h.url === gitlabConfig.webhook.publicUrl);
