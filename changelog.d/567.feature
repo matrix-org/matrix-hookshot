@@ -1,0 +1,1 @@
+Allow adding connections to GitLab projects even when Hookshot doesn't have permissions to automatically provision a webhook for it. When that occurs, tell the user to ask a project admin to add the webhook.

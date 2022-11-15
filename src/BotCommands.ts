@@ -45,17 +45,22 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
     const botCommands: BotCommands = {};
     const cmdStrs: {[category: string]: string[]} = {};
     prototypes.forEach(prototype => {
-        Object.getOwnPropertyNames(prototype).forEach(propetyKey => {
-            const b = Reflect.getMetadata(botCommandSymbol, prototype, propetyKey);
+        Object.getOwnPropertyNames(prototype).forEach(propertyKey => {
+            const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
             if (b) {
                 const category = b.category || "default";
-                const requiredArgs = b.requiredArgs?.join(" ") || "";
+                const requiredArgs = b.requiredArgs?.map((arg: string) =>  `<${arg}>`).join(" ") || "";
                 const optionalArgs = b.optionalArgs?.map((arg: string) =>  `[${arg}]`).join(" ") || "";
+                const cmdStr =
+                    ` - \`££PREFIX££${b.prefix}` +
+                    (requiredArgs ? ` ${requiredArgs}` : "") +
+                    (optionalArgs ? ` ${optionalArgs}` : "") +
+                    `\` - ${b.help}`;
                 cmdStrs[category] = cmdStrs[category] || []
-                cmdStrs[category].push(` - \`££PREFIX££${b.prefix}\` ${requiredArgs} ${optionalArgs} - ${b.help}`);
+                cmdStrs[category].push(cmdStr);
                 // We know that these types are safe.
                 botCommands[b.prefix as string] = {
-                    fn: prototype[propetyKey],
+                    fn: prototype[propertyKey],
                     help: b.help,
                     requiredArgs: b.requiredArgs,
                     optionalArgs: b.optionalArgs,
@@ -88,10 +93,31 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
     }
 }
 
+interface CommandResultNotHandled {
+    handled: false;
+}
+
+interface CommandResultSuccess {
+    handled: true;
+    result: BotCommandResult;
+}
+
+interface CommandResultErrorUnknown {
+    handled: true;
+    humanError?: string;
+    error: Error;
+}
+
+interface CommandResultErrorHuman {
+    handled: true;
+    humanError: string;
+    error?: Error;
+}
+
 export async function handleCommand(
     userId: string, command: string, botCommands: BotCommands, obj: unknown, permissionCheckFn: PermissionCheckFn,
     defaultPermissionService?: string, prefix?: string)
-: Promise<{handled: false}|{handled: true, result: BotCommandResult}|{handled: true, error: string, humanError?: string}> {
+: Promise<CommandResultNotHandled|CommandResultSuccess|CommandResultErrorUnknown|CommandResultErrorHuman> {
     if (prefix) {
         if (!command.startsWith(prefix)) {
             return {handled: false};
@@ -106,10 +132,10 @@ export async function handleCommand(
         if (command) {
             const permissionService = command.permissionService || defaultPermissionService;
             if (permissionService && !permissionCheckFn(permissionService, command.permissionLevel || BridgePermissionLevel.commands)) {
-                return {handled: true, error: "You do not have permission to use this command."};
+                return {handled: true, humanError: "You do not have permission to use this command."};
             }
             if (command.requiredArgs && command.requiredArgs.length > parts.length - i) {
-                return {handled: true, error: "Missing at least one required parameter."};
+                return {handled: true, humanError: "Missing at least one required parameter."};
             }
             const args = parts.slice(i);
             if (command.includeUserId) {
@@ -121,9 +147,9 @@ export async function handleCommand(
             } catch (ex) {
                 const commandError = ex as CommandError;
                 if (ex instanceof ApiError) {
-                    return {handled: true, error: ex.error, humanError: ex.error};
+                    return {handled: true, humanError: ex.error};
                 }
-                return {handled: true, error: commandError.message, humanError: commandError.humanError};
+                return {handled: true, error: commandError, humanError: commandError.humanError};
             }
         }
     }

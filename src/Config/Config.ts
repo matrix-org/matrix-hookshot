@@ -6,12 +6,12 @@ import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
-import LogWrapper from "../LogWrapper";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import { GITHUB_CLOUD_URL } from "../Github/GithubInstance";
+import { Logger } from "matrix-appservice-bridge";
 
-const log = new LogWrapper("Config");
+const log = new Logger("Config");
 
 function makePrefixedUrl(urlString: string): URL {
     return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
@@ -93,6 +93,13 @@ export class BridgeConfigGitHub {
         this.defaultOptions = yaml.defaultOptions;
         this.userIdPrefix = yaml.userIdPrefix || "_github_";
         this.baseUrl = yaml.enterpriseUrl ? new URL(yaml.enterpriseUrl) : GITHUB_CLOUD_URL;
+    }
+
+    @hideKey()
+    public get publicConfig() {
+        return {
+            userIdPrefix: this.userIdPrefix,
+        }
     }
 }
 
@@ -202,6 +209,13 @@ export class BridgeConfigGitLab {
         this.instances = yaml.instances;
         this.webhook = yaml.webhook;
         this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
+
+        for (const name in this.instances) {
+            const url = this.instances[name].url;
+            if (url.endsWith("/")) {
+                this.instances[name].url = url.slice(0, -1);
+            }
+        }
     }
 
     @hideKey()
@@ -225,15 +239,20 @@ export class BridgeConfigGitLab {
 export interface BridgeConfigFeedsYAML {
     enabled: boolean;
     pollIntervalSeconds: number;
+    pollTimeoutSeconds?: number;
 }
 
 export class BridgeConfigFeeds {
     public enabled: boolean;
     public pollIntervalSeconds: number;
+    public pollTimeoutSeconds: number;
 
     constructor(yaml: BridgeConfigFeedsYAML) {
         this.enabled = yaml.enabled;
         this.pollIntervalSeconds = yaml.pollIntervalSeconds;
+        assert.strictEqual(typeof this.pollIntervalSeconds, "number");
+        this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 10;
+        assert.strictEqual(typeof this.pollTimeoutSeconds, "number");
     }
 
     @hideKey()
@@ -619,8 +638,14 @@ export class BridgeConfig {
             case "generic":
                 config = this.generic?.publicConfig;
                 break;
+            case "github":
+                config = this.github?.publicConfig;
+                break;
             case "gitlab":
                 config = this.gitlab?.publicConfig;
+                break;
+            case "jira":
+                config = {};
                 break;
             default:
                 throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);
@@ -646,7 +671,7 @@ export async function parseRegistrationFile(filename: string) {
 
 // Can be called directly
 if (require.main === module) {
-    LogWrapper.configureLogging({level: "info"});
+    Logger.configure({console: "info"});
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
         // eslint-disable-next-line no-console
         console.log('Config successfully validated.');

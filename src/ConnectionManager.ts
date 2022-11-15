@@ -7,11 +7,11 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, JiraProjectConnection } from "./Connections";
+import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
-import { JiraProject } from "./Jira/Types";
-import LogWrapper from "./LogWrapper";
+import { JiraProject, JiraVersion } from "./Jira/Types";
+import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { ApiError, ErrCode } from "./api";
@@ -21,7 +21,7 @@ import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 
-const log = new LogWrapper("ConnectionManager");
+const log = new Logger("ConnectionManager");
 
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
@@ -46,16 +46,15 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Push a new connection to the manager, if this connection already
      * exists then this will no-op.
-     * NOTE: The comparison only checks that the same object instance isn't present,
-     * but not if two instances exist with the same type/state.
-     * @param connection The connection instance to push.
+     * @param connections The connection instances to push.
      */
     public push(...connections: IConnection[]) {
         for (const connection of connections) {
-            if (!this.connections.find(c => c.connectionId === connection.connectionId)) {
-                this.connections.push(connection);
-                this.emit('new-connection', connection);
+            if (this.connections.some(c => c.connectionId === connection.connectionId)) {
+                return;
             }
+            this.connections.push(connection);
+            this.emit('new-connection', connection);
         }
         Metrics.connections.set(this.connections.length);
         // Already exists, noop.
@@ -69,14 +68,14 @@ export class ConnectionManager extends EventEmitter {
      * @param data The data corresponding to the connection state. This will be validated.
      * @returns The resulting connection.
      */
-    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>): Promise<IConnection> {
+    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>) {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with data ${JSON.stringify(data)}`);
         const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
                 throw new ApiError(`User is not permitted to provision connections for this type of service.`, ErrCode.ForbiddenUser);
             }
-            const { connection } = await connectionType.provisionConnection(roomId, userId, data, {
+            const result = await connectionType.provisionConnection(roomId, userId, data, {
                 as: this.as,
                 config: this.config,
                 tokenStore: this.tokenStore,
@@ -86,8 +85,8 @@ export class ConnectionManager extends EventEmitter {
                 github: this.github,
                 getAllConnectionsOfType: this.getAllConnectionsOfType.bind(this),
             });
-            this.push(connection);
-            return connection;
+            this.push(result.connection);
+            return result;
         }
         throw new ApiError(`Connection type not known`);
     }
@@ -209,11 +208,12 @@ export class ConnectionManager extends EventEmitter {
         return this.connections.filter((c) => (c instanceof GitLabRepoConnection && c.path === pathWithNamespace)) as GitLabRepoConnection[];
     }
 
-    public getConnectionsForJiraProject(project: JiraProject, eventName: string): JiraProjectConnection[] {
-        return this.connections.filter((c) => 
-            (c instanceof JiraProjectConnection &&
-                c.interestedInProject(project) &&
-                c.isInterestedInHookEvent(eventName))) as JiraProjectConnection[];
+    public getConnectionsForJiraProject(project: JiraProject): JiraProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.interestedInProject(project))) as JiraProjectConnection[];
+    }
+
+    public getConnectionsForJiraVersion(version: JiraVersion): JiraProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof JiraProjectConnection && c.interestedInVersion(version))) as JiraProjectConnection[];
     }
 
     public getConnectionsForGenericWebhook(hookId: string): GenericHookConnection[] {
@@ -247,6 +247,18 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionById(roomId: string, connectionId: string) {
         return this.connections.find((c) => c.connectionId === connectionId && c.roomId === roomId);
+    }
+
+    public validateCommandPrefix(roomId: string, config: IConnectionState, currentConnection?: IConnection) {
+        if (config.commandPrefix === undefined) return;
+        for (const c of this.getAllConnectionsForRoom(roomId)) {
+            if (c != currentConnection && c.conflictsWithCommandPrefix?.(config.commandPrefix)) {
+                throw new ApiError(`Command prefix "${config.commandPrefix}" is already used in this room. Please choose another prefix.`, ErrCode.ConflictingConnection, -1, {
+                        existingConnection: c.getProvisionerDetails?.(),
+                    }
+                );
+            }
+        }
     }
 
     public async purgeConnection(roomId: string, connectionId: string, requireNoRemoveHandler = true) {
@@ -293,15 +305,34 @@ export class ConnectionManager extends EventEmitter {
      * @param type 
      */
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
-        if (type === GitLabRepoConnection.CanonicalEventType) {
-            if (!this.config.gitlab) {
-                throw new ApiError('GitLab is not configured', ErrCode.DisabledFeature);
-            }
-            if (!this.config.checkPermission(userId, "gitlab", BridgePermissionLevel.manageConnections)) {
-                throw new ApiError('User is not permitted to provision connections for GitLab', ErrCode.ForbiddenUser);
-            }
-            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, this.config.gitlab, filters);
+        switch (type) {
+        case GitLabRepoConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
+            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
         }
-        throw new ApiError(`Connection type not known`, ErrCode.NotFound);
+        case GitHubRepoConnection.CanonicalEventType: {
+            this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
+            if (!this.github) {
+                throw Error("GitHub instance was never initialized");
+            }
+            return await GitHubRepoConnection.getConnectionTargets(userId, this.tokenStore, this.github, filters);
+        }
+        case JiraProjectConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.jira, "JIRA", "jira");
+            return await JiraProjectConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
+        }
+        default:
+            throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);
+        }
+    }
+
+    private validateConnectionTarget<T>(userId: string, configObject: T|undefined, serviceName: string, serviceId: string): T {
+        if (!configObject) {
+            throw new ApiError(`${serviceName} is not configured`, ErrCode.DisabledFeature);
+        }
+        if (!this.config.checkPermission(userId, serviceId, BridgePermissionLevel.manageConnections)) {
+            throw new ApiError(`User is not permitted to provision connections for ${serviceName}`, ErrCode.ForbiddenUser);
+        }
+        return configObject;
     }
 }

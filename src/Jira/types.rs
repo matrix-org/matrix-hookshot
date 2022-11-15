@@ -52,3 +52,14 @@ pub struct JiraIssueMessageBody {
     #[napi(js_name = "external_url")]
     pub external_url: String,
 }
+
+#[derive(Serialize, Debug, Deserialize)]
+#[napi(object)]
+pub struct JiraVersion {
+    #[serde(rename = "self")]
+    pub _self: String,
+    pub id: String,
+    pub description: String,
+    pub name: String,
+    pub projectId: String,
+}

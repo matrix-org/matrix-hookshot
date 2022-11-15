@@ -14,7 +14,7 @@ Hookshot requires the homeserver to be configured with its appservice registrati
 
 ## Local installation
 
-This bridge requires at least Node 14 (though 16 is preferred), and Rust installed.
+This bridge requires at least Node 16 and Rust installed.
 
 To install Node.JS, [nvm](https://github.com/nvm-sh/nvm) is a good option.
 
@@ -94,10 +94,12 @@ permissions:
 ```
 
 You must configure a set of "actors" with access to services. An `actor` can be:
-- A MxID (also known as a User ID) e.g. `@Half-Shot:half-shot.uk`
+- A MxID (also known as a User ID) e.g. `"@Half-Shot:half-shot.uk"`
 - A homeserver domain e.g. `matrix.org`
-- A roomId. This will allow any member of this room to complete actions. e.g. `!TlZdPIYrhwNvXlBiEk:half-shot.uk`
-- `*`, to match all users.
+- A roomId. This will allow any member of this room to complete actions. e.g. `"!TlZdPIYrhwNvXlBiEk:half-shot.uk"`
+- `"*"`, to match all users.
+
+MxIDs. room IDs and `*` **must** be wrapped in quotes.
 
 Each permission set can have a services. The `service` field can be:
 - `github`
@@ -126,12 +128,12 @@ A typical setup might be.
 ```yaml
 permissions:
   # Allow all users to send commands to existing services
-  - actor: *
+  - actor: "*"
     services:
-      - service: *
+      - service: "*"
         level: commands
   # Allow any user that is part of this space to manage github connections
-  - actor: !TlZdPIYrhwNvXlBiEk:half-shot.uk
+  - actor: "!TlZdPIYrhwNvXlBiEk:half-shot.uk"
     services:
       - service: github
         level: manageConnections
@@ -145,17 +147,17 @@ permissions:
   # Allow users on this domain to enable notifications on any service.
   - actor: engineering.example.com
     services:
-      - service: *
+      - service: "*"
         level: notifications
   # Allow users on this domain to create connections.
   - actor: management.example.com
     services:
-      - service: *
+      - service: "*"
         level: manageConnections
   # Allow this specific user to do any action
-  - actor: @alice:example.com
+  - actor: "@alice:example.com"
     services:
-      - service: *
+      - service: "*"
         level: admin
 ```
 
@@ -226,4 +228,35 @@ logging:
   colorize: true
   #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
   timestampFormat: HH:mm:ss:SSS
+```
+
+
+#### JSON Logging
+
+Enabling the `json` option will configure hookshot to output structured JSON logs. The schema looks like:
+
+```json5
+{
+    // The level of the log.
+    "level": "WARN",
+    // The log message.
+    "message": "Failed to connect to homeserver",
+    // The module which emitted the log line.
+    "module": "Bridge",
+    // The timestamp of the log line.
+    "timestamp": "11:45:02:198",
+    // Optional error field, if the log includes an Error
+    "error": "connect ECONNREFUSED 127.0.0.1:8008",
+    // Additional context, possibly including the error body.
+    "args": [
+        {
+            "address": "127.0.0.1",
+            "code": "ECONNREFUSED",
+            "errno": -111,
+            "port": 8008,
+            "syscall": "connect"
+        },
+        "retrying in 5s"
+    ]
+}
 ```

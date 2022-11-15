@@ -1,6 +1,6 @@
-import { Application, Response } from "express";
+import { Application, NextFunction, Response } from "express";
 import { AdminRoom } from "../AdminRoom";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../Config/Config";
 import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
@@ -10,7 +10,7 @@ import { ConnectionManager } from "../ConnectionManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Intent, PowerLevelsEvent } from "matrix-bot-sdk";
 
-const log = new LogWrapper("BridgeWidgetApi");
+const log = new Logger("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
     private readonly api: ProvisioningApi;
@@ -32,16 +32,26 @@ export class BridgeWidgetApi {
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
             openIdOverride: config.widgets?.openIdOverrides,
         });
-        this.api.addRoute("get", "/v1/state", this.getRoomState.bind(this));
-        this.api.addRoute("get", '/v1/config/sections', this.getConfigSections.bind(this));
-        this.api.addRoute("get", '/v1/service/:service/config', this.getServiceConfig.bind(this));
-        this.api.addRoute("get", '/v1/:roomId/connections', this.getConnections.bind(this));
-        this.api.addRoute("get", '/v1/:roomId/connections/:service', this.getConnectionsForService.bind(this));
-        this.api.addRoute("post", '/v1/:roomId/connections/:type', this.createConnection.bind(this));
-        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
-        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', this.updateConnection.bind(this));
-        this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', this.deleteConnection.bind(this));
-        this.api.addRoute("get", '/v1/targets/:type', this.getConnectionTargets.bind(this));
+        const wrapHandler = (handler: (req: ProvisioningRequest, res: Response, next?: NextFunction) => Promise<unknown>) => {
+            return async (req: ProvisioningRequest, res: Response, next?: NextFunction) => {
+                try {
+                    await handler.call(this, req, res);
+                } catch (ex) {
+                    // Pass to error handler without the req
+                    next?.(ex);
+                }
+            }
+        }
+        this.api.addRoute("get", "/v1/state", wrapHandler(this.getRoomState));
+        this.api.addRoute("get", '/v1/config/sections', wrapHandler(this.getConfigSections));
+        this.api.addRoute("get", '/v1/service/:service/config', wrapHandler(this.getServiceConfig));
+        this.api.addRoute("get", '/v1/:roomId/connections', wrapHandler(this.getConnections));
+        this.api.addRoute("get", '/v1/:roomId/connections/:service', wrapHandler(this.getConnectionsForService));
+        this.api.addRoute("post", '/v1/:roomId/connections/:type', wrapHandler(this.createConnection));
+        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
+        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
+        this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', wrapHandler(this.deleteConnection));
+        this.api.addRoute("get", '/v1/targets/:type', wrapHandler(this.getConnectionTargets));
     }
 
     private async getRoomFromRequest(req: ProvisioningRequest): Promise<AdminRoom> {
@@ -98,7 +108,7 @@ export class BridgeWidgetApi {
             if (!c.canEdit) {
                 delete c.secrets;
             }
-    }
+        }
 
         return {
             connections,
@@ -123,11 +133,15 @@ export class BridgeWidgetApi {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
-            const connection = await this.connMan.provisionConnection(req.params.roomId as string, req.userId, req.params.type as string, req.body as Record<string, unknown>);
-            if (!connection.getProvisionerDetails) {
+            this.connMan.validateCommandPrefix(req.params.roomId, req.body);
+            const result = await this.connMan.provisionConnection(req.params.roomId, req.userId, req.params.type, req.body);
+            if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
-            res.send(connection.getProvisionerDetails(true));
+            res.send({
+                ...result.connection.getProvisionerDetails(true),
+                warning: result.warning,
+            });
         } catch (ex) {
             log.error(`Failed to create connection for ${req.params.roomId}`, ex);
             throw ex;
@@ -146,6 +160,7 @@ export class BridgeWidgetApi {
         if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
             throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
         }
+        this.connMan.validateCommandPrefix(req.params.roomId, req.body, connection);
         await connection.provisionerUpdateConfig(req.userId, req.body);
         res.send(connection.getProvisionerDetails(true));
     }

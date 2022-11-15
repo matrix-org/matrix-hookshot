@@ -3,11 +3,11 @@ import axios from 'axios';
 import QuickLRU from "@alloc/quick-lru";
 import { JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject, JiraCloudProjectSearchResponse, JiraStoredToken } from '../Types';
 import { BridgeConfigJira, BridgeConfigJiraCloudOAuth } from '../../Config/Config';
-import LogWrapper from '../../LogWrapper';
+import { Logger } from "matrix-appservice-bridge";
 import { HookshotJiraApi, JiraClient } from '../Client';
 import JiraApi from 'jira-client';
 
-const log = new LogWrapper("JiraCloudClient");
+const log = new Logger("JiraCloudClient");
 const ACCESSIBLE_RESOURCE_CACHE_LIMIT = 100;
 const ACCESSIBLE_RESOURCE_CACHE_TTL_MS = 60000;
 

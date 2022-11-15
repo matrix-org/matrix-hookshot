@@ -11,7 +11,7 @@ import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
-import { JiraIssueEvent, JiraIssueUpdatedEvent } from "./Jira/WebhookTypes";
+import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
@@ -26,7 +26,7 @@ import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { Provisioner } from "./provisioning/provisioner";
 import { JiraProvisionerRouter } from "./Jira/Router";
 import { GitHubProvisionerRouter } from "./Github/Router";
@@ -40,8 +40,8 @@ import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
-import { FeedEntry, FeedError, FeedReader } from "./feeds/FeedReader";
-const log = new LogWrapper("Bridge");
+import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
+const log = new Logger("Bridge");
 
 export class Bridge {
     private readonly as: Appservice;
@@ -88,17 +88,20 @@ export class Bridge {
 
     public async start() {
         log.info('Starting up');
+        await this.tokenStore.load();
+        await this.storage.connect?.();
+        await this.queue.connect?.();
 
         // Fetch all room state
         let joinedRooms: string[]|undefined;
         while(joinedRooms === undefined) {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botIntent.underlyingClient.getJoinedRooms();
+                joinedRooms = await this.as.botClient.getJoinedRooms();
                 log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver:", ex, "retrying in 5s");
+                log.warn("Failed to connect to homeserver, retrying in 5s", ex);
                 await new Promise((r) => setTimeout(r, 5000));
             }
         }
@@ -138,7 +141,6 @@ export class Bridge {
         }
 
 
-        await this.tokenStore.load();
         const connManager = this.connectionManager = new ConnectionManager(this.as,
             this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
 
@@ -320,6 +322,12 @@ export class Bridge {
             (c, data) => c.onPRReviewed(data),
         );
 
+        this.bindHandlerToQueue<GitHubWebhookTypes.WorkflowRunCompletedEvent, GitHubRepoConnection>(
+            "github.workflow_run.completed",
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (c, data) => c.onWorkflowCompleted(data),
+        );
+
         this.bindHandlerToQueue<GitHubWebhookTypes.ReleaseCreatedEvent, GitHubRepoConnection>(
             "github.release.created",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
@@ -354,6 +362,12 @@ export class Bridge {
             "gitlab.merge_request.unapproved",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
             (c, data) => c.onMergeRequestReviewed(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.update",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (c, data) => c.onMergeRequestUpdate(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookReleaseEvent, GitLabRepoConnection>(
@@ -412,6 +426,12 @@ export class Bridge {
                 refresh_token: msg.data.refresh_token,
                 refresh_token_expires_in: msg.data.refresh_token_expires_in && ((parseInt(msg.data.refresh_token_expires_in) * 1000)  + Date.now()),
             } as GitHubOAuthToken));
+
+            // Some users won't have an admin room and would have gone through provisioning.
+            const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+            if (adminRoom) {
+                await adminRoom.sendNotice("Logged into GitHub");
+            }
         });
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
@@ -486,16 +506,24 @@ export class Bridge {
     
         this.bindHandlerToQueue<JiraIssueEvent, JiraProjectConnection>(
             "jira.issue_created",
-            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_created"), 
+            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
             (c, data) => c.onJiraIssueCreated(data),
         );
 
         this.bindHandlerToQueue<JiraIssueUpdatedEvent, JiraProjectConnection>(
             "jira.issue_updated",
-            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project, "jira.issue_updated"), 
+            (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
             (c, data) => c.onJiraIssueUpdated(data),
         );
-    
+
+        for (const event of ["created", "updated", "released"]) {
+            this.bindHandlerToQueue<JiraVersionEvent, JiraProjectConnection>(
+                `jira.version_${event}`,
+                (data) => connManager.getConnectionsForJiraVersion(data.version),
+                (c, data) => c.onJiraVersionEvent(data),
+            );
+        }
+
         this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
             if (!this.config.jira || !this.tokenStore.jiraOAuth) {
                 throw Error('Cannot handle, JIRA oauth support not enabled');
@@ -527,7 +555,7 @@ export class Bridge {
                 // Some users won't have an admin room and would have gone through provisioning.
                 const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
                 if (adminRoom) {
-                    await adminRoom.sendNotice(`Logged into Jira`);
+                    await adminRoom.sendNotice("Logged into Jira");
                 }
                 result = JiraOAuthRequestResult.Success;
             } catch (ex) {
@@ -613,6 +641,11 @@ export class Bridge {
             (data) => connManager.getConnectionsForFeedUrl(data.feed.url),
             (c, data) => c.handleFeedEntry(data),
         );
+        this.bindHandlerToQueue<FeedSuccess, FeedConnection>(
+            "feed.success",
+            (data) => connManager.getConnectionsForFeedUrl(data.url),
+            c => c.handleFeedSuccess(),
+        );
         this.bindHandlerToQueue<FeedError, FeedConnection>(
             "feed.error",
             (data) => connManager.getConnectionsForFeedUrl(data.url),
@@ -650,11 +683,11 @@ export class Bridge {
 
             // TODO: Refactor this to be a connection
             try {
-                let accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                let accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
                     BRIDGE_ROOM_TYPE, roomId,
                 );
                 if (!accountData) {
-                    accountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                    accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
                         LEGACY_BRIDGE_ROOM_TYPE, roomId,
                     );
                     if (!accountData) {
@@ -668,12 +701,12 @@ export class Bridge {
 
                 let notifContent;
                 try {
-                    notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                    notifContent = await this.as.botClient.getRoomStateEvent(
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
                     try {
-                        notifContent = await this.as.botIntent.underlyingClient.getRoomStateEvent(
+                        notifContent = await this.as.botClient.getRoomStateEvent(
                             roomId, NotifFilter.LegacyStateType, "",
                         );
                     }
@@ -746,8 +779,14 @@ export class Bridge {
         log.info(`Got invite roomId=${roomId} from=${event.sender} to=${event.state_key}`);
         // Room joins can fail over federation
         if (event.state_key !== this.as.botUserId) {
-            return this.as.botIntent.underlyingClient.kickUser(this.as.botUserId, roomId, "Bridge does not support DMing ghosts");
+            return this.as.botClient.kickUser(event.state_key, roomId, "Bridge does not support DMing ghosts");
         }
+
+        // Don't accept invites from people who can't do anything
+        if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
+            return this.as.botClient.kickUser(this.as.botUserId, roomId, "You do not have permission to invite this bot.");
+        }
+
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
             const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
@@ -845,9 +884,10 @@ export class Bridge {
                                 messageClient: this.messageClient,
                                 storage: this.storage,
                                 github: this.github,
-                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this),
+                                getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
                             this.getOrCreateAdminRoom.bind(this),
+                            this.connectionManager.push.bind(this.connectionManager),
                         )
                     ).onMessageEvent(event, checkPermission);
                 } catch (ex) {
@@ -894,7 +934,6 @@ export class Bridge {
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
-        this.config.addMemberToCache(roomId, matrixEvent.sender);
         if (this.as.botUserId !== matrixEvent.sender) {
             // Only act on bot joins
             return;
@@ -916,8 +955,12 @@ export class Bridge {
             return;
         }
         if (event.state_key !== undefined) {
-            if (event.type === "m.room.member" && event.content.membership !== "join") {
-                this.config.removeMemberFromCache(roomId, event.state_key);
+            if (event.type === "m.room.member") {
+                if (event.content.membership === "join") {
+                    this.config.addMemberToCache(roomId, event.state_key);
+                } else {
+                    this.config.removeMemberFromCache(roomId, event.state_key);
+                }
                 return;
             }
             // A state update, hurrah!
@@ -928,10 +971,10 @@ export class Bridge {
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
                         await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
                     } else {
-                        connection.onStateUpdate?.(event);
+                        await connection.onStateUpdate?.(event);
                     }
                 } catch (ex) {
-                    log.warn(`Connection ${connection.toString()} failed to handle onStateUpdate:`, ex);
+                    log.warn(`Connection ${connection.toString()} for ${roomId} failed to handle state update:`, ex);
                 }
             }
             if (!existingConnections.length) {

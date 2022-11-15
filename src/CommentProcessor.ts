@@ -3,7 +3,7 @@ import markdown from "markdown-it";
 import mime from "mime";
 import emoji from "node-emoji";
 import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
 import { FormatUtil } from "./FormatUtil";
 import { IssuesGetCommentResponseData, ReposGetResponseData, IssuesGetResponseData } from "./Github/Types"
@@ -13,7 +13,7 @@ const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;
 const REGEX_MATRIX_MENTION = /<a href="https:\/\/matrix\.to\/#\/(.+)">(.*)<\/a>/gmi;
 const REGEX_IMAGES = /!\[.*]\((.*\.(\w+))\)/gm;
 const md = new markdown();
-const log = new LogWrapper("CommentProcessor");
+const log = new Logger("CommentProcessor");
 
 interface IMatrixCommentEvent extends MatrixMessageContent {
     // eslint-disable-next-line camelcase

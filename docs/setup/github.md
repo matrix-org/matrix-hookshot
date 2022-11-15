@@ -89,4 +89,4 @@ are supported.
 
 If you have followed these steps correctly, GitHub should now be configured with hookshot 🥳.
 
-You can now follow the guide on [authenticating with GitHub](../usage/auth.md), and then [bridging a room](../usage/room_configuration/github_repo.md#setting-up)
+You can now follow the guide on [authenticating with GitHub](../usage/auth.md#github), and then [bridging a room](../usage/room_configuration/github_repo.md#setting-up)

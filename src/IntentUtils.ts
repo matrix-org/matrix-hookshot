@@ -1,8 +1,8 @@
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { Appservice } from "matrix-bot-sdk";
 import axios from "axios";
 
-const log = new LogWrapper("IntentUtils");
+const log = new Logger("IntentUtils");
 
 export async function getIntentForUser(user: {avatarUrl?: string, login: string}, as: Appservice, prefix: string) {
     const domain = as.botUserId.split(":")[1];

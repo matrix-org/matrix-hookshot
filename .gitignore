@@ -1,4 +1,3 @@
-*.pem
 config.yml
 lib/
 node_modules/
@@ -15,3 +14,10 @@ public/
 /src/libRs.d.ts
 
 book
+*.cer
+*.pem
+*.pcks8
+
+# Coverage
+coverage
+.nyc_output

@@ -15,6 +15,7 @@
   - [Room Configuration](./usage/room_configuration.md)
     - [GitHub Repo](./usage/room_configuration/github_repo.md)
     - [GitLab Project](./usage/room_configuration/gitlab_project.md)
+    - [JIRA Project](./usage/room_configuration/jira_project.md)
 - [📊 Metrics](./metrics.md)
 
 # 🧑‍💻 Development

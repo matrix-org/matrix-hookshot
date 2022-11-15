@@ -3,7 +3,7 @@ import Axios, { Method } from "axios"
 import qs from "querystring";
 import { createPrivateKey, createSign, KeyObject } from "crypto";
 import fs from "fs";
-import Logger from "../../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { encodeJiraToken, JiraOAuth } from "../OAuth";
 import { JiraOAuthResult } from "../Types";
 

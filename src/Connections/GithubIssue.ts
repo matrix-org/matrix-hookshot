@@ -3,7 +3,7 @@ import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { UserTokenStore } from "../UserTokenStore";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { getIntentForUser } from "../IntentUtils";
@@ -24,7 +24,7 @@ export interface GitHubIssueConnectionState {
     comments_processed: number;
 }
 
-const log = new LogWrapper("GitHubIssueConnection");
+const log = new Logger("GitHubIssueConnection");
 const md = new markdown();
 
 interface IQueryRoomOpts {
@@ -36,7 +36,7 @@ interface IQueryRoomOpts {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub issue.
  */
 @Connection
 export class GitHubIssueConnection extends BaseConnection implements IConnection {

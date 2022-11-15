@@ -17,13 +17,13 @@ import { JiraBotCommands } from "./Jira/AdminCommands";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
 const md = new markdown();
-const log = new LogWrapper('AdminRoom');
+const log = new Logger('AdminRoom');
 
 export const LEGACY_BRIDGE_ROOM_TYPE = "uk.half-shot.matrix-github.room";
 export const LEGACY_BRIDGE_NOTIF_TYPE = "uk.half-shot.matrix-github.notif_state";
@@ -398,7 +398,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.emit('open.gitlab-issue', getIssueOpts, issue, instanceName, instance);
     }
 
-    @botCommand("gitlab personaltoken", {help: "Set your personal access token for GitLab", requiredArgs: ['instanceName', 'accessToken'], category: Category.Gitlab})
+    @botCommand("gitlab personaltoken", {help: "Set your personal access token for GitLab", requiredArgs: ['instanceName', 'accessToken'], category: Category.Gitlab, permissionLevel: BridgePermissionLevel.login})
     public async setGitLabPersonalAccessToken(instanceName: string, accessToken: string) {
         let me: GetUserResponse;
         if (!this.config.gitlab) {
@@ -419,7 +419,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.tokenStore.storeUserToken("gitlab", this.userId, accessToken, instance.url);
     }
 
-    @botCommand("gitlab hastoken", {help: "Check if you have a token stored for GitLab", requiredArgs: ["instanceName"], category: Category.Gitlab})
+    @botCommand("gitlab hastoken", {help: "Check if you have a token stored for GitLab", requiredArgs: ["instanceName"], category: Category.Gitlab, permissionLevel: BridgePermissionLevel.login})
     public async gitlabHasPersonalToken(instanceName: string) {
         if (!this.config.gitlab) {
             return this.sendNotice("The bridge is not configured with GitLab support.");
@@ -503,7 +503,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(this.userId, service, level);
         const result = await handleCommand(this.userId, command, AdminRoom.botCommands, this, checkPermission);
         if (!result.handled) {
-            return this.sendNotice("Command not understood.");
+            return this.sendNotice("Command not understood. For a list of commands, try `help`.");
         }
         
         if ("humanError" in result) {

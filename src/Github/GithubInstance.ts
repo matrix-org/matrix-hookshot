@@ -1,16 +1,21 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import { GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
+import { GitHubOAuthErrorResponse, GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
 import axios from "axios";
-import qs from "querystring";
 import UserAgent from "../UserAgent";
 
-const log = new LogWrapper("GithubInstance");
+const log = new Logger("GithubInstance");
 
 export const GITHUB_CLOUD_URL = new URL("https://api.github.com");
+
+export class GitHubOAuthError extends Error {
+    constructor(errorResponse: GitHubOAuthErrorResponse) {
+        super(`OAuth interaction failed with ${errorResponse.error}: ${errorResponse.error_description}. See ${errorResponse.error_uri}`);
+    }
+}
 
 interface Installation {
     account: {
@@ -77,8 +82,12 @@ export class GithubInstance {
             refresh_token: refreshToken,
             grant_type: 'refresh_token',
         });
-        const accessTokenRes = await axios.post(`${url}?${qs.encode()}`);
-        return qs.decode(accessTokenRes.data) as unknown as GitHubOAuthTokenResponse;
+        const accessTokenRes = await axios.post(url);
+        const response: Record<string, unknown> = Object.fromEntries(new URLSearchParams(accessTokenRes.data));
+        if ('error' in response) {
+            throw new GitHubOAuthError(response as unknown as GitHubOAuthErrorResponse);
+        }
+        return response as unknown as GitHubOAuthTokenResponse;
     }
 
     public getSafeOctokitForRepo(orgName: string, repoName?: string) {
@@ -180,7 +189,7 @@ export class GithubInstance {
     }
 
     public static generateOAuthUrl(baseUrl: URL, action: "authorize"|"access_token", params: OAuthUrlParameters) {
-        const q = qs.stringify(params);
+        const q = new URLSearchParams(params as Record<string, string>);
         if (baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
             // Cloud doesn't use `api.` for oauth.
             baseUrl = new URL("https://github.com");

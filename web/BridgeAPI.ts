@@ -3,6 +3,8 @@ import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
 import { ApiError } from '../src/api';
+import { FunctionComponent } from 'preact';
+import { IConnectionState } from '../src/Connections';
 export class BridgeAPIError extends Error {
     constructor(msg: string, public readonly body: ApiError) {
         super(msg);
@@ -16,7 +18,7 @@ export class BridgeAPIError extends Error {
     }
 }
 
-export default class BridgeAPI {
+export class BridgeAPI {
     static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi): Promise<BridgeAPI> {
         const sessionToken = localStorage.getItem('hookshot-sessionToken');
         baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
@@ -52,7 +54,7 @@ export default class BridgeAPI {
             },
         });
         if (res.status !== 200) {
-            if (res.headers.get('Content-Type').includes("application/json")) {
+            if (res.headers.get('Content-Type')?.includes("application/json")) {
                 const resultBody = await res.json();
                 throw new BridgeAPIError(resultBody?.error || 'Request failed', resultBody);
             } else {
@@ -115,11 +117,11 @@ export default class BridgeAPI {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(service)}`);
     }
 
-    async createConnection(roomId: string, type: string, config: unknown) {
+    async createConnection(roomId: string, type: string, config: IConnectionState): Promise<GetConnectionsResponseItem> {
         return this.request('POST', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(type)}`, config);
     }
 
-    async updateConnection(roomId: string, connectionId: string, config: unknown) {
+    async updateConnection(roomId: string, connectionId: string, config: IConnectionState) {
         return this.request('PUT', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`, config);
     }
 
@@ -127,8 +129,13 @@ export default class BridgeAPI {
         return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
     }
 
-    getConnectionTargets<R>(type: string, filters?: unknown): Promise<R[]> {
-        const searchParams = filters && new URLSearchParams(filters as Record<string, string>);
-        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? '?' : ''}${searchParams}`);
+    getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>): Promise<R[]> {
+        const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
+        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`);
     }
 }
+
+export type BridgeConfig = FunctionComponent<{
+    api: BridgeAPI,
+    roomId: string,
+}>;

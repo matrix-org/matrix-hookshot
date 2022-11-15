@@ -1,8 +1,8 @@
 import { Appservice, FunctionCallContext, METRIC_MATRIX_CLIENT_FAILED_FUNCTION_CALL, METRIC_MATRIX_CLIENT_SUCCESSFUL_FUNCTION_CALL } from "matrix-bot-sdk";
 import { collectDefaultMetrics, Counter, Gauge, register, Registry } from "prom-client";
 import { Response, Router } from "express";
-import LogWrapper from "./LogWrapper";
-const log = new LogWrapper("Metrics");
+import { Logger } from "matrix-appservice-bridge";
+const log = new Logger("Metrics");
 
 export class Metrics {
     public readonly expressRouter = Router();

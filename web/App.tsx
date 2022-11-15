@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { h, Component } from 'preact';
 import WA, { MatrixCapabilities } from 'matrix-widget-api';
-import BridgeAPI, { BridgeAPIError } from './BridgeAPI';
+import { BridgeAPI, BridgeAPIError } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import { ErrorPane } from './components/elements';
 import AdminSettings from './components/AdminSettings';
@@ -17,7 +17,8 @@ interface ICompleteState extends IMinimalState {
     roomState: BridgeRoomState,
     supportedServices: {
         [sectionName: string]: boolean;
-    }
+    },
+    serviceScope?: string,
     kind: "invite"|"admin"|"roomConfig",
 }
 
@@ -53,6 +54,7 @@ export default class App extends Component<void, IState> {
         const widgetId = assertParam(qs, 'widgetId');
         const roomId = assertParam(qs, 'roomId');
         const widgetKind = qs.get('kind') as "invite"|"admin"|"roomConfig";
+        const serviceScope = qs.get('serviceScope');
         // Fetch via config.
         this.widgetApi = new WA.WidgetApi(widgetId);
         this.widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
@@ -72,7 +74,7 @@ export default class App extends Component<void, IState> {
         const widgetApiUrl = new URL(`${window.location.origin}${window.location.pathname.replace("/widgetapi/v1/static", "")}`);
         this.bridgeApi = await BridgeAPI.getBridgeAPI(widgetApiUrl.toString(), this.widgetApi);
         const { userId } = await this.bridgeApi.verify();
-        const roomState = widgetKind === "admin" && await this.bridgeApi.state();
+        const roomState = widgetKind === "admin" ? await this.bridgeApi.state() : undefined;
         const supportedServices = await this.bridgeApi.getEnabledConfigSections();
         // Calling setState is ok because we've awaited a network request.
         // eslint-disable-next-line react/no-did-mount-set-state
@@ -81,6 +83,7 @@ export default class App extends Component<void, IState> {
             roomState,
             roomId,
             supportedServices,
+            serviceScope: serviceScope || undefined,
             kind: widgetKind,
             busy: false,
         });
@@ -109,7 +112,7 @@ export default class App extends Component<void, IState> {
         } else if (this.state.busy) {
             content = <div class="spinner" />;
         }
-        
+
         if ("kind" in this.state) {
             if (this.state.roomState && this.state.kind === "admin") {
                 content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState} />;
@@ -119,10 +122,11 @@ export default class App extends Component<void, IState> {
                 content = <RoomConfigView
                     roomId={this.state.roomId}
                     supportedServices={this.state.supportedServices}
+                    serviceScope={this.state.serviceScope}
                     bridgeApi={this.bridgeApi}
                     widgetApi={this.widgetApi}
                  />;
-            } 
+            }
         }
 
         if (!content) {

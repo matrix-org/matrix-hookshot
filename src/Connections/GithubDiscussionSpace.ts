@@ -1,13 +1,13 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Space, StateEvent } from "matrix-bot-sdk";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ReposGetResponseData } from "../Github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
 import { GithubInstance } from "../Github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
 
-const log = new LogWrapper("GitHubDiscussionSpace");
+const log = new Logger("GitHubDiscussionSpace");
 
 export interface GitHubDiscussionSpaceConnectionState {
     owner: string;
@@ -15,7 +15,7 @@ export interface GitHubDiscussionSpaceConnectionState {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles spaces connected to a GitHub discussion.
  */
 @Connection
 export class GitHubDiscussionSpace extends BaseConnection implements IConnection {
