@@ -29,7 +29,7 @@ export default class JoinedRoomsManager {
      * @param roomId
      * @param botUserId
      */
-    addJoinedRoom(roomId: string, botUserId: string) {
+    addJoinedRoom(roomId: string, botUserId: string): void{
         const userIds = this._botsInRooms.get(roomId) ?? new Set<string>();
         userIds.add(botUserId);
         this._botsInRooms.set(roomId, userIds);
@@ -41,7 +41,7 @@ export default class JoinedRoomsManager {
      * @param roomId
      * @param botUserId
      */
-    removeJoinedRoom(roomId: string, botUserId: string) {
+    removeJoinedRoom(roomId: string, botUserId: string): void {
         const userIds = this._botsInRooms.get(roomId) ?? new Set<string>();
         userIds.delete(botUserId);
         if (userIds.size > 0) {
@@ -57,7 +57,7 @@ export default class JoinedRoomsManager {
      * @param roomId
      * @returns List of user IDs for all bots in the room.
      */
-    getBotsInRoom(roomId: string) {
+    getBotsInRoom(roomId: string): string[] {
         return Array.from(this._botsInRooms.get(roomId) || new Set<string>());
     }
 }

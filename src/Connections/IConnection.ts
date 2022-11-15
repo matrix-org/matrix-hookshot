@@ -1,7 +1,7 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
-import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
@@ -88,6 +88,7 @@ export const ConnectionDeclarations: Array<ConnectionDeclaration> = [];
 
 export interface InstantiateConnectionOpts {
     as: Appservice,
+    intent: Intent,
     config: BridgeConfig,
     tokenStore: UserTokenStore,
     commentProcessor: CommentProcessor,

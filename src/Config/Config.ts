@@ -659,6 +659,29 @@ export class BridgeConfig {
         return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
     }
 
+    public getEnabledServices(): string[] {
+        const services = [];
+        if (this.feeds) {
+            services.push("feeds");
+        }
+        if (this.figma) {
+            services.push("figma");
+        }
+        if (this.generic) {
+            services.push("webhooks");
+        }
+        if (this.github) {
+            services.push("github");
+        }
+        if (this.github) {
+            services.push("gitlab");
+        }
+        if (this.github) {
+            services.push("jira");
+        }
+        return services;
+    }
+
     public getPublicConfigForService(serviceName: string): Record<string, unknown> {
         let config: undefined|Record<string, unknown>;
         switch (serviceName) {

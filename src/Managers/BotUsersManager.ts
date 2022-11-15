@@ -1,13 +1,20 @@
 import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
+import { Logger } from "matrix-appservice-bridge";
 
 import { BridgeConfig } from "../Config/Config";
+import JoinedRoomsManager from "./JoinedRoomsManager";
+
+const log = new Logger("BotUsersManager");
 
 export interface BotUser {
     localpart: string;
     userId: string;
     avatar?: string;
     displayname?: string;
+    services: string[];
     prefix: string;
+    // Bots with higher priority should handle a command first
+    priority: number;
 }
 
 export default class BotUsersManager {
@@ -18,6 +25,7 @@ export default class BotUsersManager {
         readonly config: BridgeConfig,
         readonly registration: IAppserviceRegistration,
         readonly as: Appservice,
+        readonly joinedRoomsManager: JoinedRoomsManager,
     ) {
         // Default bot user
         this._botUsers.set(this.as.botUserId, {
@@ -25,7 +33,10 @@ export default class BotUsersManager {
             userId: this.as.botUserId,
             avatar: this.config.bot?.avatar,
             displayname: this.config.bot?.displayname,
+            // Default bot can handle all services
+            services: this.config.getEnabledServices(),
             prefix: "!hookshot",
+            priority: 0,
         });
 
         // Service bot users
@@ -37,7 +48,10 @@ export default class BotUsersManager {
                     userId: userId,
                     avatar: bot.avatar,
                     displayname: bot.displayname,
+                    services: bot.services,
                     prefix: bot.prefix,
+                    // Service bots should handle commands first
+                    priority: 1,
                 });
             });
         }
@@ -50,15 +64,6 @@ export default class BotUsersManager {
      */
     get botUsers(): Readonly<BotUser>[] {
         return Array.from(this._botUsers.values());
-    }
-
-    /**
-     * Gets the configured bot user IDs.
-     *
-     * @returns List of bot user IDs.
-     */
-    get botUserIds(): string[] {
-        return Array.from(this._botUsers.keys());
     }
 
     /**
@@ -78,5 +83,33 @@ export default class BotUsersManager {
      */
     isBotUser(userId: string): boolean {
         return this._botUsers.has(userId);
+    }
+
+    /**
+     * Gets all the bot users in a room, ordered by priority.
+     *
+     * @param roomId Room ID to get bots for.
+     */
+    getBotUsersInRoom(roomId: string): Readonly<BotUser>[] {
+        return this.joinedRoomsManager.getBotsInRoom(roomId)
+            .map(botUserId => this.getBotUser(botUserId))
+            .filter((b): b is BotUser => b !== undefined)
+            .sort((a, b) => (a.priority < b.priority) ? 1 : -1)
+    }
+
+    /**
+     * Gets a bot user in a room, optionally for a particular service.
+     * When a service is specified, the bot user with the highest priority which handles that service is returned.
+     *
+     * @param roomId Room ID to get a bot user for.
+     * @param serviceType Optional service type for the bot.
+     */
+    getBotUserInRoom(roomId: string, serviceType?: string): Readonly<BotUser> | undefined {
+        const botUsersInRoom = this.getBotUsersInRoom(roomId);
+        if (serviceType) {
+            return botUsersInRoom.find(b => b.services.includes(serviceType));
+        } else {
+            return botUsersInRoom[0];
+        }
     }
 }

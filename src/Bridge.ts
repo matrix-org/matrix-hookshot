@@ -73,7 +73,7 @@ export class Bridge {
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
         this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
         this.joinedRoomsManager = new JoinedRoomsManager();
-        this.botUsersManager = new BotUsersManager(this.config, this.registration, this.as);
+        this.botUsersManager = new BotUsersManager(this.config, this.registration, this.as, this.joinedRoomsManager);
 
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
@@ -119,13 +119,13 @@ export class Bridge {
         log.info("Connecting to homeserver and fetching joined rooms...");
 
         // Collect joined rooms for all our bots
-        for (const botUserId of this.botUsersManager.botUserIds) {
-            const intent = this.as.getIntentForUserId(botUserId);
+        for (const botUser of this.botUsersManager.botUsers) {
+            const intent = this.as.getIntentForUserId(botUser.userId);
             const joinedRooms = await retry(() => intent.underlyingClient.getJoinedRooms(), 3, 3000);
-            log.debug(`Bot "${botUserId}" is joined to ${joinedRooms.length} rooms`);
+            log.debug(`Bot "${botUser.userId}" is joined to ${joinedRooms.length} rooms`);
 
             for (const r of joinedRooms) {
-                this.joinedRoomsManager.addJoinedRoom(r, botUserId);
+                this.joinedRoomsManager.addJoinedRoom(r, botUser.userId);
             }
         }
 
@@ -866,13 +866,18 @@ export class Bridge {
             }
             if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
-                try {
-                    await (
-                        new SetupConnection(
+
+                const botUsersInRoom = this.botUsersManager.getBotUsersInRoom(roomId);
+                // Try each bot in the room until one handles the command
+                for (const botUser of botUsersInRoom) {
+                    try {
+                        const setupConnection = new SetupConnection(
                             roomId,
+                            botUser.prefix,
                             {
                                 config: this.config,
                                 as: this.as,
+                                intent: this.as.getIntentForUserId(botUser.userId),
                                 tokenStore: this.tokenStore,
                                 commentProcessor: this.commentProcessor,
                                 messageClient: this.messageClient,
@@ -882,10 +887,14 @@ export class Bridge {
                             },
                             this.getOrCreateAdminRoomForUser.bind(this),
                             this.connectionManager.push.bind(this.connectionManager),
-                        )
-                    ).onMessageEvent(event, checkPermission);
-                } catch (ex) {
-                    log.warn(`Setup connection failed to handle:`, ex);
+                        );
+                        const handled = await setupConnection.onMessageEvent(event, checkPermission);
+                        if (handled) {
+                            break;
+                        }
+                    } catch (ex) {
+                        log.warn(`Setup connection failed to handle:`, ex);
+                    }
                 }
             }
             return;
