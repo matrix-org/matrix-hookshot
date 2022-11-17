@@ -186,7 +186,13 @@ export class Bridge {
             if (this.config.generic) {
                 this.connectionManager.registerProvisioningConnection(GenericHookConnection);
             }
-            this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent, routers);
+            this.provisioningApi = new Provisioner(
+                this.config.provisioning,
+                this.connectionManager,
+                this.botUsersManager,
+                this.as,
+                routers,
+            );
         }
 
         this.as.on("query.room", async (roomAlias, cb) => {
@@ -755,7 +761,8 @@ export class Bridge {
                 this.storage,
                 apps[0],
                 this.connectionManager,
-                this.as.botIntent,
+                this.botUsersManager,
+                this.as,
             );
 
         }

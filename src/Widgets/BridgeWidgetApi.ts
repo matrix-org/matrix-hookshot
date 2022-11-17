@@ -7,8 +7,9 @@ import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
+import BotUsersManager from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
-import { Intent, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 
 const log = new Logger("BridgeWidgetApi");
 
@@ -20,7 +21,8 @@ export class BridgeWidgetApi {
         storageProvider: IBridgeStorageProvider,
         expressApp: Application,
         private readonly connMan: ConnectionManager,
-        private readonly intent: Intent,
+        private readonly botUsersManager: BotUsersManager,
+        private readonly as: Appservice,
     ) {
         this.api = new ProvisioningApi(
             storageProvider,
@@ -92,9 +94,18 @@ export class BridgeWidgetApi {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", this.intent);
-        const allConnections = this.connMan.getAllConnectionsForRoom(req.params.roomId as string);
-        const powerlevel = new PowerLevelsEvent({content: await this.intent.underlyingClient.getRoomStateEvent(req.params.roomId, "m.room.power_levels", "")});
+        const roomId = req.params.roomId;
+        const serviceType = req.params.service;
+
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+        if (!botUser) {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", intent);
+        const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
+        const powerlevel = new PowerLevelsEvent({content: await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "")});
         const serviceFilter = req.params.service;
         const connections = allConnections.map(c => c.getProvisionerDetails?.(true))
             .filter(c => !!c)
@@ -128,13 +139,22 @@ export class BridgeWidgetApi {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", this.intent);
+        const roomId = req.params.roomId;
+        const serviceType = req.params.type;
+
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+        if (!botUser) {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", intent);
         try {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
             this.connMan.validateCommandPrefix(req.params.roomId, req.body);
-            const result = await this.connMan.provisionConnection(req.params.roomId, req.userId, req.params.type, req.body);
+            const result = await this.connMan.provisionConnection(intent, roomId, req.userId, serviceType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
@@ -152,15 +172,25 @@ export class BridgeWidgetApi {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", this.intent);
-        const connection = this.connMan.getConnectionById(req.params.roomId as string, req.params.connectionId as string);
+        const roomId = req.params.roomId;
+        const serviceType = req.params.type;
+        const connectionId = req.params.connectionId;
+
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+        if (!botUser) {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+
+        await assertUserPermissionsInRoom(req.userId, roomId, "write", intent);
+        const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
             throw new ApiError("Connection does not exist", ErrCode.NotFound);
         }
         if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
             throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
         }
-        this.connMan.validateCommandPrefix(req.params.roomId, req.body, connection);
+        this.connMan.validateCommandPrefix(roomId, req.body, connection);
         await connection.provisionerUpdateConfig(req.userId, req.body);
         res.send(connection.getProvisionerDetails(true));
     }
@@ -169,9 +199,17 @@ export class BridgeWidgetApi {
         if (!req.userId) {
             throw Error('Cannot get connections without a valid userId');
         }
-        const roomId = req.params.roomId as string;
-        const connectionId = req.params.connectionId as string;
-        await assertUserPermissionsInRoom(req.userId, roomId, "write", this.intent);
+        const roomId = req.params.roomId;
+        const serviceType = req.params.type;
+        const connectionId = req.params.connectionId;
+
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+        if (!botUser) {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+
+        await assertUserPermissionsInRoom(req.userId, roomId, "write", intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
             throw new ApiError("Connection does not exist", ErrCode.NotFound);
