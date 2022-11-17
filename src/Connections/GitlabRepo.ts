@@ -320,6 +320,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 as.botClient,
                 GitLabRepoConnection.botCommands,
                 GitLabRepoConnection.helpMessage,
+                ["gitlab"],
                 "!gl",
                 "gitlab",
             )

@@ -485,6 +485,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 as.botClient,
                 GitHubRepoConnection.botCommands,
                 GitHubRepoConnection.helpMessage,
+                ["github"],
                 "!gh",
                 "github",
             );

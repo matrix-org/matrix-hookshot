@@ -897,6 +897,10 @@ export class Bridge {
                         const setupConnection = new SetupConnection(
                             roomId,
                             botUser.prefix,
+                            [
+                                ...botUser.services,
+                                this.config.widgets?.roomSetupWidget ? "widget" : "",
+                            ],
                             {
                                 config: this.config,
                                 as: this.as,

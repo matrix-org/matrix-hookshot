@@ -212,6 +212,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
                 as.botClient,
                 JiraProjectConnection.botCommands,
                 JiraProjectConnection.helpMessage,
+                ["jira"],
                 "!jira",
                 "jira"
             );
