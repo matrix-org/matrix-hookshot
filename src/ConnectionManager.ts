@@ -4,7 +4,7 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
@@ -18,6 +18,7 @@ import { ApiError, ErrCode } from "./api";
 import { UserTokenStore } from "./UserTokenStore";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import BotUsersManager from "./Managers/BotUsersManager";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 
@@ -38,6 +39,7 @@ export class ConnectionManager extends EventEmitter {
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly storage: IBridgeStorageProvider,
+        private readonly botUsersManager: BotUsersManager,
         private readonly github?: GithubInstance
     ) {
         super();
@@ -62,13 +64,21 @@ export class ConnectionManager extends EventEmitter {
 
     /**
      * Used by the provisioner API to create new connections on behalf of users.
+     *
+     * @param intent Bot user intent to create the connection with.
      * @param roomId The target Matrix room.
      * @param userId The requesting Matrix user.
      * @param type The type of room (corresponds to the event type of the connection)
      * @param data The data corresponding to the connection state. This will be validated.
      * @returns The resulting connection.
      */
-    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>) {
+    public async provisionConnection(
+        intent: Intent,
+        roomId: string,
+        userId: string,
+        type: string,
+        data: Record<string, unknown>,
+    ) {
         log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with data ${JSON.stringify(data)}`);
         const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
         if (connectionType?.provisionConnection) {
@@ -77,6 +87,7 @@ export class ConnectionManager extends EventEmitter {
             }
             const result = await connectionType.provisionConnection(roomId, userId, data, {
                 as: this.as,
+                intent: intent,
                 config: this.config,
                 tokenStore: this.tokenStore,
                 commentProcessor: this.commentProcessor,
@@ -159,8 +170,17 @@ export class ConnectionManager extends EventEmitter {
         if (!this.verifyStateEvent(roomId, state, connectionType.ServiceCategory, rollbackBadState)) {
             return;
         }
+
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, connectionType.ServiceCategory);
+        if (!botUser) {
+            log.error(`Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connections for state`);
+            throw Error('Could not find a bot to handle this connection');
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+
         return connectionType.createConnectionForState(roomId, state, {
             as: this.as,
+            intent: intent,
             config: this.config,
             tokenStore: this.tokenStore,
             commentProcessor: this.commentProcessor,
@@ -171,21 +191,26 @@ export class ConnectionManager extends EventEmitter {
     }
 
     public async createConnectionsForRoomId(roomId: string, rollbackBadState: boolean) {
-        let connectionCreated = false;
-        const state = await this.as.botClient.getRoomState(roomId);
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId);
+        if (!botUser) {
+            log.error(`Failed to find a bot in room '${roomId}' when creating connections`);
+            return;
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+
+        const state = await intent.underlyingClient.getRoomState(roomId);
         for (const event of state) {
+            // Choose a specific bot to user for the connection type
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event), rollbackBadState);
                 if (conn) {
                     log.debug(`Room ${roomId} is connected to: ${conn}`);
                     this.push(conn);
-                    connectionCreated = true;
                 }
             } catch (ex) {
                 log.error(`Failed to create connection for ${roomId}:`, ex);
             }
         }
-        return connectionCreated;
     }
 
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
@@ -278,7 +303,7 @@ export class ConnectionManager extends EventEmitter {
     public getConnectionsForFeedUrl(url: string): FeedConnection[] {
         return this.connections.filter(c => c instanceof FeedConnection && c.feedUrl === url) as FeedConnection[];
     }
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
         return this.connections.filter((c) => (c instanceof typeT)) as T[];
@@ -333,7 +358,7 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Removes connections for a room from memory. This does NOT remove the state
      * event from the room.
-     * @param roomId 
+     * @param roomId
      */
     public async removeConnectionsForRoom(roomId: string) {
         log.info(`Removing all connections from ${roomId}`);
@@ -352,8 +377,8 @@ export class ConnectionManager extends EventEmitter {
 
     /**
      * Get a list of possible targets for a given connection type when provisioning
-     * @param userId 
-     * @param type 
+     * @param userId
+     * @param type
      */
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
         switch (type) {

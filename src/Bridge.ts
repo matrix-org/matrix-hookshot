@@ -145,15 +145,23 @@ export class Bridge {
             await ensureFigmaWebhooks(this.config.figma, this.as.botClient);
         }
 
-
-        const connManager = this.connectionManager = new ConnectionManager(this.as,
-            this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
+        const connManager = this.connectionManager = new ConnectionManager(
+            this.as,
+            this.config,
+            this.tokenStore,
+            this.commentProcessor,
+            this.messageClient,
+            this.storage,
+            this.botUsersManager,
+            this.github,
+        );
 
         if (this.config.feeds?.enabled) {
             new FeedReader(
                 this.config.feeds,
                 this.connectionManager,
                 this.queue,
+                // Use default bot when storing account data
                 this.as.botClient,
             );
         }
@@ -672,15 +680,19 @@ export class Bridge {
         await Promise.all(this.joinedRoomsManager.joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
 
-            const botUserId = this.joinedRoomsManager.getBotsInRoom(roomId)[0];
-            const intent = this.as.getIntentForUserId(botUserId);
-
             try {
-                await connManager.createConnectionsForRoomId(intent, roomId, false);
+                await connManager.createConnectionsForRoomId(roomId, false);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 return;
             }
+
+            const botUser = this.botUsersManager.getBotUserInRoom(roomId);
+            if (!botUser) {
+                log.error(`Failed to find a bot in room '${roomId}' when setting up admin room`);
+                return;
+            }
+            const intent = this.as.getIntentForUserId(botUser.userId);
 
             // TODO: Refactor this to be a connection
             try {
@@ -816,11 +828,15 @@ export class Bridge {
 
         this.joinedRoomsManager.removeJoinedRoom(roomId, userId);
 
-        // If the bot has left the room, we want to vape all connections for that room.
-        try {
-            await this.connectionManager?.removeConnectionsForRoom(roomId);
-        } catch (ex) {
-            log.warn(`Failed to remove connections on leave for ${roomId}`);
+        if (!this.connectionManager) {
+            return;
+        }
+
+        // Remove all the connections for this room
+        await this.connectionManager.removeConnectionsForRoom(roomId);
+        if (this.joinedRoomsManager.getBotsInRoom(roomId).length > 0) {
+            // If there are still bots in the room, recreate connections
+            await this.connectionManager.createConnectionsForRoomId(roomId, true);
         }
     }
 
@@ -1059,7 +1075,7 @@ export class Bridge {
         }
 
         // We still want to react to our own state events.
-        if (event.sender === this.as.botUserId) {
+        if (this.botUsersManager.isBotUser(event.sender)) {
             // It's us
             return;
         }
