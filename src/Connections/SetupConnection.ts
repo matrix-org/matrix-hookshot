@@ -14,6 +14,7 @@ import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
 import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConnection";
 import { ApiError, Logger } from "matrix-appservice-bridge";
+import { Intent } from "matrix-bot-sdk";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 
@@ -52,7 +53,7 @@ export class SetupConnection extends CommandConnection {
         readonly prefix: string,
         readonly helpCategories: string[],
         private readonly provisionOpts: ProvisionConnectionOpts,
-        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
+        private readonly getOrCreateAdminRoom: (intent: Intent, userId: string) => Promise<AdminRoom>,
         private readonly pushConnections: (...connections: IConnection[]) => void,
     ) {
         super(
@@ -219,7 +220,7 @@ export class SetupConnection extends CommandConnection {
         const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
         this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
-        const adminRoom = await this.getOrCreateAdminRoom(userId);
+        const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
         await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use ${url}.`);
         return this.client.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }

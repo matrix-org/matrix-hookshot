@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, IAppserviceRegistration } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
 import BotUsersManager from "./Managers/BotUsersManager";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
@@ -733,8 +733,7 @@ export class Bridge {
                         // No state yet
                     }
                 }
-                // TODO Pass bot intent to set up admin room
-                const adminRoom = await this.setUpAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                const adminRoom = await this.setUpAdminRoom(intent, roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
@@ -813,7 +812,12 @@ export class Bridge {
 
         // Don't accept invites from people who can't do anything
         if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
-            return intent.underlyingClient.kickUser(this.as.botUserId, roomId, "You do not have permission to invite this bot.");
+            return intent.underlyingClient.kickUser(invitedUserId, roomId, "You do not have permission to invite this bot.");
+        }
+
+        if (event.content.is_direct && invitedUserId !== this.as.botUserId) {
+            // Service bots do not support direct messages (admin rooms)
+            return intent.underlyingClient.kickUser(invitedUserId, roomId, "This bot does not support admin rooms.");
         }
 
         // Accept the invite
@@ -1249,13 +1253,13 @@ export class Bridge {
 
     }
 
-    private async getOrCreateAdminRoomForUser(userId: string): Promise<AdminRoom> {
+    private async getOrCreateAdminRoom(intent: Intent, userId: string): Promise<AdminRoom> {
         const existingRoom = this.getAdminRoomForUser(userId);
         if (existingRoom) {
             return existingRoom;
         }
-        const roomId = await this.as.botClient.dms.getOrCreateDm(userId);
-        const room = await this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        const roomId = await intent.underlyingClient.dms.getOrCreateDm(userId);
+        const room = await this.setUpAdminRoom(intent, roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
         await this.as.botClient.setRoomAccountData(
             BRIDGE_ROOM_TYPE, roomId, room.accountData,
         );
@@ -1271,13 +1275,18 @@ export class Bridge {
         return null;
     }
 
-    private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
+    private async setUpAdminRoom(
+        intent: Intent,
+        roomId: string,
+        accountData: AdminAccountData,
+        notifContent: NotificationFilterStateContent,
+    ) {
         if (!this.connectionManager) {
             throw Error('setUpAdminRoom() called before connectionManager was ready');
         }
 
         const adminRoom = new AdminRoom(
-            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config, this.connectionManager,
+            roomId, accountData, notifContent, intent, this.tokenStore, this.config, this.connectionManager,
         );
 
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
@@ -1287,7 +1296,7 @@ export class Bridge {
                 const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
                 this.connectionManager?.push(connection);
             } else {
-                await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+                await intent.underlyingClient.inviteUser(adminRoom.userId, connection.roomId);
             }
         });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
@@ -1296,7 +1305,7 @@ export class Bridge {
             }
             const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {
-                return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+                return intent.underlyingClient.inviteUser(adminRoom.userId, connection.roomId);
             }
             const newConnection = await GitLabIssueConnection.createRoomForIssue(
                 instanceName,
@@ -1304,17 +1313,18 @@ export class Bridge {
                 res,
                 issueInfo.projects,
                 this.as,
+                intent,
                 this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
                 this.config.gitlab,
             );
             this.connectionManager?.push(newConnection);
-            return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
+            return intent.underlyingClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
         if (this.config.widgets?.addToAdminRooms) {
-            await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+            await SetupWidget.SetupAdminRoomConfigWidget(roomId, intent, this.config.widgets);
         }
         log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;
