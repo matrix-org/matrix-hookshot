@@ -18,7 +18,7 @@ export class SetupWidget {
 
     static async SetupRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
         if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.RoomConfiguration, "hookshot_room_config")) {
-            await botIntent.sendText(roomId, `Please open the ${config.branding.widgetTitle} widget to setup integrations.`);
+            await botIntent.sendText(roomId, `Please open the ${config.branding.widgetTitle} widget to set up integrations.`);
             return true;
         }
         return false;

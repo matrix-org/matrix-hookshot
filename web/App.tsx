@@ -88,7 +88,7 @@ export default class App extends Component<void, IState> {
             busy: false,
         });
     } catch (ex) {
-        console.error(`Failed to setup widget:`, ex);
+        console.error(`Failed to set up widget:`, ex);
         let error: string = ex.message;
         if (ex instanceof BridgeAPIError) {
             if (ex.errcode === "M_AS_BAD_OPENID") {

@@ -216,7 +216,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             });
         }
 
-        // Try to setup a webhook
+        // Try to set up a webhook
         // Requires at least a "Maintainer" role: https://docs.gitlab.com/ee/user/permissions.html
         let warning: ConnectionWarning | undefined;
         if (gitlabConfig.webhook.publicUrl && permissionLevel >= AccessLevel.Maintainer) {

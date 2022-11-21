@@ -46,7 +46,7 @@ Hookshot handles the following webhook event types:
 
 You can disable any of these to disable the events being handled in Hookshot.
 
-Once you have setup your app, you can move onto configuring the bridge:
+Once you have set up your app, you can move onto configuring the bridge:
 
 ## Bridge Configuration
 
