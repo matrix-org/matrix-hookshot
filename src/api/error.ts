@@ -121,7 +121,7 @@ export function errorMiddleware(log: Logger) {
         if (err instanceof ApiError) {
             err.apply(res);
         } else {
-            new ApiError("An internal error occured").apply(res);
+            new ApiError("An internal error occurred").apply(res);
         }
     }
 }
