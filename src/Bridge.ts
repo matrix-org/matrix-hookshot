@@ -675,7 +675,7 @@ export class Bridge {
         await Promise.all(joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
             try {
-                await connManager.createConnectionsForRoomId(roomId);
+                await connManager.createConnectionsForRoomId(roomId, false);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 return;
@@ -939,7 +939,7 @@ export class Bridge {
 
         // Only fetch rooms we have no connections in yet.
         if (!this.connectionManager.isRoomConnected(roomId)) {
-            await this.connectionManager.createConnectionsForRoomId(roomId);
+            await this.connectionManager.createConnectionsForRoomId(roomId, true);
         }
     }
 
@@ -961,7 +961,7 @@ export class Bridge {
             const existingConnections = this.connectionManager.getInterestedForRoomState(roomId, event.type, event.state_key);
             const state = new StateEvent(event);
             for (const connection of existingConnections) {
-                if (!this.connectionManager.verifyStateEventForConnection(connection, state)) {
+                if (!this.connectionManager.verifyStateEventForConnection(connection, state, true)) {
                     continue;
                 }
                 try {
@@ -977,7 +977,7 @@ export class Bridge {
             }
             if (!existingConnections.length) {
                 // Is anyone interested in this state?
-                const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event));
+                const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
                 if (connection) {
                     log.info(`New connected added to ${roomId}: ${connection.toString()}`);
                     this.connectionManager.push(connection);
