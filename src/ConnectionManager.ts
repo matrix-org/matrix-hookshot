@@ -7,7 +7,7 @@
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
-import { ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
+import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { JiraProject, JiraVersion } from "./Jira/Types";
@@ -91,16 +91,62 @@ export class ConnectionManager extends EventEmitter {
         throw new ApiError(`Connection type not known`);
     }
 
-    private assertStateAllowed(state: StateEvent<any>, serviceType: string) {
-        if (state.sender === this.as.botUserId) {
-            return;
-        }
-        if (!this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections)) {
-            throw new Error(`User ${state.sender} is disallowed to create state for ${serviceType}`);
+    /**
+     * Check if a state event is sent by a user who is allowed to configure the type of connection the state event covers.
+     * If it isn't, optionally revert the state to the last-known valid value, or redact it if that isn't possible.
+     * @param roomId The target Matrix room.
+     * @param state The state event for altering a connection in the room.
+     * @param serviceType The type of connection the state event is altering.
+     * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
+     */
+    public verifyStateEvent(roomId: string, state: StateEvent, serviceType: string, rollbackBadState: boolean) {
+        if (!this.isStateAllowed(roomId, state, serviceType)) {
+            if (rollbackBadState) {
+                void this.tryRestoreState(roomId, state, serviceType);
+            }
+            log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
+            return false;
+        } else {
+            return true;
         }
     }
 
-    public async createConnectionForState(roomId: string, state: StateEvent<any>) {
+    /**
+     * The same as {@link verifyStateEvent}, but verifies the state event against the room & service type of the given connection.
+     * @param connection The connection to verify the state event against.
+     * @param state The state event for altering a connection in the room targeted by {@link connection}.
+     * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
+     */
+    public verifyStateEventForConnection(connection: IConnection, state: StateEvent, rollbackBadState: boolean) {
+        const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
+        return !this.verifyStateEvent(connection.roomId, state, cd.ServiceCategory, rollbackBadState);
+    }
+
+    private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
+        return state.sender === this.as.botUserId
+            || this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections);
+    }
+
+    private async tryRestoreState(roomId: string, originalState: StateEvent, serviceType: string) {
+        let state = originalState;
+        let attemptsRemaining = 5;
+        try {
+            do {
+                if (state.unsigned.replaces_state) {
+                    state = new StateEvent(await this.as.botClient.getEvent(roomId, state.unsigned.replaces_state));
+                } else {
+                    await this.as.botClient.redactEvent(roomId, originalState.eventId,
+                        `User ${originalState.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
+                    return;
+                }
+            } while (--attemptsRemaining > 0 && !this.isStateAllowed(roomId, state, serviceType));
+            await this.as.botClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
+        } catch (ex) {
+            log.warn(`Unable to undo state event from ${state.sender} for disallowed ${serviceType} connection management in ${roomId}`);
+        }
+    }
+
+    public createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
         // Empty object == redacted
         if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
@@ -110,7 +156,9 @@ export class ConnectionManager extends EventEmitter {
         if (!connectionType) {
             return;
         }
-        this.assertStateAllowed(state, connectionType.ServiceCategory);
+        if (!this.verifyStateEvent(roomId, state, connectionType.ServiceCategory, rollbackBadState)) {
+            return;
+        }
         return connectionType.createConnectionForState(roomId, state, {
             as: this.as,
             config: this.config,
@@ -122,11 +170,11 @@ export class ConnectionManager extends EventEmitter {
         });
     }
 
-    public async createConnectionsForRoomId(roomId: string) {
+    public async createConnectionsForRoomId(roomId: string, rollbackBadState: boolean) {
         const state = await this.as.botClient.getRoomState(roomId);
         for (const event of state) {
             try {
-                const conn = await this.createConnectionForState(roomId, new StateEvent(event));
+                const conn = await this.createConnectionForState(roomId, new StateEvent(event), rollbackBadState);
                 if (conn) {
                     log.debug(`Room ${roomId} is connected to: ${conn}`);
                     this.push(conn);
