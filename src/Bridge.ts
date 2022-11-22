@@ -421,7 +421,7 @@ export class Bridge {
             } as GitHubOAuthToken));
 
             // Some users won't have an admin room and would have gone through provisioning.
-            const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+            const adminRoom = this.getAdminRoomForUser(userId);
             if (adminRoom) {
                 await adminRoom.sendNotice("Logged into GitHub");
             }
@@ -546,7 +546,7 @@ export class Bridge {
                 });
 
                 // Some users won't have an admin room and would have gone through provisioning.
-                const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+                const adminRoom = this.getAdminRoomForUser(userId);
                 if (adminRoom) {
                     await adminRoom.sendNotice("Logged into Jira");
                 }
@@ -879,7 +879,7 @@ export class Bridge {
                                 github: this.github,
                                 getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
-                            this.getOrCreateAdminRoom.bind(this),
+                            this.getOrCreateAdminRoomForUser.bind(this),
                             this.connectionManager.push.bind(this.connectionManager),
                         )
                     ).onMessageEvent(event, checkPermission);
@@ -1167,22 +1167,26 @@ export class Bridge {
         
     }
 
-    private async getOrCreateAdminRoom(userId: string): Promise<AdminRoom> {
-        const existingRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+    private async getOrCreateAdminRoomForUser(userId: string): Promise<AdminRoom> {
+        const existingRoom = this.getAdminRoomForUser(userId);
         if (existingRoom) {
             return existingRoom;
         }
-        // Otherwise, we need to create a room.
-        const roomId = await this.as.botClient.createRoom({
-            invite: [userId],
-            is_direct: true,
-            preset: "trusted_private_chat",
-        });
+        const roomId = await this.as.botClient.dms.getOrCreateDm(userId);
         const room = await this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
         await this.as.botClient.setRoomAccountData(
             BRIDGE_ROOM_TYPE, roomId, room.accountData,
         );
         return room;
+    }
+
+    private getAdminRoomForUser(userId: string): AdminRoom|null {
+        for (const adminRoom of this.adminRooms.values()) {
+            if (adminRoom.userId === userId) {
+                return adminRoom;
+            }
+        }
+        return null;
     }
 
     private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
@@ -1245,7 +1249,8 @@ export class Bridge {
         } else {
             return;
         }
-        for (const adminRoom of [...this.adminRooms.values()].filter(r => r.userId === userId)) {
+        for (const adminRoom of this.adminRooms.values()) {
+            if (adminRoom.userId !== userId) continue;
             if (adminRoom?.notificationsEnabled(type, instanceName)) {
                 log.debug(`Token was updated for ${userId} (${type}), notifying notification watcher`);
                 this.queue.push<NotificationsEnableEvent>({
