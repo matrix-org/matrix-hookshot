@@ -62,7 +62,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     }
 
     private handleGitHubFailure(ex: RequestError) {
-        log.error("An error occured getting notifications:", ex);
+        log.error("An error occurred getting notifications:", ex);
         if (ex.status === 401 || ex.status === 404) {
             log.warn(`Got status ${ex.status} when handing user stream: ${ex.message}`);
             this.failureCount++;

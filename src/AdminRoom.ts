@@ -510,7 +510,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
             return this.sendNotice(`Failed to handle command: ${result.humanError}`);
         } else if ("error" in result) {
             // Error is not something we want to print to the user.
-            return this.sendNotice(`Failed to handle command: A unknown failure occured. Contact your bridge admin`);
+            return this.sendNotice(`Failed to handle command: A unknown failure occurred. Contact your bridge admin`);
         }
         return null;
     }

@@ -68,7 +68,7 @@ export class BridgeWidgetApi {
             res.send(await room.getBridgeState());
         } catch (ex) {
             log.error(`Failed to get room state:`, ex);
-            throw new ApiError("An error occured when getting room state", ErrCode.Unknown);
+            throw new ApiError("An error occurred when getting room state", ErrCode.Unknown);
         }
     }
 
