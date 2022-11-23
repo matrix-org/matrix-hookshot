@@ -107,8 +107,8 @@ metrics:
   #
   enabled: true
 queue:
-  # (Optional) Redis message queue / cache configuration options for large scale deployments.
-  # Must be enabled for encryption to work.
+  # (Optional) Message queue / cache configuration options for large scale deployments.
+  # For encryption to work, must be set to monolithic mode and have a host & port specified.
   #
   monolithic: true
   port: 6379

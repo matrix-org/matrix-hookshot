@@ -450,8 +450,8 @@ export class BridgeConfig {
     @configKey(`Configuration for encryption support in the bridge.
  If omitted, encryption support will be disabled.`, true)
     public readonly encryption?: BridgeConfigEncryption;
-    @configKey(`Redis message queue / cache configuration options for large scale deployments.
- Must be enabled for encryption to work.`, true)
+    @configKey(`Message queue / cache configuration options for large scale deployments.
+ For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
