@@ -48,9 +48,7 @@ export class Bridge {
     private readonly tokenStore: UserTokenStore;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
-    private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi?: BridgeWidgetApi;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -719,7 +717,7 @@ export class Bridge {
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
             } 
-            this.widgetApi = new BridgeWidgetApi(
+            new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
@@ -883,7 +881,7 @@ export class Bridge {
                     log.info("Missing parts!:", splitParts, issueNumber);
                 }
             } catch (ex) {
-                await adminRoom.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
+                await adminRoom.sendNotice("Failed to handle reply. You may not be authenticated to do that.");
                 log.error("Reply event could not be handled:", ex);
             }
             return;
