@@ -7,6 +7,7 @@ import { UserNotificationWatcher } from "../Notifications/UserNotificationWatche
 import { ListenerService } from "../ListenerService";
 import { Logger } from "matrix-appservice-bridge";
 import { LogService } from "matrix-bot-sdk";
+import { getAppservice } from "../appservice";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
@@ -25,14 +26,16 @@ async function start() {
     });
     LogService.setLogger(Logger.botSdkLogger);
 
+    const {appservice, storage} = getAppservice(config, registration);
+
     if (config.queue.monolithic) {
-        const matrixSender = new MatrixSender(config, registration);
+        const matrixSender = new MatrixSender(config, appservice);
         matrixSender.listen();
         const userNotificationWatcher = new UserNotificationWatcher(config);
         userNotificationWatcher.start();
     }
 
-    const bridgeApp = new Bridge(config, registration, listener);
+    const bridgeApp = new Bridge(config, listener, appservice, storage);
 
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");

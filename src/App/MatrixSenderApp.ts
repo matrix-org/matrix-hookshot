@@ -4,6 +4,7 @@ import { Logger } from "matrix-appservice-bridge";
 import Metrics from "../Metrics";
 import { ListenerService } from "../ListenerService";
 import { LogService } from "matrix-bot-sdk";
+import { getAppservice } from "../appservice";
 
 
 const log = new Logger("App");
@@ -21,7 +22,7 @@ async function start() {
     });
     LogService.setLogger(Logger.botSdkLogger);
     const listener = new ListenerService(config.listeners);
-    const sender = new MatrixSender(config, registration);
+    const sender = new MatrixSender(config, getAppservice(config, registration).appservice);
     if (config.metrics) {
         if (!config.metrics.port) {
             log.warn(`Not running metrics for service, no port specified`);

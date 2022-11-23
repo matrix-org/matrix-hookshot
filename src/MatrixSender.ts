@@ -1,10 +1,8 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";
+import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { v4 as uuid } from "uuid";
-import { getAppservice } from "./appservice";
-import Metrics from "./Metrics";
 
 export interface IMatrixSendMessage {
     sender: string|null;
@@ -26,11 +24,8 @@ const log = new Logger("MatrixSender");
 
 export class MatrixSender {
     private mq: MessageQueue;
-    private as: Appservice;
-    constructor(private config: BridgeConfig, registration: IAppserviceRegistration) {
+    constructor(private config: BridgeConfig, private readonly as: Appservice) {
         this.mq = createMessageQueue(this.config.queue);
-        this.as = getAppservice(config, registration, new MemoryStorageProvider());
-        Metrics.registerMatrixSdkMetrics(this.as);
     }
 
     public listen() {

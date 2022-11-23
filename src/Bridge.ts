@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, MatrixClient, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -14,14 +14,12 @@ import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNot
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
 import { NotificationsEnableEvent, NotificationsDisableEvent } from "./Webhooks";
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
-import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
@@ -36,7 +34,6 @@ import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
-import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
@@ -44,8 +41,6 @@ import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReade
 const log = new Logger("Bridge");
 
 export class Bridge {
-    private readonly as: Appservice;
-    private readonly storage: IBridgeStorageProvider;
     private readonly messageClient: MessageSenderClient;
     private readonly queue: MessageQueue;
     private readonly commentProcessor: CommentProcessor;
@@ -61,16 +56,12 @@ export class Bridge {
 
     private ready = false;
 
-    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration, private readonly listener: ListenerService) {
-        if (this.config.queue.host && this.config.queue.port) {
-            log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
-            this.storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
-        } else {
-            log.info('Initialising memory storage');
-            this.storage = new MemoryStorageProvider();
-        }
-        this.as = getAppservice(this.config, this.registration, this.storage);
-        Metrics.registerMatrixSdkMetrics(this.as);
+    constructor(
+        private config: BridgeConfig,
+        private readonly listener: ListenerService,
+        private readonly as: Appservice,
+        private readonly storage: IBridgeStorageProvider,
+    ) {
         this.queue = createMessageQueue(this.config.queue);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
