@@ -47,7 +47,15 @@ export class MatrixSender {
 
     public async sendMatrixMessage(messageId: string, msg: IMatrixSendMessage) {
         const intent = msg.sender ? this.as.getIntentForUserId(msg.sender) : this.as.botIntent;
-        await intent.ensureRegisteredAndJoined(msg.roomId);
+        if (this.config.encryption) {
+            // Ensure crypto is aware of all members of this room before posting any messages,
+            // so that the bot can share room keys to all recipients first.
+            await intent.enableEncryption();
+            await intent.joinRoom(msg.roomId);
+            await intent.underlyingClient.crypto.onRoomJoin(msg.roomId);
+        } else {
+            await intent.ensureRegisteredAndJoined(msg.roomId);
+        }
         try {
                 const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
                 log.info(`Sent event to room ${msg.roomId} (${msg.sender}) > ${eventId}`);
