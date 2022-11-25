@@ -1,6 +1,6 @@
 import { IssuesGetResponseData } from "../Github/Types";
 import { Redis, default as redis } from "ioredis";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 import { IBridgeStorageProvider } from "./StorageProvider";
 import { IFilterInfo } from "matrix-bot-sdk";
@@ -23,16 +23,28 @@ const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
 const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
-const log = new LogWrapper("RedisASProvider");
+const log = new Logger("RedisASProvider");
 
 export class RedisStorageProvider implements IBridgeStorageProvider {
     private redis: Redis;
 
     constructor(host: string, port: number, private contextSuffix = '') {
         this.redis = new redis(port, host);
-        this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER).catch((ex) => {
+    }
+
+    public async connect(): Promise<void> {
+        try {
+            await this.redis.ping();
+        } catch (ex) {
+            log.error('Could not ping the redis instance, is it reachable?');
+            throw ex;
+        }
+        log.info("Successfully connected");
+        try {
+            await this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER);
+        } catch (ex) {
             log.warn("Failed to set expiry time on as.completed_transactions", ex);
-        });
+        }
     }
 
     public setSyncToken(token: string|null){

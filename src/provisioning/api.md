@@ -3,7 +3,7 @@ Provisioning API for matrix-hookshot
 
 # Overview
 
-This document describes how to integrate with `matrix-hookshot`'s provisoning API.
+This document describes how to integrate with `matrix-hookshot`'s provisioning API.
 
 Requests made to the bridge must be against the API listener defined in the config under `provisioning`, not
 the appservice or webhook listeners.
@@ -22,7 +22,7 @@ APIs are versioned independently so two endpoints on the latest version may not 
 
 ## GET /v1/health
 
-Request the status of the provisoning API.
+Request the status of the provisioning API.
 
 ### Response
 

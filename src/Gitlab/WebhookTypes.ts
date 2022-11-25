@@ -63,6 +63,12 @@ export interface IGitLabWebhookMREvent {
     repository: IGitlabRepository;
     object_attributes: IGitLabMergeRequestObjectAttributes;
     labels: IGitLabLabel[];
+    changes: {
+        [key: string]: {
+            before: string;
+            after: string;
+        }
+    }
 }
 
 export interface IGitLabWebhookTagPushEvent {
@@ -177,6 +183,7 @@ export interface IGitLabNote {
     author_id: number;
     noteable_id: number;
     description: string;
+    discussion_id?: string;
 }
 
 export interface IGitLabWebhookNoteEvent {

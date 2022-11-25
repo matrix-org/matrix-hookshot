@@ -24,6 +24,8 @@ This bridge supports:
   - Commands (create new issues)
 - Generic webhooks
   - Webhooks (via GET, PUT or POST with optional transformation functions)
+- RSS/Atom feeds
+  - New entries
 
 ## Setup
 
@@ -42,4 +44,4 @@ sensible-browser book/index.html
 
 ## Contact
 
-We have a bridge support room you can drop into at [#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk), or you can reach me at [@Half-Shot:half-shot.uk](https://matrix.to/#/@Half-Shot:half-shot.uk)
+We have a bridge support room you can drop into at [#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk).

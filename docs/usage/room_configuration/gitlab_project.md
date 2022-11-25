@@ -14,21 +14,21 @@ To set up a connection to a GitLab project in a new room:
 3. Give the bridge bot moderator permissions or higher (power level 50) (or otherwise configure the room so the bot can edit room state).
 4. Send the command `!hookshot gitlab project https://mydomain/my/project`.
 5. If you have permission to bridge this repo, the bridge will respond with a confirmation message. (Users with `Developer` permissions or greater can bridge projects.)
-6. If you have configured the bridge with a `publicUrl` inside `gitlab.webhook` in your [config](../../setup/gitlab.md), it will automatically set this URL up to receive GitLab webhooks for you.
-7. Finally, you'll need to manually configure your GitLab project's webhook settings with either the GitLab-specific URL if configured, or your public address for the webhooks listener otherwise.
+6. If you have configured the bridge with a `publicUrl` inside `gitlab.webhook` in your [config](../../setup/gitlab.md), you authenticated with Hookshot on that instance in your admin room, and you have `Maintainer` permissions or greater on the project, the bot will automatically provision the webhook for you.
+7. Otherwise, you'll need to manually configure the project with a webhook that points to your public address for the webhooks listener, sets the "Secret token" to the one you put in your Hookshot configuration (`gitlab.webhook.secret`), and enables all Triggers that need to be bridged (as Hookshot can only bridge events for enabled Triggers). This can be configured on the GitLab webpage for the project under Settings > Webhook Settings. If you do not have access to this page, you must ask someone who does (i.e. someone with at least `Maintainer` permissions on the project) to add the webhook for you.
 
 ## Configuration
 
 This connection supports a few options which can be defined in the room state:
 
 | Option | Description | Allowed values | Default |
-|--------|-------------|----------------|---------| 
+|--------|-------------|----------------|---------|
 |ignoreHooks|Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
 |commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gh`|
 |pushTagsRegex|Only mention pushed tags which match this regex|Regex string|*empty*|
-|prDiff|Show a diff in the room when a PR is created, subject to limits|`{enabled: boolean, maxLines: number}`|`{enabled: false}`|
 |includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|includeCommentBody|Include the body of a comment when notifying on merge requests|Boolean|false|
 
 
 ### Supported event types

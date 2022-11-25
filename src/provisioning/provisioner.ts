@@ -1,13 +1,13 @@
 import { BridgeConfigProvisioning } from "../Config/Config";
 import { Router, default as express, NextFunction, Request, Response } from "express";
 import { ConnectionManager } from "../ConnectionManager";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
-import { ApiError, ErrCode, errorMiddleware } from "../api";
-import { Intent, MembershipEventContent, PowerLevelsEvent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import { ApiError, ErrCode } from "../api";
+import { Intent } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
 
-const log = new LogWrapper("Provisioner");
+const log = new Logger("Provisioner");
 
 // Simple validator
 const ROOM_ID_VALIDATOR = /!.+:.+/;
@@ -70,7 +70,6 @@ export class Provisioner {
             (...args) => this.checkUserPermission("write", ...args),
             this.deleteConnection.bind(this),
         );
-        this.expressRouter.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
     }
 
     private checkAuth(req: Request, _res: Response, next: NextFunction) {
@@ -130,17 +129,21 @@ export class Provisioner {
         return res.send(connection.getProvisionerDetails());
     }
 
-    private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response, next: NextFunction) {
+    private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
         // Need to figure out which connections are available
         try {
             if (!req.body || typeof req.body !== "object") {
-                throw new ApiError("A JSON body must be provided.", ErrCode.BadValue);
+                throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
-            const connection = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
-            if (!connection.getProvisionerDetails) {
-                throw new Error('Connection supported provisioning but not getProvisionerDetails.');
+            this.connMan.validateCommandPrefix(req.params.roomId, req.body);
+            const result = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
+            if (!result.connection.getProvisionerDetails) {
+                throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
-            res.send(connection.getProvisionerDetails(true));
+            res.send({
+                ...result.connection.getProvisionerDetails(true),
+                warning: result.warning,
+            });
         } catch (ex) {
             log.error(`Failed to create connection for ${req.params.roomId}`, ex);
             return next(ex);
@@ -156,6 +159,7 @@ export class Provisioner {
             if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
                 return next(new ApiError("Connection type does not support updates.", ErrCode.UnsupportedOperation));
             }
+            this.connMan.validateCommandPrefix(req.params.roomId, req.body, connection);
             await connection.provisionerUpdateConfig(req.query.userId, req.body);
             res.send(connection.getProvisionerDetails(true));
         } catch (ex) {

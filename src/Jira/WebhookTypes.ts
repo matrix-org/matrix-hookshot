@@ -1,4 +1,4 @@
-import { JiraAccount, JiraComment, JiraIssue } from "./Types";
+import { JiraAccount, JiraComment, JiraIssue, JiraVersion } from "./Types";
 
 export interface IJiraWebhookEvent {
     timestamp: number;
@@ -32,4 +32,9 @@ export interface JiraIssueUpdatedEvent extends JiraIssueEvent {
             toString: null;
         }[];
     }
+}
+
+export interface JiraVersionEvent extends IJiraWebhookEvent {
+    webhookEvent: "version_created"|"version_updated"|"version_released";
+    version: JiraVersion;
 }

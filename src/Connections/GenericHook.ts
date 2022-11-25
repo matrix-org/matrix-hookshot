@@ -1,5 +1,5 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
 import { VMScript as Script, NodeVM } from "vm2";
@@ -27,7 +27,7 @@ export interface GenericHookSecrets {
     /**
      * The public URL for the webhook.
      */
-    url: string;
+    url: URL;
     /**
      * The hookId of the webhook.
      */
@@ -52,16 +52,59 @@ interface WebhookTransformationResult {
     empty?: boolean;
 }
 
-const log = new LogWrapper("GenericHookConnection");
+const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;
+const SANITIZE_MAX_DEPTH = 10;
+const SANITIZE_MAX_BREADTH = 50;
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a generic webhook.
  */
 @Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
+
+    /**
+     * Ensures a JSON payload is compatible with Matrix JSON requirements, such
+     * as disallowing floating point values.
+     * 
+     * If the `depth` exceeds `SANITIZE_MAX_DEPTH`, the value of `data` will be immediately returned.
+     * If the object contains more than `SANITIZE_MAX_BREADTH` entries, the remaining entries will not be checked.
+     * 
+     * @param data The data to santise
+     * @param depth The depth of the `data` relative to the root.
+     * @param breadth The breadth of the `data` in the parent object.
+     * @returns 
+     */
+    static sanitiseObjectForMatrixJSON(data: unknown, depth = 0, breadth = 0): unknown {
+        // Floats
+        if (typeof data === "number" && !Number.isInteger(data)) {
+            return data.toString();
+        }
+        // Primitive types
+        if (typeof data !== "object" || data === null) {
+            return data;
+        }
+
+        // Over processing limit, return string.
+        if (depth > SANITIZE_MAX_DEPTH || breadth > SANITIZE_MAX_BREADTH) {
+            return JSON.stringify(data);
+        }
+        
+        const newDepth = depth + 1;
+        if (Array.isArray(data)) {
+            return data.map((d, innerBreadth) => this.sanitiseObjectForMatrixJSON(d, newDepth, innerBreadth));
+        }
+
+        let objBreadth = 0;
+        const obj: Record<string, unknown> = { ...data };
+        for (const [key, value] of Object.entries(data)) {
+            obj[key] = this.sanitiseObjectForMatrixJSON(value, newDepth, ++objBreadth);
+        }
+
+        return obj;
+    }
 
     static validateState(state: Record<string, unknown>, allowJsTransformationFunctions?: boolean): GenericHookConnectionState {
         const {name, transformationFunction} = state;
@@ -224,6 +267,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             } catch (ex) {
                 await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + ex);
             }
+        } else {
+            this.transformationFunction = undefined;
         }
         this.state = validatedConfig;
     }
@@ -334,12 +379,16 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const sender = this.getUserId();
         await this.ensureDisplayname();
 
+        // Matrix cannot handle float data, so make sure we parse out any floats.
+        const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
+        
         await this.messageClient.sendMatrixMessage(this.roomId, {
             msgtype: content.msgtype || "m.notice",
             body: content.plain,
-            formatted_body: content.html || md.renderInline(content.plain),
+            // render can output redundant trailing newlines, so trim it.
+            formatted_body: content.html || md.render(content.plain).trim(),
             format: "org.matrix.custom.html",
-            "uk.half-shot.hookshot.webhook_data": data,
+            "uk.half-shot.hookshot.webhook_data": safeData,
         }, 'm.room.message', sender);
         return success;
 
@@ -364,7 +413,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 name: this.state.name,
             },
             ...(showSecrets ? { secrets: {
-                url: `${this.config.urlPrefix}${this.config.urlPrefix.endsWith('/') ? '' : '/'}${this.hookId}`,
+                url: new URL(this.hookId, this.config.parsedUrlPrefix),
                 hookId: this.hookId,
             } as GenericHookSecrets} : undefined)
         }
@@ -391,6 +440,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 hookId: this.hookId
             }
         );
+        this.state = validatedConfig;
     }
 
     public toString() {

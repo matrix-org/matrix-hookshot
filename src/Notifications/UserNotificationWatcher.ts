@@ -1,5 +1,5 @@
 import { NotificationsDisableEvent, NotificationsEnableEvent } from "../Webhooks";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { createMessageQueue, MessageQueue, MessageQueueMessage } from "../MessageQueue";
 import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
@@ -17,7 +17,7 @@ export interface UserNotificationsEvent {
 const MIN_INTERVAL_MS = 15000;
 const FAILURE_THRESHOLD = 50;
 
-const log = new LogWrapper("UserNotificationWatcher");
+const log = new Logger("UserNotificationWatcher");
 
 export class UserNotificationWatcher {
     /* Key: userId:type:instanceUrl */
@@ -79,10 +79,18 @@ Check your token is still valid, and then turn notifications back on.`, "m.notic
         }
         let task: NotificationWatcherTask;
         const key = UserNotificationWatcher.constructMapKey(data.userId, data.type, data.instanceUrl);
+        const existing = this.userIntervals.get(key);
+        const since = data.since || existing?.since;
+        if (since === undefined) {
+            throw Error('`since` value missing from data payload, and no previous since value exists');
+        }
         if (data.type === "github") {
-            task = new GitHubWatcher(data.token, data.userId, data.roomId, data.since, data.filterParticipating);
+            if (!this.config.github) {
+                throw Error('GitHub is not configured');
+            }
+            task = new GitHubWatcher(data.token, this.config.github.baseUrl, data.userId, data.roomId, since, data.filterParticipating);
         } else if (data.type === "gitlab" && data.instanceUrl) {
-            task = new GitLabWatcher(data.token, data.instanceUrl, data.userId, data.roomId, data.since);
+            task = new GitLabWatcher(data.token, data.instanceUrl, data.userId, data.roomId, since);
         } else {
             throw Error('Notification type not known');
         }

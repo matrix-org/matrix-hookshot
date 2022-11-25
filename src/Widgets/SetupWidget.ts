@@ -1,14 +1,15 @@
 
 import { Intent } from "matrix-bot-sdk";
 import { BridgeWidgetConfig } from "../Config/Config";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
+import { CommandError } from "../errors";
 import { HookshotWidgetKind } from "./WidgetKind";
-const log = new LogWrapper("SetupWidget");
+const log = new Logger("SetupWidget");
 
 export class SetupWidget {
 
     static async SetupAdminRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
-        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.RoomConfiguration, "bridge_control")) {
+        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.Settings, "bridge_control")) {
             await botIntent.sendText(roomId, `If your client supports it, you can open the "${config.branding.widgetTitle}" widget to configure hookshot.`);
             return true;
         }
@@ -17,14 +18,17 @@ export class SetupWidget {
 
     static async SetupRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig): Promise<boolean> {
         if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.RoomConfiguration, "hookshot_room_config")) {
-            await botIntent.sendText(roomId, `Please open the ${config.branding.widgetTitle} widget to setup integrations.`);
+            await botIntent.sendText(roomId, `Please open the ${config.branding.widgetTitle} widget to set up integrations.`);
             return true;
         }
         return false;
     }
 
-    private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string) {
+    private static async createWidgetInRoom(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, kind: HookshotWidgetKind, stateKey: string): Promise<boolean> {
         log.info(`Running SetupRoomConfigWidget for ${roomId}`);
+        if (!await botIntent.underlyingClient.userHasPowerLevelFor(botIntent.userId, roomId, "im.vector.modular.widgets", true)) {
+            throw new CommandError("Bot lacks power level to set room state", "I do not have permission to create a widget in this room. Please promote me to an Admin/Moderator.");
+        }
         try {
             const res = await botIntent.underlyingClient.getRoomStateEvent(
                 roomId,
@@ -54,10 +58,10 @@ export class SetupWidget {
                 "id": stateKey,
                 "name": config.branding.widgetTitle,
                 "type": "m.custom",
-                "url": `${config?.publicUrl}/#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`,
+                "url": new URL(`#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id`, config.parsedPublicUrl).href,
                 "waitForIframeLoad": true,
             }
         );
-        return false;
+        return true;
     }
 }

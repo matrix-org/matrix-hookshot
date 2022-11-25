@@ -2,11 +2,11 @@ import { Router, Request, Response, NextFunction } from "express";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode } from "../api";
 import { UserTokenStore } from "../UserTokenStore";
-import { generateGitHubOAuthUrl } from "./AdminCommands";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { GithubInstance } from "./GithubInstance";
+import { NAMELESS_ORG_PLACEHOLDER } from "./Types";
 
-const log = new LogWrapper("GitHubProvisionerRouter");
+const log = new Logger("GitHubProvisionerRouter");
 interface GitHubAccountStatus {
     loggedIn: boolean;
     username?: string;
@@ -45,9 +45,18 @@ export class GitHubProvisionerRouter {
         if (!this.config.oauth) {
             throw new ApiError("GitHub is not configured to support OAuth", ErrCode.UnsupportedOperation);
         }
+        const userUrl = GithubInstance.generateOAuthUrl(
+            this.config.baseUrl,
+            "authorize",
+            {
+                redirect_uri: this.config.oauth.redirect_uri,
+                client_id: this.config.oauth.client_id,
+                state: this.tokenStore.createStateForOAuth(req.query.userId)
+            }
+        );
         res.send({
-            user_url: generateGitHubOAuthUrl(this.config.oauth.client_id, this.config.oauth.redirect_uri, this.tokenStore.createStateForOAuth(req.query.userId)),
-            org_url: this.githubInstance.newInstallationUrl,
+            user_url: userUrl,
+            org_url: this.githubInstance.newInstallationUrl.toString(),
         });
     }
 
@@ -66,7 +75,7 @@ export class GitHubProvisionerRouter {
             for (const install of installs.data.installations) {
                 if (install.account) {
                     organisations.push({
-                        name: install.account.login || "No name", // org or user name
+                        name: install.account.login || NAMELESS_ORG_PLACEHOLDER, // org or user name
                         avatarUrl: install.account.avatar_url,
                     });
                 } else {
@@ -97,31 +106,31 @@ export class GitHubProvisionerRouter {
         const page = req.query.page ? parseInt(req.query.page) : 1;
         const perPage = req.query.perPage ? parseInt(req.query.perPage) : 10;
         try {
-            let changeInstallUrl: string | undefined = undefined;
+            let changeInstallUrl: URL | undefined = undefined;
             let reposPromise;
 
             if (ownSelf.data.login === req.params.orgName) {
                 const userInstallation = await this.githubInstance.appOctokit.apps.getUserInstallation({username: ownSelf.data.login});
-                reposPromise = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
                     page,
                     installation_id: userInstallation.data.id,
                     per_page: perPage,
                 });
                 if (userInstallation.data.repository_selection === 'selected') {
-                    changeInstallUrl = `https://github.com/settings/installations/${userInstallation.data.id}`;
+                    changeInstallUrl = new URL(`/settings/installations/${userInstallation.data.id}`, this.config.baseUrl);
                 }
             } else {
                 const orgInstallation = await this.githubInstance.appOctokit.apps.getOrgInstallation({org: req.params.orgName});
 
                 // Github will error if the authed user tries to list repos of a disallowed installation, even
                 // if we got the installation ID from the app's instance.
-                reposPromise = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
                     page,
                     installation_id: orgInstallation.data.id,
                     per_page: perPage,
                 });
                 if (orgInstallation.data.repository_selection === 'selected') {
-                    changeInstallUrl = `https://github.com/organizations/${req.params.orgName}/settings/installations/${orgInstallation.data.id}`;
+                    changeInstallUrl = new URL(`/organizations/${req.params.orgName}/settings/installations/${orgInstallation.data.id}`, this.config.baseUrl);
                 }
             }
             const reposRes = await reposPromise;
@@ -138,7 +147,7 @@ export class GitHubProvisionerRouter {
             return res.send({
                 page,
                 repositories,
-                changeSelectionUrl: changeInstallUrl,
+                changeSelectionUrl: changeInstallUrl?.toString(),
             });
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${req.params.orgName} / ${req.query.userId}`, ex);
@@ -173,11 +182,12 @@ export class GitHubProvisionerRouter {
                     avatarUrl: repo.owner.avatar_url,
                 });
             }
+            const changeSelectionUrl = new URL(`/settings/installations/${userInstallation.data.id}`, this.config.baseUrl).toString();
 
             return res.send({
                 page,
                 repositories,
-                ...(orgRes.data.repository_selection === 'selected' && {changeSelectionUrl: `https://github.com/settings/installations/${userInstallation.data.id}`})
+                ...(orgRes.data.repository_selection === 'selected' && {changeSelectionUrl})
             });
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${req.query.userId}`, ex);

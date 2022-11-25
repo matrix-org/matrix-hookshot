@@ -1,8 +1,8 @@
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 const SLEEP_TIME_MS = 250;
 const DEFAULT_RETRY = () => true;
-const log = new LogWrapper("PromiseUtil");
+const log = new Logger("PromiseUtil");
 
 export async function retry<T>(actionFn: () => Promise<T>,
                                maxAttempts: number,

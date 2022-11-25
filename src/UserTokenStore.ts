@@ -3,7 +3,7 @@ import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { isJiraCloudInstance, JiraClient } from "./Jira/Client";
 import { JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
@@ -16,6 +16,7 @@ import { JiraOnPremOAuth } from "./Jira/oauth/OnPremOAuth";
 import { JiraOnPremClient } from "./Jira/client/OnPremClient";
 import { JiraCloudClient } from "./Jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "./errors";
+import { TypedEmitter } from "tiny-typed-emitter";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -24,7 +25,7 @@ const ACCOUNT_DATA_JIRA_TYPE = "uk.half-shot.matrix-hookshot.jira.password-store
 const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
 
-const log = new LogWrapper("UserTokenStore");
+const log = new Logger("UserTokenStore");
 type TokenType = "github"|"gitlab"|"jira";
 const AllowedTokenTypes = ["github", "gitlab", "jira"];
 
@@ -52,12 +53,17 @@ function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?:
 
 const MAX_TOKEN_PART_SIZE = 128;
 const OAUTH_TIMEOUT_MS = 1000 * 60 * 30;
-export class UserTokenStore {
+
+interface Emitter {
+    onNewToken: (type: TokenType, userId: string, token: string, instanceUrl?: string) => void,
+}
+export class UserTokenStore extends TypedEmitter<Emitter> {
     private key!: Buffer;
     private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
     public readonly jiraOAuth?: JiraOAuth;
     constructor(private keyPath: string, private intent: Intent, private config: BridgeConfig) {
+        super();
         this.userTokens = new Map();
         if (config.jira?.oauth) {
             if ("client_id" in config.jira.oauth) {
@@ -81,9 +87,10 @@ export class UserTokenStore {
         }
         const key = tokenKey(type, userId, false, instanceUrl);
         const tokenParts: string[] = [];
-        while (token && token.length > 0) {
-            const part = token.slice(0, MAX_TOKEN_PART_SIZE);
-            token = token.substring(MAX_TOKEN_PART_SIZE);
+        let tokenSource = token;
+        while (tokenSource && tokenSource.length > 0) {
+            const part = tokenSource.slice(0, MAX_TOKEN_PART_SIZE);
+            tokenSource = tokenSource.substring(MAX_TOKEN_PART_SIZE);
             tokenParts.push(publicEncrypt(this.key, Buffer.from(part)).toString("base64"));
         }
         const data: StoredTokenData = {
@@ -94,6 +101,7 @@ export class UserTokenStore {
         this.userTokens.set(key, token);
         log.info(`Stored new ${type} token for ${userId}`);
         log.debug(`Stored`, data);
+        this.emit("onNewToken", type, userId, token, instanceUrl);
     }
 
     public async clearUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<boolean> {
@@ -139,19 +147,22 @@ export class UserTokenStore {
         return null;
     }
 
+    public static parseGitHubToken(token: string): GitHubOAuthToken {
+        if (!token.startsWith('{')) {
+            // Old style token
+            return { access_token: token, token_type: 'pat' };
+        } else {
+            return JSON.parse(token);
+        }
+    }
+
     public async getGitHubToken(userId: string) {
         const storeTokenResponse = await this.getUserToken("github", userId);
         if (!storeTokenResponse) {
             return null;
         }
 
-        let senderToken: GitHubOAuthToken;
-        if (!storeTokenResponse.startsWith('{')) {
-            // Old style token
-            senderToken = { access_token: storeTokenResponse, token_type: 'pat' };
-        } else {
-            senderToken = JSON.parse(storeTokenResponse);
-        }
+        let senderToken = UserTokenStore.parseGitHubToken(storeTokenResponse);
         const date = Date.now();
         if (senderToken.expires_in && senderToken.expires_in < date) {
             log.info(`GitHub access token for ${userId} has expired ${senderToken.expires_in} < ${date}, attempting refresh`);
@@ -162,10 +173,11 @@ export class UserTokenStore {
                 // Needs a refresh.
                 const refreshResult = await GithubInstance.refreshAccessToken(
                     senderToken.refresh_token, 
-                    this.config.github?.oauth?.client_id,
-                    this.config.github?.oauth?.client_secret,
+                    this.config.github.oauth.client_id,
+                    this.config.github.oauth.client_secret,
+                    this.config.github.baseUrl
                 );
-                if (!senderToken.access_token) {
+                if (!refreshResult.access_token) {
                     throw Error('Refresh token response had the wrong response format!');
                 }
                 senderToken = {
@@ -185,8 +197,11 @@ export class UserTokenStore {
     }
 
     public async getOctokitForUser(userId: string) {
+        if (!this.config.github) {
+            throw Error('GitHub is not configured');
+        }
         const res = await this.getGitHubToken(userId);
-        return res ? GithubInstance.createUserOctokit(res) : null;
+        return res ? GithubInstance.createUserOctokit(res, this.config.github.baseUrl) : null;
     }
 
     public async getGitLabForUser(userId: string, instanceUrl: string) {

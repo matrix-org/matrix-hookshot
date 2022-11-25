@@ -5,6 +5,7 @@ interface IProps {
     imageSrc: string;
     serviceName: string;
     description: string;
+    key: string;
     onClick: () => void;
 }
 

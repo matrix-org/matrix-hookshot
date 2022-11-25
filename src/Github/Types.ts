@@ -17,6 +17,8 @@ export type DiscussionDataType = Endpoints["GET /repos/{owner}/{repo}/pulls/{pul
 export type InstallationDataType = Endpoints["GET /app/installations/{installation_id}"]["response"]["data"];
 export type CreateInstallationAccessTokenDataType = Endpoints["POST /app/installations/{installation_id}/access_tokens"]["response"]["data"];
 
+export const NAMELESS_ORG_PLACEHOLDER = "No name";
+
 /* eslint-disable camelcase */
 export interface GitHubUserNotification {
     id: string;
@@ -49,6 +51,12 @@ export interface GitHubOAuthTokenResponse {
     refresh_token_expires_in?: string;
     scope: string;
     token_type: 'bearer'|'pat';
+}
+
+export interface GitHubOAuthErrorResponse {
+    error: string;
+    error_description: string;
+    error_uri: string;
 }
 
 export interface GitHubOAuthToken {

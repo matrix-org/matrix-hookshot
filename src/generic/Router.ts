@@ -1,18 +1,23 @@
 import { MessageQueue } from "../MessageQueue";
 import express, { NextFunction, Request, Response, Router } from "express";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
+import * as xml from "xml2js";
 
 const WEBHOOK_RESPONSE_TIMEOUT = 5000;
 
-const log = new LogWrapper('GenericWebhooksRouter');
+const log = new Logger('GenericWebhooksRouter');
 export class GenericWebhooksRouter {
-    constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false) { }
+    constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false, private readonly allowGet: boolean) { }
 
     private onWebhook(req: Request<{hookId: string}, unknown, unknown, unknown>, res: Response<{ok: true}|{ok: false, error: string}>, next: NextFunction) {
+        if (req.method === "GET" && !this.allowGet) {
+            throw new ApiError("Invalid Method. Expecting PUT or POST", ErrCode.MethodNotAllowed);
+        }
+
         if (!['PUT', 'GET', 'POST'].includes(req.method)) {
-            throw new ApiError("Wrong METHOD. Expecting PUT, GET or POST", ErrCode.MethodNotAllowed);
+            throw new ApiError("Invalid Method. Expecting PUT, GET or POST", ErrCode.MethodNotAllowed);
         }
     
         let body;
@@ -50,13 +55,34 @@ export class GenericWebhooksRouter {
         });
     }
 
+    private static xmlHandler(req: Request, res: Response, next: NextFunction) {
+        express.text({ type: ["*/xml", "+xml"] })(req, res, (err) => {
+            if (err) {
+                next(err);
+                return;
+            }
+            if (typeof req.body !== 'string') {
+                next();
+                return;
+            }
+            xml.parseStringPromise(req.body).then(xmlResult => {
+                req.body = xmlResult;
+                next();
+            }).catch(e => {
+                res.statusCode = 400;
+                next(e);
+            });
+        });
+    }
+
     public getRouter() {
         const router = Router();
         router.all(
             '/:hookId',
-            express.text({ type: 'text/*'}),
+            GenericWebhooksRouter.xmlHandler,
             express.urlencoded({ extended: false }),
             express.json(),
+            express.text({ type: 'text/*'}),
             this.onWebhook.bind(this),
         );
         return router;

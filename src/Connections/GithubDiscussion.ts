@@ -10,7 +10,7 @@ import emoji from "node-emoji";
 import markdown from "markdown-it";
 import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../Github/GithubInstance";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import { BridgeConfigGitHub } from "../Config/Config";
 export interface GitHubDiscussionConnectionState {
@@ -22,11 +22,11 @@ export interface GitHubDiscussionConnectionState {
     category: number;
 }
 
-const log = new LogWrapper("GitHubDiscussion");
+const log = new Logger("GitHubDiscussion");
 const md = new markdown();
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles rooms connected to a GitHub discussion.
  */
 @Connection
 export class GitHubDiscussionConnection extends BaseConnection implements IConnection {
@@ -154,5 +154,17 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             external_url: data.comment.html_url,
             'uk.half-shot.matrix-hookshot.github.discussion.comment_id': data.comment.id,
         }, 'm.room.message', intent.userId);
+    }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.CanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitHubDiscussionConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.as.botClient.sendStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
     }
 }

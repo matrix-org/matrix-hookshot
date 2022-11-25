@@ -1,6 +1,8 @@
+import { ErrorObject } from "ajv";
 import { NextFunction, Response, Request } from "express";
+import { StatusCodes } from "http-status-codes";
 import { IApiError } from "matrix-appservice-bridge";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 export enum ErrCode {
     // Errors are prefixed with HS_
@@ -52,26 +54,26 @@ export enum ErrCode {
     MethodNotAllowed = "HS_METHOD_NOT_ALLOWED"
 }
 
-const ErrCodeToStatusCode: Record<ErrCode, number> = {
-    HS_UNKNOWN: 500,
-    HS_NOTFOUND: 404,
-    HS_UNSUPPORTED_OPERATION: 400,
-    HS_FORBIDDEN_USER: 403,
-    HS_FORBIDDEN_BOT: 403,
-    HS_NOT_IN_ROOM: 403,
-    HS_BAD_VALUE: 400,
-    HS_BAD_TOKEN: 401,
-    HS_DISABLED_FEATURE: 500,
-    HS_ADDITIONAL_ACTION_REQUIRED: 400,
-    HS_CONFLICTING_CONNECTION: 409,
-    HS_METHOD_NOT_ALLOWED: 405,
+const ErrCodeToStatusCode: Record<ErrCode, StatusCodes> = {
+    HS_UNKNOWN: StatusCodes.INTERNAL_SERVER_ERROR,
+    HS_NOTFOUND: StatusCodes.NOT_FOUND,
+    HS_UNSUPPORTED_OPERATION: StatusCodes.BAD_REQUEST,
+    HS_FORBIDDEN_USER: StatusCodes.FORBIDDEN,
+    HS_FORBIDDEN_BOT: StatusCodes.FORBIDDEN,
+    HS_NOT_IN_ROOM: StatusCodes.FORBIDDEN,
+    HS_BAD_VALUE: StatusCodes.BAD_REQUEST,
+    HS_BAD_TOKEN: StatusCodes.UNAUTHORIZED,
+    HS_DISABLED_FEATURE: StatusCodes.INTERNAL_SERVER_ERROR,
+    HS_ADDITIONAL_ACTION_REQUIRED: StatusCodes.BAD_REQUEST,
+    HS_CONFLICTING_CONNECTION: StatusCodes.CONFLICT,
+    HS_METHOD_NOT_ALLOWED: StatusCodes.METHOD_NOT_ALLOWED,
 }
 
 export class ApiError extends Error implements IApiError {
     constructor(
         public readonly error: string,
         public readonly errcode = ErrCode.Unknown,
-        public readonly statusCode = -1,
+        public readonly statusCode: number|StatusCodes = -1,
         public readonly additionalContent: Record<string, unknown> = {},
     ) {
         super(`API error ${errcode}: ${error}`);
@@ -93,7 +95,20 @@ export class ApiError extends Error implements IApiError {
     }
 }
 
-export function errorMiddleware(log: LogWrapper) {
+export class ValidatorApiError extends ApiError {
+    constructor(errors?: ErrorObject[]|null) {
+        if (!errors) {
+            throw Error('ValidatorApiError thrown but no errors were found. This is possibly a bug.')
+        }
+        const errorStrings = errors.map(e => `${e.instancePath}: ${e.message}`).join(", ");
+        super(`Failed to validate: ${errorStrings}`, ErrCode.BadValue, -1, {
+            validationErrors: errors.map(e => ({message: e.message, path: e.instancePath}))
+        });
+    }
+}
+
+
+export function errorMiddleware(log: Logger) {
     return (err: unknown, _req: Request, res: Response, next: NextFunction) => {
         if (!err) {
             next();
@@ -106,7 +121,7 @@ export function errorMiddleware(log: LogWrapper) {
         if (err instanceof ApiError) {
             err.apply(res);
         } else {
-            new ApiError("An internal error occured").apply(res);
+            new ApiError("An internal error occurred").apply(res);
         }
     }
 }

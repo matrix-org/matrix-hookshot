@@ -1,13 +1,13 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Space, StateEvent } from "matrix-bot-sdk";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ReposGetResponseData } from "../Github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
 import { GithubInstance } from "../Github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
 
-const log = new LogWrapper("GitHubDiscussionSpace");
+const log = new Logger("GitHubDiscussionSpace");
 
 export interface GitHubDiscussionSpaceConnectionState {
     owner: string;
@@ -15,7 +15,7 @@ export interface GitHubDiscussionSpaceConnectionState {
 }
 
 /**
- * Handles rooms connected to a github repo.
+ * Handles spaces connected to a GitHub discussion.
  */
 @Connection
 export class GitHubDiscussionSpace extends BaseConnection implements IConnection {
@@ -59,6 +59,9 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
             })).data;
             if (!repoRes.owner) {
                 throw Error('Repo has no owner!');
+            }
+            if (repoRes.private) {
+                throw Error('Refusing to bridge private repo');
             }
         } catch (ex) {
             log.error("Failed to get repo:", ex);
@@ -163,5 +166,18 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
     public async onDiscussionCreated(discussion: GitHubDiscussionConnection) {
         log.info(`Adding connection to ${this.toString()}`);
         await this.space.addChildRoom(discussion.roomId);
+    }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        try {
+            
+            await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey);
+            await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey, { disabled: true });
+        } catch (ex) {
+            await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.LegacyCanonicalEventType, this.stateKey);
+            await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+        }
     }
 }

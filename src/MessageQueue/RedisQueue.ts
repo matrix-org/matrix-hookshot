@@ -3,11 +3,11 @@ import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMes
 import { Redis, default as redis } from "ioredis";
 import { BridgeConfig, BridgeConfigQueue } from "../Config/Config";
 import { EventEmitter } from "events";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 
 import {v4 as uuid} from "uuid";
 
-const log = new LogWrapper("RedisMq");
+const log = new Logger("RedisMq");
 
 const CONSUMER_TRACK_PREFIX = "consumers.";
 
@@ -23,9 +23,9 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     private myUuid: string;
     constructor(config: BridgeConfigQueue) {
         super();
-        this.redisSub = new redis(config.port, config.host);
-        this.redisPub = new redis(config.port, config.host);
-        this.redis = new redis(config.port, config.host);
+        this.redisSub = new redis(config.port ?? 6379, config.host ?? "localhost");
+        this.redisPub = new redis(config.port ?? 6379, config.host ?? "localhost");
+        this.redis = new redis(config.port ?? 6379, config.host ?? "localhost");
         this.myUuid = uuid();
         this.redisSub.on("pmessage", (_: string, channel: string, message: string) => {
             const msg = JSON.parse(message) as MessageQueueMessageOut<unknown>;
@@ -37,6 +37,17 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
             log.debug("Delay: ", delay / 1000000, "ms");
             this.emit(channel, JSON.parse(message));
         });
+        this.redis.on("once", () => log.info("Redis is ready"));
+    }
+
+    public async connect(): Promise<void> {
+        try {
+            await this.redis.ping();
+        } catch (ex) {
+            log.error('Could not ping the redis instance, is it reachable?');
+            throw ex;
+        }
+        log.info("Successfully connected");
     }
 
     public subscribe(eventGlob: string) {
@@ -102,6 +113,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     public stop() {
         this.redisPub.disconnect();
         this.redisSub.disconnect();
+        this.redis.disconnect();
     }
 
     private async getRecipientForEvent(eventName: string): Promise<string|null> {

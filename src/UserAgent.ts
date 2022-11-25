@@ -1,2 +1,4 @@
-const UserAgent = "matrix-hookshot/1.1.0 (+https://github.com/matrix-org/matrix-hookshot)";
+import { getBridgeVersion } from "matrix-appservice-bridge";
+
+const UserAgent = `matrix-hookshot/${getBridgeVersion()} (+https://github.com/matrix-org/matrix-hookshot)`;
 export default UserAgent;

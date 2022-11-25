@@ -31,7 +31,16 @@ To authenticate with a personal access token:
 
 1. Send the generated token to the bridge by saying `github setpersonaltoken %your-token%`. You can redact
   the message afterwards if you like.
-1. The bridge will have connected you. You can check the status at any time by saying `github hastoken`
+1. The bridge will have connected you.
+
+To authenticate via OAuth, you will need to have configured OAuth support in your config.yml, and have the endpoints required accessible from the internet.
+
+- Say `github login` to get the URL to authenticate via.
+- Click the URL sent by the bot.
+- Follow the steps, ensuring you authenticate with the right user.
+- If all goes well, you will now be connected.
+
+You can check the status of authenticated instances by saying `github status`.
 
 ## GitLab
 
@@ -39,7 +48,7 @@ You can authenticate with GitLab by supplying a Personal Access Token. OAuth-sty
 yet.
 
 - You will need to have configured a GitLab instance in your config.yml for the instance you want to log in to.
-- Open https://%instance%/-/profile/personal_access_tokens (GitLab > User Settings > Access Tokens), where instance is your GitLab instance address.
+- Open **https://%instance%/-/profile/personal_access_tokens** (GitLab > User Settings > Access Tokens), where instance is your GitLab instance address.
   - For the public GitLab server, this would be "gitlab.com"
 - Give it a good name, and a sensible expiration date. For scopes you will need to tick `api`.
 - Send the generated token to the bridge by saying `gitlab personaltoken %instance% %your-token%`. You can redact
@@ -55,4 +64,4 @@ have the endpoints required accessible from the internet. Authentication is requ
 - Say `jira login` to get the URL to authenticate via.
 - Click the URL sent by the bot.
 - Follow the steps, ensuring you authenticate with the right user.
-- If all goes well, you will now be connected. You can check the status and authorisatied instances by saying `jira whoami`
+- If all goes well, you will now be connected. You can check the status of authenticated instances by saying `jira whoami`
