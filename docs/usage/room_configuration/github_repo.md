@@ -27,7 +27,8 @@ This connection supports a few options which can be defined in the room state:
 
 | Option | Description | Allowed values | Default |
 |--------|-------------|----------------|---------|
-|ignoreHooks|Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
+|enableHooks [^1]|Enable notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
+|ignoreHooks [^1]|Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
 |commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gh`|
 |showIssueRoomLink|When new issues are created, provide a Matrix alias link to the issue room|`true/false`|`false`|
 |prDiff|Show a diff in the room when a PR is created, subject to limits|`{enabled: boolean, maxLines: number}`|`{enabled: false}`|
@@ -36,22 +37,37 @@ This connection supports a few options which can be defined in the room state:
 |hotlinkIssues|Send a link to an issue/PR in the room when a user mentions a prefix followed by a number|` { prefix: string }`|`{prefix: "#"}`|
 |newIssue|Configuration options for new issues|`{ labels: string[] }`|*empty*|
 |newIssue.labels|Automatically set these labels on issues created via commands|Array of: String matching a label name|*empty*|
+|workflowRun|Configuration options for workflow run results|`{ matchingBranch: string }`|*empty*|
+|workflowRun.matchingBranch|Only report workflow runs if it matches this regex.|Regex string|*empty*|
+
+
+[^1]: `ignoreHooks` takes precedence over `enableHooks`.
 
 
 ### Supported event types
 
 This connection supports sending messages when the following actions happen on the repository.
 
-- issue
-  - issue.created
-  - issue.changed
-  - issue.edited
-  - issue.labeled
-- pull_request
-  - pull_request.closed
-  - pull_request.merged
-  - pull_request.opened
-  - pull_request.ready_for_review
-  - pull_request.reviewed
-- release
-  - release.created
+Note: Some of these event types are enabled by default (marked with a `*`)
+
+- issue *
+  - issue.created *
+  - issue.changed *
+  - issue.edited *
+  - issue.labeled *
+- pull_request *
+  - pull_request.closed *
+  - pull_request.merged *
+  - pull_request.opened *
+  - pull_request.ready_for_review *
+  - pull_request.reviewed *
+- release *
+  - release.created *
+- workflow.run
+  - workflow.run.success
+  - workflow.run.failure
+  - workflow.run.neutral
+  - workflow.run.cancelled
+  - workflow.run.timed_out
+  - workflow.run.stale
+  - workflow.run.action_required

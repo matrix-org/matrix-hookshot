@@ -2,12 +2,12 @@ import { BridgeConfigJira } from "../Config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 
-const log = new LogWrapper("JiraRouter");
+const log = new Logger("JiraRouter");
 
 interface OAuthQueryCloud {
     state: string;
@@ -118,6 +118,7 @@ interface JiraAccountStatus {
 interface JiraProjectsListing {
     name: string;
     key: string;
+    id: string;
     url: string;
 }
 
@@ -183,12 +184,13 @@ export class JiraProvisionerRouter {
             return next( new ApiError("Instance not known or not accessible to this user.", ErrCode.ForbiddenUser));
         }
     
-        const projects = [];
+        const projects: JiraProjectsListing[] = [];
         try {
             for await (const project of resClient.getAllProjects()) {
                 projects.push({
                     key: project.key,
                     name: project.name,
+                    id: project.id,
                     // Technically not the real URL, but good enough for hookshot!
                     url: `${resClient.resource.url}/projects/${project.key}`,
                 });

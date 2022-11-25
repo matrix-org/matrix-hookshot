@@ -20,7 +20,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         try {
             const res = await api.getConnectionTargets<GitLabRepoConnectionTarget>(EventType, filter);
             if (!filter.instance) {
-                setInstances(res);
+                setInstances(res as GitLabRepoConnectionInstanceTarget[]);
                 if (res[0]) {
                     setFilter({instance: res[0].name, search: ""});
                 }
@@ -82,12 +82,12 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         {instances === null && <p> Loading GitLab instances. </p>}
         {instances?.length === 0 && <p> You are not logged into any GitLab instances. </p>}
         {searchError && <ErrorPane> {searchError} </ErrorPane> }
-        <InputField visible={instances ? instances.length > 0 : false} label="GitLab Instance" noPadding={true}>
+        <InputField visible={!!instances?.length} label="GitLab Instance" noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}
             </select>
         </InputField>
-        <InputField visible={instances ? instances.length > 0 : false} label="Project" noPadding={true}>
+        <InputField visible={!!instances?.length} label="Project" noPadding={true}>
             <small>{currentProjectPath ?? ""}</small>
             <input onChange={updateSearchFn} value={filter.search} list="gitlab-projects" type="text" />
             <datalist id="gitlab-projects">
@@ -131,6 +131,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
     const commandPrefixRef = createRef<HTMLInputElement>();
+    const includeBodyRef = createRef<HTMLInputElement>();
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
         if (!canEdit || !existingConnection && !newInstanceState) {
@@ -141,7 +142,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             onSave({
                 ...(state),
                 ignoreHooks: ignoredHooks as any[],
-                commandPrefix: commandPrefixRef.current?.value,
+                includeCommentBody: includeBodyRef.current?.checked,
+                commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
     }, [canEdit, existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, onSave]);
@@ -154,8 +156,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection} label="Project" noPadding={true}>
             <input disabled={true} type="text" value={existingConnection?.config.path} />
         </InputField>
-        <InputField visible={!!existingConnection || !!newInstanceState} ref={commandPrefixRef} label="Command Prefix" noPadding={true}>
-            <input type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
+        <InputField visible={!!existingConnection || !!newInstanceState} label="Command Prefix" noPadding={true}>
+            <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
+        </InputField>
+        <InputField visible={!!existingConnection || !!newInstanceState} label="Include comment bodies" noPadding={true} innerChild={true}>
+            <input ref={includeBodyRef} disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
         </InputField>
         <InputField visible={!!existingConnection || !!newInstanceState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
@@ -166,6 +171,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.close" onChange={toggleIgnoredHook}>Closed</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.merge" onChange={toggleIgnoredHook}>Merged</EventCheckbox>
                     <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.review" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
+                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.ready_for_review" onChange={toggleIgnoredHook}>Ready for review</EventCheckbox>
                 </ul>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="push" onChange={toggleIgnoredHook}>Pushes</EventCheckbox>
                 <EventCheckbox ignoredHooks={ignoredHooks} eventName="tag_push" onChange={toggleIgnoredHook}>Tag pushes</EventCheckbox>

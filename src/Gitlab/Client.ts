@@ -1,11 +1,11 @@
 import axios from "axios";
 import { GitLabInstance } from "../Config/Config";
 import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts, AccessLevel, SimpleProject } from "./Types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { URLSearchParams } from "url";
 import UserAgent from "../UserAgent";
 
-const log = new LogWrapper("GitLabClient");
+const log = new Logger("GitLabClient");
 
 /**
  * A GitLab project used inside a URL may either be the ID of the project, or the encoded path of the project.

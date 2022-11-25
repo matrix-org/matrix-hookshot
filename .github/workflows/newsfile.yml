@@ -3,7 +3,6 @@ name: Newsfile
 on:
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
 
 jobs:
   changelog:

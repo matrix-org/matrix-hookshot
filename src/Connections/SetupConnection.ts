@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection } from ".";
+import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
 import { CommandError } from "../errors";
 import { v4 as uuid } from "uuid";
 import { BridgePermissionLevel } from "../Config/Config";
@@ -12,10 +12,10 @@ import { URL } from "url";
 import { SetupWidget } from "../Widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
-import { IConnectionState, ProvisionConnectionOpts } from "./IConnection";
-import LogWrapper from "../LogWrapper";
+import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConnection";
+import { ApiError, Logger } from "matrix-appservice-bridge";
 const md = new markdown();
-const log = new LogWrapper("SetupConnection");
+const log = new Logger("SetupConnection");
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
@@ -41,7 +41,8 @@ export class SetupConnection extends CommandConnection {
 
     constructor(public readonly roomId: string,
         private readonly provisionOpts: ProvisionConnectionOpts,
-        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,) {
+        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
+        private readonly pushConnections: (...connections: IConnection[]) => void) {
             super(
                 roomId,
                 "",
@@ -82,6 +83,7 @@ export class SetupConnection extends CommandConnection {
         }
         const [, org, repo] = urlParts;
         const {connection} = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.provisionOpts);
+        this.pushConnections(connection);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.org}/${connection.repo}`);
     }
 
@@ -90,7 +92,6 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.gitlab) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitLab.");
         }
-        url = url.toLowerCase();
 
         await this.checkUserPermissions(userId, "gitlab", GitLabRepoConnection.CanonicalEventType);
 
@@ -107,31 +108,97 @@ export class SetupConnection extends CommandConnection {
         if (!path) {
             throw new CommandError("Invalid GitLab url", "The GitLab project url you entered was not valid.");
         }
-        const {connection} = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.path}`);
+        const {connection, warning} = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
+        this.pushConnections(connection);
+        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.prettyPath}` + (warning ? `\n${warning.header}: ${warning.message}` : ""));
+    }
+
+    private async checkJiraLogin(userId: string, urlStr: string) {
+        const jiraClient = await this.provisionOpts.tokenStore.getJiraForUser(userId, urlStr);
+        if (!jiraClient) {
+            throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
+        }
+    }
+
+    private async getJiraProjectSafeUrl(userId: string, urlStr: string) {
+        const url = new URL(urlStr);
+        const urlParts = /\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname);
+        const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
+        if (!projectKey) {
+            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`.");
+        }
+        return `https://${url.host}/projects/${projectKey}`;
     }
 
     @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: "jira"})
     public async onJiraProject(userId: string, urlStr: string) {
-        const url = new URL(urlStr);
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira.");
         }
 
         await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+        await this.checkJiraLogin(userId, urlStr);
+        const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
 
-        const jiraClient = await this.provisionOpts.tokenStore.getJiraForUser(userId, urlStr);
-        if (!jiraClient) {
-            throw new CommandError("User not logged in", "You are not logged into Jira. Start a DM with this bot and use the command `jira login`.");
-        }
-        const urlParts = /.+\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname.toLowerCase());
-        const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
-        if (!projectKey) {
-            throw new CommandError("Invalid Jira url", "The JIRA project url you entered was not valid. It should be in the format of `https://jira-instance/.../projects/PROJECTKEY/...` or `.../RapidBoard.jspa?projectKey=TEST`.");
-        }
-        const safeUrl = `https://${url.host}/projects/${projectKey}`;
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
+        this.pushConnections(res.connection);
         await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
+    }
+
+    @botCommand("jira list project", { help: "Show JIRA projects currently connected to.", category: "jira"})
+    public async onJiraListProject() {
+        const projects: JiraProjectConnectionState[] = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return []; // not an error to us
+            }
+            throw err;
+        }).then(events =>
+            events.filter(
+                (ev: any) => (
+                    ev.type === JiraProjectConnection.CanonicalEventType ||
+                    ev.type === JiraProjectConnection.LegacyCanonicalEventType
+                ) && ev.content.url
+            ).map(ev => ev.content)
+        );
+
+        if (projects.length === 0) {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not connected to any JIRA projects'));
+        } else {
+            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(
+                'Currently connected to these JIRA projects:\n\n' +
+                 projects.map(project => ` - ${project.url}`).join('\n')
+            ));
+        }
+    }
+
+    @botCommand("jira remove project", { help: "Remove a connection for a JIRA project.", requiredArgs: ["url"], includeUserId: true, category: "jira"})
+    public async onJiraRemoveProject(userId: string, urlStr: string) {
+        await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+        await this.checkJiraLogin(userId, urlStr);
+        const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
+
+        const eventTypes = [
+            JiraProjectConnection.CanonicalEventType,
+            JiraProjectConnection.LegacyCanonicalEventType,
+        ];
+        let event = null;
+        let eventType = "";
+        for (eventType of eventTypes) {
+            try {
+                event = await this.as.botClient.getRoomStateEvent(this.roomId, eventType, safeUrl);
+                break;
+            } catch (err: any) {
+                if (err.body.errcode !== 'M_NOT_FOUND') {
+                    throw err;
+                }
+            }
+        }
+        if (!event || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid Jira project URL", `Feed "${urlStr}" is not currently bridged to this room`);
+        }
+
+        await this.as.botClient.sendStateEvent(this.roomId, eventType, safeUrl, {});
+        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
     }
 
     @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: "webhook"})
@@ -146,6 +213,7 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
         const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(userId);
         await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use ${url}.`);
@@ -165,7 +233,8 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid Figma url", "The Figma file url you entered was not valid. It should be in the format of `https://figma.com/file/FILEID/...`.");
         }
         const [, fileId] = res;
-        await FigmaFileConnection.provisionConnection(this.roomId, userId, { fileId }, this.provisionOpts);
+        const {connection} = await FigmaFileConnection.provisionConnection(this.roomId, userId, { fileId }, this.provisionOpts);
+        this.pushConnections(connection);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
@@ -182,10 +251,15 @@ export class SetupConnection extends CommandConnection {
             await FeedConnection.validateUrl(url);
         } catch (err: unknown) {
             log.debug(`Feed URL '${url}' failed validation: ${err}`);
-            throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            if (err instanceof ApiError) {
+                throw new CommandError("Invalid URL", err.error);
+            } else {
+                throw new CommandError("Invalid URL", `${url} doesn't look like a valid feed URL`);
+            }
         }
 
-        await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
+        const {connection} = await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
+        this.pushConnections(connection);
         return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
@@ -219,7 +293,7 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
-    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom feed.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
     public async onFeedRemove(userId: string, url: string) {
         await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
 

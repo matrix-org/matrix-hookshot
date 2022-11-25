@@ -3,7 +3,7 @@ import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
-import LogWrapper from "./LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { isJiraCloudInstance, JiraClient } from "./Jira/Client";
 import { JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
@@ -25,7 +25,7 @@ const ACCOUNT_DATA_JIRA_TYPE = "uk.half-shot.matrix-hookshot.jira.password-store
 const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
 
-const log = new LogWrapper("UserTokenStore");
+const log = new Logger("UserTokenStore");
 type TokenType = "github"|"gitlab"|"jira";
 const AllowedTokenTypes = ["github", "gitlab", "jira"];
 
@@ -173,11 +173,11 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 // Needs a refresh.
                 const refreshResult = await GithubInstance.refreshAccessToken(
                     senderToken.refresh_token, 
-                    this.config.github.oauth?.client_id,
-                    this.config.github.oauth?.client_secret,
+                    this.config.github.oauth.client_id,
+                    this.config.github.oauth.client_secret,
                     this.config.github.baseUrl
                 );
-                if (!senderToken.access_token) {
+                if (!refreshResult.access_token) {
                     throw Error('Refresh token response had the wrong response format!');
                 }
                 senderToken = {

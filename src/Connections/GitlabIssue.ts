@@ -2,7 +2,7 @@ import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnectio
 import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { UserTokenStore } from "../UserTokenStore";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
@@ -20,7 +20,7 @@ export interface GitLabIssueConnectionState {
     authorName: string;
 }
 
-const log = new LogWrapper("GitLabIssueConnection");
+const log = new Logger("GitLabIssueConnection");
 
 // interface IQueryRoomOpts {
 //     as: Appservice;
@@ -44,8 +44,8 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
     static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
     static readonly ServiceCategory = "gitlab";
 
-    static getTopicString(authorName: string, state: string) {
-        `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
+    static getTopicString(authorName: string, state: string): string {
+        return `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
     }
 
     public static async createConnectionForState(roomId: string, event: StateEvent<any>, {

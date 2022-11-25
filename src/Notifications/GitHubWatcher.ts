@@ -2,11 +2,11 @@ import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { EventEmitter } from "events";
 import { GithubInstance } from "../Github/GithubInstance";
 import { GitHubUserNotification as HSGitHubUserNotification } from "../Github/Types";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { RequestError } from "@octokit/request-error";
 import Metrics from "../Metrics";
-const log = new LogWrapper("GitHubWatcher");
+const log = new Logger("GitHubWatcher");
 
 const GH_API_THRESHOLD = 50;
 const GH_API_RETRY_IN = 1000 * 60;
@@ -62,7 +62,7 @@ export class GitHubWatcher extends EventEmitter implements NotificationWatcherTa
     }
 
     private handleGitHubFailure(ex: RequestError) {
-        log.error("An error occured getting notifications:", ex);
+        log.error("An error occurred getting notifications:", ex);
         if (ex.status === 401 || ex.status === 404) {
             log.warn(`Got status ${ex.status} when handing user stream: ${ex.message}`);
             this.failureCount++;

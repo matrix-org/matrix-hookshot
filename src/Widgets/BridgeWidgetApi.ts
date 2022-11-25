@@ -1,6 +1,6 @@
 import { Application, NextFunction, Response } from "express";
 import { AdminRoom } from "../AdminRoom";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../Config/Config";
 import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
@@ -10,7 +10,7 @@ import { ConnectionManager } from "../ConnectionManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Intent, PowerLevelsEvent } from "matrix-bot-sdk";
 
-const log = new LogWrapper("BridgeWidgetApi");
+const log = new Logger("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
     private readonly api: ProvisioningApi;
@@ -68,7 +68,7 @@ export class BridgeWidgetApi {
             res.send(await room.getBridgeState());
         } catch (ex) {
             log.error(`Failed to get room state:`, ex);
-            throw new ApiError("An error occured when getting room state", ErrCode.Unknown);
+            throw new ApiError("An error occurred when getting room state", ErrCode.Unknown);
         }
     }
 
@@ -133,11 +133,15 @@ export class BridgeWidgetApi {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
-            const connection = await this.connMan.provisionConnection(req.params.roomId as string, req.userId, req.params.type as string, req.body as Record<string, unknown>);
-            if (!connection.getProvisionerDetails) {
+            this.connMan.validateCommandPrefix(req.params.roomId, req.body);
+            const result = await this.connMan.provisionConnection(req.params.roomId, req.userId, req.params.type, req.body);
+            if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
-            res.send(connection.getProvisionerDetails(true));
+            res.send({
+                ...result.connection.getProvisionerDetails(true),
+                warning: result.warning,
+            });
         } catch (ex) {
             log.error(`Failed to create connection for ${req.params.roomId}`, ex);
             throw ex;
@@ -156,6 +160,7 @@ export class BridgeWidgetApi {
         if (!connection.provisionerUpdateConfig || !connection.getProvisionerDetails)  {
             throw new ApiError("Connection type does not support updates", ErrCode.UnsupportedOperation);
         }
+        this.connMan.validateCommandPrefix(req.params.roomId, req.body, connection);
         await connection.provisionerUpdateConfig(req.userId, req.body);
         res.send(connection.getProvisionerDetails(true));
     }

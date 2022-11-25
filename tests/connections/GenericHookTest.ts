@@ -63,7 +63,43 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "simple-message",
                 format: "org.matrix.custom.html",
-                formatted_body: "simple-message",
+                formatted_body: "<p>simple-message</p>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event containing markdown", async () => {
+        const webhookData = {text: "**bold-message** _italic-message_"};
+        const [connection, mq] = createGenericHook();
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "**bold-message** _italic-message_",
+                format: "org.matrix.custom.html",
+                formatted_body: "<p><strong>bold-message</strong> <em>italic-message</em></p>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event containing markdown with newlines", async () => {
+        const webhookData = {text: "# Oh wow\n\n`some-code`"};
+        const [connection, mq] = createGenericHook();
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "# Oh wow\n\n`some-code`",
+                format: "org.matrix.custom.html",
+                formatted_body: "<h1>Oh wow</h1>\n<p><code>some-code</code></p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -122,7 +158,7 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
                 format: "org.matrix.custom.html",
-                formatted_body: "Received webhook: The answer to 'What is the meaning of life?' is 42",
+                formatted_body: "<p>Received webhook: The answer to 'What is the meaning of life?' is 42</p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -145,7 +181,7 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "The answer to 'What is the meaning of life?' is 42",
                 format: "org.matrix.custom.html",
-                formatted_body: "The answer to 'What is the meaning of life?' is 42",
+                formatted_body: "<p>The answer to 'What is the meaning of life?' is 42</p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },
@@ -168,7 +204,7 @@ describe("GenericHookConnection", () => {
             content: {
                 body: "Webhook received but failed to process via transformation function",
                 format: "org.matrix.custom.html",
-                formatted_body: "Webhook received but failed to process via transformation function",
+                formatted_body: "<p>Webhook received but failed to process via transformation function</p>",
                 msgtype: "m.notice",
                 "uk.half-shot.hookshot.webhook_data": webhookData,
             },

@@ -1,6 +1,6 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import { UserTokenStore } from "../UserTokenStore";
@@ -53,11 +53,6 @@ export interface IConnection {
     isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
 
     /**
-     * Is the connection interested in the event that is being sent from the remote side?
-     */
-    isInterestedInHookEvent?: (eventType: string) => boolean;
-
-    /**
      * The details to be sent to the provisioner when requested about this connection.
      */
     getProvisionerDetails?: (showSecrets?: boolean) => GetConnectionsResponseItem;
@@ -65,7 +60,7 @@ export interface IConnection {
     /**
      * If supported, this is sent when a user attempts to update the configuration of a connection.
      */
-    provisionerUpdateConfig?: <T extends Record<string, unknown>>(userId: string, config: T) => void;
+    provisionerUpdateConfig?: <T extends Record<string, unknown>>(userId: string, config: T) => Promise<void>;
 
     /**
      * If supported, this is sent when a user attempts to remove the connection from a room. The connection
@@ -76,6 +71,8 @@ export interface IConnection {
     onRemove?: () => Promise<void>;
 
     toString(): string;
+
+    conflictsWithCommandPrefix?: (commandPrefix: string) => boolean;
 }
 
 
@@ -83,7 +80,7 @@ export interface IConnection {
 export interface ConnectionDeclaration<C extends IConnection = IConnection> {
     EventTypes: string[];
     ServiceCategory: string;
-    provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C}>;
+    provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C, warning?: ConnectionWarning}>;
     createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>
 }
 

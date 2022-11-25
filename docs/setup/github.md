@@ -46,7 +46,7 @@ Hookshot handles the following webhook event types:
 
 You can disable any of these to disable the events being handled in Hookshot.
 
-Once you have setup your app, you can move onto configuring the bridge:
+Once you have set up your app, you can move onto configuring the bridge:
 
 ## Bridge Configuration
 
@@ -89,4 +89,4 @@ are supported.
 
 If you have followed these steps correctly, GitHub should now be configured with hookshot 🥳.
 
-You can now follow the guide on [authenticating with GitHub](../usage/auth.md), and then [bridging a room](../usage/room_configuration/github_repo.md#setting-up)
+You can now follow the guide on [authenticating with GitHub](../usage/auth.md#github), and then [bridging a room](../usage/room_configuration/github_repo.md#setting-up)

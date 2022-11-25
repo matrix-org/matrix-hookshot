@@ -1,10 +1,10 @@
 import { botCommand, BotCommands, handleCommand, HelpFunction } from "../BotCommands";
-import LogWrapper from "../LogWrapper";
+import { Logger } from "matrix-appservice-bridge";
 import { MatrixClient } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
-const log = new LogWrapper("CommandConnection");
+const log = new Logger("CommandConnection");
 
 /**
  * Connection class that handles commands for a given connection. Should be used
@@ -31,6 +31,10 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
         return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
     }
 
+    public conflictsWithCommandPrefix(commandPrefix: string) {
+        return this.commandPrefix == commandPrefix + " ";
+    }
+
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         this.state = this.validateConnectionState(stateEv.content);
     }
@@ -46,8 +50,8 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
             // Not for us.
             return false;
         }
-        if ("error" in commandResult) {
-            const { humanError, error} = commandResult;
+        if ("error" in commandResult || "humanError" in commandResult) {
+            const { humanError, error } = commandResult;
             await this.botClient.sendEvent(this.roomId, "m.reaction", {
                 "m.relates_to": {
                     rel_type: "m.annotation",
@@ -59,7 +63,7 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
                 msgtype: "m.notice",
                 body: humanError ? `Failed to handle command: ${humanError}` : "Failed to handle command.",
             });
-            log.warn(`Failed to handle command:`, error);
+            log.warn(`Failed to handle command:`, error ?? 'Unknown error');
             return true;
         } else {
             const reaction = commandResult.result?.reaction || '✅';

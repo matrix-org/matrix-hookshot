@@ -7,10 +7,12 @@ import { FeedsConfig } from "./roomConfig/FeedsConfig";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
 import { GithubRepoConfig } from "./roomConfig/GithubRepoConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
+import { JiraProjectConfig } from "./roomConfig/JiraProjectConfig";
 
 import FeedsIcon from "../icons/feeds.png";
 import GitHubIcon from "../icons/github.png";
 import GitLabIcon from "../icons/gitlab.png";
+import JiraIcon from "../icons/jira.png";
 import WebhookIcon from "../icons/webhook.png";
 
 
@@ -18,6 +20,7 @@ interface IProps {
     widgetApi: WidgetApi,
     bridgeApi: BridgeAPI,
     supportedServices: {[service: string]: boolean},
+    serviceScope?: string,
     roomId: string,
 }
 
@@ -26,6 +29,7 @@ enum ConnectionType {
     Generic = "generic",
     Github  = "github",
     Gitlab  = "gitlab",
+    Jira    = "jira",
 }
 
 interface IConnectionProps {
@@ -54,6 +58,12 @@ const connections: Record<ConnectionType, IConnectionProps> = {
         icon: GitLabIcon,
         component: GitlabRepoConfig,
     },
+    [ConnectionType.Jira]: {
+        displayName: 'JIRA',
+        description: "Connect the room to a JIRA project",
+        icon: JiraIcon,
+        component: JiraProjectConfig,
+    },
     [ConnectionType.Generic]: {
         displayName: 'Generic Webhook',
         description: "Create a webhook which can be used to connect any service to Matrix",
@@ -63,7 +73,8 @@ const connections: Record<ConnectionType, IConnectionProps> = {
 };
 
 export default function RoomConfigView(props: IProps) {
-    const [ activeConnectionType, setActiveConnectionType ] = useState<ConnectionType|null>(null);
+    const serviceScope = props.serviceScope && props.supportedServices[props.serviceScope] ? props.serviceScope as ConnectionType : null;
+    const [ activeConnectionType, setActiveConnectionType ] = useState<ConnectionType|null>(serviceScope);
 
     let content;
 
@@ -90,7 +101,11 @@ export default function RoomConfigView(props: IProps) {
 
     return <div className={style.root}>
         <header>
-            {activeConnectionType && <span className={style.backButton} onClick={() => setActiveConnectionType(null)}><span className="chevron" /> Browse integrations</span>}
+            {!serviceScope && activeConnectionType &&
+                <span className={style.backButton} onClick={() => setActiveConnectionType(null)}>
+                    <span className="chevron" /> Browse integrations
+                </span>
+            }
         </header>
         {content}
     </div>;
