@@ -1185,7 +1185,11 @@ export class Bridge {
             is_direct: true,
             preset: "trusted_private_chat",
         });
-        return this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        const room = await this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        await this.as.botClient.setRoomAccountData(
+            BRIDGE_ROOM_TYPE, roomId, room.accountData,
+        );
+        return room;
     }
 
     private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {

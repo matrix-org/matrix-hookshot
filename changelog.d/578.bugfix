@@ -1,0 +1,1 @@
+Fixed a case where a bridge-created admin room would stop working on restart.
