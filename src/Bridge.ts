@@ -86,7 +86,7 @@ export class Bridge {
         while(joinedRooms === undefined) {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botClient.getJoinedRooms();
+                joinedRooms = await this.as.botIntent.getJoinedRooms();
                 log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
