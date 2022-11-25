@@ -54,7 +54,7 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 [here](./setup/sample-configuration.md) for your convenience.
 
 You should read and fill this in as the bridge will not start without a complete config.
-Sections and items marked as `Optional` need to either be configured if you want to use the respective feature, or removed/commented out to disable the feature.
+Sections and items marked as `Optional` can either be configured if you want to use the respective feature, or removed/commented out. When items are commented out, the defaults are used.
 
 You may validate your config without starting the service by running `yarn validate-config`.
 For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml`
