@@ -1,1 +1,1 @@
-Track bot-created admin rooms in the bot's room profile data, not just user-created admin rooms.
+Fixed a case where a bridge-created admin room would stop working on restart.
