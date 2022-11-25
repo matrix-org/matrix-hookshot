@@ -251,7 +251,7 @@ export class BridgeConfigFeeds {
         this.enabled = yaml.enabled;
         this.pollIntervalSeconds = yaml.pollIntervalSeconds;
         assert.strictEqual(typeof this.pollIntervalSeconds, "number");
-        this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 10;
+        this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 30;
         assert.strictEqual(typeof this.pollTimeoutSeconds, "number");
     }
 
