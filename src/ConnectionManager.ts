@@ -68,7 +68,7 @@ export class ConnectionManager extends EventEmitter {
      * @param intent Bot user intent to create the connection with.
      * @param roomId The target Matrix room.
      * @param userId The requesting Matrix user.
-     * @param type The type of room (corresponds to the event type of the connection)
+     * @param connectionType The connection declaration to provision.
      * @param data The data corresponding to the connection state. This will be validated.
      * @returns The resulting connection.
      */
@@ -76,11 +76,10 @@ export class ConnectionManager extends EventEmitter {
         intent: Intent,
         roomId: string,
         userId: string,
-        type: string,
+        connectionType: ConnectionDeclaration,
         data: Record<string, unknown>,
     ) {
-        log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with data ${JSON.stringify(data)}`);
-        const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
+        log.info(`Looking to provision connection for ${roomId} ${connectionType.ServiceCategory} for ${userId} with data ${JSON.stringify(data)}`);
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
                 throw new ApiError(`User is not permitted to provision connections for this type of service.`, ErrCode.ForbiddenUser);
@@ -163,7 +162,7 @@ export class ConnectionManager extends EventEmitter {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
-        const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(state.type));
+        const connectionType = this.getConnectionTypeForEventType(state.type);
         if (!connectionType) {
             return;
         }
@@ -307,6 +306,10 @@ export class ConnectionManager extends EventEmitter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
         return this.connections.filter((c) => (c instanceof typeT)) as T[];
+    }
+
+    public getConnectionTypeForEventType(eventType: string): ConnectionDeclaration | undefined {
+        return ConnectionDeclarations.find(c => c.EventTypes.includes(eventType));
     }
 
     public isRoomConnected(roomId: string): boolean {

@@ -140,7 +140,12 @@ export class BridgeWidgetApi {
             throw Error('Cannot get connections without a valid userId');
         }
         const roomId = req.params.roomId;
-        const serviceType = req.params.type;
+        const eventType = req.params.type;
+        const connectionType = this.connMan.getConnectionTypeForEventType(eventType);
+        if (!connectionType) {
+            throw new ApiError("Unknown event type", ErrCode.NotFound);
+        }
+        const serviceType = connectionType.ServiceCategory;
 
         const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
         if (!botUser) {
@@ -154,7 +159,7 @@ export class BridgeWidgetApi {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
             this.connMan.validateCommandPrefix(req.params.roomId, req.body);
-            const result = await this.connMan.provisionConnection(intent, roomId, req.userId, serviceType, req.body);
+            const result = await this.connMan.provisionConnection(intent, roomId, req.userId, connectionType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }

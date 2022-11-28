@@ -140,8 +140,14 @@ export class Provisioner {
 
     private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
         const roomId = req.params.roomId;
-        const serviceType = req.params.type;
         const userId = req.query.userId;
+        const eventType = req.params.type;
+        const connectionType = this.connMan.getConnectionTypeForEventType(eventType);
+        if (!connectionType) {
+            throw new ApiError("Unknown event type", ErrCode.NotFound);
+        }
+        const serviceType = connectionType.ServiceCategory;
+
         // Need to figure out which connections are available
         try {
             if (!req.body || typeof req.body !== "object") {
@@ -156,7 +162,7 @@ export class Provisioner {
 
             const intent = this.as.getIntentForUserId(botUser.userId);
 
-            const result = await this.connMan.provisionConnection(intent, roomId, userId, serviceType, req.body);
+            const result = await this.connMan.provisionConnection(intent, roomId, userId, connectionType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
