@@ -191,7 +191,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.generic.hook";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.generic.hook";
-    static readonly ServiceCategory = "webhooks";
+    static readonly ServiceCategory = "generic";
 
     static readonly EventTypes = [
         GenericHookConnection.CanonicalEventType,

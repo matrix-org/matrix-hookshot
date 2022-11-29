@@ -668,7 +668,7 @@ export class BridgeConfig {
             services.push("figma");
         }
         if (this.generic) {
-            services.push("webhooks");
+            services.push("generic");
         }
         if (this.github) {
             services.push("github");
