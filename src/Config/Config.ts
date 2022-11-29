@@ -661,22 +661,22 @@ export class BridgeConfig {
 
     public getEnabledServices(): string[] {
         const services = [];
-        if (this.feeds) {
+        if (this.feeds && this.feeds.enabled) {
             services.push("feeds");
         }
         if (this.figma) {
             services.push("figma");
         }
-        if (this.generic) {
+        if (this.generic && this.generic.enabled) {
             services.push("generic");
         }
         if (this.github) {
             services.push("github");
         }
-        if (this.github) {
+        if (this.gitlab) {
             services.push("gitlab");
         }
-        if (this.github) {
+        if (this.jira) {
             services.push("jira");
         }
         return services;
