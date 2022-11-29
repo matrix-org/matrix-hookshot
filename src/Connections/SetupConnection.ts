@@ -51,6 +51,7 @@ export class SetupConnection extends CommandConnection {
     constructor(
         readonly roomId: string,
         readonly prefix: string,
+        readonly serviceTypes: string[],
         readonly helpCategories: string[],
         private readonly provisionOpts: ProvisionConnectionOpts,
         private readonly getOrCreateAdminRoom: (intent: Intent, userId: string) => Promise<AdminRoom>,
@@ -321,7 +322,7 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.widgets?.roomSetupWidget) {
             throw new CommandError("Not configured", "The bridge is not configured to support setup widgets");
         }
-        if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.intent, this.config.widgets)) {
+        if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.intent, this.config.widgets, this.serviceTypes)) {
             await this.client.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
         }
     }
