@@ -1069,20 +1069,24 @@ export class Bridge {
                 }
             }
 
-            // If it's a power level event for a new room, we might want to create the setup widget.
-            if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
-                log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
-                const plEvent = new PowerLevelsEvent(event);
-                const currentPl = plEvent.content.users?.[this.as.botUserId] || plEvent.defaultUserLevel;
-                const previousPl = plEvent.previousContent?.users?.[this.as.botUserId] || plEvent.previousContent?.users_default;
-                const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
-                if (currentPl !== previousPl && currentPl >= requiredPl) {
-                    // PL changed for bot user, check to see if the widget can be created.
-                    try {
-                        log.info(`Bot has powerlevel required to create a setup widget, attempting`);
-                        await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
-                    } catch (ex) {
-                        log.error(`Failed to create setup widget for ${roomId}`, ex);
+            const botUsersInRoom = this.botUsersManager.getBotUsersInRoom(roomId);
+            for (const botUser of botUsersInRoom) {
+                // If it's a power level event for a new room, we might want to create the setup widget.
+                if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
+                    log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
+                    const plEvent = new PowerLevelsEvent(event);
+                    const currentPl = plEvent.content.users?.[botUser.userId] || plEvent.defaultUserLevel;
+                    const previousPl = plEvent.previousContent?.users?.[botUser.userId] || plEvent.previousContent?.users_default;
+                    const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
+                    if (currentPl !== previousPl && currentPl >= requiredPl) {
+                        // PL changed for bot user, check to see if the widget can be created.
+                        try {
+                            log.info(`Bot has powerlevel required to create a setup widget, attempting`);
+                            const intent = this.as.getIntentForUserId(botUser.userId);
+                            await SetupWidget.SetupRoomConfigWidget(roomId, intent, this.config.widgets);
+                        } catch (ex) {
+                            log.error(`Failed to create setup widget for ${roomId}`, ex);
+                        }
                     }
                 }
             }
