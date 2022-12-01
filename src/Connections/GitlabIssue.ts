@@ -163,6 +163,10 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         }, this.as, this.config.userIdPrefix);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitLabNote(event);
 
+        if (commentIntent.userId !== this.intent.userId) {
+            // Make sure ghost user is invited to the room
+            await this.intent.underlyingClient.inviteUser(commentIntent.userId, this.roomId);
+        }
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
     }
 
