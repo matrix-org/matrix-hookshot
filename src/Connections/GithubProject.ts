@@ -1,5 +1,5 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { ProjectsGetResponseData } from "../Github/Types";
 import { BaseConnection } from "./BaseConnection";
@@ -24,14 +24,14 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
         GitHubProjectConnection.LegacyCanonicalEventType,
     ];
 
-    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, intent}: InstantiateConnectionOpts) {
         if (!config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubProjectConnection(roomId, as, event.content, event.stateKey);
+        return new GitHubProjectConnection(roomId, as, intent, event.content, event.stateKey);
     }
 
-    static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, inviteUser: string): Promise<GitHubProjectConnection> {
+    static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, intent: Intent, inviteUser: string): Promise<GitHubProjectConnection> {
         log.info(`Fetching ${project.name} ${project.id}`);
 
         // URL hack so we don't need to fetch the repo itself.
@@ -41,7 +41,7 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
             state: project.state as "open"|"closed",
         };
 
-        const roomId = await as.botClient.createRoom({
+        const roomId = await intent.underlyingClient.createRoom({
             visibility: "private",
             name: `${project.name}`,
             topic: project.body || undefined,
@@ -55,20 +55,23 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
                 },
             ],
         });
-        
-        return new GitHubProjectConnection(roomId, as, state, project.url)
+
+        return new GitHubProjectConnection(roomId, as, intent, state, project.url)
     }
 
     get projectId() {
         return this.state.project_id;
     }
 
-    constructor(public readonly roomId: string,
+    constructor(
+        public readonly roomId: string,
         as: Appservice,
+        intent: Intent,
         private state: GitHubProjectConnectionState,
-        stateKey: string) {
-            super(roomId, stateKey, GitHubProjectConnection.CanonicalEventType);
-        }
+        stateKey: string,
+    ) {
+        super(roomId, stateKey, GitHubProjectConnection.CanonicalEventType);
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
