@@ -145,6 +145,9 @@ export class GitLabClient {
             const me = await this.user();
             // https://docs.gitlab.com/ee/api/members.html#get-a-member-of-a-group-or-project-including-inherited-and-invited-members
             const { data } = await axios.get(`api/v4/projects/${encodeURIComponent(id)}/members/all/${me.id}`, this.defaultConfig);
+            if (typeof data?.access_level !== "number") {
+                throw Error(`Unexpected value for data.access_level. '${data?.access_level}'`);
+            } 
             return data.access_level as AccessLevel;
         } catch (ex) {
             if (axios.isAxiosError(ex)) {
