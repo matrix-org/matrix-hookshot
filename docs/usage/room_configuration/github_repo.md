@@ -63,6 +63,7 @@ Note: Some of these event types are enabled by default (marked with a `*`)
   - pull_request.reviewed *
 - release *
   - release.created *
+  - release.drafted
 - workflow.run
   - workflow.run.success
   - workflow.run.failure

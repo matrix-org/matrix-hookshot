@@ -6,8 +6,8 @@ import { FormatUtil } from "../FormatUtil";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
-    PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleaseCreatedEvent, IssuesLabeledEvent, IssuesUnlabeledEvent,
-    WorkflowRunCompletedEvent,
+    PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleasePublishedEvent, ReleaseCreatedEvent,
+    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent,
 } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -92,6 +92,7 @@ type AllowedEventsNames =
     "pull_request.reviewed" |
     "pull_request" |
     "release.created" |
+    "release.drafted" |
     "release" |
     "workflow" |
     "workflow.run" | 
@@ -116,6 +117,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "pull_request.reviewed" ,
     "pull_request" ,
     "release.created" ,
+    "release.drafted" ,
     "release",
     "workflow",
     "workflow.run",
@@ -135,7 +137,7 @@ const AllowedEvents: AllowedEventsNames[] = [
 const AllowHookByDefault: AllowedEventsNames[] = [
     "issue",
     "pull_request",
-    "release",
+    "release.created"
 ];
 
 const ConnectionStateSchema = {
@@ -1057,8 +1059,36 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         });
     }
 
-    public async onReleaseCreated(event: ReleaseCreatedEvent) {
+    public async onReleasePublished(event: ReleasePublishedEvent) {
+        // NOTE: Previously release.created used to reference created releases, but this would
+        // include drafted releases.
         if (this.hookFilter.shouldSkip('release', 'release.created')) {
+            return;
+        }
+        log.info(`onReleasePublished ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
+        if (!event.release) {
+            throw Error('No release content!');
+        }
+        if (!event.repository) {
+            throw Error('No repository content!');
+        }
+        const orgRepoName = event.repository.full_name;
+        let content = `**${event.sender.login}** 🪄 released [${event.release.name ?? event.release.tag_name}](${event.release.html_url}) for ${orgRepoName}`;
+        if (event.release.body) {
+            content += `\n\n${event.release.body}`
+        }
+        await this.as.botIntent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onReleaseCreated(event: ReleaseCreatedEvent) {
+        // NOTE: Previously release.created used to reference created releases, but this would
+        // include drafted releases.
+        if (this.hookFilter.shouldSkip('release', 'release.drafted') || !event.release.draft) {
             return;
         }
         log.info(`onReleaseCreated ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
@@ -1069,9 +1099,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-        const content = `**${event.sender.login}** 🪄 released [${event.release.name}](${event.release.html_url}) for ${orgRepoName}
-
-${event.release.body}`;
+        let content = `**${event.sender.login}** 🪄 drafted release [${event.release.name ?? event.release.tag_name}](${event.release.html_url}) for ${orgRepoName}`;
+        if (event.release.body) {
+            content += `\n\n${event.release.body}`
+        }
         await this.as.botIntent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
