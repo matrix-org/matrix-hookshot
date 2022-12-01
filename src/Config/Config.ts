@@ -416,7 +416,7 @@ export interface BridgeConfigServiceBot {
     displayname?: string;
     avatar?: string;
     prefix: string;
-    services: string[];
+    service: string;
 }
 
 export interface BridgeConfigProvisioning {

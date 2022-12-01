@@ -51,7 +51,7 @@ export default class BotUsersManager {
                     userId: userId,
                     avatar: bot.avatar,
                     displayname: bot.displayname,
-                    services: bot.services,
+                    services: [bot.service],
                     prefix: bot.prefix,
                     // Service bots should handle commands first
                     priority: 1,

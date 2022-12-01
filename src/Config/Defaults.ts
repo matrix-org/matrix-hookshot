@@ -53,7 +53,7 @@ export const DefaultConfig = new BridgeConfig({
             displayname: "Feeds",
             avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d",
             prefix: "!feeds",
-            services: ["feeds"],
+            service: "feeds",
         },
     ],
     github: {
