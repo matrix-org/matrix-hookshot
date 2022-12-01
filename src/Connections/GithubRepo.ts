@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
@@ -81,12 +81,12 @@ export type GitHubRepoConnectionTarget = GitHubRepoConnectionOrgTarget|GitHubRep
 export type GitHubRepoResponseItem = GetConnectionsResponseItem<GitHubRepoConnectionState>;
 
 
-type AllowedEventsNames = 
+type AllowedEventsNames =
     "issue.changed" |
     "issue.created" |
     "issue.edited" |
     "issue.labeled" |
-    "issue" | 
+    "issue" |
     "pull_request.closed" |
     "pull_request.merged" |
     "pull_request.opened" |
@@ -97,7 +97,7 @@ type AllowedEventsNames =
     "release.drafted" |
     "release" |
     "workflow" |
-    "workflow.run" | 
+    "workflow.run" |
     "workflow.run.success" |
     "workflow.run.failure" |
     "workflow.run.neutral" |
@@ -171,7 +171,7 @@ const ConnectionStateSchema = {
         nullable: true,
         maxLength: 24,
     },
-    showIssueRoomLink: { 
+    showIssueRoomLink: {
         type: "boolean",
         nullable: true,
     },
@@ -249,7 +249,7 @@ const ConnectionStateSchema = {
   additionalProperties: true
 } as JSONSchemaType<GitHubRepoConnectionState>;
 
-type ReactionOptions = 
+type ReactionOptions =
 | "+1"
 | "-1"
 | "laugh"
@@ -327,7 +327,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, tokenStore, github, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, github, config}: ProvisionConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
@@ -361,10 +361,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
-        await as.botClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
+        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,
-            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, stateEventKey, github, config.github),
+            connection: new GitHubRepoConnection(roomId, as, intent, validData, tokenStore, stateEventKey, github, config.github),
         }
     }
 
@@ -377,11 +377,11 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     static readonly ServiceCategory = "github";
     static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
 
-    static async createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {as, intent, tokenStore, github, config}: InstantiateConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubRepoConnection(roomId, as, this.validateState(state.content, true), tokenStore, state.stateKey, github, config.github);
+        return new GitHubRepoConnection(roomId, as, intent, this.validateState(state.content, true), tokenStore, state.stateKey, github, config.github);
     }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
@@ -469,26 +469,28 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
-    constructor(roomId: string,
+    constructor(
+        roomId: string,
         private readonly as: Appservice,
+        private readonly intent: Intent,
         state: GitHubRepoConnectionState,
         private readonly tokenStore: UserTokenStore,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
         private readonly config: BridgeConfigGitHub,
-        ) {
-            super(
-                roomId,
-                stateKey,
-                GitHubRepoConnection.CanonicalEventType,
-                state,
-                as.botClient,
-                GitHubRepoConnection.botCommands,
-                GitHubRepoConnection.helpMessage,
-                ["github"],
-                "!gh",
-                "github",
-            );
+    ) {
+        super(
+            roomId,
+            stateKey,
+            GitHubRepoConnection.CanonicalEventType,
+            state,
+            intent.underlyingClient,
+            GitHubRepoConnection.botCommands,
+            GitHubRepoConnection.helpMessage,
+            ["github"],
+            "!gh",
+            "github",
+        );
         this.hookFilter = new HookFilter(
             AllowHookByDefault,
             state.enableHooks,
@@ -582,7 +584,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 message += ` [Issue Room](https://matrix.to/#/${this.as.getAlias(GitHubIssueConnection.generateAliasLocalpart(this.org, this.repo, issue.number))})`;
             }
             const content = emoji.emojify(message);
-            await this.as.botIntent.sendEvent(this.roomId, {
+            await this.intent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content ,
                 formatted_body: md.renderInline(content),
@@ -625,14 +627,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                         event: reviewEvent,
                     });
                 } catch (ex) {
-                    await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+                    await this.intent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
                         "m.relates_to": {
                             rel_type: "m.annotation",
                             event_id: ev.event_id,
                             key: "⛔",
                         }
                     });
-                    await this.as.botClient.sendEvent(this.roomId, 'm.room.message', {
+                    await this.intent.underlyingClient.sendEvent(this.roomId, 'm.room.message', {
                         msgtype: "m.notice",
                         body: `Failed to submit review: ${ex.message}`,
                     });
@@ -751,7 +753,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const workflow = workflows.data.workflows.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
         if (!workflow) {
             const workflowNames = workflows.data.workflows.map(w => w.name).join(', ');
-            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`, "m.notice");
+            await this.intent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`, "m.notice");
             return;
         }
         try {
@@ -781,7 +783,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             throw ex;
         }
 
-        await this.as.botIntent.sendText(this.roomId, `Workflow started.`, "m.notice");
+        await this.intent.sendText(this.roomId, `Workflow started.`, "m.notice");
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
@@ -808,8 +810,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
         const content = emoji.emojify(message);
-        const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
@@ -855,7 +857,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
         const content = `**${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"${withComment}`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -874,7 +876,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         log.info(`onIssueEdited ${this.roomId} ${this.org}/${this.repo} #${event.issue.number}`);
         const orgRepoName = event.repository.full_name;
         const content = `**${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -892,7 +894,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (Date.now() - new Date(event.issue.created_at).getTime() < CREATED_GRACE_PERIOD_MS) {
             return;
         }
-        
+
         log.info(`onIssueLabeled ${this.roomId} ${this.org}/${this.repo} #${event.issue.id} ${event.label.name}`);
         const renderFn = () => {
             const {labels} = this.debounceOnIssueLabeled.get(event.issue.id) || { labels: [] };
@@ -903,9 +905,9 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 return;
             }
             const orgRepoName = event.repository.full_name;
-            const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
+            const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
             const content = `**${event.sender.login}** labeled issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-            this.as.botIntent.sendEvent(this.roomId, {
+            this.intent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content + (plain.length > 0 ? ` with labels ${plain}`: ""),
                 formatted_body: md.renderInline(content) + (html.length > 0 ? ` with labels ${html}`: ""),
@@ -962,8 +964,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
         const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
-        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));  
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: "") + diffContent,
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: "") + diffContentHtml,
@@ -986,7 +988,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
         const orgRepoName = event.repository.full_name;
         const content = emoji.emojify(`**${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review "${event.pull_request.title}"`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -1019,7 +1021,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return;
         }
         const content = emoji.emojify(`**${event.sender.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -1065,7 +1067,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
 
         const content = emoji.emojify(`**${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -1121,14 +1123,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (event.release.body) {
             content += `\n\n${event.release.body}`
         }
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html",
         });
     }
-    
+
     public async onWorkflowCompleted(event: WorkflowRunCompletedEvent) {
         const workflowRun = event.workflow_run;
         const workflowName = event.workflow_run.name;
@@ -1154,7 +1156,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
         const orgRepoName = event.repository.full_name;
         const content = `Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -1169,7 +1171,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
         if (evt.type === 'm.reaction') {
             const {event_id, key} = (evt.content as MatrixReactionContent)["m.relates_to"];
-            const ev = await this.as.botClient.getEvent(this.roomId, event_id);
+            const ev = await this.intent.underlyingClient.getEvent(this.roomId, event_id);
             const issueContent = ev.content["uk.half-shot.matrix-hookshot.github.issue"];
             if (!issueContent) {
                 log.debug('Reaction to event did not pertain to a issue');
@@ -1226,7 +1228,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public getProvisionerDetails(): GitHubRepoResponseItem {
         return {
-            ...GitHubRepoConnection.getProvisionerDetails(this.as.botUserId),
+            ...GitHubRepoConnection.getProvisionerDetails(this.intent.userId),
             id: this.connectionId,
             config: {
                 ...this.state,
@@ -1305,7 +1307,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
         const newState = { ...this.state, ...config };
         const validatedConfig = GitHubRepoConnection.validateState(newState);
-        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
         this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
@@ -1315,11 +1317,11 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
         try {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
         } catch (ex) {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
     }
 
