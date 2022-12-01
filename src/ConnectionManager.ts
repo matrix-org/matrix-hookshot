@@ -105,14 +105,15 @@ export class ConnectionManager extends EventEmitter {
      * Check if a state event is sent by a user who is allowed to configure the type of connection the state event covers.
      * If it isn't, optionally revert the state to the last-known valid value, or redact it if that isn't possible.
      * @param roomId The target Matrix room.
+     * @param intent The bot intent to use.
      * @param state The state event for altering a connection in the room.
      * @param serviceType The type of connection the state event is altering.
      * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
      */
-    public verifyStateEvent(roomId: string, state: StateEvent, serviceType: string, rollbackBadState: boolean) {
+    public verifyStateEvent(roomId: string, intent: Intent, state: StateEvent, serviceType: string, rollbackBadState: boolean) {
         if (!this.isStateAllowed(roomId, state, serviceType)) {
             if (rollbackBadState) {
-                void this.tryRestoreState(roomId, state, serviceType);
+                void this.tryRestoreState(roomId, intent, state, serviceType);
             }
             log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
             return false;
@@ -127,30 +128,36 @@ export class ConnectionManager extends EventEmitter {
      * @param state The state event for altering a connection in the room targeted by {@link connection}.
      * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
      */
-    public verifyStateEventForConnection(connection: IConnection, state: StateEvent, rollbackBadState: boolean) {
+    public verifyStateEventForConnection(connection: IConnection, state: StateEvent, rollbackBadState: boolean): boolean {
         const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
-        return !this.verifyStateEvent(connection.roomId, state, cd.ServiceCategory, rollbackBadState);
+        const botUser = this.botUsersManager.getBotUserInRoom(connection.roomId, cd.ServiceCategory);
+        if (!botUser) {
+            log.error(`Failed to find a bot in room '${connection.roomId}' for service type '${cd.ServiceCategory}' when verifying state for connection`);
+            throw Error('Could not find a bot to handle this connection');
+        }
+        const intent = this.as.getIntentForUserId(botUser.userId);
+        return !this.verifyStateEvent(connection.roomId, intent, state, cd.ServiceCategory, rollbackBadState);
     }
 
     private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
-        return state.sender === this.as.botUserId
+        return this.botUsersManager.isBotUser(state.sender)
             || this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections);
     }
 
-    private async tryRestoreState(roomId: string, originalState: StateEvent, serviceType: string) {
+    private async tryRestoreState(roomId: string, intent: Intent, originalState: StateEvent, serviceType: string) {
         let state = originalState;
         let attemptsRemaining = 5;
         try {
             do {
                 if (state.unsigned.replaces_state) {
-                    state = new StateEvent(await this.as.botClient.getEvent(roomId, state.unsigned.replaces_state));
+                    state = new StateEvent(await intent.underlyingClient.getEvent(roomId, state.unsigned.replaces_state));
                 } else {
-                    await this.as.botClient.redactEvent(roomId, originalState.eventId,
+                    await intent.underlyingClient.redactEvent(roomId, originalState.eventId,
                         `User ${originalState.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
                     return;
                 }
             } while (--attemptsRemaining > 0 && !this.isStateAllowed(roomId, state, serviceType));
-            await this.as.botClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
+            await intent.underlyingClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
         } catch (ex) {
             log.warn(`Unable to undo state event from ${state.sender} for disallowed ${serviceType} connection management in ${roomId}`);
         }
@@ -166,16 +173,17 @@ export class ConnectionManager extends EventEmitter {
         if (!connectionType) {
             return;
         }
-        if (!this.verifyStateEvent(roomId, state, connectionType.ServiceCategory, rollbackBadState)) {
-            return;
-        }
 
         const botUser = this.botUsersManager.getBotUserInRoom(roomId, connectionType.ServiceCategory);
         if (!botUser) {
-            log.error(`Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connections for state`);
+            log.error(`Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connection for state`);
             throw Error('Could not find a bot to handle this connection');
         }
         const intent = this.as.getIntentForUserId(botUser.userId);
+
+        if (!this.verifyStateEvent(roomId, intent, state, connectionType.ServiceCategory, rollbackBadState)) {
+            return;
+        }
 
         return connectionType.createConnectionForState(roomId, state, {
             as: this.as,
