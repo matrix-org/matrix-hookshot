@@ -134,12 +134,24 @@ export class GitLabClient {
         }
     }
 
+    /**
+     * Get the access level the authenticated user has for a project. Includes
+     * any access levels inherited from parent project(s).
+     * @param id The project ID
+     * @returns The user's access level.
+     */
     public async getProjectAccessLevel(id: ProjectId): Promise<AccessLevel> {
         try {
             const me = await this.user();
-            const { data } = await axios.get(`api/v4/projects/${encodeURIComponent(id)}/members/${me.id}`, this.defaultConfig);
+            // https://docs.gitlab.com/ee/api/members.html#get-a-member-of-a-group-or-project-including-inherited-and-invited-members
+            const { data } = await axios.get(`api/v4/projects/${encodeURIComponent(id)}/members/all/${me.id}`, this.defaultConfig);
             return data.access_level as AccessLevel;
         } catch (ex) {
+            if (axios.isAxiosError(ex)) {
+                if (ex.response?.status === 404) {
+                    return AccessLevel.NoAccess;
+                }
+            }
             log.warn(`Failed to get project access level:`, ex);
             throw ex;
         }

@@ -191,7 +191,6 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);
         }
         let permissionLevel;
-        let project;
         try {
             permissionLevel = await client.projects.getMyAccessLevel(validData.path);
         } catch (ex) {
@@ -201,6 +200,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (permissionLevel < AccessLevel.Developer) {
             throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
         }
+        
+        const project = await client.projects.get(validData.path);
 
         const stateEventKey = `${validData.instance}/${validData.path}`;
         const connection = new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance);
