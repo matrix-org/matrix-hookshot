@@ -17,6 +17,9 @@ export interface BotUser {
     priority: number;
 }
 
+// Sort bot users by highest priority first.
+const higherPriority: (a: BotUser, b: BotUser) => number = (a, b) => (a.priority < b.priority) ? 1 : -1;
+
 export default class BotUsersManager {
     // Map of user ID to config for all our configured bot users
     private _botUsers = new Map<string, BotUser>();
@@ -58,12 +61,13 @@ export default class BotUsersManager {
     }
 
     /**
-     * Gets the configured bot users.
+     * Gets the configured bot users, ordered by priority.
      *
      * @returns List of bot users.
      */
     get botUsers(): Readonly<BotUser>[] {
-        return Array.from(this._botUsers.values());
+        return Array.from(this._botUsers.values())
+            .sort(higherPriority)
     }
 
     /**
@@ -94,7 +98,7 @@ export default class BotUsersManager {
         return this.joinedRoomsManager.getBotsInRoom(roomId)
             .map(botUserId => this.getBotUser(botUserId))
             .filter((b): b is BotUser => b !== undefined)
-            .sort((a, b) => (a.priority < b.priority) ? 1 : -1)
+            .sort(higherPriority);
     }
 
     /**
@@ -111,5 +115,14 @@ export default class BotUsersManager {
         } else {
             return botUsersInRoom[0];
         }
+    }
+
+    /**
+     * Gets the bot user with the highest priority for a particular service.
+     *
+     * @param serviceType Service type for the bot.
+     */
+    getBotUserForService(serviceType: string): Readonly<BotUser> | undefined {
+        return this.botUsers.find(b => b.services.includes(serviceType));
     }
 }

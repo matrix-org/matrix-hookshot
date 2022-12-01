@@ -505,10 +505,17 @@ export class Bridge {
             }
             let [discussionConnection] = connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.id);
             if (!discussionConnection) {
+                const botUser = this.botUsersManager.getBotUserForService(GitHubDiscussionConnection.ServiceCategory);
+                if (!botUser) {
+                    throw Error('Could not find a bot to handle this connection');
+                }
+                const intent = this.as.getIntentForUserId(botUser.userId);
+
                 try {
                     // If we don't have an existing connection for this discussion (likely), then create one.
                     discussionConnection = await GitHubDiscussionConnection.createDiscussionRoom(
                         this.as,
+                        intent,
                         null,
                         data.repository.owner.login,
                         data.repository.name,
