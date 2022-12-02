@@ -1,1 +1,0 @@
-Don't provision a connection twice when using a bot command to create a connection.

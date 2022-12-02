@@ -1,3 +1,43 @@
+2.5.0 (2022-12-02)
+==================
+
+Features
+--------
+
+- GitHub assign command now automatically chooses the top issue and/or authenticated user if not provided. ([\#554](https://github.com/matrix-org/matrix-hookshot/issues/554))
+- Display GitLab project paths with their true letter casing. ([\#556](https://github.com/matrix-org/matrix-hookshot/issues/556))
+- Forbid creating multiple GitLab connections on the same path with different letter casing. ([\#557](https://github.com/matrix-org/matrix-hookshot/issues/557))
+- Allow adding connections to GitLab projects even when Hookshot doesn't have permissions to automatically provision a webhook for it. When that occurs, tell the user to ask a project admin to add the webhook. ([\#567](https://github.com/matrix-org/matrix-hookshot/issues/567))
+
+
+Bugfixes
+--------
+
+- Do not send a notice when a user replies to a GitLab comment, or when GitLab comment notices have been disabled. ([\#536](https://github.com/matrix-org/matrix-hookshot/issues/536))
+- Don't announce error if a RSS feed request timed out. ([\#551](https://github.com/matrix-org/matrix-hookshot/issues/551))
+- Don't ignore events from GitLab projects that have capital letters in their project path, and had their room connection set up by the configuration widget or provisioning API. ([\#553](https://github.com/matrix-org/matrix-hookshot/issues/553))
+- Automatically JSON stringify values in a webhook payload that exceed the max depth/breadth supported by the parser. ([\#560](https://github.com/matrix-org/matrix-hookshot/issues/560))
+- The bot no longer accepts invites from users who do not have permission to use it. ([\#561](https://github.com/matrix-org/matrix-hookshot/issues/561))
+- Fix issue where GitLab connections couldn't be added via a bot command for projects on an instance URL configured with a trailing slash. ([\#563](https://github.com/matrix-org/matrix-hookshot/issues/563))
+- Harden against unauthorized changes to room state for connection settings. ([\#565](https://github.com/matrix-org/matrix-hookshot/issues/565))
+- Fixed a case where a bridge-created admin room would stop working on restart. ([\#578](https://github.com/matrix-org/matrix-hookshot/issues/578))
+
+
+Improved Documentation
+----------------------
+
+- Improve navigability & legibility of some documentation pages. ([\#568](https://github.com/matrix-org/matrix-hookshot/issues/568))
+
+
+Internal Changes
+----------------
+
+- Increase default `feeds.pollTimeoutSeconds` from 10 seconds to 30. ([\#483](https://github.com/matrix-org/matrix-hookshot/issues/483))
+- Don't provision a connection twice when using a bot command to create a connection. ([\#558](https://github.com/matrix-org/matrix-hookshot/issues/558))
+- Change "setup" to "set up" where it's used as a verb. ([\#572](https://github.com/matrix-org/matrix-hookshot/issues/572))
+- Fix misspellings of "occurred" in error messages. ([\#576](https://github.com/matrix-org/matrix-hookshot/issues/576))
+
+
 2.4.0 (2022-10-21)
 ==================
 

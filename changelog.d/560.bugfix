@@ -1,1 +1,0 @@
-Automatically JSON stringify values in a webhook payload that exceed the max depth/breadth supported by the parser.

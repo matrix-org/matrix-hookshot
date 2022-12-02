@@ -1,1 +1,0 @@
-Fix issue where GitLab connections couldn't be added via a bot command for projects on an instance URL configured with a trailing slash.

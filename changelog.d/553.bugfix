@@ -1,1 +1,0 @@
-Don't ignore events from GitLab projects that have capital letters in their project path, and had their room connection set up by the configuration widget or provisioning API.
