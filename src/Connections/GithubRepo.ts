@@ -1060,8 +1060,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onReleasePublished(event: ReleasePublishedEvent) {
-        // NOTE: Previously release.created used to reference created releases, but this would
-        // include drafted releases.
+        // This checks `release.created` despite the function being called onReleasePublished
+        // because historically release.created used to refer to all releases (rather than just published ones).
+        // This is now considered an *unsafe* default, so hookshot now treats release.created
+        // as published.
         if (this.hookFilter.shouldSkip('release', 'release.created')) {
             return;
         }
@@ -1086,8 +1088,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onReleaseCreated(event: ReleaseCreatedEvent) {
-        // NOTE: Previously release.created used to reference created releases, but this would
-        // include drafted releases.
+        // This function handles release.created events but published releases are handled by the above function,
+        // therefore this only handles drafted releases.
         if (this.hookFilter.shouldSkip('release', 'release.drafted') || !event.release.draft) {
             return;
         }
