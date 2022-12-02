@@ -1,21 +1,21 @@
 import { IntentMock } from "./IntentMock";
 
 export class AppserviceMock {
-    public readonly botIntent = IntentMock.create();
+    public readonly botIntent = IntentMock.create(`@bot:example.com`);
     static create(){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return new this() as any;
     }
 
     get botUserId() {
-        return `@bot:example.com`;
+        return this.botIntent.userId;
     }
 
     get botClient() {
         return this.botIntent.underlyingClient;
     }
 
-    public getIntentForUserId() {
-        return IntentMock.create();
+    public getIntentForUserId(userId: string) {
+        return IntentMock.create(userId);
     }
 }

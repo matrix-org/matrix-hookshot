@@ -10,9 +10,11 @@ export class IntentMock {
     public readonly underlyingClient = new MatrixClientMock();
     public sentEvents: {roomId: string, content: any}[] = [];
 
-    static create(){
+    constructor(readonly userId: string) {}
+
+    static create(userId: string){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return new this() as any;
+        return new this(userId) as any;
     }
 
     sendText(roomId: string, noticeText: string, msgtype: string) {
@@ -31,7 +33,7 @@ export class IntentMock {
             content,
         });
     }
-    
+
     expectNoEvent() {
         expect(this.sentEvents, 'Expected no events to be sent.').to.be.empty;
     }

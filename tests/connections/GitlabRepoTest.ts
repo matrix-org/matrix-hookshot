@@ -37,10 +37,11 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 	});
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
+	const intent = as.getIntentForUserId('@gitlab:example.test');
 	const connection = new GitLabRepoConnection(
 		ROOM_ID,
 		"state_key",
-		as,
+		intent,
 		GitLabRepoConnection.validateState({
 			instance: "bar",
 			path: "foo",
@@ -51,7 +52,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 			url: "https://gitlab.example.com"
 		},
 	);
-	return {connection, as};
+	return {connection, intent};
 }
 
 describe("GitLabRepoConnection", () => {
@@ -114,15 +115,15 @@ describe("GitLabRepoConnection", () => {
 	});
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
-			const { connection, as } = createConnection();
+			const { connection, intent } = createConnection();
 			await connection.onMergeRequestOpened(GITLAB_ISSUE_CREATED_PAYLOAD as never);
 			// Statement text.
-			as.botIntent.expectEventBodyContains('**alice** opened a new MR', 0);
-			as.botIntent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url, 0);
-			as.botIntent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.title, 0);
+			intent.expectEventBodyContains('**alice** opened a new MR', 0);
+			intent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url, 0);
+			intent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.title, 0);
 		});
 		it("will filter out issues not matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
 			});
 			await connection.onMergeRequestOpened({
@@ -133,10 +134,10 @@ describe("GitLabRepoConnection", () => {
 			} as never);
 			// ..or issues with no labels
 			await connection.onMergeRequestOpened(GITLAB_ISSUE_CREATED_PAYLOAD as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will filter out issues matching excludingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
 			});
 			await connection.onMergeRequestOpened({
@@ -145,10 +146,10 @@ describe("GitLabRepoConnection", () => {
 					title: "exclude-me",
 				}],
 			} as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will include issues matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingIssues: ["include-me"]
 			});
 			await connection.onMergeRequestOpened({
@@ -157,7 +158,7 @@ describe("GitLabRepoConnection", () => {
 					title: "include-me",
 				}],
 			} as never);
-			as.botIntent.expectEventBodyContains('**alice** opened a new MR', 0);
+			intent.expectEventBodyContains('**alice** opened a new MR', 0);
 		});
 	});
 });
