@@ -306,7 +306,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
             }
             if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+                throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
             }
             return state;
         }
