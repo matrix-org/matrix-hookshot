@@ -57,6 +57,7 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     };
     workflowRun?: {
         matchingBranch?: string;
+        workflows?: string[];
     }
 }
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
@@ -224,6 +225,11 @@ const ConnectionStateSchema = {
             matchingBranch: {
                 nullable: true,
                 type: "string",
+            },
+            workflows: {
+                nullable: true,
+                type: "array",
+                items: {type: "string"},
             },
         },
     }
@@ -1090,6 +1096,9 @@ ${event.release.body}`;
         }
 
         if (this.state.workflowRun?.matchingBranch && !workflowRun.head_branch.match(this.state.workflowRun?.matchingBranch)) {
+            return;
+        }
+        if (this.state.workflowRun?.workflows && !this.state.workflowRun?.workflows.includes(workflowRun.name)) {
             return;
         }
         log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
