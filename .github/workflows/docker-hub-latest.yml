@@ -33,7 +33,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Build image
         uses: docker/build-push-action@v3
-        if: "!env.PUSH"
+        if: env.PUSH == false
         with:
           context: .
           file: ./Dockerfile
