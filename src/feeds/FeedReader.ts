@@ -11,6 +11,7 @@ import Parser from "rss-parser";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
+import { StatusCodes } from "http-status-codes";
 
 const log = new Logger("FeedReader");
 
@@ -91,6 +92,8 @@ export class FeedReader {
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
     private observedFeedUrls: Set<string> = new Set();
     private seenEntries: Map<string, string[]> = new Map();
+    // A set of last modified times for each url.
+    private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
     constructor(
@@ -175,14 +178,25 @@ export class FeedReader {
 
         for (const url of this.observedFeedUrls.values()) {
             const fetchKey = randomUUID();
+            const { etag, lastModified } = this.cacheTimes.get(url) || {};
             try {
-                const res = await axios.get(url.toString(), {
+                const res = await axios.get(url, {
                     headers: {
                         'User-Agent': UserAgent,
+                        ...(lastModified && { 'If-Modified-Since': lastModified}),
+                        ...(etag && { 'If-None-Match': etag}),
                     },
                     // We don't want to wait forever for the feed.
                     timeout: this.config.pollTimeoutSeconds * 1000,
                 });
+                
+                // Store any entity tags/cache times.
+                if (res.headers.ETag) {
+                    this.cacheTimes.set(url, { etag: res.headers.ETag});
+                } else if (res.headers['Last-Modified']) {
+                    this.cacheTimes.set(url, { lastModified: res.headers['Last-Modified'] });
+                }
+
                 const feed = await (new Parser()).parseString(res.data);
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
@@ -239,6 +253,12 @@ export class FeedReader {
                 }
                 this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url: url } });
             } catch (err: unknown) {
+                if (axios.isAxiosError(err)) {
+                    // No new feed items, skip.
+                    if (err.response?.status === StatusCodes.NOT_MODIFIED) {
+                        continue;
+                    }
+                }
                 const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
                 const feedError = new FeedError(url.toString(), error, fetchKey);
                 log.error("Unable to read feed:", feedError.message);
