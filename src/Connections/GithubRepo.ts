@@ -1246,7 +1246,9 @@ ${event.release.body}`;
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
-        const validatedConfig = GitHubRepoConnection.validateState(config);
+        // Apply previous state to the current config, as provisioners might not return "unknown" keys.
+        const newState = { ...this.state, config };
+        const validatedConfig = GitHubRepoConnection.validateState(newState);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
