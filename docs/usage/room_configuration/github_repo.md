@@ -39,7 +39,8 @@ This connection supports a few options which can be defined in the room state:
 |newIssue.labels|Automatically set these labels on issues created via commands|Array of: String matching a label name|*empty*|
 |workflowRun|Configuration options for workflow run results|`{ matchingBranch: string }`|*empty*|
 |workflowRun.matchingBranch|Only report workflow runs if it matches this regex.|Regex string|*empty*|
-|workflowRun.workflows|Only report workflow runs if the workflow name is in this array.|Array of: String matching a workflow name|*empty*|
+|workflowRun.includingWorkflows|Only report workflow runs with a matching workflow name.|Array of: String matching a workflow name|*empty*|
+|workflowRun.excludingWorkflows|Never report workflow runs with a matching workflow name.|Array of: String matching a workflow name|*empty*|
 
 
 [^1]: `ignoreHooks` takes precedence over `enableHooks`.

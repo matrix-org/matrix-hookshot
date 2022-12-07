@@ -57,7 +57,8 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     };
     workflowRun?: {
         matchingBranch?: string;
-        workflows?: string[];
+        includingWorkflows?: string[];
+        excludingWorkflows?: string[];
     }
 }
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
@@ -226,7 +227,12 @@ const ConnectionStateSchema = {
                 nullable: true,
                 type: "string",
             },
-            workflows: {
+            includingWorkflows: {
+                nullable: true,
+                type: "array",
+                items: {type: "string"},
+            },
+            excludingWorkflows: {
                 nullable: true,
                 type: "array",
                 items: {type: "string"},
@@ -1088,6 +1094,7 @@ ${event.release.body}`;
     
     public async onWorkflowCompleted(event: WorkflowRunCompletedEvent) {
         const workflowRun = event.workflow_run;
+        const workflowName = event.workflow_run.name;
         const workflowRunType = `workflow.run.${workflowRun.conclusion}`;
         // Type safety checked above.
         if (
@@ -1098,9 +1105,15 @@ ${event.release.body}`;
         if (this.state.workflowRun?.matchingBranch && !workflowRun.head_branch.match(this.state.workflowRun?.matchingBranch)) {
             return;
         }
-        if (this.state.workflowRun?.workflows && !this.state.workflowRun?.workflows.includes(workflowRun.name)) {
+
+        // Workflow filtering
+        if (this.state.workflowRun?.excludingWorkflows?.includes(workflowName)) {
             return;
         }
+        if (this.state.workflowRun?.includingWorkflows && !this.state.workflowRun.includingWorkflows.includes(workflowName)) {
+            return;
+        }
+
         log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
         const orgRepoName = event.repository.full_name;
         const content = `Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``;
