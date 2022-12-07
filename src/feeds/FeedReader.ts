@@ -11,6 +11,7 @@ import Parser from "rss-parser";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
+import { StatusCodes } from "http-status-codes";
 
 const log = new Logger("FeedReader");
 
@@ -252,6 +253,12 @@ export class FeedReader {
                 }
                 this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url: url } });
             } catch (err: unknown) {
+                if (axios.isAxiosError(err)) {
+                    // No new feed items, skip.
+                    if (err.response?.status === StatusCodes.NOT_MODIFIED) {
+                        continue;
+                    }
+                }
                 const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
                 const feedError = new FeedError(url.toString(), error, fetchKey);
                 log.error("Unable to read feed:", feedError.message);
