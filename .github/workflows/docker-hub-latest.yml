@@ -12,10 +12,6 @@ env:
   # Only push if this is main, otherwise we just want to build
   PUSH: ${{ github.ref == 'refs/heads/main' }}
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   docker-latest:
     runs-on: ubuntu-latest
@@ -33,27 +29,11 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Build image
         uses: docker/build-push-action@v3
-        if: env.PUSH == 'false'
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          push: false
-          tags: |
-            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:latest
-
-          # arm64 builds OOM without the git fetch setting. c.f.
-          # https://github.com/rust-lang/cargo/issues/10583
-          build-args: |
-            CARGO_NET_GIT_FETCH_WITH_CLI=true
-      - name: Build image (push)
-        uses: docker/build-push-action@v3
-        if: env.PUSH
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: ${{ env.PLATFORMS_PUSH }}
-          push: true
+          platforms: ${{ (env.PUSH == 'true' && env.PLATFORMS_PUSH) || env.PLATFORMS }}
+          push: ${{ env.PUSH }}
           tags: |
             ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:latest
 
