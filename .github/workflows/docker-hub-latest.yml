@@ -7,7 +7,8 @@ on:
 
 env:
   DOCKER_NAMESPACE: halfshot
-  PLATFORMS: linux/amd64,linux/arm64
+  PLATFORMS: linux/amd64
+  PLATFORMS_PUSH: linux/amd64,linux/arm64
   # Only push if this is main, otherwise we just want to build
   PUSH: ${{ github.ref == 'refs/heads/main' }}
 
@@ -31,7 +32,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ (env.PUSH == 'true' && env.PLATFORMS_PUSH) || env.PLATFORMS }}
           push: ${{ env.PUSH }}
           tags: |
             ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:latest
