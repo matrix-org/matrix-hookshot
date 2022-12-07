@@ -51,7 +51,7 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     excludingLabels?: string[];
     hotlinkIssues?: boolean|{
         prefix: string;
-    };
+    }|null;
     newIssue?: {
         labels: string[];
     };
@@ -205,7 +205,7 @@ const ConnectionStateSchema = {
         items: {type: "string"},
     },
     hotlinkIssues: {
-        type: "object",
+        type: ["object","boolean"],
         nullable: true,
         oneOf: [{
             type: "object",
@@ -299,7 +299,7 @@ export interface GitHubTargetFilter {
 export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
 
 	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
-        const validator = new Ajv().compile(ConnectionStateSchema);
+        const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
             // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
             if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
@@ -486,7 +486,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (cfg === false) {
             return false;
         }
-        if (cfg === true || cfg === undefined || cfg.prefix === undefined) {
+        if (cfg === true || cfg === undefined || cfg?.prefix === undefined) {
             return {
                 prefix: DEFAULT_HOTLINK_PREFIX,
             }
