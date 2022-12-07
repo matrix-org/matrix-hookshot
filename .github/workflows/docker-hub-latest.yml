@@ -33,11 +33,27 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Build image
         uses: docker/build-push-action@v3
+        if: "!env.PUSH"
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ (env.PUSH && env.PLATFORMS_PUSH) || env.PLATFORMS }}
-          push: ${{ env.PUSH }}
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          tags: |
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:latest
+
+          # arm64 builds OOM without the git fetch setting. c.f.
+          # https://github.com/rust-lang/cargo/issues/10583
+          build-args: |
+            CARGO_NET_GIT_FETCH_WITH_CLI=true
+      - name: Build image (push)
+        uses: docker/build-push-action@v3
+        if: env.PUSH
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ env.PLATFORMS_PUSH }}
+          push: true
           tags: |
             ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot:latest
 
