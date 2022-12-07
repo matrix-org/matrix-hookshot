@@ -1,0 +1,1 @@
+RSS feed polling now uses cache headers sent by servers, which should mean we will be more conservative on resources.
