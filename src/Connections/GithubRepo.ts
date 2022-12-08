@@ -1059,7 +1059,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         });
     }
 
-    public async onReleasePublished(event: ReleasePublishedEvent) {
+    public async onReleaseCreated(event: ReleasePublishedEvent) {
         // This checks `release.created` despite the function being called onReleasePublished
         // because historically release.created used to refer to all releases (rather than just published ones).
         // This is now considered an *unsafe* default, so hookshot now treats release.created
@@ -1067,7 +1067,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (this.hookFilter.shouldSkip('release', 'release.created')) {
             return;
         }
-        log.info(`onReleasePublished ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
+        log.info(`onReleaseCreated ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
         if (!event.release) {
             throw Error('No release content!');
         }
@@ -1087,13 +1087,13 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         });
     }
 
-    public async onReleaseCreated(event: ReleaseCreatedEvent) {
+    public async onReleaseDrafted(event: ReleaseCreatedEvent) {
         // This function handles release.created events but published releases are handled by the above function,
         // therefore this only handles drafted releases.
         if (this.hookFilter.shouldSkip('release', 'release.drafted') || !event.release.draft) {
             return;
         }
-        log.info(`onReleaseCreated ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
+        log.info(`onReleaseDrafted ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`);
         if (!event.release) {
             throw Error('No release content!');
         }
