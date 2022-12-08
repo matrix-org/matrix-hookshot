@@ -775,6 +775,8 @@ ${data.description}`;
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        // Apply previous state to the current config, as provisioners might not return "unknown" keys.
+        config = { ...this.state, ...config };
         const validatedConfig = GitLabRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;

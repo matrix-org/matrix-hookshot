@@ -209,7 +209,7 @@ const ConnectionStateSchema = {
         items: {type: "string"},
     },
     hotlinkIssues: {
-        type: "object",
+        type: ["object","boolean"],
         nullable: true,
         oneOf: [{
             type: "object",
@@ -313,11 +313,14 @@ export interface GitHubTargetFilter {
 export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
 
 	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
-        const validator = new Ajv().compile(ConnectionStateSchema);
+        const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
             // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
             if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
                 throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            }
+            if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
             }
             return state;
         }
@@ -1298,7 +1301,9 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
-        const validatedConfig = GitHubRepoConnection.validateState(config);
+        // Apply previous state to the current config, as provisioners might not return "unknown" keys.
+        const newState = { ...this.state, ...config };
+        const validatedConfig = GitHubRepoConnection.validateState(newState);
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];

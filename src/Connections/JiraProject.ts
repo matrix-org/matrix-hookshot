@@ -507,6 +507,8 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        // Apply previous state to the current config, as provisioners might not return "unknown" keys.
+        config = { ...config, ...this.state };
         const validatedConfig = validateJiraConnectionState(config);
         if (!validatedConfig.id) {
             await this.updateProjectId(validatedConfig, userId);
