@@ -51,7 +51,7 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     excludingLabels?: string[];
     hotlinkIssues?: boolean|{
         prefix: string;
-    }|null;
+    };
     newIssue?: {
         labels: string[];
     };
@@ -486,7 +486,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (cfg === false) {
             return false;
         }
-        if (cfg === true || cfg === undefined || cfg?.prefix === undefined) {
+        if (cfg === true || cfg === undefined || cfg.prefix === undefined) {
             return {
                 prefix: DEFAULT_HOTLINK_PREFIX,
             }
