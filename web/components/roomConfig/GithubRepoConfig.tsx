@@ -245,7 +245,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.action_required" onChange={toggleEnabledHook}>Action Required</EventCheckbox>
                     <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.stale" onChange={toggleEnabledHook}>Stale</EventCheckbox>
                 </ul>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="release" onChange={toggleIgnoredHook}>Releases</EventCheckbox>
+                <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} eventName="release" onChange={toggleIgnoredHook}>Releases</EventCheckbox>
+                <ul>
+                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="release" eventName="release.created" onChange={toggleIgnoredHook}>Published</EventCheckbox>
+                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="release" eventName="release.drafted" onChange={toggleEnabledHook}>Drafted</EventCheckbox>
+                </ul>
             </ul>
         </InputField>
         <ButtonSet>

@@ -328,10 +328,16 @@ export class Bridge {
             (c, data) => c.onWorkflowCompleted(data),
         );
 
+        this.bindHandlerToQueue<GitHubWebhookTypes.ReleasePublishedEvent, GitHubRepoConnection>(
+            "github.release.published",
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (c, data) => c.onReleaseCreated(data),
+        );
+
         this.bindHandlerToQueue<GitHubWebhookTypes.ReleaseCreatedEvent, GitHubRepoConnection>(
             "github.release.created",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
-            (c, data) => c.onReleaseCreated(data),
+            (c, data) => c.onReleaseDrafted(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
