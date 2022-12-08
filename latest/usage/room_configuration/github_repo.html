@@ -185,6 +185,8 @@ a new release.</p>
 <tr><td>newIssue.labels</td><td>Automatically set these labels on issues created via commands</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 <tr><td>workflowRun</td><td>Configuration options for workflow run results</td><td><code>{ matchingBranch: string }</code></td><td><em>empty</em></td></tr>
 <tr><td>workflowRun.matchingBranch</td><td>Only report workflow runs if it matches this regex.</td><td>Regex string</td><td><em>empty</em></td></tr>
+<tr><td>workflowRun.includingWorkflows</td><td>Only report workflow runs with a matching workflow name.</td><td>Array of: String matching a workflow name</td><td><em>empty</em></td></tr>
+<tr><td>workflowRun.excludingWorkflows</td><td>Never report workflow runs with a matching workflow name.</td><td>Array of: String matching a workflow name</td><td><em>empty</em></td></tr>
 </tbody></table>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
 <p><code>ignoreHooks</code> takes precedence over <code>enableHooks</code>.</p>
