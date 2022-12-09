@@ -174,6 +174,7 @@ export class ConnectionManager extends EventEmitter {
             return;
         }
 
+        // Get a bot user for the connection type
         const botUser = this.botUsersManager.getBotUserInRoom(roomId, connectionType.ServiceCategory);
         if (!botUser) {
             log.error(`Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connection for state`);
@@ -207,7 +208,6 @@ export class ConnectionManager extends EventEmitter {
 
         const state = await intent.underlyingClient.getRoomState(roomId);
         for (const event of state) {
-            // Choose a specific bot to user for the connection type
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event), rollbackBadState);
                 if (conn) {
