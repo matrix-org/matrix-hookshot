@@ -1,11 +1,12 @@
 {
   "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "module": "commonjs",
-    "target": "es2019",
     "moduleResolution": "node",
-    "jsx": "preserve",
-    "jsxFactory": "h",
-    /* noEmit - Snowpack builds (emits) files, not tsc. */
+    "target": "es2019",
+    "types": ["preact"],
+    /* noEmit - Vite builds (emits) files, not tsc. */
     "noEmit": true,
     /* Additional Options */
     "strict": true,
