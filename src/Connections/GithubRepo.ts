@@ -340,6 +340,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 }
                 log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
                 state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, DefaultHooks);
+                delete state.ignoreHooks;
             }
             return state;
         }

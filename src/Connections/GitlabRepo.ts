@@ -183,6 +183,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 }
                 log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
                 state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, AllowedEvents);
+                delete state.ignoreHooks;
             }
             return state;
         }

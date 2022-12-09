@@ -81,7 +81,8 @@ export interface ConnectionDeclaration<C extends IConnection = IConnection> {
     EventTypes: string[];
     ServiceCategory: string;
     provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C, warning?: ConnectionWarning}>;
-    createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>
+    checkIfStateRequiresUpgrade?: (data: StateEvent<Record<string, unknown>>) => Record<string, unknown>|false;
+    createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>;
 }
 
 export const ConnectionDeclarations: Array<ConnectionDeclaration> = [];
