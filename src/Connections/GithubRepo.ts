@@ -1097,7 +1097,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (event.release.body) {
             content += `\n\n${event.release.body}`
         }
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),

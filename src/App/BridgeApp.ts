@@ -35,7 +35,7 @@ async function start() {
         userNotificationWatcher.start();
     }
 
-    const bridgeApp = new Bridge(config, listener, appservice, storage);
+    const bridgeApp = new Bridge(config, listener, registration, appservice, storage);
 
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");

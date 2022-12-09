@@ -925,7 +925,7 @@ export class Bridge {
                                 github: this.github,
                                 getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
-                            this.getOrCreateAdminRoomForUser.bind(this),
+                            this.getOrCreateAdminRoom.bind(this),
                             this.connectionManager.push.bind(this.connectionManager),
                         );
                         const handled = await setupConnection.onMessageEvent(event, checkPermission);
