@@ -232,11 +232,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return `@${this.config.userIdPrefix}${name || 'bot'}:${domain}`;
     }
 
-    public async ensureDisplayname() {
+    public async ensureDisplayname(sender: string) {
         if (!this.state.name) {
             return;
         }
-        const sender = this.getUserId();
         if (sender === this.as.botUserId) {
             // Don't set the global displayname for the bot.
             return;   
@@ -377,7 +376,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         const sender = this.getUserId();
-        await this.ensureDisplayname();
+        await this.ensureDisplayname(sender);
 
         // Matrix cannot handle float data, so make sure we parse out any floats.
         const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);

@@ -23,6 +23,8 @@ queue:
   host: github-bridge-redis
 ```
 
+Note that if [encryption](./encryption.md) is enabled, `queue.monolithic` must be set to `true`, as worker mode is not yet supported with encryption.
+
 Once that is done, you can simply start the processes by name using yarn:
 ```
 yarn start:webhooks

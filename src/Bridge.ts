@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, IAppserviceRegistration, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, PantalaimonClient, MatrixClient, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -14,14 +14,12 @@ import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNot
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
 import { NotificationsEnableEvent, NotificationsDisableEvent } from "./Webhooks";
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
-import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
@@ -36,7 +34,6 @@ import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
-import { getAppservice } from "./appservice";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
@@ -44,8 +41,6 @@ import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReade
 const log = new Logger("Bridge");
 
 export class Bridge {
-    private readonly as: Appservice;
-    private readonly storage: IBridgeStorageProvider;
     private readonly messageClient: MessageSenderClient;
     private readonly queue: MessageQueue;
     private readonly commentProcessor: CommentProcessor;
@@ -53,24 +48,18 @@ export class Bridge {
     private readonly tokenStore: UserTokenStore;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
-    private encryptedMatrixClient?: MatrixClient;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi?: BridgeWidgetApi;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
     private ready = false;
 
-    constructor(private config: BridgeConfig, private registration: IAppserviceRegistration, private readonly listener: ListenerService) {
-        if (this.config.queue.host && this.config.queue.port) {
-            log.info(`Initialising Redis storage (on ${this.config.queue.host}:${this.config.queue.port})`);
-            this.storage = new RedisStorageProvider(this.config.queue.host, this.config.queue.port);
-        } else {
-            log.info('Initialising memory storage');
-            this.storage = new MemoryStorageProvider();
-        }
-        this.as = getAppservice(this.config, this.registration, this.storage);
-        Metrics.registerMatrixSdkMetrics(this.as);
+    constructor(
+        private config: BridgeConfig,
+        private readonly listener: ListenerService,
+        private readonly as: Appservice,
+        private readonly storage: IBridgeStorageProvider,
+    ) {
         this.queue = createMessageQueue(this.config.queue);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
@@ -97,7 +86,7 @@ export class Bridge {
         while(joinedRooms === undefined) {
             try {
                 log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botClient.getJoinedRooms();
+                joinedRooms = await this.as.botIntent.getJoinedRooms();
                 log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
             } catch (ex) {
                 // This is our first interaction with the homeserver, so wait if it's not ready yet.
@@ -120,24 +109,6 @@ export class Bridge {
         if (this.config.figma) {
             // Ensure webhooks are set up
             await ensureFigmaWebhooks(this.config.figma, this.as.botClient);
-        }
-
-        if (this.config.bridge.pantalaimon) {
-            log.info(`Loading pantalaimon client`);
-            const pan = new PantalaimonClient(
-                this.config.bridge.pantalaimon.url,
-                this.storage,
-            );
-            this.encryptedMatrixClient = await pan.createClientWithCredentials(
-                this.config.bridge.pantalaimon.username,
-                this.config.bridge.pantalaimon.password
-            );
-            this.encryptedMatrixClient.on("room.message", async (roomId, event) => {
-                return this.onRoomMessage(roomId, event);
-            });
-            // TODO: Filter
-            await this.encryptedMatrixClient.start();
-            log.info(`Pan client is syncing`);
         }
 
 
@@ -204,6 +175,11 @@ export class Bridge {
 
         this.as.on("room.join", async (roomId, event) => {
             return this.onRoomJoin(roomId, event);
+        });
+
+        this.as.on("room.failed_decryption", (roomId, event, err) => {
+            log.warn(`Failed to decrypt event ${event.event_id} from ${roomId}: ${err.message}`);
+            Metrics.matrixAppserviceDecryptionFailed.inc();
         });
 
         this.queue.subscribe("response.matrix.message");
@@ -434,7 +410,7 @@ export class Bridge {
             } as GitHubOAuthToken));
 
             // Some users won't have an admin room and would have gone through provisioning.
-            const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+            const adminRoom = this.getAdminRoomForUser(userId);
             if (adminRoom) {
                 await adminRoom.sendNotice("Logged into GitHub");
             }
@@ -559,7 +535,7 @@ export class Bridge {
                 });
 
                 // Some users won't have an admin room and would have gone through provisioning.
-                const adminRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+                const adminRoom = this.getAdminRoomForUser(userId);
                 if (adminRoom) {
                     await adminRoom.sendNotice("Logged into Jira");
                 }
@@ -741,7 +717,7 @@ export class Bridge {
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
             } 
-            this.widgetApi = new BridgeWidgetApi(
+            new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
@@ -795,30 +771,9 @@ export class Bridge {
 
         await retry(() => this.as.botIntent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            const room = await this.setUpAdminRoom(roomId, {admin_user: event.sender}, NotifFilter.getDefaultContent());
             await this.as.botClient.setRoomAccountData(
-                BRIDGE_ROOM_TYPE, roomId, room.accountData,
+                BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender},
             );
-            return;
-        }
-
-        if (this.connectionManager?.isRoomConnected(roomId)) {
-            // Room has connections, don't set up a wizard.
-            return;
-        }
-
-        try {
-            // Otherwise it's a new room
-            if (this.config.widgets?.roomSetupWidget?.addOnInvite) {
-                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
-                    await this.as.botIntent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin.");
-                } else {
-                    // Set up the widget
-                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
-                }
-            }
-        } catch (ex) {
-            log.error(`Failed to set up new widget for room`, ex);
         }
     }
 
@@ -892,7 +847,7 @@ export class Bridge {
                                 github: this.github,
                                 getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
-                            this.getOrCreateAdminRoom.bind(this),
+                            this.getOrCreateAdminRoomForUser.bind(this),
                             this.connectionManager.push.bind(this.connectionManager),
                         )
                     ).onMessageEvent(event, checkPermission);
@@ -926,7 +881,7 @@ export class Bridge {
                     log.info("Missing parts!:", splitParts, issueNumber);
                 }
             } catch (ex) {
-                await adminRoom.sendNotice("Failed to handle repy. You may not be authenticated to do that.");
+                await adminRoom.sendNotice("Failed to handle reply. You may not be authenticated to do that.");
                 log.error("Reply event could not be handled:", ex);
             }
             return;
@@ -944,14 +899,46 @@ export class Bridge {
             // Only act on bot joins
             return;
         }
+
+        if (this.config.encryption) {
+            // Ensure crypto is aware of all members of this room before posting any messages,
+            // so that the bot can share room keys to all recipients first.
+            await this.as.botClient.crypto.onRoomJoin(roomId);
+        }
+
+        const adminAccountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+            BRIDGE_ROOM_TYPE, roomId,
+        );
+        if (adminAccountData) {
+            const room = await this.setUpAdminRoom(roomId, adminAccountData, NotifFilter.getDefaultContent());
+            await this.as.botClient.setRoomAccountData(
+                BRIDGE_ROOM_TYPE, roomId, room.accountData,
+            );
+        }
+
         if (!this.connectionManager) {
             // Not ready yet.
             return;
         }
 
         // Only fetch rooms we have no connections in yet.
-        if (!this.connectionManager.isRoomConnected(roomId)) {
+        const roomHasConnection =
+            this.connectionManager.isRoomConnected(roomId) ||
             await this.connectionManager.createConnectionsForRoomId(roomId, true);
+
+        // If room has connections or is an admin room, don't setup a wizard.
+        // Otherwise it's a new room
+        if (!roomHasConnection && !adminAccountData && this.config.widgets?.roomSetupWidget?.addOnInvite) {
+            try {
+                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
+                    await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
+                } else {
+                    // Setup the widget
+                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+                }
+            } catch (ex) {
+                log.error(`Failed to setup new widget for room`, ex);
+            }
         }
     }
 
@@ -1180,22 +1167,26 @@ export class Bridge {
         
     }
 
-    private async getOrCreateAdminRoom(userId: string): Promise<AdminRoom> {
-        const existingRoom = [...this.adminRooms.values()].find(r => r.userId === userId);
+    private async getOrCreateAdminRoomForUser(userId: string): Promise<AdminRoom> {
+        const existingRoom = this.getAdminRoomForUser(userId);
         if (existingRoom) {
             return existingRoom;
         }
-        // Otherwise, we need to create a room.
-        const roomId = await this.as.botClient.createRoom({
-            invite: [userId],
-            is_direct: true,
-            preset: "trusted_private_chat",
-        });
+        const roomId = await this.as.botClient.dms.getOrCreateDm(userId);
         const room = await this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
         await this.as.botClient.setRoomAccountData(
             BRIDGE_ROOM_TYPE, roomId, room.accountData,
         );
         return room;
+    }
+
+    private getAdminRoomForUser(userId: string): AdminRoom|null {
+        for (const adminRoom of this.adminRooms.values()) {
+            if (adminRoom.userId === userId) {
+                return adminRoom;
+            }
+        }
+        return null;
     }
 
     private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
@@ -1258,7 +1249,8 @@ export class Bridge {
         } else {
             return;
         }
-        for (const adminRoom of [...this.adminRooms.values()].filter(r => r.userId === userId)) {
+        for (const adminRoom of this.adminRooms.values()) {
+            if (adminRoom.userId !== userId) continue;
             if (adminRoom?.notificationsEnabled(type, instanceName)) {
                 log.debug(`Token was updated for ${userId} (${type}), notifying notification watcher`);
                 this.queue.push<NotificationsEnableEvent>({

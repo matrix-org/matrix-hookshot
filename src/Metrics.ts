@@ -22,6 +22,7 @@ export class Metrics {
     private readonly matrixApiCallsFailed = new Counter({ name: "matrix_api_calls_failed", help: "The number of Matrix client API calls which failed", labelNames: ["method"], registers: [this.registry]});
 
     public readonly matrixAppserviceEvents = new Counter({ name: "matrix_appservice_events", help: "The number of events sent over the AS API", labelNames: [], registers: [this.registry]});
+    public readonly matrixAppserviceDecryptionFailed = new Counter({ name: "matrix_appservice_decryption_failed", help: "The number of events sent over the AS API that failed to decrypt", registers: [this.registry]});
 
     public readonly feedsCount = new Gauge({ name: "feed_count", help: "The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
     public readonly feedFetchMs = new Gauge({ name: "feed_fetch_ms", help: "The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});

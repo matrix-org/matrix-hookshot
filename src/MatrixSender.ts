@@ -1,10 +1,8 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { Appservice, IAppserviceRegistration, MemoryStorageProvider } from "matrix-bot-sdk";
+import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { v4 as uuid } from "uuid";
-import { getAppservice } from "./appservice";
-import Metrics from "./Metrics";
 
 export interface IMatrixSendMessage {
     sender: string|null;
@@ -26,11 +24,8 @@ const log = new Logger("MatrixSender");
 
 export class MatrixSender {
     private mq: MessageQueue;
-    private as: Appservice;
-    constructor(private config: BridgeConfig, registration: IAppserviceRegistration) {
+    constructor(private config: BridgeConfig, private readonly as: Appservice) {
         this.mq = createMessageQueue(this.config.queue);
-        this.as = getAppservice(config, registration, new MemoryStorageProvider());
-        Metrics.registerMatrixSdkMetrics(this.as);
     }
 
     public listen() {
@@ -52,7 +47,15 @@ export class MatrixSender {
 
     public async sendMatrixMessage(messageId: string, msg: IMatrixSendMessage) {
         const intent = msg.sender ? this.as.getIntentForUserId(msg.sender) : this.as.botIntent;
-        await intent.ensureRegisteredAndJoined(msg.roomId);
+        if (this.config.encryption) {
+            // Ensure crypto is aware of all members of this room before posting any messages,
+            // so that the bot can share room keys to all recipients first.
+            await intent.enableEncryption();
+            await intent.joinRoom(msg.roomId);
+            await intent.underlyingClient.crypto.onRoomJoin(msg.roomId);
+        } else {
+            await intent.ensureRegisteredAndJoined(msg.roomId);
+        }
         try {
                 const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
                 log.info(`Sent event to room ${msg.roomId} (${msg.sender}) > ${eventId}`);

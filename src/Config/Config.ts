@@ -381,11 +381,8 @@ interface BridgeConfigBridge {
     mediaUrl?: string;
     port: number;
     bindAddress: string;
-    pantalaimon?: {
-        url: string;
-        username: string;
-        password: string;
-    }
+    // Removed
+    pantalaimon?: never;
 }
 
 interface BridgeConfigWebhook {
@@ -410,6 +407,9 @@ interface BridgeConfigBot {
     displayname?: string;
     avatar?: string;
 }
+interface BridgeConfigEncryption {
+    storagePath: string;
+}
 
 export interface BridgeConfigProvisioning {
     bindAddress?: string;
@@ -426,6 +426,7 @@ export interface BridgeConfigMetrics {
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
+    encryption?: BridgeConfigEncryption;
     figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeedsYAML;
     generic?: BridgeGenericWebhooksConfigYAML;
@@ -446,7 +447,11 @@ export interface BridgeConfigRoot {
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
-    @configKey("Message queue / cache configuration options for large scale deployments", true)
+    @configKey(`Configuration for encryption support in the bridge.
+ If omitted, encryption support will be disabled.`, true)
+    public readonly encryption?: BridgeConfigEncryption;
+    @configKey(`Message queue / cache configuration options for large scale deployments.
+ For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
@@ -510,6 +515,7 @@ export class BridgeConfig {
         this.queue = configData.queue || {
             monolithic: true,
         };
+        this.encryption = configData.encryption;
 
         this.logging = configData.logging || {
             level: "info",
@@ -600,6 +606,18 @@ export class BridgeConfig {
 
         if (this.widgets && this.widgets.openIdOverrides) {
             log.warn("The `widgets.openIdOverrides` config value SHOULD NOT be used in a production environment.")
+        }
+
+        if (this.bridge.pantalaimon) {
+            throw new ConfigError("bridge.pantalaimon", "Pantalaimon support has been removed. Encrypted bridges should now use the `encryption` config option");
+        }
+
+        if (this.encryption && !this.queue.monolithic) {
+            throw new ConfigError("queue.monolithic", "Encryption is not supported in worker mode yet.");
+        }
+
+        if (this.encryption && !this.queue.port) {
+            throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
         }
     }
 
