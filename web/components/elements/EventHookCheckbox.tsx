@@ -11,13 +11,11 @@ export const EventHookCheckbox: FunctionComponent<{
         throw Error(`Invalid configuration for checkbox ${eventName}`);
     }
 
-    const disabled = !!(parentEvent && !enabledHooks.includes(parentEvent));
-    const checked = enabledHooks.includes(eventName);
+    const checked = enabledHooks.includes(eventName) || (parentEvent && enabledHooks.includes(parentEvent));
 
     return <li>
         <label>
             <input
-            disabled={disabled}
             type="checkbox"
             x-event-name={eventName}
             checked={checked}

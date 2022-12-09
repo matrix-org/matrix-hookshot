@@ -159,20 +159,20 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!connectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
             <ul>
-                <EventHookCheckbox eventName="issue" onChange={toggleEnabledHook}>Issues</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} eventName="issue" onChange={toggleEnabledHook}>Issues</EventHookCheckbox>
                 <ul>
-                    <EventHookCheckbox parentEvent="issue" eventName="issue.created" onChange={toggleEnabledHook}>Created</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="issue" eventName="issue.changed" onChange={toggleEnabledHook}>Changed</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="issue" eventName="issue.edited" onChange={toggleEnabledHook}>Edited</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="issue" eventName="issue.labeled" onChange={toggleEnabledHook}>Labeled</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" eventName="issue.created" onChange={toggleEnabledHook}>Created</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" eventName="issue.changed" onChange={toggleEnabledHook}>Changed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" eventName="issue.edited" onChange={toggleEnabledHook}>Edited</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" eventName="issue.labeled" onChange={toggleEnabledHook}>Labeled</EventHookCheckbox>
                 </ul>
-                <EventHookCheckbox eventName="pull_request" onChange={toggleEnabledHook}>Pull requests</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} eventName="pull_request" onChange={toggleEnabledHook}>Pull requests</EventHookCheckbox>
                 <ul>
-                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.opened" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.closed" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.merged" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
-                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.reviewed" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" eventName="pull_request.opened" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" eventName="pull_request.closed" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" eventName="pull_request.merged" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" eventName="pull_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" eventName="pull_request.reviewed" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
                 </ul>
                 <EventHookCheckbox enabledHooks={enabledHooks} eventName="workflow.run" onChange={toggleEnabledHook}>Workflow Runs</EventHookCheckbox>
                 <ul>
