@@ -1,11 +1,12 @@
-import { h, FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
+import GitHubIcon from "../../icons/github.png";
 import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { ErrCode } from "../../../src/api";
+import { EventHookCheckbox } from '../elements/EventHookCheckbox';
+import { FunctionComponent, createRef } from "preact";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubTargetFilter, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
-import GitHubIcon from "../../icons/github.png";
+import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 const NUM_REPOS_PER_PAGE = 10;
@@ -119,75 +120,14 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     </div>;
 }
 
-const EventCheckbox: FunctionComponent<{
-    ignoredHooks?: string[],
-    enabledHooks?: string[],
-    onChange: (evt: HTMLInputElement) => void,
-    eventName: string,
-    parentEvent?: string,
-}> = ({ignoredHooks, enabledHooks, onChange, eventName, parentEvent, children}) => {
-    let disabled = false;
-    let checked = false;
-
-    if (!enabledHooks && !ignoredHooks) {
-        throw Error(`Invalid configuration for checkbox ${eventName}`);
-    }
-
-    if (enabledHooks) {
-        disabled = !!(parentEvent && !enabledHooks.includes(parentEvent));
-        checked = enabledHooks.includes(eventName);
-        if (ignoredHooks?.includes(eventName)) {
-            // If both are set, this was previously a on-by-default event
-            // that is now off-by-default, and so we need to check both fields.
-            disabled = !!(parentEvent && ignoredHooks.includes(parentEvent)); 
-            checked = true
-        }
-    } else if (ignoredHooks) {
-        // If enabled hooks is not set, this is on-by-default hook.
-        disabled = !!(parentEvent && ignoredHooks.includes(parentEvent)); 
-        checked = !ignoredHooks.includes(eventName);
-    }
-
-    return <li>
-        <label>
-            <input
-            disabled={disabled}
-            type="checkbox"
-            x-event-name={eventName}
-            checked={checked}
-            onChange={onChange} />
-            { children }
-        </label>
-    </li>;
-};
-
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitHubRepoResponseItem, GitHubRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
-    const [ignoredHooks, setIgnoredHooks] = useState<string[]>(existingConnection?.config.ignoreHooks || []);
-    // Only used for off-by-default hooks.
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
 
-    const toggleIgnoredHook = useCallback(evt => {
-        const key = (evt.target as HTMLElement).getAttribute('x-event-name');
-        if (key) {
-            setIgnoredHooks(ignoredHooks => (
-                ignoredHooks.includes(key) ? ignoredHooks.filter(k => k !== key) : [...ignoredHooks, key]
-            ));
-            // Remove from enabledHooks
-            setEnabledHooks(enabledHooks => (
-                enabledHooks.filter(k => k !== key)
-            ));
-        }
-    }, []);
-
-    const toggleEnabledHook = useCallback(evt => {
+    const toggleEnabledHook = useCallback((evt: any) => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
         if (key) {
             setEnabledHooks(enabledHooks => (
                 enabledHooks.includes(key) ? enabledHooks.filter(k => k !== key) : [...enabledHooks, key]
-            ));
-            // Remove from ignoreHooks
-            setIgnoredHooks(ignoredHooks => (
-                ignoredHooks.filter(k => k !== key)
             ));
         }
     }, []);
@@ -205,12 +145,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         if (state) {
             onSave({
                 ...(state),
-                ignoreHooks: ignoredHooks as any[],
                 enableHooks: enabledHooks as any[],
                 commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
-    }, [enabledHooks, canEdit, existingConnection, connectionState, ignoredHooks, commandPrefixRef, onSave]);
+    }, [enabledHooks, canEdit, existingConnection, connectionState, commandPrefixRef, onSave]);
 
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setConnectionState} />}
@@ -220,35 +159,35 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!connectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
             <ul>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="issue" onChange={toggleIgnoredHook}>Issues</EventCheckbox>
+                <EventHookCheckbox eventName="issue" onChange={toggleEnabledHook}>Issues</EventHookCheckbox>
                 <ul>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="issue" eventName="issue.created" onChange={toggleIgnoredHook}>Created</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="issue" eventName="issue.changed" onChange={toggleIgnoredHook}>Changed</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="issue" eventName="issue.edited" onChange={toggleIgnoredHook}>Edited</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="issue" eventName="issue.labeled" onChange={toggleIgnoredHook}>Labeled</EventCheckbox>
+                    <EventHookCheckbox parentEvent="issue" eventName="issue.created" onChange={toggleEnabledHook}>Created</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="issue" eventName="issue.changed" onChange={toggleEnabledHook}>Changed</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="issue" eventName="issue.edited" onChange={toggleEnabledHook}>Edited</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="issue" eventName="issue.labeled" onChange={toggleEnabledHook}>Labeled</EventHookCheckbox>
                 </ul>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="pull_request" onChange={toggleIgnoredHook}>Pull requests</EventCheckbox>
+                <EventHookCheckbox eventName="pull_request" onChange={toggleEnabledHook}>Pull requests</EventHookCheckbox>
                 <ul>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.opened" onChange={toggleIgnoredHook}>Opened</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.closed" onChange={toggleIgnoredHook}>Closed</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.merged" onChange={toggleIgnoredHook}>Merged</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.ready_for_review" onChange={toggleIgnoredHook}>Ready for review</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="pull_request" eventName="pull_request.reviewed" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
+                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.opened" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.closed" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.merged" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
+                    <EventHookCheckbox parentEvent="pull_request" eventName="pull_request.reviewed" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
                 </ul>
-                <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} eventName="workflow.run" onChange={toggleEnabledHook}>Workflow Runs</EventCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} eventName="workflow.run" onChange={toggleEnabledHook}>Workflow Runs</EventHookCheckbox>
                 <ul>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.success" onChange={toggleEnabledHook}>Success</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.failure" onChange={toggleEnabledHook}>Failed</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.neutral" onChange={toggleEnabledHook}>Neutral</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.cancelled" onChange={toggleEnabledHook}>Cancelled</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.timed_out" onChange={toggleEnabledHook}>Timed Out</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.action_required" onChange={toggleEnabledHook}>Action Required</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="workflow.run" eventName="workflow.run.stale" onChange={toggleEnabledHook}>Stale</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.success" onChange={toggleEnabledHook}>Success</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.failure" onChange={toggleEnabledHook}>Failed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.neutral" onChange={toggleEnabledHook}>Neutral</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.cancelled" onChange={toggleEnabledHook}>Cancelled</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.timed_out" onChange={toggleEnabledHook}>Timed Out</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.action_required" onChange={toggleEnabledHook}>Action Required</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" eventName="workflow.run.stale" onChange={toggleEnabledHook}>Stale</EventHookCheckbox>
                 </ul>
-                <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} eventName="release" onChange={toggleIgnoredHook}>Releases</EventCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} eventName="release" onChange={toggleEnabledHook}>Releases</EventHookCheckbox>
                 <ul>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="release" eventName="release.created" onChange={toggleIgnoredHook}>Published</EventCheckbox>
-                    <EventCheckbox enabledHooks={enabledHooks} ignoredHooks={ignoredHooks} parentEvent="release" eventName="release.drafted" onChange={toggleEnabledHook}>Drafted</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="release" eventName="release.created" onChange={toggleEnabledHook}>Published</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="release" eventName="release.drafted" onChange={toggleEnabledHook}>Drafted</EventHookCheckbox>
                 </ul>
             </ul>
         </InputField>
