@@ -23,26 +23,32 @@ This connection supports a few options which can be defined in the room state:
 
 | Option | Description | Allowed values | Default |
 |--------|-------------|----------------|---------|
-|ignoreHooks|Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
 |commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gh`|
-|pushTagsRegex|Only mention pushed tags which match this regex|Regex string|*empty*|
-|includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|enableHooks [^1]|Enable notifications for some event types|Array of: [Supported event types](#supported-event-types) |If not defined, defaults are mentioned below|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|ignoreHooks [^1]|**deprecated** Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
 |includeCommentBody|Include the body of a comment when notifying on merge requests|Boolean|false|
+|includingLabels|Only notify on issues matching these label names|Array of: String matching a label name|*empty*|
+|pushTagsRegex|Only mention pushed tags which match this regex|Regex string|*empty*|
+
+
+[^1]: `ignoreHooks` is no longer accepted for new state events. Use `enableHooks` to explicitly state all events you want to see.
 
 
 ### Supported event types
 
 This connection supports sending messages when the following actions happen on the repository.
 
-- merge_request
-  - merge_request.close
-  - merge_request.merge
-  - merge_request.open
-  - merge_request.review.comments
-  - merge_request.review
-- push
-- release
-  - release.created
-- tag_push
-- wiki
+Note: Some of these event types are enabled by default (marked with a `*`)
+
+- merge_request *
+  - merge_request.close *
+  - merge_request.merge *
+  - merge_request.open *
+  - merge_request.review.comments *
+  - merge_request.review *
+- push *
+- release *
+  - release.created *
+- tag_push *
+- wiki *
