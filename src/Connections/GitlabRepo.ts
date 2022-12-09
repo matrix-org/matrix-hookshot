@@ -21,6 +21,11 @@ import { HookFilter } from "../HookFilter";
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
+    enableHooks?: AllowedEventsNames[],
+    /**
+     * Do not use. Use `enableHooks`
+     * @deprecated
+     */
     ignoreHooks?: AllowedEventsNames[],
     includeCommentBody?: boolean;
     pushTagsRegex?: string,
@@ -80,6 +85,8 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release.created",
 ];
 
+const DefaultHooks = AllowedEvents;
+
 const ConnectionStateSchema = {
     type: "object",
     properties: {
@@ -89,7 +96,18 @@ const ConnectionStateSchema = {
         },
         instance: { type: "string" },
         path: { type: "string" },
+        /**
+         * Do not use. Use `enableHooks`
+         * @deprecated
+         */
         ignoreHooks: {
+            type: "array",
+            items: {
+                type: "string",
+            },
+            nullable: true,
+        },
+        enableHooks: {
             type: "array",
             items: {
                 type: "string",
@@ -155,9 +173,16 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 	static validateState(state: unknown, isExistingState = false): GitLabRepoConnectionState {
         const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
         if (validator(state)) {
-            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
-            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            // Validate enableHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
+            }
+            if (state.ignoreHooks) {
+                if (!isExistingState) {
+                    throw new ApiError('`ignoreHooks` cannot be used with new connections', ErrCode.BadValue);
+                }
+                log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
+                state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, AllowedEvents);
             }
             return state;
         }
@@ -327,10 +352,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 throw Error('Invalid state, missing `path` or `instance`');
             }
             this.hookFilter = new HookFilter(
-                // GitLab allows all events by default
-                AllowedEvents,
-                [],
-                state.ignoreHooks,
+                state.enableHooks ?? DefaultHooks,
             );
     }
 
@@ -361,7 +383,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         await super.onStateUpdate(stateEv);
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks ?? DefaultHooks;
     }
 
     public getProvisionerDetails(): GitLabRepoResponseItem {
@@ -780,7 +802,7 @@ ${data.description}`;
         const validatedConfig = GitLabRepoConnection.validateState(config);
         await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks ?? DefaultHooks;
     }
 
     public async onRemove() {

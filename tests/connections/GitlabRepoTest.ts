@@ -3,6 +3,7 @@ import { UserTokenStore } from "../../src/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";
+import { expect } from "chai";
 
 const ROOM_ID = "!foo:bar";
 
@@ -60,7 +61,7 @@ describe("GitLabRepoConnection", () => {
 			GitLabRepoConnection.validateState({
 				instance: "foo",
 				path: "bar/baz",
-				ignoreHooks: [
+				enableHooks: [
 					"merge_request.open",
 					"merge_request.close",
 					"merge_request.merge",
@@ -79,6 +80,17 @@ describe("GitLabRepoConnection", () => {
 				excludingLabels: ["but-not-me"],
 			} as GitLabRepoConnectionState as unknown as Record<string, unknown>);
 		});
+		it("will convert ignoredHooks for existing state", () => {
+			const state = GitLabRepoConnection.validateState({
+				instance: "foo",
+				path: "bar/baz",
+				ignoreHooks: [
+					"merge_request",
+				],
+				commandPrefix: "!gl",
+			} as GitLabRepoConnectionState as unknown as Record<string, unknown>, true);
+			expect(state.enableHooks).to.not.contain('merge_request');
+		});
 		it("will disallow invalid state", () => {
 			try {
 				GitLabRepoConnection.validateState({
@@ -91,12 +103,12 @@ describe("GitLabRepoConnection", () => {
 				}
 			}
 		});
-		it("will disallow ignoreHooks to contains invalid enums if this is new state", () => {
+		it("will disallow enabledHooks to contains invalid enums if this is new state", () => {
 			try {
 				GitLabRepoConnection.validateState({
 					instance: "bar",
 					path: "foo",
-					ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+					enabledHooks: ["issue", "pull_request", "release", "not-real"],
 				}, false);
 			} catch (ex) {
 				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
@@ -104,11 +116,11 @@ describe("GitLabRepoConnection", () => {
 				}
 			}
 		});
-		it("will allow ignoreHooks to contains invalid enums if this is old state", () => {
+		it("will allow enabledHooks to contains invalid enums if this is old state", () => {
 			GitLabRepoConnection.validateState({
 				instance: "bar",
 				path: "foo",
-				ignoreHooks: ["issues", "merge_request", "foo"],
+				enabledHooks: ["issues", "merge_request", "foo"],
 			}, true);
 		});
 	});

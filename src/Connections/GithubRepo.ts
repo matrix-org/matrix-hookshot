@@ -40,8 +40,12 @@ interface IQueryRoomOpts {
 }
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
-    enableHooks?: AllowedEventsNames[],
+    /**
+     * Do not use. Use `enableHooks`.
+     * @deprecated
+     */
     ignoreHooks?: AllowedEventsNames[],
+    enableHooks?: AllowedEventsNames[],
     showIssueRoomLink?: boolean;
     prDiff?: {
         enabled: boolean;
@@ -136,8 +140,17 @@ const AllowedEvents: AllowedEventsNames[] = [
  * These hooks are enabled by default, unless they are
  * specifed in the ignoreHooks option.
  */
-const AllowHookByDefault: AllowedEventsNames[] = [
+const DefaultHooks: AllowedEventsNames[] = [
+    "issue.changed",
+    "issue.created",
+    "issue.edited",
+    "issue.labeled",
     "issue",
+    "pull_request.closed",
+    "pull_request.merged",
+    "pull_request.opened",
+    "pull_request.ready_for_review",
+    "pull_request.reviewed",
     "pull_request",
     "release.created"
 ];
@@ -151,6 +164,10 @@ const ConnectionStateSchema = {
     },
     org: {type: "string"},
     repo: {type: "string"},
+    /**
+     * Legacy state.
+     * @deprecated
+     */
     ignoreHooks: {
         type: "array",
         items: {
@@ -311,16 +328,18 @@ export interface GitHubTargetFilter {
  */
 @Connection
 export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
-
 	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
         const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
-            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
-            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
-            }
             if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
                 throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
+            }
+            if (state.ignoreHooks) {
+                if (!isExistingState) {
+                    throw new ApiError('`ignoreHooks` cannot be used with new connections', ErrCode.BadValue);
+                }
+                log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
+                state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, DefaultHooks);
             }
             return state;
         }
@@ -489,9 +508,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 "github",
             );
         this.hookFilter = new HookFilter(
-            AllowHookByDefault,
-            state.enableHooks,
-            state.ignoreHooks,
+            state.enableHooks ?? DefaultHooks,
         )
     }
 
@@ -531,7 +548,6 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         await super.onStateUpdate(stateEv);
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -1307,7 +1323,6 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public async onRemove() {
