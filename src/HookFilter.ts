@@ -1,19 +1,32 @@
 export class HookFilter<T extends string> {
+    static convertIgnoredHooksToEnabledHooks<T extends string>(enabledHooks: T[] = [], ignoredHooks: T[] = [], defaultHooks: T[]): T[] {
+        const hookSet = new Set([
+            ...enabledHooks,
+            // Add all the default hooks
+            ...defaultHooks
+        ]);
+
+        // For each ignored hook, remove a default
+        for (const ignoredHook of ignoredHooks) {
+            hookSet.delete(ignoredHook);
+            // If the hook is a "root" hook name, remove all children.
+            for (const currentHook of hookSet) {
+                if (currentHook.startsWith(`${ignoredHook}.`)) {
+                    hookSet.delete(currentHook);
+                } 
+            }
+        }
+
+        return [...hookSet];
+    }
+
     constructor(
-        public readonly defaultHooks: T[],
         public enabledHooks: T[] = [],
-        public ignoredHooks: T[] = []
     ) {
 
     }
 
     public shouldSkip(...hookName: T[]) {
-        if (hookName.some(name => this.ignoredHooks.includes(name))) {
-            return true;
-        }
-        if (hookName.some(name => this.enabledHooks.includes(name))) {
-            return false;
-        }
-        return !hookName.some(h => this.defaultHooks.includes(h));
+        return !hookName.some(name => this.enabledHooks.includes(name));
     }
 }
