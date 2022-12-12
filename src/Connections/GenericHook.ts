@@ -36,6 +36,8 @@ export interface GenericHookSecrets {
 
 export type GenericHookResponseItem = GetConnectionsResponseItem<GenericHookConnectionState, GenericHookSecrets>;
 
+const MatrixUriEventRegex = /^matrix:(roomid|r)\/(.+:.+)\/(\$.+)/;
+
 /** */
 export interface GenericHookAccountData {
     /**
@@ -58,6 +60,8 @@ const md = new markdownit();
 const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 10;
 const SANITIZE_MAX_BREADTH = 50;
+
+const SCRIPT_EXECUTE_LIMIT = 10;
 
 /**
  * Handles rooms connected to a generic webhook.
@@ -207,15 +211,20 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         private readonly messageClient: MessageSenderClient,
         private readonly config: BridgeConfigGenericWebhooks,
         private readonly as: Appservice) {
-            super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
-            if (state.transformationFunction && config.allowJsTransformationFunctions) {
-                this.transformationFunction = new Script(state.transformationFunction);
-            }
+        super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
+        if (state.transformationFunction && config.allowJsTransformationFunctions) {
+            this.transformationFunction = GenericHookConnection.compileScript(state.transformationFunction);
         }
+    }
 
-        public get priority(): number {
-            return this.state.priority || super.priority;
-        }
+    public static compileScript(scriptSrc: string) {
+        // We do this so that any `await` calls at the top level work.
+        return new Script(`return (async () => { ${scriptSrc} })();`);
+    }
+
+    public get priority(): number {
+        return this.state.priority || super.priority;
+    }
 
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -262,7 +271,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>, this.config.allowJsTransformationFunctions || false);
         if (validatedConfig.transformationFunction) {
             try {
-                this.transformationFunction = new Script(validatedConfig.transformationFunction);
+                this.transformationFunction = GenericHookConnection.compileScript(validatedConfig.transformationFunction);
             } catch (ex) {
                 await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + ex);
             }
@@ -299,8 +308,30 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         // TODO: Transform Slackdown into markdown.
         return msg;
     }
+    
+    public async loadMatrixScript(scriptPath: string) {
+        if (typeof scriptPath !== "string") {
+            throw Error('loadMatrixScript takes a string')
+        }
+        const matrixUri = MatrixUriEventRegex.exec(scriptPath);
+        if (!matrixUri) {
+            throw Error('Not a valid matrix path. Use the event URI scheme from https://spec.matrix.org/v1.3/appendices/#matrix-uri-scheme');
+        }
+        const [ _, type, prefixlessRoomId, eventId ] = matrixUri;
+        let roomId = "!" + prefixlessRoomId;
+        if (type === "r") {
+            // RoomAlias -> resolve
+            roomId = await this.as.botClient.resolveRoom("#" + prefixlessRoomId);
+        }
+        const eventData = (await this.as.botClient.getEvent(roomId, eventId)).content as GenericHookConnectionState;
 
-    public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
+        if (typeof eventData.transformationFunction !== "string") {
+            throw Error('Event did not contain a transformation function!');
+        }
+        return eventData.transformationFunction;
+    }
+
+    public async executeTransformationFunction(data: unknown): Promise<{plain: string, html?: string, msgtype?: string}|null> {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -311,9 +342,37 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             eval: false,
             timeout: TRANSFORMATION_TIMEOUT_MS,
         });
+
         vm.setGlobal('HookshotApiVersion', 'v2');
         vm.setGlobal('data', data);
-        vm.run(this.transformationFunction);
+
+        if (this.config.transformationFeatures?.allowloadMatrixScript) {
+            let executions = 0;
+            vm.setGlobal('loadMatrixScript', async (scriptPath: string) => {
+                // TODO: Cache scripts.
+                // TODO: Hot-path scripts which we already have loaded in from other connections.
+                // Prevent a script from nesting too hard.
+                if (executions > SCRIPT_EXECUTE_LIMIT) {
+                    throw Error('Execution limit for loadMatrixScript reached');
+                }
+                executions++;
+                const script = await this.loadMatrixScript(scriptPath);
+                const innerVM = new NodeVM({
+                    console: 'off',
+                    wrapper: 'none',
+                    wasm: false,
+                    eval: false,
+                    timeout: TRANSFORMATION_TIMEOUT_MS,
+                });
+                innerVM.setGlobal('HookshotApiVersion', 'v2');
+                innerVM.setGlobal('data', data);
+                await innerVM.run(script);
+                return innerVM.getGlobal('result');
+            });
+        }
+
+        const script = this.transformationFunction;
+        await vm.run(script);
         const result = vm.getGlobal('result');
 
         // Legacy v1 api
@@ -362,7 +421,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             content = this.transformHookData(data);
         } else {
             try {
-                const potentialContent = this.executeTransformationFunction(data);
+                const potentialContent = await this.executeTransformationFunction(data);
                 if (potentialContent === null) {
                     // Explitly no action
                     return true;

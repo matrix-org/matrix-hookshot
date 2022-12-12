@@ -278,6 +278,9 @@ export interface BridgeGenericWebhooksConfigYAML {
     urlPrefix: string;
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean;
+    transformationFeatures?: {
+        allowloadMatrixScript?: boolean;
+    };
     waitForComplete?: boolean;
     enableHttpGet?: boolean;
 }
@@ -293,6 +296,11 @@ export class BridgeConfigGenericWebhooks {
     public readonly allowJsTransformationFunctions?: boolean;
     public readonly waitForComplete?: boolean;
     public readonly enableHttpGet: boolean;
+
+    public readonly transformationFeatures?: {
+        allowloadMatrixScript?: boolean;
+    };
+
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
         this.enabled = yaml.enabled || false;
         this.enableHttpGet = yaml.enableHttpGet || false;
@@ -305,6 +313,7 @@ export class BridgeConfigGenericWebhooks {
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
+        this.transformationFeatures = yaml.transformationFeatures;
     }
 
     @hideKey()

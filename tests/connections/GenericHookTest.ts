@@ -247,6 +247,28 @@ describe("GenericHookConnection", () => {
             an_array_of: ["1.2345", "6.789"],
             floats: true,
         });
-
+    });
+    it("will import a script from another room", async () => {
+        const webhookData = {question: 'What is the meaning of life?', answer: 42};
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: `const f = loadMatrixScript("matrix://!foo:bar/$baz:bar").then(f) f();`}, {
+                enabled: true,
+                urlPrefix: "https://example.com/webhookurl",
+                allowJsTransformationFunctions: true,
+            }
+        );
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        // expect(await messagePromise).to.deep.equal({
+        //     roomId: ROOM_ID,
+        //     sender: connection.getUserId(),
+        //     content: {
+        //         body: "The answer to 'What is the meaning of life?' is 42",
+        //         format: "org.matrix.custom.html",
+        //         formatted_body: "The answer to 'What is the meaning of life?' is 42",
+        //         msgtype: "m.notice",
+        //         "uk.half-shot.hookshot.webhook_data": webhookData,
+        //     },
+        //     type: 'm.room.message',
+        // });
     });
 })
