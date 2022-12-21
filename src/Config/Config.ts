@@ -659,7 +659,7 @@ export class BridgeConfig {
         return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
     }
 
-    public getEnabledServices(): string[] {
+    public get enabledServices(): string[] {
         const services = [];
         if (this.feeds && this.feeds.enabled) {
             services.push("feeds");

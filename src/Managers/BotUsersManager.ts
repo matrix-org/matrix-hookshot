@@ -37,7 +37,7 @@ export default class BotUsersManager {
             avatar: this.config.bot?.avatar,
             displayname: this.config.bot?.displayname,
             // Default bot can handle all services
-            services: this.config.getEnabledServices(),
+            services: this.config.enabledServices,
             prefix: "!hookshot",
             priority: 0,
         });
