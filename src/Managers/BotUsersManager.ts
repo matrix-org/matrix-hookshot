@@ -8,7 +8,6 @@ const log = new Logger("BotUsersManager");
 export class BotUser {
     constructor(
         private readonly as: Appservice,
-        readonly localpart: string,
         readonly userId: string,
         readonly services: string[],
         readonly prefix: string,
@@ -35,7 +34,6 @@ export default class BotUsersManager {
 
     constructor(
         readonly config: BridgeConfig,
-        readonly registration: IAppserviceRegistration,
         readonly as: Appservice,
     ) {
         // Default bot user
@@ -43,7 +41,6 @@ export default class BotUsersManager {
             this.as.botUserId,
             new BotUser(
                 this.as,
-                registration.sender_localpart,
                 this.as.botUserId,
                 // Default bot can handle all services
                 this.config.enabledServices,
@@ -62,7 +59,6 @@ export default class BotUsersManager {
                     botUserId,
                     new BotUser(
                         this.as,
-                        bot.localpart,
                         botUserId,
                         [bot.service],
                         bot.prefix,
