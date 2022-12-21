@@ -485,7 +485,7 @@ export class BridgeConfig {
     public readonly feeds?: BridgeConfigFeeds;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
-    @configKey("EXPERIMENTAL Define additional bot users for specific services", true)
+    @configKey("Define additional bot users for specific services", true)
     public readonly serviceBots?: BridgeConfigServiceBot[];
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;

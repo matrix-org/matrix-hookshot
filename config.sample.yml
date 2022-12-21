@@ -103,7 +103,7 @@ bot:
   displayname: Hookshot Bot
   avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
 serviceBots:
-  # (Optional) EXPERIMENTAL Define additional bot users for specific services
+  # (Optional) Define additional bot users for specific services
   #
   - localpart: feeds
     displayname: Feeds
