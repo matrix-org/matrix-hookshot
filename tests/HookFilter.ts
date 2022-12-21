@@ -23,9 +23,9 @@ describe("HookFilter", () => {
             expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [], DEFAULT_SET)).to.have.members(DEFAULT_SET);
         });
         
-        it('should correctly include both default and enabled hooks', () => {
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks(ENABLED_SET, [], DEFAULT_SET)).to.have.members([
-                ...ENABLED_SET, ...DEFAULT_SET
+        it('should correctly include default and enabled hooks when ignored hooks is set', () => {
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks(ENABLED_SET, ['my-ignored-hook'], DEFAULT_SET)).to.have.members([
+                ...ENABLED_SET, ...DEFAULT_SET, 'my-ignored-hook'
             ]);
         });
         
