@@ -8,6 +8,7 @@ import { ListenerService } from "../ListenerService";
 import { Logger } from "matrix-appservice-bridge";
 import { LogService } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
+import BotUsersManager from "../Managers/BotUsersManager";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
@@ -35,7 +36,9 @@ async function start() {
         userNotificationWatcher.start();
     }
 
-    const bridgeApp = new Bridge(config, listener, registration, appservice, storage);
+    const botUsersManager = new BotUsersManager(config, appservice);
+
+    const bridgeApp = new Bridge(config, listener, appservice, storage, botUsersManager);
 
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");
