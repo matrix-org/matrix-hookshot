@@ -2,15 +2,11 @@ import { FunctionComponent } from "preact";
 import { JSXInternal } from "preact/src/jsx";
 
 export const EventHookCheckbox: FunctionComponent<{
-    enabledHooks?: string[],
+    enabledHooks: string[],
     onChange: JSXInternal.GenericEventHandler<HTMLInputElement>,
     eventName: string,
     parentEvent?: string,
 }> = ({enabledHooks, onChange, eventName, parentEvent, children}) => {
-    if (!enabledHooks) {
-        throw Error(`Invalid configuration for checkbox ${eventName}`);
-    }
-
     const checked = enabledHooks.includes(eventName) || (!!parentEvent && enabledHooks.includes(parentEvent));
 
     return <li>

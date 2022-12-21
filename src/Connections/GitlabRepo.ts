@@ -188,7 +188,6 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
                 }
                 log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
                 state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, AllowedEvents);
-                delete state.ignoreHooks;
             }
             return {
                 ...state,
@@ -346,25 +345,26 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         private readonly as: Appservice,
         state: ConnectionStateValidated,
         private readonly tokenStore: UserTokenStore,
-        private readonly instance: GitLabInstance) {
-            super(
-                roomId,
-                stateKey,
-                GitLabRepoConnection.CanonicalEventType,
-                state,
-                as.botClient,
-                GitLabRepoConnection.botCommands,
-                GitLabRepoConnection.helpMessage,
-                "!gl",
-                "gitlab",
-            )
-            if (!state.path || !state.instance) {
-                throw Error('Invalid state, missing `path` or `instance`');
-            }
-            this.hookFilter = new HookFilter(
-                state.enableHooks ?? DefaultHooks,
-            );
-    }
+        private readonly instance: GitLabInstance
+        ) {
+        super(
+            roomId,
+            stateKey,
+            GitLabRepoConnection.CanonicalEventType,
+            state,
+            as.botClient,
+            GitLabRepoConnection.botCommands,
+            GitLabRepoConnection.helpMessage,
+            "!gl",
+            "gitlab",
+        )
+        if (!state.path || !state.instance) {
+            throw Error('Invalid state, missing `path` or `instance`');
+        }
+        this.hookFilter = new HookFilter(
+            state.enableHooks ?? DefaultHooks,
+        );
+}
 
     public get path() {
         return this.state.path.toLowerCase();

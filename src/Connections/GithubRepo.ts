@@ -346,7 +346,6 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 }
                 log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
                 state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, DefaultHooks);
-                delete state.ignoreHooks;
             }
             return {
                 ...state,
@@ -507,18 +506,17 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         private readonly githubInstance: GithubInstance,
         private readonly config: BridgeConfigGitHub,
         ) {
-            super(
-                roomId,
-                stateKey,
-                GitHubRepoConnection.CanonicalEventType,
-                state,
-                as.botClient,
-                GitHubRepoConnection.botCommands,
-                GitHubRepoConnection.helpMessage,
-                "!gh",
-                "github",
-            );
-            // It's possible to have state with no `enableHooks`, so we need 
+        super(
+            roomId,
+            stateKey,
+            GitHubRepoConnection.CanonicalEventType,
+            state,
+            as.botClient,
+            GitHubRepoConnection.botCommands,
+            GitHubRepoConnection.helpMessage,
+            "!gh",
+            "github",
+        );
         this.hookFilter = new HookFilter(
             state.enableHooks,
         )
