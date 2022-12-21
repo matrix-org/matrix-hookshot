@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
 import { BridgeConfig } from "../Config/Config";
@@ -6,15 +6,22 @@ import JoinedRoomsManager from "./JoinedRoomsManager";
 
 const log = new Logger("BotUsersManager");
 
-export interface BotUser {
-    localpart: string;
-    userId: string;
-    avatar?: string;
-    displayname?: string;
-    services: string[];
-    prefix: string;
-    // Bots with higher priority should handle a command first
-    priority: number;
+export class BotUser {
+    constructor(
+        private readonly as: Appservice,
+        readonly localpart: string,
+        readonly userId: string,
+        readonly services: string[],
+        readonly prefix: string,
+        // Bots with higher priority should handle a command first
+        readonly priority: number,
+        readonly avatar?: string,
+        readonly displayname?: string,
+    ) {}
+
+    get intent(): Intent {
+        return this.as.getIntentForUserId(this.userId);
+    }
 }
 
 // Sort bot users by highest priority first.
@@ -31,31 +38,39 @@ export default class BotUsersManager {
         readonly joinedRoomsManager: JoinedRoomsManager,
     ) {
         // Default bot user
-        this._botUsers.set(this.as.botUserId, {
-            localpart: registration.sender_localpart,
-            userId: this.as.botUserId,
-            avatar: this.config.bot?.avatar,
-            displayname: this.config.bot?.displayname,
-            // Default bot can handle all services
-            services: this.config.enabledServices,
-            prefix: "!hookshot",
-            priority: 0,
-        });
+        this._botUsers.set(
+            this.as.botUserId,
+            new BotUser(
+                this.as,
+                registration.sender_localpart,
+                this.as.botUserId,
+                // Default bot can handle all services
+                this.config.enabledServices,
+                "!hookshot",
+                0,
+                this.config.bot?.avatar,
+                this.config.bot?.displayname,
+            )
+        );
 
         // Service bot users
         if (this.config.serviceBots) {
             this.config.serviceBots.forEach(bot => {
-                const userId = this.as.getUserId(bot.localpart);
-                this._botUsers.set(userId, {
-                    localpart: bot.localpart,
-                    userId: userId,
-                    avatar: bot.avatar,
-                    displayname: bot.displayname,
-                    services: [bot.service],
-                    prefix: bot.prefix,
-                    // Service bots should handle commands first
-                    priority: 1,
-                });
+                const botUserId = this.as.getUserId(bot.localpart);
+                this._botUsers.set(
+                    botUserId,
+                    new BotUser(
+                        this.as,
+                        bot.localpart,
+                        botUserId,
+                        [bot.service],
+                        bot.prefix,
+                        // Service bots should handle commands first
+                        1,
+                        bot.avatar,
+                        bot.displayname,
+                    )
+                );
             });
         }
     }

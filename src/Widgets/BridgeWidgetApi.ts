@@ -101,11 +101,10 @@ export class BridgeWidgetApi {
         if (!botUser) {
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
 
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", intent);
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", botUser.intent);
         const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
-        const powerlevel = new PowerLevelsEvent({content: await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "")});
+        const powerlevel = new PowerLevelsEvent({content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "")});
         const serviceFilter = req.params.service;
         const connections = allConnections.map(c => c.getProvisionerDetails?.(true))
             .filter(c => !!c)
@@ -151,15 +150,14 @@ export class BridgeWidgetApi {
         if (!botUser) {
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
 
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", intent);
+        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", botUser.intent);
         try {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
             this.connMan.validateCommandPrefix(req.params.roomId, req.body);
-            const result = await this.connMan.provisionConnection(intent, roomId, req.userId, connectionType, req.body);
+            const result = await this.connMan.provisionConnection(botUser.intent, roomId, req.userId, connectionType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
@@ -185,9 +183,8 @@ export class BridgeWidgetApi {
         if (!botUser) {
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
 
-        await assertUserPermissionsInRoom(req.userId, roomId, "write", intent);
+        await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
             throw new ApiError("Connection does not exist", ErrCode.NotFound);
@@ -212,9 +209,8 @@ export class BridgeWidgetApi {
         if (!botUser) {
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
 
-        await assertUserPermissionsInRoom(req.userId, roomId, "write", intent);
+        await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
             throw new ApiError("Connection does not exist", ErrCode.NotFound);

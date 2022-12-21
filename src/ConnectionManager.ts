@@ -135,8 +135,7 @@ export class ConnectionManager extends EventEmitter {
             log.error(`Failed to find a bot in room '${connection.roomId}' for service type '${cd.ServiceCategory}' when verifying state for connection`);
             throw Error('Could not find a bot to handle this connection');
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
-        return !this.verifyStateEvent(connection.roomId, intent, state, cd.ServiceCategory, rollbackBadState);
+        return !this.verifyStateEvent(connection.roomId, botUser.intent, state, cd.ServiceCategory, rollbackBadState);
     }
 
     private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
@@ -180,15 +179,14 @@ export class ConnectionManager extends EventEmitter {
             log.error(`Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connection for state`);
             throw Error('Could not find a bot to handle this connection');
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
 
-        if (!this.verifyStateEvent(roomId, intent, state, connectionType.ServiceCategory, rollbackBadState)) {
+        if (!this.verifyStateEvent(roomId, botUser.intent, state, connectionType.ServiceCategory, rollbackBadState)) {
             return;
         }
 
         return connectionType.createConnectionForState(roomId, state, {
             as: this.as,
-            intent: intent,
+            intent: botUser.intent,
             config: this.config,
             tokenStore: this.tokenStore,
             commentProcessor: this.commentProcessor,
@@ -204,9 +202,8 @@ export class ConnectionManager extends EventEmitter {
             log.error(`Failed to find a bot in room '${roomId}' when creating connections`);
             return;
         }
-        const intent = this.as.getIntentForUserId(botUser.userId);
 
-        const state = await intent.underlyingClient.getRoomState(roomId);
+        const state = await botUser.intent.underlyingClient.getRoomState(roomId);
         for (const event of state) {
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event), rollbackBadState);

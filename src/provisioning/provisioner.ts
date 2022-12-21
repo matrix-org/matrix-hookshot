@@ -104,9 +104,8 @@ export class Provisioner {
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
 
-        const intent = this.as.getIntentForUserId(botUser.userId);
         try {
-            await assertUserPermissionsInRoom(userId, roomId, requiredPermission, intent);
+            await assertUserPermissionsInRoom(userId, roomId, requiredPermission, botUser.intent);
             next();
         } catch (ex) {
             next(ex);
@@ -160,9 +159,7 @@ export class Provisioner {
                 throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
             }
 
-            const intent = this.as.getIntentForUserId(botUser.userId);
-
-            const result = await this.connMan.provisionConnection(intent, roomId, userId, connectionType, req.body);
+            const result = await this.connMan.provisionConnection(botUser.intent, roomId, userId, connectionType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }

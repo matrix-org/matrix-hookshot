@@ -108,24 +108,23 @@ export class Bridge {
         // Register and set profiles for all our bots
         for (const botUser of this.botUsersManager.botUsers) {
             // Ensure the bot is registered
-            const intent = this.as.getIntentForUserId(botUser.userId);
             log.debug(`Ensuring '${botUser.userId}' is registered`);
-            await intent.ensureRegistered();
+            await botUser.intent.ensureRegistered();
 
             // Set up the bot profile
             let profile;
             try {
-                profile = await intent.underlyingClient.getUserProfile(botUser.userId);
+                profile = await botUser.intent.underlyingClient.getUserProfile(botUser.userId);
             } catch {
                 profile = {}
             }
             if (botUser.avatar && profile.avatar_url !== botUser.avatar) {
                 log.info(`Setting avatar for "${botUser.userId}" to ${botUser.avatar}`);
-                await intent.underlyingClient.setAvatarUrl(botUser.avatar);
+                await botUser.intent.underlyingClient.setAvatarUrl(botUser.avatar);
             }
             if (botUser.displayname && profile.displayname !== botUser.displayname) {
                 log.info(`Setting displayname for "${botUser.userId}" to ${botUser.displayname}`);
-                await intent.underlyingClient.setDisplayName(botUser.displayname);
+                await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
             }
         }
 
@@ -133,8 +132,7 @@ export class Bridge {
 
         // Collect joined rooms for all our bots
         for (const botUser of this.botUsersManager.botUsers) {
-            const intent = this.as.getIntentForUserId(botUser.userId);
-            const joinedRooms = await intent.underlyingClient.getJoinedRooms();
+            const joinedRooms = await botUser.intent.underlyingClient.getJoinedRooms();
             log.debug(`Bot "${botUser.userId}" is joined to ${joinedRooms.length} rooms`);
 
             for (const r of joinedRooms) {
@@ -522,13 +520,12 @@ export class Bridge {
                 if (!botUser) {
                     throw Error('Could not find a bot to handle this connection');
                 }
-                const intent = this.as.getIntentForUserId(botUser.userId);
 
                 try {
                     // If we don't have an existing connection for this discussion (likely), then create one.
                     discussionConnection = await GitHubDiscussionConnection.createDiscussionRoom(
                         this.as,
-                        intent,
+                        botUser.intent,
                         null,
                         data.repository.owner.login,
                         data.repository.name,
@@ -718,15 +715,14 @@ export class Bridge {
                 log.error(`Failed to find a bot in room '${roomId}' when setting up admin room`);
                 return;
             }
-            const intent = this.as.getIntentForUserId(botUser.userId);
 
             // TODO: Refactor this to be a connection
             try {
-                let accountData = await intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                let accountData = await botUser.intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                     BRIDGE_ROOM_TYPE, roomId,
                 );
                 if (!accountData) {
-                    accountData = await intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+                    accountData = await botUser.intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                         LEGACY_BRIDGE_ROOM_TYPE, roomId,
                     );
                     if (!accountData) {
@@ -734,18 +730,18 @@ export class Bridge {
                         return;
                     } else {
                         // Upgrade the room
-                        await intent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
+                        await botUser.intent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
                     }
                 }
 
                 let notifContent;
                 try {
-                    notifContent = await intent.underlyingClient.getRoomStateEvent(
+                    notifContent = await botUser.intent.underlyingClient.getRoomStateEvent(
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
                     try {
-                        notifContent = await intent.underlyingClient.getRoomStateEvent(
+                        notifContent = await botUser.intent.underlyingClient.getRoomStateEvent(
                             roomId, NotifFilter.LegacyStateType, "",
                         );
                     }
@@ -753,7 +749,7 @@ export class Bridge {
                         // No state yet
                     }
                 }
-                const adminRoom = await this.setUpAdminRoom(intent, roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                const adminRoom = await this.setUpAdminRoom(botUser.intent, roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
@@ -829,22 +825,20 @@ export class Bridge {
             return client.kickUser(invitedUserId, roomId, "Bridge does not support DMing ghosts");
         }
 
-        const intent = this.as.getIntentForUserId(botUser.userId);
-
         // Don't accept invites from people who can't do anything
         if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
-            return intent.underlyingClient.kickUser(botUser.userId, roomId, "You do not have permission to invite this bot.");
+            return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "You do not have permission to invite this bot.");
         }
 
         if (event.content.is_direct && botUser.userId !== this.as.botUserId) {
             // Service bots do not support direct messages (admin rooms)
-            return intent.underlyingClient.kickUser(botUser.userId, roomId, "This bot does not support admin rooms.");
+            return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "This bot does not support admin rooms.");
         }
 
         // Accept the invite
-        await retry(() => intent.joinRoom(roomId), 5);
+        await retry(() => botUser.intent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            await intent.underlyingClient.setRoomAccountData(
+            await botUser.intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender},
             );
         }
@@ -930,7 +924,7 @@ export class Bridge {
                             {
                                 config: this.config,
                                 as: this.as,
-                                intent: this.as.getIntentForUserId(botUser.userId),
+                                intent: botUser.intent,
                                 tokenStore: this.tokenStore,
                                 commentProcessor: this.commentProcessor,
                                 messageClient: this.messageClient,
@@ -1003,20 +997,18 @@ export class Bridge {
 
         this.joinedRoomsManager.addJoinedRoom(roomId, botUser.userId);
 
-        const intent = this.as.getIntentForUserId(botUser.userId);
-
         if (this.config.encryption) {
             // Ensure crypto is aware of all members of this room before posting any messages,
             // so that the bot can share room keys to all recipients first.
-            await intent.underlyingClient.crypto.onRoomJoin(roomId);
+            await botUser.intent.underlyingClient.crypto.onRoomJoin(roomId);
         }
 
-        const adminAccountData = await intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+        const adminAccountData = await botUser.intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
             BRIDGE_ROOM_TYPE, roomId,
         );
         if (adminAccountData) {
-            const room = await this.setUpAdminRoom(intent, roomId, adminAccountData, NotifFilter.getDefaultContent());
-            await intent.underlyingClient.setRoomAccountData(
+            const room = await this.setUpAdminRoom(botUser.intent, roomId, adminAccountData, NotifFilter.getDefaultContent());
+            await botUser.intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
         }
@@ -1037,17 +1029,17 @@ export class Bridge {
         // Otherwise it's a new room
         if (!roomHasConnection && !adminAccountData && this.config.widgets?.roomSetupWidget?.addOnInvite) {
             try {
-                const hasPowerlevel = await intent.underlyingClient.userHasPowerLevelFor(
-                    intent.userId,
+                const hasPowerlevel = await botUser.intent.underlyingClient.userHasPowerLevelFor(
+                    botUser.intent.userId,
                     roomId,
                     "im.vector.modular.widgets",
                     true,
                 );
                 if (!hasPowerlevel) {
-                    await intent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin.");
+                    await botUser.intent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin.");
                 } else {
                     // Set up the widget
-                    await SetupWidget.SetupRoomConfigWidget(roomId, intent, this.config.widgets, botUser.services);
+                    await SetupWidget.SetupRoomConfigWidget(roomId, botUser.intent, this.config.widgets, botUser.services);
                 }
             } catch (ex) {
                 log.error(`Failed to setup new widget for room`, ex);
@@ -1109,8 +1101,7 @@ export class Bridge {
                         // PL changed for bot user, check to see if the widget can be created.
                         try {
                             log.info(`Bot has powerlevel required to create a setup widget, attempting`);
-                            const intent = this.as.getIntentForUserId(botUser.userId);
-                            await SetupWidget.SetupRoomConfigWidget(roomId, intent, this.config.widgets, botUser.services);
+                            await SetupWidget.SetupRoomConfigWidget(roomId, botUser.intent, this.config.widgets, botUser.services);
                         } catch (ex) {
                             log.error(`Failed to create setup widget for ${roomId}`, ex);
                         }
