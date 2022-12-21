@@ -25,7 +25,7 @@ describe("HookFilter", () => {
         
         it('should correctly include default and enabled hooks when ignored hooks is set', () => {
             expect(HookFilter.convertIgnoredHooksToEnabledHooks(ENABLED_SET, ['my-ignored-hook'], DEFAULT_SET)).to.have.members([
-                ...ENABLED_SET, ...DEFAULT_SET, 'my-ignored-hook'
+                ...ENABLED_SET, ...DEFAULT_SET
             ]);
         });
         

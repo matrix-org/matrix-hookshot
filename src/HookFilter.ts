@@ -26,6 +26,7 @@ export class HookFilter<T extends string> {
     }
 
     public shouldSkip(...hookName: T[]) {
-        return !hookName.some(name => this.enabledHooks.includes(name));
+        // Should skip if all of the hook names are missing
+        return hookName.every(name => !this.enabledHooks.includes(name));
     }
 }
