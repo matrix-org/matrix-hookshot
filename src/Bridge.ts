@@ -14,7 +14,6 @@ import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubU
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
-import JoinedRoomsManager from "./Managers/JoinedRoomsManager";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
@@ -48,8 +47,7 @@ export class Bridge {
     private readonly commentProcessor: CommentProcessor;
     private readonly notifProcessor: NotificationProcessor;
     private readonly tokenStore: UserTokenStore;
-    private readonly botUsersManager;
-    private readonly joinedRoomsManager;
+    private readonly botUsersManager: BotUsersManager;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
@@ -72,8 +70,7 @@ export class Bridge {
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
         this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
-        this.joinedRoomsManager = new JoinedRoomsManager();
-        this.botUsersManager = new BotUsersManager(this.config, this.registration, this.as, this.joinedRoomsManager);
+        this.botUsersManager = new BotUsersManager(this.config, this.registration, this.as);
 
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
@@ -135,8 +132,8 @@ export class Bridge {
             const joinedRooms = await botUser.intent.underlyingClient.getJoinedRooms();
             log.debug(`Bot "${botUser.userId}" is joined to ${joinedRooms.length} rooms`);
 
-            for (const r of joinedRooms) {
-                this.joinedRoomsManager.addJoinedRoom(r, botUser.userId);
+            for (const roomId of joinedRooms) {
+                this.botUsersManager.onRoomJoin(botUser, roomId);
             }
         }
 
@@ -700,7 +697,7 @@ export class Bridge {
         );
 
         // Set up already joined rooms
-        await Promise.all(this.joinedRoomsManager.joinedRooms.map(async (roomId) => {
+        await Promise.all(this.botUsersManager.joinedRooms.map(async (roomId) => {
             log.debug("Fetching state for " + roomId);
 
             try {
@@ -847,12 +844,16 @@ export class Bridge {
 
     private async onRoomLeave(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
         const userId = matrixEvent.state_key;
-        if (!userId || !this.botUsersManager.isBotUser(userId)) {
-            // Not for one of our bots
+        if (!userId) {
             return;
         }
 
-        this.joinedRoomsManager.removeJoinedRoom(roomId, userId);
+        const botUser = this.botUsersManager.getBotUser(userId);
+        if (!botUser) {
+            // Not for one of our bots
+            return;
+        }
+        this.botUsersManager.onRoomLeave(botUser, roomId);
 
         if (!this.connectionManager) {
             return;
@@ -860,7 +861,7 @@ export class Bridge {
 
         // Remove all the connections for this room
         await this.connectionManager.removeConnectionsForRoom(roomId);
-        if (this.joinedRoomsManager.getBotsInRoom(roomId).length > 0) {
+        if (this.botUsersManager.getBotUsersInRoom(roomId).length > 0) {
             // If there are still bots in the room, recreate connections
             await this.connectionManager.createConnectionsForRoomId(roomId, true);
         }
@@ -994,8 +995,7 @@ export class Bridge {
             // Not for one of our bots
             return;
         }
-
-        this.joinedRoomsManager.addJoinedRoom(roomId, botUser.userId);
+        this.botUsersManager.onRoomJoin(botUser, roomId);
 
         if (this.config.encryption) {
             // Ensure crypto is aware of all members of this room before posting any messages,

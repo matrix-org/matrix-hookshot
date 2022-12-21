@@ -2,7 +2,6 @@ import { Appservice, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
 import { BridgeConfig } from "../Config/Config";
-import JoinedRoomsManager from "./JoinedRoomsManager";
 
 const log = new Logger("BotUsersManager");
 
@@ -31,11 +30,13 @@ export default class BotUsersManager {
     // Map of user ID to config for all our configured bot users
     private _botUsers = new Map<string, BotUser>();
 
+    // Map of room ID to set of bot users in the room
+    private _botsInRooms = new Map<string, Set<BotUser>>();
+
     constructor(
         readonly config: BridgeConfig,
         readonly registration: IAppserviceRegistration,
         readonly as: Appservice,
-        readonly joinedRoomsManager: JoinedRoomsManager,
     ) {
         // Default bot user
         this._botUsers.set(
@@ -76,11 +77,50 @@ export default class BotUsersManager {
     }
 
     /**
+     * Records a bot user having joined a room.
+     *
+     * @param botUser
+     * @param roomId
+     */
+    onRoomJoin(botUser: BotUser, roomId: string): void {
+        log.info(`Bot user ${botUser.userId} joined room ${roomId}`);
+        const botUsers = this._botsInRooms.get(roomId) ?? new Set<BotUser>();
+        botUsers.add(botUser);
+        this._botsInRooms.set(roomId, botUsers);
+    }
+
+    /**
+     * Records a bot user having left a room.
+     *
+     * @param botUser
+     * @param roomId
+     */
+    onRoomLeave(botUser: BotUser, roomId: string): void {
+        log.info(`Bot user ${botUser.userId} left room ${roomId}`);
+        const botUsers = this._botsInRooms.get(roomId) ?? new Set<BotUser>();
+        botUsers.delete(botUser);
+        if (botUsers.size > 0) {
+            this._botsInRooms.set(roomId, botUsers);
+        } else {
+            this._botsInRooms.delete(roomId);
+        }
+    }
+
+    /**
+     * Gets the list of room IDs where at least one bot is a member.
+     *
+     * @returns List of room IDs.
+     */
+    get joinedRooms(): string[] {
+        return Array.from(this._botsInRooms.keys());
+    }
+
+    /**
      * Gets the configured bot users, ordered by priority.
      *
      * @returns List of bot users.
      */
-    get botUsers(): Readonly<BotUser>[] {
+    get botUsers(): BotUser[] {
         return Array.from(this._botUsers.values())
             .sort(higherPriority)
     }
@@ -90,7 +130,7 @@ export default class BotUsersManager {
      *
      * @param userId User ID to get.
      */
-    getBotUser(userId: string): Readonly<BotUser> | undefined {
+    getBotUser(userId: string): BotUser | undefined {
         return this._botUsers.get(userId);
     }
 
@@ -109,10 +149,8 @@ export default class BotUsersManager {
      *
      * @param roomId Room ID to get bots for.
      */
-    getBotUsersInRoom(roomId: string): Readonly<BotUser>[] {
-        return this.joinedRoomsManager.getBotsInRoom(roomId)
-            .map(botUserId => this.getBotUser(botUserId))
-            .filter((b): b is BotUser => b !== undefined)
+    getBotUsersInRoom(roomId: string): BotUser[] {
+        return Array.from(this._botsInRooms.get(roomId) || new Set<BotUser>())
             .sort(higherPriority);
     }
 
@@ -123,7 +161,7 @@ export default class BotUsersManager {
      * @param roomId Room ID to get a bot user for.
      * @param serviceType Optional service type for the bot.
      */
-    getBotUserInRoom(roomId: string, serviceType?: string): Readonly<BotUser> | undefined {
+    getBotUserInRoom(roomId: string, serviceType?: string): BotUser | undefined {
         const botUsersInRoom = this.getBotUsersInRoom(roomId);
         if (serviceType) {
             return botUsersInRoom.find(b => b.services.includes(serviceType));
@@ -137,7 +175,7 @@ export default class BotUsersManager {
      *
      * @param serviceType Service type for the bot.
      */
-    getBotUserForService(serviceType: string): Readonly<BotUser> | undefined {
+    getBotUserForService(serviceType: string): BotUser | undefined {
         return this.botUsers.find(b => b.services.includes(serviceType));
     }
 }
