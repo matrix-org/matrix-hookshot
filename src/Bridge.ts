@@ -90,6 +90,19 @@ export class Bridge {
         await this.storage.connect?.();
         await this.queue.connect?.();
 
+        log.info("Ensuring homeserver can be reached...");
+        let reached = false;
+        while (!reached) {
+            try {
+                // Make a request to determine if we can reach the homeserver
+                await this.as.botIntent.getJoinedRooms();
+                reached = true;
+            } catch (e) {
+                log.warn("Failed to connect to homeserver, retrying in 5s", e);
+                await new Promise((r) => setTimeout(r, 5000));
+            }
+        }
+
         log.info("Ensuring bot users are set up...");
 
         // Register and set profiles for all our bots
@@ -116,12 +129,12 @@ export class Bridge {
             }
         }
 
-        log.info("Connecting to homeserver and fetching joined rooms...");
+        log.info("Fetching joined rooms...");
 
         // Collect joined rooms for all our bots
         for (const botUser of this.botUsersManager.botUsers) {
             const intent = this.as.getIntentForUserId(botUser.userId);
-            const joinedRooms = await retry(() => intent.underlyingClient.getJoinedRooms(), 3, 3000);
+            const joinedRooms = await intent.underlyingClient.getJoinedRooms();
             log.debug(`Bot "${botUser.userId}" is joined to ${joinedRooms.length} rooms`);
 
             for (const r of joinedRooms) {
