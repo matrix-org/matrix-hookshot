@@ -65,9 +65,15 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
         excludingWorkflows?: string[];
     }
 }
+
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
     repo: string;
+}
+
+interface ConnectionValidatedState extends GitHubRepoConnectionState {
+    ignoreHooks: undefined,
+    enableHooks: AllowedEventsNames[],
 }
 
 
@@ -327,8 +333,8 @@ export interface GitHubTargetFilter {
  * Handles rooms connected to a GitHub repo.
  */
 @Connection
-export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
-	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
+export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState, ConnectionValidatedState> implements IConnection {
+	static validateState(state: unknown, isExistingState = false): ConnectionValidatedState {
         const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
             if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
@@ -342,7 +348,11 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, DefaultHooks);
                 delete state.ignoreHooks;
             }
-            return state;
+            return {
+                ...state,
+                ignoreHooks: undefined,
+                enableHooks: state.enableHooks ?? [...DefaultHooks]
+            };
         }
         throw new ValidatorApiError(validator.errors);
     }
@@ -491,7 +501,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        state: GitHubRepoConnectionState,
+        state: ConnectionValidatedState,
         private readonly tokenStore: UserTokenStore,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
@@ -508,8 +518,9 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 "!gh",
                 "github",
             );
+            // It's possible to have state with no `enableHooks`, so we need 
         this.hookFilter = new HookFilter(
-            state.enableHooks ?? DefaultHooks,
+            state.enableHooks,
         )
     }
 
@@ -548,7 +559,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         await super.onStateUpdate(stateEv);
-        this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks;
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

@@ -39,7 +39,8 @@ This connection supports a few options which can be defined in the room state:
 
 This connection supports sending messages when the following actions happen on the repository.
 
-Note: Some of these event types are enabled by default (marked with a `*`)
+Note: Some of these event types are enabled by default (marked with a `*`). When `ignoreHooks` *is* defined,
+the events marked as default below will be enabled. Otherwise, this is ignored.
 
 - merge_request *
   - merge_request.close *

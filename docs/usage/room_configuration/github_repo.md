@@ -46,11 +46,13 @@ This connection supports a few options which can be defined in the room state:
 [^1]: `ignoreHooks` is no longer accepted for new state events. Use `enableHooks` to explicitly state all events you want to see.
 
 
+
 ### Supported event types
 
 This connection supports sending messages when the following actions happen on the repository.
 
-Note: Some of these event types are enabled by default (marked with a `*`)
+Note: Some of these event types are enabled by default (marked with a `*`). When `ignoreHooks` *is* defined,
+the events marked as default below will be enabled. Otherwise, this is ignored.
 
 - issue *
   - issue.created *

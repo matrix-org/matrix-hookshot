@@ -20,39 +20,34 @@ describe("HookFilter", () => {
     
     describe('convertIgnoredHooksToEnabledHooks', () => {
         it('should correctly provide a list of default hooks', () => {
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [], DEFAULT_SET)).to.deep.equal(
-                DEFAULT_SET
-            );
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [], DEFAULT_SET)).to.have.members(DEFAULT_SET);
         });
         
         it('should correctly include both default and enabled hooks', () => {
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks(ENABLED_SET, [], DEFAULT_SET)).to.deep.equal([
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks(ENABLED_SET, [], DEFAULT_SET)).to.have.members([
                 ...ENABLED_SET, ...DEFAULT_SET
             ]);
         });
         
         it('should deduplicate', () => {
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks(DEFAULT_SET, [], DEFAULT_SET)).to.deep.equal([
-                ...DEFAULT_SET
-            ]);
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks(DEFAULT_SET, [], DEFAULT_SET)).to.have.members(DEFAULT_SET);
         });
         
         it('should correctly exclude ignored hooks', () => {
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [DEFAULT_SET[0]], DEFAULT_SET)).to.deep.equal([
-                DEFAULT_SET[1]
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [DEFAULT_SET[0]], DEFAULT_SET)).to.not.include([
+                DEFAULT_SET[0]
             ]);
         });
         
         it('should handle ignored root hooks', () => {
             const defaultHooks = ['myhook', 'myhook.foo', 'myhook.foo.bar'];
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [], defaultHooks)).to.deep.equal(defaultHooks);
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [defaultHooks[2]], defaultHooks)).to.deep.equal([
-                defaultHooks[0], defaultHooks[1]
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], ['myhook.foo.bar'], defaultHooks)).to.have.members([
+                'myhook', 'myhook.foo'
             ]);
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [defaultHooks[1]], defaultHooks)).to.deep.equal([
-                defaultHooks[0]
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], ['myhook.foo'], defaultHooks)).to.have.members([
+                'myhook'
             ]);
-            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], [defaultHooks[0]], defaultHooks)).to.be.empty;
+            expect(HookFilter.convertIgnoredHooksToEnabledHooks([], ['myhook'], defaultHooks)).to.be.empty;
         });
     });
 });

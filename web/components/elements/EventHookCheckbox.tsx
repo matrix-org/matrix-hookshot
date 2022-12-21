@@ -11,7 +11,7 @@ export const EventHookCheckbox: FunctionComponent<{
         throw Error(`Invalid configuration for checkbox ${eventName}`);
     }
 
-    const checked = enabledHooks.includes(eventName) || (parentEvent && enabledHooks.includes(parentEvent));
+    const checked = enabledHooks.includes(eventName) || (!!parentEvent && enabledHooks.includes(parentEvent));
 
     return <li>
         <label>

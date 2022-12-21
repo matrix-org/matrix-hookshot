@@ -108,7 +108,7 @@ describe("GitLabRepoConnection", () => {
 				GitLabRepoConnection.validateState({
 					instance: "bar",
 					path: "foo",
-					enabledHooks: ["issue", "pull_request", "release", "not-real"],
+					enabledHooks: ["not-real"],
 				}, false);
 			} catch (ex) {
 				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
@@ -120,7 +120,7 @@ describe("GitLabRepoConnection", () => {
 			GitLabRepoConnection.validateState({
 				instance: "bar",
 				path: "foo",
-				enabledHooks: ["issues", "merge_request", "foo"],
+				enabledHooks: ["not-real"],
 			}, true);
 		});
 	});

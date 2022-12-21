@@ -109,7 +109,7 @@ describe("GitHubRepoConnection", () => {
 				GitHubRepoConnection.validateState({
 					org: "foo",
 					repo: "bar",
-					enabledHooks: ["issue", "pull_request", "release", "not-real"],
+					enabledHooks: ["not-real"],
 				}, false);
 			} catch (ex) {
 				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
@@ -121,7 +121,7 @@ describe("GitHubRepoConnection", () => {
 			GitHubRepoConnection.validateState({
 				org: "foo",
 				repo: "bar",
-				enabledHooks: ["issue", "pull_request", "release", "not-real"],
+				enabledHooks: ["not-real"],
 			}, true);
 		});
 	});
