@@ -132,7 +132,7 @@ describe("Config/BridgePermissions", () => {
         const checkActorValues = ["@foo:bar", "bar", "*"];
         checkActorValues.forEach(actor => {
             it(`will return true for a service defintion of '${actor}' that has a sufficent level`, () => {
-                const bridgePermissions = genBridgePermissions("@foo:bar", "fake-service", "commands");
+                const bridgePermissions = genBridgePermissions(actor, "fake-service", "commands");
                 expect(
                     bridgePermissions.checkActionAny(
                         "@foo:bar",
