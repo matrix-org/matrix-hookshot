@@ -226,10 +226,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!this.config.userIdPrefix) {
             return this.as.botUserId;
         }
-        const [, domain] = this.as.botUserId.split(':');
+        const serverName = this.as.botUserId.slice(this.as.botUserId.indexOf(":") + 1);
         const name = this.state.name &&
              this.state.name.replace(/[A-Z]/g, (s) => s.toLowerCase()).replace(/([^a-z0-9\-.=_]+)/g, '');
-        return `@${this.config.userIdPrefix}${name || 'bot'}:${domain}`;
+        return `@${this.config.userIdPrefix}${name || 'bot'}:${serverName}`;
     }
 
     public async ensureDisplayname(sender: string) {
