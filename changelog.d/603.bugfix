@@ -1,0 +1,1 @@
+BotCommands: Don't use user input as JavaScript object keys.
