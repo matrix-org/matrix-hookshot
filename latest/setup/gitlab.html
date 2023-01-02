@@ -153,10 +153,11 @@
                         <h1 id="gitlab"><a class="header" href="#gitlab">GitLab</a></h1>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>GitLab configuration is fairly straight-forward:</p>
-<pre><code class="language-yaml">  # (Optional) Configure this to enable GitLab support
+<pre><code class="language-yaml">gitlab:
+  # (Optional) Configure this to enable GitLab support
   #
   instances:
-    gitlab:
+    gitlab.com:
       url: https://gitlab.com
   webhook:
     secret: secrettoken
