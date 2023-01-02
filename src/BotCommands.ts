@@ -38,19 +38,19 @@ export interface BotCommandOptions {
 type BotCommandResult = {status?: boolean, reaction?: string}|undefined;
 type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
 
-export type BotCommands = {[prefix: string]: {fn: BotCommandFunction} & BotCommandOptions};
+export type BotCommands = Map<string, {fn: BotCommandFunction} & BotCommandOptions>;
 export type HelpFunction = (cmdPrefix?: string, categories?: string[], includeTitles?: boolean) => MatrixMessageContent
 
 export function compileBotCommands(...prototypes: Record<string, BotCommandFunction>[]): {helpMessage: HelpFunction, botCommands: BotCommands} {
-    const botCommands: BotCommands = {};
+    const botCommands: BotCommands = new Map();
     const cmdStrs: {[category: string]: string[]} = {};
     prototypes.forEach(prototype => {
         Object.getOwnPropertyNames(prototype).forEach(propertyKey => {
             const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
             if (b) {
                 const category = b.category || "default";
-                const requiredArgs = b.requiredArgs?.map((arg: string) =>  `<${arg}>`).join(" ") || "";
-                const optionalArgs = b.optionalArgs?.map((arg: string) =>  `[${arg}]`).join(" ") || "";
+                const requiredArgs = b.requiredArgs?.map((arg: string) => `<${arg}>`).join(" ") || "";
+                const optionalArgs = b.optionalArgs?.map((arg: string) => `[${arg}]`).join(" ") || "";
                 const cmdStr =
                     ` - \`££PREFIX££${b.prefix}` +
                     (requiredArgs ? ` ${requiredArgs}` : "") +
@@ -59,14 +59,14 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
                 cmdStrs[category] = cmdStrs[category] || []
                 cmdStrs[category].push(cmdStr);
                 // We know that these types are safe.
-                botCommands[b.prefix as string] = {
+                botCommands.set(b.prefix as string, {
                     fn: prototype[propertyKey],
                     help: b.help,
                     requiredArgs: b.requiredArgs,
                     optionalArgs: b.optionalArgs,
                     includeUserId: b.includeUserId,
                     category: b.category,
-                };
+                });
             }
         });
     })
@@ -128,7 +128,7 @@ export async function handleCommand(
     for (let i = parts.length; i > 0; i--) {
         const prefix = parts.slice(0, i).join(" ").toLowerCase();
         // We have a match!
-        const command = botCommands[prefix];
+        const command = botCommands.get(prefix);
         if (command) {
             const permissionService = command.permissionService || defaultPermissionService;
             if (permissionService && !permissionCheckFn(permissionService, command.permissionLevel || BridgePermissionLevel.commands)) {
@@ -142,7 +142,7 @@ export async function handleCommand(
                 args.splice(0,0, userId);
             }
             try {
-                const result = await botCommands[prefix].fn.apply(obj,  args);
+                const result = await command.fn.apply(obj,  args);
                 return {handled: true, result};
             } catch (ex) {
                 const commandError = ex as CommandError;
