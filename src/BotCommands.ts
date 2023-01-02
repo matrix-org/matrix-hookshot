@@ -43,7 +43,7 @@ export type HelpFunction = (cmdPrefix?: string, categories?: string[], includeTi
 
 export function compileBotCommands(...prototypes: Record<string, BotCommandFunction>[]): {helpMessage: HelpFunction, botCommands: BotCommands} {
     const botCommands: BotCommands = new Map();
-    const cmdStrs: {[category: string]: string[]} = {};
+    const cmdStrs: Map<string, string[]> = new Map();
     prototypes.forEach(prototype => {
         Object.getOwnPropertyNames(prototype).forEach(propertyKey => {
             const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
@@ -56,8 +56,10 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
                     (requiredArgs ? ` ${requiredArgs}` : "") +
                     (optionalArgs ? ` ${optionalArgs}` : "") +
                     `\` - ${b.help}`;
-                cmdStrs[category] = cmdStrs[category] || []
-                cmdStrs[category].push(cmdStr);
+                cmdStrs.set(category, [
+                    ...(cmdStrs.get(category) ?? []),
+                    cmdStr,
+                ]);
                 // We know that these types are safe.
                 botCommands.set(b.prefix as string, {
                     fn: prototype[propertyKey],
@@ -73,7 +75,7 @@ export function compileBotCommands(...prototypes: Record<string, BotCommandFunct
     return {
         helpMessage: (cmdPrefix?: string, onlyCategories?: string[], includeTitles=true) => {
             let content = "";
-            for (const [categoryName, commands] of Object.entries(cmdStrs)) {
+            for (const [categoryName, commands] of cmdStrs.entries()) {
                 if (categoryName !== "default" && onlyCategories && !onlyCategories.includes(categoryName)) {
                     continue;
                 }
