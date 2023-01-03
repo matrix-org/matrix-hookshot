@@ -7,7 +7,7 @@ import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
-import BotUsersManager from "../Managers/BotUsersManager";
+import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 
@@ -56,6 +56,14 @@ export class BridgeWidgetApi {
         this.api.addRoute("get", '/v1/targets/:type', wrapHandler(this.getConnectionTargets));
     }
 
+    private getBotUserInRoom(roomId: string, serviceType: string): BotUser {
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+        if (!botUser) {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+        }
+        return botUser;
+    }
+
     private async getRoomFromRequest(req: ProvisioningRequest): Promise<AdminRoom> {
         const room = [...this.adminRooms.values()].find(r => r.userId === req.userId);
         if (!room) {
@@ -97,12 +105,8 @@ export class BridgeWidgetApi {
         const roomId = req.params.roomId;
         const serviceType = req.params.service;
 
-        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
-        if (!botUser) {
-            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
-        }
-
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "read", botUser.intent);
+        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
         const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
         const powerlevel = new PowerLevelsEvent({content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "")});
         const serviceFilter = req.params.service;
@@ -146,12 +150,8 @@ export class BridgeWidgetApi {
         }
         const serviceType = connectionType.ServiceCategory;
 
-        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
-        if (!botUser) {
-            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
-        }
-
-        await assertUserPermissionsInRoom(req.userId, req.params.roomId as string, "write", botUser.intent);
+        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         try {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
@@ -179,11 +179,7 @@ export class BridgeWidgetApi {
         const serviceType = req.params.type;
         const connectionId = req.params.connectionId;
 
-        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
-        if (!botUser) {
-            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
-        }
-
+        const botUser = this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
@@ -205,11 +201,7 @@ export class BridgeWidgetApi {
         const serviceType = req.params.type;
         const connectionId = req.params.connectionId;
 
-        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
-        if (!botUser) {
-            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
-        }
-
+        const botUser = this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
