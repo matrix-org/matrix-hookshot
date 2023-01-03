@@ -159,7 +159,7 @@ export class Provisioner {
                 throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
             }
 
-            const result = await this.connMan.provisionConnection(botUser.intent, roomId, userId, connectionType, req.body);
+            const result = await this.connMan.provisionConnection(roomId, botUser.intent, userId, connectionType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }

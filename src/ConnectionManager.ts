@@ -65,16 +65,16 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Used by the provisioner API to create new connections on behalf of users.
      *
-     * @param intent Bot user intent to create the connection with.
      * @param roomId The target Matrix room.
+     * @param intent Bot user intent to create the connection with.
      * @param userId The requesting Matrix user.
      * @param connectionType The connection declaration to provision.
      * @param data The data corresponding to the connection state. This will be validated.
      * @returns The resulting connection.
      */
     public async provisionConnection(
-        intent: Intent,
         roomId: string,
+        intent: Intent,
         userId: string,
         connectionType: ConnectionDeclaration,
         data: Record<string, unknown>,
