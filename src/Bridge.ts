@@ -816,6 +816,7 @@ export class Bridge {
         const botUser = this.botUsersManager.getBotUser(invitedUserId);
         if (!botUser) {
             // We got an invite but it's not a configured bot user, must be for a ghost user
+            log.debug(`Rejecting invite to room ${roomId} for ghost user ${invitedUserId}`);
             const client = this.as.getIntentForUserId(invitedUserId).underlyingClient;
             return client.kickUser(invitedUserId, roomId, "Bridge does not support DMing ghosts");
         }
@@ -827,6 +828,7 @@ export class Bridge {
 
         if (event.content.is_direct && botUser.userId !== this.as.botUserId) {
             // Service bots do not support direct messages (admin rooms)
+            log.debug(`Rejecting direct message (admin room) invite to room ${roomId} for service bot ${botUser.userId}`);
             return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "This bot does not support admin rooms.");
         }
 
