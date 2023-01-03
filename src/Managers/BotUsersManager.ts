@@ -23,7 +23,7 @@ export class BotUser {
 }
 
 // Sort bot users by highest priority first.
-const higherPriority: (a: BotUser, b: BotUser) => number = (a, b) => (a.priority - b.priority);
+const higherPriority: (a: BotUser, b: BotUser) => number = (a, b) => (b.priority - a.priority);
 
 export default class BotUsersManager {
     // Map of user ID to config for all our configured bot users
