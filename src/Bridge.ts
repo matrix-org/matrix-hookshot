@@ -98,42 +98,7 @@ export class Bridge {
             }
         }
 
-        log.info("Ensuring bot users are set up...");
-
-        // Register and set profiles for all our bots
-        for (const botUser of this.botUsersManager.botUsers) {
-            // Ensure the bot is registered
-            log.debug(`Ensuring '${botUser.userId}' is registered`);
-            await botUser.intent.ensureRegistered();
-
-            // Set up the bot profile
-            let profile;
-            try {
-                profile = await botUser.intent.underlyingClient.getUserProfile(botUser.userId);
-            } catch {
-                profile = {}
-            }
-            if (botUser.avatar && profile.avatar_url !== botUser.avatar) {
-                log.info(`Setting avatar for "${botUser.userId}" to ${botUser.avatar}`);
-                await botUser.intent.underlyingClient.setAvatarUrl(botUser.avatar);
-            }
-            if (botUser.displayname && profile.displayname !== botUser.displayname) {
-                log.info(`Setting displayname for "${botUser.userId}" to ${botUser.displayname}`);
-                await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
-            }
-        }
-
-        log.info("Fetching joined rooms...");
-
-        // Collect joined rooms for all our bots
-        for (const botUser of this.botUsersManager.botUsers) {
-            const joinedRooms = await botUser.intent.underlyingClient.getJoinedRooms();
-            log.debug(`Bot "${botUser.userId}" is joined to ${joinedRooms.length} rooms`);
-
-            for (const roomId of joinedRooms) {
-                this.botUsersManager.onRoomJoin(botUser, roomId);
-            }
-        }
+        await this.botUsersManager.start();
 
         await this.config.prefillMembershipCache(this.as.botClient);
 

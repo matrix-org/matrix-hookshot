@@ -72,6 +72,46 @@ export default class BotUsersManager {
         }
     }
 
+    async start(): Promise<void> {
+        await this.ensureProfiles();
+        await this.getJoinedRooms();
+    }
+
+    private async ensureProfiles(): Promise<void> {
+        log.info("Ensuring bot users are set up...");
+        for (const botUser of this.botUsers) {
+            // Ensure the bot is registered
+            log.debug(`Ensuring bot user ${botUser.userId} is registered`);
+            await botUser.intent.ensureRegistered();
+
+            // Set up the bot profile
+            let profile;
+            try {
+                profile = await botUser.intent.underlyingClient.getUserProfile(botUser.userId);
+            } catch {
+                profile = {}
+            }
+            if (botUser.avatar && profile.avatar_url !== botUser.avatar) {
+                log.info(`Setting avatar for "${botUser.userId}" to ${botUser.avatar}`);
+                await botUser.intent.underlyingClient.setAvatarUrl(botUser.avatar);
+            }
+            if (botUser.displayname && profile.displayname !== botUser.displayname) {
+                log.info(`Setting displayname for "${botUser.userId}" to ${botUser.displayname}`);
+                await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
+            }
+        }
+    }
+
+    private async getJoinedRooms(): Promise<void> {
+        log.info("Getting joined rooms...");
+        for (const botUser of this.botUsers) {
+            const joinedRooms = await botUser.intent.underlyingClient.getJoinedRooms();
+            for (const roomId of joinedRooms) {
+                this.onRoomJoin(botUser, roomId);
+            }
+        }
+    }
+
     /**
      * Records a bot user having joined a room.
      *
