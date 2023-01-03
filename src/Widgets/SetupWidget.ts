@@ -19,7 +19,14 @@ export class SetupWidget {
     static async SetupRoomConfigWidget(roomId: string, botIntent: Intent, config: BridgeWidgetConfig, serviceTypes: string[]): Promise<boolean> {
         // If this is for a single service, scope the widget
         const serviceScope = serviceTypes.length === 1 ? serviceTypes[0] : undefined;
-        if (await SetupWidget.createWidgetInRoom(roomId, botIntent, config, HookshotWidgetKind.RoomConfiguration, "hookshot_room_config", serviceScope)) {
+        if (await SetupWidget.createWidgetInRoom(
+            roomId,
+            botIntent,
+            config,
+            HookshotWidgetKind.RoomConfiguration,
+            `hookshot_room_config_${config.parsedPublicUrl.host}${serviceScope ? '_' + serviceScope : ''}`,
+            serviceScope,
+        )) {
             await botIntent.sendText(roomId, `Please open the ${config.branding.widgetTitle} widget to set up integrations.`);
             return true;
         }
