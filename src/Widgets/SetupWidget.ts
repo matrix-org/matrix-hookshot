@@ -69,7 +69,7 @@ export class SetupWidget {
             {
                 "creatorUserId": botIntent.userId,
                 "data": {
-                    "title": config.branding.widgetTitle
+                    "title": serviceScope ? serviceScope : config.branding.widgetTitle,
                 },
                 "id": stateKey,
                 "name": config.branding.widgetTitle,
