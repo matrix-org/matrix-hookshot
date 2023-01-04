@@ -70,6 +70,7 @@ export class Webhooks extends EventEmitter {
         }
         this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),
+            limit: '10mb', 
         }));
         this.expressRouter.post("/", this.onPayload.bind(this));
     }
