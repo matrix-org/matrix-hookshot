@@ -528,11 +528,6 @@ queue:
   monolithic: true
   port: 6379
   host: localhost
-encryption:
-  # (Optional) Configuration for encryption support in the bridge.
-  # If omitted, encryption support will be disabled.
-  #
-  storagePath: ./data/encryption
 logging:
   # (Optional) Logging settings. You can have a severity debug,info,warn,error
   #
@@ -1880,11 +1875,15 @@ yarn start:app
 </code></pre>
 <p>Be aware that you will need to start all worker types when running in worker mode, as the service does not allow a hybrid worker approach.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="encryption"><a class="header" href="#encryption">Encryption</a></h1>
+<section class="warning">
+Encryption support is <strong>HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE</strong>. It should not be enabled for production workloads.
+For more details, see <a href="https://github.com/matrix-org/matrix-hookshot/issues/594">issue 594</a>.
+</section>
 <p>Hookshot supports end-to-bridge encryption via <a href="https://github.com/matrix-org/matrix-spec-proposals/pull/3202">MSC3202</a>. As such, encryption requires hookshot to be connected to a homeserver that supports that MSC, such as <a href="advanced/encryption.html#running-with-synapse">Synapse</a>.</p>
 <h2 id="enabling-encryption-in-hookshot"><a class="header" href="#enabling-encryption-in-hookshot">Enabling encryption in Hookshot</a></h2>
 <p>In order for hookshot to use encryption, it must be configured as follows:</p>
 <ul>
-<li>The <code>encryption.storagePath</code> setting must point to a directory that hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency).</li>
+<li>The <code>experimentalEncryption.storagePath</code> setting must point to a directory that hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency).</li>
 <li><a href="advanced/./workers.html">Redis</a> must be enabled. Note that worker mode is not yet supported with encryption, so <code>queue.monolithic</code> must be set to <code>true</code>.</li>
 </ul>
 <p>If you ever reset your homeserver's state, ensure you also reset hookshot's encryption state. This includes clearing the <code>encryption.storagePath</code> directory and all worker state stored in your redis instance. Otherwise, hookshot may fail on start up with registration errors.</p>
