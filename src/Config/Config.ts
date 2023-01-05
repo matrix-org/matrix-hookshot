@@ -426,7 +426,7 @@ export interface BridgeConfigMetrics {
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
-    experimental_encryption?: BridgeConfigEncryption;
+    experimentalEncryption?: BridgeConfigEncryption;
     figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeedsYAML;
     generic?: BridgeGenericWebhooksConfigYAML;
@@ -517,7 +517,7 @@ export class BridgeConfig {
         this.queue = configData.queue || {
             monolithic: true,
         };
-        this.encryption = configData.experimental_encryption;
+        this.encryption = configData.experimentalEncryption;
 
 
         this.logging = configData.logging || {

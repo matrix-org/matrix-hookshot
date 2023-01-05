@@ -11,7 +11,7 @@ Hookshot supports end-to-bridge encryption via [MSC3202](https://github.com/matr
 ## Enabling encryption in Hookshot
 
 In order for hookshot to use encryption, it must be configured as follows:
-- The `experimental_encryption.storagePath` setting must point to a directory that hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency).
+- The `experimentalEncryption.storagePath` setting must point to a directory that hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency).
 - [Redis](./workers.md) must be enabled. Note that worker mode is not yet supported with encryption, so `queue.monolithic` must be set to `true`.
 
 If you ever reset your homeserver's state, ensure you also reset hookshot's encryption state. This includes clearing the `encryption.storagePath` directory and all worker state stored in your redis instance. Otherwise, hookshot may fail on start up with registration errors.
