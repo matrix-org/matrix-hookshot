@@ -6,7 +6,6 @@
   "repository": "https://github.com/matrix-org/matrix-hookshot",
   "author": "matrix.org",
   "license": "Apache-2.0",
-  "private": false,
   "napi": {
     "name": "matrix-hookshot-rs"
   },
