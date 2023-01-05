@@ -448,7 +448,9 @@ export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
     @configKey(`Configuration for encryption support in the bridge.
- If omitted, encryption support will be disabled.`, true)
+ If omitted, encryption support will be disabled.
+ This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue / cache configuration options for large scale deployments.
  For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)

@@ -144,6 +144,10 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
             return;
         }
 
+        if (value === undefined || value === null) {
+            return;
+        }
+
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
             newNode = YAML.createNode({});
