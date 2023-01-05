@@ -1,0 +1,1 @@
+Fix support for server names with colons (e.g. IPv6 and custom ports).

@@ -37,9 +37,31 @@ describe("Config/BridgePermissions", () => {
             const bridgePermissions = genBridgePermissions('@foo:bar', 'my-service', 'login');
             expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
         });
-        it("will return true for a matching actor domain", () => {
+        it("will return true for a matching actor server name", () => {
             const bridgePermissions = genBridgePermissions('bar', 'my-service', 'login');
             expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).to.be.true;
+        });
+        describe("test various valid server names", () => {
+            it("will return true for a matching actor server name with an explicit port", () => {
+                const bridgePermissions = genBridgePermissions('bar:1234', 'my-service', 'login');
+                expect(bridgePermissions.checkAction("@foo:bar:1234", "my-service", "login")).to.be.true;
+            });
+            it("will return true for a matching actor server name with an IPv4 address", () => {
+                const bridgePermissions = genBridgePermissions('1.2.3.4', 'my-service', 'login');
+                expect(bridgePermissions.checkAction("@foo:1.2.3.4", "my-service", "login")).to.be.true;
+            });
+            it("will return true for a matching actor server name with an IPv4 address and an explicit port", () => {
+                const bridgePermissions = genBridgePermissions('1.2.3.4:1234', 'my-service', 'login');
+                expect(bridgePermissions.checkAction("@foo:1.2.3.4:1234", "my-service", "login")).to.be.true;
+            });
+            it("will return true for a matching actor server name with an IPv6 address", () => {
+                const bridgePermissions = genBridgePermissions('[1234:5678::abcd]', 'my-service', 'login');
+                expect(bridgePermissions.checkAction("@foo:[1234:5678::abcd]", "my-service", "login")).to.be.true;
+            });
+            it("will return true for a matching actor server name with an IPv6 address and an explicit port", () => {
+                const bridgePermissions = genBridgePermissions('[1234:5678::abcd]:5678', 'my-service', 'login');
+                expect(bridgePermissions.checkAction("@foo:[1234:5678::abcd]:5678", "my-service", "login")).to.be.true;
+            });
         });
         it("will return true for a wildcard actor", () => {
             const bridgePermissions = genBridgePermissions('*', 'my-service', 'login');
@@ -110,7 +132,7 @@ describe("Config/BridgePermissions", () => {
         const checkActorValues = ["@foo:bar", "bar", "*"];
         checkActorValues.forEach(actor => {
             it(`will return true for a service defintion of '${actor}' that has a sufficent level`, () => {
-                const bridgePermissions = genBridgePermissions("@foo:bar", "fake-service", "commands");
+                const bridgePermissions = genBridgePermissions(actor, "fake-service", "commands");
                 expect(
                     bridgePermissions.checkActionAny(
                         "@foo:bar",
@@ -118,6 +140,15 @@ describe("Config/BridgePermissions", () => {
                     )
                 ).to.be.true;
             });
+        });
+        it(`will return true when the server name is an IPv6 with an explicit port`, () => {
+            const bridgePermissions = genBridgePermissions("[1234:5678::abcd]:5678", "fake-service", "commands");
+            expect(
+                bridgePermissions.checkActionAny(
+                    "@foo:[1234:5678::abcd]:5678",
+                    "commands"
+                )
+            ).to.be.true;
         });
     })
 })
