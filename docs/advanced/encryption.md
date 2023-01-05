@@ -1,12 +1,17 @@
 Encryption
-=======
+==========
+
+<section class="warning">
+Encryption support is <strong>HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE</strong>. It should not be enabled for production workloads.
+For more details, see <a href="https://github.com/matrix-org/matrix-hookshot/issues/594">issue 594</a>.
+</section>
 
 Hookshot supports end-to-bridge encryption via [MSC3202](https://github.com/matrix-org/matrix-spec-proposals/pull/3202). As such, encryption requires hookshot to be connected to a homeserver that supports that MSC, such as [Synapse](#running-with-synapse).
 
 ## Enabling encryption in Hookshot
 
 In order for hookshot to use encryption, it must be configured as follows:
-- The `encryption.storagePath` setting must point to a directory that hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency).
+- The `experimental_encryption.storagePath` setting must point to a directory that hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency).
 - [Redis](./workers.md) must be enabled. Note that worker mode is not yet supported with encryption, so `queue.monolithic` must be set to `true`.
 
 If you ever reset your homeserver's state, ensure you also reset hookshot's encryption state. This includes clearing the `encryption.storagePath` directory and all worker state stored in your redis instance. Otherwise, hookshot may fail on start up with registration errors.
