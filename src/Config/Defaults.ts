@@ -134,10 +134,7 @@ export const DefaultConfig = new BridgeConfig({
             bindAddress: '0.0.0.0',
             resources: ['widgets'],
         }
-    ],
-    encryption: {
-        storagePath: "./data/encryption"
-    }
+    ]
 }, {});
 
 function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {

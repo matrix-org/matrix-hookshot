@@ -426,7 +426,7 @@ export interface BridgeConfigMetrics {
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
-    encryption?: BridgeConfigEncryption;
+    experimental_encryption?: BridgeConfigEncryption;
     figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeedsYAML;
     generic?: BridgeGenericWebhooksConfigYAML;
@@ -515,7 +515,8 @@ export class BridgeConfig {
         this.queue = configData.queue || {
             monolithic: true,
         };
-        this.encryption = configData.encryption;
+        this.encryption = configData.experimental_encryption;
+
 
         this.logging = configData.logging || {
             level: "info",
@@ -527,6 +528,12 @@ export class BridgeConfig {
         this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
             throw new ConfigError("logging.level", `Logging level is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
+        }
+        if (this.encryption) {
+            log.warn(`
+You have enabled encryption support in the bridge. This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
+            `)
         }
 
         this.permissions = configData.permissions || [{
