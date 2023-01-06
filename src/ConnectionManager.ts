@@ -20,12 +20,22 @@ import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
+import { AdminAccountData } from "./AdminRoomCommandHandler";
+import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
+import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
+import { ProjectsGetResponseData } from "./Github/Types";
+import { GetIssueOpts, GetIssueResponse } from "./Gitlab/Types";
+import { SetupWidget } from "./Widgets/SetupWidget";
+import { NotificationsDisableEvent, NotificationsEnableEvent } from "./Webhooks";
+import { MessageQueue } from "./MessageQueue";
 
 const log = new Logger("ConnectionManager");
 
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
     public readonly enabledForProvisioning: Record<string, GetConnectionTypeResponseItem> = {};
+    // roomId -> AdminRoom
+    private adminRooms: Map<string, AdminRoom> = new Map();
 
     public get size() {
         return this.connections.length;
@@ -38,7 +48,8 @@ export class ConnectionManager extends EventEmitter {
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly storage: IBridgeStorageProvider,
-        private readonly github?: GithubInstance
+        private readonly queue: MessageQueue,
+        private readonly github?: GithubInstance,
     ) {
         super();
     }
@@ -188,6 +199,187 @@ export class ConnectionManager extends EventEmitter {
         return connectionCreated;
     }
 
+    public async getOrCreateAdminRoomForUser(userId: string): Promise<AdminRoom> {
+        const existingRoom = this.getAdminRoomByUserId(userId);
+        if (existingRoom) {
+            return existingRoom;
+        }
+        const roomId = await this.as.botClient.dms.getOrCreateDm(userId);
+        const room = await this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        await this.as.botClient.setRoomAccountData(
+            BRIDGE_ROOM_TYPE, roomId, room.accountData,
+        );
+        return room;
+    }
+
+    public async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent): Promise<AdminRoom> {
+        const adminRoom = new AdminRoom(
+            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config, this,
+        );
+
+        adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
+        adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
+            const [connection] = this.getForGitHubProject(project.id) || [];
+            if (!connection) {
+                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+                this.push(connection);
+            } else {
+                await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+            }
+        });
+        adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
+            if (!this.config.gitlab) {
+                return;
+            }
+            const [ connection ] = this.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
+            if (connection) {
+                return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+            } 
+            const newConnection = await GitLabIssueConnection.createRoomForIssue(
+                instanceName,
+                instance,
+                res,
+                issueInfo.projects,
+                this.as,
+                this.tokenStore, 
+                this.commentProcessor,
+                this.messageClient,
+                this.config.gitlab,
+            );
+            this.push(newConnection);
+            return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
+        });
+        this.adminRooms.set(roomId, adminRoom);
+        if (this.config.widgets?.addToAdminRooms) {
+            await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+        }
+        log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
+        return adminRoom;
+    }
+
+    private async onAdminRoomSettingsChanged(adminRoom: AdminRoom, settings: AdminAccountData, oldSettings: AdminAccountData) {
+        log.debug(`Settings changed for ${adminRoom.userId}`, settings);
+        // Make this more efficent.
+        if (!oldSettings.github?.notifications?.enabled && settings.github?.notifications?.enabled) {
+            log.info(`Notifications enabled for ${adminRoom.userId}`);
+            const token = await this.tokenStore.getGitHubToken(adminRoom.userId);
+            if (token) {
+                log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
+                await this.queue.push<NotificationsEnableEvent>({
+                    eventName: "notifications.user.enable",
+                    sender: "Bridge",
+                    data: {
+                        userId: adminRoom.userId,
+                        roomId: adminRoom.roomId,
+                        token,
+                        since: await adminRoom.getNotifSince("github"),
+                        filterParticipating: adminRoom.notificationsParticipating("github"),
+                        type: "github",
+                        instanceUrl: undefined,
+                    },
+                });
+            } else {
+                log.warn(`Notifications enabled for ${adminRoom.userId} but no token stored!`);
+            }
+        } else if (oldSettings.github?.notifications?.enabled && !settings.github?.notifications?.enabled) {
+            await this.queue.push<NotificationsDisableEvent>({
+                eventName: "notifications.user.disable",
+                sender: "Bridge",
+                data: {
+                    userId: adminRoom.userId,
+                    type: "github",
+                    instanceUrl: undefined,
+                },
+            });
+        }
+
+        for (const [instanceName, instanceSettings] of Object.entries(settings.gitlab || {})) {
+            const instanceUrl = this.config.gitlab?.instances[instanceName].url;
+            const token = await this.tokenStore.getUserToken("gitlab", adminRoom.userId, instanceUrl);
+            if (token && instanceSettings.notifications.enabled) {
+                log.info(`GitLab ${instanceName} notifications enabled for ${adminRoom.userId}`);
+                await this.queue.push<NotificationsEnableEvent>({
+                    eventName: "notifications.user.enable",
+                    sender: "Bridge",
+                    data: {
+                        userId: adminRoom.userId,
+                        roomId: adminRoom.roomId,
+                        token,
+                        since: await adminRoom.getNotifSince("gitlab", instanceName),
+                        filterParticipating: adminRoom.notificationsParticipating("gitlab"),
+                        type: "gitlab",
+                        instanceUrl,
+                    },
+                });
+            } else if (!instanceSettings.notifications.enabled) {
+                log.info(`GitLab ${instanceName} notifications disabled for ${adminRoom.userId}`);
+                await this.queue.push<NotificationsDisableEvent>({
+                    eventName: "notifications.user.disable",
+                    sender: "Bridge",
+                    data: {
+                        userId: adminRoom.userId,
+                        type: "gitlab",
+                        instanceUrl,
+                    },
+                });
+            }
+        }
+    }
+
+    public async initRooms() {
+        const joinedRooms = await this.as.botClient.getJoinedRooms();
+        for (const roomId of joinedRooms) {
+            log.debug("Fetching state for " + roomId);
+            try {
+                await this.createConnectionsForRoomId(roomId, false);
+            } catch (ex) {
+                log.error(`Unable to create connection for ${roomId}`, ex);
+                return;
+            }
+
+            // TODO: Refactor this to be a connection
+            try {
+                let accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
+                    BRIDGE_ROOM_TYPE, roomId,
+                );
+                if (!accountData) {
+                    accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
+                        LEGACY_BRIDGE_ROOM_TYPE, roomId,
+                    );
+                    if (!accountData) {
+                        log.debug(`Room ${roomId} has no connections and is not an admin room`);
+                        return;
+                    } else {
+                        // Upgrade the room
+                        await this.as.botClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
+                    }
+                }
+
+                let notifContent;
+                try {
+                    notifContent = await this.as.botClient.getRoomStateEvent(
+                        roomId, NotifFilter.StateType, "",
+                    );
+                } catch (ex) {
+                    try {
+                        notifContent = await this.as.botClient.getRoomStateEvent(
+                            roomId, NotifFilter.LegacyStateType, "",
+                        );
+                    }
+                    catch (ex) {
+                        // No state yet
+                    }
+                }
+                const adminRoom = await this.setUpAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                // Call this on startup to set the state
+                await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
+                log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
+            } catch (ex) {
+                log.error(`Failed to set up admin room ${roomId}:`, ex);
+            }
+        }
+    }
+
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
         org = org.toLowerCase();
         repo = repo.toLowerCase();
@@ -282,6 +474,19 @@ export class ConnectionManager extends EventEmitter {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
         return this.connections.filter((c) => (c instanceof typeT)) as T[];
+    }
+
+    public getAdminRoomByRoomId(roomId: string) {
+        return this.adminRooms.get(roomId);
+    }
+
+    public getAdminRoomByUserId(userId: string) {
+        for (const room of this.adminRooms.values()) {
+            if (room.userId === userId) {
+                return room;
+            }
+        }
+        return undefined;
     }
 
     public isRoomConnected(roomId: string): boolean {

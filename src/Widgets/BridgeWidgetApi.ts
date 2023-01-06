@@ -15,7 +15,6 @@ const log = new Logger("BridgeWidgetApi");
 export class BridgeWidgetApi {
     private readonly api: ProvisioningApi;
     constructor(
-        private adminRooms: Map<string, AdminRoom>,
         private readonly config: BridgeConfig,
         storageProvider: IBridgeStorageProvider,
         expressApp: Application,
@@ -55,7 +54,7 @@ export class BridgeWidgetApi {
     }
 
     private async getRoomFromRequest(req: ProvisioningRequest): Promise<AdminRoom> {
-        const room = [...this.adminRooms.values()].find(r => r.userId === req.userId);
+        const room = req.userId && this.connMan.getAdminRoomByUserId(req.userId);
         if (!room) {
             throw new ApiError("No room found for access token", ErrCode.BadToken);
         }
