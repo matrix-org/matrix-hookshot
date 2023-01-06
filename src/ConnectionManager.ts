@@ -28,6 +28,7 @@ import { GetIssueOpts, GetIssueResponse } from "./Gitlab/Types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { NotificationsDisableEvent, NotificationsEnableEvent } from "./Webhooks";
 import { MessageQueue } from "./MessageQueue";
+import { getSafeRoomAccountData } from "./AccountData";
 
 const log = new Logger("ConnectionManager");
 
@@ -339,8 +340,10 @@ export class ConnectionManager extends EventEmitter {
 
             // TODO: Refactor this to be a connection
             try {
-                let accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
-                    BRIDGE_ROOM_TYPE, roomId,
+                let accountData = await getSafeRoomAccountData<AdminAccountData>(
+                    this.as.botClient,
+                    BRIDGE_ROOM_TYPE,
+                    roomId,
                 );
                 if (!accountData) {
                     accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(

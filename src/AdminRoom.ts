@@ -19,6 +19,7 @@ import { ProjectsListResponseData } from "./Github/Types";
 import { UserTokenStore } from "./UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
+import { getSafeRoomAccountData } from "./AccountData";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -85,12 +86,15 @@ export class AdminRoom extends AdminRoomCommandHandler {
     public async getNotifSince(type: "github"|"gitlab", instanceName?: string) {
         if (type === "gitlab") {
             try {
-                let accountData: null|{since: number} = await this.botIntent.underlyingClient.getSafeRoomAccountData(
+                let accountData: null|{since: number} = await getSafeRoomAccountData(this.botIntent.underlyingClient, 
                     `${BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`, this.roomId, null
                 );
                 if (!accountData) {
-                    accountData = await this.botIntent.underlyingClient.getSafeRoomAccountData(
-                        `${LEGACY_BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`, this.roomId, { since: 0 }
+                    accountData = await getSafeRoomAccountData(
+                        this.botIntent.underlyingClient,
+                        `${LEGACY_BRIDGE_GITLAB_NOTIF_TYPE}:${instanceName}`,
+                        this.roomId,
+                        { since: 0 },
                     );
                 }
                 return accountData.since;
@@ -100,11 +104,15 @@ export class AdminRoom extends AdminRoomCommandHandler {
             }
         }
         try {
-            let accountData: null|{since: number} = await this.botIntent.underlyingClient.getSafeRoomAccountData(BRIDGE_NOTIF_TYPE, this.roomId, { since: 0 });
+            let accountData: null|{since: number} = await getSafeRoomAccountData(this.botIntent.underlyingClient, BRIDGE_NOTIF_TYPE, this.roomId, null);
             if (!accountData) {
-                accountData = await this.botIntent.underlyingClient.getSafeRoomAccountData(
-                    `${LEGACY_BRIDGE_NOTIF_TYPE}:${instanceName}`, this.roomId, { since: 0 }
+                accountData = await getSafeRoomAccountData(
+                    this.botIntent.underlyingClient,
+                    `${LEGACY_BRIDGE_NOTIF_TYPE}:${instanceName}`,
+                    this.roomId,
+                    { since: 0 }
                 );
+                accountData = { since: 0 };
             }
             log.debug(`Got ${type} notif-since to ${accountData.since}`);
             return accountData.since;
@@ -488,9 +496,9 @@ export class AdminRoom extends AdminRoomCommandHandler {
     }
 
     private async saveAccountData(updateFn: (record: AdminAccountData) => AdminAccountData) {
-        let oldData: AdminAccountData|null = await this.botIntent.underlyingClient.getSafeRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, null);
+        let oldData: AdminAccountData|null = await getSafeRoomAccountData(this.botIntent.underlyingClient, BRIDGE_ROOM_TYPE, this.roomId, null);
         if (!oldData) {
-            oldData = await this.botIntent.underlyingClient.getSafeRoomAccountData(LEGACY_BRIDGE_ROOM_TYPE, this.roomId, {admin_user: this.userId});
+            oldData = await getSafeRoomAccountData<AdminAccountData, AdminAccountData>(this.botIntent.underlyingClient, LEGACY_BRIDGE_ROOM_TYPE, this.roomId, {admin_user: this.userId});
         }
         const newData = updateFn(oldData);
         await this.botIntent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, this.roomId, newData);
