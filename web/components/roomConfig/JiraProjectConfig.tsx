@@ -5,6 +5,7 @@ import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { ErrCode } from "../../../src/api";
 import { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraTargetFilter, JiraProjectConnectionInstanceTarget, JiraProjectConnectionTarget } from "../../../src/Connections/JiraProject";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
+import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import JiraIcon from "../../icons/jira.png";
 
 const EventType = "uk.half-shot.matrix-hookshot.jira.project";
@@ -116,23 +117,6 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
     </div>;
 }
 
-const EventCheckbox: FunctionComponent<{
-    allowedEvents: string[],
-    onChange: (evt: HTMLInputElement) => void,
-    eventName: string,
-}> = ({allowedEvents, onChange, eventName, children}) => {
-    return <li>
-        <label>
-            <input
-            type="checkbox"
-            x-event-name={eventName}
-            checked={allowedEvents.includes(eventName)}
-            onChange={onChange} />
-            { children }
-        </label>
-    </li>;
-};
-
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);
 
@@ -173,14 +157,14 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             <ul>
                 Issues
                 <ul>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="issue_created" onChange={toggleEvent}>Created</EventCheckbox>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="issue_updated" onChange={toggleEvent}>Updated</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="issue_created" onChange={toggleEvent}>Created</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="issue_updated" onChange={toggleEvent}>Updated</EventHookCheckbox>
                 </ul>
                 Versions
                 <ul>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_created" onChange={toggleEvent}>Created</EventCheckbox>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_updated" onChange={toggleEvent}>Updated</EventCheckbox>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_released" onChange={toggleEvent}>Released</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="version_created" onChange={toggleEvent}>Created</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="version_updated" onChange={toggleEvent}>Updated</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="version_released" onChange={toggleEvent}>Released</EventHookCheckbox>
                 </ul>
             </ul>
         </InputField>
