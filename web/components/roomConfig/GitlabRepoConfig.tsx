@@ -146,7 +146,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                 commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
-    }, [canEdit, existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, onSave]);
+    }, [canEdit, existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, includeBodyRef, onSave]);
     
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setNewInstanceState} />}
