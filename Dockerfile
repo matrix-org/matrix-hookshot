@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y build-essential cmake
 WORKDIR /src
 
 COPY package.json yarn.lock ./
+RUN yarn config set yarn-offline-mirror /cache/yarn
 RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
@@ -34,7 +35,8 @@ FROM node:16-slim
 WORKDIR /bin/matrix-hookshot
 
 COPY --from=builder /src/yarn.lock /src/package.json ./
-
+COPY --from=builder /cache/yarn /cache/yarn
+RUN yarn config set yarn-offline-mirror /cache/yarn
 
 RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
 
