@@ -1,8 +1,16 @@
 import { Logger } from "matrix-appservice-bridge";
+import { MatrixError } from "matrix-bot-sdk";
 
 const SLEEP_TIME_MS = 250;
 const DEFAULT_RETRY = () => true;
 const log = new Logger("PromiseUtil");
+
+export function retryMatrixErrorFilter(err: unknown) {
+    if (err instanceof MatrixError && err.statusCode >= 400 && err.statusCode <= 499) {
+        return false;
+    }
+    return true; 
+}
 
 export async function retry<T>(actionFn: () => Promise<T>,
                                maxAttempts: number,
