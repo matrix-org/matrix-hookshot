@@ -148,18 +148,18 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!newInstanceState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
             <ul>
-                <EventHookCheckbox enabledHooks={enabledHooks} eventName="merge_request" onChange={toggleEnabledHook}>Merge requests</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="merge_request" onChange={toggleEnabledHook}>Merge requests</EventHookCheckbox>
                 <ul>
-                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" eventName="merge_request.open" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
-                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" eventName="merge_request.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
-                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" eventName="merge_request.merge" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
-                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" eventName="merge_request.review" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
-                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" eventName="merge_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.open" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.merge" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.review" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
                 </ul>
-                <EventHookCheckbox enabledHooks={enabledHooks} eventName="push" onChange={toggleEnabledHook}>Pushes</EventHookCheckbox>
-                <EventHookCheckbox enabledHooks={enabledHooks} eventName="tag_push" onChange={toggleEnabledHook}>Tag pushes</EventHookCheckbox>
-                <EventHookCheckbox enabledHooks={enabledHooks} eventName="wiki" onChange={toggleEnabledHook}>Wiki page updates</EventHookCheckbox>
-                <EventHookCheckbox enabledHooks={enabledHooks} eventName="release" onChange={toggleEnabledHook}>Releases</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="push" onChange={toggleEnabledHook}>Pushes</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="tag_push" onChange={toggleEnabledHook}>Tag pushes</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="wiki" onChange={toggleEnabledHook}>Wiki page updates</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="release" onChange={toggleEnabledHook}>Releases</EventHookCheckbox>
             </ul>
         </InputField>
         <ButtonSet>

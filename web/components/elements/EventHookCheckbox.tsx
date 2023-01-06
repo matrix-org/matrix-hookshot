@@ -4,16 +4,16 @@ import { JSXInternal } from "preact/src/jsx";
 export const EventHookCheckbox: FunctionComponent<{
     enabledHooks: string[],
     onChange: JSXInternal.GenericEventHandler<HTMLInputElement>,
-    eventName: string,
+    hookEventName: string,
     parentEvent?: string,
-}> = ({enabledHooks, onChange, eventName, parentEvent, children}) => {
-    const checked = enabledHooks.includes(eventName) || (!!parentEvent && enabledHooks.includes(parentEvent));
+}> = ({enabledHooks, onChange, hookEventName, parentEvent, children}) => {
+    const checked = enabledHooks.includes(hookEventName) || (!!parentEvent && enabledHooks.includes(parentEvent));
 
     return <li>
         <label>
             <input
             type="checkbox"
-            x-event-name={eventName}
+            x-event-name={hookEventName}
             checked={checked}
             onChange={onChange} />
             { children }
