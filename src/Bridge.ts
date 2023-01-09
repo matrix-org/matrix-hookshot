@@ -38,6 +38,7 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
+import PQueue from "p-queue";
 const log = new Logger("Bridge");
 
 export class Bridge {
@@ -653,8 +654,10 @@ export class Bridge {
                 await this.as.botClient.setDisplayName(this.config.bot.displayname);
             }
         }
-
-        await Promise.all(joinedRooms.map(async (roomId) => {
+        const queue = new PQueue({
+            concurrency: 2,
+        });
+        queue.addAll(joinedRooms.map(((roomId) => async () => {
             log.debug("Fetching state for " + roomId);
             try {
                 await connManager.createConnectionsForRoomId(roomId, false);
@@ -703,7 +706,7 @@ export class Bridge {
             } catch (ex) {
                 log.error(`Failed to set up admin room ${roomId}:`, ex);
             }
-        }));
+        })));
 
         // Handle spaces
         for (const discussion of connManager.getAllConnectionsOfType(GitHubDiscussionSpace)) {
@@ -733,6 +736,8 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
+        await queue.onIdle();
+        log.info(`All connections loaded`);
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;
