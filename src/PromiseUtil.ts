@@ -1,3 +1,4 @@
+import { StatusCodes } from "http-status-codes";
 import { Logger } from "matrix-appservice-bridge";
 import { MatrixError } from "matrix-bot-sdk";
 
@@ -5,25 +6,50 @@ const SLEEP_TIME_MS = 250;
 const DEFAULT_RETRY = () => true;
 const log = new Logger("PromiseUtil");
 
-export function retryMatrixErrorFilter(err: unknown) {
+type RetryFn = (error: Error) => boolean|number;
+
+/**
+ * Checks errors returned from a Matrix API request, and determines
+ * if the error should be retried.
+ * @param err An Error object, which may be a MatrixError
+ * @returns - `true` if the action should be reried.
+ *  - A `number` if the action should be retried with a specific wait period.
+ *  - `false` if the action should not be retried..
+ */
+export function retryMatrixErrorFilter(err: Error) {
     if (err instanceof MatrixError && err.statusCode >= 400 && err.statusCode <= 499) {
+        if (err.statusCode === StatusCodes.TOO_MANY_REQUESTS) {
+            return err.retryAfterMs ?? true;
+        }
         return false;
     }
     return true; 
 }
 
-export async function retry<T>(actionFn: () => Promise<T>,
+/**
+ * Runs a  function, and retries it if the filter function permits it.
+ * @param actionFn The action to run
+ * @param maxAttempts The number of attempts to make before giving up.
+ * @param waitFor The number of milliseconds to wait between attempts. May be overrideb by filterFn.
+ * @param filterFn A function that checks the error on failure, and determines if the action should be retried. By default, this retries ALL failures.
+ * @returns The result of actionFn
+ * @throws If the `maxAttempts` limit is exceeded, or the `filterFn` returns false.
+ */
+export async function retry<T>(actionFn: () => T,
                                maxAttempts: number,
                                waitFor: number = SLEEP_TIME_MS,
-                               filterFn: (err: unknown) => boolean = DEFAULT_RETRY): Promise<T> {
+                               filterFn: RetryFn = DEFAULT_RETRY): Promise<T> {
     let attempts = 0;
     while (attempts < maxAttempts) {
         attempts++;
         try {
             return await actionFn();
         } catch (ex) {
-            if (filterFn(ex)) {
-                const timeMs = waitFor * Math.pow(2, attempts);
+            const shouldRetry = filterFn(ex);
+            if (shouldRetry) {
+                // If the filter returns a retry ms, use that.
+                const timeMs = typeof shouldRetry === "number" ?
+                    shouldRetry : waitFor * Math.pow(2, attempts);
                 log.warn(`Action failed (${ex}), retrying in ${timeMs}ms`);
                 await new Promise((r) => setTimeout(r, timeMs));
             } else {
