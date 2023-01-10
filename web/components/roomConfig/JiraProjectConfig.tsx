@@ -1,4 +1,4 @@
-import { h, FunctionComponent, createRef } from "preact";
+import { FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
 import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
@@ -116,23 +116,6 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Jir
         </InputField>
     </div>;
 }
-
-const EventCheckbox: FunctionComponent<{
-    allowedEvents: string[],
-    onChange: (evt: HTMLInputElement) => void,
-    eventName: string,
-}> = ({allowedEvents, onChange, eventName, children}) => {
-    return <li>
-        <label>
-            <input
-            type="checkbox"
-            x-event-name={eventName}
-            checked={allowedEvents.includes(eventName)}
-            onChange={onChange} />
-            { children }
-        </label>
-    </li>;
-};
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);

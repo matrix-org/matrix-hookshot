@@ -1,4 +1,4 @@
-import { h, FunctionComponent, createRef } from "preact";
+import { FunctionComponent, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';

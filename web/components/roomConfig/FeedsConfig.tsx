@@ -1,4 +1,4 @@
-import { h, FunctionComponent, createRef } from "preact";
+import { FunctionComponent, createRef } from "preact";
 import { useCallback } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";

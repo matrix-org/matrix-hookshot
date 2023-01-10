@@ -4,7 +4,7 @@ import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
-import { h, FunctionComponent, createRef } from "preact";
+import { FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";

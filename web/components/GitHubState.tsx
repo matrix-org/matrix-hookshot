@@ -1,4 +1,4 @@
-import { h, FunctionComponent } from 'preact';
+import { FunctionComponent } from 'preact';
 import { BridgeRoomStateGitHub } from '../../src/Widgets/BridgeWidgetInterface';
 import "./GitHubState.css";
 
