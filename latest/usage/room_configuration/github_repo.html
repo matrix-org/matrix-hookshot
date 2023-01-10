@@ -173,8 +173,8 @@ a new release.</p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>This connection supports a few options which can be defined in the room state:</p>
 <table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
-<tr><td>enableHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td>Enable notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
-<tr><td>ignoreHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td>Choose to exclude notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
+<tr><td>enableHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td>Enable notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td>If not defined, defaults are mentioned below</td></tr>
+<tr><td>ignoreHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td><strong>deprecated</strong> Choose to exclude notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
 <tr><td>commandPrefix</td><td>Choose the prefix to use when sending commands to the bot</td><td>A string, ideally starts with &quot;!&quot;</td><td><code>!gh</code></td></tr>
 <tr><td>showIssueRoomLink</td><td>When new issues are created, provide a Matrix alias link to the issue room</td><td><code>true/false</code></td><td><code>false</code></td></tr>
 <tr><td>prDiff</td><td>Show a diff in the room when a PR is created, subject to limits</td><td><code>{enabled: boolean, maxLines: number}</code></td><td><code>{enabled: false}</code></td></tr>
@@ -189,11 +189,12 @@ a new release.</p>
 <tr><td>workflowRun.excludingWorkflows</td><td>Never report workflow runs with a matching workflow name.</td><td>Array of: String matching a workflow name</td><td><em>empty</em></td></tr>
 </tbody></table>
 <div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
-<p><code>ignoreHooks</code> takes precedence over <code>enableHooks</code>.</p>
+<p><code>ignoreHooks</code> is no longer accepted for new state events. Use <code>enableHooks</code> to explicitly state all events you want to see.</p>
 </div>
 <h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
-<p>Note: Some of these event types are enabled by default (marked with a <code>*</code>)</p>
+<p>Note: Some of these event types are enabled by default (marked with a <code>*</code>). When <code>ignoreHooks</code> <em>is</em> defined,
+the events marked as default below will be enabled. Otherwise, this is ignored.</p>
 <ul>
 <li>issue *
 <ul>
