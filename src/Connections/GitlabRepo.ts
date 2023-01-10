@@ -206,7 +206,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         const stateEventKey = `${validData.instance}/${validData.path}`;
         const connection = new GitLabRepoConnection(roomId, stateEventKey, intent, validData, tokenStore, instance);
         const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
-        const existing = existingConnections.find(c => c.roomId === roomId && c.path === connection.path);
+        const existing = existingConnections.find(c => c.roomId === roomId && c.instance.url === connection.instance.url && c.path === connection.path);
 
         if (existing) {
             throw new ApiError("A GitLab repo connection for this project already exists", ErrCode.ConflictingConnection, -1, {

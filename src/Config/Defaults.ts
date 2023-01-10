@@ -143,16 +143,17 @@ export const DefaultConfig = new BridgeConfig({
             bindAddress: '0.0.0.0',
             resources: ['widgets'],
         }
-    ],
-    encryption: {
-        storagePath: "./data/encryption"
-    }
+    ]
 }, {});
 
 function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
     const entries = Object.entries(obj);
     entries.forEach(([key, value]) => {
         if (keyIsHidden(obj, key)) {
+            return;
+        }
+
+        if (value === undefined || value === null) {
             return;
         }
 

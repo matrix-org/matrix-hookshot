@@ -39,6 +39,7 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
+import PQueue from "p-queue";
 const log = new Logger("Bridge");
 
 export class Bridge {
@@ -659,8 +660,11 @@ export class Bridge {
             (c, data) => c.handleFeedError(data),
         );
 
+        const queue = new PQueue({
+            concurrency: 2,
+        });
         // Set up already joined rooms
-        await Promise.all(this.botUsersManager.joinedRooms.map(async (roomId) => {
+        await queue.addAll(this.botUsersManager.joinedRooms.map((roomId) => async () => {
             log.debug("Fetching state for " + roomId);
 
             try {
@@ -747,6 +751,8 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
+        await queue.onIdle();
+        log.info(`All connections loaded`);
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;

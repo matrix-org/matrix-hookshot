@@ -100,7 +100,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 )
         }
         <header className={style.header}>
-            <img src={headerImg} />
+            <img alt="" src={headerImg} />
             <h1>{text.header}</h1> 
         </header>
         { canEditRoom && <section>

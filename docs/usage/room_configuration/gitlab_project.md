@@ -14,7 +14,7 @@ To set up a connection to a GitLab project in a new room:
 3. Give the bridge bot moderator permissions or higher (power level 50) (or otherwise configure the room so the bot can edit room state).
 4. Send the command `!hookshot gitlab project https://mydomain/my/project`.
 5. If you have permission to bridge this repo, the bridge will respond with a confirmation message. (Users with `Developer` permissions or greater can bridge projects.)
-6. If you have configured the bridge with a `publicUrl` inside `gitlab.webhook`, and you have `Maintainer` permissions or greater on the project, the bot will automatically provision the webhook for you.
+6. If you have configured the bridge with a `publicUrl` inside `gitlab.webhook` in your [config](../../setup/gitlab.md), you authenticated with Hookshot on that instance in your admin room, and you have `Maintainer` permissions or greater on the project, the bot will automatically provision the webhook for you.
 7. Otherwise, you'll need to manually configure the project with a webhook that points to your public address for the webhooks listener, sets the "Secret token" to the one you put in your Hookshot configuration (`gitlab.webhook.secret`), and enables all Triggers that need to be bridged (as Hookshot can only bridge events for enabled Triggers). This can be configured on the GitLab webpage for the project under Settings > Webhook Settings. If you do not have access to this page, you must ask someone who does (i.e. someone with at least `Maintainer` permissions on the project) to add the webhook for you.
 
 ## Configuration

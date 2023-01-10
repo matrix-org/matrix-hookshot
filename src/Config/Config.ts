@@ -435,7 +435,7 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     serviceBots?: BridgeConfigServiceBot[];
     bridge: BridgeConfigBridge;
-    encryption?: BridgeConfigEncryption;
+    experimentalEncryption?: BridgeConfigEncryption;
     figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeedsYAML;
     generic?: BridgeGenericWebhooksConfigYAML;
@@ -457,7 +457,9 @@ export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
     @configKey(`Configuration for encryption support in the bridge.
- If omitted, encryption support will be disabled.`, true)
+ If omitted, encryption support will be disabled.
+ This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue / cache configuration options for large scale deployments.
  For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
@@ -527,7 +529,8 @@ export class BridgeConfig {
         this.queue = configData.queue || {
             monolithic: true,
         };
-        this.encryption = configData.encryption;
+        this.encryption = configData.experimentalEncryption;
+
 
         this.logging = configData.logging || {
             level: "info",
@@ -539,6 +542,12 @@ export class BridgeConfig {
         this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
             throw new ConfigError("logging.level", `Logging level is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
+        }
+        if (this.encryption) {
+            log.warn(`
+You have enabled encryption support in the bridge. This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
+            `)
         }
 
         this.permissions = configData.permissions || [{
