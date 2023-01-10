@@ -1,1 +1,1 @@
-Implement "service bots", which are additional bot users configured to handle a particular service.
+Add support for additional bot users called "service bots" which handle a particular connection type, so that different services can be used through different bot users.
