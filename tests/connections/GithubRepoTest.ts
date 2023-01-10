@@ -5,6 +5,7 @@ import { UserTokenStore } from "../../src/UserTokenStore";
 import { DefaultConfig } from "../../src/Config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
+import { expect } from "chai";
 
 const ROOM_ID = "!foo:bar";
 
@@ -64,7 +65,7 @@ describe("GitHubRepoConnection", () => {
 			GitHubRepoConnection.validateState({
 				org: "foo",
 				repo: "bar",
-				ignoreHooks: ["issue", "pull_request", "release"],
+				enableHooks: ["issue", "pull_request", "release"],
 				commandPrefix: "!foo",
 				showIssueRoomLink: true,
 				prDiff: {
@@ -81,6 +82,16 @@ describe("GitHubRepoConnection", () => {
 				}
 			} as GitHubRepoConnectionState as unknown as Record<string, unknown>);
 		});
+		it("will convert ignoredHooks for existing state", () => {
+			const state = GitHubRepoConnection.validateState({
+				org: "foo",
+				repo: "bar",
+				ignoreHooks: ["issue"],
+				enableHooks: ["issue", "pull_request", "release"],
+				commandPrefix: "!foo",
+			} as GitHubRepoConnectionState as unknown as Record<string, unknown>, true);
+			expect(state.enableHooks).to.not.contain('issue');
+		});
 		it("will disallow invalid state", () => {
 			try {
 				GitHubRepoConnection.validateState({
@@ -93,12 +104,12 @@ describe("GitHubRepoConnection", () => {
 				}
 			}
 		});
-		it("will disallow ignoreHooks to contains invalid enums if this is new state", () => {
+		it("will disallow enabledHooks to contains invalid enums if this is new state", () => {
 			try {
 				GitHubRepoConnection.validateState({
 					org: "foo",
 					repo: "bar",
-					ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+					enabledHooks: ["not-real"],
 				}, false);
 			} catch (ex) {
 				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
@@ -106,11 +117,11 @@ describe("GitHubRepoConnection", () => {
 				}
 			}
 		});
-		it("will allow ignoreHooks to contains invalid enums if this is old state", () => {
+		it("will allow enabledHooks to contains invalid enums if this is old state", () => {
 			GitHubRepoConnection.validateState({
 				org: "foo",
 				repo: "bar",
-				ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+				enabledHooks: ["not-real"],
 			}, true);
 		});
 	});

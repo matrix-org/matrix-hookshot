@@ -1,10 +1,11 @@
-import { h, FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
+import GitLabIcon from "../../icons/gitlab.png";
 import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
+import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
-import GitLabIcon from "../../icons/gitlab.png";
+import { FunctionComponent, createRef } from "preact";
+import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
 
@@ -97,36 +98,18 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     </div>;
 }
 
-const EventCheckbox: FunctionComponent<{
-    ignoredHooks: string[],
-    onChange: (evt: HTMLInputElement) => void,
-    eventName: string,
-    parentEvent?: string,
-}> = ({ignoredHooks, onChange, eventName, parentEvent, children}) => {
-    return <li>
-        <label>
-            <input
-            disabled={parentEvent && ignoredHooks.includes(parentEvent)}
-            type="checkbox"
-            x-event-name={eventName}
-            checked={!ignoredHooks.includes(eventName)}
-            onChange={onChange} />
-            { children }
-        </label>
-    </li>;
-};
-
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
-    const [ignoredHooks, setIgnoredHooks] = useState<string[]>(existingConnection?.config.ignoreHooks || []);
+    const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
 
-    const toggleIgnoredHook = useCallback(evt => {
+    const toggleEnabledHook = useCallback((evt: any) => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
         if (key) {
-            setIgnoredHooks(ignoredHooks => (
-                ignoredHooks.includes(key) ? ignoredHooks.filter(k => k !== key) : [...ignoredHooks, key]
+            setEnabledHooks(enabledHooks => (
+                enabledHooks.includes(key) ? enabledHooks.filter(k => k !== key) : [...enabledHooks, key]
             ));
         }
     }, []);
+
     const [newInstanceState, setNewInstanceState] = useState<GitLabRepoConnectionState|null>(null);
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
@@ -141,12 +124,12 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         if (state) {
             onSave({
                 ...(state),
-                ignoreHooks: ignoredHooks as any[],
+                enableHooks: enabledHooks as any[],
                 includeCommentBody: includeBodyRef.current?.checked,
                 commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
-    }, [canEdit, existingConnection, newInstanceState, ignoredHooks, commandPrefixRef, onSave]);
+    }, [includeBodyRef, canEdit, existingConnection, newInstanceState, enabledHooks, commandPrefixRef, onSave]);
     
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch api={api} onPicked={setNewInstanceState} />}
@@ -165,18 +148,18 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!newInstanceState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
             <ul>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="merge_request" onChange={toggleIgnoredHook}>Merge requests</EventCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="merge_request" onChange={toggleEnabledHook}>Merge requests</EventHookCheckbox>
                 <ul>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.open" onChange={toggleIgnoredHook}>Opened</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.close" onChange={toggleIgnoredHook}>Closed</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.merge" onChange={toggleIgnoredHook}>Merged</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.review" onChange={toggleIgnoredHook}>Reviewed</EventCheckbox>
-                    <EventCheckbox ignoredHooks={ignoredHooks} parentEvent="merge_request" eventName="merge_request.ready_for_review" onChange={toggleIgnoredHook}>Ready for review</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.open" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.merge" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.review" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
                 </ul>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="push" onChange={toggleIgnoredHook}>Pushes</EventCheckbox>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="tag_push" onChange={toggleIgnoredHook}>Tag pushes</EventCheckbox>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="wiki" onChange={toggleIgnoredHook}>Wiki page updates</EventCheckbox>
-                <EventCheckbox ignoredHooks={ignoredHooks} eventName="release" onChange={toggleIgnoredHook}>Releases</EventCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="push" onChange={toggleEnabledHook}>Pushes</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="tag_push" onChange={toggleEnabledHook}>Tag pushes</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="wiki" onChange={toggleEnabledHook}>Wiki page updates</EventHookCheckbox>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="release" onChange={toggleEnabledHook}>Releases</EventHookCheckbox>
             </ul>
         </InputField>
         <ButtonSet>

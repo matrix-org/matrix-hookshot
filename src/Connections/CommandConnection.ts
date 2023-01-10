@@ -10,14 +10,14 @@ const log = new Logger("CommandConnection");
  * Connection class that handles commands for a given connection. Should be used
  * by connections expecting to handle user input.
  */
-export abstract class CommandConnection<StateType extends IConnectionState = IConnectionState> extends BaseConnection {
+export abstract class CommandConnection<StateType extends IConnectionState = IConnectionState, ValidatedStateType extends StateType = StateType> extends BaseConnection {
     protected enabledHelpCategories?: string[];
     protected includeTitlesInHelp?: boolean;
     constructor(
         roomId: string,
         stateKey: string,
         canonicalStateType: string,
-        protected state: StateType,
+        protected state: ValidatedStateType,
         private readonly botClient: MatrixClient,
         private readonly botCommands: BotCommands,
         private readonly helpMessage: HelpFunction,
@@ -39,7 +39,7 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
         this.state = this.validateConnectionState(stateEv.content);
     }
 
-    protected abstract validateConnectionState(content: unknown): StateType;
+    protected abstract validateConnectionState(content: unknown): ValidatedStateType;
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn) {
         const commandResult = await handleCommand(

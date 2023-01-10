@@ -40,8 +40,12 @@ interface IQueryRoomOpts {
 }
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
-    enableHooks?: AllowedEventsNames[],
+    /**
+     * Do not use. Use `enableHooks`.
+     * @deprecated
+     */
     ignoreHooks?: AllowedEventsNames[],
+    enableHooks?: AllowedEventsNames[],
     showIssueRoomLink?: boolean;
     prDiff?: {
         enabled: boolean;
@@ -61,9 +65,15 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
         excludingWorkflows?: string[];
     }
 }
+
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
     repo: string;
+}
+
+interface ConnectionValidatedState extends GitHubRepoConnectionState {
+    ignoreHooks: undefined,
+    enableHooks: AllowedEventsNames[],
 }
 
 
@@ -136,8 +146,17 @@ const AllowedEvents: AllowedEventsNames[] = [
  * These hooks are enabled by default, unless they are
  * specifed in the ignoreHooks option.
  */
-const AllowHookByDefault: AllowedEventsNames[] = [
+const DefaultHooks: AllowedEventsNames[] = [
+    "issue.changed",
+    "issue.created",
+    "issue.edited",
+    "issue.labeled",
     "issue",
+    "pull_request.closed",
+    "pull_request.merged",
+    "pull_request.opened",
+    "pull_request.ready_for_review",
+    "pull_request.reviewed",
     "pull_request",
     "release.created"
 ];
@@ -151,6 +170,10 @@ const ConnectionStateSchema = {
     },
     org: {type: "string"},
     repo: {type: "string"},
+    /**
+     * Legacy state.
+     * @deprecated
+     */
     ignoreHooks: {
         type: "array",
         items: {
@@ -310,19 +333,25 @@ export interface GitHubTargetFilter {
  * Handles rooms connected to a GitHub repo.
  */
 @Connection
-export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
-
-	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
+export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState, ConnectionValidatedState> implements IConnection {
+	static validateState(state: unknown, isExistingState = false): ConnectionValidatedState {
         const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
-            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
-            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
-            }
             if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
                 throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
             }
-            return state;
+            if (state.ignoreHooks) {
+                if (!isExistingState) {
+                    throw new ApiError('`ignoreHooks` cannot be used with new connections', ErrCode.BadValue);
+                }
+                log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
+                state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, DefaultHooks);
+            }
+            return {
+                ...state,
+                ignoreHooks: undefined,
+                enableHooks: state.enableHooks ?? [...DefaultHooks]
+            };
         }
         throw new ValidatorApiError(validator.errors);
     }
@@ -471,27 +500,25 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     constructor(roomId: string,
         private readonly as: Appservice,
-        state: GitHubRepoConnectionState,
+        state: ConnectionValidatedState,
         private readonly tokenStore: UserTokenStore,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
         private readonly config: BridgeConfigGitHub,
         ) {
-            super(
-                roomId,
-                stateKey,
-                GitHubRepoConnection.CanonicalEventType,
-                state,
-                as.botClient,
-                GitHubRepoConnection.botCommands,
-                GitHubRepoConnection.helpMessage,
-                "!gh",
-                "github",
-            );
+        super(
+            roomId,
+            stateKey,
+            GitHubRepoConnection.CanonicalEventType,
+            state,
+            as.botClient,
+            GitHubRepoConnection.botCommands,
+            GitHubRepoConnection.helpMessage,
+            "!gh",
+            "github",
+        );
         this.hookFilter = new HookFilter(
-            AllowHookByDefault,
             state.enableHooks,
-            state.ignoreHooks,
         )
     }
 
@@ -530,8 +557,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         await super.onStateUpdate(stateEv);
-        this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks;
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -1307,7 +1333,6 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public async onRemove() {
