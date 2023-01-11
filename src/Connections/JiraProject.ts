@@ -106,7 +106,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {getAllConnectionsOfType, as, intent, tokenStore, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, config}: ProvisionConnectionOpts) {
         if (!config.jira) {
             throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
         }

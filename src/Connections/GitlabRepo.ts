@@ -21,11 +21,21 @@ import { HookFilter } from "../HookFilter";
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
     path: string;
+    enableHooks?: AllowedEventsNames[],
+    /**
+     * Do not use. Use `enableHooks`
+     * @deprecated
+     */
     ignoreHooks?: AllowedEventsNames[],
     includeCommentBody?: boolean;
     pushTagsRegex?: string,
     includingLabels?: string[];
     excludingLabels?: string[];
+}
+
+interface ConnectionStateValidated extends GitLabRepoConnectionState {
+    ignoreHooks: undefined,
+    enableHooks: AllowedEventsNames[],
 }
 
 
@@ -49,7 +59,7 @@ const MRRCOMMENT_DEBOUNCE_MS = 5000;
 export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
 
-type AllowedEventsNames = 
+type AllowedEventsNames =
     "merge_request.open" |
     "merge_request.close" |
     "merge_request.merge" |
@@ -58,7 +68,7 @@ type AllowedEventsNames =
     "merge_request.review.comments" |
     `merge_request.${string}` |
     "merge_request" |
-    "tag_push" | 
+    "tag_push" |
     "push" |
     "wiki" |
     `wiki.${string}` |
@@ -80,6 +90,8 @@ const AllowedEvents: AllowedEventsNames[] = [
     "release.created",
 ];
 
+const DefaultHooks = AllowedEvents;
+
 const ConnectionStateSchema = {
     type: "object",
     properties: {
@@ -89,7 +101,18 @@ const ConnectionStateSchema = {
         },
         instance: { type: "string" },
         path: { type: "string" },
+        /**
+         * Do not use. Use `enableHooks`
+         * @deprecated
+         */
         ignoreHooks: {
+            type: "array",
+            items: {
+                type: "string",
+            },
+            nullable: true,
+        },
+        enableHooks: {
             type: "array",
             items: {
                 type: "string",
@@ -139,7 +162,7 @@ export interface GitLabTargetFilter {
  * Handles rooms connected to a GitLab repo.
  */
 @Connection
-export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnectionState> implements IConnection {
+export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnectionState, ConnectionStateValidated> implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
     static readonly LegacyCanonicalEventType = "uk.half-shot.matrix-github.gitlab.repository";
 
@@ -147,19 +170,30 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         GitLabRepoConnection.CanonicalEventType,
         GitLabRepoConnection.LegacyCanonicalEventType,
     ];
-    
+
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
 
-	static validateState(state: unknown, isExistingState = false): GitLabRepoConnectionState {
+	static validateState(state: unknown, isExistingState = false): ConnectionStateValidated {
         const validator = new Ajv({ strict: false }).compile(ConnectionStateSchema);
         if (validator(state)) {
-            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
-            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
+            // Validate enableHooks IF this is an incoming update (we can be less strict for existing state)
+            if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
+                throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
             }
-            return state;
+            if (state.ignoreHooks) {
+                if (!isExistingState) {
+                    throw new ApiError('`ignoreHooks` cannot be used with new connections', ErrCode.BadValue);
+                }
+                log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
+                state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, AllowedEvents);
+            }
+            return {
+                ...state,
+                enableHooks: state.enableHooks ?? AllowedEvents,
+                ignoreHooks: undefined,
+            };
         }
         throw new ValidatorApiError(validator.errors);
     }
@@ -200,7 +234,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (permissionLevel < AccessLevel.Developer) {
             throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
         }
-        
+
         const project = await client.projects.get(validData.path);
 
         const stateEventKey = `${validData.instance}/${validData.path}`;
@@ -278,7 +312,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (!client) {
             throw new ApiError('Instance is not known or you do not have access to it.', ErrCode.NotFound);
         }
-        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10); 
+        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10);
         const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, after, filters.search);
         return allProjects.map(p => ({
             state: {
@@ -310,7 +344,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         roomId: string,
         stateKey: string,
         private readonly intent: Intent,
-        state: GitLabRepoConnectionState,
+        state: ConnectionStateValidated,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance,
     ) {
@@ -330,12 +364,9 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             throw Error('Invalid state, missing `path` or `instance`');
         }
         this.hookFilter = new HookFilter(
-            // GitLab allows all events by default
-            AllowedEvents,
-            [],
-            state.ignoreHooks,
+            state.enableHooks ?? DefaultHooks,
         );
-    }
+}
 
     public get path() {
         return this.state.path.toLowerCase();
@@ -364,7 +395,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         await super.onStateUpdate(stateEv);
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks;
     }
 
     public getProvisionerDetails(): GitLabRepoResponseItem {
@@ -556,7 +587,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
         const tooManyCommits = event.total_commits_count > PUSH_MAX_COMMITS;
         const displayedCommits = tooManyCommits ? 1 : Math.min(event.total_commits_count, PUSH_MAX_COMMITS);
-        
+
         // Take the top 5 commits. The array is ordered in reverse.
         const commits = event.commits.reverse().slice(0,displayedCommits).map(commit => {
             return `[\`${commit.id.slice(0,8)}\`](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
@@ -717,7 +748,7 @@ ${data.description}`;
         }
         this.debounceMergeRequestReview(
             event.user,
-            event.object_attributes, 
+            event.object_attributes,
             event.project,
             {
                 commentCount: 0,
@@ -783,7 +814,7 @@ ${data.description}`;
         const validatedConfig = GitLabRepoConnection.validateState(config);
         await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks;
     }
 
     public async onRemove() {

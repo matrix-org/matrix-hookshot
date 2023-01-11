@@ -1,4 +1,4 @@
-import { h, FunctionComponent } from "preact";
+import { FunctionComponent } from "preact";
 import WarningBadge from "../../icons/warning-badge.svg";
 import style from "./WarningPane.module.scss";
 

@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { h, Component } from 'preact';
+import { Component } from 'preact';
 import WA, { MatrixCapabilities } from 'matrix-widget-api';
 import { BridgeAPI, BridgeAPIError } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';

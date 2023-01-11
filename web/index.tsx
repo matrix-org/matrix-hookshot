@@ -1,4 +1,4 @@
-import { h, render } from 'preact';
+import { render } from 'preact';
 import 'preact/devtools';
 import App from './App';
 import "./fonts/fonts.scss"
