@@ -64,9 +64,9 @@ export async function assertUserPermissionsInRoom(userId: string, roomId: string
     }
 
     // TODO: Decide what PL consider "write" permissions
-    const botPl = pls.users?.[intent.userId] || pls.users_default || 0;
-    const userPl = pls.users?.[userId] || pls.users_default || 0;
-    const requiredPl = pls.state_default || 50;
+    const botPl = pls.users?.[intent.userId] ?? pls.users_default ?? 0;
+    const userPl = pls.users?.[userId] ?? pls.users_default ?? 0;
+    const requiredPl = pls.state_default ?? 50;
     
     // Check the bot's permissions
     if (botPl < requiredPl) {
