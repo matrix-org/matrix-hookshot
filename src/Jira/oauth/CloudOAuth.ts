@@ -1,6 +1,5 @@
 import { BridgeConfigJiraCloudOAuth } from "../../Config/Config";
 import { JiraOAuth } from "../OAuth";
-import qs from "querystring";
 import axios from "axios";
 import { JiraOAuthResult } from "../Types";
 
@@ -21,7 +20,7 @@ const JiraOnPremOAuthScopes = [
 export class JiraCloudOAuth implements JiraOAuth {
     constructor(private readonly config: BridgeConfigJiraCloudOAuth) { }
     public async getAuthUrl(state: string) {
-        const options = {
+        const options = new URLSearchParams({
             audience: "api.atlassian.com",
             client_id: this.config.client_id,
             scope: JiraOnPremOAuthScopes.join(" "),
@@ -29,8 +28,8 @@ export class JiraCloudOAuth implements JiraOAuth {
             state: state,
             response_type: "code",
             prompt: "consent",
-        };
-        return `https://auth.atlassian.com/authorize?${qs.stringify(options)}`;
+        });
+        return `https://auth.atlassian.com/authorize?${options}`;
     }
 
     public async exchangeRequestForToken(code: string): Promise<JiraOAuthResult> {
