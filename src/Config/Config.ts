@@ -640,6 +640,10 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         if (this.encryption && !this.queue.port) {
             throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
         }
+
+        if (this.figma?.overrideUserId) {
+            log.warn("The `figma.overrideUserId` config value is deprecated. A service bot should be configured instead.");
+        }
     }
 
     public async prefillMembershipCache(client: MatrixClient) {
