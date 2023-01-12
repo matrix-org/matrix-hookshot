@@ -1,7 +1,10 @@
+import { createServer, Server } from "node:http";
+import { promisify } from "node:util";
 import { expect } from "chai";
 import {
     assertOAuthRequestToken,
     buildAuthorizationHeaders,
+    JiraOnPremOAuth,
     makeArrayOfArgumentsHash,
     nonce,
     normalizeRequestParams,
@@ -9,8 +12,9 @@ import {
     sortRequestParams,
     usesCustomPort,
 } from "../../src/Jira/oauth/OnPremOAuth";
+import { BridgeConfigJiraOnPremOAuth } from "../../src/Config/Config";
 
-describe("JiraOnPremOAuth", () => {
+describe("JiraOnPremOAuth helper functions", () => {
     describe("assertOAuthRequestToken", () => {
         const DATA = {
             oauth_token: "abc",
@@ -26,20 +30,20 @@ describe("JiraOnPremOAuth", () => {
             })).to.deep.equal(DATA);
         });
         it("throws when oauth_token is invalid", () => {
-            expect(assertOAuthRequestToken({
+            expect(() => assertOAuthRequestToken({
                 oauth_token: "",
                 oauth_token_secret: "abc",
             })).to.throw;
-            expect(assertOAuthRequestToken({
+            expect(() => assertOAuthRequestToken({
                 oauth_token_secret: "abc",
             })).to.throw;
         });
         it("throws when oauth_token_secret is invalid", () => {
-            expect(assertOAuthRequestToken({
+            expect(() => assertOAuthRequestToken({
                 oauth_token: "abc",
                 oauth_token_secret: "",
             })).to.throw;
-            expect(assertOAuthRequestToken({
+            expect(() => assertOAuthRequestToken({
                 oauth_token: "abc",
             })).to.throw;
         });
@@ -161,6 +165,83 @@ describe("JiraOnPremOAuth", () => {
         it("returns false for default ports", () => {
             expect(usesCustomPort(new URL('http://example.com:80'))).to.be.false;
             expect(usesCustomPort(new URL('https://example.com:443'))).to.be.false;
+        });
+    });
+});
+
+describe("JiraOnPremOAuth helper functions", () => {
+    const config: BridgeConfigJiraOnPremOAuth = {
+        consumerKey: "abc",
+        privateKey: "abc.pem",
+        // eslint-disable-next-line camelcase
+        redirect_uri: "https://redirect",
+    };
+    // This private key is ONLY used for testing. It's safe to be published.
+    const privateKey = `-----BEGIN PRIVATE KEY-----
+MIIBVgIBADANBgkqhkiG9w0BAQEFAASCAUAwggE8AgEAAkEA0HOkgIfQZHftA0+c
+zj0S5/jWvacDOpA6Fe3AglOuGzqpB0R/2LjF7XroNm1SsoFqhOTcq/rYmBN7k11C
+04aXtQIDAQABAkEAl1Yd7CKuLQLUVD8MfL7iZv/GB9KlCXOEeD8wMG5ITQMt8CVQ
+LbiikP/+NhQPEt7nIaCVkeGHSWUwRPQQ5c0e0QIhAO7HVRDlIOrWFQvclq2HeaHC
+4YmHG5hCFJ+yoahBvA5fAiEA33xfQhWHSFkW93UCEdYucqWbHwxionr9G0/pb1gP
+KmsCIQCchH8nTvpv1RsApn0CjK5XMZaDftPAz3gTYpWC5GvwAwIgH/WNOcoSWopC
++ohFD3/tjH+aO0puIIYuA+XdoAqbwJkCIQDZM/4Q0W9VWi6irF/SuImhWPzOIvfU
+0XPlj5/qcwcSyA==
+-----END PRIVATE KEY-----
+`;
+
+    // Start: HTTP mock server
+    let mockServer: Server;
+    const mockServerPort = 19473;
+    const mockServerAddress = `http://localhost:${mockServerPort}`;
+    // Tests may change this, to chnage the HTTP response body.
+    let mockServerResponse: Record<string, string>;
+    before(async () => {
+        mockServer = createServer((_req, res) => {
+            res.end(JSON.stringify(mockServerResponse));
+        });
+        await new Promise<void>((resolve, reject) => {
+            mockServer.listen(mockServerPort, resolve);
+            mockServer.on('error', reject);
+        });
+    });
+    after(async () => {
+        const closeServer = promisify(mockServer.close.bind(mockServer));
+        await closeServer();
+    });
+    // End: HTTP mock server
+    describe("exchangeRequestForToken", () => {
+        it("fetches oauth tokens to return access_token", async() => {
+            const jiraOAuth = new JiraOnPremOAuth(config, mockServerAddress, Buffer.from(privateKey));
+            mockServerResponse = {
+                oauth_token: "abc",
+                oauth_token_secret: "def",
+            };
+            const actual = await jiraOAuth.exchangeRequestForToken("foo", "bar");
+            expect(actual).to.deep.equal({
+                access_token: "jira-oauth1.0:abc/def",
+                scope: "",
+            });
+        });
+        it("throws on an API response without oauth_token", async () => {
+            const jiraOAuth = new JiraOnPremOAuth(config, mockServerAddress, Buffer.from(privateKey));
+            mockServerResponse = {};
+            const promise = jiraOAuth.exchangeRequestForToken("foo", "bar").then(() => {
+                throw Error("exchangeRequestForToken did not fail");
+            }).catch((err) => {
+                expect(err.message).to.equal("Unexpected OAuth response from server: missing or invalid oauth_token");
+            });
+            return promise;
+        });
+    });
+    describe("getAuthUrl", () => {
+        it("fetches oauth tokens to return access_token", async () => {
+            const jiraOAuth = new JiraOnPremOAuth(config, mockServerAddress, Buffer.from(privateKey));
+            mockServerResponse = {
+                oauth_token: "abcdefghijkl",
+                oauth_token_secret: "foobar",
+            };
+            const actual = await jiraOAuth.getAuthUrl("foo");
+            expect(actual).to.equal(`${mockServerAddress}/plugins/servlet/oauth/authorize?oauth_token=abcdefghijkl`);
         });
     });
 });

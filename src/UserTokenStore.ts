@@ -1,7 +1,7 @@
 import { GithubInstance } from "./Github/GithubInstance";
 import { GitLabClient } from "./Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
-import { promises as fs } from "fs";
+import { default as fsSync, promises as fs } from "fs";
 import { publicEncrypt, privateDecrypt } from "crypto";
 import { Logger } from "matrix-appservice-bridge";
 import { isJiraCloudInstance, JiraClient } from "./Jira/Client";
@@ -69,7 +69,9 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
             if ("client_id" in config.jira.oauth) {
                 this.jiraOAuth = new JiraCloudOAuth(config.jira.oauth);
             } else if (config.jira.url) {
-                this.jiraOAuth = new JiraOnPremOAuth(config.jira.oauth, config.jira.url);
+                // TODO: Make this async.
+                const privateKey = fsSync.readFileSync(config.jira.oauth.privateKey);
+                this.jiraOAuth = new JiraOnPremOAuth(config.jira.oauth, config.jira.url, privateKey);
             } else {
                 throw Error('jira oauth misconfigured');
             }

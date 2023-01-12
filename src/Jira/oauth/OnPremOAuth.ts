@@ -1,19 +1,23 @@
 import { BridgeConfigJiraOnPremOAuth } from "../../Config/Config";
 import Axios, { Method } from "axios"
 import { createPrivateKey, createSign, KeyObject } from "crypto";
-import fs from "fs";
 import { Logger } from "matrix-appservice-bridge";
 import { encodeJiraToken, JiraOAuth } from "../OAuth";
 import { JiraOAuthResult } from "../Types";
 
 const log = new Logger('JiraOnPremOAuth');
 
-export const assertOAuthRequestToken = (body: Record<string, string>): { oauth_token: string, oauth_token_secret: string } => {
+type OAuthBody = {
+    oauth_token: string;
+    oauth_token_secret: string;
+};
+
+export const assertOAuthRequestToken = (body: Record<string, string>): OAuthBody => {
     try {
-        if (typeof body.oauth_token !== "string" && body.oauth_token) {
+        if (typeof body.oauth_token !== "string" || !body.oauth_token) {
             throw Error("Unexpected OAuth response from server: missing or invalid oauth_token");
         }
-        if (typeof body.oauth_token_secret !== "string" && body.oauth_token_secret) {
+        if (typeof body.oauth_token_secret !== "string" || !body.oauth_token_secret) {
             throw Error("Unexpected OAuth response from server: missing or invalid oauth_token_secret");
         }
     } catch (error) {
@@ -125,9 +129,12 @@ export class JiraOnPremOAuth implements JiraOAuth {
     public readonly privateKey: KeyObject;
     private stateToTokenSecret = new Map<string, string>();
 
-    constructor(private readonly config: BridgeConfigJiraOnPremOAuth, private readonly instanceUrl: string) {
-        // TODO: Make this async.
-        this.privateKey = createPrivateKey(fs.readFileSync(config.privateKey));
+    constructor(
+        private readonly config: BridgeConfigJiraOnPremOAuth,
+        private readonly instanceUrl: string,
+        privateKey: Buffer,
+    ) {
+        this.privateKey = createPrivateKey(privateKey);
     }
 
     public async exchangeRequestForToken(codeOrToken: string, verifier: string): Promise<JiraOAuthResult> {
@@ -135,9 +142,12 @@ export class JiraOnPremOAuth implements JiraOAuth {
             throw Error('Missing verifier');
         }
 
-        const response = await this.secureRequest(codeOrToken, "POST", `${this.instanceUrl}/plugins/servlet/oauth/access-token`, {
-            oauth_verifier: verifier,
-        });
+        const response = await this.secureRequest(
+            codeOrToken,
+            "POST",
+            `${this.instanceUrl}/plugins/servlet/oauth/access-token`,
+            { oauth_verifier: verifier },
+        );
         const result = assertOAuthRequestToken(response);
         return {
             access_token: encodeJiraToken(result.oauth_token, result.oauth_token_secret),
@@ -152,12 +162,17 @@ export class JiraOnPremOAuth implements JiraOAuth {
         return `${this.instanceUrl}/plugins/servlet/oauth/authorize?oauth_token=${details.oauth_token}`;
     }
 
-    private async getOAuthRequestToken(state: string): Promise<{oauth_token: string, oauth_token_secret: string}> {
+    private async getOAuthRequestToken(
+        state: string
+    ): Promise<OAuthBody> {
         const callbackUrl = new URL(this.config.redirect_uri);
         callbackUrl.searchParams.set('state', state);
-        const response = await this.secureRequest(null, "POST", `${this.instanceUrl}/plugins/servlet/oauth/request-token`, {
-            oauth_callback: callbackUrl.toString(),
-        });
+        const response = await this.secureRequest(
+            null,
+            "POST",
+            `${this.instanceUrl}/plugins/servlet/oauth/request-token`,
+            { oauth_callback: callbackUrl.toString() },
+        );
         return assertOAuthRequestToken(response);
     }
 
@@ -186,14 +201,19 @@ export class JiraOnPremOAuth implements JiraOAuth {
                 Host: url.host,
                 'Content-Type': contentType,
             },
-            data: body || `${new URLSearchParams(extraParams)}`,
+            data: body ?? `${new URLSearchParams(extraParams)}`,
             url: url.toString(),
         });
         // Convert x-www-form-urlencoded string to a Record<string, string>
         return Object.fromEntries(new URLSearchParams(req.data));
     }
 
-    private prepareParameters(oauthToken: string|null, method: Method, urlStr: string, extraParams: Record<string, string> = {}) {
+    private prepareParameters(
+        oauthToken: string | null,
+        method: Method,
+        urlStr: string,
+        extraParams: Record<string, string> = {}
+    ): [string, string][] {
         const oauthParameters = new Map<string, string>(Object.entries({
             oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
             oauth_nonce: nonce(),
@@ -216,10 +236,7 @@ export class JiraOnPremOAuth implements JiraOAuth {
         return orderedParameters;
     }
 
-    private getSignatue(method: Method, url: string, parameters: string) {
-        if (!this.privateKey) {
-            throw Error('Cannot sign request, privateKey not ready');
-        }
+    private getSignatue(method: Method, url: string, parameters: string): string {
         const signatureBase = createSignatureBase(method, url, parameters);
         return createSign("RSA-SHA1").update(signatureBase).sign(this.privateKey, 'base64');  
     }
