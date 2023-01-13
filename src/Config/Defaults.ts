@@ -6,13 +6,13 @@ import { randomBytes } from "crypto";
 import { DefaultDisallowedIpRanges } from "matrix-appservice-bridge";
 
 const serverName = "example.com";
-const hookshotWebhooksUrl = "http://example.com";
+const hookshotWebhooksUrl = "https://example.com";
 
 export const DefaultConfig = new BridgeConfig({
     bridge: {
         domain: serverName,
         url: "http://localhost:8008",
-        mediaUrl: "http://example.com",
+        mediaUrl: "https://example.com",
         port: 9993,
         bindAddress: "127.0.0.1", 
     },
