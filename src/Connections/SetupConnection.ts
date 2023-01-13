@@ -216,10 +216,11 @@ export class SetupConnection extends CommandConnection {
         this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(userId);
+        const safeRoomId = encodeURIComponent(this.roomId);
         await adminRoom.sendNotice(
-            `You have bridged the webhook "${name}" in https://matrix.to/#/${this.roomId} .\n` +
-                // Line break before and no full stop after URL is intentional.
-                // This makes copying and pasting the URL much easier.
+            `You have bridged the webhook "${name}" in https://matrix.to/#/${safeRoomId} .\n` +
+            // Line break before and no full stop after URL is intentional.
+            // This makes copying and pasting the URL much easier.
             `Please configure your webhook source to use\n${url}`
         );
         return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
