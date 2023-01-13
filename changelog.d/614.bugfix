@@ -1,1 +1,0 @@
-Improve startup stability by not loading all room state at once.
