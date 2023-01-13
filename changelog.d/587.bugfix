@@ -1,1 +1,0 @@
-Fix a bug where unknown keys in a connections state would be clobbered when updated via widget UI.

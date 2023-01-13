@@ -1,3 +1,52 @@
+2.6.0 (2023-01-13)
+==================
+
+Features
+--------
+
+- Add support for end-to-bridge encryption via MSC3202. ([\#299](https://github.com/matrix-org/matrix-hookshot/issues/299))
+- Add support for additional bot users called "service bots" which handle a particular connection type, so that different services can be used through different bot users. ([\#573](https://github.com/matrix-org/matrix-hookshot/issues/573))
+- Add new GitHubRepo connection config setting `workflowRun.workflows` to filter run reports by workflow name. ([\#588](https://github.com/matrix-org/matrix-hookshot/issues/588))
+- The GitHub/GitLab connection state configuration has changed. The configuration option `ignoreHooks` is now deprecated, and new connections may not use this options.
+  Users should instead explicitly configure all the hooks they want to enable with the `enableHooks` option. Existing connections will continue to work with both options. ([\#592](https://github.com/matrix-org/matrix-hookshot/issues/592))
+- A11y: Add alt tags to all images. ([\#602](https://github.com/matrix-org/matrix-hookshot/issues/602))
+
+
+Bugfixes
+--------
+
+- Parent projects are now taken into account when calculating a user's access level to a GitLab project. ([\#539](https://github.com/matrix-org/matrix-hookshot/issues/539))
+- Ensure bridge treats published and drafted GitHub releases as different events. ([\#582](https://github.com/matrix-org/matrix-hookshot/issues/582))
+- Fix a bug where unknown keys in a connections state would be clobbered when updated via widget UI. ([\#587](https://github.com/matrix-org/matrix-hookshot/issues/587))
+- Improve webhook code editor performance. ([\#601](https://github.com/matrix-org/matrix-hookshot/issues/601))
+- Correctly apply CSS for recent RSS feed changes. ([\#604](https://github.com/matrix-org/matrix-hookshot/issues/604))
+- Improve startup stability by not loading all room state at once. ([\#614](https://github.com/matrix-org/matrix-hookshot/issues/614))
+- You can now add multiple GitLab connections to the same room with the same project path, if they are under different instances. ([\#617](https://github.com/matrix-org/matrix-hookshot/issues/617))
+
+
+Improved Documentation
+----------------------
+
+- Clarify GitLab setup docs ([\#350](https://github.com/matrix-org/matrix-hookshot/issues/350))
+- Change URL protocol in the ocumentation and sample configs to HTTPS. ([\#623](https://github.com/matrix-org/matrix-hookshot/issues/623))
+
+
+Deprecations and Removals
+-------------------------
+
+- Remove support for Pantalaimon-based encryption. ([\#299](https://github.com/matrix-org/matrix-hookshot/issues/299))
+
+
+Internal Changes
+----------------
+
+- RSS feed polling now uses cache headers sent by servers, which should mean we will be more conservative on resources. ([\#583](https://github.com/matrix-org/matrix-hookshot/issues/583))
+- Only build ARM images when merging or releasing, due to slow ARM build times. ([\#589](https://github.com/matrix-org/matrix-hookshot/issues/589))
+- Increase maximum size of incoming webhook payload from `100kb` to `10mb`. ([\#606](https://github.com/matrix-org/matrix-hookshot/issues/606))
+- Mark encryption feature as experimental (config option is now `experimentalEncryption`). ([\#610](https://github.com/matrix-org/matrix-hookshot/issues/610))
+- Cache yarn dependencies during Docker build. ([\#615](https://github.com/matrix-org/matrix-hookshot/issues/615))
+
+
 2.5.0 (2022-12-02)
 ==================
 
