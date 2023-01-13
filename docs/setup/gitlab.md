@@ -5,10 +5,11 @@
 GitLab configuration is fairly straight-forward:
 
 ```yaml
+gitlab:
   # (Optional) Configure this to enable GitLab support
   #
   instances:
-    gitlab:
+    gitlab.com:
       url: https://gitlab.com
   webhook:
     secret: secrettoken

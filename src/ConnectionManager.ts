@@ -4,24 +4,28 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
+import { ApiError, ErrCode } from "./api";
 import { Appservice, StateEvent } from "matrix-bot-sdk";
-import { CommentProcessor } from "./CommentProcessor";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
+import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
-import { GithubInstance } from "./Github/GithubInstance";
+import { FigmaFileConnection, FeedConnection } from "./Connections";
+import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { GitLabClient } from "./Gitlab/Client";
+import { GithubInstance } from "./Github/GithubInstance";
+import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { JiraProject, JiraVersion } from "./Jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
-import { GetConnectionTypeResponseItem } from "./provisioning/api";
-import { ApiError, ErrCode } from "./api";
 import { UserTokenStore } from "./UserTokenStore";
-import { FigmaFileConnection, FeedConnection } from "./Connections";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 
 const log = new Logger("ConnectionManager");
+
+const GET_STATE_ATTEMPTS = 5;
+const GET_STATE_TIMEOUT_MS = 1000;
 
 export class ConnectionManager extends EventEmitter {
     private connections: IConnection[] = [];
@@ -172,7 +176,14 @@ export class ConnectionManager extends EventEmitter {
 
     public async createConnectionsForRoomId(roomId: string, rollbackBadState: boolean) {
         let connectionCreated = false;
-        const state = await this.as.botClient.getRoomState(roomId);
+        // This endpoint can be heavy, wrap it in pillows.
+        const state = await retry(
+            () => this.as.botClient.getRoomState(roomId),
+            GET_STATE_ATTEMPTS,
+            GET_STATE_TIMEOUT_MS,
+            retryMatrixErrorFilter
+        );
+
         for (const event of state) {
             try {
                 const conn = await this.createConnectionForState(roomId, new StateEvent(event), rollbackBadState);

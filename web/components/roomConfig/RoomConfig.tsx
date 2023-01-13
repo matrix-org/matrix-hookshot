@@ -1,4 +1,4 @@
-import { h, FunctionComponent } from "preact";
+import { FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
 import { ErrorPane, ListItem, WarningPane } from "../elements";
@@ -100,7 +100,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 )
         }
         <header className={style.header}>
-            <img src={headerImg} />
+            <img alt="" src={headerImg} />
             <h1>{text.header}</h1> 
         </header>
         { canEditRoom && <section>

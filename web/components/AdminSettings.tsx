@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { useEffect, useState, useCallback } from 'preact/hooks';
 import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
 import GeneralConfig from './configs/GeneralConfig';

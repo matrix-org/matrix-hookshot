@@ -1,4 +1,4 @@
-import { h, FunctionComponent, createRef } from "preact";
+import { FunctionComponent, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
@@ -26,7 +26,7 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
   }`;
 
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
-
+const CODE_MIRROR_EXTENSIONS = [javascript({})];
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
@@ -61,10 +61,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         <InputField visible={transFnEnabled} noPadding={true}>
             <CodeMirror
                 value={transFn}
-                extensions={[javascript({  })]}
-                onChange={(value) => {
-                    setTransFn(value)
-                }}
+                extensions={CODE_MIRROR_EXTENSIONS}
+                onChange={setTransFn}
             />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>

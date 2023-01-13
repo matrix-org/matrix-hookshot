@@ -1,4 +1,4 @@
-import { h, FunctionComponent } from "preact"
+import { FunctionComponent } from "preact"
 import { useState } from "preact/hooks"
 import style from "./ListItem.module.scss";
 
