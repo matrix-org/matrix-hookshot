@@ -1,0 +1,39 @@
+.dropdownItem {
+    padding: 0.25em 0.5em;
+    border-radius: 8px;
+}
+
+.dropdownItem:hover {
+    cursor: pointer;
+    background-color: rgba(54, 54, 54, 0.138);
+}
+
+.title {
+    font-weight: 600;
+}
+
+.description {
+    /* These work cross browser */
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-line-clamp
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
+.value {
+    font-weight: 400;
+    color: var(--light-color);
+}
+
+.hasImg {
+    display: grid;
+    grid-template-columns: 0.3fr 1fr;
+    grid-gap: 1em;
+}
+
+.itemImage {
+    width: 100%;
+    margin-top: auto;
+    margin-bottom: auto;
+}
