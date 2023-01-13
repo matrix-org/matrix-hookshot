@@ -14,6 +14,7 @@ import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
 import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConnection";
 import { ApiError, Logger } from "matrix-appservice-bridge";
+import { Intent } from "matrix-bot-sdk";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 
@@ -22,7 +23,7 @@ const log = new Logger("SetupConnection");
  * no state, and is only invoked when messages from other clients fall through.
  */
 export class SetupConnection extends CommandConnection {
-    
+
     static botCommands: BotCommands;
     static helpMessage: HelpFunction;
 
@@ -34,36 +35,41 @@ export class SetupConnection extends CommandConnection {
         return this.provisionOpts.as;
     }
 
+    private get intent() {
+        return this.provisionOpts.intent;
+    }
+
+    private get client() {
+        return this.intent.underlyingClient;
+    }
+
     protected validateConnectionState(content: unknown) {
         log.warn("SetupConnection has no state to be validated");
         return content as IConnectionState;
     }
 
-    constructor(public readonly roomId: string,
+    constructor(
+        readonly roomId: string,
+        readonly prefix: string,
+        readonly serviceTypes: string[],
+        readonly helpCategories: string[],
         private readonly provisionOpts: ProvisionConnectionOpts,
-        private readonly getOrCreateAdminRoom: (userId: string) => Promise<AdminRoom>,
-        private readonly pushConnections: (...connections: IConnection[]) => void) {
-            super(
-                roomId,
-                "",
-                "",
-                // TODO Consider storing room-specific config in state.
-                {},
-                provisionOpts.as.botClient,
-                SetupConnection.botCommands,
-                SetupConnection.helpMessage,
-                "!hookshot",
-            )
-            this.enabledHelpCategories = [
-                this.config.github ? "github" : "",
-                this.config.gitlab ? "gitlab": "",
-                this.config.figma ? "figma": "",
-                this.config.jira ? "jira": "",
-                this.config.generic?.enabled ? "webhook": "",
-                this.config.feeds?.enabled ? "feed" : "",
-                this.config.widgets?.roomSetupWidget ? "widget" : "",
-            ];
-            this.includeTitlesInHelp = false;
+        private readonly getOrCreateAdminRoom: (intent: Intent, userId: string) => Promise<AdminRoom>,
+        private readonly pushConnections: (...connections: IConnection[]) => void,
+    ) {
+        super(
+            roomId,
+            "",
+            "",
+            // TODO Consider storing room-specific config in state.
+            {},
+            provisionOpts.intent.underlyingClient,
+            SetupConnection.botCommands,
+            SetupConnection.helpMessage,
+            helpCategories,
+            prefix,
+        );
+        this.includeTitlesInHelp = false;
     }
 
     @botCommand("github repo", { help: "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this.)", requiredArgs: ["url"], includeUserId: true, category: "github"})
@@ -84,7 +90,7 @@ export class SetupConnection extends CommandConnection {
         const [, org, repo] = urlParts;
         const {connection} = await GitHubRepoConnection.provisionConnection(this.roomId, userId, {org, repo}, this.provisionOpts);
         this.pushConnections(connection);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.org}/${connection.repo}`);
+        await this.client.sendNotice(this.roomId, `Room configured to bridge ${connection.org}/${connection.repo}`);
     }
 
     @botCommand("gitlab project", { help: "Create a connection for a GitHub project. (You must be logged in with GitLab to do this.)", requiredArgs: ["url"], includeUserId: true, category: "gitlab"})
@@ -110,7 +116,7 @@ export class SetupConnection extends CommandConnection {
         }
         const {connection, warning} = await GitLabRepoConnection.provisionConnection(this.roomId, userId, {path, instance: name}, this.provisionOpts);
         this.pushConnections(connection);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge ${connection.prettyPath}` + (warning ? `\n${warning.header}: ${warning.message}` : ""));
+        await this.client.sendNotice(this.roomId, `Room configured to bridge ${connection.prettyPath}` + (warning ? `\n${warning.header}: ${warning.message}` : ""));
     }
 
     private async checkJiraLogin(userId: string, urlStr: string) {
@@ -142,12 +148,12 @@ export class SetupConnection extends CommandConnection {
 
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
         this.pushConnections(res.connection);
-        await this.as.botClient.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
+        await this.client.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
     }
 
     @botCommand("jira list project", { help: "Show JIRA projects currently connected to.", category: "jira"})
     public async onJiraListProject() {
-        const projects: JiraProjectConnectionState[] = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+        const projects: JiraProjectConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
                 return []; // not an error to us
             }
@@ -162,9 +168,9 @@ export class SetupConnection extends CommandConnection {
         );
 
         if (projects.length === 0) {
-            return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not connected to any JIRA projects'));
+            return this.client.sendHtmlNotice(this.roomId, md.renderInline('Not connected to any JIRA projects'));
         } else {
-            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(
+            return this.client.sendHtmlNotice(this.roomId, md.render(
                 'Currently connected to these JIRA projects:\n\n' +
                  projects.map(project => ` - ${project.url}`).join('\n')
             ));
@@ -185,7 +191,7 @@ export class SetupConnection extends CommandConnection {
         let eventType = "";
         for (eventType of eventTypes) {
             try {
-                event = await this.as.botClient.getRoomStateEvent(this.roomId, eventType, safeUrl);
+                event = await this.client.getRoomStateEvent(this.roomId, eventType, safeUrl);
                 break;
             } catch (err: any) {
                 if (err.body.errcode !== 'M_NOT_FOUND') {
@@ -197,11 +203,11 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid Jira project URL", `Feed "${urlStr}" is not currently bridged to this room`);
         }
 
-        await this.as.botClient.sendStateEvent(this.roomId, eventType, safeUrl, {});
-        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
+        await this.client.sendStateEvent(this.roomId, eventType, safeUrl, {});
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
     }
 
-    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: "webhook"})
+    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: "generic"})
     public async onWebhook(userId: string, name: string) {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
@@ -215,9 +221,9 @@ export class SetupConnection extends CommandConnection {
         const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
         this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
-        const adminRoom = await this.getOrCreateAdminRoom(userId);
+        const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
         await adminRoom.sendNotice(`You have bridged a webhook. Please configure your webhook source to use ${url}.`);
-        return this.as.botClient.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
+        return this.client.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
     }
 
     @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: "figma"})
@@ -235,10 +241,10 @@ export class SetupConnection extends CommandConnection {
         const [, fileId] = res;
         const {connection} = await FigmaFileConnection.provisionConnection(this.roomId, userId, { fileId }, this.provisionOpts);
         this.pushConnections(connection);
-        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
-    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], optionalArgs: ["label"], includeUserId: true, category: "feed"})
+    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], optionalArgs: ["label"], includeUserId: true, category: "feeds"})
     public async onFeed(userId: string, url: string, label?: string) {
         if (!this.config.feeds?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
@@ -260,12 +266,12 @@ export class SetupConnection extends CommandConnection {
 
         const {connection} = await FeedConnection.provisionConnection(this.roomId, userId, { url, label }, this.provisionOpts);
         this.pushConnections(connection);
-        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
-    @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feed"})
+    @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feeds"})
     public async onFeedList() {
-        const feeds: FeedConnectionState[] = await this.as.botClient.getRoomState(this.roomId).catch((err: any) => {
+        const feeds: FeedConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
                 return []; // not an error to us
             }
@@ -277,7 +283,7 @@ export class SetupConnection extends CommandConnection {
         );
 
         if (feeds.length === 0) {
-            return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
+            return this.client.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
         } else {
             const feedDescriptions = feeds.map(feed => {
                 if (feed.label) {
@@ -286,18 +292,18 @@ export class SetupConnection extends CommandConnection {
                 return feed.url;
             });
 
-            return this.as.botClient.sendHtmlNotice(this.roomId, md.render(
+            return this.client.sendHtmlNotice(this.roomId, md.render(
                 'Currently subscribed to these feeds:\n\n' +
                  feedDescriptions.map(desc => ` - ${desc}`).join('\n')
             ));
         }
     }
 
-    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom feed.", requiredArgs: ["url"], includeUserId: true, category: "feed"})
+    @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom feed.", requiredArgs: ["url"], includeUserId: true, category: "feeds"})
     public async onFeedRemove(userId: string, url: string) {
         await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
 
-        const event = await this.as.botClient.getRoomStateEvent(this.roomId, FeedConnection.CanonicalEventType, url).catch((err: any) => {
+        const event = await this.client.getRoomStateEvent(this.roomId, FeedConnection.CanonicalEventType, url).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
                 return null; // not an error to us
             }
@@ -307,8 +313,8 @@ export class SetupConnection extends CommandConnection {
             throw new CommandError("Invalid feed URL", `Feed "${url}" is not currently bridged to this room`);
         }
 
-        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {});
-        return this.as.botClient.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from \`${url}\``));
+        await this.client.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, url, {});
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from \`${url}\``));
     }
 
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
@@ -316,8 +322,8 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.widgets?.roomSetupWidget) {
             throw new CommandError("Not configured", "The bridge is not configured to support setup widgets");
         }
-        if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.as.botIntent, this.config.widgets)) {
-            await this.as.botClient.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
+        if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.intent, this.config.widgets, this.serviceTypes)) {
+            await this.client.sendNotice(this.roomId, `This room already has a setup widget, please open the "Hookshot Configuration" widget.`);
         }
     }
 
@@ -325,10 +331,10 @@ export class SetupConnection extends CommandConnection {
         if (!this.config.checkPermission(userId, service, BridgePermissionLevel.manageConnections)) {
             throw new CommandError(`You are not permitted to provision connections for ${service}.`);
         }
-        if (!await this.as.botClient.userHasPowerLevelFor(userId, this.roomId, "", true)) {
+        if (!await this.client.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");
         }
-        if (!await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, this.roomId, stateEventType, true)) {
+        if (!await this.client.userHasPowerLevelFor(this.intent.userId, this.roomId, stateEventType, true)) {
             throw new CommandError("Bot lacks power level to set room state", "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.");
         }
     }

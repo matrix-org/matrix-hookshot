@@ -1,6 +1,7 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
+import BotUsersManager from "./Managers/BotUsersManager";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -50,6 +51,7 @@ export class Bridge {
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
+    private widgetApi?: BridgeWidgetApi;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -60,6 +62,7 @@ export class Bridge {
         private readonly listener: ListenerService,
         private readonly as: Appservice,
         private readonly storage: IBridgeStorageProvider,
+        private readonly botUsersManager: BotUsersManager,
     ) {
         this.queue = createMessageQueue(this.config.queue);
         this.messageClient = new MessageSenderClient(this.queue);
@@ -67,6 +70,7 @@ export class Bridge {
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
         this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
         this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
+
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
     }
@@ -82,20 +86,21 @@ export class Bridge {
         await this.storage.connect?.();
         await this.queue.connect?.();
 
-        // Fetch all room state
-        let joinedRooms: string[]|undefined;
-        while(joinedRooms === undefined) {
+        log.info("Ensuring homeserver can be reached...");
+        let reached = false;
+        while (!reached) {
             try {
-                log.info("Connecting to homeserver and fetching joined rooms..");
-                joinedRooms = await this.as.botIntent.getJoinedRooms();
-                log.debug(`Bridge bot is joined to ${joinedRooms.length} rooms`);
-            } catch (ex) {
-                // This is our first interaction with the homeserver, so wait if it's not ready yet.
-                log.warn("Failed to connect to homeserver, retrying in 5s", ex);
+                // Make a request to determine if we can reach the homeserver
+                await this.as.botIntent.getJoinedRooms();
+                reached = true;
+            } catch (e) {
+                log.warn("Failed to connect to homeserver, retrying in 5s", e);
                 await new Promise((r) => setTimeout(r, 5000));
             }
         }
-        
+
+        await this.botUsersManager.start();
+
         await this.config.prefillMembershipCache(this.as.botClient);
 
         if (this.config.github) {
@@ -112,20 +117,28 @@ export class Bridge {
             await ensureFigmaWebhooks(this.config.figma, this.as.botClient);
         }
 
-
-        const connManager = this.connectionManager = new ConnectionManager(this.as,
-            this.config, this.tokenStore, this.commentProcessor, this.messageClient, this.storage, this.github);
+        const connManager = this.connectionManager = new ConnectionManager(
+            this.as,
+            this.config,
+            this.tokenStore,
+            this.commentProcessor,
+            this.messageClient,
+            this.storage,
+            this.botUsersManager,
+            this.github,
+        );
 
         if (this.config.feeds?.enabled) {
             new FeedReader(
                 this.config.feeds,
                 this.connectionManager,
                 this.queue,
+                // Use default bot when storing account data
                 this.as.botClient,
             );
         }
 
-    
+
         if (this.config.provisioning) {
             const routers = [];
             if (this.config.jira) {
@@ -145,7 +158,13 @@ export class Bridge {
             if (this.config.generic) {
                 this.connectionManager.registerProvisioningConnection(GenericHookConnection);
             }
-            this.provisioningApi = new Provisioner(this.config.provisioning, this.connectionManager, this.as.botIntent, routers);
+            this.provisioningApi = new Provisioner(
+                this.config.provisioning,
+                this.connectionManager,
+                this.botUsersManager,
+                this.as,
+                routers,
+            );
         }
 
         this.as.on("query.room", async (roomAlias, cb) => {
@@ -266,114 +285,114 @@ export class Bridge {
 
         this.bindHandlerToQueue<GitHubWebhookTypes.IssuesUnlabeledEvent, GitHubRepoConnection>(
             "github.issues.unlabeled",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onIssueUnlabeled(data),
         );
         this.bindHandlerToQueue<GitHubWebhookTypes.IssuesLabeledEvent, GitHubRepoConnection>(
             "github.issues.labeled",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onIssueLabeled(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestOpenedEvent, GitHubRepoConnection>(
             "github.pull_request.opened",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPROpened(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestClosedEvent, GitHubRepoConnection>(
             "github.pull_request.closed",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPRClosed(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestReadyForReviewEvent, GitHubRepoConnection>(
             "github.pull_request.ready_for_review",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPRReadyForReview(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestReviewSubmittedEvent, GitHubRepoConnection>(
             "github.pull_request_review.submitted",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onPRReviewed(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.WorkflowRunCompletedEvent, GitHubRepoConnection>(
             "github.workflow_run.completed",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onWorkflowCompleted(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.ReleasePublishedEvent, GitHubRepoConnection>(
             "github.release.published",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onReleaseCreated(data),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.ReleaseCreatedEvent, GitHubRepoConnection>(
             "github.release.created",
-            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name), 
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
             (c, data) => c.onReleaseDrafted(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.open",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestOpened(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.close",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestClosed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.merge",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestMerged(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.approved",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestReviewed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.unapproved",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestReviewed(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.update",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestUpdate(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookReleaseEvent, GitLabRepoConnection>(
             "gitlab.release.create",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onRelease(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookTagPushEvent, GitLabRepoConnection>(
             "gitlab.tag_push",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onGitLabTagPush(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookPushEvent, GitLabRepoConnection>(
             "gitlab.push",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onGitLabPush(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookWikiPageEvent, GitLabRepoConnection>(
             "gitlab.wiki_page",
-            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace), 
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onWikiPageEvent(data),
         );
 
@@ -419,10 +438,10 @@ export class Bridge {
 
         this.bindHandlerToQueue<IGitLabWebhookNoteEvent, GitLabIssueConnection|GitLabRepoConnection>(
             "gitlab.note.created",
-            (data) => { 
+            (data) => {
                 const iid = data.issue?.iid || data.merge_request?.iid;
                 return [
-                    ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []), 
+                    ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []),
                     ...connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
                 ]},
             (c, data) => c.onCommentCreated(data),
@@ -430,19 +449,19 @@ export class Bridge {
 
         this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabIssueConnection>(
             "gitlab.issue.reopen",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid), 
+            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid),
             (c) => c.onIssueReopened(),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabIssueConnection>(
             "gitlab.issue.close",
-            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid), 
+            (data) => connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, data.object_attributes.iid),
             (c) => c.onIssueClosed(),
         );
 
         this.bindHandlerToQueue<GitHubWebhookTypes.DiscussionCommentCreatedEvent, GitHubDiscussionConnection>(
             "github.discussion_comment.created",
-            (data) => connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number), 
+            (data) => connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.number),
             (c, data) => c.onDiscussionCommentCreated(data),
         );
 
@@ -458,10 +477,16 @@ export class Bridge {
             }
             let [discussionConnection] = connManager.getConnectionsForGithubDiscussion(data.repository.owner.login, data.repository.name, data.discussion.id);
             if (!discussionConnection) {
+                const botUser = this.botUsersManager.getBotUserForService(GitHubDiscussionConnection.ServiceCategory);
+                if (!botUser) {
+                    throw Error('Could not find a bot to handle this connection');
+                }
+
                 try {
                     // If we don't have an existing connection for this discussion (likely), then create one.
                     discussionConnection = await GitHubDiscussionConnection.createDiscussionRoom(
                         this.as,
+                        botUser.intent,
                         null,
                         data.repository.owner.login,
                         data.repository.name,
@@ -486,7 +511,7 @@ export class Bridge {
                 }
             })
         });
-    
+
         this.bindHandlerToQueue<JiraIssueEvent, JiraProjectConnection>(
             "jira.issue_created",
             (data) => connManager.getConnectionsForJiraProject(data.issue.fields.project),
@@ -553,7 +578,7 @@ export class Bridge {
             });
 
         });
-        
+
         this.queue.on<GenericWebhookEvent>("generic-webhook.event", async (msg) => {
             const { data, messageId } = msg;
             const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
@@ -635,30 +660,13 @@ export class Bridge {
             (c, data) => c.handleFeedError(data),
         );
 
-        // Set the name and avatar of the bot
-        if (this.config.bot) {
-            // Ensure we are registered before we set a profile
-            await this.as.botIntent.ensureRegistered();
-            let profile;
-            try {
-                profile = await this.as.botClient.getUserProfile(this.as.botUserId);
-            } catch {
-                profile = {}
-            }
-            if (this.config.bot.avatar && profile.avatar_url !== this.config.bot.avatar) {
-                log.info(`Setting avatar to ${this.config.bot.avatar}`);
-                await this.as.botClient.setAvatarUrl(this.config.bot.avatar);
-            }
-            if (this.config.bot.displayname && profile.displayname !== this.config.bot.displayname) {
-                log.info(`Setting displayname to ${this.config.bot.displayname}`);
-                await this.as.botClient.setDisplayName(this.config.bot.displayname);
-            }
-        }
         const queue = new PQueue({
             concurrency: 2,
         });
-        queue.addAll(joinedRooms.map(((roomId) => async () => {
+        // Set up already joined rooms
+        await queue.addAll(this.botUsersManager.joinedRooms.map((roomId) => async () => {
             log.debug("Fetching state for " + roomId);
+
             try {
                 await connManager.createConnectionsForRoomId(roomId, false);
             } catch (ex) {
@@ -666,13 +674,19 @@ export class Bridge {
                 return;
             }
 
+            const botUser = this.botUsersManager.getBotUserInRoom(roomId);
+            if (!botUser) {
+                log.error(`Failed to find a bot in room '${roomId}' when setting up admin room`);
+                return;
+            }
+
             // TODO: Refactor this to be a connection
             try {
-                let accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
+                let accountData = await botUser.intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                     BRIDGE_ROOM_TYPE, roomId,
                 );
                 if (!accountData) {
-                    accountData = await this.as.botClient.getSafeRoomAccountData<AdminAccountData>(
+                    accountData = await botUser.intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
                         LEGACY_BRIDGE_ROOM_TYPE, roomId,
                     );
                     if (!accountData) {
@@ -680,18 +694,18 @@ export class Bridge {
                         return;
                     } else {
                         // Upgrade the room
-                        await this.as.botClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
+                        await botUser.intent.underlyingClient.setRoomAccountData(BRIDGE_ROOM_TYPE, roomId, accountData);
                     }
                 }
 
                 let notifContent;
                 try {
-                    notifContent = await this.as.botClient.getRoomStateEvent(
+                    notifContent = await botUser.intent.underlyingClient.getRoomStateEvent(
                         roomId, NotifFilter.StateType, "",
                     );
                 } catch (ex) {
                     try {
-                        notifContent = await this.as.botClient.getRoomStateEvent(
+                        notifContent = await botUser.intent.underlyingClient.getRoomStateEvent(
                             roomId, NotifFilter.LegacyStateType, "",
                         );
                     }
@@ -699,14 +713,14 @@ export class Bridge {
                         // No state yet
                     }
                 }
-                const adminRoom = await this.setUpAdminRoom(roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                const adminRoom = await this.setUpAdminRoom(botUser.intent, roomId, accountData, notifContent || NotifFilter.getDefaultContent());
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
             } catch (ex) {
                 log.error(`Failed to set up admin room ${roomId}:`, ex);
             }
-        })));
+        }));
 
         // Handle spaces
         for (const discussion of connManager.getAllConnectionsOfType(GitHubDiscussionSpace)) {
@@ -719,16 +733,17 @@ export class Bridge {
             const apps = this.listener.getApplicationsForResource('widgets');
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
-            } 
-            new BridgeWidgetApi(
+            }
+            this.widgetApi = new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
                 apps[0],
                 this.connectionManager,
-                this.as.botIntent,
+                this.botUsersManager,
+                this.as,
             );
-            
+
         }
         if (this.provisioningApi) {
             this.listener.bindResource('provisioning', this.provisioningApi.expressRouter);
@@ -763,36 +778,63 @@ export class Bridge {
             /* Do not handle invites from our users */
             return;
         }
-        log.info(`Got invite roomId=${roomId} from=${event.sender} to=${event.state_key}`);
-        // Room joins can fail over federation
-        if (event.state_key !== this.as.botUserId) {
-            return this.as.botClient.kickUser(event.state_key, roomId, "Bridge does not support DMing ghosts");
+        const invitedUserId = event.state_key;
+        if (!invitedUserId) {
+            return;
+        }
+        log.info(`Got invite roomId=${roomId} from=${event.sender} to=${invitedUserId}`);
+
+        const botUser = this.botUsersManager.getBotUser(invitedUserId);
+        if (!botUser) {
+            // We got an invite but it's not a configured bot user, must be for a ghost user
+            log.debug(`Rejecting invite to room ${roomId} for ghost user ${invitedUserId}`);
+            const client = this.as.getIntentForUserId(invitedUserId).underlyingClient;
+            return client.kickUser(invitedUserId, roomId, "Bridge does not support DMing ghosts");
         }
 
         // Don't accept invites from people who can't do anything
         if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
-            return this.as.botClient.kickUser(this.as.botUserId, roomId, "You do not have permission to invite this bot.");
+            return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "You do not have permission to invite this bot.");
         }
 
-        await retry(() => this.as.botIntent.joinRoom(roomId), 5);
+        if (event.content.is_direct && botUser.userId !== this.as.botUserId) {
+            // Service bots do not support direct messages (admin rooms)
+            log.debug(`Rejecting direct message (admin room) invite to room ${roomId} for service bot ${botUser.userId}`);
+            return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "This bot does not support admin rooms.");
+        }
+
+        // Accept the invite
+        await retry(() => botUser.intent.joinRoom(roomId), 5);
         if (event.content.is_direct) {
-            await this.as.botClient.setRoomAccountData(
+            await botUser.intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender},
             );
         }
     }
 
 
-    private async onRoomLeave(roomId: string, event: MatrixEvent<MatrixMemberContent>) {
-        if (event.state_key !== this.as.botUserId) {
-            // Only interested in bot leaves.
+    private async onRoomLeave(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
+        const userId = matrixEvent.state_key;
+        if (!userId) {
             return;
         }
-        // If the bot has left the room, we want to vape all connections for that room.
-        try {
-            await this.connectionManager?.removeConnectionsForRoom(roomId);
-        } catch (ex) {
-            log.warn(`Failed to remove connections on leave for ${roomId}`);
+
+        const botUser = this.botUsersManager.getBotUser(userId);
+        if (!botUser) {
+            // Not for one of our bots
+            return;
+        }
+        this.botUsersManager.onRoomLeave(botUser, roomId);
+
+        if (!this.connectionManager) {
+            return;
+        }
+
+        // Remove all the connections for this room
+        await this.connectionManager.removeConnectionsForRoom(roomId);
+        if (this.botUsersManager.getBotUsersInRoom(roomId).length > 0) {
+            // If there are still bots in the room, recreate connections
+            await this.connectionManager.createConnectionsForRoomId(roomId, true);
         }
     }
 
@@ -838,13 +880,23 @@ export class Bridge {
             }
             if (!handled && this.config.checkPermissionAny(event.sender, BridgePermissionLevel.manageConnections)) {
                 // Divert to the setup room code if we didn't match any of these
-                try {
-                    await (
-                        new SetupConnection(
+
+                const botUsersInRoom = this.botUsersManager.getBotUsersInRoom(roomId);
+                // Try each bot in the room until one handles the command
+                for (const botUser of botUsersInRoom) {
+                    try {
+                        const setupConnection = new SetupConnection(
                             roomId,
+                            botUser.prefix,
+                            botUser.services,
+                            [
+                                ...botUser.services,
+                                this.config.widgets?.roomSetupWidget ? "widget" : "",
+                            ],
                             {
                                 config: this.config,
                                 as: this.as,
+                                intent: botUser.intent,
                                 tokenStore: this.tokenStore,
                                 commentProcessor: this.commentProcessor,
                                 messageClient: this.messageClient,
@@ -852,12 +904,16 @@ export class Bridge {
                                 github: this.github,
                                 getAllConnectionsOfType: this.connectionManager.getAllConnectionsOfType.bind(this.connectionManager),
                             },
-                            this.getOrCreateAdminRoomForUser.bind(this),
+                            this.getOrCreateAdminRoom.bind(this),
                             this.connectionManager.push.bind(this.connectionManager),
-                        )
-                    ).onMessageEvent(event, checkPermission);
-                } catch (ex) {
-                    log.warn(`Setup connection failed to handle:`, ex);
+                        );
+                        const handled = await setupConnection.onMessageEvent(event, checkPermission);
+                        if (handled) {
+                            break;
+                        }
+                    } catch (ex) {
+                        log.warn(`Setup connection failed to handle:`, ex);
+                    }
                 }
             }
             return;
@@ -900,23 +956,30 @@ export class Bridge {
     }
 
     private async onRoomJoin(roomId: string, matrixEvent: MatrixEvent<MatrixMemberContent>) {
-        if (this.as.botUserId !== matrixEvent.sender) {
-            // Only act on bot joins
+        const userId = matrixEvent.state_key;
+        if (!userId) {
             return;
         }
+
+        const botUser = this.botUsersManager.getBotUser(userId);
+        if (!botUser) {
+            // Not for one of our bots
+            return;
+        }
+        this.botUsersManager.onRoomJoin(botUser, roomId);
 
         if (this.config.encryption) {
             // Ensure crypto is aware of all members of this room before posting any messages,
             // so that the bot can share room keys to all recipients first.
-            await this.as.botClient.crypto.onRoomJoin(roomId);
+            await botUser.intent.underlyingClient.crypto.onRoomJoin(roomId);
         }
 
-        const adminAccountData = await this.as.botIntent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
+        const adminAccountData = await botUser.intent.underlyingClient.getSafeRoomAccountData<AdminAccountData>(
             BRIDGE_ROOM_TYPE, roomId,
         );
         if (adminAccountData) {
-            const room = await this.setUpAdminRoom(roomId, adminAccountData, NotifFilter.getDefaultContent());
-            await this.as.botClient.setRoomAccountData(
+            const room = await this.setUpAdminRoom(botUser.intent, roomId, adminAccountData, NotifFilter.getDefaultContent());
+            await botUser.intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, room.accountData,
             );
         }
@@ -926,20 +989,28 @@ export class Bridge {
             return;
         }
 
-        // Only fetch rooms we have no connections in yet.
-        const roomHasConnection =
-            this.connectionManager.isRoomConnected(roomId) ||
-            await this.connectionManager.createConnectionsForRoomId(roomId, true);
+        // Recreate connections for the room
+        await this.connectionManager.removeConnectionsForRoom(roomId);
+        await this.connectionManager.createConnectionsForRoomId(roomId, true);
 
-        // If room has connections or is an admin room, don't setup a wizard.
+        // Only fetch rooms we have no connections in yet.
+        const roomHasConnection = this.connectionManager.isRoomConnected(roomId);
+
+        // If room has connections or is an admin room, don't set up a wizard.
         // Otherwise it's a new room
         if (!roomHasConnection && !adminAccountData && this.config.widgets?.roomSetupWidget?.addOnInvite) {
             try {
-                if (await this.as.botClient.userHasPowerLevelFor(this.as.botUserId, roomId, "im.vector.modular.widgets", true) === false) {
-                    await this.as.botIntent.sendText(roomId, "Hello! To setup new integrations in this room, please promote me to a Moderator/Admin");
+                const hasPowerlevel = await botUser.intent.underlyingClient.userHasPowerLevelFor(
+                    botUser.intent.userId,
+                    roomId,
+                    "im.vector.modular.widgets",
+                    true,
+                );
+                if (!hasPowerlevel) {
+                    await botUser.intent.sendText(roomId, "Hello! To set up new integrations in this room, please promote me to a Moderator/Admin.");
                 } else {
-                    // Setup the widget
-                    await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+                    // Set up the widget
+                    await SetupWidget.SetupRoomConfigWidget(roomId, botUser.intent, this.config.widgets, botUser.services);
                 }
             } catch (ex) {
                 log.error(`Failed to setup new widget for room`, ex);
@@ -988,28 +1059,31 @@ export class Bridge {
                 }
             }
 
-            // If it's a power level event for a new room, we might want to create the setup widget.
-            if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
-                log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
-                const plEvent = new PowerLevelsEvent(event);
-                const currentPl = plEvent.content.users?.[this.as.botUserId] || plEvent.defaultUserLevel;
-                const previousPl = plEvent.previousContent?.users?.[this.as.botUserId] || plEvent.previousContent?.users_default;
-                const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
-                if (currentPl !== previousPl && currentPl >= requiredPl) {
-                    // PL changed for bot user, check to see if the widget can be created.
-                    try {
-                        log.info(`Bot has powerlevel required to create a setup widget, attempting`);
-                        await SetupWidget.SetupRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
-                    } catch (ex) {
-                        log.error(`Failed to create setup widget for ${roomId}`, ex);
+            const botUsersInRoom = this.botUsersManager.getBotUsersInRoom(roomId);
+            for (const botUser of botUsersInRoom) {
+                // If it's a power level event for a new room, we might want to create the setup widget.
+                if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
+                    log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
+                    const plEvent = new PowerLevelsEvent(event);
+                    const currentPl = plEvent.content.users?.[botUser.userId] || plEvent.defaultUserLevel;
+                    const previousPl = plEvent.previousContent?.users?.[botUser.userId] || plEvent.previousContent?.users_default;
+                    const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
+                    if (currentPl !== previousPl && currentPl >= requiredPl) {
+                        // PL changed for bot user, check to see if the widget can be created.
+                        try {
+                            log.info(`Bot has powerlevel required to create a setup widget, attempting`);
+                            await SetupWidget.SetupRoomConfigWidget(roomId, botUser.intent, this.config.widgets, botUser.services);
+                        } catch (ex) {
+                            log.error(`Failed to create setup widget for ${roomId}`, ex);
+                        }
                     }
                 }
-            } 
+            }
             return;
         }
 
         // We still want to react to our own state events.
-        if (event.sender === this.as.botUserId) {
+        if (this.botUsersManager.isBotUser(event.sender)) {
             // It's us
             return;
         }
@@ -1169,16 +1243,16 @@ export class Bridge {
                 });
             }
         }
-        
+
     }
 
-    private async getOrCreateAdminRoomForUser(userId: string): Promise<AdminRoom> {
+    private async getOrCreateAdminRoom(intent: Intent, userId: string): Promise<AdminRoom> {
         const existingRoom = this.getAdminRoomForUser(userId);
         if (existingRoom) {
             return existingRoom;
         }
-        const roomId = await this.as.botClient.dms.getOrCreateDm(userId);
-        const room = await this.setUpAdminRoom(roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
+        const roomId = await intent.underlyingClient.dms.getOrCreateDm(userId);
+        const room = await this.setUpAdminRoom(intent, roomId, {admin_user: userId}, NotifFilter.getDefaultContent());
         await this.as.botClient.setRoomAccountData(
             BRIDGE_ROOM_TYPE, roomId, room.accountData,
         );
@@ -1194,23 +1268,28 @@ export class Bridge {
         return null;
     }
 
-    private async setUpAdminRoom(roomId: string, accountData: AdminAccountData, notifContent: NotificationFilterStateContent) {
+    private async setUpAdminRoom(
+        intent: Intent,
+        roomId: string,
+        accountData: AdminAccountData,
+        notifContent: NotificationFilterStateContent,
+    ) {
         if (!this.connectionManager) {
             throw Error('setUpAdminRoom() called before connectionManager was ready');
         }
 
         const adminRoom = new AdminRoom(
-            roomId, accountData, notifContent, this.as.botIntent, this.tokenStore, this.config, this.connectionManager,
+            roomId, accountData, notifContent, intent, this.tokenStore, this.config, this.connectionManager,
         );
 
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
             const [connection] = this.connectionManager?.getForGitHubProject(project.id) || [];
             if (!connection) {
-                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, adminRoom.userId);
+                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, intent, adminRoom.userId);
                 this.connectionManager?.push(connection);
             } else {
-                await this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
+                await intent.underlyingClient.inviteUser(adminRoom.userId, connection.roomId);
             }
         });
         adminRoom.on("open.gitlab-issue", async (issueInfo: GetIssueOpts, res: GetIssueResponse, instanceName: string, instance: GitLabInstance) => {
@@ -1219,25 +1298,26 @@ export class Bridge {
             }
             const [ connection ] = this.connectionManager?.getConnectionsForGitLabIssue(instance, issueInfo.projects, issueInfo.issue) || [];
             if (connection) {
-                return this.as.botClient.inviteUser(adminRoom.userId, connection.roomId);
-            } 
+                return intent.underlyingClient.inviteUser(adminRoom.userId, connection.roomId);
+            }
             const newConnection = await GitLabIssueConnection.createRoomForIssue(
                 instanceName,
                 instance,
                 res,
                 issueInfo.projects,
                 this.as,
-                this.tokenStore, 
+                intent,
+                this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
                 this.config.gitlab,
             );
             this.connectionManager?.push(newConnection);
-            return this.as.botClient.inviteUser(adminRoom.userId, newConnection.roomId);
+            return intent.underlyingClient.inviteUser(adminRoom.userId, newConnection.roomId);
         });
         this.adminRooms.set(roomId, adminRoom);
         if (this.config.widgets?.addToAdminRooms) {
-            await SetupWidget.SetupAdminRoomConfigWidget(roomId, this.as.botIntent, this.config.widgets);
+            await SetupWidget.SetupAdminRoomConfigWidget(roomId, intent, this.config.widgets);
         }
         log.debug(`Set up ${roomId} as an admin room for ${adminRoom.userId}`);
         return adminRoom;

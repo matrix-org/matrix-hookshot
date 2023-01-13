@@ -17,7 +17,9 @@ function createGenericHook(state: GenericHookConnectionState = {
     const mq = new LocalMQ();
     mq.subscribe('*');
     const messageClient = new MessageSenderClient(mq);
-    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), AppserviceMock.create())
+    const as = AppserviceMock.create();
+    const intent = as.getIntentForUserId('@webhooks:example.test');
+    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
     return [connection, mq];
 }
 
@@ -30,7 +32,7 @@ function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
             data: { 'eventId': '$foo:bar' },
         });
         r(msg.data as IMatrixSendMessage);
-    })); 
+    }));
 }
 
 describe("GenericHookConnection", () => {
