@@ -5,12 +5,9 @@ import { Node, YAMLSeq } from "yaml/types";
 import { randomBytes } from "crypto";
 import { DefaultDisallowedIpRanges } from "matrix-appservice-bridge";
 
-const serverName = "example.com";
-const hookshotWebhooksUrl = "http://example.com";
-
 export const DefaultConfig = new BridgeConfig({
     bridge: {
-        domain: serverName,
+        domain: "example.com",
         url: "http://localhost:8008",
         mediaUrl: "http://example.com",
         port: 9993,
@@ -28,7 +25,7 @@ export const DefaultConfig = new BridgeConfig({
         timestampFormat: "HH:mm:ss:SSS",
     },
     permissions: [{
-        actor: serverName,
+        actor: "example.com",
         services: [{
             service: "*",
             level: "admin"
@@ -36,7 +33,7 @@ export const DefaultConfig = new BridgeConfig({
     }],
     passFile: "passkey.pem",
     widgets: {
-        publicUrl: `${hookshotWebhooksUrl}/widgetapi/v1/static`,
+        publicUrl: "http://example.com/widgetapi/v1/static",
         addToAdminRooms: false,
         roomSetupWidget: {
             addOnInvite: false,
@@ -58,7 +55,7 @@ export const DefaultConfig = new BridgeConfig({
         oauth: {
             client_id: "foo",
             client_secret: "bar",
-            redirect_uri: `${hookshotWebhooksUrl}/bridge_oauth/`,
+            redirect_uri: "https://example.com/bridge_oauth/",
         },
         webhook: {
             secret: "secrettoken",
@@ -79,7 +76,7 @@ export const DefaultConfig = new BridgeConfig({
         },
         webhook: {
             secret: "secrettoken",
-            publicUrl: `${hookshotWebhooksUrl}/hookshot/`,
+            publicUrl: "https://example.com/hookshot/"
         },
         userIdPrefix: "_gitlab_",
     },
@@ -90,19 +87,19 @@ export const DefaultConfig = new BridgeConfig({
         oauth: {
             client_id: "foo",
             client_secret: "bar",
-            redirect_uri: `${hookshotWebhooksUrl}/bridge_oauth/`,
+            redirect_uri: "https://example.com/bridge_oauth/",
         },
     },
     generic: {
         allowJsTransformationFunctions: false,
         enabled: false,
         enableHttpGet: false,
-        urlPrefix: `${hookshotWebhooksUrl}/webhook/`,
+        urlPrefix: "https://example.com/webhook/",
         userIdPrefix: "_webhooks_",
         waitForComplete: false,
     },
     figma: {
-        publicUrl: `${hookshotWebhooksUrl}/hookshot/`,
+        publicUrl: "https://example.com/hookshot/",
         instances: {
             "your-instance": {
                 teamId: "your-team-id",
