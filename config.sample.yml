@@ -100,8 +100,16 @@ passFile:
 bot:
   # (Optional) Define profile information for the bot user
   #
-  displayname: GitHub Bot
+  displayname: Hookshot Bot
   avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+serviceBots:
+  # (Optional) Define additional bot users for specific services
+  #
+  - localpart: feeds
+    displayname: Feeds
+    avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+    prefix: "!feeds"
+    service: feeds
 metrics:
   # (Optional) Prometheus metrics support
   #

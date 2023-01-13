@@ -1,5 +1,5 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { UserTokenStore } from "../UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
@@ -48,8 +48,11 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         return `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`
     }
 
-    public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
-        config, as, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts) {
+    public static async createConnectionForState(
+        roomId: string,
+        event: StateEvent<any>,
+        { config, as, intent, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts,
+    ) {
         if (!config.gitlab) {
             throw Error('GitHub is not configured');
         }
@@ -58,15 +61,31 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
             throw Error('Instance name not recognised');
         }
         return new GitLabIssueConnection(
-            roomId, as, event.content, event.stateKey || "", tokenStore,
-            commentProcessor, messageClient, instance, config.gitlab,
+            roomId,
+            as,
+            intent,
+            event.content,
+            event.stateKey || "",
+            tokenStore,
+            commentProcessor,
+            messageClient,
+            instance,
+            config.gitlab,
         );
     }
 
-    public static async createRoomForIssue(instanceName: string, instance: GitLabInstance,
-        issue: GetIssueResponse, projects: string[], as: Appservice,
-        tokenStore: UserTokenStore, commentProcessor: CommentProcessor, 
-        messageSender: MessageSenderClient, config: BridgeConfigGitLab) {
+    public static async createRoomForIssue(
+        instanceName: string,
+        instance: GitLabInstance,
+        issue: GetIssueResponse,
+        projects: string[],
+        as: Appservice,
+        intent: Intent,
+        tokenStore: UserTokenStore,
+        commentProcessor: CommentProcessor,
+        messageSender: MessageSenderClient,
+        config: BridgeConfigGitLab,
+    ) {
         const state: GitLabIssueConnectionState = {
             projects,
             state: issue.state,
@@ -76,7 +95,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
             authorName: issue.author.name,
         };
 
-        const roomId = await as.botClient.createRoom({
+        const roomId = await intent.underlyingClient.createRoom({
             visibility: "private",
             name: `${issue.references.full}`,
             topic: GitLabIssueConnection.getTopicString(issue.author.name, issue.state),
@@ -91,7 +110,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
             ],
         });
 
-        return new GitLabIssueConnection(roomId, as, state, issue.web_url, tokenStore, commentProcessor, messageSender, instance, config);
+        return new GitLabIssueConnection(roomId, as, intent, state, issue.web_url, tokenStore, commentProcessor, messageSender, instance, config);
     }
 
     public get projectPath() {
@@ -102,18 +121,21 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         return this.instance.url;
     }
 
-    constructor(roomId: string,
+    constructor(
+        roomId: string,
         private readonly as: Appservice,
+        private readonly intent: Intent,
         private state: GitLabIssueConnectionState,
         stateKey: string,
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
         private instance: GitLabInstance,
-        private config: BridgeConfigGitLab) {
-            super(roomId, stateKey, GitLabIssueConnection.CanonicalEventType);
-        }
-    
+        private config: BridgeConfigGitLab,
+    ) {
+        super(roomId, stateKey, GitLabIssueConnection.CanonicalEventType);
+    }
+
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitLabIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
@@ -141,13 +163,17 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         }, this.as, this.config.userIdPrefix);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitLabNote(event);
 
+        if (commentIntent.userId !== this.intent.userId) {
+            // Make sure ghost user is invited to the room
+            await this.intent.underlyingClient.inviteUser(commentIntent.userId, this.roomId);
+        }
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
     }
 
     public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
         const clientKit = await this.tokenStore.getGitLabForUser(event.sender, this.instanceUrl);
         if (clientKit === null) {
-            await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+            await this.intent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
                 "m.relates_to": {
                     rel_type: "m.annotation",
                     event_id: event.event_id,
@@ -178,8 +204,8 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
     public async onIssueReopened() {
         // TODO: We don't store the author data.
         this.state.state = "reopened";
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabIssueConnection.CanonicalEventType, this.stateKey, this.state);
-        return this.as.botClient.sendStateEvent(this.roomId, "m.room.topic", "", {
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabIssueConnection.CanonicalEventType, this.stateKey, this.state);
+        return this.intent.underlyingClient.sendStateEvent(this.roomId, "m.room.topic", "", {
             topic: GitLabIssueConnection.getTopicString(this.state.authorName, this.state.state),
         });
     }
@@ -187,8 +213,8 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
     public async onIssueClosed() {
         // TODO: We don't store the author data.
         this.state.state = "closed";
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabIssueConnection.CanonicalEventType, this.stateKey , this.state);
-        return this.as.botClient.sendStateEvent(this.roomId, "m.room.topic", "", {
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabIssueConnection.CanonicalEventType, this.stateKey , this.state);
+        return this.intent.underlyingClient.sendStateEvent(this.roomId, "m.room.topic", "", {
             topic: GitLabIssueConnection.getTopicString(this.state.authorName, this.state.state),
         });
     }
