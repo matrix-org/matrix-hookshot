@@ -6,66 +6,68 @@ import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, 
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import { FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
+import { DropdownSearch, DropItem } from "../elements/DropdownSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
 
-const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitLabRepoConnectionState) => void}> = ({api, onPicked}) => {
-    const [filter, setFilter] = useState<GitLabTargetFilter>({});
-    const [results, setResults] = useState<GitLabRepoConnectionProjectTarget[]|null>(null);
+const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitLabRepoConnectionState|null) => void}> = ({api, onPicked}) => {
+    const [currentInstance, setCurrentInstance] = useState<string|null>(null);
     const [instances, setInstances] = useState<GitLabRepoConnectionInstanceTarget[]|null>(null);
-    const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
-    const [currentProjectPath, setCurrentProjectPath] = useState<string|null>(null);
     const [searchError, setSearchError] = useState<string|null>(null);
+    const [exampleProjectName, setExampleProjectName] = useState<string>("Loading...");
 
-    const searchFn = useCallback(async() => {
+    useEffect(() => {
+        api.getConnectionTargets<GitLabRepoConnectionInstanceTarget>(EventType, { }).then((res) => {
+            setInstances(res as GitLabRepoConnectionInstanceTarget[]);
+            setCurrentInstance(res[0]?.name ?? null);
+        }).catch(ex => {
+            setSearchError("Could not load GitLab instances.");
+            console.warn(`Failed to get connection targets from query:`, ex);
+        })
+    }, [api]);
+
+    useEffect(() => {
+        if (!currentInstance) {
+            return;
+        }
+        api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
+            instance: currentInstance,
+        }).then(res => {
+            setExampleProjectName(res[0]?.state?.path ?? "my-org/my-example-project");
+        }).catch(ex => {
+            setSearchError("Could not load GitLab projects for instance");
+            console.warn(`Failed to get connection targets from query:`, ex);
+        });
+    }, [currentInstance, api]);
+
+    const searchFn = useCallback(async(terms: string, props: GitLabTargetFilter) => {
         try {
-            const res = await api.getConnectionTargets<GitLabRepoConnectionTarget>(EventType, filter);
-            if (!filter.instance) {
-                setInstances(res as GitLabRepoConnectionInstanceTarget[]);
-                if (res[0]) {
-                    setFilter({instance: res[0].name, search: ""});
-                }
-            } else {
-                setResults(res as GitLabRepoConnectionProjectTarget[]);
-            }
+            const res = await api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
+                ...props,
+                search: terms,
+            });
+            return res.map((item) => ({
+                description: item.description,
+                imageSrc: item.avatar_url,
+                title: item.name,
+                value: item.state.path,
+            }) as DropItem);
         } catch (ex) {
             setSearchError("There was an error fetching search results.");
             // Rather than raising an error, let's just log and let the user retry a query.
             console.warn(`Failed to get connection targets from query:`, ex);
+            return [];
         }
-    }, [api, filter]);
+    }, [api]);
 
-    const updateSearchFn = useCallback((evt: InputEvent) => {
-        setFilter(filterState => ({...filterState, search: (evt.target as HTMLInputElement).value }));
-    }, [setFilter]);
-
-    useEffect(() => {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-        }
-        // Browser types
-        setDebounceTimer(setTimeout(searchFn, 500) as unknown as number);
-        return () => {
-            clearTimeout(debounceTimer);
-        }
-        // Things break if we depend on the thing we are clearing.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchFn, filter, instances]);
-
-    useEffect(() => {
-        const hasResult = results?.find(n => n.name === filter.search);
-        if (hasResult) {
-            onPicked(hasResult.state);
-            setCurrentProjectPath(hasResult.state.path);
-        }
-    }, [onPicked, results, filter]);
-
-    const onInstancePicked = useCallback((evt: InputEvent) => {
+    const onInstancePicked = useCallback((evt: {target: EventTarget|null}) => {
         // Reset the search string.
-        setFilter({
-            instance: (evt.target as HTMLSelectElement).selectedOptions[0].value,
-            search: ""
-        });
+        setCurrentInstance((evt.target as HTMLSelectElement).selectedOptions[0].value);
+        if (value === null) {
+            // Cleared
+            onPicked(null);
+            return;
+        }
     }, []);
 
     const instanceListResults = useMemo(
@@ -73,27 +75,41 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         [instances]
     );
 
-    const projectListResults = useMemo(
-        () => results?.map(i => <option path={i.state.path} value={i.name} key={i.name} />),
-        [results]
-    );
+    const additionalSearchProperties: GitLabTargetFilter = useMemo(() => ({
+        instance: currentInstance || undefined,
+    }), [currentInstance]);
 
+    const onProjectPicked = useCallback((value: string|null) => {
+        if (value === null) {
+            // Cleared
+            onPicked(null);
+            return;
+        }
+        if (!currentInstance) {
+            throw Error('Should never pick a project without an instance');
+        }
+        onPicked({
+            instance: currentInstance,
+            path: value,
+        })
+    }, [currentInstance, onPicked]);
 
     return <div>
         {instances === null && <p> Loading GitLab instances. </p>}
         {instances?.length === 0 && <p> You are not logged into any GitLab instances. </p>}
-        {searchError && <ErrorPane> {searchError} </ErrorPane> }
+        {searchError && <ErrorPane header="Search error"> {searchError} </ErrorPane> }
         <InputField visible={!!instances?.length} label="GitLab Instance" noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}
             </select>
         </InputField>
-        <InputField visible={!!instances?.length} label="Project" noPadding={true}>
-            <small>{currentProjectPath ?? ""}</small>
-            <input onChange={updateSearchFn} value={filter.search} list="gitlab-projects" type="text" />
-            <datalist id="gitlab-projects">
-                {projectListResults}
-            </datalist>
+        <InputField visible={!!currentInstance} label="Project" noPadding={true}>
+            <DropdownSearch
+                placeholder={`Your project name, such as ${exampleProjectName}`}
+                searchFn={searchFn}
+                searchProps={additionalSearchProperties}
+                onChange={onProjectPicked}
+            />
         </InputField>
     </div>;
 }

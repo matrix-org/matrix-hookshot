@@ -370,7 +370,7 @@ export class ConnectionManager extends EventEmitter {
         switch (type) {
         case GitLabRepoConnection.CanonicalEventType: {
             const configObject = this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
-            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
+            return await GitLabRepoConnection.getConnectionTargets(userId, configObject, filters, this.tokenStore, this.storage);
         }
         case GitHubRepoConnection.CanonicalEventType: {
             this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");
