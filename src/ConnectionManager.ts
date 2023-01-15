@@ -139,7 +139,7 @@ export class ConnectionManager extends EventEmitter {
             log.error(`Failed to find a bot in room '${connection.roomId}' for service type '${cd.ServiceCategory}' when verifying state for connection`);
             throw Error('Could not find a bot to handle this connection');
         }
-        return !this.verifyStateEvent(connection.roomId, botUser.intent, state, cd.ServiceCategory, rollbackBadState);
+        return this.verifyStateEvent(connection.roomId, botUser.intent, state, cd.ServiceCategory, rollbackBadState);
     }
 
     private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
