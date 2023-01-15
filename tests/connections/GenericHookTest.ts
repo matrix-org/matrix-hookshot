@@ -11,9 +11,28 @@ const ROOM_ID = "!foo:bar";
 const V1TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
 const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}";
 
-function createGenericHook(state: GenericHookConnectionState = {
-    name: "some-name"
-}, config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}): [GenericHookConnection, LocalMQ] {
+async function testSimpleWebhook(connection: GenericHookConnection, mq: LocalMQ, testValue: string) {
+    const webhookData = {simple: testValue};
+    const messagePromise = handleMessage(mq);
+    await connection.onGenericHook(webhookData);
+    expect(await messagePromise).to.deep.equal({
+        roomId: ROOM_ID,
+        sender: connection.getUserId(),
+        content: {
+            body: "Received webhook data:\n\n```json\n\n{\n  \"simple\": \"" + testValue + "\"\n}\n\n```",
+            format: "org.matrix.custom.html",
+            formatted_body: "<p>Received webhook data:</p><p><pre><code class=\\\"language-json\\\">{\n  \"simple\": \"" + testValue + "\"\n}</code></pre></p>",
+            msgtype: "m.notice",
+            "uk.half-shot.hookshot.webhook_data": webhookData,
+        },
+        type: 'm.room.message',
+    });
+}
+
+function createGenericHook(
+    state: GenericHookConnectionState = { name: "some-name" },
+    config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}
+): [GenericHookConnection, LocalMQ] {
     const mq = new LocalMQ();
     mq.subscribe('*');
     const messageClient = new MessageSenderClient(mq);
@@ -36,23 +55,9 @@ function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
 }
 
 describe("GenericHookConnection", () => {
-    it("will handle a simple hook event", async () => {
-        const webhookData = {simple: "data"};
+    it("will handle simple hook events", async () => {
         const [connection, mq] = createGenericHook();
-        const messagePromise = handleMessage(mq);
-        await connection.onGenericHook(webhookData);
-        expect(await messagePromise).to.deep.equal({
-            roomId: ROOM_ID,
-            sender: connection.getUserId(),
-            content: {
-                body: "Received webhook data:\n\n```json\n\n{\n  \"simple\": \"data\"\n}\n\n```",
-                format: "org.matrix.custom.html",
-                formatted_body: "<p>Received webhook data:</p><p><pre><code class=\\\"language-json\\\">{\n  \"simple\": \"data\"\n}</code></pre></p>",
-                msgtype: "m.notice",
-                "uk.half-shot.hookshot.webhook_data": webhookData,
-            },
-            type: 'm.room.message',
-        });
+        await testSimpleWebhook(connection, mq, "data");
     });
     it("will handle a hook event containing text", async () => {
         const webhookData = {text: "simple-message"};
@@ -249,6 +254,13 @@ describe("GenericHookConnection", () => {
             an_array_of: ["1.2345", "6.789"],
             floats: true,
         });
+    });
 
+    it("should handle simple hook events with user Id prefix", async () => {
+        const config = { enabled: true, urlPrefix: "https://example.com/webhookurl", userIdPrefix: "_webhooks_"};
+        const [connection, mq] = createGenericHook(undefined, config);
+        await testSimpleWebhook(connection, mq, "data1");
+        // regression test covering https://github.com/matrix-org/matrix-hookshot/issues/625
+        await testSimpleWebhook(connection, mq, "data2");
     });
 })

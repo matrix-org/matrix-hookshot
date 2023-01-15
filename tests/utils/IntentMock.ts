@@ -1,8 +1,26 @@
 
 import { expect } from "chai";
 export class MatrixClientMock {
+    // map room Id → user Ids
+    private joinedMembers: Map<string, string[]> = new Map();
+
     async setDisplayName() {
         return;
+    }
+
+    async getJoinedRoomMembers(roomId: string): Promise<string[]> {
+        return this.joinedMembers.get(roomId) || [];
+    }
+
+    async inviteUser(userId: string, roomId: string): Promise<void> {
+        const roomMembers = this.joinedMembers.get(roomId) || [];
+
+        if (roomMembers.includes(userId)) {
+            throw new Error("User already in room");
+        }
+
+        roomMembers.push(userId);
+        this.joinedMembers.set(roomId, roomMembers);
     }
 }
 

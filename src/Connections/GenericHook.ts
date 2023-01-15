@@ -372,7 +372,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         const sender = this.getUserId();
-        if (sender !== this.intent.userId) {
+        const roomMembers = await this.intent.underlyingClient.getJoinedRoomMembers(this.roomId);
+
+        if (!roomMembers.includes(sender)) {
             // Make sure ghost user is invited to the room
             await this.intent.underlyingClient.inviteUser(sender, this.roomId);
             await this.ensureDisplayname(sender);
