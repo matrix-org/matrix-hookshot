@@ -68,6 +68,10 @@ export class IntentMock {
         expect(!!this.sentEvents.find(ev => ev.content.body.includes(matcher)), `Expected any event body to match '${matcher}'`).to.be.true;
     }
 
+    async ensureJoined() {
+        return true;
+    }
+
     async ensureRegistered() {
         return true;
     }
