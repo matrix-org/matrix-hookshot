@@ -232,20 +232,23 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return `@${this.config.userIdPrefix}${name || 'bot'}:${domain}`;
     }
 
-    public async ensureDisplayname(userId: string) {
+    public async ensureDisplayname(intent: Intent) {
         if (!this.state.name) {
             return;
         }
-        const intent = this.as.getIntentForUserId(userId);
+        if (this.intent.userId === intent.userId) {
+            // Don't set a displayname on the root bot user.
+            return;
+        }
+        await intent.ensureRegistered();
         const expectedDisplayname = `${this.state.name} (Webhook)`;
 
         try {
             if (this.cachedDisplayname !== expectedDisplayname) {
-                this.cachedDisplayname = (await intent.underlyingClient.getUserProfile(userId)).displayname;
+                this.cachedDisplayname = (await intent.underlyingClient.getUserProfile(this.intent.userId)).displayname;
             }
         } catch (ex) {
             // Couldn't fetch, probably not set.
-            await intent.ensureRegistered();
             this.cachedDisplayname = undefined;
         }
         if (this.cachedDisplayname !== expectedDisplayname) {
@@ -372,12 +375,21 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         const sender = this.getUserId();
-        const roomMembers = await this.intent.underlyingClient.getJoinedRoomMembers(this.roomId);
+        const senderIntent = this.as.getIntentForUserId(sender);
+        await this.ensureDisplayname(senderIntent);
 
-        if (!roomMembers.includes(sender)) {
-            // Make sure ghost user is invited to the room
-            await this.intent.underlyingClient.inviteUser(sender, this.roomId);
-            await this.ensureDisplayname(sender);
+        try {
+            try {
+                await senderIntent.ensureJoined(this.roomId);
+            } catch (ex) {
+                if ('errcode' in ex && ex.errcode === "M_FORBIDDEN") {
+                    // Make sure ghost user is invited to the room
+                    await this.intent.underlyingClient.inviteUser(sender, this.roomId);
+                }
+                throw ex;
+            }
+        } catch (ex) {
+            log.warn(`Could not ensure that ${sender} is in ${this.roomId}`, ex);
         }
 
         // Matrix cannot handle float data, so make sure we parse out any floats.
