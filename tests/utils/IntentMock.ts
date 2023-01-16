@@ -1,6 +1,12 @@
 
 import { expect } from "chai";
 export class MatrixClientMock {
+
+    static create(){
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return new this() as any;
+    }
+
     // map room Id → user Ids
     private joinedMembers: Map<string, string[]> = new Map();
 
