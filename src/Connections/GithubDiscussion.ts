@@ -3,7 +3,7 @@ import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { getIntentForUser } from "../IntentUtils";
+import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { Discussion } from "@octokit/webhooks-types";
 import emoji from "node-emoji";
@@ -150,10 +150,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             return;
         }
         const intent = await getIntentForUser(data.comment.user, this.as, this.config.userIdPrefix);
-        if (intent.userId !== this.intent.userId) {
-            // Make sure ghost user is invited to the room
-            await this.intent.underlyingClient.inviteUser(intent.userId, this.roomId);
-        }
+        await ensureUserIsInRoom(intent, this.intent.underlyingClient, this.roomId);
         await this.messageClient.sendMatrixMessage(this.roomId, {
             body: data.comment.body,
             formatted_body: md.render(data.comment.body),

@@ -10,6 +10,7 @@ import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
+import { ensureUserIsInRoom } from "../IntentUtils";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -378,22 +379,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const senderIntent = this.as.getIntentForUserId(sender);
         await this.ensureDisplayname(senderIntent);
 
-        try {
-            try {
-                await senderIntent.ensureJoined(this.roomId);
-            } catch (ex) {
-                if ('errcode' in ex && ex.errcode === "M_FORBIDDEN") {
-                    // Make sure ghost user is invited to the room
-                    await this.intent.underlyingClient.inviteUser(sender, this.roomId);
-                    await senderIntent.ensureJoined(this.roomId);
-                } else {
-                    throw ex;
-                }
-            }
-        } catch (ex) {
-            log.warn(`Could not ensure that ${sender} is in ${this.roomId}`, ex);
-            throw Error(`Could not ensure that ${sender} is in ${this.roomId}`);
-        }
+        await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
 
         // Matrix cannot handle float data, so make sure we parse out any floats.
         const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);

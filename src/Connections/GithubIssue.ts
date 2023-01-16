@@ -6,7 +6,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { getIntentForUser } from "../IntentUtils";
+import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { GithubInstance } from "../Github/GithubInstance";
@@ -217,10 +217,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
         // Comment body may be blank
         if (matrixEvent) {
-            if (commentIntent.userId !== this.intent.userId) {
-                // Make sure ghost user is invited to the room
-                await this.intent.underlyingClient.inviteUser(commentIntent.userId, this.roomId);
-            }
+            await ensureUserIsInRoom(commentIntent, this.intent.underlyingClient, this.roomId);
             await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
         }
         if (!updateState) {
@@ -252,10 +249,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
             }, this.as, this.config.userIdPrefix);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
-                if (creator.userId !== this.intent.userId) {
-                    // Make sure ghost user is invited to the room
-                    await this.intent.underlyingClient.inviteUser(creator.userId, this.roomId);
-                }
+                await ensureUserIsInRoom(creator, this.intent.underlyingClient, this.roomId);
                 await this.messageClient.sendMatrixMessage(this.roomId, {
                     msgtype: "m.text",
                     external_url: issue.data.html_url,
@@ -293,10 +287,11 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
             if (issue.data.state === "closed") {
                 // TODO: Fix
                 const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by?.login as string);
-                if (closedUserId !== this.intent.userId) {
-                    // Make sure ghost user is invited to the room
-                    await this.intent.underlyingClient.inviteUser(closedUserId, this.roomId);
-                }
+                await ensureUserIsInRoom(
+                    this.as.getIntentForUserId(closedUserId),
+                    this.intent.underlyingClient,
+                    this.roomId
+                );
                 await this.messageClient.sendMatrixMessage(this.roomId, {
                     msgtype: "m.notice",
                     body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
