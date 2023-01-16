@@ -7,6 +7,7 @@ import { FunctionComponent, createRef } from "preact";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubTargetFilter, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
+import { DropdownSearch } from "../elements/DropdownSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 const NUM_REPOS_PER_PAGE = 10;
@@ -15,14 +16,39 @@ function getRepoFullName(state: GitHubRepoConnectionState) {
     return `${state.org}/${state.repo}`;
 }
 
-const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitHubRepoConnectionState) => void}> = ({api, onPicked}) => {
-    const [filter, setFilter] = useState<GitHubTargetFilter>({});
-    const [results, setResults] = useState<GitHubRepoConnectionRepoTarget[]|null>(null);
+const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitHubRepoConnectionState|null) => void}> = ({api, onPicked}) => {
+    const [currentOrg, setCurrentOrg] = useState<string|null>(null);
     const [orgs, setOrgs] = useState<GitHubRepoConnectionOrgTarget[]|null>(null);
     const [isConnected, setIsConnected] = useState<boolean|null>(null);
     const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
-    const [currentRepo, setCurrentRepo] = useState<string|null>(null);
     const [searchError, setSearchError] = useState<string|null>(null);
+    const [exampleRepoName, setExampleRepoName] = useState<string>("Loading...");
+
+    useEffect(() => {
+        api.getConnectionTargets<GitHubRepoConnectionOrgTarget>(EventType, { }).then((res) => {
+            setOrgs(res);
+            setCurrentOrg(res[0]?.name ?? null);
+        }).catch(ex => {
+            setSearchError("Could not load GitLab instances.");
+            console.warn(`Failed to get connection targets from query:`, ex);
+        })
+    }, [api]);
+
+    useEffect(() => {
+        if (!currentOrg) {
+            return;
+        }
+        api.getConnectionTargets<GitHubRepoConnectionRepoTarget>(EventType, {
+            orgName: currentOrg,
+            perPage: 1,
+        }).then(res => {
+            const state = res[0]?.state;
+            setExampleRepoName(state.repo ?? "my-example-repo");
+        }).catch(ex => {
+            setSearchError("Could not load GitLab projects for instance");
+            console.warn(`Failed to get connection targets from query:`, ex);
+        });
+    }, [currentInstance, api]);
 
     const searchFn = useCallback(async() => {
         try {
@@ -95,10 +121,20 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
         [orgs]
     );
 
-    const repoListResults = useMemo(
-        () => results?.map(i => <option key={i.name} value={i.name} />),
-        [results]
-    );
+    const onProjectPicked = useCallback((value: string|null) => {
+        if (value === null) {
+            // Cleared
+            onPicked(null);
+            return;
+        }
+        if (!currentInstance) {
+            throw Error('Should never pick a project without an instance');
+        }
+        onPicked({
+            instance: currentInstance,
+            path: value,
+        })
+    }, [currentInstance, onPicked]);
 
 
     return <div>
@@ -112,10 +148,12 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
             </select>
         </InputField>
         <InputField visible={!!isConnected} label="Repository" noPadding={true}>
-            <input onChange={updateSearchFn} value={currentRepo ?? undefined} list="github-repos" type="text" />
-            <datalist id="github-repos">
-                {repoListResults}
-            </datalist>
+        <DropdownSearch
+                placeholder={`Your project name, such as ${exampleRepoName}`}
+                searchFn={searchFn}
+                searchProps={{ instance: org ?? undefined }}
+                onChange={onProjectPicked}
+            />
         </InputField>
     </div>;
 }

@@ -2,7 +2,7 @@ import GitLabIcon from "../../icons/gitlab.png";
 import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
-import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionTarget, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
+import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import { FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
@@ -61,23 +61,15 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
     }, [api]);
 
     const onInstancePicked = useCallback((evt: {target: EventTarget|null}) => {
-        // Reset the search string.
+        // Reset everything
         setCurrentInstance((evt.target as HTMLSelectElement).selectedOptions[0].value);
-        if (value === null) {
-            // Cleared
-            onPicked(null);
-            return;
-        }
-    }, []);
+        onPicked(null);
+    }, [onPicked]);
 
     const instanceListResults = useMemo(
         () => instances?.map(i => <option key={i.name}>{i.name}</option>),
         [instances]
     );
-
-    const additionalSearchProperties: GitLabTargetFilter = useMemo(() => ({
-        instance: currentInstance || undefined,
-    }), [currentInstance]);
 
     const onProjectPicked = useCallback((value: string|null) => {
         if (value === null) {
@@ -107,7 +99,7 @@ const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: Git
             <DropdownSearch
                 placeholder={`Your project name, such as ${exampleProjectName}`}
                 searchFn={searchFn}
-                searchProps={additionalSearchProperties}
+                searchProps={{ instance: currentInstance ?? undefined }}
                 onChange={onProjectPicked}
             />
         </InputField>
