@@ -7,104 +7,90 @@ import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
 import { FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
 import { DropdownSearch, DropItem } from "../elements/DropdownSearch";
+import { ConnectionSearch } from "../elements/ConnectionSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
 
-const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitLabRepoConnectionState|null) => void}> = ({api, onPicked}) => {
-    const [currentInstance, setCurrentInstance] = useState<string|null>(null);
-    const [instances, setInstances] = useState<GitLabRepoConnectionInstanceTarget[]|null>(null);
-    const [searchError, setSearchError] = useState<string|null>(null);
-    const [exampleProjectName, setExampleProjectName] = useState<string>("Loading...");
+// const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitLabRepoConnectionState|null) => void}> = ({api, onPicked}) => {
+//     const [currentInstance, setCurrentInstance] = useState<string|null>(null);
+//     const [instances, setInstances] = useState<GitLabRepoConnectionInstanceTarget[]|null>(null);
+//     const [searchError, setSearchError] = useState<string|null>(null);
+//     const [exampleProjectName, setExampleProjectName] = useState<string>("Loading...");
 
-    useEffect(() => {
-        api.getConnectionTargets<GitLabRepoConnectionInstanceTarget>(EventType, { }).then((res) => {
-            setInstances(res as GitLabRepoConnectionInstanceTarget[]);
-            setCurrentInstance(res[0]?.name ?? null);
-        }).catch(ex => {
-            setSearchError("Could not load GitLab instances.");
-            console.warn(`Failed to get connection targets from query:`, ex);
-        })
-    }, [api]);
+//     useEffect(() => {
+//         api.getConnectionTargets<GitLabRepoConnectionInstanceTarget>(EventType, { }).then((res) => {
+//             setInstances(res as GitLabRepoConnectionInstanceTarget[]);
+//             setCurrentInstance(res[0]?.name ?? null);
+//         }).catch(ex => {
+//             setSearchError("Could not load GitLab instances.");
+//             console.warn(`Failed to get connection targets from query:`, ex);
+//         })
+//     }, [api]);
 
-    useEffect(() => {
-        if (!currentInstance) {
-            return;
-        }
-        api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
-            instance: currentInstance,
-        }).then(res => {
-            setExampleProjectName(res[0]?.state?.path ?? "my-org/my-example-project");
-        }).catch(ex => {
-            setSearchError("Could not load GitLab projects for instance");
-            console.warn(`Failed to get connection targets from query:`, ex);
-        });
-    }, [currentInstance, api]);
+//     useEffect(() => {
+//         if (!currentInstance) {
+//             return;
+//         }
+//         api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
+//             instance: currentInstance,
+//         }).then(res => {
+//             setExampleProjectName(res[0]?.state?.path ?? "my-org/my-example-project");
+//         }).catch(ex => {
+//             setSearchError("Could not load GitLab projects for instance");
+//             console.warn(`Failed to get connection targets from query:`, ex);
+//         });
+//     }, [currentInstance, api]);
 
-    const searchFn = useCallback(async(terms: string, props: GitLabTargetFilter) => {
-        try {
-            const res = await api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
-                ...props,
-                search: terms,
-            });
-            return res.map((item) => ({
-                description: item.description,
-                imageSrc: item.avatar_url,
-                title: item.name,
-                value: item.state.path,
-            }) as DropItem);
-        } catch (ex) {
-            setSearchError("There was an error fetching search results.");
-            // Rather than raising an error, let's just log and let the user retry a query.
-            console.warn(`Failed to get connection targets from query:`, ex);
-            return [];
-        }
-    }, [api]);
+//     const searchFn = useCallback(async(terms: string, props: GitLabTargetFilter) => {
+//         try {
+//             const res = await api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
+//                 ...props,
+//                 search: terms,
+//             });
+//             return res.map((item) => ({
+//                 description: item.description,
+//                 imageSrc: item.avatar_url,
+//                 title: item.name,
+//                 value: item.state.path,
+//             }) as DropItem);
+//         } catch (ex) {
+//             setSearchError("There was an error fetching search results.");
+//             // Rather than raising an error, let's just log and let the user retry a query.
+//             console.warn(`Failed to get connection targets from query:`, ex);
+//             return [];
+//         }
+//     }, [api]);
 
-    const onInstancePicked = useCallback((evt: {target: EventTarget|null}) => {
-        // Reset everything
-        setCurrentInstance((evt.target as HTMLSelectElement).selectedOptions[0].value);
-        onPicked(null);
-    }, [onPicked]);
+//     const onInstancePicked = useCallback((evt: {target: EventTarget|null}) => {
+//         // Reset everything
+//         setCurrentInstance((evt.target as HTMLSelectElement).selectedOptions[0].value);
+//         onPicked(null);
+//     }, [onPicked]);
 
-    const instanceListResults = useMemo(
-        () => instances?.map(i => <option key={i.name}>{i.name}</option>),
-        [instances]
-    );
+//     const instanceListResults = useMemo(
+//         () => instances?.map(i => <option key={i.name}>{i.name}</option>),
+//         [instances]
+//     );
 
-    const onProjectPicked = useCallback((value: string|null) => {
-        if (value === null) {
-            // Cleared
-            onPicked(null);
-            return;
-        }
-        if (!currentInstance) {
-            throw Error('Should never pick a project without an instance');
-        }
-        onPicked({
-            instance: currentInstance,
-            path: value,
-        })
-    }, [currentInstance, onPicked]);
+//     const onProjectPicked = useCallback((value: string|null) => {
+//         if (value === null) {
+//             // Cleared
+//             onPicked(null);
+//             return;
+//         }
+//         if (!currentInstance) {
+//             throw Error('Should never pick a project without an instance');
+//         }
+//         onPicked({
+//             instance: currentInstance,
+//             path: value,
+//         })
+//     }, [currentInstance, onPicked]);
 
-    return <div>
-        {instances === null && <p> Loading GitLab instances. </p>}
-        {instances?.length === 0 && <p> You are not logged into any GitLab instances. </p>}
-        {searchError && <ErrorPane header="Search error"> {searchError} </ErrorPane> }
-        <InputField visible={!!instances?.length} label="GitLab Instance" noPadding={true}>
-            <select onChange={onInstancePicked}>
-                {instanceListResults}
-            </select>
-        </InputField>
-        <InputField visible={!!currentInstance} label="Project" noPadding={true}>
-            <DropdownSearch
-                placeholder={`Your project name, such as ${exampleProjectName}`}
-                searchFn={searchFn}
-                searchProps={{ instance: currentInstance ?? undefined }}
-                onChange={onProjectPicked}
-            />
-        </InputField>
-    </div>;
-}
+//     return <ConnectionSearch
+//         serviceName="GitLab",
+//     ></ConnectionSearch>
+// }
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
@@ -140,7 +126,13 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     }, [includeBodyRef, canEdit, existingConnection, newInstanceState, enabledHooks, commandPrefixRef, onSave]);
     
     return <form onSubmit={handleSave}>
-        {!existingConnection && <ConnectionSearch api={api} onPicked={setNewInstanceState} />}
+        {!existingConnection && <ConnectionSearch
+            serviceName="GitLab"
+            getInstances={}
+            getProjects={}
+            onClear={}
+            onPicked={setNewInstanceState}
+        />}
         <InputField visible={!!existingConnection} label="GitLab Instance" noPadding={true}>
             <input disabled={true} type="text" value={existingConnection?.config.instance} />
         </InputField>
