@@ -1,8 +1,39 @@
 import { Logger } from "matrix-appservice-bridge";
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, Intent, MatrixClient } from "matrix-bot-sdk";
 import axios from "axios";
 
 const log = new Logger("IntentUtils");
+
+/**
+ * Attempt to ensure that a given user is in a room, inviting them
+ * via the bot user if nessacery.
+ * 
+ * If the bot user isn't in the room (and the target isn't in the room already),
+ * this will fail.
+ * @param targetIntent The intent for the user who should be in the room.
+ * @param botClient The bot client for the room.
+ * @param roomId The target room to invite to.
+ * @throws If it was not possible to invite the user.
+ */
+export async function ensureUserIsInRoom(targetIntent: Intent, botClient: MatrixClient, roomId: string) {
+    const senderUserId = targetIntent.userId;
+    try {
+        try {
+            await targetIntent.ensureJoined(roomId);
+        } catch (ex) {
+            if ('errcode' in ex && ex.errcode === "M_FORBIDDEN") {
+                // Make sure ghost user is invited to the room
+                await botClient.inviteUser(senderUserId, roomId);
+                await targetIntent.ensureJoined(roomId);
+            } else {
+                throw ex;
+            }
+        }
+    } catch (ex) {
+        log.warn(`Could not ensure that ${senderUserId} is in ${roomId}`, ex);
+        throw Error(`Could not ensure that ${senderUserId} is in ${roomId}`);
+    }
+}
 
 export async function getIntentForUser(user: {avatarUrl?: string, login: string}, as: Appservice, prefix: string) {
     const domain = as.botUserId.split(":")[1];

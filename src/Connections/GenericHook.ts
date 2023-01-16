@@ -10,6 +10,7 @@ import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
+import { ensureUserIsInRoom } from "../IntentUtils";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -232,20 +233,23 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return `@${this.config.userIdPrefix}${name || 'bot'}:${domain}`;
     }
 
-    public async ensureDisplayname(userId: string) {
+    public async ensureDisplayname(intent: Intent) {
         if (!this.state.name) {
             return;
         }
-        const intent = this.as.getIntentForUserId(userId);
+        if (this.intent.userId === intent.userId) {
+            // Don't set a displayname on the root bot user.
+            return;
+        }
+        await intent.ensureRegistered();
         const expectedDisplayname = `${this.state.name} (Webhook)`;
 
         try {
             if (this.cachedDisplayname !== expectedDisplayname) {
-                this.cachedDisplayname = (await intent.underlyingClient.getUserProfile(userId)).displayname;
+                this.cachedDisplayname = (await intent.underlyingClient.getUserProfile(this.intent.userId)).displayname;
             }
         } catch (ex) {
             // Couldn't fetch, probably not set.
-            await intent.ensureRegistered();
             this.cachedDisplayname = undefined;
         }
         if (this.cachedDisplayname !== expectedDisplayname) {
@@ -372,11 +376,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         const sender = this.getUserId();
-        if (sender !== this.intent.userId) {
-            // Make sure ghost user is invited to the room
-            await this.intent.underlyingClient.inviteUser(sender, this.roomId);
-            await this.ensureDisplayname(sender);
-        }
+        const senderIntent = this.as.getIntentForUserId(sender);
+        await this.ensureDisplayname(senderIntent);
+
+        await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
 
         // Matrix cannot handle float data, so make sure we parse out any floats.
         const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);

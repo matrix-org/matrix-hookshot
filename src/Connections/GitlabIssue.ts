@@ -8,7 +8,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
-import { getIntentForUser } from "../IntentUtils";
+import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { BaseConnection } from "./BaseConnection";
 
 export interface GitLabIssueConnectionState {
@@ -162,11 +162,12 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
             avatarUrl: event.user.avatar_url,
         }, this.as, this.config.userIdPrefix);
         const matrixEvent = await this.commentProcessor.getEventBodyForGitLabNote(event);
-
-        if (commentIntent.userId !== this.intent.userId) {
-            // Make sure ghost user is invited to the room
-            await this.intent.underlyingClient.inviteUser(commentIntent.userId, this.roomId);
-        }
+        // Make sure ghost user is invited to the room
+        await ensureUserIsInRoom(
+            commentIntent,
+            this.intent.underlyingClient,
+            this.roomId
+        );
         await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
     }
 
