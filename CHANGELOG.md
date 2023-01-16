@@ -1,3 +1,19 @@
+2.6.1 (2023-01-16)
+==================
+
+Features
+--------
+
+- The message in the admin room when creating a webhook now also shows the name and links to the room. ([\#620](https://github.com/matrix-org/matrix-hookshot/issues/620))
+
+
+Bugfixes
+--------
+
+- Fixed generic webhook 'user is already in the room' error ([\#627](https://github.com/matrix-org/matrix-hookshot/issues/627))
+- Hookshot now handles `uk.half-shot.matrix-hookshot.generic.hook` state event updates ([\#628](https://github.com/matrix-org/matrix-hookshot/issues/628))
+
+
 2.6.0 (2023-01-13)
 ==================
 
