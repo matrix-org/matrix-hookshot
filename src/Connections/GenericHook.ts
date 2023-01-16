@@ -385,11 +385,14 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 if ('errcode' in ex && ex.errcode === "M_FORBIDDEN") {
                     // Make sure ghost user is invited to the room
                     await this.intent.underlyingClient.inviteUser(sender, this.roomId);
+                    await senderIntent.ensureJoined(this.roomId);
+                } else {
+                    throw ex;
                 }
-                throw ex;
             }
         } catch (ex) {
             log.warn(`Could not ensure that ${sender} is in ${this.roomId}`, ex);
+            throw Error(`Could not ensure that ${sender} is in ${this.roomId}`);
         }
 
         // Matrix cannot handle float data, so make sure we parse out any floats.
