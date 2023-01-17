@@ -17,7 +17,7 @@ export interface DropItem {
     description?: string;
 }
 
-const DEBOUNCE_TIMEOUT_MS = 300;
+const DEBOUNCE_TIMEOUT_MS = 750;
 
 export const DropdownItem: FunctionComponent<DropItem&{onPicked?: (value: string) => void}> = ({ imageSrc, title, value, description, onPicked }) => {
     // Need placeholder image.
@@ -32,19 +32,21 @@ export const DropdownItem: FunctionComponent<DropItem&{onPicked?: (value: string
 };
 
 export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onError, placeholder}: Props<T>) {
-    const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
     const [selectedItem, setSelectedItem] = useState<DropItem|null>();
-    const [searchTerm, setSearchTerm] = useState<string>("");
-    const [results, setResults] = useState<DropItem[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [results, setResults] = useState<DropItem[]|null>();
+    const [loading, setLoading] = useState(false);
 
     // Reset if the search properties are altered.
     useEffect(() => {
+        console.log("Resetting props");
         setSearchTerm("");
         setSelectedItem(null);
     }, [searchProps]);
 
     // Search whenever the term is updated.
     useEffect(() => {
+        console.log("New search");
         if (searchTerm.trim().length === 0) {
             return;
         }
@@ -55,20 +57,20 @@ export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onEr
         }
 
         // Browser types
-        setDebounceTimer(setTimeout(() => {
-            console.log("searching for ", searchTerm);
+        const debounceTimer = setTimeout(() => {
+            setLoading(true);
             searchFn(searchTerm, searchProps).then(result => {
                 setResults(result);
             }).catch(err => {
                 onError?.(err);
+            }).finally(() => {
+                setLoading(false);
             })
-        }, DEBOUNCE_TIMEOUT_MS) as unknown as number);
+        }, DEBOUNCE_TIMEOUT_MS);
         return () => {
             clearTimeout(debounceTimer);
         }
-        // Things break if we depend on the thing we are clearing.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm]);
+    }, [searchTerm, onChange, setResults, onError, searchProps, selectedItem, searchFn]);
 
     const onSearchInputChange = useCallback((event: {target: EventTarget|null}) => {
         const terms = (event.target as HTMLInputElement).value;
@@ -77,18 +79,26 @@ export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onEr
 
     const onItemPicked = useCallback((item: DropItem) => {
         onChange(item.value);
-        setSelectedItem(item);
-        setSearchTerm("");
         setResults([]);
+        setSearchTerm("");
+        setSelectedItem(item);
     }, [onChange]);
 
-
+    const onItemCleared = useCallback(() => {
+        onChange(null);
+        setResults([]);
+        setSearchTerm("");
+        setSelectedItem(null);
+    }, [onChange]);
+    
     return <>
-        <input type="search" placeholder={placeholder} onChange={onSearchInputChange} value={searchTerm} />
-        {selectedItem && <DropdownItem {...selectedItem} />}
+        {selectedItem && <DropdownItem {...selectedItem} onPicked={onItemCleared} />}
+        {!selectedItem && <input type="search" placeholder={placeholder} onChange={onSearchInputChange} value={searchTerm} />}
+        {loading && <p> Searching... </p>}
+        {!loading && !selectedItem && searchTerm && results?.length === 0 && <p> No results found. </p>}
         <ul>
             {
-                results.map(item => <DropdownItem key={item.value} {...item} onPicked={ () => onItemPicked(item) } />)
+                results?.map(item => <DropdownItem key={item.value} {...item} onPicked={ () => onItemPicked(item) } />)
             }
         </ul>
     </>;

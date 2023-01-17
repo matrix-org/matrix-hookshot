@@ -1,97 +1,15 @@
 import GitLabIcon from "../../icons/gitlab.png";
-import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
+import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
-import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabTargetFilter, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
-import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
+import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
+import { InputField, ButtonSet, Button } from "../elements";
 import { FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
-import { DropdownSearch, DropItem } from "../elements/DropdownSearch";
+import { useState, useCallback, useMemo } from "preact/hooks";
+import { DropItem } from "../elements/DropdownSearch";
 import { ConnectionSearch } from "../elements/ConnectionSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
-
-// const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitLabRepoConnectionState|null) => void}> = ({api, onPicked}) => {
-//     const [currentInstance, setCurrentInstance] = useState<string|null>(null);
-//     const [instances, setInstances] = useState<GitLabRepoConnectionInstanceTarget[]|null>(null);
-//     const [searchError, setSearchError] = useState<string|null>(null);
-//     const [exampleProjectName, setExampleProjectName] = useState<string>("Loading...");
-
-//     useEffect(() => {
-//         api.getConnectionTargets<GitLabRepoConnectionInstanceTarget>(EventType, { }).then((res) => {
-//             setInstances(res as GitLabRepoConnectionInstanceTarget[]);
-//             setCurrentInstance(res[0]?.name ?? null);
-//         }).catch(ex => {
-//             setSearchError("Could not load GitLab instances.");
-//             console.warn(`Failed to get connection targets from query:`, ex);
-//         })
-//     }, [api]);
-
-//     useEffect(() => {
-//         if (!currentInstance) {
-//             return;
-//         }
-//         api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
-//             instance: currentInstance,
-//         }).then(res => {
-//             setExampleProjectName(res[0]?.state?.path ?? "my-org/my-example-project");
-//         }).catch(ex => {
-//             setSearchError("Could not load GitLab projects for instance");
-//             console.warn(`Failed to get connection targets from query:`, ex);
-//         });
-//     }, [currentInstance, api]);
-
-//     const searchFn = useCallback(async(terms: string, props: GitLabTargetFilter) => {
-//         try {
-//             const res = await api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
-//                 ...props,
-//                 search: terms,
-//             });
-//             return res.map((item) => ({
-//                 description: item.description,
-//                 imageSrc: item.avatar_url,
-//                 title: item.name,
-//                 value: item.state.path,
-//             }) as DropItem);
-//         } catch (ex) {
-//             setSearchError("There was an error fetching search results.");
-//             // Rather than raising an error, let's just log and let the user retry a query.
-//             console.warn(`Failed to get connection targets from query:`, ex);
-//             return [];
-//         }
-//     }, [api]);
-
-//     const onInstancePicked = useCallback((evt: {target: EventTarget|null}) => {
-//         // Reset everything
-//         setCurrentInstance((evt.target as HTMLSelectElement).selectedOptions[0].value);
-//         onPicked(null);
-//     }, [onPicked]);
-
-//     const instanceListResults = useMemo(
-//         () => instances?.map(i => <option key={i.name}>{i.name}</option>),
-//         [instances]
-//     );
-
-//     const onProjectPicked = useCallback((value: string|null) => {
-//         if (value === null) {
-//             // Cleared
-//             onPicked(null);
-//             return;
-//         }
-//         if (!currentInstance) {
-//             throw Error('Should never pick a project without an instance');
-//         }
-//         onPicked({
-//             instance: currentInstance,
-//             path: value,
-//         })
-//     }, [currentInstance, onPicked]);
-
-//     return <ConnectionSearch
-//         serviceName="GitLab",
-//     ></ConnectionSearch>
-// }
-
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
 
@@ -104,17 +22,17 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         }
     }, []);
 
-    const [newInstanceState, setNewInstanceState] = useState<GitLabRepoConnectionState|null>(null);
+    const [newConnectionState, setNewConnectionState] = useState<GitLabRepoConnectionState|null>(null);
 
-    const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
+    const canEdit = useMemo(() =>!existingConnection || (existingConnection?.canEdit ?? false), [existingConnection]);
     const commandPrefixRef = createRef<HTMLInputElement>();
     const includeBodyRef = createRef<HTMLInputElement>();
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
-        if (!canEdit || !existingConnection && !newInstanceState) {
+        if (!canEdit || !existingConnection && !newConnectionState) {
             return;
         }
-        const state = existingConnection?.config || newInstanceState;
+        const state = existingConnection?.config || newConnectionState;
         if (state) {
             onSave({
                 ...(state),
@@ -123,15 +41,41 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                 commandPrefix: commandPrefixRef.current?.value || commandPrefixRef.current?.placeholder,
             });
         }
-    }, [includeBodyRef, canEdit, existingConnection, newInstanceState, enabledHooks, commandPrefixRef, onSave]);
+    }, [includeBodyRef, canEdit, existingConnection, newConnectionState, enabledHooks, commandPrefixRef, onSave]);
+
+    const getInstances = useMemo(() => async () => {
+        const targets = await api.getConnectionTargets<GitLabRepoConnectionInstanceTarget>(EventType, { });
+        return targets;
+    }, [api]);
+
+    const getProjects = useMemo(() => async (instance: string, search: string) => {
+        const targets = await api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
+            instance,
+            ...(search && { search })
+        });
+        return targets.map(project => ({
+            description: project.description,
+            imageSrc: project.avatar_url,
+            title: project.name,
+            value: project.state.path,
+        } as DropItem));
+    }, [api]);
+
+    const setInstance = useCallback((instance: string, path: string) => {
+        setNewConnectionState({
+            instance,
+            path,
+        })
+    },[setNewConnectionState]);
+    const clearInstance = useCallback(() => setNewConnectionState(null), [setNewConnectionState]);
     
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch
             serviceName="GitLab"
-            getInstances={}
-            getProjects={}
-            onClear={}
-            onPicked={setNewInstanceState}
+            getInstances={getInstances}
+            getProjects={getProjects}
+            onPicked={setInstance}
+            onClear={clearInstance}
         />}
         <InputField visible={!!existingConnection} label="GitLab Instance" noPadding={true}>
             <input disabled={true} type="text" value={existingConnection?.config.instance} />
@@ -139,13 +83,13 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection} label="Project" noPadding={true}>
             <input disabled={true} type="text" value={existingConnection?.config.path} />
         </InputField>
-        <InputField visible={!!existingConnection || !!newInstanceState} label="Command Prefix" noPadding={true}>
+        <InputField visible={!!existingConnection || !!newConnectionState} label="Command Prefix" noPadding={true}>
             <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
         </InputField>
-        <InputField visible={!!existingConnection || !!newInstanceState} label="Include comment bodies" noPadding={true} innerChild={true}>
+        <InputField visible={!!existingConnection || !!newConnectionState} label="Include comment bodies" noPadding={true} innerChild={true}>
             <input ref={includeBodyRef} disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
         </InputField>
-        <InputField visible={!!existingConnection || !!newInstanceState} label="Events" noPadding={true}>
+        <InputField visible={!!existingConnection || !!newConnectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
             <ul>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="merge_request" onChange={toggleEnabledHook}>Merge requests</EventHookCheckbox>
@@ -163,7 +107,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && <Button type="submit" disabled={!existingConnection && !newInstanceState}>{ existingConnection ? "Save" : "Add project" }</Button>}
+            { canEdit && <Button type="submit" disabled={!existingConnection && !newConnectionState}>{ existingConnection ? "Save" : "Add project" }</Button>}
             { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove project</Button>}
         </ButtonSet>
     </form>;

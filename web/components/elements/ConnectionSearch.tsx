@@ -12,7 +12,7 @@ type Project = DropItem;
 interface IProps {
     serviceName: string;
     getInstances(): Promise<Instance[]>;
-    getProjects(currentInstance: string, searchTerm: string|null): Promise<Project[]>;
+    getProjects(currentInstance: string, searchTerm?: string): Promise<Project[]>;
     onPicked: (instanceValue: string, projectValue: string) => void;
     onClear: () => void;
 }
@@ -24,14 +24,14 @@ interface IProps {
  * @param props 
  * @returns 
  */
-const ConnectionSearch = function({
+export function ConnectionSearch({
     serviceName,
     onPicked,
     onClear,
     getInstances,
     getProjects,
 }: IProps) {
-    const [currentInstance, setCurrentInstance] = useState<string|null>(null);
+    const [currentInstance, setCurrentInstance] = useState<string>("");
     const [instances, setInstances] = useState<Instance[]|null>(null);
     const [searchError, setSearchError] = useState<string|null>(null);
     const [exampleProjectName, setExampleProjectName] = useState<string>("Loading...");
@@ -50,13 +50,13 @@ const ConnectionSearch = function({
         if (!currentInstance) {
             return;
         }
-        getProjects(currentInstance, null).then(res => {
+        getProjects(currentInstance).then(res => {
             setExampleProjectName(res[0]?.value ?? "my-org/my-example-project");
         }).catch(ex => {
-            setSearchError("Could not load GitLab projects for instance");
+            setSearchError(`Could not load ${serviceName} projects for instance`);
             console.warn(`Failed to get connection targets from query:`, ex);
         });
-    }, [currentInstance, getProjects]);
+    }, [currentInstance, getProjects, serviceName]);
 
     const searchFn = useCallback(async(terms: string, { instance }: { instance: string }) => {
         try {
@@ -97,11 +97,13 @@ const ConnectionSearch = function({
         onPicked(currentInstance, value);
     }, [currentInstance, onClear, onPicked]);
 
+    const searchProps = useMemo(() => ({ instance: currentInstance }), [currentInstance]);
+
     return <div>
-        {instances === null && <p> Loading GitLab instances. </p>}
-        {instances?.length === 0 && <p> You are not logged into any GitLab instances. </p>}
+        {instances === null && <p> Loading {serviceName} instances. </p>}
+        {instances?.length === 0 && <p> You are not logged into any {serviceName} instances. </p>}
         {searchError && <ErrorPane header="Search error"> {searchError} </ErrorPane> }
-        <InputField visible={!!instances?.length} label="GitLab Instance" noPadding={true}>
+        <InputField visible={!!instances?.length} label={`${serviceName} Instance`} noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}
             </select>
@@ -110,7 +112,7 @@ const ConnectionSearch = function({
            <DropdownSearch
                 placeholder={`Your project name, such as ${exampleProjectName}`}
                 searchFn={searchFn}
-                searchProps={{ instance: currentInstance  }}
+                searchProps={searchProps}
                 onChange={onProjectPicked}
             />
         </InputField> }
