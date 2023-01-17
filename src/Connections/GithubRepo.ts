@@ -3,6 +3,7 @@ import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
+import { Octokit } from "@octokit/rest";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
@@ -83,6 +84,8 @@ export interface GitHubRepoConnectionOrgTarget {
 export interface GitHubRepoConnectionRepoTarget {
     state: GitHubRepoConnectionState;
     name: string;
+    description?: string;
+    avatar?: string;
 }
 
 export type GitHubRepoConnectionTarget = GitHubRepoConnectionOrgTarget|GitHubRepoConnectionRepoTarget;
@@ -318,15 +321,15 @@ const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
 const DEFAULT_HOTLINK_PREFIX = "#";
+const MAX_RETURNED_TARGETS = 10;
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
 }
 
 export interface GitHubTargetFilter {
+    search?: string;
     orgName?: string;
-    page?: number;
-    perPage?: number;
 }
 
 /**
@@ -1258,6 +1261,48 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             },
         }
     }
+    
+    public static async searchInstallationForRepos(octokit: Octokit, orgName: string, installationId: number, searchTerms?: string) {
+        // First, do a search on GitHub for repos. This will use the user's context so it will find user repos.
+        let searchRepos: string[]|null = null;
+        if (searchTerms) {
+            const terms = encodeURIComponent(searchTerms);
+            const searchResultsData = (await octokit.search.repos({
+                q: `${terms} org:${orgName} `,
+                per_page: MAX_RETURNED_TARGETS,
+            })).data;
+            if (searchResultsData.total_count === 0) {
+                return [];
+            }
+            searchRepos = searchResultsData.items.map(r => r.full_name);
+        }
+
+        const foundRepos = [];
+        let installationsCount = 0;
+        let totalCount = 0;
+        let page = 1;
+        // Find which ones can be installed by us.
+        do {
+            const { data } = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                installation_id: installationId,
+                page,
+                per_page: 100,
+            });
+            // No results, so stop trying.
+            if (data.repositories.length === 0) {
+                break;
+            }
+            page++;
+            installationsCount += data.repositories.length;
+            totalCount = data.total_count;
+            // Find any repos that were in our search results. If a search term isn't defined, just return it.
+            foundRepos.push(...data.repositories.filter((installRepo) => searchRepos?.includes(installRepo.full_name) ?? true));
+        } while (
+            installationsCount < totalCount &&
+            foundRepos.length < (searchRepos?.length ?? MAX_RETURNED_TARGETS)
+        )
+        return foundRepos;
+    }
 
     public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, githubInstance: GithubInstance, filters: GitHubTargetFilter = {}): Promise<GitHubRepoConnectionTarget[]> {
         // Search for all repos under the user's control.
@@ -1288,37 +1333,25 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         // If we have an instance, search under it.
         const ownSelf = await octokit.users.getAuthenticated();
 
-        const page = filters.page ?? 1;
-        const perPage = filters.perPage ?? 10;
         try {
-            let reposPromise;
-
+            let installationId;
             if (ownSelf.data.login === filters.orgName) {
-                const userInstallation = await githubInstance.appOctokit.apps.getUserInstallation({username: ownSelf.data.login});
-                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
-                    page,
-                    installation_id: userInstallation.data.id,
-                    per_page: perPage,
-                });
+                installationId = (await githubInstance.appOctokit.apps.getUserInstallation({ username: ownSelf.data.login })).data.id;
             } else {
-                const orgInstallation = await githubInstance.appOctokit.apps.getOrgInstallation({org: filters.orgName});
-
+                installationId = (await githubInstance.appOctokit.apps.getOrgInstallation({ org: filters.orgName })).data.id;
                 // Github will error if the authed user tries to list repos of a disallowed installation, even
                 // if we got the installation ID from the app's instance.
-                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
-                    page,
-                    installation_id: orgInstallation.data.id,
-                    per_page: perPage,
-                });
             }
-            const reposRes = await reposPromise;
-            return reposRes.data.repositories
+            const reposRes = await this.searchInstallationForRepos(octokit, filters.orgName, installationId, filters.search);
+            return reposRes
                 .map(r => ({
                     state: {
                         org: filters.orgName,
                         repo: r.name,
                     },
                     name: r.name,
+                    description: r.description,
+                    avatar: r.owner?.avatar_url || r.organization?.avatar_url,
                 })) as GitHubRepoConnectionRepoTarget[];
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${filters.orgName} / ${userId}`, ex);

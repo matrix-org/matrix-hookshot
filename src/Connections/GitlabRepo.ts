@@ -50,7 +50,6 @@ export interface GitLabRepoConnectionProjectTarget {
     name: string;
     avatar_url?: string;
     description?: string;
-
 }
 
 export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitLabRepoConnectionProjectTarget;
