@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { BridgeAPIError } from "../../BridgeAPI";
 import { DropdownSearch, DropItem } from "./DropdownSearch";
 import { ErrorPane } from "./ErrorPane";
 import { InputField } from "./InputField";
@@ -41,6 +42,10 @@ export function ConnectionSearch({
             setInstances(res);
             setCurrentInstance(res[0]?.name ?? null);
         }).catch(ex => {
+            if (ex instanceof BridgeAPIError && ex.errcode === "HS_FORBIDDEN_USER") { 
+                setSearchError(`You are not logged into ${serviceName}.`);
+                return;
+            }
             setSearchError(`Could not load ${serviceName} instances.`);
             console.warn(`Failed to get connection targets from query:`, ex);
         });
@@ -100,7 +105,7 @@ export function ConnectionSearch({
     const searchProps = useMemo(() => ({ instance: currentInstance }), [currentInstance]);
 
     return <div>
-        {instances === null && <p> Loading {serviceName} instances. </p>}
+        {!searchError && instances === null && <p> Loading {serviceName} instances. </p>}
         {instances?.length === 0 && <p> You are not logged into any {serviceName} instances. </p>}
         {searchError && <ErrorPane header="Search error"> {searchError} </ErrorPane> }
         <InputField visible={!!instances?.length} label={`${serviceName} Instance`} noPadding={true}>
