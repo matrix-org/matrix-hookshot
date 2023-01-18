@@ -11,14 +11,6 @@ import { DropItem } from "../elements/DropdownSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.jira.project";
 
-// function getInstancePrettyName(instance: JiraProjectConnectionInstanceTarget) {
-//     return `${instance.name} (${instance.url})`;
-// }
-
-// function getProjectPrettyName(project: JiraProjectConnectionProjectTarget) {
-//     return `${project.key} (${project.name})`;
-// }
-
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);
 
