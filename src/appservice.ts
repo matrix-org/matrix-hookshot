@@ -40,8 +40,8 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
         intentOptions: {
             // If encryption support is enabled, we cannot expire Intent objects or we risk
             // a resource contention on the Sled DB.
-            maxCached: config.encryption && 0,
-            maxAgeMs: config.encryption && 0,
+            maxCached: config.encryption ? 0 : undefined,
+            maxAgeMs: config.encryption ? 0 : undefined,
             encryption: !!config.encryption,
         },
         cryptoStorage: cryptoStorage,
