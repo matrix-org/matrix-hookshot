@@ -54,6 +54,7 @@ export type JiraProjectConnectionTarget = JiraProjectConnectionInstanceTarget|Ji
 
 export interface JiraTargetFilter {
     instanceName?: string;
+    search?: string;
 }
 
 
@@ -315,7 +316,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
 
         const allProjects: JiraProjectConnectionProjectTarget[] = [];
         try {
-            for await (const project of resClient.getAllProjects()) {
+            for await (const project of resClient.getAllProjects(filters.search)) {
                 allProjects.push({
                     state: {
                         id: project.id,

@@ -6,6 +6,7 @@ import { BridgeConfigJira, BridgeConfigJiraCloudOAuth } from '../../Config/Confi
 import { Logger } from "matrix-appservice-bridge";
 import { HookshotJiraApi, JiraClient } from '../Client';
 import JiraApi from 'jira-client';
+import * as qs from "node:querystring";
 
 const log = new Logger("JiraCloudClient");
 const ACCESSIBLE_RESOURCE_CACHE_LIMIT = 100;
@@ -44,11 +45,16 @@ export class HookshotCloudJiraApi extends HookshotJiraApi {
         return super.addNewIssue(issue);
     }
 
-    async * getAllProjects(): AsyncIterable<JiraProject> {
+    async * getAllProjects(query?: string, maxResults = 10): AsyncIterable<JiraProject> {
         let response;
         let startAt = 0;
         do {
-            response = await this.apiRequest<JiraCloudProjectSearchResponse>(`/rest/api/3/project/search?startAt=${startAt}`);
+            const params = qs.stringify({
+                startAt,
+                maxResults,
+                query
+            });
+            response = await this.apiRequest<JiraCloudProjectSearchResponse>(`/rest/api/3/project/search?${params}`);
             yield* response.values;
             startAt += response.maxResults;
         } while(!response.isLast)
