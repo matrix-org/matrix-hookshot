@@ -77,6 +77,7 @@
     "@codemirror/lang-javascript": "^6.0.2",
     "@napi-rs/cli": "^2.2.0",
     "@preact/preset-vite": "^2.2.0",
+    "@tsconfig/node16": "^1.0.3",
     "@types/ajv": "^1.0.0",
     "@types/chai": "^4.2.22",
     "@types/cors": "^2.8.12",
