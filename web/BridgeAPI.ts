@@ -77,7 +77,7 @@ export class BridgeAPI {
     async request(method: string, endpoint: string, body?: unknown, opts?: RequestOpts) {
         const res = await fetch(`${this.baseUrl}${endpoint}`, {
             cache: 'no-cache',
-            signal: opts?.abortController.signal,
+            signal: opts?.abortController?.signal,
             method,
             body: body ? JSON.stringify(body) : undefined,
             headers: {

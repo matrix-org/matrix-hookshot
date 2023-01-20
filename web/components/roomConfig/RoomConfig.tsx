@@ -112,7 +112,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 onSave={handleSaveOnCreation}
             />}
         </section>}
-        { connections?.length && <section>
+        { !!connections?.length && <section>
             <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
             { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                     <ConnectionConfigComponent
