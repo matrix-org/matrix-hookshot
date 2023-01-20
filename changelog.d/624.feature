@@ -1,0 +1,1 @@
+The room configuration widget now features an improved project search component, which now shows project avatars and descriptions.
