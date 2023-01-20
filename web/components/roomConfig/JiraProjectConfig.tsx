@@ -46,11 +46,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         return targets;
     }, [api]);
 
-    const getProjects = useMemo(() => async (instanceName: string, search: string) => {
+    const getProjects = useMemo(() => async (instanceName: string, search?: string, abortController?: AbortController) => {
         const targets = await api.getConnectionTargets<JiraProjectConnectionProjectTarget>(EventType, {
             instanceName,
             ...(search && { search })
-        });
+        }, abortController);
         return targets.map(project => ({
             title: project.key,
             description: project.name,

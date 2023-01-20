@@ -51,11 +51,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         return targets;
     }, [api]);
 
-    const getProjects = useMemo(() => async (instance: string, search: string) => {
+    const getProjects = useMemo(() => async (instance: string, search: string, abortController: AbortController) => {
         const targets = await api.getConnectionTargets<GitHubRepoConnectionRepoTarget>(EventType, {
             ...(search && { search }),
             orgName: instance,
-        });
+        }, abortController);
         return targets.map(repo => ({
             description: repo.description,
             imageSrc: repo.avatar,

@@ -13,7 +13,7 @@ type Project = DropItem;
 interface IProps {
     serviceName: string;
     getInstances(): Promise<Instance[]>;
-    getProjects(currentInstance: string, searchTerm?: string): Promise<Project[]>;
+    getProjects(currentInstance: string, searchTerm?: string, abortController?: AbortController): Promise<Project[]>;
     onPicked: (instanceValue: string, projectValue: string) => void;
     onClear: () => void;
 }
@@ -40,7 +40,7 @@ export function ConnectionSearch({
     useEffect(() => {
         getInstances().then(res => {
             setInstances(res);
-            setCurrentInstance(res[0]?.name ?? null);
+            setCurrentInstance(res[0]?.name ?? '');
         }).catch(ex => {
             if (ex instanceof BridgeAPIError && ex.errcode === "HS_FORBIDDEN_USER") { 
                 setSearchError(`You are not logged into ${serviceName}.`);
@@ -63,9 +63,9 @@ export function ConnectionSearch({
         });
     }, [currentInstance, getProjects, serviceName]);
 
-    const searchFn = useCallback(async(terms: string, { instance }: { instance: string }) => {
+    const searchFn = useCallback(async(terms: string, { instance }: { instance: string }, abortController: AbortController) => {
         try {
-            const res = await getProjects(instance, terms);
+            const res = await getProjects(instance, terms, abortController);
             return res.map((item) => ({
                 description: item.description,
                 imageSrc: item.imageSrc,

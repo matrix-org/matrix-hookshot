@@ -48,11 +48,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         return targets;
     }, [api]);
 
-    const getProjects = useMemo(() => async (instance: string, search: string) => {
+    const getProjects = useMemo(() => async (instance: string, search?: string, abortController?: AbortController) => {
         const targets = await api.getConnectionTargets<GitLabRepoConnectionProjectTarget>(EventType, {
             instance,
             ...(search && { search })
-        });
+        }, abortController);
         return targets.map(project => ({
             description: project.description,
             imageSrc: project.avatar_url,

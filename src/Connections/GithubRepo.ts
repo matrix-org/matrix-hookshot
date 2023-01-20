@@ -1277,11 +1277,11 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             searchRepos = searchResultsData.items.map(r => r.full_name);
         }
 
+        // Now, find all the repos that we have the ability to install.
         const foundRepos = [];
         let installationsCount = 0;
         let totalCount = 0;
         let page = 1;
-        // Find which ones can be installed by us.
         do {
             const { data } = await octokit.apps.listInstallationReposForAuthenticatedUser({
                 installation_id: installationId,

@@ -1,11 +1,12 @@
 .dropdownItem {
     padding: 0.25em 0.5em;
     border-radius: 8px;
-}
-
-.dropdownItem:hover {
     cursor: pointer;
-    background-color: rgba(54, 54, 54, 0.138);
+
+    &:hover {
+
+        background-color: rgba(54, 54, 54, 0.138);
+    }
 }
 
 .title {
@@ -28,12 +29,13 @@
 
 .hasImg {
     display: grid;
-    grid-template-columns: 0.3fr 1fr;
+    grid-template-columns: auto 1fr;
     grid-gap: 1em;
 }
 
 .itemImage {
-    width: 100%;
+    width: auto;
+    max-height: 48px;
     margin-top: auto;
     margin-bottom: auto;
 }

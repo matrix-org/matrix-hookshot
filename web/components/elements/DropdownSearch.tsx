@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "preact/hooks";
 import style from "./DropdownSearch.module.scss";
 
 interface Props<T> {
-    searchFn: (searchTerm: string, additionalProps: T) => Promise<DropItem[]>;
+    searchFn: (searchTerm: string, additionalProps: T, abortController: AbortController) => Promise<DropItem[]>;
     searchProps: T,
     placeholder?: string,
     onChange: (value: string|null) => void;
@@ -24,8 +24,7 @@ export const DropdownItem: FunctionComponent<DropItem&{onPicked?: (value: string
     return <li className={`card ${style.dropdownItem} ${imageSrc ? style.hasImg : ''}`} role="button" onClick={() => onPicked?.(value)}>
             { imageSrc && <img className={style.itemImage} src={imageSrc} /> }
             <div>
-                <p className={style.title}>{title}</p>
-                <p className={style.value}>{value}</p>
+                <p className={style.title}>{title} <span className={style.value}>{value}</span></p>
                 <p className={style.description}>{description}</p>
             </div>
     </li>;
@@ -55,11 +54,11 @@ export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onEr
             setSelectedItem(null);
             onChange(null);
         }
-
+        const controller = new AbortController();
         // Browser types
         const debounceTimer = setTimeout(() => {
             setLoading(true);
-            searchFn(searchTerm, searchProps).then(result => {
+            searchFn(searchTerm, searchProps, controller).then(result => {
                 setResults(result);
             }).catch(err => {
                 onError?.(err);
@@ -68,6 +67,7 @@ export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onEr
             })
         }, DEBOUNCE_TIMEOUT_MS);
         return () => {
+            controller.abort();
             clearTimeout(debounceTimer);
         }
     }, [searchTerm, onChange, setResults, onError, searchProps, selectedItem, searchFn]);
