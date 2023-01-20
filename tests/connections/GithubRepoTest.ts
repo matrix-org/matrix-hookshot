@@ -40,10 +40,12 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 	});
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
+	const intent = as.getIntentForUserId('@github:example.test');
 	const githubInstance = new GithubInstance("foo", "bar", new URL("https://github.com"));
 	const connection = new GitHubRepoConnection(
 		ROOM_ID,
 		as,
+		intent,
 		GitHubRepoConnection.validateState({
 			org: "a-fake-org",
 			repo: "a-fake-repo",
@@ -56,7 +58,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		DefaultConfig.github!
 	);
-	return {connection, as};
+	return {connection, intent};
 }
 
 describe("GitHubRepoConnection", () => {
@@ -127,15 +129,15 @@ describe("GitHubRepoConnection", () => {
 	});
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
-			const { connection, as } = createConnection();
+			const { connection, intent } = createConnection();
 			await connection.onIssueCreated(GITHUB_ISSUE_CREATED_PAYLOAD as never);
 			// Statement text.
-			as.botIntent.expectEventBodyContains('**alice** created new issue', 0);
-			as.botIntent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
-			as.botIntent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
+			intent.expectEventBodyContains('**alice** created new issue', 0);
+			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
+			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
 		});
 		it("will filter out issues not matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
 			});
 			await connection.onIssueCreated({
@@ -149,10 +151,10 @@ describe("GitHubRepoConnection", () => {
 			} as never);
 			// ..or issues with no labels
 			await connection.onIssueCreated(GITHUB_ISSUE_CREATED_PAYLOAD as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will filter out issues matching excludingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
 			});
 			await connection.onIssueCreated({
@@ -164,10 +166,10 @@ describe("GitHubRepoConnection", () => {
 					}],
 				}
 			} as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will include issues matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingIssues: ["include-me"]
 			});
 			await connection.onIssueCreated({
@@ -179,7 +181,7 @@ describe("GitHubRepoConnection", () => {
 					}],
 				}
 			} as never);
-			as.botIntent.expectEventBodyContains('**alice** created new issue', 0);
+			intent.expectEventBodyContains('**alice** created new issue', 0);
 		});
 	});
 });

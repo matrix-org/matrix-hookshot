@@ -1,12 +1,12 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { UserTokenStore } from "../UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { getIntentForUser } from "../IntentUtils";
+import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
 import { GithubInstance } from "../Github/GithubInstance";
@@ -56,12 +56,12 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
     }
 
     public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
-        github, config, as, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts) {
+        github, config, as, intent, tokenStore, commentProcessor, messageClient}: InstantiateConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
         const issue = new GitHubIssueConnection(
-            roomId, as, event.content, event.stateKey || "", tokenStore,
+            roomId, as, intent, event.content, event.stateKey || "", tokenStore,
             commentProcessor, messageClient, github, config.github,
         );
         await issue.syncIssueState();
@@ -154,17 +154,20 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         };
     }
 
-    constructor(roomId: string,
+    constructor(
+        roomId: string,
         private readonly as: Appservice,
+        private readonly intent: Intent,
         private state: GitHubIssueConnectionState,
         stateKey: string,
         private tokenStore: UserTokenStore,
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
         private github: GithubInstance,
-        private config: BridgeConfigGitHub,) {
-            super(roomId, stateKey, GitHubIssueConnection.CanonicalEventType);
-        }
+        private config: BridgeConfigGitHub,
+    ) {
+        super(roomId, stateKey, GitHubIssueConnection.CanonicalEventType);
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubIssueConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
@@ -214,13 +217,14 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         const matrixEvent = await this.commentProcessor.getEventBodyForGitHubComment(comment, event.repository, event.issue);
         // Comment body may be blank
         if (matrixEvent) {
+            await ensureUserIsInRoom(commentIntent, this.intent.underlyingClient, this.roomId);
             await this.messageClient.sendMatrixMessage(this.roomId, matrixEvent, "m.room.message", commentIntent.userId);
         }
         if (!updateState) {
             return;
         }
         this.state.comments_processed++;
-        await this.as.botIntent.underlyingClient.sendStateEvent(
+        await this.intent.underlyingClient.sendStateEvent(
             this.roomId,
             GitHubIssueConnection.CanonicalEventType,
             this.stateKey,
@@ -245,6 +249,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
             }, this.as, this.config.userIdPrefix);
             // We've not sent any messages into the room yet, let's do it!
             if (issue.data.body) {
+                await ensureUserIsInRoom(creator, this.intent.underlyingClient, this.roomId);
                 await this.messageClient.sendMatrixMessage(this.roomId, {
                     msgtype: "m.text",
                     external_url: issue.data.html_url,
@@ -282,6 +287,11 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
             if (issue.data.state === "closed") {
                 // TODO: Fix
                 const closedUserId = this.as.getUserIdForSuffix(issue.data.closed_by?.login as string);
+                await ensureUserIsInRoom(
+                    this.as.getIntentForUserId(closedUserId),
+                    this.intent.underlyingClient,
+                    this.roomId
+                );
                 await this.messageClient.sendMatrixMessage(this.roomId, {
                     msgtype: "m.notice",
                     body: `closed the ${issue.data.pull_request ? "pull request" : "issue"} at ${issue.data.closed_at}`,
@@ -289,14 +299,14 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
                 }, "m.room.message", closedUserId);
             }
 
-            await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.topic", "", {
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, "m.room.topic", "", {
                 topic: FormatUtil.formatRoomTopic(issue.data),
             });
 
             this.state.state = issue.data.state;
         }
 
-        await this.as.botIntent.underlyingClient.sendStateEvent(
+        await this.intent.underlyingClient.sendStateEvent(
             this.roomId,
             GitHubIssueConnection.CanonicalEventType,
             this.stateKey,
@@ -308,7 +318,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
     public async onMatrixIssueComment(event: MatrixEvent<MatrixMessageContent>, allowEcho = false) {
         const clientKit = await this.tokenStore.getOctokitForUser(event.sender);
         if (clientKit === null) {
-            await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+            await this.intent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
                 "m.relates_to": {
                     rel_type: "m.annotation",
                     event_id: event.event_id,
@@ -339,7 +349,7 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
 
         // TODO: Fix types
         if (event.issue && event.changes.title) {
-            await this.as.botIntent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, "m.room.name", "", {
                 name: FormatUtil.formatIssueRoomName(event.issue, event.repository),
             });
         }
@@ -349,11 +359,11 @@ export class GitHubIssueConnection extends BaseConnection implements IConnection
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
         try {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubIssueConnection.CanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitHubIssueConnection.CanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubIssueConnection.CanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubIssueConnection.CanonicalEventType, this.stateKey, { disabled: true });
         } catch (ex) {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubIssueConnection.LegacyCanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitHubIssueConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubIssueConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubIssueConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
     }
 

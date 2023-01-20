@@ -1,5 +1,5 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "../Jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
@@ -106,7 +106,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, tokenStore, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, config}: ProvisionConnectionOpts) {
         if (!config.jira) {
             throw new ApiError('JIRA integration is not configured', ErrCode.DisabledFeature);
         }
@@ -120,7 +120,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!jiraResourceClient) {
             throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
         }
-        const connection = new JiraProjectConnection(roomId, as, validData, validData.url, tokenStore);
+        const connection = new JiraProjectConnection(roomId, as, intent, validData, validData.url, tokenStore);
         log.debug(`projectKey for ${validData.url} is ${connection.projectKey}`);
         if (!connection.projectKey) {
             throw Error('Expected projectKey to be defined');
@@ -136,19 +136,19 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         } catch (ex) {
             throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
         }
-        await as.botIntent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, connection.stateKey, validData);
+        await intent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, connection.stateKey, validData);
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
         return {connection};
     }
-    
-    static createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {config, as, tokenStore}: InstantiateConnectionOpts) {
+
+    static createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {config, as, intent, tokenStore}: InstantiateConnectionOpts) {
         if (!config.jira) {
             throw Error('JIRA is not configured');
         }
         const connectionConfig = validateJiraConnectionState(state.content);
-        return new JiraProjectConnection(roomId, as, connectionConfig, state.stateKey, tokenStore);
+        return new JiraProjectConnection(roomId, as, intent, connectionConfig, state.stateKey, tokenStore);
     }
-    
+
     public get projectId() {
         return this.state.id;
     }
@@ -194,36 +194,39 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
     }
 
     /**
-     * The URL of the project 
+     * The URL of the project
      * @example https://test.atlassian.net/jira/software/c/projects/PLAY
      */
     private projectUrl?: URL;
 
-    constructor(roomId: string,
+    constructor(
+        roomId: string,
         private readonly as: Appservice,
+        private readonly intent: Intent,
         state: JiraProjectConnectionState,
         stateKey: string,
-        private readonly tokenStore: UserTokenStore,) {
-            super(
-                roomId,
-                stateKey,
-                JiraProjectConnection.CanonicalEventType,
-                state,
-                as.botClient,
-                JiraProjectConnection.botCommands,
-                JiraProjectConnection.helpMessage,
-                "!jira",
-                "jira"
-            );
-            if (state.url) {
-                this.projectUrl = new URL(state.url);
-            } else if (state.id) {
-                log.warn(`Legacy ID option in use, needs to be switched to 'url'`);
-            } else {
-                throw Error('State is missing both id and url, cannot create connection');
-            }
-            
+        private readonly tokenStore: UserTokenStore,
+    ) {
+        super(
+            roomId,
+            stateKey,
+            JiraProjectConnection.CanonicalEventType,
+            state,
+            intent.underlyingClient,
+            JiraProjectConnection.botCommands,
+            JiraProjectConnection.helpMessage,
+            ["jira"],
+            "!jira",
+            "jira"
+        );
+        if (state.url) {
+            this.projectUrl = new URL(state.url);
+        } else if (state.id) {
+            log.warn(`Legacy ID option in use, needs to be switched to 'url'`);
+        } else {
+            throw Error('State is missing both id and url, cannot create connection');
         }
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return JiraProjectConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
@@ -248,7 +251,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         }
         const url = generateJiraWebLinkFromIssue(data.issue);
         const content = `${creator.displayName} created a new JIRA issue [${data.issue.key}](${url}): "${data.issue.fields.summary}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -262,14 +265,13 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             service: "jira",
             eventType: JiraProjectConnection.CanonicalEventType,
             type: "JiraProject",
-            // TODO: Add ability to configure the bot per connnection type.
             botUserId: botUserId,
         }
     }
 
     public getProvisionerDetails(): JiraProjectResponseItem {
         return {
-            ...JiraProjectConnection.getProvisionerDetails(this.as.botUserId),
+            ...JiraProjectConnection.getProvisionerDetails(this.intent.userId),
             id: this.connectionId,
             config: {
                 ...this.state,
@@ -350,8 +352,8 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         } else {
             content += `\n - ` + changes.join(`\n  - `);
         }
-        
-        await this.as.botIntent.sendEvent(this.roomId, {
+
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -375,7 +377,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             (this.projectKey && this.projectUrl ? ` for project [${this.projectKey}](${this.projectUrl})` : "") +
             `: [${data.version.name}](${url}) (_${data.version.description}_)`;
 
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -441,7 +443,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
 
         const link = generateJiraWebLinkFromIssue({self: this.projectUrl?.toString() || result.self, key: result.key as string});
         const content = `Created JIRA issue ${result.key}: [${link}](${link})`;
-        return this.as.botIntent.sendEvent(this.roomId,{
+        return this.intent.sendEvent(this.roomId,{
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -465,7 +467,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         }
 
         const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(', ')}`;
-        return this.as.botIntent.sendEvent(this.roomId,{
+        return this.intent.sendEvent(this.roomId,{
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -498,11 +500,11 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
         try {
-            await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, { disabled: true });
         } catch (ex) {
-            await this.as.botClient.getRoomStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, JiraProjectConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
     }
 
@@ -513,7 +515,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!validatedConfig.id) {
             await this.updateProjectId(validatedConfig, userId);
         }
-        await this.as.botClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
     }
 

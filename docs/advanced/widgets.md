@@ -39,7 +39,7 @@ widgets:
 #     - 2001:db8::/32
 #     - ff00::/8
 #     - fec0::/10
-  publicUrl: http://example.com/widgetapi/v1/static
+  publicUrl: https://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
   openIdOverrides:

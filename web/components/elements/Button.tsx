@@ -1,8 +1,11 @@
 import { FunctionComponent, h } from "preact";
 import style from "./Button.module.scss";
 
+interface ButtonProps extends h.JSX.HTMLAttributes<HTMLButtonElement> {
+    intent?: string;
+}
 
-export const Button: FunctionComponent = (props: { [key: string]: unknown, intent?: string}) => {
+export const Button: FunctionComponent = (props: ButtonProps) => {
     let className = style.button;
     if (props.intent === "remove") {
         className += ` ${style.remove}`;

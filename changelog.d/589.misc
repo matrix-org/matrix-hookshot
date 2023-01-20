@@ -1,1 +1,0 @@
-Only build ARM images when merging or releasing, due to slow ARM build times.

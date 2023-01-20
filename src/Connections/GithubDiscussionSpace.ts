@@ -31,12 +31,12 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
     static readonly ServiceCategory = "github";
 
     public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
-        github, config, as}: InstantiateConnectionOpts) {
+        github, config, as, intent}: InstantiateConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
         return new GitHubDiscussionSpace(
-            await as.botClient.getSpace(roomId), event.content, event.stateKey
+            await intent.underlyingClient.getSpace(roomId), event.content, event.stateKey
         );
     }
 
@@ -108,7 +108,7 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
             preset: 'public_chat',
             room_alias_name: `github_disc_${owner.toLowerCase()}_${repo.toLowerCase()}`,
             initial_state: [
-                
+
                 {
                     type: this.CanonicalEventType,
                     content: state,
@@ -172,7 +172,7 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
         try {
-            
+
             await this.space.client.getRoomStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey);
             await this.space.client.sendStateEvent(this.roomId, GitHubDiscussionSpace.CanonicalEventType, this.stateKey, { disabled: true });
         } catch (ex) {

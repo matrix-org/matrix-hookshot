@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { UserTokenStore } from "../UserTokenStore";
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
@@ -64,7 +64,7 @@ const MRRCOMMENT_DEBOUNCE_MS = 5000;
 export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
 
-type AllowedEventsNames = 
+type AllowedEventsNames =
     "merge_request.open" |
     "merge_request.close" |
     "merge_request.merge" |
@@ -73,7 +73,7 @@ type AllowedEventsNames =
     "merge_request.review.comments" |
     `merge_request.${string}` |
     "merge_request" |
-    "tag_push" | 
+    "tag_push" |
     "push" |
     "wiki" |
     `wiki.${string}` |
@@ -174,7 +174,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         GitLabRepoConnection.CanonicalEventType,
         GitLabRepoConnection.LegacyCanonicalEventType,
     ];
-    
+
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
     static ServiceCategory = "gitlab";
@@ -202,7 +202,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, tokenStore, config}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {intent, tokenStore, config}: InstantiateConnectionOpts) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -211,10 +211,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (!instance) {
             throw Error('Instance name not recognised');
         }
-        return new GitLabRepoConnection(roomId, event.stateKey, as, state, tokenStore, instance);
+        return new GitLabRepoConnection(roomId, event.stateKey, intent, state, tokenStore, instance);
     }
 
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { config, as, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { config, intent, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -238,11 +238,11 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (permissionLevel < AccessLevel.Developer) {
             throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
         }
-        
+
         const project = await client.projects.get(validData.path);
 
         const stateEventKey = `${validData.instance}/${validData.path}`;
-        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, validData, tokenStore, instance);
+        const connection = new GitLabRepoConnection(roomId, stateEventKey, intent, validData, tokenStore, instance);
         const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
         const existing = existingConnections.find(c => c.roomId === roomId && c.instance.url === connection.instance.url && c.path === connection.path);
 
@@ -282,7 +282,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             };
             log.warn(`Not creating webhook, permission level is insufficient (${permissionLevel} < ${AccessLevel.Maintainer})`)
         }
-        await as.botIntent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.stateKey, validData);
+        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.stateKey, validData);
         return {connection, warning};
     }
 
@@ -377,21 +377,23 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     private readonly mergeRequestSeenDiscussionIds = new QuickLRU<string, undefined>({ maxSize: 100 });
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
-    constructor(roomId: string,
+    constructor(
+        roomId: string,
         stateKey: string,
-        private readonly as: Appservice,
+        private readonly intent: Intent,
         state: ConnectionStateValidated,
         private readonly tokenStore: UserTokenStore,
-        private readonly instance: GitLabInstance
-        ) {
+        private readonly instance: GitLabInstance,
+    ) {
         super(
             roomId,
             stateKey,
             GitLabRepoConnection.CanonicalEventType,
             state,
-            as.botClient,
+            intent.underlyingClient,
             GitLabRepoConnection.botCommands,
             GitLabRepoConnection.helpMessage,
+            ["gitlab"],
             "!gl",
             "gitlab",
         )
@@ -435,7 +437,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
     public getProvisionerDetails(): GitLabRepoResponseItem {
         return {
-            ...GitLabRepoConnection.getProvisionerDetails(this.as.botUserId),
+            ...GitLabRepoConnection.getProvisionerDetails(this.intent.userId),
             id: this.connectionId,
             config: {
                 ...this.state,
@@ -462,7 +464,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
 
         const content = `Created issue #${res.iid}: [${res.web_url}](${res.web_url})`;
-        return this.as.botIntent.sendEvent(this.roomId,{
+        return this.intent.sendEvent(this.roomId,{
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -482,7 +484,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         });
 
         const content = `Created confidential issue #${res.iid}: [${res.web_url}](${res.web_url})`;
-        return this.as.botIntent.sendEvent(this.roomId,{
+        return this.intent.sendEvent(this.roomId,{
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -518,7 +520,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -534,7 +536,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** closed MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -550,7 +552,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** merged MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -582,7 +584,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             // Nothing changed, drop it.
             return;
         }
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -601,7 +603,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
         const url = `${event.project.homepage}/-/tree/${tagname}`;
         const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -622,7 +624,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
         const tooManyCommits = event.total_commits_count > PUSH_MAX_COMMITS;
         const displayedCommits = tooManyCommits ? 1 : Math.min(event.total_commits_count, PUSH_MAX_COMMITS);
-        
+
         // Take the top 5 commits. The array is ordered in reverse.
         const commits = event.commits.reverse().slice(0,displayedCommits).map(commit => {
             return `[\`${commit.id.slice(0,8)}\`](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
@@ -640,14 +642,14 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             }
         }
 
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html",
         });
     }
-    
+
     public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
         const attributes = data.object_attributes;
         if (this.hookFilter.shouldSkip('wiki', `wiki.${attributes.action}`)) {
@@ -667,7 +669,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         const message = attributes.message && ` "${attributes.message}"`;
 
         const content = `**${data.user.username}** ${statement} "[${attributes.title}](${attributes.url})" for ${data.project.path_with_namespace} ${message}`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -684,7 +686,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         const content = `**${data.commit.author.name}** 🪄 released [${data.name}](${data.url}) for ${orgRepoName}
 
 ${data.description}`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -721,7 +723,7 @@ ${data.description}`;
             content += "\n\n> " + result.commentNotes.join("\n\n> ");
         }
 
-        this.as.botIntent.sendEvent(this.roomId, {
+        this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -783,7 +785,7 @@ ${data.description}`;
         }
         this.debounceMergeRequestReview(
             event.user,
-            event.object_attributes, 
+            event.object_attributes,
             event.project,
             {
                 commentCount: 0,
@@ -847,7 +849,7 @@ ${data.description}`;
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
         config = { ...this.state, ...config };
         const validatedConfig = GitLabRepoConnection.validateState(config);
-        await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks;
     }
@@ -856,11 +858,11 @@ ${data.description}`;
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
         // Do a sanity check that the event exists.
         try {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
         } catch (ex) {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
         // TODO: Clean up webhooks
     }

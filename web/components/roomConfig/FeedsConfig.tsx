@@ -16,12 +16,11 @@ const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }
         <h3>Recent feed results</h3>
         {!item.secrets.lastResults.length && <span>There have been no recent updates for this feed.</span>}
         <ul>
-            {item.secrets.lastResults.map(item => <li styles={styles.resultListItem} key={item.timestamp}>
+            {item.secrets.lastResults.map(item => <li className={styles.resultListItem} key={item.timestamp}>
                 {new Date(item.timestamp).toLocaleString()}: 
                 {item.ok && `✅ Successful fetch`}
                 {!item.ok && `⚠️ ${item.error}`}
-            </li>
-            )}
+            </li>)}
         </ul>
     </>;
 }

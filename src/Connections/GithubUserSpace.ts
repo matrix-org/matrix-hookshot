@@ -29,12 +29,12 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
     static readonly ServiceCategory = "github";
 
     public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
-        github, config, as}: InstantiateConnectionOpts) {
+        github, config, intent}: InstantiateConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
         return new GitHubUserSpace(
-            await as.botClient.getSpace(roomId), event.content, event.stateKey
+            await intent.underlyingClient.getSpace(roomId), event.content, event.stateKey
         );
     }
 
@@ -104,7 +104,7 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
             preset: 'public_chat',
             room_alias_name: `github_${state.username.toLowerCase()}`,
             initial_state: [
-                
+
                 {
                     type: this.CanonicalEventType,
                     content: state,

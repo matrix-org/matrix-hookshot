@@ -11,7 +11,6 @@ const log = new Logger("CommandConnection");
  * by connections expecting to handle user input.
  */
 export abstract class CommandConnection<StateType extends IConnectionState = IConnectionState, ValidatedStateType extends StateType = StateType> extends BaseConnection {
-    protected enabledHelpCategories?: string[];
     protected includeTitlesInHelp?: boolean;
     constructor(
         roomId: string,
@@ -21,6 +20,7 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
         private readonly botClient: MatrixClient,
         private readonly botCommands: BotCommands,
         private readonly helpMessage: HelpFunction,
+        protected readonly helpCategories: string[],
         protected readonly defaultCommandPrefix: string,
         protected readonly serviceName?: string,
     ) {
@@ -80,6 +80,6 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
 
     @botCommand("help", "This help text")
     public async helpCommand() {
-        return this.botClient.sendEvent(this.roomId, 'm.room.message', this.helpMessage(this.commandPrefix, this.enabledHelpCategories, this.includeTitlesInHelp));
+        return this.botClient.sendEvent(this.roomId, 'm.room.message', this.helpMessage(this.commandPrefix, this.helpCategories, this.includeTitlesInHelp));
     }
 }

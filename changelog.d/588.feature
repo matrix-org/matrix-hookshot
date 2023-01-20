@@ -1,1 +1,0 @@
-Add new GitHubRepo connection config setting `workflowRun.workflows` to filter run reports by workflow name.

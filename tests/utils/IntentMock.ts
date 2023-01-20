@@ -1,8 +1,32 @@
 
 import { expect } from "chai";
 export class MatrixClientMock {
+
+    static create(){
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return new this() as any;
+    }
+
+    // map room Id → user Ids
+    private joinedMembers: Map<string, string[]> = new Map();
+
     async setDisplayName() {
         return;
+    }
+
+    async getJoinedRoomMembers(roomId: string): Promise<string[]> {
+        return this.joinedMembers.get(roomId) || [];
+    }
+
+    async inviteUser(userId: string, roomId: string): Promise<void> {
+        const roomMembers = this.joinedMembers.get(roomId) || [];
+
+        if (roomMembers.includes(userId)) {
+            throw new Error("User already in room");
+        }
+
+        roomMembers.push(userId);
+        this.joinedMembers.set(roomId, roomMembers);
     }
 }
 
@@ -10,9 +34,11 @@ export class IntentMock {
     public readonly underlyingClient = new MatrixClientMock();
     public sentEvents: {roomId: string, content: any}[] = [];
 
-    static create(){
+    constructor(readonly userId: string) {}
+
+    static create(userId: string){
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return new this() as any;
+        return new this(userId) as any;
     }
 
     sendText(roomId: string, noticeText: string, msgtype: string) {
@@ -31,7 +57,7 @@ export class IntentMock {
             content,
         });
     }
-    
+
     expectNoEvent() {
         expect(this.sentEvents, 'Expected no events to be sent.').to.be.empty;
     }
@@ -46,6 +72,10 @@ export class IntentMock {
             ).to.be.true;
         }
         expect(!!this.sentEvents.find(ev => ev.content.body.includes(matcher)), `Expected any event body to match '${matcher}'`).to.be.true;
+    }
+
+    async ensureJoined() {
+        return true;
     }
 
     async ensureRegistered() {
