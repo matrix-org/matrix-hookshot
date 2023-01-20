@@ -17,6 +17,9 @@ import Ajv, { JSONSchemaType } from "ajv";
 import { CommandError } from "../errors";
 import QuickLRU from "@alloc/quick-lru";
 import { HookFilter } from "../HookFilter";
+import { GitLabClient } from "../Gitlab/Client";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import axios from "axios";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -45,6 +48,8 @@ export interface GitLabRepoConnectionInstanceTarget {
 export interface GitLabRepoConnectionProjectTarget {
     state: GitLabRepoConnectionState;
     name: string;
+    avatar_url?: string;
+    description?: string;
 }
 
 export type GitLabRepoConnectionTarget = GitLabRepoConnectionInstanceTarget|GitLabRepoConnectionProjectTarget;
@@ -154,7 +159,6 @@ const ConnectionStateSchema = {
 export interface GitLabTargetFilter {
     instance?: string;
     parent?: string;
-    after?: string;
     search?: string;
 }
 
@@ -291,7 +295,39 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
     }
 
-    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, config: BridgeConfigGitLab, filters: GitLabTargetFilter = {}): Promise<GitLabRepoConnectionTarget[]> {
+    public static async getBase64Avatar(avatarUrl: string, client: GitLabClient, storage: IBridgeStorageProvider): Promise<string|null> {
+        try {
+            const existingFile = await storage.getStoredTempFile(avatarUrl);
+            if (existingFile) {
+                return existingFile;
+            }
+            const res = await client.get(avatarUrl);
+            if (res.status !== 200) {
+                return null;
+            }
+            const contentType = res.headers["content-type"];
+            if (!contentType?.startsWith("image/")) {
+                return null;
+            }
+            const data = res.data as Buffer;
+            const url = `data:${contentType};base64,${data.toString('base64')}`;
+            await storage.setStoredTempFile(avatarUrl, url);
+            return url;
+        } catch (ex) {
+            if (axios.isAxiosError(ex)) {
+                if (ex.response?.status === 401) {
+                    // 401 means that the project is Private and GitLab haven't fixed
+                    // the auth issues, just ignore this one.
+                    // https://gitlab.com/gitlab-org/gitlab/-/issues/25498
+                    return null;
+                }
+            }
+            log.warn(`Could not transform data from ${avatarUrl} into base64`, ex);
+            return null;
+        }
+    }
+
+    public static async getConnectionTargets(userId: string, config: BridgeConfigGitLab, filters: GitLabTargetFilter = {}, tokenStore: UserTokenStore, storage: IBridgeStorageProvider): Promise<GitLabRepoConnectionTarget[]> {
         // Search for all repos under the user's control.
 
         if (!filters.instance) {
@@ -312,15 +348,16 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (!client) {
             throw new ApiError('Instance is not known or you do not have access to it.', ErrCode.NotFound);
         }
-        const after = filters.after === undefined ? undefined : parseInt(filters.after, 10);
-        const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, after, filters.search);
-        return allProjects.map(p => ({
+        const allProjects = await client.projects.list(AccessLevel.Developer, filters.parent, undefined, filters.search);
+        return await Promise.all(allProjects.map(async p => ({
             state: {
                 instance: filters.instance,
                 path: p.path_with_namespace,
             },
             name: p.name,
-        })) as GitLabRepoConnectionProjectTarget[];
+            avatar_url: p.avatar_url && await this.getBase64Avatar(p.avatar_url, client, storage),
+            description: p.description,
+        }))) as GitLabRepoConnectionProjectTarget[];
     }
 
     private readonly debounceMRComments = new Map<string, {

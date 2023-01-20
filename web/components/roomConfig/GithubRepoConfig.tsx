@@ -1,123 +1,18 @@
 import GitHubIcon from "../../icons/github.png";
-import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
+import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
-import { ErrCode } from "../../../src/api";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { FunctionComponent, createRef } from "preact";
-import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubTargetFilter, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
-import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
-import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
+import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
+import { InputField, ButtonSet, Button } from "../elements";
+import { useState, useCallback, useMemo } from "preact/hooks";
+import { DropItem } from "../elements/DropdownSearch";
+import ConnectionSearch from "../elements/ConnectionSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
-const NUM_REPOS_PER_PAGE = 10;
 
 function getRepoFullName(state: GitHubRepoConnectionState) {
     return `${state.org}/${state.repo}`;
-}
-
-const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: GitHubRepoConnectionState) => void}> = ({api, onPicked}) => {
-    const [filter, setFilter] = useState<GitHubTargetFilter>({});
-    const [results, setResults] = useState<GitHubRepoConnectionRepoTarget[]|null>(null);
-    const [orgs, setOrgs] = useState<GitHubRepoConnectionOrgTarget[]|null>(null);
-    const [isConnected, setIsConnected] = useState<boolean|null>(null);
-    const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
-    const [currentRepo, setCurrentRepo] = useState<string|null>(null);
-    const [searchError, setSearchError] = useState<string|null>(null);
-
-    const searchFn = useCallback(async() => {
-        try {
-            const res = await api.getConnectionTargets<GitHubRepoConnectionRepoTarget>(EventType, filter);
-            setIsConnected(true);
-            if (!filter.orgName) {
-                setOrgs(res as GitHubRepoConnectionOrgTarget[]);
-                if (res[0]) {
-                    setFilter({
-                        orgName: res[0].name,
-                        perPage: NUM_REPOS_PER_PAGE,
-                    });
-                }
-            } else {
-                setResults((prevResults: GitHubRepoConnectionRepoTarget[]|null) =>
-                    !prevResults ? res : prevResults.concat(...res)
-                );
-                if (res.length == NUM_REPOS_PER_PAGE) {
-                    setFilter({
-                        ...filter,
-                        page: filter.page ? filter.page + 1 : 2,
-                    });
-                }
-            }
-        } catch (ex: any) {
-            if (ex?.errcode === ErrCode.ForbiddenUser) {
-                setOrgs([]);
-            } else if (ex?.errcode === ErrCode.AdditionalActionRequired) {
-                setSearchError("You are not permitted to list GitHub installations.");
-                setOrgs([]);
-            } else {
-                setSearchError("There was an error fetching search results.");
-                // Rather than raising an error, let's just log and let the user retry a query.
-                console.warn(`Failed to get connection targets from query:`, ex);
-            }
-        }
-    }, [api, filter]);
-
-    const updateSearchFn = useCallback((evt: InputEvent) => {
-        const repo = (evt.target as HTMLOptionElement).value;
-        const hasResult = results?.find(n => n.name == repo);
-        if (hasResult) {
-            onPicked(hasResult.state);
-            setCurrentRepo(hasResult.state.repo);
-        }
-    }, [onPicked, results]);
-
-    useEffect(() => {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-        }
-        // Browser types
-        setDebounceTimer(setTimeout(searchFn, 500) as unknown as number);
-        return () => {
-            clearTimeout(debounceTimer);
-        }
-        // Things break if we depend on the thing we are clearing.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchFn, filter]);
-
-    const onOrgPicked = useCallback((evt: InputEvent) => {
-        // Reset the search string.
-        setFilter({
-            orgName: (evt.target as HTMLSelectElement).selectedOptions[0].value,
-        });
-    }, []);
-
-    const orgListResults = useMemo(
-        () => orgs?.map(i => <option key={i.name}>{i.name}</option>),
-        [orgs]
-    );
-
-    const repoListResults = useMemo(
-        () => results?.map(i => <option key={i.name} value={i.name} />),
-        [results]
-    );
-
-
-    return <div>
-        {(isConnected === null && !searchError) && <p> Loading GitHub connection. </p>}
-        {isConnected === false && <p> You are not logged into GitHub. </p>}
-        {isConnected === true && orgs?.length === 0 && <p> You do not have access to any GitHub organizations. </p>}
-        {searchError && <ErrorPane> {searchError} </ErrorPane> }
-        <InputField visible={!!orgs?.length} label="Organization" noPadding={true}>
-            <select onChange={onOrgPicked}>
-                {orgListResults}
-            </select>
-        </InputField>
-        <InputField visible={!!isConnected} label="Repository" noPadding={true}>
-            <input onChange={updateSearchFn} value={currentRepo ?? undefined} list="github-repos" type="text" />
-            <datalist id="github-repos">
-                {repoListResults}
-            </datalist>
-        </InputField>
-    </div>;
 }
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitHubRepoResponseItem, GitHubRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
@@ -151,8 +46,41 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         }
     }, [enabledHooks, canEdit, existingConnection, connectionState, commandPrefixRef, onSave]);
 
+    const getInstances = useMemo(() => async () => {
+        const targets = await api.getConnectionTargets<GitHubRepoConnectionOrgTarget>(EventType, { });
+        return targets;
+    }, [api]);
+
+    const getProjects = useMemo(() => async (instance: string, search: string, abortController: AbortController) => {
+        const targets = await api.getConnectionTargets<GitHubRepoConnectionRepoTarget>(EventType, {
+            ...(search && { search }),
+            orgName: instance,
+        }, abortController);
+        return targets.map(repo => ({
+            description: repo.description,
+            imageSrc: repo.avatar,
+            title: repo.name,
+            value: repo.state.repo,
+        } as DropItem));
+    }, [api]);
+
+    const setInstance = useCallback((org: string, repo: string) => {
+        setConnectionState({
+            org,
+            repo,
+        })
+    },[setConnectionState]);
+
+    const clearInstance = useCallback(() => setConnectionState(null), [setConnectionState]);
+    
     return <form onSubmit={handleSave}>
-        {!existingConnection && <ConnectionSearch api={api} onPicked={setConnectionState} />}
+        {!existingConnection && <ConnectionSearch
+            serviceName="GitHub"
+            getInstances={getInstances}
+            getProjects={getProjects}
+            onPicked={setInstance}
+            onClear={clearInstance}
+        />}
         <InputField visible={!!existingConnection || !!connectionState} label="Command Prefix" noPadding={true}>
             <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gh" />
         </InputField>

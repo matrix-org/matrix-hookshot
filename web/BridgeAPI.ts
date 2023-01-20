@@ -18,6 +18,10 @@ export class BridgeAPIError extends Error {
     }
 }
 
+interface RequestOpts {
+    abortController?: AbortController;
+}
+
 export class BridgeAPI {
     static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi): Promise<BridgeAPI> {
         const sessionToken = localStorage.getItem('hookshot-sessionToken');
@@ -70,9 +74,10 @@ export class BridgeAPI {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     }
 
-    async request(method: string, endpoint: string, body?: unknown) {
+    async request(method: string, endpoint: string, body?: unknown, opts?: RequestOpts) {
         const res = await fetch(`${this.baseUrl}${endpoint}`, {
             cache: 'no-cache',
+            signal: opts?.abortController?.signal,
             method,
             body: body ? JSON.stringify(body) : undefined,
             headers: {
@@ -129,9 +134,9 @@ export class BridgeAPI {
         return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
     }
 
-    getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>): Promise<R[]> {
+    getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>, abortController?: AbortController): Promise<R[]> {
         const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
-        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`);
+        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`, undefined, { abortController });
     }
 }
 
