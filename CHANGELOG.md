@@ -1,3 +1,12 @@
+2.7.0 (2023-01-20)
+==================
+
+Features
+--------
+
+- The room configuration widget now features an improved project search component, which now shows project avatars and descriptions. ([\#624](https://github.com/matrix-org/matrix-hookshot/issues/624))
+
+
 2.6.1 (2023-01-16)
 ==================
 
