@@ -112,7 +112,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 onSave={handleSaveOnCreation}
             />}
         </section>}
-        <section>
+        { connections?.length && <section>
             <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
             { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                     <ConnectionConfigComponent
@@ -135,7 +135,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         }}
                         onRemove={() => {
                             api.removeConnection(roomId, c.id).then(() => {
-                                setConnections(conn => conn.filter(conn => c.id !== conn.id));
+                                setConnections(conns => conns?.filter(conn => c.id !== conn.id) || []);
                                 setError(null);
                             }).catch(ex => {
                                 console.warn("Failed to remove connection", ex);
@@ -148,6 +148,6 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     />
                 </ListItem>)
             }
-        </section>
+        </section>}
     </main>;
 };
