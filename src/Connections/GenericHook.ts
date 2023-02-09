@@ -141,7 +141,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         // hookId => stateKey
         let hookId = Object.entries(acctData).find(([, v]) => v === event.stateKey)?.[0];
         if (!hookId) {
-            hookId = randomrandomUUID();
+            hookId = randomUUID();
             log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
             await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, event.stateKey);
         }
@@ -162,7 +162,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!config.generic) {
             throw Error('Generic Webhooks are not configured');
         }
-        const hookId = randomrandomUUID();
+        const hookId = randomUUID();
         const validState = GenericHookConnection.validateState(data, config.generic.allowJsTransformationFunctions || false);
         await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);

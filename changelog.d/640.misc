@@ -1,1 +1,1 @@
-Replace `uuid` package with `crypto.randomUUID` features.
+Replace `uuid` package with `crypto.randomUUID` function.
