@@ -177,7 +177,7 @@ export class FeedReader {
         const fetchingStarted = Date.now();
 
         for (const url of this.observedFeedUrls.values()) {
-            const fetchKey = randomUUID();
+            const fetchKey = randomrandomUUID();
             const { etag, lastModified } = this.cacheTimes.get(url) || {};
             try {
                 const res = await axios.get(url, {

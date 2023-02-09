@@ -7,7 +7,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { isJiraCloudInstance, JiraClient } from "./Jira/Client";
 import { JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
-import { v4 as uuid } from "uuid";
+import { randomUUID } from 'node:crypto';
 import { GitHubOAuthToken } from "./Github/Types";
 import { ApiError, ErrCode } from "./api";
 import { JiraOAuth } from "./Jira/OAuth";
@@ -252,7 +252,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
     }
 
     public createStateForOAuth(userId: string): string {
-        const state = uuid();
+        const state = randomUUID();
         this.oauthSessionStore.set(state, {
             userId,
             timeout: setTimeout(() => this.oauthSessionStore.delete(state), OAUTH_TIMEOUT_MS),
