@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT } from "./Types";
 import micromatch from "micromatch";
-import {v4 as uuid} from "uuid";
+import { randomUUID } from 'node:crypto';
 import Metrics from "../Metrics";
 
 export class LocalMQ extends EventEmitter implements MessageQueue {
@@ -25,7 +25,7 @@ export class LocalMQ extends EventEmitter implements MessageQueue {
             return;
         }
         if (!message.messageId) {
-            message.messageId = uuid();
+            message.messageId = randomUUID();
         }
         this.emit(message.eventName, message);
     }
