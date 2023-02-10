@@ -17,13 +17,15 @@ export interface IConnectionState {
     commandPrefix?: string;
 }
 
-export interface IConnection {
+export interface IConnection<T = IConnectionState> {
     /**
      * The roomId that this connection serves.
      */
     roomId: string;
 
     priority: number;
+
+    ensureGrant?: (sender?: string) => void;
 
     /**
      * The unique connection ID. This is a opaque hash of the roomId, connection type and state key.
