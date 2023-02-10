@@ -1,6 +1,6 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { Appservice, Intent } from "matrix-bot-sdk";
+import { Appservice } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { v4 as uuid } from "uuid";
 
