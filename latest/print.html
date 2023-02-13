@@ -2003,6 +2003,11 @@ They will only handle connections for the specified service, which can be one of
     service: feeds
 </code></pre>
 <p>There will be a bot user <code>@feeds:example.com</code> which responds to commands prefixed with <code>!feeds</code>, and only handles feeds connections.</p>
+<p>For the homeserver to allow hookshot control over users, they need to be added to the list of user namespaces in the <code>registration.yml</code> file provided to the homeserver.</p>
+<p>In the example above, you would need to add these lines:</p>
+<pre><code class="language-yaml">    - regex: &quot;@feeds:example.com&quot; # Where example.com is your homeserver's domain
+      exclusive: true
+</code></pre>
 
                     </main>
 
