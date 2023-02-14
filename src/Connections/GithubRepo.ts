@@ -337,7 +337,7 @@ export interface GitHubTargetFilter {
  * Handles rooms connected to a GitHub repo.
  */
 @Connection
-export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState, ConnectionValidatedState> implements IConnection<GitHubRepoConnectionState> {
+export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState, ConnectionValidatedState> implements IConnection {
 	static validateState(state: unknown, isExistingState = false): ConnectionValidatedState {
         const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {

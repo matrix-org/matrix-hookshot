@@ -17,7 +17,7 @@ export interface IConnectionState {
     commandPrefix?: string;
 }
 
-export interface IConnection<T = IConnectionState> {
+export interface IConnection {
     /**
      * The roomId that this connection serves.
      */
@@ -25,6 +25,17 @@ export interface IConnection<T = IConnectionState> {
 
     priority: number;
 
+    /**
+     * Ensures that the current state loaded into the connection has been granted by
+     * the remote service. I.e. If the room is bridged into a GitHub repository,
+     * check that the *sender* has permission to bridge it.
+     *
+     * If a grant cannot be found, it may be determined by doing an API lookup against
+     * the remote service.
+     * 
+     * @param sender The matrix ID of the sender of the event.
+     * @throws If the grant cannot be found, and cannot be detetermined, this will throw.
+     */
     ensureGrant?: (sender?: string) => void;
 
     /**
