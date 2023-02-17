@@ -431,6 +431,11 @@ export interface BridgeConfigMetrics {
     port?: number;
 }
 
+export interface BridgeConfigGoNebMigrator {
+    apiUrl: string;
+    serviceIds: string[];
+}
+
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     serviceBots?: BridgeConfigServiceBot[];
@@ -451,6 +456,7 @@ export interface BridgeConfigRoot {
     widgets?: BridgeWidgetConfigYAML;
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
+    goNebMigrator?: BridgeConfigGoNebMigrator;
 }
 
 export class BridgeConfig {
@@ -502,6 +508,9 @@ export class BridgeConfig {
  'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
  'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
+
+    @configKey("go-neb migrator configuration", true)
+    public readonly goNebMigrator?: BridgeConfigGoNebMigrator;
 
     @hideKey()
     private readonly bridgePermissions: BridgePermissions;
@@ -573,6 +582,8 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
             this.queue.host = env.CFG_QUEUE_HOST;
             this.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
         }
+
+        this.goNebMigrator = configData.goNebMigrator;
 
         // Listeners is a bit special
         this.listeners = configData.listeners || [];

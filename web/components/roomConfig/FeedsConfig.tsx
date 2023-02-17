@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useCallback } from "preact/hooks"
+import { useCallback, useEffect, useState } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
@@ -29,7 +29,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
 
-    const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
+    const canEdit = !existingConnection?.id || (existingConnection?.canEdit ?? false);
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
         if (!canEdit) {
@@ -47,16 +47,16 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
 
-        <InputField visible={!existingConnection} label="URL" noPadding={true}>
+        <InputField visible={!existingConnection?.id} label="URL" noPadding={true}>
             <input ref={urlRef} disabled={!canEdit} type="text" value={existingConnection?.config.url} />
         </InputField>
-        <InputField visible={!existingConnection} label="Label" noPadding={true}>
+        <InputField visible={!existingConnection?.id} label="Label" noPadding={true}>
             <input ref={labelRef} disabled={!canEdit} type="text" value={existingConnection?.config.label} />
         </InputField>
         
         <ButtonSet>
-            { canEdit && <Button type="submit">{ existingConnection ? "Save" : "Subscribe" }</Button>}
-            { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Unsubscribe</Button>}
+            { canEdit && <Button type="submit">{ existingConnection?.id ? "Save" : "Subscribe" }</Button>}
+            { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Unsubscribe</Button>}
         </ButtonSet>
 
     </form>;
@@ -76,6 +76,21 @@ const RoomConfigText = {
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
 export const FeedsConfig: BridgeConfig = ({ api, roomId }) => {
+    const [ goNebConnections, setGoNebConnections ] = useState(undefined);
+
+    useEffect(() => {
+        api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
+            console.log(res);
+            setGoNebConnections(res.feeds.map((config: any) => ({
+                config,
+            })));
+        }).catch(ex => {
+            console.warn("Failed to fetch go neb connections", ex);
+        });
+    }, [api, roomId]);
+
+    const compareConnections = useCallback((goNebConnection, nativeConnection) => goNebConnection.config.url === nativeConnection.config.url);
+
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
         api={api}
@@ -85,5 +100,7 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId }) => {
         text={RoomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionConfigComponent={ConnectionConfiguration}
+        migrationCandidates={goNebConnections}
+        migrationComparator={compareConnections}
     />;
 };
