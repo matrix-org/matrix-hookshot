@@ -407,7 +407,9 @@ interface BridgeConfigBot {
     displayname?: string;
     avatar?: string;
 }
-interface BridgeConfigEncryption {
+
+export interface BridgeConfigEncryption {
+    encryptNotices: boolean;
     storagePath: string;
 }
 

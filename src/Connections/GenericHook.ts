@@ -8,7 +8,7 @@ import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { BridgeConfigGenericWebhooks } from "../Config/Config";
+import { BridgeConfigGenericWebhooks, BridgeConfigEncryption } from "../Config/Config";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from 'node:crypto';
 
@@ -51,6 +51,12 @@ interface WebhookTransformationResult {
     html?: string;
     msgtype?: string;
     empty?: boolean;
+}
+
+interface MessageContent {
+    plain: string;
+    html?: string;
+    msgtype?: string;
 }
 
 const log = new Logger("GenericHookConnection");
@@ -166,7 +172,16 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const validState = GenericHookConnection.validateState(data, config.generic.allowJsTransformationFunctions || false);
         await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
-        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config.generic, as, intent);
+        const connection = new GenericHookConnection(
+            roomId,
+            validState,
+            hookId,
+            validState.name,
+            messageClient,
+            config.generic,
+            as,
+            intent
+        );
         return {
             connection,
             stateEventContent: validState,
@@ -356,7 +371,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      */
     public async onGenericHook(data: unknown): Promise<boolean> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
-        let content: {plain: string, html?: string, msgtype?: string};
+        let content: MessageContent;
         let success = true;
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
@@ -393,7 +408,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             "uk.half-shot.hookshot.webhook_data": safeData,
         }, 'm.room.message', sender);
         return success;
-
     }
 
     public static getProvisionerDetails(botUserId: string) {
