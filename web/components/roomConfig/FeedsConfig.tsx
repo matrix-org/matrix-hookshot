@@ -89,7 +89,7 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId }) => {
         });
     }, [api, roomId]);
 
-    const compareConnections = useCallback((goNebConnection, nativeConnection) => goNebConnection.config.url === nativeConnection.config.url);
+    const compareConnections = useCallback((goNebConnection, nativeConnection) => goNebConnection.config.url === nativeConnection.config.url, []);
 
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
