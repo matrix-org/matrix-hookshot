@@ -1,7 +1,7 @@
 import { FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
-import { ErrorPane, ListItem, WarningPane } from "../elements";
+import { ErrorPane, ListItem, WarningPane, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
@@ -91,30 +91,31 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         });
     }, [api, roomId, connectionEventType]);
 
-    return <main>
-        {
-            error &&
+    return <Card>
+        <main>
+            {
+                error &&
                 (!error.isWarning
-                    ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
-                    : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
+                        ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
+                        : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
                 )
-        }
-        <header className={style.header}>
-            <img alt="" src={headerImg} />
-            <h1>{text.header}</h1> 
-        </header>
-        { canEditRoom && <section>
-            <h2>{text.createNew}</h2>
-            {serviceConfig && <ConnectionConfigComponent
-                key={newConnectionKey}
-                api={api}
-                serviceConfig={serviceConfig}
-                onSave={handleSaveOnCreation}
-            />}
-        </section>}
-        { !!connections?.length && <section>
-            <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
-            { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
+            }
+            <header className={style.header}>
+                <img alt="" src={headerImg} />
+                <h1>{text.header}</h1>
+            </header>
+            { canEditRoom && <section>
+                <h2>{text.createNew}</h2>
+                {serviceConfig && <ConnectionConfigComponent
+                    key={newConnectionKey}
+                    api={api}
+                    serviceConfig={serviceConfig}
+                    onSave={handleSaveOnCreation}
+                />}
+            </section>}
+            { !!connections?.length && <section>
+                <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
+                { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                     <ConnectionConfigComponent
                         api={api}
                         serviceConfig={serviceConfig}
@@ -147,7 +148,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         }}
                     />
                 </ListItem>)
-            }
-        </section>}
-    </main>;
+                }
+            </section>}
+        </main>
+    </Card>;
 };
