@@ -19,6 +19,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     api: BridgeAPI;
     roomId: string;
     type: string;
+    showHeader: boolean;
     headerImg: string;
     text: {
         header: string;
@@ -32,7 +33,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
 }
 
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
-    const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
+    const { api, roomId, type, headerImg, showHeader, text, listItemName, connectionEventType } = props;
     const ConnectionConfigComponent = props.connectionConfigComponent;
     const [ error, setError ] = useState<null|{header?: string, message: string, isWarning?: boolean, forPrevious?: boolean}>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
@@ -100,10 +101,12 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
                 )
             }
-            <header className={style.header}>
-                <img alt="" src={headerImg} />
-                <h1>{text.header}</h1>
-            </header>
+            { showHeader &&
+                <header className={style.header}>
+                    <img alt="" src={headerImg} />
+                    <h1>{text.header}</h1>
+                </header>
+            }
             { canEditRoom && <section>
                 <h2>{text.createNew}</h2>
                 {serviceConfig && <ConnectionConfigComponent

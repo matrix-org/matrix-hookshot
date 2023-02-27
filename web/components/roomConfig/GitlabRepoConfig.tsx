@@ -68,7 +68,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         })
     },[setNewConnectionState]);
     const clearInstance = useCallback(() => setNewConnectionState(null), [setNewConnectionState]);
-    
+
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch
             serviceName="GitLab"
@@ -122,9 +122,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitLabRepoResponseItem) => c.config.path;
 
-export const GitlabRepoConfig: BridgeConfig = ({ api, roomId }) => {
+export const GitlabRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<never, GitLabRepoResponseItem, GitLabRepoConnectionState>
         headerImg={GitLabIcon}
+        showHeader={showHeader}
         api={api}
         roomId={roomId}
         type="gitlab"
