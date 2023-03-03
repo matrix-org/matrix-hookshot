@@ -5,6 +5,7 @@ import { ErrorPane, ListItem, WarningPane, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
+import { LoadingSpinner } from '../elements/LoadingSpinner';
 
 
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
@@ -116,6 +117,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     onSave={handleSaveOnCreation}
                 />}
             </section>}
+            { connections === null && <LoadingSpinner /> }
             { !!connections?.length && <section>
                 <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
                 { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>

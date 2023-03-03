@@ -3,7 +3,8 @@ import { Component } from 'preact';
 import WA, { MatrixCapabilities } from 'matrix-widget-api';
 import { BridgeAPI, BridgeAPIError, EmbedType, embedTypeParameter } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
-import { ErrorPane } from './components/elements';
+import { LoadingSpinner } from './components/elements/LoadingSpinner';
+import { Card, ErrorPane } from './components/elements';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
 
@@ -113,7 +114,9 @@ export default class App extends Component<void, IState> {
         if (this.state.error) {
             content = <ErrorPane>{this.state.error}</ErrorPane>;
         } else if (this.state.busy) {
-            content = <div class="spinner" />;
+            content = <Card>
+                <LoadingSpinner />
+            </Card>;
         }
 
         if ("kind" in this.state) {
