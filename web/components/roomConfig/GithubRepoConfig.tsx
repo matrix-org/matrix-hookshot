@@ -72,7 +72,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     },[setConnectionState]);
 
     const clearInstance = useCallback(() => setConnectionState(null), [setConnectionState]);
-    
+
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch
             serviceName="GitHub"
@@ -135,9 +135,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
-export const GithubRepoConfig: BridgeConfig = ({ api, roomId }) => {
+export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
         headerImg={GitHubIcon}
+        showHeader={showHeader}
         api={api}
         roomId={roomId}
         type="github"

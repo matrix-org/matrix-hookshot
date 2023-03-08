@@ -1,10 +1,11 @@
 import { FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
-import { ErrorPane, ListItem, WarningPane } from "../elements";
+import { ErrorPane, ListItem, WarningPane, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
+import { LoadingSpinner } from '../elements/LoadingSpinner';
 
 
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
@@ -19,6 +20,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     api: BridgeAPI;
     roomId: string;
     type: string;
+    showHeader: boolean;
     headerImg: string;
     text: {
         header: string;
@@ -32,7 +34,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
 }
 
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
-    const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
+    const { api, roomId, type, headerImg, showHeader, text, listItemName, connectionEventType } = props;
     const ConnectionConfigComponent = props.connectionConfigComponent;
     const [ error, setError ] = useState<null|{header?: string, message: string, isWarning?: boolean, forPrevious?: boolean}>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
@@ -91,30 +93,34 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         });
     }, [api, roomId, connectionEventType]);
 
-    return <main>
-        {
-            error &&
+    return <Card>
+        <main>
+            {
+                error &&
                 (!error.isWarning
-                    ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
-                    : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
+                        ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
+                        : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
                 )
-        }
-        <header className={style.header}>
-            <img alt="" src={headerImg} />
-            <h1>{text.header}</h1> 
-        </header>
-        { canEditRoom && <section>
-            <h2>{text.createNew}</h2>
-            {serviceConfig && <ConnectionConfigComponent
-                key={newConnectionKey}
-                api={api}
-                serviceConfig={serviceConfig}
-                onSave={handleSaveOnCreation}
-            />}
-        </section>}
-        { !!connections?.length && <section>
-            <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
-            { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
+            }
+            { showHeader &&
+                <header className={style.header}>
+                    <img alt="" src={headerImg} />
+                    <h1>{text.header}</h1>
+                </header>
+            }
+            { canEditRoom && <section>
+                <h2>{text.createNew}</h2>
+                {serviceConfig && <ConnectionConfigComponent
+                    key={newConnectionKey}
+                    api={api}
+                    serviceConfig={serviceConfig}
+                    onSave={handleSaveOnCreation}
+                />}
+            </section>}
+            { connections === null && <LoadingSpinner /> }
+            { !!connections?.length && <section>
+                <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
+                { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                     <ConnectionConfigComponent
                         api={api}
                         serviceConfig={serviceConfig}
@@ -147,7 +153,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         }}
                     />
                 </ListItem>)
-            }
-        </section>}
-    </main>;
+                }
+            </section>}
+        </main>
+    </Card>;
 };
