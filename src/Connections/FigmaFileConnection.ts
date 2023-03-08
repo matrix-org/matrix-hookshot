@@ -7,6 +7,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigFigma } from "../Config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { GrantChecker } from "../GrantCheck";
 
 const log = new Logger("FigmaFileConnection");
 
@@ -50,12 +51,17 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         return new FigmaFileConnection(roomId, event.stateKey, event.content, config.figma, as, intent, storage);
     }
 
+    static grantKey(state: FigmaFileConnectionState) {
+        return `${this.CanonicalEventType}/${state.instanceName}/${state.fileId}`;
+    }
+
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, intent, config, storage}: ProvisionConnectionOpts) {
         if (!config.figma) {
             throw Error('Figma is not configured');
         }
         const validState = this.validateState(data);
         const connection = new FigmaFileConnection(roomId, validState.fileId, validState, config.figma, as, intent, storage);
+        await new GrantChecker(as.botIntent).grantConnection(roomId, FigmaFileConnection.grantKey(validState));
         await intent.underlyingClient.sendStateEvent(roomId, FigmaFileConnection.CanonicalEventType, validState.fileId, validState);
         return {
             connection,
@@ -89,6 +95,10 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
 
     public get priority(): number {
         return this.state.priority || super.priority;
+    }
+
+    public async ensureGrant(sender?: string | undefined) {
+        await new GrantChecker(this.as.botIntent).assertConnectionGranted(this.roomId, FigmaFileConnection.grantKey(this.state));
     }
 
     public async handleNewComment(payload: FigmaPayload) {
