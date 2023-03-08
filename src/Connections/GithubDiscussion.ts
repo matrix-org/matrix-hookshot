@@ -13,6 +13,7 @@ import { GithubGraphQLClient } from "../Github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import { BridgeConfigGitHub } from "../Config/Config";
+import { GrantChecker } from "../grants/GrantCheck";
 export interface GitHubDiscussionConnectionState {
     owner: string;
     repo: string;
@@ -52,7 +53,6 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         );
     }
 
-    readonly sentEvents = new Set<string>(); //TODO: Set some reasonable limits
 
     public static async createDiscussionRoom(
         as: Appservice, intent: Intent, userId: string|null, owner: string, repo: string, discussion: Discussion,
@@ -94,8 +94,16 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             format: 'org.matrix.custom.html',
         });
         await intent.ensureJoined(roomId);
+
         return new GitHubDiscussionConnection(roomId, as, intent, state, '', tokenStore, commentProcessor, messageClient, config);
     }
+
+    private static grantKey(state: GitHubDiscussionConnectionState) {
+        return `${this.CanonicalEventType}/${state.owner}/${state.repo}`;
+    }
+
+    private readonly sentEvents = new Set<string>(); //TODO: Set some reasonable limits
+    private readonly grantChecker = GrantChecker.withConfigFallback(this.as, this.config, "github");
 
     constructor(
         roomId: string,
@@ -162,6 +170,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        await this.grantChecker.ungrantConnection(this.roomId, GitHubDiscussionConnection.grantKey(this.state));
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.CanonicalEventType, this.stateKey);
@@ -170,5 +179,9 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey);
             await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
+    }
+
+    public async ensureGrant() {
+        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionConnection.grantKey(this.state));
     }
 }

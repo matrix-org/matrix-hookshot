@@ -1,8 +1,10 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
-import { Logger } from "matrix-appservice-bridge";
+import { Bridge, Logger } from "matrix-appservice-bridge";
 import { ProjectsGetResponseData } from "../Github/Types";
 import { BaseConnection } from "./BaseConnection";
+import { GrantChecker } from "../grants/GrantCheck";
+import { BridgeConfig } from "../Config/Config";
 
 export interface GitHubProjectConnectionState {
     // eslint-disable-next-line camelcase
@@ -28,10 +30,14 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
         if (!config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubProjectConnection(roomId, as, intent, event.content, event.stateKey);
+        return new GitHubProjectConnection(roomId, as, intent, config, event.content, event.stateKey);
     }
 
-    static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, intent: Intent, inviteUser: string): Promise<GitHubProjectConnection> {
+    public static getGrantKey(projectId: number) {
+        return `${this.CanonicalEventType}/${projectId}`;
+    }
+
+    static async onOpenProject(project: ProjectsGetResponseData, as: Appservice, intent: Intent, config: BridgeConfig, inviteUser: string): Promise<GitHubProjectConnection> {
         log.info(`Fetching ${project.name} ${project.id}`);
 
         // URL hack so we don't need to fetch the repo itself.
@@ -55,22 +61,31 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
                 },
             ],
         });
+        await new GrantChecker(as.botIntent).grantConnection(roomId, this.getGrantKey(project.id));
 
-        return new GitHubProjectConnection(roomId, as, intent, state, project.url)
+        return new GitHubProjectConnection(roomId, as, intent, config, state, project.url)
     }
 
     get projectId() {
         return this.state.project_id;
     }
 
+    private readonly grantChecker: GrantChecker;
+
     constructor(
         public readonly roomId: string,
         as: Appservice,
         intent: Intent,
+        config: BridgeConfig,
         private state: GitHubProjectConnectionState,
         stateKey: string,
     ) {
         super(roomId, stateKey, GitHubProjectConnection.CanonicalEventType);
+        this.grantChecker = GrantChecker.withConfigFallback(as, config, "github");
+    }
+
+    public ensureGrant(sender?: string) {
+        return this.grantChecker.assertConnectionGranted(this.roomId, GitHubProjectConnection.getGrantKey(this.state.project_id), sender);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

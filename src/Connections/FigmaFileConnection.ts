@@ -5,9 +5,9 @@ import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { BridgeConfigFigma } from "../Config/Config";
+import { BridgeConfig } from "../Config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import { GrantChecker } from "../GrantCheck";
+import { GrantChecker } from "../grants/GrantCheck";
 
 const log = new Logger("FigmaFileConnection");
 
@@ -48,11 +48,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         if (!config.figma) {
             throw Error('Figma is not configured');
         }
-        return new FigmaFileConnection(roomId, event.stateKey, event.content, config.figma, as, intent, storage);
-    }
-
-    static grantKey(state: FigmaFileConnectionState) {
-        return `${this.CanonicalEventType}/${state.instanceName}/${state.fileId}`;
+        return new FigmaFileConnection(roomId, event.stateKey, event.content, config, as, intent, storage);
     }
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, intent, config, storage}: ProvisionConnectionOpts) {
@@ -60,8 +56,8 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
             throw Error('Figma is not configured');
         }
         const validState = this.validateState(data);
-        const connection = new FigmaFileConnection(roomId, validState.fileId, validState, config.figma, as, intent, storage);
-        await new GrantChecker(as.botIntent).grantConnection(roomId, FigmaFileConnection.grantKey(validState));
+        const connection = new FigmaFileConnection(roomId, validState.fileId, validState, config, as, intent, storage);
+        await new GrantChecker(as.botIntent, "figma").grantConnection(roomId, { fileId: validState.fileId, instanceName: validState.instanceName  || "none"});
         await intent.underlyingClient.sendStateEvent(roomId, FigmaFileConnection.CanonicalEventType, validState.fileId, validState);
         return {
             connection,
@@ -69,12 +65,13 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
     }
 
+    private readonly grantChecker: GrantChecker<{fileId: string, instanceName: string}> = GrantChecker.withConfigFallback(this.as, this.config, "figma");
 
     constructor(
         roomId: string,
         stateKey: string,
         private state: FigmaFileConnectionState,
-        private readonly config: BridgeConfigFigma,
+        private readonly config: BridgeConfig,
         private readonly as: Appservice,
         private readonly intent: Intent,
         private readonly storage: IBridgeStorageProvider) {
@@ -97,8 +94,12 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         return this.state.priority || super.priority;
     }
 
-    public async ensureGrant(sender?: string | undefined) {
-        await new GrantChecker(this.as.botIntent).assertConnectionGranted(this.roomId, FigmaFileConnection.grantKey(this.state));
+    public async ensureGrant(sender?: string) {
+        return this.grantChecker.assertConnectionGranted(this.roomId, { fileId: this.state.fileId, instanceName: this.state.instanceName || "none"}, sender);
+    }
+
+    public async onRemove() {
+        return this.grantChecker.ungrantConnection(this.roomId, { fileId: this.state.fileId, instanceName: this.state.instanceName || "none"});
     }
 
     public async handleNewComment(payload: FigmaPayload) {
@@ -112,8 +113,8 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
 
         let intent;
-        if (this.config.overrideUserId) {
-            intent = this.as.getIntentForUserId(this.config.overrideUserId);
+        if (this.config.figma?.overrideUserId) {
+            intent = this.as.getIntentForUserId(this.config.figma.overrideUserId);
         } else {
             intent = this.intent;
         }

@@ -28,7 +28,7 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
-import { GrantChecker, GrantRejectedError } from "../GrantCheck";
+import { GrantChecker, GrantRejectedError } from "../grants/GrantCheck";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -510,6 +510,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
+    private readonly grantChecker = GrantChecker.withGitHubFallback(this.as, this.githubInstance, this.tokenStore);
+
     constructor(
         roomId: string,
         private readonly as: Appservice,
@@ -567,29 +569,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async ensureGrant(sender?: string, state = this.state) {
-        const grantChecker = new GrantChecker(this.as.botIntent);
-        const grantKey = `${this.canonicalStateType}/${state.org}/${state.repo}`;
-        try {
-            await grantChecker.assertConnectionGranted(this.roomId, grantKey);
-        } catch (ex) {
-            if (ex instanceof GrantRejectedError) {
-                log.warn(`No existing grant for ${state.org}/${state.repo}`);
-                if (!sender) {
-                    // TODO: Warn to the user.
-                    throw Error('No grant for connection and no sender to check, cannot continue');
-                }
-                if (sender && !this.as.isNamespacedUser(sender)) {
-                    // Sent by a third party user, so check they have access to the repo.
-                    await GitHubRepoConnection.assertUserHasAccessToRepo(sender, state.org, state.repo, this.githubInstance, this.tokenStore);
-                } else {
-                    // This is one of our own bridged users, so realistically we probably authenticated
-                    // this previously. Allow it.
-                }
-                // Try to rescue it.
-                log.info(`Asserted that user does have access to repo, granting connection`);
-                await grantChecker.grantConnection(this.roomId, grantKey);
-            }
-        }
+        await this.grantChecker.assertConnectionGranted(this.roomId, state);
     }
 
     protected async validateConnectionState(content: unknown) {
@@ -1411,7 +1391,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
-        await new GrantChecker(this.as.botIntent).ungrantConnection(this.roomId, GitHubRepoConnection.getGrantKey(this.org, this.repo));
+        await this.grantChecker.ungrantConnection(this.roomId, { org: this.org, repo: this.repo });
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey);

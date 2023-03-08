@@ -1286,7 +1286,7 @@ export class Bridge {
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
             const [connection] = this.connectionManager?.getForGitHubProject(project.id) || [];
             if (!connection) {
-                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, intent, adminRoom.userId);
+                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, intent, this.config, adminRoom.userId);
                 this.connectionManager?.push(connection);
             } else {
                 await intent.underlyingClient.inviteUser(adminRoom.userId, connection.roomId);

@@ -5,11 +5,12 @@ import { UserTokenStore } from "../UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
+import { BridgeConfig, BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { BaseConnection } from "./BaseConnection";
+import { GrantChecker } from "../grants/GrantCheck";
 
 export interface GitLabIssueConnectionState {
     instance: string;
@@ -70,7 +71,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
             commentProcessor,
             messageClient,
             instance,
-            config.gitlab,
+            config,
         );
     }
 
@@ -109,6 +110,11 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
                 },
             ],
         });
+        await new GrantChecker(as.botIntent, "gitlab").grantConnection(roomId, {
+            instance: state.instance,
+            project: state.projects[0].toString(),
+            issue: state.iid.toString(),
+        });
 
         return new GitLabIssueConnection(roomId, as, intent, state, issue.web_url, tokenStore, commentProcessor, messageSender, instance, config);
     }
@@ -121,6 +127,9 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         return this.instance.url;
     }
 
+    private readonly grantChecker: GrantChecker<{instance: string, project: string, issue: string}>;
+    private readonly config: BridgeConfigGitLab;
+
     constructor(
         roomId: string,
         private readonly as: Appservice,
@@ -131,9 +140,22 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         private commentProcessor: CommentProcessor,
         private messageClient: MessageSenderClient,
         private instance: GitLabInstance,
-        private config: BridgeConfigGitLab,
+        config: BridgeConfig,
     ) {
         super(roomId, stateKey, GitLabIssueConnection.CanonicalEventType);
+        this.grantChecker = GrantChecker.withConfigFallback(as, config, "gitlab");
+        if (!config.gitlab) {
+            throw Error('No gitlab config!');
+        }
+        this.config = config.gitlab;
+    }
+
+    public ensureGrant(sender?: string) {
+        return this.grantChecker.assertConnectionGranted(this.roomId, {
+            instance: this.state.instance,
+            project: this.state.projects[0],
+            issue: this.state.iid.toString(),
+        }, sender);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

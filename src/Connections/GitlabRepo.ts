@@ -20,6 +20,7 @@ import { HookFilter } from "../HookFilter";
 import { GitLabClient } from "../Gitlab/Client";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import axios from "axios";
+import { GrantChecker } from "../grants/GrantCheck";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -202,7 +203,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {intent, tokenStore, config}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, tokenStore, config}: InstantiateConnectionOpts) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -211,18 +212,16 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (!instance) {
             throw Error('Instance name not recognised');
         }
-        return new GitLabRepoConnection(roomId, event.stateKey, intent, state, tokenStore, instance);
+        return new GitLabRepoConnection(roomId, event.stateKey, as, config.gitlab, intent, state, tokenStore, instance);
     }
 
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { config, intent, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
-        if (!config.gitlab) {
-            throw Error('GitLab is not configured');
-        }
-        const gitlabConfig = config.gitlab;
-        const validData = this.validateState(data);
-        const instance = gitlabConfig.instances[validData.instance];
+    public static async assertUserHasAccessToProject(
+        instanceName: string, path: string, requester: string,
+        tokenStore: UserTokenStore, config: BridgeConfigGitLab
+    ) {
+        const instance = config.instances[instanceName];
         if (!instance) {
-            throw Error(`provisionConnection provided an instanceName of ${validData.instance} but the instance does not exist`);
+            throw Error(`provisionConnection provided an instanceName of ${instanceName} but the instance does not exist`);
         }
         const client = await tokenStore.getGitLabForUser(requester, instance.url);
         if (!client) {
@@ -230,7 +229,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
         let permissionLevel;
         try {
-            permissionLevel = await client.projects.getMyAccessLevel(validData.path);
+            permissionLevel = await client.projects.getMyAccessLevel(path);
         } catch (ex) {
             throw new ApiError("Could not determine if the user has access to this project, does the project exist?", ErrCode.ForbiddenUser);
         }
@@ -238,11 +237,28 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (permissionLevel < AccessLevel.Developer) {
             throw new ApiError("You must at least have developer access to bridge this project", ErrCode.ForbiddenUser);
         }
+        return permissionLevel;
+    }
+
+    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { as, config, intent, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
+        if (!config.gitlab) {
+            throw Error('GitLab is not configured');
+        }
+        const validData = this.validateState(data);
+        const gitlabConfig = config.gitlab;
+        const instance = gitlabConfig.instances[validData.instance];
+        if (!instance) {
+            throw Error(`provisionConnection provided an instanceName of ${validData.instance} but the instance does not exist`);
+        }
+        const permissionLevel = await this.assertUserHasAccessToProject(validData.instance, validData.path, requester, tokenStore, gitlabConfig);
+        const client = await tokenStore.getGitLabForUser(requester, instance.url);
+        if (!client) {
+            throw new ApiError("User is not authenticated with GitLab", ErrCode.ForbiddenUser);
+        }
 
         const project = await client.projects.get(validData.path);
-
         const stateEventKey = `${validData.instance}/${validData.path}`;
-        const connection = new GitLabRepoConnection(roomId, stateEventKey, intent, validData, tokenStore, instance);
+        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, gitlabConfig, intent, validData, tokenStore, instance);
         const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
         const existing = existingConnections.find(c => c.roomId === roomId && c.instance.url === connection.instance.url && c.path === connection.path);
 
@@ -282,6 +298,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             };
             log.warn(`Not creating webhook, permission level is insufficient (${permissionLevel} < ${AccessLevel.Maintainer})`)
         }
+        await GrantChecker.withGitLabFallback(as, gitlabConfig, tokenStore).grantConnection(roomId, { instance: validData.instance, path: validData.path })
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.stateKey, validData);
         return {connection, warning};
     }
@@ -377,9 +394,13 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     private readonly mergeRequestSeenDiscussionIds = new QuickLRU<string, undefined>({ maxSize: 100 });
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
+    private readonly grantChecker;
+
     constructor(
         roomId: string,
         stateKey: string,
+        as: Appservice,
+        config: BridgeConfigGitLab,
         private readonly intent: Intent,
         state: ConnectionStateValidated,
         private readonly tokenStore: UserTokenStore,
@@ -397,6 +418,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             "!gl",
             "gitlab",
         )
+        this.grantChecker = GrantChecker.withGitLabFallback(as, config, tokenStore);
         if (!state.path || !state.instance) {
             throw Error('Invalid state, missing `path` or `instance`');
         }
@@ -431,6 +453,11 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+        const validatedState = GitLabRepoConnection.validateState(stateEv.content);
+        await this.grantChecker.assertConnectionGranted(this.roomId, {
+            instance: validatedState.instance,
+            path: validatedState.path,
+        } , stateEv.sender);
         await super.onStateUpdate(stateEv);
         this.hookFilter.enabledHooks = this.state.enableHooks;
     }
@@ -856,6 +883,7 @@ ${data.description}`;
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        await this.grantChecker.ungrantConnection(this.roomId, { instance: this.state.instance, path: this.path });
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitLabRepoConnection.CanonicalEventType, this.stateKey);

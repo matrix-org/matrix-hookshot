@@ -14,8 +14,9 @@ import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { BridgeConfigJira } from "../Config/Config";
+import { BridgeConfig, BridgeConfigJira } from "../Config/Config";
 import { HookshotJiraApi } from "../Jira/Client";
+import { GrantChecker } from "../grants/GrantCheck";
 
 type JiraAllowedEventsNames =
     "issue_created" |
@@ -121,7 +122,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         if (!jiraResourceClient) {
             throw new ApiError("User is not authenticated with this JIRA instance", ErrCode.ForbiddenUser);
         }
-        const connection = new JiraProjectConnection(roomId, as, intent, validData, validData.url, tokenStore);
+        const connection = new JiraProjectConnection(roomId, as, intent, validData, validData.url, tokenStore, config);
         log.debug(`projectKey for ${validData.url} is ${connection.projectKey}`);
         if (!connection.projectKey) {
             throw Error('Expected projectKey to be defined');
@@ -137,6 +138,9 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         } catch (ex) {
             throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
         }
+        await new GrantChecker(as.botIntent, "jira").grantConnection(roomId, {
+            url: validData.url
+        });
         await intent.underlyingClient.sendStateEvent(roomId, JiraProjectConnection.CanonicalEventType, connection.stateKey, validData);
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
         return {connection};
@@ -147,7 +151,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
             throw Error('JIRA is not configured');
         }
         const connectionConfig = validateJiraConnectionState(state.content);
-        return new JiraProjectConnection(roomId, as, intent, connectionConfig, state.stateKey, tokenStore);
+        return new JiraProjectConnection(roomId, as, intent, connectionConfig, state.stateKey, tokenStore, config);
     }
 
     public get projectId() {
@@ -200,6 +204,8 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
      */
     private projectUrl?: URL;
 
+    private readonly grantChecker: GrantChecker<{url: string}>;
+
     constructor(
         roomId: string,
         private readonly as: Appservice,
@@ -207,6 +213,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         state: JiraProjectConnectionState,
         stateKey: string,
         private readonly tokenStore: UserTokenStore,
+        config: BridgeConfig,
     ) {
         super(
             roomId,
@@ -227,6 +234,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
         } else {
             throw Error('State is missing both id and url, cannot create connection');
         }
+        this.grantChecker = GrantChecker.withConfigFallback(as, config, JiraProjectConnection.ServiceCategory);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -235,6 +243,12 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
 
     protected validateConnectionState(content: unknown) {
         return validateJiraConnectionState(content);
+    }
+
+    public ensureGrant(sender?: string) {
+        return this.grantChecker.assertConnectionGranted(this.roomId, {
+            url: this.state.url,
+        }, sender);
     }
 
     public async onJiraIssueCreated(data: JiraIssueEvent) {
@@ -499,6 +513,9 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        await this.grantChecker.ungrantConnection(this.roomId, {
+            url: this.state.url,
+        });
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, JiraProjectConnection.CanonicalEventType, this.stateKey);
