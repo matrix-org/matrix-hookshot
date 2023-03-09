@@ -6,9 +6,16 @@ import { AllowedEvents as GitHubAllowedEvents, AllowedEventsNames as GitHubAllow
 
 const log = new Logger("GoNebMigrator");
 
+interface MigratedGoNebConnection {
+    goNebId: string;
+}
+
+type MigratedFeed = FeedConnectionState & MigratedGoNebConnection;
+type MigratedGithub = GitHubRepoConnectionState & MigratedGoNebConnection;
+
 interface MigratedConnections {
-    [FeedConnection.ServiceCategory]: FeedConnectionState[]|undefined,
-    [GitHubRepoConnection.ServiceCategory]: GitHubRepoConnectionState[]|undefined;
+    [FeedConnection.ServiceCategory]: MigratedFeed[]|undefined,
+    [GitHubRepoConnection.ServiceCategory]: MigratedGithub[]|undefined;
 }
 
 interface GoNebFeedsConfig {
@@ -77,17 +84,34 @@ export class GoNebMigrator {
     }
 
     public async getConnectionsForRoom(roomId: string, userId: string): Promise<MigratedConnections> {
-        const feeds: FeedConnectionState[] = [];
-        const github: GitHubRepoConnectionState[] = [];
+        const feeds: MigratedFeed[] = [];
+        const github: MigratedGithub[] = [];
 
-        for (const id of this.serviceIds) {
+        const services = [
+            ...this.serviceIds,
+            ...['rssbot', 'github-webhook'].map(type => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`),
+        ];
+
+        for (const id of services) {
             const endpoint = this.apiUrl + (this.apiUrl.endsWith('/') ? '' : '/') + 'admin/getService';
-            const res = await axios.post(endpoint, { 'Id': id });
-            const obj = res.data as GoNebService;
+            let obj: GoNebService;
+            try {
+                const res = await axios.post(endpoint, { 'Id': id });
+                obj = res.data as GoNebService;
+            } catch (err: unknown) {
+                if (axios.isAxiosError(err)) {
+                    if (err.response?.status === 404) {
+                        continue;
+                    }
+                }
+
+                throw err;
+            }
             switch (obj.Type) {
                 case 'rssbot': {
                     const roomFeeds = GoNebMigrator.convertFeeds(obj.Config.feeds).get(roomId) ?? [];
-                    feeds.push(...roomFeeds);
+                    const migratedFeeds = roomFeeds.map(f => ({ ...f, goNebId: id }));
+                    feeds.push(...migratedFeeds);
                     break;
                 };
                 case 'github-webhook': {
@@ -96,7 +120,8 @@ export class GoNebMigrator {
                         const roomRepos = service.Config.Rooms[roomId]?.Repos;
                         if (roomRepos) {
                             const githubConnections = GoNebMigrator.convertGithub(roomRepos);
-                            github.push(...githubConnections);
+                            const migratedGithubs = githubConnections.map(f => ({ ...f, goNebId: id }));
+                            github.push(...migratedGithubs);
                         }
                     }
                     break;
@@ -112,4 +137,13 @@ export class GoNebMigrator {
             github,
         };
     }
+}
+
+// from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent#encoding_for_rfc3986
+function strictEncodeURIComponent(str: string) {
+  return encodeURIComponent(str)
+    .replace(
+      /[!'()*]/g,
+      (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+    );
 }
