@@ -325,7 +325,7 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
     public async onSetupWidget() {
-        if (!this.config.widgets?.roomSetupWidget) {
+        if (this.config.widgets?.roomSetupWidget === undefined) {
             throw new CommandError("Not configured", "The bridge is not configured to support setup widgets");
         }
         if (!await SetupWidget.SetupRoomConfigWidget(this.roomId, this.intent, this.config.widgets, this.serviceTypes)) {
