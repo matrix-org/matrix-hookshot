@@ -87,12 +87,12 @@ export class GoNebMigrator {
         const feeds: MigratedFeed[] = [];
         const github: MigratedGithub[] = [];
 
-        const services = [
+        const serviceIds = [
             ...(this.serviceIds ?? []),
             ...['rssbot', 'github'].map(type => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`),
         ];
 
-        for (const id of services) {
+        for (const id of serviceIds) {
             const endpoint = this.apiUrl + (this.apiUrl.endsWith('/') ? '' : '/') + 'admin/getService';
             let obj: GoNebService;
             try {
