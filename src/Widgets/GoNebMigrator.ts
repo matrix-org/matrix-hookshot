@@ -89,7 +89,7 @@ export class GoNebMigrator {
                     const roomFeeds = GoNebMigrator.convertFeeds(obj.Config.feeds).get(roomId) ?? [];
                     feeds.push(...roomFeeds);
                     break;
-                };
+                }
                 case 'github-webhook': {
                     const service = obj as GoNebGithubWebhookService;
                     if (service.Config.ClientUserID === userId) {
@@ -100,10 +100,10 @@ export class GoNebMigrator {
                         }
                     }
                     break;
-                };
+                }
                 default: {
                     log.warn(`Unrecognized go-neb service type (${obj.Type}), skipping`);
-                };
+                }
             }
         }
 
