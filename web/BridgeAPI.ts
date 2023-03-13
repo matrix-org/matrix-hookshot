@@ -118,7 +118,7 @@ export class BridgeAPI {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
     }
 
-    async getGoNebConnectionsForRoom(roomId: string): Promise<unknown> {
+    async getGoNebConnectionsForRoom(roomId: string): Promise<any|undefined> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/goNebConnections`);
     }
 

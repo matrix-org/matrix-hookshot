@@ -80,7 +80,7 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId }) => {
 
     useEffect(() => {
         api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
-            console.log(res);
+            if (!res) return;
             setGoNebConnections(res.feeds.map((config: any) => ({
                 config,
             })));

@@ -11,6 +11,7 @@ import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GoNebMigrator } from "./GoNebMigrator";
+import { StatusCodes } from "http-status-codes";
 
 const log = new Logger("BridgeWidgetApi");
 
@@ -70,7 +71,8 @@ export class BridgeWidgetApi {
 
     private async getGoNebConnections(req: ProvisioningRequest, res: Response) {
         if (!this.goNebMigrator) {
-            throw new ApiError("go-neb migrator is not configured", ErrCode.UnsupportedOperation);
+            res.status(StatusCodes.NO_CONTENT).send();
+            return;
         }
 
         const roomId = req.params.roomId;
