@@ -1,6 +1,6 @@
 import { WidgetApi } from "matrix-widget-api";
 import { useState } from "preact/hooks"
-import { BridgeAPI, BridgeConfig } from "../BridgeAPI";
+import { BridgeAPI, BridgeConfig, EmbedType } from "../BridgeAPI";
 import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
 import { FeedsConfig } from "./roomConfig/FeedsConfig";
@@ -21,6 +21,7 @@ interface IProps {
     bridgeApi: BridgeAPI,
     supportedServices: {[service: string]: boolean},
     serviceScope?: string,
+    embedType: EmbedType,
     roomId: string,
 }
 
@@ -80,7 +81,11 @@ export default function RoomConfigView(props: IProps) {
 
     if (activeConnectionType) {
         const ConfigComponent = connections[activeConnectionType].component;
-        content = <ConfigComponent roomId={props.roomId} api={props.bridgeApi} />;
+        content = <ConfigComponent
+            roomId={props.roomId}
+            api={props.bridgeApi}
+            showHeader={props.embedType !== EmbedType.IntegrationManager}
+        />;
     } else {
         content = <>
             <section>
@@ -100,13 +105,13 @@ export default function RoomConfigView(props: IProps) {
     }
 
     return <div className={style.root}>
-        <header>
-            {!serviceScope && activeConnectionType &&
+        {!serviceScope && activeConnectionType &&
+            <header>
                 <span className={style.backButton} onClick={() => setActiveConnectionType(null)}>
                     <span className="chevron" /> Browse integrations
                 </span>
-            }
-        </header>
+            </header>
+        }
         {content}
     </div>;
 }

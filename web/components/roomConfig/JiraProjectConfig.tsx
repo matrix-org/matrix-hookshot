@@ -64,7 +64,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         })
     },[setNewConnectionState]);
     const clearInstance = useCallback(() => setNewConnectionState(null), [setNewConnectionState]);
-    
+
     return <form onSubmit={handleSave}>
         {!existingConnection && <ConnectionSearch
             serviceName="JIRA"
@@ -108,9 +108,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: JiraProjectResponseItem) => c.config.url;
 
-export const JiraProjectConfig: BridgeConfig = ({ api, roomId }) => {
+export const JiraProjectConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<never, JiraProjectResponseItem, JiraProjectConnectionState>
         headerImg={JiraIcon}
+        showHeader={showHeader}
         api={api}
         roomId={roomId}
         type="jira"
