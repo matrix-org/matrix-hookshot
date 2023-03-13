@@ -789,18 +789,24 @@ export class Bridge {
             // We got an invite but it's not a configured bot user, must be for a ghost user
             log.debug(`Rejecting invite to room ${roomId} for ghost user ${invitedUserId}`);
             const client = this.as.getIntentForUserId(invitedUserId).underlyingClient;
-            return client.kickUser(invitedUserId, roomId, "Bridge does not support DMing ghosts");
+            return client.doRequest("POST", "/_matrix/client/v3/rooms/" + encodeURIComponent(roomId) + "/leave", null, {
+                reason: "Bridge does not support DMing ghosts"
+            });
         }
 
         // Don't accept invites from people who can't do anything
         if (!this.config.checkPermissionAny(event.sender, BridgePermissionLevel.login)) {
-            return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "You do not have permission to invite this bot.");
+            return botUser.intent.underlyingClient.doRequest("POST", "/_matrix/client/v3/rooms/" + encodeURIComponent(roomId) + "/leave", null, {
+                reason: "You do not have permission to invite this bot."
+            });
         }
 
         if (event.content.is_direct && botUser.userId !== this.as.botUserId) {
             // Service bots do not support direct messages (admin rooms)
             log.debug(`Rejecting direct message (admin room) invite to room ${roomId} for service bot ${botUser.userId}`);
-            return botUser.intent.underlyingClient.kickUser(botUser.userId, roomId, "This bot does not support admin rooms.");
+            return botUser.intent.underlyingClient.doRequest("POST", "/_matrix/client/v3/rooms/" + encodeURIComponent(roomId) + "/leave", null, {
+                reason: "This bot does not support admin rooms."
+            });
         }
 
         // Accept the invite
