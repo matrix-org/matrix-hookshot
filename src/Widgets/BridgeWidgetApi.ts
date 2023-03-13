@@ -3,7 +3,7 @@ import { AdminRoom } from "../AdminRoom";
 import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../Config/Config";
-import { GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
+import { GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
@@ -11,7 +11,7 @@ import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from '../Github/GithubInstance';
-import { UserTokenStore } from '../UserTokenStore';
+import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
 
 const log = new Logger("BridgeWidgetApi");
 
@@ -26,6 +26,7 @@ export class BridgeWidgetApi {
         private readonly botUsersManager: BotUsersManager,
         private readonly as: Appservice,
         private readonly tokenStore: UserTokenStore,
+        private readonly github?: GithubInstance,
     ) {
         this.api = new ProvisioningApi(
             storageProvider,
@@ -57,7 +58,9 @@ export class BridgeWidgetApi {
         this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
         this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', wrapHandler(this.deleteConnection));
         this.api.addRoute("get", '/v1/targets/:type', wrapHandler(this.getConnectionTargets));
-        this.api.addRoute('get', '/v1/auth', wrapHandler(this.getAuth));
+        this.api.addRoute('get', '/v1/service/:service/auth', wrapHandler(this.getAuth));
+        this.api.addRoute('get', '/v1/service/:service/auth/:state', wrapHandler(this.getAuthPoll));
+        this.api.addRoute('post', '/v1/service/:service/auth/logout', wrapHandler(this.postAuthLogout));
     }
 
     private getBotUserInRoom(roomId: string, serviceType: string): BotUser {
@@ -99,57 +102,11 @@ export class BridgeWidgetApi {
     }
 
     private async getServiceConfig(req: ProvisioningRequest, res: Response<Record<string, unknown>>) {
-        res.send(this.config.getPublicConfigForService(req.params.service));
-    }
-
-    private async getAuth(req: ProvisioningRequest, res: Response<{
-        user?: { name: string },
-        authUrl?: string,
-    }>) {
-        if (!req.userId) {
-            throw new ApiError('Missing authentication', ErrCode.BadToken);
-        }
-        const service = req.query.service;
-
-        if (service === 'github') {
-            if (!this.config.github || !this.config.github.oauth) {
-                throw new ApiError('GitHub oauth is not configured', ErrCode.DisabledFeature);
-            }
-
-            let user;
-            try {
-                const octokit = await this.tokenStore.getOctokitForUser(req.userId);
-                if (octokit !== null) {
-                    const me = await octokit.users.getAuthenticated();
-                    user = {
-                        name: me.data.login,
-                    };
-                }
-            } catch (e) {
-                // Need to authenticate
-            }
-
-            if (user) {
-                return res.json({
-                    user,
-                });
-            } else {
-                const state = this.tokenStore.createStateForOAuth(req.userId);
-                const authUrl = GithubInstance.generateOAuthUrl(
-                    this.config.github.baseUrl,
-                    'authorize',
-                    {
-                        state,
-                        client_id: this.config.github.oauth.client_id,
-                        redirect_uri: this.config.github.oauth.redirect_uri,
-                    }
-                );
-                return res.json({
-                    authUrl,
-                });
-            }
+        // GitHub is a special case because it depends on live config.
+        if (req.params.service === 'github') {
+            res.send(this.config.github?.publicConfig(this.github));
         } else {
-            throw new ApiError('Service not found', ErrCode.NotFound);
+            res.send(this.config.getPublicConfigForService(req.params.service));
         }
     }
 
@@ -276,5 +233,110 @@ export class BridgeWidgetApi {
         const type = req.params.type;
         const connections = await this.connMan.getConnectionTargets(req.userId, type, req.query);
         res.send(connections);
+    }
+
+
+    private async getAuth(req: ProvisioningRequest, res: Response<GetAuthResponse>) {
+        if (!req.userId) {
+            throw Error('Expected userId on request');
+        }
+        const service = req.params.service;
+        if (!service) {
+            throw Error('Expected service in parameters');
+        }
+
+        // TODO: Should this be part of the GitHub module code.
+        if (service === 'github') {
+            if (!this.config.github || !this.config.github.oauth) {
+                throw new ApiError('GitHub oauth is not configured', ErrCode.DisabledFeature);
+            }
+
+            let user;
+            try {
+                const octokit = await this.tokenStore.getOctokitForUser(req.userId);
+                if (octokit !== null) {
+                    const me = await octokit.users.getAuthenticated();
+                    user = {
+                        name: me.data.login,
+                    };
+                }
+            } catch (e) {
+                // Need to authenticate
+            }
+
+            if (user) {
+                return res.json({
+                    authenticated: true,
+                    user
+                });
+            } else {
+                const state = this.tokenStore.createStateForOAuth(req.userId);
+                const authUrl = GithubInstance.generateOAuthUrl(
+                    this.config.github.baseUrl,
+                    'authorize',
+                    {
+                        state,
+                        client_id: this.config.github.oauth.client_id,
+                        redirect_uri: this.config.github.oauth.redirect_uri,
+                    }
+                );
+                return res.json({
+                    authenticated: false,
+                    stateId: state,
+                    authUrl
+                });
+            }
+        } else {
+            throw new ApiError('Service not found', ErrCode.NotFound);
+        }
+    }
+
+    private async getAuthPoll(req: ProvisioningRequest, res: Response<GetAuthPollResponse>) {
+        if (!req.userId) {
+            throw Error('Expected userId on request');
+        }
+        const { service, state } = req.params;
+    
+        if (!service) {
+            throw Error('Expected service in parameters');
+        }
+        
+        // N.B. Service isn't really used.
+        const stateUserId = this.tokenStore.getUserIdForOAuthState(state);
+
+        if (!stateUserId || req.userId !== stateUserId) {
+            // If the state isn't found then either the state has been completed or the key is wrong.
+            // We don't actually know, so we assume the sender knows what they are doing.
+            res.send({
+                state: 'complete',
+            });
+            return;
+        }
+        res.send({
+            state: 'waiting',
+        });
+        return;
+    }
+
+    private async postAuthLogout(req: ProvisioningRequest, res: Response<{ok: true}>) {
+        if (!req.userId) {
+            throw Error('Expected userId on request');
+        }
+        const { service } = req.params;
+    
+        if (!service) {
+            throw Error('Expected service in parameters');
+        }
+
+        if (AllowedTokenTypes.includes(service)) {
+            const result = await this.tokenStore.clearUserToken(service as TokenType, req.userId);
+            if (result) {
+                res.send({ok: true});
+            } else {
+                throw new ApiError("You are not logged in", ErrCode.NotFound);
+            }
+        } else {
+            throw new ApiError('Service not found', ErrCode.NotFound);
+        }
     }
 }

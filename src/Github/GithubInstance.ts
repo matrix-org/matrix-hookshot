@@ -182,7 +182,7 @@ export class GithubInstance {
     public get newInstallationUrl() {
         if (this.baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
             // Cloud
-            return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
+            return new URL(`/apps/${this.appSlug}/installations/new`, "https://github.com");
         }
         // Enterprise (yes, i know right)
         return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);

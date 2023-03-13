@@ -743,6 +743,7 @@ export class Bridge {
                 this.botUsersManager,
                 this.as,
                 this.tokenStore,
+                this.github,
             );
 
         }
