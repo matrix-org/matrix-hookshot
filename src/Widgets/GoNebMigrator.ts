@@ -47,10 +47,10 @@ export class GoNebMigrator {
                     const roomFeeds = GoNebMigrator.convertFeeds(obj.Config.feeds).get(roomId) ?? [];
                     feeds.push(...roomFeeds);
                     break;
-                };
+                }
                 default: {
                     log.warn(`Unrecognized go-neb service type (${obj.Type}), skipping`);
-                };
+                }
             }
         }
 
