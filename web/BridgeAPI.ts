@@ -113,12 +113,12 @@ export class BridgeAPI {
     async getServiceConfig<T>(service: string): Promise<T> {
         return this.request('GET', `/widgetapi/v1/service/${service}/config`);
     }
-    
+
     async getConnectionsForRoom(roomId: string): Promise<GetConnectionsResponseItem[]> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
     }
 
-    async getGoNebConnectionsForRoom(roomId: string): Promise<unknown> {
+    async getGoNebConnectionsForRoom(roomId: string): Promise<any|undefined> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/goNebConnections`);
     }
 
@@ -144,7 +144,14 @@ export class BridgeAPI {
     }
 }
 
+export const embedTypeParameter = 'io_element_embed_type';
+export enum EmbedType {
+    IntegrationManager = 'integration-manager',
+    Default = 'default',
+}
+
 export type BridgeConfig = FunctionComponent<{
     api: BridgeAPI,
     roomId: string,
+    showHeader: boolean,
 }>;
