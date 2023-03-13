@@ -4,7 +4,7 @@ import App from './App';
 import "./fonts/fonts.scss"
 import "./styling.scss";
 
-const root = document.getElementsByTagName('main')[0];
+const [ root ] = document.getElementsByTagName('main');
 
 if (root) {
   render(<App />, root);
