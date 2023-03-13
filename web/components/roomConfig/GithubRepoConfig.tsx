@@ -5,9 +5,11 @@ import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { FunctionComponent, createRef } from "preact";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
 import { InputField, ButtonSet, Button } from "../elements";
-import { useState, useCallback, useMemo } from "preact/hooks";
+import { useState, useCallback, useMemo, useEffect } from "preact/hooks";
 import { DropItem } from "../elements/DropdownSearch";
 import ConnectionSearch from "../elements/ConnectionSearch";
+import { ServiceAuth } from "./Auth";
+import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 
@@ -15,8 +17,36 @@ function getRepoFullName(state: GitHubRepoConnectionState) {
     return `${state.org}/${state.repo}`;
 }
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitHubRepoResponseItem, GitHubRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitHubRepoResponseItem, GitHubRepoConnectionState>> = ({
+    showAuthPrompt, loginLabel, serviceConfig, api, existingConnection, onSave, onRemove
+}) => {
+    // Assume true if we have no auth prompt.
+    const [authedResponse, setAuthResponse] = useState<GetAuthResponse|null>(null);
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
+
+    const checkAuth = useCallback(() => {
+        api.getAuth("github").then((res) => {
+            setAuthResponse(res);
+        }).catch(ex => {
+            console.warn("Could not check authed state, assuming yes", ex);
+            setAuthResponse({
+                authenticated: true,
+                user: {
+                    name: 'Unknown'
+                }
+            });
+        })
+    }, [api]);
+
+    useEffect(() => {
+        if (!showAuthPrompt) {
+            return;
+        }
+        checkAuth();
+    }, [showAuthPrompt, checkAuth])
+
+    const { newInstallationUrl } = serviceConfig;
+
 
     const toggleEnabledHook = useCallback((evt: any) => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
@@ -74,8 +104,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     const clearInstance = useCallback(() => setConnectionState(null), [setConnectionState]);
 
     return <form onSubmit={handleSave}>
-        {!existingConnection && <ConnectionSearch
+        {authedResponse && <ServiceAuth onAuthSucceeded={checkAuth} authState={authedResponse} service="github" loginLabel={loginLabel} api={api} />}
+        {!existingConnection && authedResponse?.authenticated && <ConnectionSearch
             serviceName="GitHub"
+            addNewInstanceUrl={newInstallationUrl}
             getInstances={getInstances}
             getProjects={getProjects}
             onPicked={setInstance}
@@ -120,7 +152,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection ? "Save" : "Add repository" }</Button>}
+            { canEdit && authedResponse?.authenticated && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection ? "Save" : "Add repository" }</Button>}
             { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove repository</Button>}
         </ButtonSet>
     </form>;
@@ -143,7 +175,7 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         api={api}
         roomId={roomId}
         type="github"
-        hasAuth={true}
+        showAuthPrompt={true}
         text={roomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionEventType={EventType}

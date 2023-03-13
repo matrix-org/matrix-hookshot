@@ -10,6 +10,8 @@ import { LoadingSpinner } from '../elements/LoadingSpinner';
 
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
+    loginLabel?: string;
+    showAuthPrompt?: boolean;
     onSave: (newConfig: ConnectionState) => void,
     existingConnection?: ConnectionType;
     onRemove?: () => void,
@@ -28,7 +30,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     api: BridgeAPI;
     roomId: string;
     type: string;
-    hasAuth?: boolean;
+    showAuthPrompt?: boolean;
     showHeader: boolean;
     headerImg: string;
     text: IRoomConfigText;
@@ -36,65 +38,12 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     listItemName: (c: ConnectionType) => string,
     connectionConfigComponent: FunctionComponent<ConnectionConfigurationProps<SConfig, ConnectionType, ConnectionState>>;
 }
-
-const Auth = ({
-    api,
-    service,
-    loginLabel,
-}: {
-    api: BridgeAPI,
-    service: string,
-    loginLabel: string,
-}) => {
-    const [error, setError] = useState('');
-    const [auth, setAuth] = useState<{
-        user?: { name: string },
-        authUrl?: string,
-    }>();
-
-    useEffect(() => {
-        const getAuth = async () => {
-            try {
-                const auth = await api.getAuth(service);
-                setAuth(auth);
-            } catch (e) {
-                console.error('Failed to get auth:', e);
-                if (e instanceof BridgeAPIError) {
-                    setError(e.message);
-                } else {
-                    setError('Unknown error.');
-                }
-            }
-        };
-        void getAuth();
-    }, [api, service]);
-
-    if (auth) {
-        if (auth.authUrl) {
-            // TODO How do we know when auth has happened?
-            return <a href={auth.authUrl} target="_blank" rel="noreferrer">
-                { loginLabel }
-            </a>;
-        }
-        return <p>
-            Logged in as <strong>{auth.user?.name ?? ''}</strong>
-        </p>;
-    } else if (error) {
-        return <ErrorPane
-            header="Failed to check authentication"
-        >
-            { error }
-        </ErrorPane>;
-    }
-    return <p>Checking authentication...</p>;
-};
-
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const {
         api,
         roomId,
         type,
-        hasAuth = false,
+        showAuthPrompt = false,
         headerImg,
         showHeader,
         text,
@@ -174,13 +123,6 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     <h1>{text.header}</h1>
                 </header>
             }
-            { hasAuth &&
-                <Auth
-                    api={api}
-                    service={type}
-                    loginLabel={text.login ?? 'Log in'}
-                />
-            }
             { canEditRoom && <section>
                 <h2>{text.createNew}</h2>
                 {serviceConfig && <ConnectionConfigComponent
@@ -188,6 +130,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     api={api}
                     serviceConfig={serviceConfig}
                     onSave={handleSaveOnCreation}
+                    loginLabel={text.login}
+                    showAuthPrompt={showAuthPrompt}
                 />}
             </section>}
             { connections === null && <LoadingSpinner /> }
