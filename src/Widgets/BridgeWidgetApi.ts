@@ -115,7 +115,6 @@ export class BridgeWidgetApi {
             // If we have a service filter.
             .filter(c => typeof serviceFilter !== "string" || c?.service === serviceFilter) as GetConnectionsResponseItem[];
         const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
-
         for (const c of connections) {
             const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
             c.canEdit = userPl >= requiredPl;
@@ -126,7 +125,7 @@ export class BridgeWidgetApi {
 
         return {
             connections,
-            canEdit: userPl >= powerlevel.defaultUserLevel
+            canEdit: userPl >= powerlevel.defaultStateEventLevel,
         };
     }
 
