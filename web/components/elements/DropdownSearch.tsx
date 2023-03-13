@@ -38,14 +38,12 @@ export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onEr
 
     // Reset if the search properties are altered.
     useEffect(() => {
-        console.log("Resetting props");
         setSearchTerm("");
         setSelectedItem(null);
     }, [searchProps]);
 
     // Search whenever the term is updated.
     useEffect(() => {
-        console.log("New search");
         if (searchTerm.trim().length === 0) {
             return;
         }
