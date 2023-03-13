@@ -433,7 +433,7 @@ export interface BridgeConfigMetrics {
 
 export interface BridgeConfigGoNebMigrator {
     apiUrl: string;
-    serviceIds: string[];
+    serviceIds?: string[];
 }
 
 export interface BridgeConfigRoot {

@@ -48,7 +48,7 @@ interface GoNebGithubWebhookService extends GoNebService {
 export class GoNebMigrator {
     constructor(
         private apiUrl: string,
-        private serviceIds: string[],
+        private serviceIds?: string[],
     ) {}
 
     static convertFeeds(goNebFeeds: GoNebFeedsConfig): Map<string, FeedConnectionState[]> {
@@ -88,7 +88,7 @@ export class GoNebMigrator {
         const github: MigratedGithub[] = [];
 
         const services = [
-            ...this.serviceIds,
+            ...(this.serviceIds ?? []),
             ...['rssbot', 'github'].map(type => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`),
         ];
 
