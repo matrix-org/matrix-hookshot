@@ -138,6 +138,13 @@ export class BridgeAPI {
         const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
         return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`, undefined, { abortController });
     }
+
+    async getAuth(service: string): Promise<{
+        user?: { name: string },
+        authUrl?: string,
+    }> {
+        return this.request('GET', `/widgetapi/v1/auth?service=${service}`);
+    }
 }
 
 export const embedTypeParameter = 'io_element_embed_type';

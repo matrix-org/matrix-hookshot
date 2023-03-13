@@ -1,6 +1,6 @@
 import GitHubIcon from "../../icons/github.png";
 import { BridgeConfig } from "../../BridgeAPI";
-import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
+import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { FunctionComponent, createRef } from "preact";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
@@ -126,8 +126,9 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     </form>;
 };
 
-const RoomConfigText = {
+const roomConfigText: IRoomConfigText = {
     header: 'GitHub Repositories',
+    login: 'Log in to GitHub',
     createNew: 'Add new GitHub repository',
     listCanEdit: 'Your connected repositories',
     listCantEdit: 'Connected repositories',
@@ -142,7 +143,8 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         api={api}
         roomId={roomId}
         type="github"
-        text={RoomConfigText}
+        hasAuth={true}
+        text={roomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionEventType={EventType}
         connectionConfigComponent={ConnectionConfiguration}
