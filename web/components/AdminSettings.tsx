@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'preact/hooks';
+import { LoadingSpinner } from "./elements/LoadingSpinner";
 import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
 import GeneralConfig from './configs/GeneralConfig';
 import style from "./AdminSettings.module.scss";
@@ -36,7 +37,7 @@ export default function AdminSettings(props: IProps) {
     );
     if (busy) {
         return <div class={style.root}>
-            <div class="spinner" />
+            <LoadingSpinner />
         </div>;
     }
     return <div class={style.root}>
