@@ -89,7 +89,7 @@ export class GoNebMigrator {
 
         const services = [
             ...this.serviceIds,
-            ...['rssbot', 'github-webhook'].map(type => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`),
+            ...['rssbot', 'github'].map(type => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`),
         ];
 
         for (const id of services) {
