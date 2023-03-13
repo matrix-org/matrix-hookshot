@@ -140,7 +140,7 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
 
     useEffect(() => {
         api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
-            console.log(res.github);
+            if (!res) return;
             setGoNebConnections(res.github.map((config: any) => ({
                 config,
             })));
