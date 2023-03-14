@@ -1,4 +1,4 @@
-import { BridgeRoomState, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
@@ -141,6 +141,18 @@ export class BridgeAPI {
     getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>, abortController?: AbortController): Promise<R[]> {
         const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
         return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`, undefined, { abortController });
+    }
+
+    async getAuth(service: string): Promise<GetAuthResponse> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/auth`);
+    }
+
+    async getAuthPoll(service: string, state: string): Promise<GetAuthPollResponse> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/auth/${state}`);
+    }
+
+    async serviceLogout(service: string): Promise<GetAuthResponse> {
+        return this.request('POST', `/widgetapi/v1/service/${service}/auth/logout`);
     }
 }
 

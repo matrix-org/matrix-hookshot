@@ -10,6 +10,7 @@ import UserAgent from "../UserAgent";
 const log = new Logger("GithubInstance");
 
 export const GITHUB_CLOUD_URL = new URL("https://api.github.com");
+export const GITHUB_CLOUD_PUBLIC_URL = new URL("https://github.com");
 
 export class GitHubOAuthError extends Error {
     constructor(errorResponse: GitHubOAuthErrorResponse) {
@@ -182,7 +183,7 @@ export class GithubInstance {
     public get newInstallationUrl() {
         if (this.baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
             // Cloud
-            return new URL(`/apps/${this.appSlug}/installations/new`, this.baseUrl);
+            return new URL(`/apps/${this.appSlug}/installations/new`, GITHUB_CLOUD_PUBLIC_URL);
         }
         // Enterprise (yes, i know right)
         return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);
@@ -192,7 +193,7 @@ export class GithubInstance {
         const q = new URLSearchParams(params as Record<string, string>);
         if (baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
             // Cloud doesn't use `api.` for oauth.
-            baseUrl = new URL("https://github.com");
+            baseUrl = GITHUB_CLOUD_PUBLIC_URL;
         }
         const rawUrl = baseUrl.toString();
         return rawUrl + `${rawUrl.endsWith('/') ? '' : '/'}` + `login/oauth/${action}?${q}`;

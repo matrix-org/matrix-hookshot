@@ -2,7 +2,7 @@ import { FunctionComponent, createRef } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
-import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
+import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
 import { Button, ButtonSet, InputField } from "../elements";
 import styles from "./FeedConnection.module.scss";
 
@@ -66,7 +66,7 @@ interface ServiceConfig {
     pollIntervalSeconds: number,
 }
 
-const RoomConfigText = {
+const roomConfigText: IRoomConfigText = {
     header: 'RSS/Atom feeds',
     createNew: 'Subscribe to a feed',
     listCanEdit: 'Feeds subscribed to',
@@ -98,7 +98,7 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         roomId={roomId}
         type="feeds"
         connectionEventType="uk.half-shot.matrix-hookshot.feed"
-        text={RoomConfigText}
+        text={roomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionConfigComponent={ConnectionConfiguration}
         migrationCandidates={goNebConnections}
