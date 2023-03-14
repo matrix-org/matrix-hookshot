@@ -22,34 +22,53 @@ export const ServiceAuth = ({
     const [error, setError] = useState('');
     const [pollStateId, setPollStateId] = useState<string|null>();
 
+    const pollAuth = useCallback(async (pollId) => {
+        try {
+            const res = await api.getAuthPoll(service, pollId);
+            if (res.state === "waiting") {
+                // Keep going
+                return;
+            }
+            // Completed.
+            setPollStateId(null);
+            onAuthSucceeded();
+        } catch (ex) {
+            console.warn(`Failed to poll for state check`, ex);
+        }
+    }, [service, api, onAuthSucceeded])
+
     useEffect(() => {
         if (!pollStateId) {
             return;
         }
-        const intervalTimer = setInterval(() => {
-            api.getAuthPoll(service, pollStateId).then(res => {
-                if (res.state === "waiting") {
-                    // Keep going
-                    return;
-                }
-                // Completed.
-                setPollStateId(null);
-                onAuthSucceeded();
-            }).catch(ex => {
-                console.warn(`Failed to poll for state check`, ex);
-            })
-        }, PollAuthEveryMs);
+        let pollTimerId: number;
+        const poll = async () => {
+            try {
+                await pollAuth(pollStateId);
+            }
+            finally {
+                // Recursively call poll
+                pollTimerId = window.setTimeout(
+                    poll,
+                    PollAuthEveryMs,
+                );
+            }
+        };
+        void poll();
 
-        return () => clearInterval(intervalTimer);
+        // Cleanup
+        return () => {
+            window.clearTimeout(pollTimerId);
+        };
 
-    }, [api, service, pollStateId, onAuthSucceeded]);
+    }, [api, service, pollStateId, onAuthSucceeded, pollAuth]);
 
     const loginToService = useCallback(() => {
         if (authState.authenticated) {
             // No need to do anything
             return;
         }
-        window.open(authState.authUrl);
+        window.open(authState.authUrl, '_blank');
         setPollStateId(authState.stateId);
     }, [authState]);
 
@@ -67,7 +86,7 @@ export const ServiceAuth = ({
 
     if (authState) {
         if ('authUrl' in authState) {
-            return <Button onClick={loginToService} target="_blank" rel="noreferrer">
+            return <Button onClick={loginToService}>
                 { loginLabel }
             </Button>;
         }

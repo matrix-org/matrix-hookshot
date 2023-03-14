@@ -29,10 +29,8 @@ function RenderOAuth() {
         </>;
     }
 
-    if (oauthKind === 'app-install') {}
-
     return <>
-        <h1> Your { ServiceToName[service] } {oauthKind} has been connected to Hookshot. </h1>
+        <h1>Your { ServiceToName[service] } {oauthKind} has been connected.</h1>
         <p>You may close this window.</p>
     </>;
 }

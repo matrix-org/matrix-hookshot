@@ -109,12 +109,14 @@ export function ConnectionSearch({
     let addNewInstance = null;
     if (instances?.length === 0) {
         if (addNewInstanceUrl) {
-            addNewInstance = <p> You are not logged into any {serviceName} instances. <a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Click here</a> to add new installations. </p>;
+            addNewInstance = <p> You have not connected any {serviceName} installations.
+                <a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Add a new installation</a>.
+            </p>;
         } else {
-            addNewInstance = <p> You are not logged into any {serviceName} instances.</p>;
+            addNewInstance = <p> You have not connected any {serviceName} installations.</p>;
         }
     } else if (addNewInstanceUrl) {
-        addNewInstance = <p><a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Click here</a> to add new installations. </p>
+        addNewInstance = <p><a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Add a new installation</a>.</p>
     } // otherwise, empty
 
     return <div>
