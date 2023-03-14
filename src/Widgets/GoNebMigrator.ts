@@ -125,10 +125,10 @@ export class GoNebMigrator {
                         }
                     }
                     break;
-                };
+                }
                 default: {
                     log.warn(`Unrecognized go-neb service type (${obj.Type}), skipping`);
-                };
+                }
             }
         }
 
