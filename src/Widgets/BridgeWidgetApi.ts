@@ -83,7 +83,7 @@ export class BridgeWidgetApi {
 
         const botUser = this.getBotUserInRoom(roomId);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
-        const connections = await this.goNebMigrator.getConnectionsForRoom(roomId);
+        const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, req.userId);
 
         res.send(connections);
     }
