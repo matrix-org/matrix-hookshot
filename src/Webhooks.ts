@@ -1,8 +1,9 @@
+/* eslint-disable camelcase */
 import { BridgeConfig } from "./Config/Config";
 import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { Logger } from "matrix-appservice-bridge";
+import { ApiError, ErrCode, Logger } from "matrix-appservice-bridge";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
@@ -185,52 +186,77 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string}> , res: Response) {
-        log.info(`Got new oauth request`, { state: req.query.state });
+    public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string, setup_action?: 'install'}> , res: Response) {
+        const oauthUrl = this.config.widgets && new URL("oauth.html", this.config.widgets.parsedPublicUrl);
+        if (oauthUrl) {
+            oauthUrl.searchParams.set('service', 'github');
+            oauthUrl?.searchParams.set('oauth-kind', 'account');
+        }
+        const { setup_action, state } = req.query;
+        log.info("Got new oauth request", { state, setup_action });
         try {
             if (!this.config.github || !this.config.github.oauth) {
-                return res.status(500).send(`<p>Bridge is not configured with OAuth support</p>`);
+                throw new ApiError('Bridge is not configured with OAuth support', ErrCode.DisabledFeature);
             }
             if (req.query.error) {
-                return res.status(500).send(`<p><b>GitHub Error</b>: ${req.query.error} ${req.query.error_description}</p>`);
+                throw new ApiError(`GitHub Error: ${req.query.error} ${req.query.error_description}`, ErrCode.Unknown);
             }
-            if (!req.query.state) {
-                return res.status(400).send(`<p>Missing state</p>`);
+            if (setup_action !== 'install') {
+                if (!state) {
+                    throw new ApiError(`Missing state`, ErrCode.BadValue);
+                }
+                if (!req.query.code) {
+                    throw new ApiError(`Missing code`, ErrCode.BadValue);
+                }
+                const exists = await this.queue.pushWait<OAuthRequest, boolean>({
+                    eventName: "github.oauth.response",
+                    sender: "GithubWebhooks",
+                    data: {
+                        state,
+                    },
+                });
+                if (!exists) {
+                    throw new ApiError(`Could not find user which authorised this request. Has it timed out?`, undefined, 404);
+                }
+                const accessTokenUrl = GithubInstance.generateOAuthUrl(this.config.github.baseUrl, "access_token", {
+                    client_id: this.config.github.oauth.client_id,
+                    client_secret: this.config.github.oauth.client_secret,
+                    code: req.query.code as string,
+                    redirect_uri: this.config.github.oauth.redirect_uri,
+                    state: req.query.state as string,
+                });
+                const accessTokenRes = await axios.post(accessTokenUrl);
+                const result = qs.parse(accessTokenRes.data) as GitHubOAuthTokenResponse|{error: string, error_description: string, error_uri: string};
+                if ("error" in result) {
+                    throw new ApiError(`GitHub Error: ${result.error} ${result.error_description}`, ErrCode.Unknown);
+                }
+                await this.queue.push<GitHubOAuthTokenResponse>({
+                    eventName: "github.oauth.tokens",
+                    sender: "GithubWebhooks",
+                    data: { ...result, state: req.query.state as string },
+                });
+            } else if (oauthUrl) {
+                // App install.
+                oauthUrl.searchParams.set('oauth-kind', 'organisation');
             }
-            if (!req.query.code) {
-                return res.status(400).send(`<p>Missing code</p>`);
-            }
-            const exists = await this.queue.pushWait<OAuthRequest, boolean>({
-                eventName: "github.oauth.response",
-                sender: "GithubWebhooks",
-                data: {
-                    state: req.query.state,
-                },
-            });
-            if (!exists) {
-                return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
-            }
-            const accessTokenUrl = GithubInstance.generateOAuthUrl(this.config.github.baseUrl, "access_token", {
-                client_id: this.config.github.oauth.client_id,
-                client_secret: this.config.github.oauth.client_secret,
-                code: req.query.code as string,
-                redirect_uri: this.config.github.oauth.redirect_uri,
-                state: req.query.state as string,
-            });
-            const accessTokenRes = await axios.post(accessTokenUrl);
-            const result = qs.parse(accessTokenRes.data) as GitHubOAuthTokenResponse|{error: string, error_description: string, error_uri: string};
-            if ("error" in result) {
-                return res.status(500).send(`<p><b>GitHub Error</b>: ${result.error} ${result.error_description}</p>`);
-            }
-            await this.queue.push<GitHubOAuthTokenResponse>({
-                eventName: "github.oauth.tokens",
-                sender: "GithubWebhooks",
-                data: { ...result, state: req.query.state as string },
-            });
-            return res.send(`<p> Your account has been bridged </p>`);
         } catch (ex) {
-            log.error("Failed to handle oauth request:", ex);
-            return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+            if (ex instanceof ApiError) {
+                if (oauthUrl) {
+                    oauthUrl?.searchParams.set('error', ex.error);
+                    oauthUrl?.searchParams.set('errcode', ex.errcode);
+                } else {
+                    return res.status(ex.statusCode).send(ex.message);
+                }
+            } else {
+                log.error("Failed to handle oauth request:", ex);
+                return res.status(500).send('Failed to handle oauth request');
+            }
+        }
+        if (oauthUrl) {
+            // If we're serving widgets, do something prettier.
+            return res.redirect(oauthUrl.toString());
+        } else {
+            return res.send(`<p> Your account has been bridged </p>`);
         }
     }
 

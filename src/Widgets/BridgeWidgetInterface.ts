@@ -36,3 +36,24 @@ export interface GetConnectionsForServiceResponse<T extends GetConnectionsRespon
     connections: T[];
     canEdit: boolean;
 }
+
+
+export interface GetAuthResponseAuthenticated {
+    authenticated: true;
+    user: {
+        name: string;
+    }
+}
+
+export interface GetAuthResponseUnauthenticated {
+    authenticated: false;
+    authUrl: string;
+    stateId: string;
+}
+
+
+export type GetAuthResponse = GetAuthResponseAuthenticated|GetAuthResponseUnauthenticated;
+
+export interface GetAuthPollResponse {
+    state: 'complete'|'waiting';
+}

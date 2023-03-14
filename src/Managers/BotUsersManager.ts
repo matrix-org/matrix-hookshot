@@ -1,4 +1,4 @@
-import { Appservice, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
+import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
 import { BridgeConfig } from "../Config/Config";

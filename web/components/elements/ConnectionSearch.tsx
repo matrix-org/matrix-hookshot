@@ -12,6 +12,7 @@ type Project = DropItem;
 
 interface IProps {
     serviceName: string;
+    addNewInstanceUrl?: string;
     getInstances(): Promise<Instance[]>;
     getProjects(currentInstance: string, searchTerm?: string, abortController?: AbortController): Promise<Project[]>;
     onPicked: (instanceValue: string, projectValue: string) => void;
@@ -27,6 +28,7 @@ interface IProps {
  */
 export function ConnectionSearch({
     serviceName,
+    addNewInstanceUrl,
     onPicked,
     onClear,
     getInstances,
@@ -104,15 +106,28 @@ export function ConnectionSearch({
 
     const searchProps = useMemo(() => ({ instance: currentInstance }), [currentInstance]);
 
+    let addNewInstance = null;
+    if (instances?.length === 0) {
+        if (addNewInstanceUrl) {
+            addNewInstance = <p> You have not connected any {serviceName} instances.
+                <a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Add a new instances</a>.
+            </p>;
+        } else {
+            addNewInstance = <p> You have not connected any {serviceName} instances.</p>;
+        }
+    } else if (addNewInstanceUrl) {
+        addNewInstance = <p><a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Add a new instances</a>.</p>
+    } // otherwise, empty
+
     return <div>
         {!searchError && instances === null && <p> Loading {serviceName} instances. </p>}
-        {instances?.length === 0 && <p> You are not logged into any {serviceName} instances. </p>}
         {searchError && <ErrorPane header="Search error"> {searchError} </ErrorPane> }
         <InputField visible={!!instances?.length} label={`${serviceName} Instance`} noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}
             </select>
         </InputField>
+        { addNewInstance }
         { currentInstance && <InputField label="Project" noPadding={true}>
            <DropdownSearch
                 placeholder={`Your project name, such as ${exampleProjectName}`}
