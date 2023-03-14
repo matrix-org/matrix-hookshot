@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "preact/hooks";
 import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
 import { BridgeAPI } from "../../BridgeAPI";
-import { Button, ErrorPane } from "../elements";
+import { Button } from "../elements";
 
 const PollAuthEveryMs = 3000;
 
@@ -19,7 +19,6 @@ export const ServiceAuth = ({
     onAuthSucceeded: () => void,
     loginLabel?: string,
 }) => {
-    const [error, setError] = useState('');
     const [pollStateId, setPollStateId] = useState<string|null>();
 
     const pollAuth = useCallback(async (pollId) => {
@@ -84,21 +83,12 @@ export const ServiceAuth = ({
         })
     }, [api, onAuthSucceeded, service, authState]);
 
-    if (authState) {
-        if ('authUrl' in authState) {
-            return <Button onClick={loginToService}>
-                { loginLabel }
-            </Button>;
-        }
-        return <p>
-            Logged in as <strong>{authState.user?.name ?? ''}</strong>. <a href="#" onClick={logoutOfService}>Logout</a>
-        </p>;
-    } else if (error) {
-        return <ErrorPane
-            header="Failed to check authentication"
-        >
-            { error }
-        </ErrorPane>;
+    if ('authUrl' in authState) {
+        return <Button onClick={loginToService}>
+            { loginLabel }
+        </Button>;
     }
-    return <p>Checking authentication...</p>;
+    return <p>
+        Logged in as <strong>{authState.user?.name ?? ''}</strong>. <a href="#" onClick={logoutOfService}>Logout</a>
+    </p>;
 };
