@@ -113,7 +113,7 @@ export class GoNebMigrator {
                     const migratedFeeds = roomFeeds.map(f => ({ ...f, goNebId: id }));
                     feeds.push(...migratedFeeds);
                     break;
-                };
+                }
                 case 'github-webhook': {
                     const service = obj as GoNebGithubWebhookService;
                     if (service.Config.ClientUserID === userId) {
