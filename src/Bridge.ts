@@ -494,7 +494,7 @@ export class Bridge {
                         this.tokenStore,
                         this.commentProcessor,
                         this.messageClient,
-                        this.config.github,
+                        this.config,
                     );
                     connManager.push(discussionConnection);
                 } catch (ex) {
@@ -1318,7 +1318,7 @@ export class Bridge {
                 this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
-                this.config.gitlab,
+                this.config,
             );
             this.connectionManager?.push(newConnection);
             return intent.underlyingClient.inviteUser(adminRoom.userId, newConnection.roomId);

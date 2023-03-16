@@ -1,4 +1,4 @@
-import { BridgeConfig } from "./Config";
+import { BridgeConfig, BridgeConfigRoot } from "./Config";
 import YAML from "yaml";
 import { getConfigKeyMetadata, keyIsHidden } from "./Decorators";
 import { Node, YAMLSeq } from "yaml/types";
@@ -8,7 +8,7 @@ import { DefaultDisallowedIpRanges } from "matrix-appservice-bridge";
 const serverName = "example.com";
 const hookshotWebhooksUrl = "https://example.com";
 
-export const DefaultConfig = new BridgeConfig({
+export const DefaultConfigRoot: BridgeConfigRoot = {
     bridge: {
         domain: serverName,
         url: "http://localhost:8008",
@@ -147,7 +147,9 @@ export const DefaultConfig = new BridgeConfig({
             resources: ['widgets'],
         }
     ]
-}, {});
+};
+
+export const DefaultConfig = new BridgeConfig(DefaultConfigRoot);
 
 function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
     const entries = Object.entries(obj);

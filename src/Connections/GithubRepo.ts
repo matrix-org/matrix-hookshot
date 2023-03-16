@@ -398,7 +398,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
-        await new GrantChecker(as.botIntent).grantConnection(roomId, this.getGrantKey(validData.org, validData.repo));
+        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.getGrantKey(validData.org, validData.repo));
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,

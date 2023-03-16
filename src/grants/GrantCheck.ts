@@ -15,7 +15,7 @@ interface GrantContent {
 const log = new Logger("GrantChecker");
 
 export class GrantRejectedError extends Error {
-    constructor(roomId: string, connectionId: string) {
+    constructor(public readonly roomId: string, public readonly connectionId: string) {
         super(`No grant exists for ${roomId}/${connectionId}. Rejecting`);
     }
 }
@@ -38,7 +38,9 @@ type ConnectionId = NonNullable<string|object>;
  */
 type GrantFallbackFn<cId extends ConnectionId> = (roomId: string, connectionId: cId, sender?: string) => Promise<boolean>|boolean;
 
-export class GrantChecker<cId extends ConnectionId> {
+export class GrantChecker<cId extends ConnectionId = ConnectionId> {
+
+    static ConfigMinAccessLevel = BridgePermissionLevel.admin;
 
     /**
      * Check the permissions of the sender, in case of a missing grant.
@@ -57,7 +59,7 @@ export class GrantChecker<cId extends ConnectionId> {
                 // Bridge is always valid.
                 return true;
             }
-            return config.checkPermission(sender, service, BridgePermissionLevel.manageConnections);
+            return config.checkPermission(sender, service, this.ConfigMinAccessLevel);
         })
     }
 
@@ -142,7 +144,7 @@ export class GrantChecker<cId extends ConnectionId> {
                 if (!await this.grantFallbackFn?.(roomId, connectionId, sender)) {
                     throw new GrantRejectedError(roomId, connId);
                 } else {
-                    log.info(`Grant fallback succeeded for ${roomId}/${connectionId}`, ex);
+                    log.info(`Grant fallback succeeded for ${roomId}/${connectionId}`);
                     await this.grantConnection(roomId, connectionId);
                 }
             } else {

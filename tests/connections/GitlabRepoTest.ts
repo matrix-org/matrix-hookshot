@@ -4,6 +4,7 @@ import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";
 import { expect } from "chai";
+import { BridgeConfigGitLab } from "../../src/Config/Config";
 
 const ROOM_ID = "!foo:bar";
 
@@ -42,6 +43,8 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 	const connection = new GitLabRepoConnection(
 		ROOM_ID,
 		"state_key",
+		as,
+		{} as BridgeConfigGitLab,
 		intent,
 		GitLabRepoConnection.validateState({
 			instance: "bar",

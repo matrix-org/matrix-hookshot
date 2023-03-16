@@ -61,7 +61,7 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
                 },
             ],
         });
-        await new GrantChecker(as.botIntent).grantConnection(roomId, this.getGrantKey(project.id));
+        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.getGrantKey(project.id));
 
         return new GitHubProjectConnection(roomId, as, intent, config, state, project.url)
     }

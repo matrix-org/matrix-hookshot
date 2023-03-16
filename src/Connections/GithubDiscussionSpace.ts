@@ -37,7 +37,7 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        await new GrantChecker(as.botIntent).grantConnection(roomId, this.grantKey(event.content));
+        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.grantKey(event.content));
         return new GitHubDiscussionSpace(
             as, config, await intent.underlyingClient.getSpace(roomId), event.content, event.stateKey
         );

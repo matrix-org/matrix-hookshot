@@ -85,7 +85,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         tokenStore: UserTokenStore,
         commentProcessor: CommentProcessor,
         messageSender: MessageSenderClient,
-        config: BridgeConfigGitLab,
+        config: BridgeConfig,
     ) {
         const state: GitLabIssueConnectionState = {
             projects,

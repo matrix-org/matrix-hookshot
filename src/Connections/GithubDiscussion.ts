@@ -12,7 +12,7 @@ import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../Github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
-import { BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfig, BridgeConfigGitHub } from "../Config/Config";
 import { GrantChecker } from "../grants/GrantCheck";
 export interface GitHubDiscussionConnectionState {
     owner: string;
@@ -49,7 +49,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         }
         return new GitHubDiscussionConnection(
             roomId, as, intent, event.content, event.stateKey, tokenStore, commentProcessor,
-            messageClient, config.github,
+            messageClient, config,
         );
     }
 
@@ -57,12 +57,12 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
     public static async createDiscussionRoom(
         as: Appservice, intent: Intent, userId: string|null, owner: string, repo: string, discussion: Discussion,
         tokenStore: UserTokenStore, commentProcessor: CommentProcessor, messageClient: MessageSenderClient,
-        config: BridgeConfigGitHub,
+        config: BridgeConfig,
     ) {
         const commentIntent = await getIntentForUser({
             login: discussion.user.login,
             avatarUrl: discussion.user.avatar_url,
-        }, as, config.userIdPrefix);
+        }, as, config.github?.userIdPrefix);
         const state: GitHubDiscussionConnectionState = {
             owner,
             repo,
@@ -103,7 +103,9 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
     }
 
     private readonly sentEvents = new Set<string>(); //TODO: Set some reasonable limits
-    private readonly grantChecker = GrantChecker.withConfigFallback(this.as, this.config, "github");
+    private readonly grantChecker: GrantChecker;
+
+    private readonly config: BridgeConfigGitHub;
 
     constructor(
         roomId: string,
@@ -114,9 +116,14 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         private readonly tokenStore: UserTokenStore,
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
-        private readonly config: BridgeConfigGitHub,
+        bridgeConfig: BridgeConfig,
     ) {
         super(roomId, stateKey, GitHubDiscussionConnection.CanonicalEventType);
+        if (!bridgeConfig.github) {
+            throw Error('Expected github to be enabled in config');
+        }
+        this.config = bridgeConfig.github;
+        this.grantChecker = GrantChecker.withConfigFallback(this.as, bridgeConfig, "github");
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
