@@ -1,0 +1,23 @@
+a {
+  color: var(--primary-color);
+}
+
+a:visited {
+  color: var(--primary-color);
+}
+
+body {
+  margin-top: 5em;
+  margin-left: 5em;
+  margin-right: 5em;
+
+  text-align: center;
+}
+
+h1 {
+  font-size: 1.5em;
+}
+
+p {
+  font-size: 1.25em;
+}

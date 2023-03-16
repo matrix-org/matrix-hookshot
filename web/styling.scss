@@ -1,11 +1,15 @@
-
-
 :root {
   --background-color: #FFFFFF;
   --foreground-color: #17191C;
   --light-color: #737D8C;
   --primary-color: #0DBD8B;
   --primary-color-disabled: #0dbd8baf;
+
+  background-color: #F4F6FA;
+  color: var(--foreground-color);
+  min-height: 100%;
+  width: 100%;
+  font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
 }
 
 // @media (prefers-color-scheme: dark) {
@@ -15,16 +19,12 @@
 //   }
 // }
 
-#root {
-  background-color: var(--background-color);
-  color: var(--foreground-color);
-  min-height: 100vh;
-  width: 100vw;
-  font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
+a {
+  color: var(--primary-color);
 }
 
-.app {
-  padding: 32px;
+a:visited {
+  color: var(--primary-color);
 }
 
 body {

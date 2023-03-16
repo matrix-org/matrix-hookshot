@@ -12,6 +12,8 @@ namespaces:
       exclusive: true
     - regex: "@_webhooks_.*:foobar" # Where _webhooks_ is set by userIdPrefix in config.yml
       exclusive: true
+    - regex: "@feeds:foobar" # Matches the localpart of all serviceBots in config.yml
+      exclusive: true
   aliases:
     - regex: "#github_.+:foobar" # Where foobar is your homeserver's domain
       exclusive: true

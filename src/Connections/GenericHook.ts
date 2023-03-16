@@ -5,12 +5,12 @@ import markdownit from "markdown-it";
 import { VMScript as Script, NodeVM } from "vm2";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
-import { v4 as uuid} from "uuid";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../Config/Config";
 import { ensureUserIsInRoom } from "../IntentUtils";
+import { randomUUID } from 'node:crypto';
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -141,7 +141,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         // hookId => stateKey
         let hookId = Object.entries(acctData).find(([, v]) => v === event.stateKey)?.[0];
         if (!hookId) {
-            hookId = uuid();
+            hookId = randomUUID();
             log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
             await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, event.stateKey);
         }
@@ -162,7 +162,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!config.generic) {
             throw Error('Generic Webhooks are not configured');
         }
-        const hookId = uuid();
+        const hookId = randomUUID();
         const validState = GenericHookConnection.validateState(data, config.generic.allowJsTransformationFunctions || false);
         await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);

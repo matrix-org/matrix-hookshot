@@ -26,3 +26,11 @@ serviceBots:
 ```
 
 There will be a bot user `@feeds:example.com` which responds to commands prefixed with `!feeds`, and only handles feeds connections.
+
+For the homeserver to allow hookshot control over users, they need to be added to the list of user namespaces in the `registration.yml` file provided to the homeserver.
+
+In the example above, you would need to add these lines:
+```yaml
+    - regex: "@feeds:example.com" # Where example.com is your homeserver's domain
+      exclusive: true
+```

@@ -1,4 +1,4 @@
-import { BridgeRoomState, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
@@ -113,7 +113,7 @@ export class BridgeAPI {
     async getServiceConfig<T>(service: string): Promise<T> {
         return this.request('GET', `/widgetapi/v1/service/${service}/config`);
     }
-    
+
     async getConnectionsForRoom(roomId: string): Promise<GetConnectionsResponseItem[]> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
     }
@@ -138,9 +138,28 @@ export class BridgeAPI {
         const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
         return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`, undefined, { abortController });
     }
+
+    async getAuth(service: string): Promise<GetAuthResponse> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/auth`);
+    }
+
+    async getAuthPoll(service: string, state: string): Promise<GetAuthPollResponse> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/auth/${state}`);
+    }
+
+    async serviceLogout(service: string): Promise<GetAuthResponse> {
+        return this.request('POST', `/widgetapi/v1/service/${service}/auth/logout`);
+    }
+}
+
+export const embedTypeParameter = 'io_element_embed_type';
+export enum EmbedType {
+    IntegrationManager = 'integration-manager',
+    Default = 'default',
 }
 
 export type BridgeConfig = FunctionComponent<{
     api: BridgeAPI,
     roomId: string,
+    showHeader: boolean,
 }>;

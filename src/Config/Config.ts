@@ -8,7 +8,7 @@ import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
-import { GITHUB_CLOUD_URL } from "../Github/GithubInstance";
+import { GithubInstance, GITHUB_CLOUD_URL } from "../Github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 
 const log = new Logger("Config");
@@ -95,10 +95,10 @@ export class BridgeConfigGitHub {
         this.baseUrl = yaml.enterpriseUrl ? new URL(yaml.enterpriseUrl) : GITHUB_CLOUD_URL;
     }
 
-    @hideKey()
-    public get publicConfig() {
+    public publicConfig(githubInstance?: GithubInstance) {
         return {
             userIdPrefix: this.userIdPrefix,
+            newInstallationUrl: githubInstance?.newInstallationUrl?.toString(),
         }
     }
 }
@@ -705,7 +705,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
                 config = this.generic?.publicConfig;
                 break;
             case "github":
-                config = this.github?.publicConfig;
+                config = this.github?.publicConfig();
                 break;
             case "gitlab":
                 config = this.gitlab?.publicConfig;

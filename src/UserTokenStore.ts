@@ -7,7 +7,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { isJiraCloudInstance, JiraClient } from "./Jira/Client";
 import { JiraStoredToken } from "./Jira/Types";
 import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./Config/Config";
-import { v4 as uuid } from "uuid";
+import { randomUUID } from 'node:crypto';
 import { GitHubOAuthToken } from "./Github/Types";
 import { ApiError, ErrCode } from "./api";
 import { JiraOAuth } from "./Jira/OAuth";
@@ -26,8 +26,8 @@ const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
 
 const log = new Logger("UserTokenStore");
-type TokenType = "github"|"gitlab"|"jira";
-const AllowedTokenTypes = ["github", "gitlab", "jira"];
+export type TokenType = "github"|"gitlab"|"jira";
+export const AllowedTokenTypes = ["github", "gitlab", "jira"];
 
 interface StoredTokenData {
     encrypted: string|string[];
@@ -105,6 +105,9 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
     }
 
     public async clearUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<boolean> {
+        if (!AllowedTokenTypes.includes(type)) {
+            throw Error('Unknown token type');
+        }
         const key = tokenKey(type, userId, false, instanceUrl);
         const obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(key);
         if (!obj || "deleted" in obj) {
@@ -252,7 +255,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
     }
 
     public createStateForOAuth(userId: string): string {
-        const state = uuid();
+        const state = randomUUID();
         this.oauthSessionStore.set(state, {
             userId,
             timeout: setTimeout(() => this.oauthSessionStore.delete(state), OAUTH_TIMEOUT_MS),

@@ -2,7 +2,7 @@ import { FunctionComponent, createRef } from "preact";
 import { useCallback } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
-import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
+import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
 import { Button, ButtonSet, InputField } from "../elements";
 import styles from "./FeedConnection.module.scss";
 
@@ -17,7 +17,7 @@ const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }
         {!item.secrets.lastResults.length && <span>There have been no recent updates for this feed.</span>}
         <ul>
             {item.secrets.lastResults.map(item => <li className={styles.resultListItem} key={item.timestamp}>
-                {new Date(item.timestamp).toLocaleString()}: 
+                {new Date(item.timestamp).toLocaleString()}:
                 {item.ok && `✅ Successful fetch`}
                 {!item.ok && `⚠️ ${item.error}`}
             </li>)}
@@ -53,7 +53,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         <InputField visible={!existingConnection} label="Label" noPadding={true}>
             <input ref={labelRef} disabled={!canEdit} type="text" value={existingConnection?.config.label} />
         </InputField>
-        
+
         <ButtonSet>
             { canEdit && <Button type="submit">{ existingConnection ? "Save" : "Subscribe" }</Button>}
             { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Unsubscribe</Button>}
@@ -66,7 +66,7 @@ interface ServiceConfig {
     pollIntervalSeconds: number,
 }
 
-const RoomConfigText = {
+const roomConfigText: IRoomConfigText = {
     header: 'RSS/Atom feeds',
     createNew: 'Subscribe to a feed',
     listCanEdit: 'Feeds subscribed to',
@@ -75,14 +75,15 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
-export const FeedsConfig: BridgeConfig = ({ api, roomId }) => {
+export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
+        showHeader={showHeader}
         api={api}
         roomId={roomId}
         type="feeds"
         connectionEventType="uk.half-shot.matrix-hookshot.feed"
-        text={RoomConfigText}
+        text={roomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionConfigComponent={ConnectionConfiguration}
     />;

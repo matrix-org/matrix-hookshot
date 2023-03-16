@@ -2,7 +2,7 @@ import { FunctionComponent, createRef } from "preact";
 import { useCallback, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
-import { BridgeAPI } from "../../BridgeAPI";
+import { BridgeConfig } from "../../BridgeAPI";
 import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
@@ -73,11 +73,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     </form>;
 };
 
-interface IGenericWebhookConfigProps {
-    api: BridgeAPI,
-    roomId: string,
-}
-
 interface ServiceConfig {
     allowJsTransformationFunctions: boolean
 }
@@ -91,9 +86,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
 
-export const GenericWebhookConfig: FunctionComponent<IGenericWebhookConfigProps> = ({ api, roomId }) => {
+export const GenericWebhookConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
         headerImg={WebhookIcon}
+        showHeader={showHeader}
         api={api}
         roomId={roomId}
         type="generic"
