@@ -1,8 +1,11 @@
+import { Logger } from "matrix-appservice-bridge";
 import { Appservice } from "matrix-bot-sdk";
 import { BridgeConfigGitLab } from "../Config/Config";
 import { GitLabRepoConnection } from "../Connections";
 import { GrantChecker } from "../grants/GrantCheck";
 import { UserTokenStore } from "../UserTokenStore";
+
+const log = new Logger('GitLabGrantChecker');
 
 interface GitLabGrantConnectionId{
     instance: string;
@@ -18,6 +21,7 @@ export class GitLabGrantChecker extends GrantChecker<GitLabGrantConnectionId> {
 
     protected async checkFallback(roomId: string, connectionId: GitLabGrantConnectionId, sender?: string) {
         if (!sender) {
+            log.debug(`Tried to check fallback for ${roomId} with a missing sender`);
             // Cannot validate without a sender.
             return false;
         }
@@ -29,6 +33,7 @@ export class GitLabGrantChecker extends GrantChecker<GitLabGrantConnectionId> {
             await GitLabRepoConnection.assertUserHasAccessToProject(connectionId.instance, connectionId.path, sender, this.tokenStore, this.config);
             return true;
         } catch (ex) {
+            log.info(`${sender} does not have access to ${connectionId.instance}/${connectionId.path}`, ex);
             return false;
         }
     }
