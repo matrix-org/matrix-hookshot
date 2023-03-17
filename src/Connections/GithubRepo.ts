@@ -96,7 +96,7 @@ export type GitHubRepoConnectionTarget = GitHubRepoConnectionOrgTarget|GitHubRep
 export type GitHubRepoResponseItem = GetConnectionsResponseItem<GitHubRepoConnectionState>;
 
 
-type AllowedEventsNames =
+export type AllowedEventsNames =
     "issue.changed" |
     "issue.created" |
     "issue.edited" |
@@ -121,7 +121,7 @@ type AllowedEventsNames =
     "workflow.run.action_required" |
     "workflow.run.stale";
 
-const AllowedEvents: AllowedEventsNames[] = [
+export const AllowedEvents: AllowedEventsNames[] = [
     "issue.changed" ,
     "issue.created" ,
     "issue.edited" ,
