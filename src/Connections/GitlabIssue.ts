@@ -10,7 +10,7 @@ import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { BaseConnection } from "./BaseConnection";
-import { GrantChecker } from "../grants/GrantCheck";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 
 export interface GitLabIssueConnectionState {
     instance: string;
@@ -143,7 +143,7 @@ export class GitLabIssueConnection extends BaseConnection implements IConnection
         config: BridgeConfig,
     ) {
         super(roomId, stateKey, GitLabIssueConnection.CanonicalEventType);
-        this.grantChecker = GrantChecker.withConfigFallback(as, config, "gitlab");
+        this.grantChecker = new ConfigGrantChecker("gitlab", as, config);
         if (!config.gitlab) {
             throw Error('No gitlab config!');
         }

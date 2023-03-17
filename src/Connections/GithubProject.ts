@@ -1,9 +1,9 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
-import { Bridge, Logger } from "matrix-appservice-bridge";
+import { Logger } from "matrix-appservice-bridge";
 import { ProjectsGetResponseData } from "../Github/Types";
 import { BaseConnection } from "./BaseConnection";
-import { GrantChecker } from "../grants/GrantCheck";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../Config/Config";
 
 export interface GitHubProjectConnectionState {
@@ -81,7 +81,7 @@ export class GitHubProjectConnection extends BaseConnection implements IConnecti
         stateKey: string,
     ) {
         super(roomId, stateKey, GitHubProjectConnection.CanonicalEventType);
-        this.grantChecker = GrantChecker.withConfigFallback(as, config, "github");
+        this.grantChecker = new ConfigGrantChecker("github", as, config);
     }
 
     public ensureGrant(sender?: string) {

@@ -2,8 +2,7 @@ import { expect } from "chai";
 import { BridgeConfig } from "../../src/Config/Config";
 import { DefaultConfigRoot } from "../../src/Config/Defaults";
 import { FormatUtil } from "../../src/FormatUtil";
-import { GrantChecker, GrantRejectedError } from '../../src/grants/GrantCheck';
-import { UserTokenStore } from "../../src/UserTokenStore";
+import { ConfigGrantChecker, GrantChecker, GrantRejectedError } from '../../src/grants/GrantCheck';
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { IntentMock } from "../utils/IntentMock";
 
@@ -29,6 +28,12 @@ async function doesAssert(checker: GrantChecker<string>, roomId: string, connect
     }
 }
 
+class TestGrantChecker extends GrantChecker {
+    protected checkFallback(roomId: string, connectionId: string | object, sender?: string | undefined) {
+        return sender === ALWAYS_GRANT_USER;
+    }
+}
+
 describe("GrantChecker", () => {
     describe('base grant system', () => {
         let check: GrantChecker<string>;
@@ -36,9 +41,7 @@ describe("GrantChecker", () => {
         let intent: any;
         beforeEach(() => {
             intent = IntentMock.create('@foo:bar');
-            check = new GrantChecker(intent, GRANT_SERVICE, (cid: unknown, roomId: unknown, sender?: string) => {
-                return sender === ALWAYS_GRANT_USER;
-            });
+            check = new TestGrantChecker(intent, GRANT_SERVICE);
         });
 
         it('will grant a connection', async () => {
@@ -82,7 +85,7 @@ describe("GrantChecker", () => {
         });
 
         it('will not conflict with another grant service', async () => {
-            const anotherchecker = new GrantChecker(intent, GRANT_SERVICE + "-two");
+            const anotherchecker = new TestGrantChecker(intent, GRANT_SERVICE + "-two");
             await check.grantConnection(ROOM_ID, CONNECTION_ID);
 
             await doesAssert(
@@ -131,7 +134,7 @@ describe("GrantChecker", () => {
                     }],
                 }
             );
-            check = GrantChecker.withConfigFallback(mockAs, config, GRANT_SERVICE);
+            check = new ConfigGrantChecker(GRANT_SERVICE, mockAs, config);
         });
 
         it('will deny a missing grant if the sender is not provided', async () => {

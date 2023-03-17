@@ -13,7 +13,7 @@ import { GithubGraphQLClient } from "../Github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import { BridgeConfig, BridgeConfigGitHub } from "../Config/Config";
-import { GrantChecker } from "../grants/GrantCheck";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import QuickLRU from "@alloc/quick-lru";
 export interface GitHubDiscussionConnectionState {
     owner: string;
@@ -124,7 +124,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             throw Error('Expected github to be enabled in config');
         }
         this.config = bridgeConfig.github;
-        this.grantChecker = GrantChecker.withConfigFallback(this.as, bridgeConfig, "github");
+        this.grantChecker = new ConfigGrantChecker("github", this.as, bridgeConfig);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {

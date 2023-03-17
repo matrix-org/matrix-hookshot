@@ -5,7 +5,7 @@ import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
 import { GithubInstance } from "../Github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
-import { GrantChecker } from "../grants/GrantCheck";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../Config/Config";
 
 const log = new Logger("GitHubOwnerSpace");
@@ -151,7 +151,7 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
         private state: GitHubUserSpaceConnectionState,
         stateKey: string) {
             super(space.roomId, stateKey, GitHubUserSpace.CanonicalEventType);
-            this.grantChecker = GrantChecker.withConfigFallback(as, config, "github");
+            this.grantChecker = new ConfigGrantChecker("github", as, config);
         }
 
     public ensureGrant(sender?: string) {

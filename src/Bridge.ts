@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, Intent } from "matrix-bot-sdk";
 import BotUsersManager from "./Managers/BotUsersManager";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";

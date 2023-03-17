@@ -20,7 +20,7 @@ import { HookFilter } from "../HookFilter";
 import { GitLabClient } from "../Gitlab/Client";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import axios from "axios";
-import { GrantChecker } from "../grants/GrantCheck";
+import { GitLabGrantChecker } from "../Gitlab/GrantChecker";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -298,7 +298,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             };
             log.warn(`Not creating webhook, permission level is insufficient (${permissionLevel} < ${AccessLevel.Maintainer})`)
         }
-        await GrantChecker.withGitLabFallback(as, gitlabConfig, tokenStore).grantConnection(roomId, { instance: validData.instance, path: validData.path })
+        await new GitLabGrantChecker(as, gitlabConfig, tokenStore).grantConnection(roomId, { instance: validData.instance, path: validData.path })
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.stateKey, validData);
         return {connection, warning};
     }
@@ -418,7 +418,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             "!gl",
             "gitlab",
         )
-        this.grantChecker = GrantChecker.withGitLabFallback(as, config, tokenStore);
+        this.grantChecker = new GitLabGrantChecker(as, config, tokenStore);
         if (!state.path || !state.instance) {
             throw Error('Invalid state, missing `path` or `instance`');
         }

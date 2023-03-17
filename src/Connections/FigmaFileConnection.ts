@@ -7,7 +7,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfig } from "../Config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import { GrantChecker } from "../grants/GrantCheck";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 
 const log = new Logger("FigmaFileConnection");
 
@@ -65,7 +65,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
     }
 
-    private readonly grantChecker: GrantChecker<{fileId: string, instanceName: string}> = GrantChecker.withConfigFallback(this.as, this.config, "figma");
+    private readonly grantChecker: GrantChecker<{fileId: string, instanceName: string}> = new ConfigGrantChecker("figma", this.as, this.config);
 
     constructor(
         roomId: string,

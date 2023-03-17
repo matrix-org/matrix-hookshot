@@ -28,7 +28,8 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
-import { GrantChecker, GrantRejectedError } from "../grants/GrantCheck";
+import { GrantChecker } from "../grants/GrantCheck";
+import { GitHubGrantChecker } from "../Github/GrantChecker";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -510,7 +511,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
-    private readonly grantChecker = GrantChecker.withGitHubFallback(this.as, this.githubInstance, this.tokenStore);
+    private readonly grantChecker = new GitHubGrantChecker(this.as, this.githubInstance, this.tokenStore);
 
     constructor(
         roomId: string,
