@@ -4,6 +4,8 @@ name: "Docker Hub - Latest"
 
 on:
   push:
+  pull_request:
+    branches: [ main ]
 
 env:
   DOCKER_NAMESPACE: halfshot
