@@ -12,7 +12,9 @@ import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../Github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
-import { BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfig, BridgeConfigGitHub } from "../Config/Config";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
+import QuickLRU from "@alloc/quick-lru";
 export interface GitHubDiscussionConnectionState {
     owner: string;
     repo: string;
@@ -48,21 +50,20 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         }
         return new GitHubDiscussionConnection(
             roomId, as, intent, event.content, event.stateKey, tokenStore, commentProcessor,
-            messageClient, config.github,
+            messageClient, config,
         );
     }
 
-    readonly sentEvents = new Set<string>(); //TODO: Set some reasonable limits
 
     public static async createDiscussionRoom(
         as: Appservice, intent: Intent, userId: string|null, owner: string, repo: string, discussion: Discussion,
         tokenStore: UserTokenStore, commentProcessor: CommentProcessor, messageClient: MessageSenderClient,
-        config: BridgeConfigGitHub,
+        config: BridgeConfig,
     ) {
         const commentIntent = await getIntentForUser({
             login: discussion.user.login,
             avatarUrl: discussion.user.avatar_url,
-        }, as, config.userIdPrefix);
+        }, as, config.github?.userIdPrefix);
         const state: GitHubDiscussionConnectionState = {
             owner,
             repo,
@@ -94,8 +95,18 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             format: 'org.matrix.custom.html',
         });
         await intent.ensureJoined(roomId);
+
         return new GitHubDiscussionConnection(roomId, as, intent, state, '', tokenStore, commentProcessor, messageClient, config);
     }
+
+    private static grantKey(state: GitHubDiscussionConnectionState) {
+        return `${this.CanonicalEventType}/${state.owner}/${state.repo}`;
+    }
+
+    private readonly sentEvents = new QuickLRU<string, undefined>({ maxSize: 128 });
+    private readonly grantChecker: GrantChecker;
+
+    private readonly config: BridgeConfigGitHub;
 
     constructor(
         roomId: string,
@@ -106,9 +117,14 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         private readonly tokenStore: UserTokenStore,
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
-        private readonly config: BridgeConfigGitHub,
+        bridgeConfig: BridgeConfig,
     ) {
         super(roomId, stateKey, GitHubDiscussionConnection.CanonicalEventType);
+        if (!bridgeConfig.github) {
+            throw Error('Expected github to be enabled in config');
+        }
+        this.config = bridgeConfig.github;
+        this.grantChecker = new ConfigGrantChecker("github", this.as, bridgeConfig);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -125,7 +141,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         const qlClient = new GithubGraphQLClient(octokit);
         const commentId = await qlClient.addDiscussionComment(this.state.internalId, ev.content.body);
         log.info(`Sent ${commentId} for ${ev.event_id} (${ev.sender})`);
-        this.sentEvents.add(commentId);
+        this.sentEvents.set(commentId, undefined);
         return true;
     }
 
@@ -162,6 +178,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        await this.grantChecker.ungrantConnection(this.roomId, GitHubDiscussionConnection.grantKey(this.state));
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.CanonicalEventType, this.stateKey);
@@ -170,5 +187,9 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey);
             await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubDiscussionConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
+    }
+
+    public async ensureGrant(sender?: string) {
+        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionConnection.grantKey(this.state), sender);
     }
 }

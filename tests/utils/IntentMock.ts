@@ -1,5 +1,6 @@
 
 import { expect } from "chai";
+import { MatrixError } from "matrix-bot-sdk";
 export class MatrixClientMock {
 
     static create(){
@@ -9,6 +10,7 @@ export class MatrixClientMock {
 
     // map room Id → user Ids
     private joinedMembers: Map<string, string[]> = new Map();
+    public readonly roomAccountData: Map<string, string> = new Map();
 
     async setDisplayName() {
         return;
@@ -27,6 +29,21 @@ export class MatrixClientMock {
 
         roomMembers.push(userId);
         this.joinedMembers.set(roomId, roomMembers);
+    }
+
+    async getRoomAccountData(key: string, roomId: string): Promise<string> {
+        const data = this.roomAccountData.get(roomId+key);
+        if (data) {
+            return data;
+        }
+        throw new MatrixError({
+            errcode: 'M_NOT_FOUND',
+            error: 'Test error: No account data',
+        }, 404);
+    }
+
+    async setRoomAccountData(key: string, roomId: string, value: string): Promise<void> {
+        this.roomAccountData.set(roomId+key, value);
     }
 }
 

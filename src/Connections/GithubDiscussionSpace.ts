@@ -6,6 +6,8 @@ import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
 import { GithubInstance } from "../Github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
+import { BridgeConfig } from "../Config/Config";
 
 const log = new Logger("GitHubDiscussionSpace");
 
@@ -35,12 +37,13 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
+        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.grantKey(event.content));
         return new GitHubDiscussionSpace(
-            await intent.underlyingClient.getSpace(roomId), event.content, event.stateKey
+            as, config, await intent.underlyingClient.getSpace(roomId), event.content, event.stateKey
         );
     }
 
-    static async onQueryRoom(result: RegExpExecArray, opts: {githubInstance: GithubInstance, as: Appservice}): Promise<Record<string, unknown>> {
+    public static async onQueryRoom(result: RegExpExecArray, opts: {githubInstance: GithubInstance, as: Appservice}): Promise<Record<string, unknown>> {
         if (!result || result.length < 2) {
             log.error(`Invalid alias pattern '${result}'`);
             throw Error("Could not find issue");
@@ -141,10 +144,19 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
         };
     }
 
-    constructor(public readonly space: Space,
+    private static grantKey(state: GitHubDiscussionSpaceConnectionState) {
+        return `${this.CanonicalEventType}/${state.owner}/${state.repo}`;
+    }
+
+    private readonly grantChecker: GrantChecker;
+
+    constructor(as: Appservice,
+        config: BridgeConfig,
+        public readonly space: Space,
         private state: GitHubDiscussionSpaceConnectionState,
         stateKey: string) {
             super(space.roomId, stateKey, GitHubDiscussionSpace.CanonicalEventType)
+            this.grantChecker = new ConfigGrantChecker("github", as, config);
         }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -167,9 +179,15 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
         log.info(`Adding connection to ${this.toString()}`);
         await this.space.addChildRoom(discussion.roomId);
     }
+    
+
+    public async ensureGrant(sender?: string) {
+        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionSpace.grantKey(this.state), sender);
+    }
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        this.grantChecker.ungrantConnection(this.roomId, GitHubDiscussionSpace.grantKey(this.state));
         // Do a sanity check that the event exists.
         try {
 

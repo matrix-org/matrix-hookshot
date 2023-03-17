@@ -1,6 +1,6 @@
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
-import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, IAppserviceRegistration, Intent } from "matrix-bot-sdk";
+import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, Intent } from "matrix-bot-sdk";
 import BotUsersManager from "./Managers/BotUsersManager";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
@@ -494,7 +494,7 @@ export class Bridge {
                         this.tokenStore,
                         this.commentProcessor,
                         this.messageClient,
-                        this.config.github,
+                        this.config,
                     );
                     connManager.push(discussionConnection);
                 } catch (ex) {
@@ -1294,7 +1294,7 @@ export class Bridge {
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
             const [connection] = this.connectionManager?.getForGitHubProject(project.id) || [];
             if (!connection) {
-                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, intent, adminRoom.userId);
+                const connection = await GitHubProjectConnection.onOpenProject(project, this.as, intent, this.config, adminRoom.userId);
                 this.connectionManager?.push(connection);
             } else {
                 await intent.underlyingClient.inviteUser(adminRoom.userId, connection.roomId);
@@ -1318,7 +1318,7 @@ export class Bridge {
                 this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
-                this.config.gitlab,
+                this.config,
             );
             this.connectionManager?.push(newConnection);
             return intent.underlyingClient.inviteUser(adminRoom.userId, newConnection.roomId);

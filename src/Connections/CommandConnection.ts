@@ -36,10 +36,10 @@ export abstract class CommandConnection<StateType extends IConnectionState = ICo
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        this.state = this.validateConnectionState(stateEv.content);
+        this.state = await this.validateConnectionState(stateEv.content);
     }
 
-    protected abstract validateConnectionState(content: unknown): ValidatedStateType;
+    protected abstract validateConnectionState(content: unknown): Promise<ValidatedStateType>|ValidatedStateType;
 
     public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>, checkPermission: PermissionCheckFn) {
         const commandResult = await handleCommand(

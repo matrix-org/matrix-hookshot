@@ -119,7 +119,7 @@ export default class BotUsersManager {
      * @param roomId
      */
     onRoomJoin(botUser: BotUser, roomId: string): void {
-        log.info(`Bot user ${botUser.userId} joined room ${roomId}`);
+        log.debug(`Bot user ${botUser.userId} joined room ${roomId}`);
         const botUsers = this._botsInRooms.get(roomId) ?? new Set<BotUser>();
         botUsers.add(botUser);
         this._botsInRooms.set(roomId, botUsers);

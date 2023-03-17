@@ -1,0 +1,1 @@
+Implement grant system to internally record all approved connections in hookshot.

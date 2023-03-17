@@ -515,15 +515,15 @@ export class BridgeConfig {
     @hideKey()
     private readonly bridgePermissions: BridgePermissions;
 
-    constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
+    constructor(configData: BridgeConfigRoot, env?: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
         this.github = configData.github && new BridgeConfigGitHub(configData.github);
-        if (this.github?.auth && env["GITHUB_PRIVATE_KEY_FILE"]) {
-            this.github.auth.privateKeyFile = env["GITHUB_PRIVATE_KEY_FILE"];
+        if (this.github?.auth && env?.["GITHUB_PRIVATE_KEY_FILE"]) {
+            this.github.auth.privateKeyFile = env?.["GITHUB_PRIVATE_KEY_FILE"];
         }
-        if (this.github?.oauth && env["GITHUB_OAUTH_REDIRECT_URI"]) {
-            this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
+        if (this.github?.oauth && env?.["GITHUB_OAUTH_REDIRECT_URI"]) {
+            this.github.oauth.redirect_uri = env?.["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab && new BridgeConfigGitLab(configData.gitlab);
         this.figma = configData.figma;
@@ -577,10 +577,10 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         }
 
         // TODO: Formalize env support
-        if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
+        if (env?.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
             this.queue.monolithic = false;
-            this.queue.host = env.CFG_QUEUE_HOST;
-            this.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
+            this.queue.host = env?.CFG_QUEUE_HOST;
+            this.queue.port = env?.CFG_QUEUE_POST ? parseInt(env?.CFG_QUEUE_POST, 10) : undefined;
         }
 
         this.goNebMigrator = configData.goNebMigrator;

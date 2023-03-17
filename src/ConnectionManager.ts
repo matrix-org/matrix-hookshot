@@ -166,7 +166,14 @@ export class ConnectionManager extends EventEmitter {
         }
     }
 
-    public createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
+    /**
+     * This is called ONLY when we spot new state in a room and want to create a connection for it.
+     * @param roomId 
+     * @param state 
+     * @param rollbackBadState 
+     * @returns 
+     */
+    public async createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
         // Empty object == redacted
         if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
@@ -188,7 +195,7 @@ export class ConnectionManager extends EventEmitter {
             return;
         }
 
-        return connectionType.createConnectionForState(roomId, state, {
+        const connection = await connectionType.createConnectionForState(roomId, state, {
             as: this.as,
             intent: botUser.intent,
             config: this.config,
@@ -198,8 +205,19 @@ export class ConnectionManager extends EventEmitter {
             storage: this.storage,
             github: this.github,
         });
+
+        // Finally, ensure the connection is allowed by us.
+        await connection.ensureGrant?.(state.sender);
+        return connection;
     }
 
+    /**
+     * This is called when hookshot starts up, or a hookshot service bot has left
+     * and we need to recalculate the right bots for all the connections in a room.
+     * @param roomId 
+     * @param rollbackBadState 
+     * @returns 
+     */
     public async createConnectionsForRoomId(roomId: string, rollbackBadState: boolean) {
         const botUser = this.botUsersManager.getBotUserInRoom(roomId);
         if (!botUser) {

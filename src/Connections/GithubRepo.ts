@@ -28,6 +28,8 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
+import { GrantChecker } from "../grants/GrantCheck";
+import { GitHubGrantChecker } from "../Github/GrantChecker";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -359,11 +361,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, github, config}: ProvisionConnectionOpts) {
-        if (!github || !config.github) {
-            throw Error('GitHub is not configured');
-        }
-        const validData = this.validateState(data);
+    static async assertUserHasAccessToRepo(userId: string, org: string, repo: string, github: GithubInstance, tokenStore: UserTokenStore) {
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
@@ -371,8 +369,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const me = await octokit.users.getAuthenticated();
         let permissionLevel;
         try {
-            const repo = await octokit.repos.getCollaboratorPermissionLevel({owner: validData.org, repo: validData.repo, username: me.data.login });
-            permissionLevel = repo.data.permission;
+            const githubRepo = await octokit.repos.getCollaboratorPermissionLevel({owner: org, repo, username: me.data.login });
+            permissionLevel = githubRepo.data.permission;
         } catch (ex) {
             throw new ApiError("Could not determine if the user has access to this repository, does the repository exist?", ErrCode.ForbiddenUser);
         }
@@ -380,6 +378,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (permissionLevel !== "admin" && permissionLevel !== "write") {
             throw new ApiError("You must at least have write permissions to bridge this repository", ErrCode.ForbiddenUser);
         }
+    }
+
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, github, config}: ProvisionConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
+        const validData = this.validateState(data);
+        await this.assertUserHasAccessToRepo(userId, validData.org, validData.repo, github, tokenStore);
         const appOctokit = await github.getSafeOctokitForRepo(validData.org, validData.repo);
         if (!appOctokit) {
             throw new ApiError(
@@ -393,6 +399,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
+        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.getGrantKey(validData.org, validData.repo));
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,
@@ -413,7 +420,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubRepoConnection(roomId, as, intent, this.validateState(state.content, true), tokenStore, state.stateKey, github, config.github);
+
+        const connectionState = this.validateState(state.content, true);
+    
+        return new GitHubRepoConnection(roomId, as, intent, connectionState, tokenStore, state.stateKey, github, config.github);
     }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
@@ -501,6 +511,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
+    private readonly grantChecker = new GitHubGrantChecker(this.as, this.githubInstance, this.tokenStore);
+
     constructor(
         roomId: string,
         private readonly as: Appservice,
@@ -557,8 +569,15 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         return this.state.priority || super.priority;
     }
 
-    protected validateConnectionState(content: unknown) {
-        return GitHubRepoConnection.validateState(content);
+    public async ensureGrant(sender?: string, state = this.state) {
+        await this.grantChecker.assertConnectionGranted(this.roomId, state, sender);
+    }
+
+    protected async validateConnectionState(content: unknown) {
+        const state = GitHubRepoConnection.validateState(content);
+        // Validate the permissions of this state
+        await this.ensureGrant(undefined, state);
+        return state;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
@@ -1373,6 +1392,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        await this.grantChecker.ungrantConnection(this.roomId, { org: this.org, repo: this.repo });
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey);
@@ -1394,6 +1414,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return !!this.state.includingLabels.find(l => labels.includes(l));
         }
         return true;
+    }
+
+    public static getGrantKey(org: string, repo: string) {
+        return `${this.CanonicalEventType}/${org}/${repo}`;
     }
 }
 
