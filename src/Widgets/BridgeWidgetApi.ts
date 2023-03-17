@@ -10,6 +10,8 @@ import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
+import { GoNebMigrator } from "./GoNebMigrator";
+import { StatusCodes } from "http-status-codes";
 import { GithubInstance } from '../Github/GithubInstance';
 import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
 
@@ -17,6 +19,8 @@ const log = new Logger("BridgeWidgetApi");
 
 export class BridgeWidgetApi {
     private readonly api: ProvisioningApi;
+    private readonly goNebMigrator?: GoNebMigrator;
+
     constructor(
         private adminRooms: Map<string, AdminRoom>,
         private readonly config: BridgeConfig,
@@ -61,9 +65,37 @@ export class BridgeWidgetApi {
         this.api.addRoute('get', '/v1/service/:service/auth', wrapHandler(this.getAuth));
         this.api.addRoute('get', '/v1/service/:service/auth/:state', wrapHandler(this.getAuthPoll));
         this.api.addRoute('post', '/v1/service/:service/auth/logout', wrapHandler(this.postAuthLogout));
+
+        if (this.config.goNebMigrator) {
+            this.goNebMigrator = new GoNebMigrator(
+                this.config.goNebMigrator.apiUrl,
+                this.config.goNebMigrator.serviceIds,
+            );
+        }
+
+        this.api.addRoute("get", "/v1/:roomId/goNebConnections", wrapHandler(this.getGoNebConnections));
     }
 
-    private getBotUserInRoom(roomId: string, serviceType: string): BotUser {
+    private async getGoNebConnections(req: ProvisioningRequest, res: Response) {
+        if (!this.goNebMigrator) {
+            res.status(StatusCodes.NO_CONTENT).send();
+            return;
+        }
+
+        const roomId = req.params.roomId;
+
+        if (!req.userId) {
+            throw Error('Cannot get connections without a valid userId');
+        }
+
+        const botUser = this.getBotUserInRoom(roomId);
+        await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
+        const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, req.userId);
+
+        res.send(connections);
+    }
+
+    private getBotUserInRoom(roomId: string, serviceType?: string): BotUser {
         const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
         if (!botUser) {
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);

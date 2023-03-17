@@ -59,7 +59,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 
     const [connectionState, setConnectionState] = useState<GitHubRepoConnectionState|null>(null);
 
-    const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
+    const canEdit = !existingConnection?.id || (existingConnection?.canEdit ?? false);
     const commandPrefixRef = createRef<HTMLInputElement>();
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
@@ -152,8 +152,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && authedResponse?.authenticated && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection ? "Save" : "Add repository" }</Button>}
-            { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove repository</Button>}
+            { canEdit && authedResponse?.authenticated && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
+            { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Remove repository</Button>}
         </ButtonSet>
     </form>;
 };
@@ -169,6 +169,25 @@ const roomConfigText: IRoomConfigText = {
 const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
 export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+    const [ goNebConnections, setGoNebConnections ] = useState(undefined);
+
+    useEffect(() => {
+        api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
+            if (!res) return;
+            setGoNebConnections(res.github.map((config: any) => ({
+                config,
+            })));
+        }).catch(ex => {
+            console.warn("Failed to fetch go neb connections", ex);
+        });
+    }, [api, roomId]);
+
+    const compareConnections = useCallback(
+        (goNebConnection, nativeConnection) => goNebConnection.config.org === nativeConnection.config.org
+                                            && goNebConnection.config.repo === nativeConnection.config.repo,
+        []
+    );
+
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
         headerImg={GitHubIcon}
         showHeader={showHeader}
@@ -180,5 +199,7 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         listItemName={RoomConfigListItemFunc}
         connectionEventType={EventType}
         connectionConfigComponent={ConnectionConfiguration}
+        migrationCandidates={goNebConnections}
+        migrationComparator={compareConnections}
     />;
 };
