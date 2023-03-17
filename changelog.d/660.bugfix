@@ -1,1 +1,0 @@
-Fix Hookshot presenting room connections as editable if the user has a default-or-greater power levels. This was only a presentation bug, power levels were and are proeprly checked at creation/edit time.

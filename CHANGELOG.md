@@ -1,3 +1,57 @@
+3.0.0 (2023-03-17)
+==================
+
+This release includes some new landmark improvements to support **public Hookshots**.
+
+One key feature is the new Go-NEB migrator. If you run a Go-NEB instance currently and are looking for a way to migrate GitHub and RSS feeds
+over to Hookshot, there is a nice fancy widget feature for this.
+
+The other feature is we have now implemented a "Grant" system for authorising new connections in rooms. Simply put when you create a new connection
+in a room to a remote service like GitHub, we now store the validity of that authorisation in the bridge. This is a new change where previously we
+would not persist this authorization between sessions, so it was possible for users (who were permitted in the config to `manageConnections`) to create
+connections to anywhere Hookshot was already configured to talk to. This piece of extra security means we can now be more confident about allowing Hookshot
+to be used in public spaces.
+
+Upgrading to 3.0.0 **is breaking**, as the new grant system will run against any of your previous connections. It is imperative that where you have
+created or edited a connection manually in the room state, that you are still authenticated to the service it is connected to. For instance, ensure
+you are logged into GitHub if you have created manual GitHub connections. You can check the logs for any information on which connections have not
+been granted. 
+
+For any users who are not able to immediately update, but are nontheless worried about the consequeneces for this change: Do not panic. You can always
+update the permissions in your config to only allow `manageConnections` to users you trust.
+
+If you have any questions about this change, do not hesistate to reach out to `#hookshot:half-shot.uk`.
+
+Features
+--------
+
+- Add support from migrating go-neb services to Hookshot ([\#647](https://github.com/matrix-org/matrix-hookshot/issues/647))
+- Implement grant system to internally record all approved connections in hookshot. ([\#655](https://github.com/matrix-org/matrix-hookshot/issues/655))
+
+
+Bugfixes
+--------
+
+- `roomSetupWidget` in widget config does now allow an empty value ([\#657](https://github.com/matrix-org/matrix-hookshot/issues/657))
+- Fix service bots not being able to reject invites with a reason. ([\#659](https://github.com/matrix-org/matrix-hookshot/issues/659))
+- Fix Hookshot presenting room connections as editable if the user has a default-or-greater power levels. This was only a presentation bug, power levels were and are proeprly checked at creation/edit time. ([\#660](https://github.com/matrix-org/matrix-hookshot/issues/660))
+- Add support for logging into GitHub via OAuth from bridge widgets. ([\#661](https://github.com/matrix-org/matrix-hookshot/issues/661))
+
+
+Improved Documentation
+----------------------
+
+- Update docs and sample config for serviceBots. Thanks to @HarHarLinks. ([\#643](https://github.com/matrix-org/matrix-hookshot/issues/643))
+
+
+Internal Changes
+----------------
+
+- Replace `uuid` package with `crypto.randomUUID` function. ([\#640](https://github.com/matrix-org/matrix-hookshot/issues/640))
+- Minor improvements to widget UI styles. ([\#652](https://github.com/matrix-org/matrix-hookshot/issues/652))
+- Run docker-latest CI for incoming pull requests. ([\#662](https://github.com/matrix-org/matrix-hookshot/issues/662))
+
+
 2.7.0 (2023-01-20)
 ==================
 
