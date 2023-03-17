@@ -14,6 +14,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import { BridgeConfig, BridgeConfigGitHub } from "../Config/Config";
 import { GrantChecker } from "../grants/GrantCheck";
+import QuickLRU from "@alloc/quick-lru";
 export interface GitHubDiscussionConnectionState {
     owner: string;
     repo: string;
@@ -102,7 +103,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         return `${this.CanonicalEventType}/${state.owner}/${state.repo}`;
     }
 
-    private readonly sentEvents = new Set<string>(); //TODO: Set some reasonable limits
+    private readonly sentEvents = new QuickLRU<string, undefined>({ maxSize: 128 });
     private readonly grantChecker: GrantChecker;
 
     private readonly config: BridgeConfigGitHub;
@@ -140,7 +141,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         const qlClient = new GithubGraphQLClient(octokit);
         const commentId = await qlClient.addDiscussionComment(this.state.internalId, ev.content.body);
         log.info(`Sent ${commentId} for ${ev.event_id} (${ev.sender})`);
-        this.sentEvents.add(commentId);
+        this.sentEvents.set(commentId, undefined);
         return true;
     }
 
