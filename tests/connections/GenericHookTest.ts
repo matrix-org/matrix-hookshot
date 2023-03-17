@@ -301,7 +301,7 @@ describe("GenericHookConnection", () => {
         const intent = as.getIntentForUserId(senderUserId);
 
         // This should fail the first time, then pass once we've tried to invite the user
-        intent.ensureJoined = (roomId: string) => {
+        intent.ensureJoined = () => {
             throw new MatrixError({ errcode: "FORCED_FAILURE", error: "Test forced error"}, 500)
         };
         try {
