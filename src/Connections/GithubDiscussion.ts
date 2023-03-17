@@ -189,7 +189,7 @@ export class GitHubDiscussionConnection extends BaseConnection implements IConne
         }
     }
 
-    public async ensureGrant() {
-        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionConnection.grantKey(this.state));
+    public async ensureGrant(sender?: string) {
+        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionConnection.grantKey(this.state), sender);
     }
 }

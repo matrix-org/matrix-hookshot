@@ -570,7 +570,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async ensureGrant(sender?: string, state = this.state) {
-        await this.grantChecker.assertConnectionGranted(this.roomId, state);
+        await this.grantChecker.assertConnectionGranted(this.roomId, state, sender);
     }
 
     protected async validateConnectionState(content: unknown) {

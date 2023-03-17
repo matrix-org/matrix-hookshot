@@ -181,8 +181,8 @@ export class GitHubDiscussionSpace extends BaseConnection implements IConnection
     }
     
 
-    public async ensureGrant() {
-        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionSpace.grantKey(this.state));
+    public async ensureGrant(sender?: string) {
+        await this.grantChecker.assertConnectionGranted(this.roomId, GitHubDiscussionSpace.grantKey(this.state), sender);
     }
 
     public async onRemove() {
