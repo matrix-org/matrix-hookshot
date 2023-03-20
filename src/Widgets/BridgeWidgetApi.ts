@@ -333,7 +333,7 @@ export class BridgeWidgetApi {
         }
         
         // N.B. Service isn't really used.
-        const stateUserId = this.tokenStore.getUserIdForOAuthState(state);
+        const stateUserId = this.tokenStore.getUserIdForOAuthState(state, false);
 
         if (!stateUserId || req.userId !== stateUserId) {
             // If the state isn't found then either the state has been completed or the key is wrong.
