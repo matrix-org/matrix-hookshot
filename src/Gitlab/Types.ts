@@ -221,6 +221,8 @@ export interface ProjectHook extends ProjectHookOpts {
 }
 
 export interface SimpleProject {
+    avatar_url?: string;
+    description?: string;
     id: string;
     name: string;
     path: string;

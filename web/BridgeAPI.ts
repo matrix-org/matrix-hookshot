@@ -1,4 +1,4 @@
-import { BridgeRoomState, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
+import { BridgeRoomState, GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from '../src/Widgets/BridgeWidgetInterface';
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import { ExchangeOpenAPIRequestBody, ExchangeOpenAPIResponseBody } from "matrix-appservice-bridge";
 import { WidgetApi } from 'matrix-widget-api';
@@ -16,6 +16,10 @@ export class BridgeAPIError extends Error {
     public get error() {
         return this.body.error as string;
     }
+}
+
+interface RequestOpts {
+    abortController?: AbortController;
 }
 
 export class BridgeAPI {
@@ -70,9 +74,10 @@ export class BridgeAPI {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
     }
 
-    async request(method: string, endpoint: string, body?: unknown) {
+    async request(method: string, endpoint: string, body?: unknown, opts?: RequestOpts) {
         const res = await fetch(`${this.baseUrl}${endpoint}`, {
             cache: 'no-cache',
+            signal: opts?.abortController?.signal,
             method,
             body: body ? JSON.stringify(body) : undefined,
             headers: {
@@ -108,9 +113,13 @@ export class BridgeAPI {
     async getServiceConfig<T>(service: string): Promise<T> {
         return this.request('GET', `/widgetapi/v1/service/${service}/config`);
     }
-    
+
     async getConnectionsForRoom(roomId: string): Promise<GetConnectionsResponseItem[]> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
+    }
+
+    async getGoNebConnectionsForRoom(roomId: string): Promise<any|undefined> {
+        return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/goNebConnections`);
     }
 
     async getConnectionsForService<T extends GetConnectionsResponseItem >(roomId: string, service: string): Promise<GetConnectionsForServiceResponse<T>> {
@@ -129,13 +138,32 @@ export class BridgeAPI {
         return this.request('DELETE', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections/${encodeURIComponent(connectionId)}`);
     }
 
-    getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>): Promise<R[]> {
+    getConnectionTargets<R>(type: string, filters?: Record<never, never>|Record<string, string>, abortController?: AbortController): Promise<R[]> {
         const searchParams = filters && !!Object.keys(filters).length && new URLSearchParams(filters);
-        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`);
+        return this.request('GET', `/widgetapi/v1/targets/${encodeURIComponent(type)}${searchParams ? `?${searchParams}` : ''}`, undefined, { abortController });
     }
+
+    async getAuth(service: string): Promise<GetAuthResponse> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/auth`);
+    }
+
+    async getAuthPoll(service: string, state: string): Promise<GetAuthPollResponse> {
+        return this.request('GET', `/widgetapi/v1/service/${service}/auth/${state}`);
+    }
+
+    async serviceLogout(service: string): Promise<GetAuthResponse> {
+        return this.request('POST', `/widgetapi/v1/service/${service}/auth/logout`);
+    }
+}
+
+export const embedTypeParameter = 'io_element_embed_type';
+export enum EmbedType {
+    IntegrationManager = 'integration-manager',
+    Default = 'default',
 }
 
 export type BridgeConfig = FunctionComponent<{
     api: BridgeAPI,
     roomId: string,
+    showHeader: boolean,
 }>;

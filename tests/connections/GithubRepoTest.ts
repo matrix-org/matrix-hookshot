@@ -5,6 +5,7 @@ import { UserTokenStore } from "../../src/UserTokenStore";
 import { DefaultConfig } from "../../src/Config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
+import { expect } from "chai";
 
 const ROOM_ID = "!foo:bar";
 
@@ -39,10 +40,12 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 	});
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
+	const intent = as.getIntentForUserId('@github:example.test');
 	const githubInstance = new GithubInstance("foo", "bar", new URL("https://github.com"));
 	const connection = new GitHubRepoConnection(
 		ROOM_ID,
 		as,
+		intent,
 		GitHubRepoConnection.validateState({
 			org: "a-fake-org",
 			repo: "a-fake-repo",
@@ -55,7 +58,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		DefaultConfig.github!
 	);
-	return {connection, as};
+	return {connection, intent};
 }
 
 describe("GitHubRepoConnection", () => {
@@ -64,7 +67,7 @@ describe("GitHubRepoConnection", () => {
 			GitHubRepoConnection.validateState({
 				org: "foo",
 				repo: "bar",
-				ignoreHooks: ["issue", "pull_request", "release"],
+				enableHooks: ["issue", "pull_request", "release"],
 				commandPrefix: "!foo",
 				showIssueRoomLink: true,
 				prDiff: {
@@ -81,6 +84,16 @@ describe("GitHubRepoConnection", () => {
 				}
 			} as GitHubRepoConnectionState as unknown as Record<string, unknown>);
 		});
+		it("will convert ignoredHooks for existing state", () => {
+			const state = GitHubRepoConnection.validateState({
+				org: "foo",
+				repo: "bar",
+				ignoreHooks: ["issue"],
+				enableHooks: ["issue", "pull_request", "release"],
+				commandPrefix: "!foo",
+			} as GitHubRepoConnectionState as unknown as Record<string, unknown>, true);
+			expect(state.enableHooks).to.not.contain('issue');
+		});
 		it("will disallow invalid state", () => {
 			try {
 				GitHubRepoConnection.validateState({
@@ -93,12 +106,12 @@ describe("GitHubRepoConnection", () => {
 				}
 			}
 		});
-		it("will disallow ignoreHooks to contains invalid enums if this is new state", () => {
+		it("will disallow enabledHooks to contains invalid enums if this is new state", () => {
 			try {
 				GitHubRepoConnection.validateState({
 					org: "foo",
 					repo: "bar",
-					ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+					enabledHooks: ["not-real"],
 				}, false);
 			} catch (ex) {
 				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
@@ -106,25 +119,25 @@ describe("GitHubRepoConnection", () => {
 				}
 			}
 		});
-		it("will allow ignoreHooks to contains invalid enums if this is old state", () => {
+		it("will allow enabledHooks to contains invalid enums if this is old state", () => {
 			GitHubRepoConnection.validateState({
 				org: "foo",
 				repo: "bar",
-				ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+				enabledHooks: ["not-real"],
 			}, true);
 		});
 	});
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
-			const { connection, as } = createConnection();
+			const { connection, intent } = createConnection();
 			await connection.onIssueCreated(GITHUB_ISSUE_CREATED_PAYLOAD as never);
 			// Statement text.
-			as.botIntent.expectEventBodyContains('**alice** created new issue', 0);
-			as.botIntent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
-			as.botIntent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
+			intent.expectEventBodyContains('**alice** created new issue', 0);
+			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
+			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
 		});
 		it("will filter out issues not matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
 			});
 			await connection.onIssueCreated({
@@ -138,10 +151,10 @@ describe("GitHubRepoConnection", () => {
 			} as never);
 			// ..or issues with no labels
 			await connection.onIssueCreated(GITHUB_ISSUE_CREATED_PAYLOAD as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will filter out issues matching excludingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
 			});
 			await connection.onIssueCreated({
@@ -153,10 +166,10 @@ describe("GitHubRepoConnection", () => {
 					}],
 				}
 			} as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will include issues matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingIssues: ["include-me"]
 			});
 			await connection.onIssueCreated({
@@ -168,7 +181,7 @@ describe("GitHubRepoConnection", () => {
 					}],
 				}
 			} as never);
-			as.botIntent.expectEventBodyContains('**alice** created new issue', 0);
+			intent.expectEventBodyContains('**alice** created new issue', 0);
 		});
 	});
 });

@@ -4,8 +4,9 @@ import { ConnectionManager } from "../ConnectionManager";
 import { Logger } from "matrix-appservice-bridge";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem, GetConnectionTypeResponseItem } from "./api";
 import { ApiError, ErrCode } from "../api";
-import { Intent } from "matrix-bot-sdk";
+import { Appservice } from "matrix-bot-sdk";
 import Metrics from "../Metrics";
+import BotUsersManager from "../Managers/BotUsersManager";
 
 const log = new Logger("Provisioner");
 
@@ -19,7 +20,8 @@ export class Provisioner {
     constructor(
         private readonly config: BridgeConfigProvisioning,
         private readonly connMan: ConnectionManager,
-        private readonly intent: Intent,
+        private readonly botUsersManager: BotUsersManager,
+        private readonly as: Appservice,
         additionalRoutes: {route: string, router: Router}[]) {
         if (!this.config.secret) {
             throw Error('Missing secret in provisioning config');
@@ -96,8 +98,14 @@ export class Provisioner {
     private async checkUserPermission(requiredPermission: "read"|"write", req: Request<{roomId: string}, unknown, unknown, {userId: string}>, res: Response, next: NextFunction) {
         const userId = req.query.userId;
         const roomId = req.params.roomId;
+
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId);
+        if (!botUser) {
+            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+        }
+
         try {
-            await assertUserPermissionsInRoom(userId, roomId, requiredPermission, this.intent);
+            await assertUserPermissionsInRoom(userId, roomId, requiredPermission, botUser.intent);
             next();
         } catch (ex) {
             next(ex);
@@ -130,22 +138,38 @@ export class Provisioner {
     }
 
     private async putConnection(req: Request<{roomId: string, type: string}, unknown, Record<string, unknown>, {userId: string}>, res: Response<GetConnectionsResponseItem>, next: NextFunction) {
+        const roomId = req.params.roomId;
+        const userId = req.query.userId;
+        const eventType = req.params.type;
+        const connectionType = this.connMan.getConnectionTypeForEventType(eventType);
+        if (!connectionType) {
+            throw new ApiError("Unknown event type", ErrCode.NotFound);
+        }
+        const serviceType = connectionType.ServiceCategory;
+
         // Need to figure out which connections are available
         try {
             if (!req.body || typeof req.body !== "object") {
                 throw new ApiError("A JSON body must be provided", ErrCode.BadValue);
             }
-            this.connMan.validateCommandPrefix(req.params.roomId, req.body);
-            const result = await this.connMan.provisionConnection(req.params.roomId, req.query.userId, req.params.type, req.body);
+            this.connMan.validateCommandPrefix(roomId, req.body);
+
+            const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+            if (!botUser) {
+                throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+            }
+
+            const result = await this.connMan.provisionConnection(roomId, botUser.intent, userId, connectionType, req.body);
             if (!result.connection.getProvisionerDetails) {
                 throw new Error('Connection supported provisioning but not getProvisionerDetails');
             }
+
             res.send({
                 ...result.connection.getProvisionerDetails(true),
                 warning: result.warning,
             });
         } catch (ex) {
-            log.error(`Failed to create connection for ${req.params.roomId}`, ex);
+            log.error(`Failed to create connection for ${roomId}`, ex);
             return next(ex);
         }
     }

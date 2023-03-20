@@ -33,7 +33,7 @@ export abstract class HookshotJiraApi extends JiraApi {
         return this.res;
     }
 
-    public abstract getAllProjects(): AsyncIterable<JiraProject>;
+    public abstract getAllProjects(query?: string, maxResults?: number): AsyncIterable<JiraProject>;
 
     protected async apiRequest<T>(path: string, method?: Method, data?: undefined): Promise<T>
     protected async apiRequest<T, R>(path: string, method: Method, data?: R): Promise<T> {

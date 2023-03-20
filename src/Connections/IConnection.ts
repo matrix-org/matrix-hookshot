@@ -1,7 +1,7 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
-import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
@@ -24,6 +24,19 @@ export interface IConnection {
     roomId: string;
 
     priority: number;
+
+    /**
+     * Ensures that the current state loaded into the connection has been granted by
+     * the remote service. I.e. If the room is bridged into a GitHub repository,
+     * check that the *sender* has permission to bridge it.
+     *
+     * If a grant cannot be found, it may be determined by doing an API lookup against
+     * the remote service.
+     * 
+     * @param sender The matrix ID of the sender of the event.
+     * @throws If the grant cannot be found, and cannot be detetermined, this will throw.
+     */
+    ensureGrant?: (sender?: string) => void;
 
     /**
      * The unique connection ID. This is a opaque hash of the roomId, connection type and state key.
@@ -81,13 +94,14 @@ export interface ConnectionDeclaration<C extends IConnection = IConnection> {
     EventTypes: string[];
     ServiceCategory: string;
     provisionConnection?: (roomId: string, userId: string, data: Record<string, unknown>, opts: ProvisionConnectionOpts) => Promise<{connection: C, warning?: ConnectionWarning}>;
-    createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>
+    createConnectionForState: (roomId: string, state: StateEvent<Record<string, unknown>>, opts: InstantiateConnectionOpts) => C|Promise<C>;
 }
 
 export const ConnectionDeclarations: Array<ConnectionDeclaration> = [];
 
 export interface InstantiateConnectionOpts {
     as: Appservice,
+    intent: Intent,
     config: BridgeConfig,
     tokenStore: UserTokenStore,
     commentProcessor: CommentProcessor,

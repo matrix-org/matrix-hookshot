@@ -6,15 +6,27 @@ import { KeyObject } from 'crypto';
 import { HookshotJiraApi, JiraClient } from '../Client';
 import JiraApi from 'jira-client';
 
+function createSearchTerm(name?: string) {
+    return name?.toLowerCase()?.replaceAll(/[^a-z0-9]/g, '') || '';
+}
+
 export class HookshotOnPremJiraApi extends HookshotJiraApi {
 
     constructor(options: JiraApi.JiraApiOptions, res: JiraAPIAccessibleResource) {
         super(options, res);
     }
 
-    async * getAllProjects(): AsyncIterable<JiraProject> {
+    async * getAllProjects(search?: string): AsyncIterable<JiraProject> {
         // Note, status is ignored.
         const results = await this.genericGet(`project`) as JiraOnPremProjectSearchResponse;
+
+        // Reasonable search algorithm.
+        const searchTerm = search && createSearchTerm(search);
+        if (searchTerm) {
+            yield *results.filter(p => createSearchTerm(p.name).includes(searchTerm) || createSearchTerm(p.key).includes(searchTerm));
+            return;
+        }
+
         yield *results;
     }
 }

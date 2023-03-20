@@ -35,6 +35,10 @@ export class GitLabClient {
         };
     }
 
+    async get(path: string) {
+        return await axios.get(path, { ...this.defaultConfig, responseType: 'arraybuffer'});
+    }
+
     async version() {
         return (await axios.get("api/v4/versions", this.defaultConfig)).data;
     }
@@ -80,7 +84,7 @@ export class GitLabClient {
                     min_access_level: minAccess,
                     simple: true,
                     pagination: "keyset",
-                    per_page: 50,
+                    per_page: 10,
                     order_by: "id",
                     sort: "asc",
                     id_after: idAfter,

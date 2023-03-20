@@ -1,9 +1,10 @@
 /* eslint-disable no-console */
-import { h, Component } from 'preact';
+import { Component } from 'preact';
 import WA, { MatrixCapabilities } from 'matrix-widget-api';
-import { BridgeAPI, BridgeAPIError } from './BridgeAPI';
+import { BridgeAPI, BridgeAPIError, EmbedType, embedTypeParameter } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
-import { ErrorPane } from './components/elements';
+import { LoadingSpinner } from './components/elements/LoadingSpinner';
+import { Card, ErrorPane } from './components/elements';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
 
@@ -19,6 +20,7 @@ interface ICompleteState extends IMinimalState {
         [sectionName: string]: boolean;
     },
     serviceScope?: string,
+    embedType: EmbedType,
     kind: "invite"|"admin"|"roomConfig",
 }
 
@@ -55,6 +57,7 @@ export default class App extends Component<void, IState> {
         const roomId = assertParam(qs, 'roomId');
         const widgetKind = qs.get('kind') as "invite"|"admin"|"roomConfig";
         const serviceScope = qs.get('serviceScope');
+        const embedType = qs.get(embedTypeParameter);
         // Fetch via config.
         this.widgetApi = new WA.WidgetApi(widgetId);
         this.widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
@@ -84,6 +87,7 @@ export default class App extends Component<void, IState> {
             roomId,
             supportedServices,
             serviceScope: serviceScope || undefined,
+            embedType: embedType === EmbedType.IntegrationManager ? EmbedType.IntegrationManager : EmbedType.Default,
             kind: widgetKind,
             busy: false,
         });
@@ -110,7 +114,9 @@ export default class App extends Component<void, IState> {
         if (this.state.error) {
             content = <ErrorPane>{this.state.error}</ErrorPane>;
         } else if (this.state.busy) {
-            content = <div class="spinner" />;
+            content = <Card>
+                <LoadingSpinner />
+            </Card>;
         }
 
         if ("kind" in this.state) {
@@ -123,6 +129,7 @@ export default class App extends Component<void, IState> {
                     roomId={this.state.roomId}
                     supportedServices={this.state.supportedServices}
                     serviceScope={this.state.serviceScope}
+                    embedType={this.state.embedType}
                     bridgeApi={this.bridgeApi}
                     widgetApi={this.widgetApi}
                  />;
@@ -135,7 +142,9 @@ export default class App extends Component<void, IState> {
         }
 
         return (
-            <div className="app">
+            <div style={{
+                padding: this.state.embedType === "integration-manager" ? "0" : "16px",
+            }}>
                 {content}
             </div>
         );

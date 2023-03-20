@@ -3,6 +3,8 @@ import { UserTokenStore } from "../../src/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";
+import { expect } from "chai";
+import { BridgeConfigGitLab } from "../../src/Config/Config";
 
 const ROOM_ID = "!foo:bar";
 
@@ -37,10 +39,13 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 	});
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
+	const intent = as.getIntentForUserId('@gitlab:example.test');
 	const connection = new GitLabRepoConnection(
 		ROOM_ID,
 		"state_key",
 		as,
+		{} as BridgeConfigGitLab,
+		intent,
 		GitLabRepoConnection.validateState({
 			instance: "bar",
 			path: "foo",
@@ -51,7 +56,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 			url: "https://gitlab.example.com"
 		},
 	);
-	return {connection, as};
+	return {connection, intent};
 }
 
 describe("GitLabRepoConnection", () => {
@@ -60,7 +65,7 @@ describe("GitLabRepoConnection", () => {
 			GitLabRepoConnection.validateState({
 				instance: "foo",
 				path: "bar/baz",
-				ignoreHooks: [
+				enableHooks: [
 					"merge_request.open",
 					"merge_request.close",
 					"merge_request.merge",
@@ -79,6 +84,17 @@ describe("GitLabRepoConnection", () => {
 				excludingLabels: ["but-not-me"],
 			} as GitLabRepoConnectionState as unknown as Record<string, unknown>);
 		});
+		it("will convert ignoredHooks for existing state", () => {
+			const state = GitLabRepoConnection.validateState({
+				instance: "foo",
+				path: "bar/baz",
+				ignoreHooks: [
+					"merge_request",
+				],
+				commandPrefix: "!gl",
+			} as GitLabRepoConnectionState as unknown as Record<string, unknown>, true);
+			expect(state.enableHooks).to.not.contain('merge_request');
+		});
 		it("will disallow invalid state", () => {
 			try {
 				GitLabRepoConnection.validateState({
@@ -91,12 +107,12 @@ describe("GitLabRepoConnection", () => {
 				}
 			}
 		});
-		it("will disallow ignoreHooks to contains invalid enums if this is new state", () => {
+		it("will disallow enabledHooks to contains invalid enums if this is new state", () => {
 			try {
 				GitLabRepoConnection.validateState({
 					instance: "bar",
 					path: "foo",
-					ignoreHooks: ["issue", "pull_request", "release", "not-real"],
+					enabledHooks: ["not-real"],
 				}, false);
 			} catch (ex) {
 				if (ex instanceof ApiError === false || ex.errcode !== ErrCode.BadValue) {
@@ -104,25 +120,25 @@ describe("GitLabRepoConnection", () => {
 				}
 			}
 		});
-		it("will allow ignoreHooks to contains invalid enums if this is old state", () => {
+		it("will allow enabledHooks to contains invalid enums if this is old state", () => {
 			GitLabRepoConnection.validateState({
 				instance: "bar",
 				path: "foo",
-				ignoreHooks: ["issues", "merge_request", "foo"],
+				enabledHooks: ["not-real"],
 			}, true);
 		});
 	});
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
-			const { connection, as } = createConnection();
+			const { connection, intent } = createConnection();
 			await connection.onMergeRequestOpened(GITLAB_ISSUE_CREATED_PAYLOAD as never);
 			// Statement text.
-			as.botIntent.expectEventBodyContains('**alice** opened a new MR', 0);
-			as.botIntent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url, 0);
-			as.botIntent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.title, 0);
+			intent.expectEventBodyContains('**alice** opened a new MR', 0);
+			intent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url, 0);
+			intent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.title, 0);
 		});
 		it("will filter out issues not matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
 			});
 			await connection.onMergeRequestOpened({
@@ -133,10 +149,10 @@ describe("GitLabRepoConnection", () => {
 			} as never);
 			// ..or issues with no labels
 			await connection.onMergeRequestOpened(GITLAB_ISSUE_CREATED_PAYLOAD as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will filter out issues matching excludingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
 			});
 			await connection.onMergeRequestOpened({
@@ -145,10 +161,10 @@ describe("GitLabRepoConnection", () => {
 					title: "exclude-me",
 				}],
 			} as never);
-			as.botIntent.expectNoEvent();
+			intent.expectNoEvent();
 		});
 		it("will include issues matching includingLabels.", async () => {
-			const { connection, as } = createConnection({
+			const { connection, intent } = createConnection({
 				includingIssues: ["include-me"]
 			});
 			await connection.onMergeRequestOpened({
@@ -157,7 +173,7 @@ describe("GitLabRepoConnection", () => {
 					title: "include-me",
 				}],
 			} as never);
-			as.botIntent.expectEventBodyContains('**alice** opened a new MR', 0);
+			intent.expectEventBodyContains('**alice** opened a new MR', 0);
 		});
 	});
 });

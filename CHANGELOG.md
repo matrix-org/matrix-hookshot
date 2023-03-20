@@ -1,3 +1,131 @@
+3.0.0 (2023-03-17)
+==================
+
+This release includes some new landmark improvements to support **public Hookshots**.
+
+One key feature is the new Go-NEB migrator. If you run a Go-NEB instance currently and are looking for a way to migrate GitHub and RSS feeds
+over to Hookshot, there is a nice fancy widget feature for this.
+
+The other feature is we have now implemented a "Grant" system for authorising new connections in rooms. Simply put when you create a new connection
+in a room to a remote service like GitHub, we now store the validity of that authorisation in the bridge. This is a new change where previously we
+would not persist this authorization between sessions, so it was possible for users (who were permitted in the config to `manageConnections`) to create
+connections to anywhere Hookshot was already configured to talk to. This piece of extra security means we can now be more confident about allowing Hookshot
+to be used in public spaces.
+
+Upgrading to 3.0.0 **is breaking**, as the new grant system will run against any of your previous connections. It is imperative that where you have
+created or edited a connection manually in the room state, that you are still authenticated to the service it is connected to. For instance, ensure
+you are logged into GitHub if you have created manual GitHub connections. You can check the logs for any information on which connections have not
+been granted. 
+
+For any users who are not able to immediately update, but are nontheless worried about the consequeneces for this change: Do not panic. You can always
+update the permissions in your config to only allow `manageConnections` to users you trust.
+
+If you have any questions about this change, do not hesistate to reach out to `#hookshot:half-shot.uk`.
+
+Features
+--------
+
+- Add support from migrating go-neb services to Hookshot ([\#647](https://github.com/matrix-org/matrix-hookshot/issues/647))
+- Implement grant system to internally record all approved connections in hookshot. ([\#655](https://github.com/matrix-org/matrix-hookshot/issues/655))
+
+
+Bugfixes
+--------
+
+- `roomSetupWidget` in widget config does now allow an empty value ([\#657](https://github.com/matrix-org/matrix-hookshot/issues/657))
+- Fix service bots not being able to reject invites with a reason. ([\#659](https://github.com/matrix-org/matrix-hookshot/issues/659))
+- Fix Hookshot presenting room connections as editable if the user has a default-or-greater power levels. This was only a presentation bug, power levels were and are proeprly checked at creation/edit time. ([\#660](https://github.com/matrix-org/matrix-hookshot/issues/660))
+- Add support for logging into GitHub via OAuth from bridge widgets. ([\#661](https://github.com/matrix-org/matrix-hookshot/issues/661))
+
+
+Improved Documentation
+----------------------
+
+- Update docs and sample config for serviceBots. Thanks to @HarHarLinks. ([\#643](https://github.com/matrix-org/matrix-hookshot/issues/643))
+
+
+Internal Changes
+----------------
+
+- Replace `uuid` package with `crypto.randomUUID` function. ([\#640](https://github.com/matrix-org/matrix-hookshot/issues/640))
+- Minor improvements to widget UI styles. ([\#652](https://github.com/matrix-org/matrix-hookshot/issues/652))
+- Run docker-latest CI for incoming pull requests. ([\#662](https://github.com/matrix-org/matrix-hookshot/issues/662))
+
+
+2.7.0 (2023-01-20)
+==================
+
+Features
+--------
+
+- The room configuration widget now features an improved project search component, which now shows project avatars and descriptions. ([\#624](https://github.com/matrix-org/matrix-hookshot/issues/624))
+
+
+2.6.1 (2023-01-16)
+==================
+
+Features
+--------
+
+- The message in the admin room when creating a webhook now also shows the name and links to the room. ([\#620](https://github.com/matrix-org/matrix-hookshot/issues/620))
+
+
+Bugfixes
+--------
+
+- Fixed generic webhook 'user is already in the room' error ([\#627](https://github.com/matrix-org/matrix-hookshot/issues/627))
+- Hookshot now handles `uk.half-shot.matrix-hookshot.generic.hook` state event updates ([\#628](https://github.com/matrix-org/matrix-hookshot/issues/628))
+
+
+2.6.0 (2023-01-13)
+==================
+
+Features
+--------
+
+- Add support for end-to-bridge encryption via MSC3202. ([\#299](https://github.com/matrix-org/matrix-hookshot/issues/299))
+- Add support for additional bot users called "service bots" which handle a particular connection type, so that different services can be used through different bot users. ([\#573](https://github.com/matrix-org/matrix-hookshot/issues/573))
+- Add new GitHubRepo connection config setting `workflowRun.workflows` to filter run reports by workflow name. ([\#588](https://github.com/matrix-org/matrix-hookshot/issues/588))
+- The GitHub/GitLab connection state configuration has changed. The configuration option `ignoreHooks` is now deprecated, and new connections may not use this options.
+  Users should instead explicitly configure all the hooks they want to enable with the `enableHooks` option. Existing connections will continue to work with both options. ([\#592](https://github.com/matrix-org/matrix-hookshot/issues/592))
+- A11y: Add alt tags to all images. ([\#602](https://github.com/matrix-org/matrix-hookshot/issues/602))
+
+
+Bugfixes
+--------
+
+- Parent projects are now taken into account when calculating a user's access level to a GitLab project. ([\#539](https://github.com/matrix-org/matrix-hookshot/issues/539))
+- Ensure bridge treats published and drafted GitHub releases as different events. ([\#582](https://github.com/matrix-org/matrix-hookshot/issues/582))
+- Fix a bug where unknown keys in a connections state would be clobbered when updated via widget UI. ([\#587](https://github.com/matrix-org/matrix-hookshot/issues/587))
+- Improve webhook code editor performance. ([\#601](https://github.com/matrix-org/matrix-hookshot/issues/601))
+- Correctly apply CSS for recent RSS feed changes. ([\#604](https://github.com/matrix-org/matrix-hookshot/issues/604))
+- Improve startup stability by not loading all room state at once. ([\#614](https://github.com/matrix-org/matrix-hookshot/issues/614))
+- You can now add multiple GitLab connections to the same room with the same project path, if they are under different instances. ([\#617](https://github.com/matrix-org/matrix-hookshot/issues/617))
+
+
+Improved Documentation
+----------------------
+
+- Clarify GitLab setup docs ([\#350](https://github.com/matrix-org/matrix-hookshot/issues/350))
+- Change URL protocol in the ocumentation and sample configs to HTTPS. ([\#623](https://github.com/matrix-org/matrix-hookshot/issues/623))
+
+
+Deprecations and Removals
+-------------------------
+
+- Remove support for Pantalaimon-based encryption. ([\#299](https://github.com/matrix-org/matrix-hookshot/issues/299))
+
+
+Internal Changes
+----------------
+
+- RSS feed polling now uses cache headers sent by servers, which should mean we will be more conservative on resources. ([\#583](https://github.com/matrix-org/matrix-hookshot/issues/583))
+- Only build ARM images when merging or releasing, due to slow ARM build times. ([\#589](https://github.com/matrix-org/matrix-hookshot/issues/589))
+- Increase maximum size of incoming webhook payload from `100kb` to `10mb`. ([\#606](https://github.com/matrix-org/matrix-hookshot/issues/606))
+- Mark encryption feature as experimental (config option is now `experimentalEncryption`). ([\#610](https://github.com/matrix-org/matrix-hookshot/issues/610))
+- Cache yarn dependencies during Docker build. ([\#615](https://github.com/matrix-org/matrix-hookshot/issues/615))
+
+
 2.5.0 (2022-12-02)
 ==================
 

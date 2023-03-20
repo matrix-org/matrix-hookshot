@@ -10,7 +10,7 @@ import { IntentMock } from "./utils/IntentMock";
 const ROOM_ID = "!foo:bar";
 
 function createAdminRoom(data: any = {admin_user: "@admin:bar"}): [AdminRoom, IntentMock] {
-    const intent = IntentMock.create();
+    const intent = IntentMock.create("@admin:bar");
     if (!data.admin_user) {
         data.admin_user = "@admin:bar";
     }

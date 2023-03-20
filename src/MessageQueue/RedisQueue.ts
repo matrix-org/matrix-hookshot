@@ -1,11 +1,10 @@
 
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessageOut } from "./Types";
 import { Redis, default as redis } from "ioredis";
-import { BridgeConfig, BridgeConfigQueue } from "../Config/Config";
+import { BridgeConfigQueue } from "../Config/Config";
 import { EventEmitter } from "events";
 import { Logger } from "matrix-appservice-bridge";
-
-import {v4 as uuid} from "uuid";
+import { randomUUID } from 'node:crypto';
 
 const log = new Logger("RedisMq");
 
@@ -26,7 +25,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redisSub = new redis(config.port ?? 6379, config.host ?? "localhost");
         this.redisPub = new redis(config.port ?? 6379, config.host ?? "localhost");
         this.redis = new redis(config.port ?? 6379, config.host ?? "localhost");
-        this.myUuid = uuid();
+        this.myUuid = randomUUID();
         this.redisSub.on("pmessage", (_: string, channel: string, message: string) => {
             const msg = JSON.parse(message) as MessageQueueMessageOut<unknown>;
             if (msg.for && msg.for !== this.myUuid) {
@@ -63,7 +62,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
 
     public async push<T>(message: MessageQueueMessage<T>, single = false) {
         if (!message.messageId) {
-            message.messageId = uuid();
+            message.messageId = randomUUID();
         }
         if (single) {
             const recipient = await this.getRecipientForEvent(message.eventName);

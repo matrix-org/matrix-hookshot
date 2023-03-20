@@ -2,6 +2,7 @@ import { MemoryStorageProvider as MSP } from "matrix-bot-sdk";
 import { IBridgeStorageProvider } from "./StorageProvider";
 import { IssuesGetResponseData } from "../Github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
+import QuickLRU from "@alloc/quick-lru";
 
 export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();
@@ -9,6 +10,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private reviewData: Map<string, string> = new Map();
     private figmaCommentIds: Map<string, string> = new Map();
     private widgetSessions: Map<string, ProvisionSession> = new Map();
+    private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
 
     constructor() {
         super();
@@ -66,4 +68,11 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
             .forEach(s => this.widgetSessions.delete(s.token));
     }
 
+    public async getStoredTempFile(key: string): Promise<string|null> {
+        return this.storedFiles.get(key) ?? null;
+    }
+    
+    public async setStoredTempFile(key: string, value: string) {
+        this.storedFiles.set(key, value);
+    }
 }

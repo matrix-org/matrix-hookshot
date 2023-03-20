@@ -1,137 +1,15 @@
-import { h, FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useEffect, useMemo } from "preact/hooks";
-import { BridgeAPI, BridgeConfig } from "../../BridgeAPI";
+import { FunctionComponent, createRef } from "preact";
+import { useState, useCallback, useMemo } from "preact/hooks";
+import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
-import { ErrCode } from "../../../src/api";
-import { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraTargetFilter, JiraProjectConnectionInstanceTarget, JiraProjectConnectionTarget } from "../../../src/Connections/JiraProject";
-import { InputField, ButtonSet, Button, ErrorPane } from "../elements";
+import { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraProjectConnectionInstanceTarget } from "../../../src/Connections/JiraProject";
+import { InputField, ButtonSet, Button } from "../elements";
+import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import JiraIcon from "../../icons/jira.png";
+import ConnectionSearch from "../elements/ConnectionSearch";
+import { DropItem } from "../elements/DropdownSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.jira.project";
-
-function getInstancePrettyName(instance: JiraProjectConnectionInstanceTarget) {
-    return `${instance.name} (${instance.url})`;
-}
-
-function getProjectPrettyName(project: JiraProjectConnectionProjectTarget) {
-    return `${project.key} (${project.name})`;
-}
-
-const ConnectionSearch: FunctionComponent<{api: BridgeAPI, onPicked: (state: JiraProjectConnectionState) => void}> = ({api, onPicked}) => {
-    const [filter, setFilter] = useState<JiraTargetFilter>({});
-    const [results, setResults] = useState<JiraProjectConnectionProjectTarget[]|null>(null);
-    const [instances, setInstances] = useState<JiraProjectConnectionInstanceTarget[]|null>(null);
-    const [isConnected, setIsConnected] = useState<boolean|null>(null);
-    const [debounceTimer, setDebounceTimer] = useState<number|undefined>(undefined);
-    const [currentProject, setCurrentProject] = useState<{url: string, name: string}|null>(null);
-    const [searchError, setSearchError] = useState<string|null>(null);
-
-    const searchFn = useCallback(async() => {
-        try {
-            const res = await api.getConnectionTargets<JiraProjectConnectionTarget>(EventType, filter);
-            setIsConnected(true);
-            if (!filter.instanceName) {
-                setInstances(res as JiraProjectConnectionInstanceTarget[]);
-                if (res[0]) {
-                    setFilter({instanceName: res[0].name});
-                }
-            } else {
-                setResults(res as JiraProjectConnectionProjectTarget[]);
-            }
-        } catch (ex: any) {
-            if (ex?.errcode === ErrCode.ForbiddenUser) {
-                setIsConnected(false);
-                setInstances([]);
-            } else {
-                setSearchError("There was an error fetching search results.");
-                // Rather than raising an error, let's just log and let the user retry a query.
-                console.warn(`Failed to get connection targets from query:`, ex);
-            }
-        }
-    }, [api, filter]);
-
-    const updateSearchFn = useCallback((evt: InputEvent) => {
-        const project = (evt.target as HTMLOptionElement).value;
-        const hasResult = results?.find(n =>
-            project === n.state.url ||
-            project === getProjectPrettyName(n)
-        );
-        if (hasResult) {
-            onPicked(hasResult.state);
-            setCurrentProject({
-                url: hasResult.state.url,
-                name: getProjectPrettyName(hasResult),
-            });
-        }
-    }, [onPicked, results]);
-
-    useEffect(() => {
-        if (debounceTimer) {
-            clearTimeout(debounceTimer);
-        }
-        // Browser types
-        setDebounceTimer(setTimeout(searchFn, 500) as unknown as number);
-        return () => {
-            clearTimeout(debounceTimer);
-        }
-        // Things break if we depend on the thing we are clearing.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchFn, filter]);
-
-    const onInstancePicked = useCallback((evt: InputEvent) => {
-        // Reset the search string.
-        setFilter({
-            instanceName: (evt.target as HTMLSelectElement).selectedOptions[0].value,
-        });
-    }, []);
-
-    const instanceListResults = useMemo(
-        () => instances?.map(i => <option key={i.url} value={i.url}>{getInstancePrettyName(i)}</option>),
-        [instances]
-    );
-
-    const projectListResults = useMemo(
-        () => results?.map(i => <option key={i.key} value={i.state.url}>{getProjectPrettyName(i)}</option>),
-        [results]
-    );
-
-
-    return <div>
-        {isConnected === null && <p> Loading JIRA connection. </p>}
-        {isConnected === false && <p> You are not logged into JIRA. </p>}
-        {isConnected === true && instances?.length === 0 && <p> You are not connected to any JIRA instances. </p>}
-        {searchError && <ErrorPane> {searchError} </ErrorPane> }
-        <InputField visible={!!instances?.length} label="JIRA Instance" noPadding={true}>
-            <select onChange={onInstancePicked}>
-                {instanceListResults}
-            </select>
-        </InputField>
-        <InputField visible={!!instances?.length} label="Project" noPadding={true}>
-            <small>{currentProject?.url}</small>
-            <input onChange={updateSearchFn} value={currentProject?.name} list="jira-projects" type="text" />
-            <datalist id="jira-projects">
-                {projectListResults}
-            </datalist>
-        </InputField>
-    </div>;
-}
-
-const EventCheckbox: FunctionComponent<{
-    allowedEvents: string[],
-    onChange: (evt: HTMLInputElement) => void,
-    eventName: string,
-}> = ({allowedEvents, onChange, eventName, children}) => {
-    return <li>
-        <label>
-            <input
-            type="checkbox"
-            x-event-name={eventName}
-            checked={allowedEvents.includes(eventName)}
-            onChange={onChange} />
-            { children }
-        </label>
-    </li>;
-};
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
     const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);
@@ -163,8 +41,38 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         }
     }, [canEdit, existingConnection, newConnectionState, allowedEvents, commandPrefixRef, onSave]);
 
+    const getInstances = useMemo(() => async () => {
+        const targets = await api.getConnectionTargets<JiraProjectConnectionInstanceTarget>(EventType, { });
+        return targets;
+    }, [api]);
+
+    const getProjects = useMemo(() => async (instanceName: string, search?: string, abortController?: AbortController) => {
+        const targets = await api.getConnectionTargets<JiraProjectConnectionProjectTarget>(EventType, {
+            instanceName,
+            ...(search && { search })
+        }, abortController);
+        return targets.map(project => ({
+            title: project.key,
+            description: project.name,
+            value: project.state.url,
+        } as DropItem));
+    }, [api]);
+
+    const setInstance = useCallback((instance: string, url: string) => {
+        setNewConnectionState({
+            url,
+        })
+    },[setNewConnectionState]);
+    const clearInstance = useCallback(() => setNewConnectionState(null), [setNewConnectionState]);
+
     return <form onSubmit={handleSave}>
-        {!existingConnection && <ConnectionSearch api={api} onPicked={setNewConnectionState} />}
+        {!existingConnection && <ConnectionSearch
+            serviceName="JIRA"
+            getInstances={getInstances}
+            getProjects={getProjects}
+            onPicked={setInstance}
+            onClear={clearInstance}
+        />}
         <InputField visible={!!existingConnection || !!newConnectionState} label="Command Prefix" noPadding={true}>
             <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!jira" />
         </InputField>
@@ -173,14 +81,14 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             <ul>
                 Issues
                 <ul>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="issue_created" onChange={toggleEvent}>Created</EventCheckbox>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="issue_updated" onChange={toggleEvent}>Updated</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="issue_created" onChange={toggleEvent}>Created</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="issue_updated" onChange={toggleEvent}>Updated</EventHookCheckbox>
                 </ul>
                 Versions
                 <ul>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_created" onChange={toggleEvent}>Created</EventCheckbox>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_updated" onChange={toggleEvent}>Updated</EventCheckbox>
-                    <EventCheckbox allowedEvents={allowedEvents} eventName="version_released" onChange={toggleEvent}>Released</EventCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="version_created" onChange={toggleEvent}>Created</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="version_updated" onChange={toggleEvent}>Updated</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={allowedEvents} hookEventName="version_released" onChange={toggleEvent}>Released</EventHookCheckbox>
                 </ul>
             </ul>
         </InputField>
@@ -200,9 +108,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: JiraProjectResponseItem) => c.config.url;
 
-export const JiraProjectConfig: BridgeConfig = ({ api, roomId }) => {
+export const JiraProjectConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<never, JiraProjectResponseItem, JiraProjectConnectionState>
         headerImg={JiraIcon}
+        showHeader={showHeader}
         api={api}
         roomId={roomId}
         type="jira"

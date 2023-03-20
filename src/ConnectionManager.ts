@@ -4,8 +4,8 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
-import { Appservice, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
@@ -18,6 +18,7 @@ import { JiraProject, JiraVersion } from "./Jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./UserTokenStore";
+import BotUsersManager from "./Managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
@@ -42,6 +43,7 @@ export class ConnectionManager extends EventEmitter {
         private readonly commentProcessor: CommentProcessor,
         private readonly messageClient: MessageSenderClient,
         private readonly storage: IBridgeStorageProvider,
+        private readonly botUsersManager: BotUsersManager,
         private readonly github?: GithubInstance
     ) {
         super();
@@ -66,21 +68,29 @@ export class ConnectionManager extends EventEmitter {
 
     /**
      * Used by the provisioner API to create new connections on behalf of users.
+     *
      * @param roomId The target Matrix room.
+     * @param intent Bot user intent to create the connection with.
      * @param userId The requesting Matrix user.
-     * @param type The type of room (corresponds to the event type of the connection)
+     * @param connectionType The connection declaration to provision.
      * @param data The data corresponding to the connection state. This will be validated.
      * @returns The resulting connection.
      */
-    public async provisionConnection(roomId: string, userId: string, type: string, data: Record<string, unknown>) {
-        log.info(`Looking to provision connection for ${roomId} ${type} for ${userId} with data ${JSON.stringify(data)}`);
-        const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(type));
+    public async provisionConnection(
+        roomId: string,
+        intent: Intent,
+        userId: string,
+        connectionType: ConnectionDeclaration,
+        data: Record<string, unknown>,
+    ) {
+        log.info(`Looking to provision connection for ${roomId} ${connectionType.ServiceCategory} for ${userId} with data ${JSON.stringify(data)}`);
         if (connectionType?.provisionConnection) {
             if (!this.config.checkPermission(userId, connectionType.ServiceCategory, BridgePermissionLevel.manageConnections)) {
                 throw new ApiError(`User is not permitted to provision connections for this type of service.`, ErrCode.ForbiddenUser);
             }
             const result = await connectionType.provisionConnection(roomId, userId, data, {
                 as: this.as,
+                intent: intent,
                 config: this.config,
                 tokenStore: this.tokenStore,
                 commentProcessor: this.commentProcessor,
@@ -99,14 +109,15 @@ export class ConnectionManager extends EventEmitter {
      * Check if a state event is sent by a user who is allowed to configure the type of connection the state event covers.
      * If it isn't, optionally revert the state to the last-known valid value, or redact it if that isn't possible.
      * @param roomId The target Matrix room.
+     * @param intent The bot intent to use.
      * @param state The state event for altering a connection in the room.
      * @param serviceType The type of connection the state event is altering.
      * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
      */
-    public verifyStateEvent(roomId: string, state: StateEvent, serviceType: string, rollbackBadState: boolean) {
+    public verifyStateEvent(roomId: string, intent: Intent, state: StateEvent, serviceType: string, rollbackBadState: boolean) {
         if (!this.isStateAllowed(roomId, state, serviceType)) {
             if (rollbackBadState) {
-                void this.tryRestoreState(roomId, state, serviceType);
+                void this.tryRestoreState(roomId, intent, state, serviceType);
             }
             log.error(`User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
             return false;
@@ -121,50 +132,72 @@ export class ConnectionManager extends EventEmitter {
      * @param state The state event for altering a connection in the room targeted by {@link connection}.
      * @returns Whether the state event was allowed to be set. If not, the state will be reverted asynchronously.
      */
-    public verifyStateEventForConnection(connection: IConnection, state: StateEvent, rollbackBadState: boolean) {
+    public verifyStateEventForConnection(connection: IConnection, state: StateEvent, rollbackBadState: boolean): boolean {
         const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
-        return !this.verifyStateEvent(connection.roomId, state, cd.ServiceCategory, rollbackBadState);
+        const botUser = this.botUsersManager.getBotUserInRoom(connection.roomId, cd.ServiceCategory);
+        if (!botUser) {
+            log.error(`Failed to find a bot in room '${connection.roomId}' for service type '${cd.ServiceCategory}' when verifying state for connection`);
+            throw Error('Could not find a bot to handle this connection');
+        }
+        return this.verifyStateEvent(connection.roomId, botUser.intent, state, cd.ServiceCategory, rollbackBadState);
     }
 
     private isStateAllowed(roomId: string, state: StateEvent, serviceType: string) {
-        return state.sender === this.as.botUserId
+        return this.botUsersManager.isBotUser(state.sender)
             || this.config.checkPermission(state.sender, serviceType, BridgePermissionLevel.manageConnections);
     }
 
-    private async tryRestoreState(roomId: string, originalState: StateEvent, serviceType: string) {
+    private async tryRestoreState(roomId: string, intent: Intent, originalState: StateEvent, serviceType: string) {
         let state = originalState;
         let attemptsRemaining = 5;
         try {
             do {
                 if (state.unsigned.replaces_state) {
-                    state = new StateEvent(await this.as.botClient.getEvent(roomId, state.unsigned.replaces_state));
+                    state = new StateEvent(await intent.underlyingClient.getEvent(roomId, state.unsigned.replaces_state));
                 } else {
-                    await this.as.botClient.redactEvent(roomId, originalState.eventId,
+                    await intent.underlyingClient.redactEvent(roomId, originalState.eventId,
                         `User ${originalState.sender} is disallowed to manage state for ${serviceType} in ${roomId}`);
                     return;
                 }
             } while (--attemptsRemaining > 0 && !this.isStateAllowed(roomId, state, serviceType));
-            await this.as.botClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
+            await intent.underlyingClient.sendStateEvent(roomId, state.type, state.stateKey, state.content);
         } catch (ex) {
             log.warn(`Unable to undo state event from ${state.sender} for disallowed ${serviceType} connection management in ${roomId}`);
         }
     }
 
-    public createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
+    /**
+     * This is called ONLY when we spot new state in a room and want to create a connection for it.
+     * @param roomId 
+     * @param state 
+     * @param rollbackBadState 
+     * @returns 
+     */
+    public async createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
         // Empty object == redacted
         if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
             return;
         }
-        const connectionType = ConnectionDeclarations.find(c => c.EventTypes.includes(state.type));
+        const connectionType = this.getConnectionTypeForEventType(state.type);
         if (!connectionType) {
             return;
         }
-        if (!this.verifyStateEvent(roomId, state, connectionType.ServiceCategory, rollbackBadState)) {
+
+        // Get a bot user for the connection type
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId, connectionType.ServiceCategory);
+        if (!botUser) {
+            log.error(`Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connection for state`);
+            throw Error('Could not find a bot to handle this connection');
+        }
+
+        if (!this.verifyStateEvent(roomId, botUser.intent, state, connectionType.ServiceCategory, rollbackBadState)) {
             return;
         }
-        return connectionType.createConnectionForState(roomId, state, {
+
+        const connection = await connectionType.createConnectionForState(roomId, state, {
             as: this.as,
+            intent: botUser.intent,
             config: this.config,
             tokenStore: this.tokenStore,
             commentProcessor: this.commentProcessor,
@@ -172,13 +205,29 @@ export class ConnectionManager extends EventEmitter {
             storage: this.storage,
             github: this.github,
         });
+
+        // Finally, ensure the connection is allowed by us.
+        await connection.ensureGrant?.(state.sender);
+        return connection;
     }
 
+    /**
+     * This is called when hookshot starts up, or a hookshot service bot has left
+     * and we need to recalculate the right bots for all the connections in a room.
+     * @param roomId 
+     * @param rollbackBadState 
+     * @returns 
+     */
     public async createConnectionsForRoomId(roomId: string, rollbackBadState: boolean) {
-        let connectionCreated = false;
+        const botUser = this.botUsersManager.getBotUserInRoom(roomId);
+        if (!botUser) {
+            log.error(`Failed to find a bot in room '${roomId}' when creating connections`);
+            return;
+        }
+
         // This endpoint can be heavy, wrap it in pillows.
         const state = await retry(
-            () => this.as.botClient.getRoomState(roomId),
+            () => botUser.intent.underlyingClient.getRoomState(roomId),
             GET_STATE_ATTEMPTS,
             GET_STATE_TIMEOUT_MS,
             retryMatrixErrorFilter
@@ -190,13 +239,11 @@ export class ConnectionManager extends EventEmitter {
                 if (conn) {
                     log.debug(`Room ${roomId} is connected to: ${conn}`);
                     this.push(conn);
-                    connectionCreated = true;
                 }
             } catch (ex) {
                 log.error(`Failed to create connection for ${roomId}:`, ex);
             }
         }
-        return connectionCreated;
     }
 
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
@@ -289,10 +336,14 @@ export class ConnectionManager extends EventEmitter {
     public getConnectionsForFeedUrl(url: string): FeedConnection[] {
         return this.connections.filter(c => c instanceof FeedConnection && c.feedUrl === url) as FeedConnection[];
     }
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
         return this.connections.filter((c) => (c instanceof typeT)) as T[];
+    }
+
+    public getConnectionTypeForEventType(eventType: string): ConnectionDeclaration | undefined {
+        return ConnectionDeclarations.find(c => c.EventTypes.includes(eventType));
     }
 
     public isRoomConnected(roomId: string): boolean {
@@ -344,7 +395,7 @@ export class ConnectionManager extends EventEmitter {
     /**
      * Removes connections for a room from memory. This does NOT remove the state
      * event from the room.
-     * @param roomId 
+     * @param roomId
      */
     public async removeConnectionsForRoom(roomId: string) {
         log.info(`Removing all connections from ${roomId}`);
@@ -363,14 +414,14 @@ export class ConnectionManager extends EventEmitter {
 
     /**
      * Get a list of possible targets for a given connection type when provisioning
-     * @param userId 
-     * @param type 
+     * @param userId
+     * @param type
      */
     async getConnectionTargets(userId: string, type: string, filters: Record<string, unknown> = {}): Promise<unknown[]> {
         switch (type) {
         case GitLabRepoConnection.CanonicalEventType: {
             const configObject = this.validateConnectionTarget(userId, this.config.gitlab, "GitLab", "gitlab");
-            return await GitLabRepoConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
+            return await GitLabRepoConnection.getConnectionTargets(userId, configObject, filters, this.tokenStore, this.storage);
         }
         case GitHubRepoConnection.CanonicalEventType: {
             this.validateConnectionTarget(userId, this.config.github, "GitHub", "github");

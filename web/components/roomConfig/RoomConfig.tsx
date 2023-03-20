@@ -1,38 +1,59 @@
-import { h, FunctionComponent } from "preact";
+import { FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
-import { ErrorPane, ListItem, WarningPane } from "../elements";
+import { ErrorPane, ListItem, WarningPane, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
+import { LoadingSpinner } from '../elements/LoadingSpinner';
 
 
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
+    loginLabel?: string;
+    showAuthPrompt?: boolean;
     onSave: (newConfig: ConnectionState) => void,
     existingConnection?: ConnectionType;
     onRemove?: () => void,
     api: BridgeAPI;
 }
 
+export interface IRoomConfigText {
+    header: string;
+    login?: string;
+    createNew: string;
+    listCanEdit: string;
+    listCantEdit: string;
+}
+
 interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     api: BridgeAPI;
     roomId: string;
     type: string;
+    showAuthPrompt?: boolean;
+    showHeader: boolean;
     headerImg: string;
-    text: {
-        header: string;
-        createNew: string;
-        listCanEdit: string;
-        listCantEdit: string;
-    };
+    text: IRoomConfigText;
     connectionEventType: string;
     listItemName: (c: ConnectionType) => string,
     connectionConfigComponent: FunctionComponent<ConnectionConfigurationProps<SConfig, ConnectionType, ConnectionState>>;
+    migrationCandidates?: ConnectionType[];
+    migrationComparator?: (migrated: ConnectionType, native: ConnectionType) => boolean;
 }
-
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
-    const { api, roomId, type, headerImg, text, listItemName, connectionEventType } = props;
+    const {
+        api,
+        roomId,
+        type,
+        showAuthPrompt = false,
+        headerImg,
+        showHeader,
+        text,
+        listItemName,
+        connectionEventType,
+        migrationCandidates,
+        migrationComparator,
+    } = props;
     const ConnectionConfigComponent = props.connectionConfigComponent;
     const [ error, setError ] = useState<null|{header?: string, message: string, isWarning?: boolean, forPrevious?: boolean}>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
@@ -58,6 +79,26 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
             });
         });
     }, [api, roomId, type, newConnectionKey]);
+
+    const [ toMigrate, setToMigrate ] = useState<ConnectionType[]>([]);
+
+    useEffect(() => {
+        // produce `toMigrate` composed of `migrationCandidates` with anything already in `connections` filtered out
+        // use `migrationComparator` to determine duplicates
+        if (!migrationCandidates) {
+            setToMigrate([]);
+            return;
+        }
+
+        if (!connections || !migrationComparator) {
+            setToMigrate(migrationCandidates);
+            return;
+        }
+
+        setToMigrate(
+            migrationCandidates.filter(cand => !connections.find(c => migrationComparator(cand, c)))
+        );
+    }, [ connections, migrationCandidates, migrationComparator ]);
 
     useEffect(() => {
         api.getServiceConfig<SConfig>(type)
@@ -91,30 +132,36 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         });
     }, [api, roomId, connectionEventType]);
 
-    return <main>
-        {
-            error &&
+    return <Card>
+        <main>
+            {
+                error &&
                 (!error.isWarning
-                    ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
-                    : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
+                        ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
+                        : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
                 )
-        }
-        <header className={style.header}>
-            <img alt="" src={headerImg} />
-            <h1>{text.header}</h1> 
-        </header>
-        { canEditRoom && <section>
-            <h2>{text.createNew}</h2>
-            {serviceConfig && <ConnectionConfigComponent
-                key={newConnectionKey}
-                api={api}
-                serviceConfig={serviceConfig}
-                onSave={handleSaveOnCreation}
-            />}
-        </section>}
-        <section>
-            <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
-            { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
+            }
+            { showHeader &&
+                <header className={style.header}>
+                    <img alt="" src={headerImg} />
+                    <h1>{text.header}</h1>
+                </header>
+            }
+            { canEditRoom && <section>
+                <h2>{text.createNew}</h2>
+                {serviceConfig && <ConnectionConfigComponent
+                    key={newConnectionKey}
+                    api={api}
+                    serviceConfig={serviceConfig}
+                    onSave={handleSaveOnCreation}
+                    loginLabel={text.login}
+                    showAuthPrompt={showAuthPrompt}
+                />}
+            </section>}
+            { connections === null && <LoadingSpinner /> }
+            { !!connections?.length && <section>
+                <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
+                { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                     <ConnectionConfigComponent
                         api={api}
                         serviceConfig={serviceConfig}
@@ -135,7 +182,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         }}
                         onRemove={() => {
                             api.removeConnection(roomId, c.id).then(() => {
-                                setConnections(conn => conn.filter(conn => c.id !== conn.id));
+                                setConnections(conns => conns?.filter(conn => c.id !== conn.id) || []);
                                 setError(null);
                             }).catch(ex => {
                                 console.warn("Failed to remove connection", ex);
@@ -148,6 +195,18 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     />
                 </ListItem>)
             }
-        </section>
-    </main>;
+        </section>}
+        { toMigrate.length > 0 && <section>
+            <h2> Migrate connections </h2>
+            { serviceConfig && toMigrate.map(c => <ListItem key={JSON.stringify(c)} text={listItemName(c)}>
+                  <ConnectionConfigComponent
+                      api={api}
+                      serviceConfig={serviceConfig}
+                      existingConnection={c}
+                      onSave={handleSaveOnCreation}
+                  />
+            </ListItem>) }
+        </section>}
+        </main>
+    </Card>;
 };

@@ -1,8 +1,8 @@
 import { BridgeConfig } from "./Config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { Appservice, Intent } from "matrix-bot-sdk";
+import { Appservice } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { v4 as uuid } from "uuid";
+import { randomUUID } from 'node:crypto';
 
 export interface IMatrixSendMessage {
     sender: string|null;
@@ -32,7 +32,7 @@ export class MatrixSender {
         this.mq.subscribe("matrix.message");
         this.mq.on<IMatrixSendMessage>("matrix.message", async (msg) => {
             try {
-                await this.sendMatrixMessage(msg.messageId || uuid(), msg.data);
+                await this.sendMatrixMessage(msg.messageId || randomUUID(), msg.data);
             } catch (ex) {
                 log.error(`Failed to send message (${msg.data.roomId}, ${msg.data.sender}, ${msg.data.type})`);
             }

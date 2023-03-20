@@ -1,4 +1,4 @@
-import {Appservice, StateEvent} from "matrix-bot-sdk";
+import {Appservice, Intent, StateEvent} from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfigFeeds } from "../Config/Config";
@@ -10,7 +10,7 @@ import axios from "axios";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { StatusCodes } from "http-status-codes"; 
+import { StatusCodes } from "http-status-codes";
 const log = new Logger("FeedConnection");
 const md = new markdown();
 
@@ -42,13 +42,13 @@ const MAX_LAST_RESULT_ITEMS = 5;
 export class FeedConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.feed";
     static readonly EventTypes = [ FeedConnection.CanonicalEventType ];
-    static readonly ServiceCategory = "feed";
+    static readonly ServiceCategory = "feeds";
 
-    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, storage}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, intent, storage}: InstantiateConnectionOpts) {
         if (!config.feeds?.enabled) {
             throw Error('RSS/Atom feeds are not configured');
         }
-        return new FeedConnection(roomId, event.stateKey, event.content, config.feeds, as, storage);
+        return new FeedConnection(roomId, event.stateKey, event.content, config.feeds, as, intent, storage);
     }
 
     static async validateUrl(url: string): Promise<void> {
@@ -74,7 +74,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         }
     }
 
-    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {as, config, storage}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {as, intent, config, storage}: ProvisionConnectionOpts) {
         if (!config.feeds?.enabled) {
             throw new ApiError('RSS/Atom feeds are not configured', ErrCode.DisabledFeature);
         }
@@ -90,8 +90,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
         const state = { url, label: data.label };
 
-        const connection = new FeedConnection(roomId, url, state, config.feeds, as, storage);
-        await as.botClient.sendStateEvent(roomId, FeedConnection.CanonicalEventType, url, state);
+        const connection = new FeedConnection(roomId, url, state, config.feeds, as, intent, storage);
+        await intent.underlyingClient.sendStateEvent(roomId, FeedConnection.CanonicalEventType, url, state);
 
         return {
             connection,
@@ -104,14 +104,13 @@ export class FeedConnection extends BaseConnection implements IConnection {
             service: "feeds",
             eventType: FeedConnection.CanonicalEventType,
             type: "Feed",
-            // TODO: Add ability to configure the bot per connnection type.
             botUserId: botUserId,
         }
     }
 
     public getProvisionerDetails(): FeedResponseItem {
         return {
-            ...FeedConnection.getProvisionerDetails(this.as.botUserId),
+            ...FeedConnection.getProvisionerDetails(this.intent.userId),
             id: this.connectionId,
             config: {
                 url: this.feedUrl,
@@ -136,6 +135,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         private state: FeedConnectionState,
         private readonly config: BridgeConfigFeeds,
         private readonly as: Appservice,
+        private readonly intent: Intent,
         private readonly storage: IBridgeStorageProvider
     ) {
         super(roomId, stateKey, FeedConnection.CanonicalEventType)
@@ -160,7 +160,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             message += `: ${entryDetails}`;
         }
 
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: 'm.notice',
             format: "org.matrix.custom.html",
             formatted_body: md.renderInline(message),
@@ -190,7 +190,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             return;
         }
         if (!this.hasError) {
-            await this.as.botIntent.sendEvent(this.roomId, {
+            await this.intent.sendEvent(this.roomId, {
                 msgtype: 'm.notice',
                 format: 'm.text',
                 body: `Error fetching ${this.feedUrl}: ${error.cause.message}`
@@ -202,7 +202,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     // needed to ensure that the connection is removable
     public async onRemove(): Promise<void> {
         log.info(`Removing connection ${this.connectionId}`);
-        await this.as.botClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, this.feedUrl, {});
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, this.feedUrl, {});
     }
 
     toString(): string {

@@ -1,12 +1,13 @@
-import { Appservice, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { BridgeConfigFigma } from "../Config/Config";
+import { BridgeConfig } from "../Config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 
 const log = new Logger("FigmaFileConnection");
 
@@ -29,7 +30,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
     ];
     static readonly ServiceCategory = "figma";
 
-    
+
     public static validateState(data: Record<string, unknown>): FigmaFileConnectionState {
         if (!data.fileId || typeof data.fileId !== "string") {
             throw Error('Missing or invalid fileId');
@@ -43,33 +44,36 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
     }
 
-    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, storage}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, intent, storage}: InstantiateConnectionOpts) {
         if (!config.figma) {
             throw Error('Figma is not configured');
         }
-        return new FigmaFileConnection(roomId, event.stateKey, event.content, config.figma, as, storage);
+        return new FigmaFileConnection(roomId, event.stateKey, event.content, config, as, intent, storage);
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, config, storage}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, intent, config, storage}: ProvisionConnectionOpts) {
         if (!config.figma) {
             throw Error('Figma is not configured');
         }
         const validState = this.validateState(data);
-        const connection = new FigmaFileConnection(roomId, validState.fileId, validState, config.figma, as, storage);
-        await as.botClient.sendStateEvent(roomId, FigmaFileConnection.CanonicalEventType, validState.fileId, validState);
+        const connection = new FigmaFileConnection(roomId, validState.fileId, validState, config, as, intent, storage);
+        await new GrantChecker(as.botIntent, "figma").grantConnection(roomId, { fileId: validState.fileId, instanceName: validState.instanceName  || "none"});
+        await intent.underlyingClient.sendStateEvent(roomId, FigmaFileConnection.CanonicalEventType, validState.fileId, validState);
         return {
             connection,
             stateEventContent: validState,
         }
     }
 
+    private readonly grantChecker: GrantChecker<{fileId: string, instanceName: string}> = new ConfigGrantChecker("figma", this.as, this.config);
 
     constructor(
         roomId: string,
         stateKey: string,
         private state: FigmaFileConnectionState,
-        private readonly config: BridgeConfigFigma,
+        private readonly config: BridgeConfig,
         private readonly as: Appservice,
+        private readonly intent: Intent,
         private readonly storage: IBridgeStorageProvider) {
         super(roomId, stateKey, FigmaFileConnection.CanonicalEventType)
     }
@@ -90,6 +94,14 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         return this.state.priority || super.priority;
     }
 
+    public async ensureGrant(sender?: string) {
+        return this.grantChecker.assertConnectionGranted(this.roomId, { fileId: this.state.fileId, instanceName: this.state.instanceName || "none"}, sender);
+    }
+
+    public async onRemove() {
+        return this.grantChecker.ungrantConnection(this.roomId, { fileId: this.state.fileId, instanceName: this.state.instanceName || "none"});
+    }
+
     public async handleNewComment(payload: FigmaPayload) {
         // We need to check if the comment was actually new.
         // There isn't a way to tell how the comment has changed, so for now check the timestamps
@@ -100,8 +112,13 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
             return;
         }
 
-        const intent = this.as.getIntentForUserId(this.config.overrideUserId || this.as.botUserId);
-    
+        let intent;
+        if (this.config.figma?.overrideUserId) {
+            intent = this.as.getIntentForUserId(this.config.figma.overrideUserId);
+        } else {
+            intent = this.intent;
+        }
+
         const permalink = `https://www.figma.com/file/${payload.file_key}#${payload.comment_id}`;
         const comment = payload.comment.map(({text}) => text).join("\n");
         const empty = "‎"; // This contains an empty character to thwart the notification matcher.
@@ -109,7 +126,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         let content: Record<string, unknown>|undefined = undefined;
         const parentEventId = payload.parent_id && await this.storage.getFigmaCommentEventId(this.roomId, payload.parent_id);
         if (parentEventId) {
-            content = { 
+            content = {
                 "m.relates_to": {
                     rel_type: THREAD_RELATION_TYPE,
                     event_id: parentEventId,

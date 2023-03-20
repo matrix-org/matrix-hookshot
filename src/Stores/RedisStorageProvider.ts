@@ -15,6 +15,8 @@ const GH_ISSUES_KEY = "gh.issues";
 const GH_ISSUES_LAST_COMMENT_KEY = "gh.issues.last_comment";
 const GH_ISSUES_REVIEW_DATA_KEY = "gh.issues.review_data";
 const FIGMA_EVENT_COMMENT_ID = "figma.comment_event_id";
+const STORED_FILES_KEY = "storedfiles.";
+const STORED_FILES_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
@@ -64,6 +66,9 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         super(new redis(port, host), contextSuffix);
         this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER).catch((ex) => {
             log.warn("Failed to set expiry time on as.completed_transactions", ex);
+        });
+        this.redis.expire(STORED_FILES_KEY, STORED_FILES_EXPIRE_AFTER).catch((ex) => {
+            log.warn(`Failed to set expiry time on ${STORED_FILES_KEY}`, ex);
         });
     }
 
@@ -180,5 +185,13 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
             newContext.push(this.contextSuffix);
         }
         return new RedisStorageContextualProvider(this.redis, newContext.join("."));
+    }
+
+    public async getStoredTempFile(key: string) {
+        return this.redis.get(STORED_FILES_KEY + key);
+    }
+    
+    public async setStoredTempFile(key: string, value: string) {
+        await this.redis.set(STORED_FILES_KEY + key, value);
     }
 }

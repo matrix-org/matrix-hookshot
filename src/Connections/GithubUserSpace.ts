@@ -5,6 +5,8 @@ import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
 import { GithubInstance } from "../Github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
+import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
+import { BridgeConfig } from "../Config/Config";
 
 const log = new Logger("GitHubOwnerSpace");
 
@@ -28,13 +30,17 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
     static readonly QueryRoomRegex = /#github_(.+):.*/;
     static readonly ServiceCategory = "github";
 
+    private static grantKey(state: GitHubUserSpaceConnectionState) {
+        return `${this.CanonicalEventType}/${state.username}`;
+    }
+
     public static async createConnectionForState(roomId: string, event: StateEvent<any>, {
-        github, config, as}: InstantiateConnectionOpts) {
+        github, config, intent, as}: InstantiateConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
         return new GitHubUserSpace(
-            await as.botClient.getSpace(roomId), event.content, event.stateKey
+            as, config, await intent.underlyingClient.getSpace(roomId), event.content, event.stateKey
         );
     }
 
@@ -104,7 +110,7 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
             preset: 'public_chat',
             room_alias_name: `github_${state.username.toLowerCase()}`,
             initial_state: [
-                
+
                 {
                     type: this.CanonicalEventType,
                     content: state,
@@ -137,11 +143,20 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
         };
     }
 
-    constructor(public readonly space: Space,
+    private readonly grantChecker: GrantChecker;
+
+    constructor(as: Appservice,
+        config: BridgeConfig,
+        public readonly space: Space,
         private state: GitHubUserSpaceConnectionState,
         stateKey: string) {
             super(space.roomId, stateKey, GitHubUserSpace.CanonicalEventType);
+            this.grantChecker = new ConfigGrantChecker("github", as, config);
         }
+
+    public ensureGrant(sender?: string) {
+        return this.grantChecker.assertConnectionGranted(this.roomId, GitHubUserSpace.grantKey(this.state), sender);
+    }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
         return GitHubUserSpace.EventTypes.includes(eventType) && this.stateKey === stateKey;

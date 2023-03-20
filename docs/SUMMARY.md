@@ -27,3 +27,4 @@
 - [Workers](./advanced/workers.md)
 - [🔒 Encryption](./advanced/encryption.md)
 - [🪀 Widgets](./advanced/widgets.md)
+- [Service Bots](./advanced/service_bots.md)

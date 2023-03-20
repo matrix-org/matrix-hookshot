@@ -8,7 +8,7 @@ import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
-import { GITHUB_CLOUD_URL } from "../Github/GithubInstance";
+import { GithubInstance, GITHUB_CLOUD_URL } from "../Github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 
 const log = new Logger("Config");
@@ -79,7 +79,7 @@ export class BridgeConfigGitHub {
 
     @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
     readonly userIdPrefix: string;
-    
+
     @configKey("URL for enterprise deployments. Does not include /api/v3", true)
     private enterpriseUrl?: string;
 
@@ -95,10 +95,10 @@ export class BridgeConfigGitHub {
         this.baseUrl = yaml.enterpriseUrl ? new URL(yaml.enterpriseUrl) : GITHUB_CLOUD_URL;
     }
 
-    @hideKey()
-    public get publicConfig() {
+    public publicConfig(githubInstance?: GithubInstance) {
         return {
             userIdPrefix: this.userIdPrefix,
+            newInstallationUrl: githubInstance?.newInstallationUrl?.toString(),
         }
     }
 }
@@ -129,12 +129,12 @@ export interface BridgeConfigJiraYAML {
 }
 export class BridgeConfigJira implements BridgeConfigJiraYAML {
     static CLOUD_INSTANCE_NAME = "api.atlassian.com";
-    
+
     @configKey("Webhook settings for JIRA")
     readonly webhook: {
         secret: string;
     };
-    
+
     // To hide the undefined for now
     @hideKey()
     @configKey("URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)", true)
@@ -411,6 +411,14 @@ interface BridgeConfigEncryption {
     storagePath: string;
 }
 
+export interface BridgeConfigServiceBot {
+    localpart: string;
+    displayname?: string;
+    avatar?: string;
+    prefix: string;
+    service: string;
+}
+
 export interface BridgeConfigProvisioning {
     bindAddress?: string;
     port?: number;
@@ -423,8 +431,14 @@ export interface BridgeConfigMetrics {
     port?: number;
 }
 
+export interface BridgeConfigGoNebMigrator {
+    apiUrl: string;
+    serviceIds?: string[];
+}
+
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
+    serviceBots?: BridgeConfigServiceBot[];
     bridge: BridgeConfigBridge;
     experimentalEncryption?: BridgeConfigEncryption;
     figma?: BridgeConfigFigma;
@@ -442,6 +456,7 @@ export interface BridgeConfigRoot {
     widgets?: BridgeWidgetConfigYAML;
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
+    goNebMigrator?: BridgeConfigGoNebMigrator;
 }
 
 export class BridgeConfig {
@@ -478,6 +493,8 @@ export class BridgeConfig {
     public readonly feeds?: BridgeConfigFeeds;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
+    @configKey("Define additional bot users for specific services", true)
+    public readonly serviceBots?: BridgeConfigServiceBot[];
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;
     @configKey("Provisioning API for integration managers", true)
@@ -492,18 +509,21 @@ export class BridgeConfig {
  'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
     public readonly listeners: BridgeConfigListener[];
 
+    @configKey("go-neb migrator configuration", true)
+    public readonly goNebMigrator?: BridgeConfigGoNebMigrator;
+
     @hideKey()
     private readonly bridgePermissions: BridgePermissions;
 
-    constructor(configData: BridgeConfigRoot, env: {[key: string]: string|undefined}) {
+    constructor(configData: BridgeConfigRoot, env?: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
         this.github = configData.github && new BridgeConfigGitHub(configData.github);
-        if (this.github?.auth && env["GITHUB_PRIVATE_KEY_FILE"]) {
-            this.github.auth.privateKeyFile = env["GITHUB_PRIVATE_KEY_FILE"];
+        if (this.github?.auth && env?.["GITHUB_PRIVATE_KEY_FILE"]) {
+            this.github.auth.privateKeyFile = env?.["GITHUB_PRIVATE_KEY_FILE"];
         }
-        if (this.github?.oauth && env["GITHUB_OAUTH_REDIRECT_URI"]) {
-            this.github.oauth.redirect_uri = env["GITHUB_OAUTH_REDIRECT_URI"];
+        if (this.github?.oauth && env?.["GITHUB_OAUTH_REDIRECT_URI"]) {
+            this.github.oauth.redirect_uri = env?.["GITHUB_OAUTH_REDIRECT_URI"];
         }
         this.gitlab = configData.gitlab && new BridgeConfigGitLab(configData.gitlab);
         this.figma = configData.figma;
@@ -513,6 +533,7 @@ export class BridgeConfig {
         this.provisioning = configData.provisioning;
         this.passFile = configData.passFile;
         this.bot = configData.bot;
+        this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
         this.queue = configData.queue || {
             monolithic: true,
@@ -525,7 +546,7 @@ export class BridgeConfig {
         }
 
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
-    
+
         // To allow DEBUG as well as debug
         this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
@@ -547,7 +568,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         }];
         this.bridgePermissions = new BridgePermissions(this.permissions);
 
-        if (!configData.permissions) { 
+        if (!configData.permissions) {
             log.warn(`You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`);
         }
 
@@ -556,11 +577,13 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         }
 
         // TODO: Formalize env support
-        if (env.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
+        if (env?.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
             this.queue.monolithic = false;
-            this.queue.host = env.CFG_QUEUE_HOST;
-            this.queue.port = env.CFG_QUEUE_POST ? parseInt(env.CFG_QUEUE_POST, 10) : undefined;
+            this.queue.host = env?.CFG_QUEUE_HOST;
+            this.queue.port = env?.CFG_QUEUE_POST ? parseInt(env?.CFG_QUEUE_POST, 10) : undefined;
         }
+
+        this.goNebMigrator = configData.goNebMigrator;
 
         // Listeners is a bit special
         this.listeners = configData.listeners || [];
@@ -574,7 +597,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
             });
             log.warn("The `webhook` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
-        
+
         if (configData.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
@@ -590,7 +613,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
             })
             log.warn("The `provisioning` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
-        
+
         if (this.metrics?.port) {
             this.listeners.push({
                 resources: ['metrics'],
@@ -599,7 +622,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
             })
             log.warn("The `metrics` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
-        
+
         if (configData.widgets?.port) {
             this.listeners.push({
                 resources: ['widgets'],
@@ -628,6 +651,10 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         if (this.encryption && !this.queue.port) {
             throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
         }
+
+        if (this.figma?.overrideUserId) {
+            log.warn("The `figma.overrideUserId` config value is deprecated. A service bot should be configured instead.");
+        }
     }
 
     public async prefillMembershipCache(client: MatrixClient) {
@@ -637,7 +664,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
             log.debug(`Found ${membership.length} users for ${roomEntry}`);
-        } 
+        }
     }
 
     public addMemberToCache(roomId: string, userId: string) {
@@ -656,6 +683,29 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         return this.bridgePermissions.checkAction(mxid, service, BridgePermissionLevel[permission]);
     }
 
+    public get enabledServices(): string[] {
+        const services = [];
+        if (this.feeds && this.feeds.enabled) {
+            services.push("feeds");
+        }
+        if (this.figma) {
+            services.push("figma");
+        }
+        if (this.generic && this.generic.enabled) {
+            services.push("generic");
+        }
+        if (this.github) {
+            services.push("github");
+        }
+        if (this.gitlab) {
+            services.push("gitlab");
+        }
+        if (this.jira) {
+            services.push("jira");
+        }
+        return services;
+    }
+
     public getPublicConfigForService(serviceName: string): Record<string, unknown> {
         let config: undefined|Record<string, unknown>;
         switch (serviceName) {
@@ -666,7 +716,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
                 config = this.generic?.publicConfig;
                 break;
             case "github":
-                config = this.github?.publicConfig;
+                config = this.github?.publicConfig();
                 break;
             case "gitlab":
                 config = this.gitlab?.publicConfig;

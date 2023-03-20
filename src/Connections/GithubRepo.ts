@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import { Appservice, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil } from "../FormatUtil";
+import { Octokit } from "@octokit/rest";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
@@ -27,6 +28,8 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
+import { GrantChecker } from "../grants/GrantCheck";
+import { GitHubGrantChecker } from "../Github/GrantChecker";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -40,8 +43,12 @@ interface IQueryRoomOpts {
 }
 
 export interface GitHubRepoConnectionOptions extends IConnectionState {
-    enableHooks?: AllowedEventsNames[],
+    /**
+     * Do not use. Use `enableHooks`.
+     * @deprecated
+     */
     ignoreHooks?: AllowedEventsNames[],
+    enableHooks?: AllowedEventsNames[],
     showIssueRoomLink?: boolean;
     prDiff?: {
         enabled: boolean;
@@ -61,9 +68,15 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
         excludingWorkflows?: string[];
     }
 }
+
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
     org: string;
     repo: string;
+}
+
+interface ConnectionValidatedState extends GitHubRepoConnectionState {
+    ignoreHooks: undefined,
+    enableHooks: AllowedEventsNames[],
 }
 
 
@@ -73,6 +86,8 @@ export interface GitHubRepoConnectionOrgTarget {
 export interface GitHubRepoConnectionRepoTarget {
     state: GitHubRepoConnectionState;
     name: string;
+    description?: string;
+    avatar?: string;
 }
 
 export type GitHubRepoConnectionTarget = GitHubRepoConnectionOrgTarget|GitHubRepoConnectionRepoTarget;
@@ -81,12 +96,12 @@ export type GitHubRepoConnectionTarget = GitHubRepoConnectionOrgTarget|GitHubRep
 export type GitHubRepoResponseItem = GetConnectionsResponseItem<GitHubRepoConnectionState>;
 
 
-type AllowedEventsNames = 
+export type AllowedEventsNames =
     "issue.changed" |
     "issue.created" |
     "issue.edited" |
     "issue.labeled" |
-    "issue" | 
+    "issue" |
     "pull_request.closed" |
     "pull_request.merged" |
     "pull_request.opened" |
@@ -97,7 +112,7 @@ type AllowedEventsNames =
     "release.drafted" |
     "release" |
     "workflow" |
-    "workflow.run" | 
+    "workflow.run" |
     "workflow.run.success" |
     "workflow.run.failure" |
     "workflow.run.neutral" |
@@ -106,7 +121,7 @@ type AllowedEventsNames =
     "workflow.run.action_required" |
     "workflow.run.stale";
 
-const AllowedEvents: AllowedEventsNames[] = [
+export const AllowedEvents: AllowedEventsNames[] = [
     "issue.changed" ,
     "issue.created" ,
     "issue.edited" ,
@@ -136,8 +151,17 @@ const AllowedEvents: AllowedEventsNames[] = [
  * These hooks are enabled by default, unless they are
  * specifed in the ignoreHooks option.
  */
-const AllowHookByDefault: AllowedEventsNames[] = [
+const DefaultHooks: AllowedEventsNames[] = [
+    "issue.changed",
+    "issue.created",
+    "issue.edited",
+    "issue.labeled",
     "issue",
+    "pull_request.closed",
+    "pull_request.merged",
+    "pull_request.opened",
+    "pull_request.ready_for_review",
+    "pull_request.reviewed",
     "pull_request",
     "release.created"
 ];
@@ -151,6 +175,10 @@ const ConnectionStateSchema = {
     },
     org: {type: "string"},
     repo: {type: "string"},
+    /**
+     * Legacy state.
+     * @deprecated
+     */
     ignoreHooks: {
         type: "array",
         items: {
@@ -171,7 +199,7 @@ const ConnectionStateSchema = {
         nullable: true,
         maxLength: 24,
     },
-    showIssueRoomLink: { 
+    showIssueRoomLink: {
         type: "boolean",
         nullable: true,
     },
@@ -249,7 +277,7 @@ const ConnectionStateSchema = {
   additionalProperties: true
 } as JSONSchemaType<GitHubRepoConnectionState>;
 
-type ReactionOptions = 
+type ReactionOptions =
 | "+1"
 | "-1"
 | "laugh"
@@ -295,43 +323,45 @@ const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
 const DEFAULT_HOTLINK_PREFIX = "#";
+const MAX_RETURNED_TARGETS = 10;
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
 }
 
 export interface GitHubTargetFilter {
+    search?: string;
     orgName?: string;
-    page?: number;
-    perPage?: number;
 }
 
 /**
  * Handles rooms connected to a GitHub repo.
  */
 @Connection
-export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState> implements IConnection {
-
-	static validateState(state: unknown, isExistingState = false): GitHubRepoConnectionState {
+export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnectionState, ConnectionValidatedState> implements IConnection {
+	static validateState(state: unknown, isExistingState = false): ConnectionValidatedState {
         const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
-            // Validate ignoreHooks IF this is an incoming update (we can be less strict for existing state)
-            if (!isExistingState && state.ignoreHooks && !state.ignoreHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`ignoreHooks` must only contain allowed values', ErrCode.BadValue);
-            }
             if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
                 throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
             }
-            return state;
+            if (state.ignoreHooks) {
+                if (!isExistingState) {
+                    throw new ApiError('`ignoreHooks` cannot be used with new connections', ErrCode.BadValue);
+                }
+                log.warn(`Room has old state key 'ignoreHooks'. Converting to compatible enabledHooks filter`);
+                state.enableHooks = HookFilter.convertIgnoredHooksToEnabledHooks(state.enableHooks, state.ignoreHooks, DefaultHooks);
+            }
+            return {
+                ...state,
+                ignoreHooks: undefined,
+                enableHooks: state.enableHooks ?? [...DefaultHooks]
+            };
         }
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, tokenStore, github, config}: ProvisionConnectionOpts) {
-        if (!github || !config.github) {
-            throw Error('GitHub is not configured');
-        }
-        const validData = this.validateState(data);
+    static async assertUserHasAccessToRepo(userId: string, org: string, repo: string, github: GithubInstance, tokenStore: UserTokenStore) {
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
@@ -339,8 +369,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const me = await octokit.users.getAuthenticated();
         let permissionLevel;
         try {
-            const repo = await octokit.repos.getCollaboratorPermissionLevel({owner: validData.org, repo: validData.repo, username: me.data.login });
-            permissionLevel = repo.data.permission;
+            const githubRepo = await octokit.repos.getCollaboratorPermissionLevel({owner: org, repo, username: me.data.login });
+            permissionLevel = githubRepo.data.permission;
         } catch (ex) {
             throw new ApiError("Could not determine if the user has access to this repository, does the repository exist?", ErrCode.ForbiddenUser);
         }
@@ -348,6 +378,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (permissionLevel !== "admin" && permissionLevel !== "write") {
             throw new ApiError("You must at least have write permissions to bridge this repository", ErrCode.ForbiddenUser);
         }
+    }
+
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, github, config}: ProvisionConnectionOpts) {
+        if (!github || !config.github) {
+            throw Error('GitHub is not configured');
+        }
+        const validData = this.validateState(data);
+        await this.assertUserHasAccessToRepo(userId, validData.org, validData.repo, github, tokenStore);
         const appOctokit = await github.getSafeOctokitForRepo(validData.org, validData.repo);
         if (!appOctokit) {
             throw new ApiError(
@@ -361,10 +399,11 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
-        await as.botClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
+        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.getGrantKey(validData.org, validData.repo));
+        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,
-            connection: new GitHubRepoConnection(roomId, as, validData, tokenStore, stateEventKey, github, config.github),
+            connection: new GitHubRepoConnection(roomId, as, intent, validData, tokenStore, stateEventKey, github, config.github),
         }
     }
 
@@ -377,11 +416,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     static readonly ServiceCategory = "github";
     static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
 
-    static async createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {as, tokenStore, github, config}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {as, intent, tokenStore, github, config}: InstantiateConnectionOpts) {
         if (!github || !config.github) {
             throw Error('GitHub is not configured');
         }
-        return new GitHubRepoConnection(roomId, as, this.validateState(state.content, true), tokenStore, state.stateKey, github, config.github);
+
+        const connectionState = this.validateState(state.content, true);
+    
+        return new GitHubRepoConnection(roomId, as, intent, connectionState, tokenStore, state.stateKey, github, config.github);
     }
 
     static async onQueryRoom(result: RegExpExecArray, opts: IQueryRoomOpts): Promise<unknown> {
@@ -469,29 +511,32 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
-    constructor(roomId: string,
+    private readonly grantChecker = new GitHubGrantChecker(this.as, this.githubInstance, this.tokenStore);
+
+    constructor(
+        roomId: string,
         private readonly as: Appservice,
-        state: GitHubRepoConnectionState,
+        private readonly intent: Intent,
+        state: ConnectionValidatedState,
         private readonly tokenStore: UserTokenStore,
         stateKey: string,
         private readonly githubInstance: GithubInstance,
         private readonly config: BridgeConfigGitHub,
-        ) {
-            super(
-                roomId,
-                stateKey,
-                GitHubRepoConnection.CanonicalEventType,
-                state,
-                as.botClient,
-                GitHubRepoConnection.botCommands,
-                GitHubRepoConnection.helpMessage,
-                "!gh",
-                "github",
-            );
+    ) {
+        super(
+            roomId,
+            stateKey,
+            GitHubRepoConnection.CanonicalEventType,
+            state,
+            intent.underlyingClient,
+            GitHubRepoConnection.botCommands,
+            GitHubRepoConnection.helpMessage,
+            ["github"],
+            "!gh",
+            "github",
+        );
         this.hookFilter = new HookFilter(
-            AllowHookByDefault,
             state.enableHooks,
-            state.ignoreHooks,
         )
     }
 
@@ -524,14 +569,20 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         return this.state.priority || super.priority;
     }
 
-    protected validateConnectionState(content: unknown) {
-        return GitHubRepoConnection.validateState(content);
+    public async ensureGrant(sender?: string, state = this.state) {
+        await this.grantChecker.assertConnectionGranted(this.roomId, state, sender);
+    }
+
+    protected async validateConnectionState(content: unknown) {
+        const state = GitHubRepoConnection.validateState(content);
+        // Validate the permissions of this state
+        await this.ensureGrant(undefined, state);
+        return state;
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         await super.onStateUpdate(stateEv);
-        this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
+        this.hookFilter.enabledHooks = this.state.enableHooks;
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -581,7 +632,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 message += ` [Issue Room](https://matrix.to/#/${this.as.getAlias(GitHubIssueConnection.generateAliasLocalpart(this.org, this.repo, issue.number))})`;
             }
             const content = emoji.emojify(message);
-            await this.as.botIntent.sendEvent(this.roomId, {
+            await this.intent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content ,
                 formatted_body: md.renderInline(content),
@@ -624,14 +675,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                         event: reviewEvent,
                     });
                 } catch (ex) {
-                    await this.as.botClient.sendEvent(this.roomId, "m.reaction", {
+                    await this.intent.underlyingClient.sendEvent(this.roomId, "m.reaction", {
                         "m.relates_to": {
                             rel_type: "m.annotation",
                             event_id: ev.event_id,
                             key: "⛔",
                         }
                     });
-                    await this.as.botClient.sendEvent(this.roomId, 'm.room.message', {
+                    await this.intent.underlyingClient.sendEvent(this.roomId, 'm.room.message', {
                         msgtype: "m.notice",
                         body: `Failed to submit review: ${ex.message}`,
                     });
@@ -750,7 +801,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const workflow = workflows.data.workflows.find(w => w.name.toLowerCase().trim() === name.toLowerCase().trim());
         if (!workflow) {
             const workflowNames = workflows.data.workflows.map(w => w.name).join(', ');
-            await this.as.botIntent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`, "m.notice");
+            await this.intent.sendText(this.roomId, `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`, "m.notice");
             return;
         }
         try {
@@ -780,7 +831,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             throw ex;
         }
 
-        await this.as.botIntent.sendText(this.roomId, `Workflow started.`, "m.notice");
+        await this.intent.sendText(this.roomId, `Workflow started.`, "m.notice");
     }
 
     public async onIssueCreated(event: IssuesOpenedEvent) {
@@ -807,8 +858,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
         const content = emoji.emojify(message);
-        const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const labels = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
@@ -854,7 +905,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
         const content = `**${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"${withComment}`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -873,7 +924,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         log.info(`onIssueEdited ${this.roomId} ${this.org}/${this.repo} #${event.issue.number}`);
         const orgRepoName = event.repository.full_name;
         const content = `**${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -891,7 +942,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (Date.now() - new Date(event.issue.created_at).getTime() < CREATED_GRACE_PERIOD_MS) {
             return;
         }
-        
+
         log.info(`onIssueLabeled ${this.roomId} ${this.org}/${this.repo} #${event.issue.id} ${event.label.name}`);
         const renderFn = () => {
             const {labels} = this.debounceOnIssueLabeled.get(event.issue.id) || { labels: [] };
@@ -902,9 +953,9 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 return;
             }
             const orgRepoName = event.repository.full_name;
-            const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined }))); 
+            const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
             const content = `**${event.sender.login}** labeled issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`;
-            this.as.botIntent.sendEvent(this.roomId, {
+            this.intent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
                 body: content + (plain.length > 0 ? ` with labels ${plain}`: ""),
                 formatted_body: md.renderInline(content) + (html.length > 0 ? ` with labels ${html}`: ""),
@@ -961,8 +1012,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
         const content = emoji.emojify(`**${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
-        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));  
-        await this.as.botIntent.sendEvent(this.roomId, {
+        const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: "") + diffContent,
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: "") + diffContentHtml,
@@ -985,7 +1036,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
         const orgRepoName = event.repository.full_name;
         const content = emoji.emojify(`**${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review "${event.pull_request.title}"`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -1018,7 +1069,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return;
         }
         const content = emoji.emojify(`**${event.sender.login}** ${emojiForReview} ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -1064,7 +1115,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
 
         const content = emoji.emojify(`**${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`);
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
@@ -1094,7 +1145,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (event.release.body) {
             content += `\n\n${event.release.body}`
         }
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -1120,14 +1171,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (event.release.body) {
             content += `\n\n${event.release.body}`
         }
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html",
         });
     }
-    
+
     public async onWorkflowCompleted(event: WorkflowRunCompletedEvent) {
         const workflowRun = event.workflow_run;
         const workflowName = event.workflow_run.name;
@@ -1153,7 +1204,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
         const orgRepoName = event.repository.full_name;
         const content = `Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``;
-        await this.as.botIntent.sendEvent(this.roomId, {
+        await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
@@ -1168,7 +1219,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
         if (evt.type === 'm.reaction') {
             const {event_id, key} = (evt.content as MatrixReactionContent)["m.relates_to"];
-            const ev = await this.as.botClient.getEvent(this.roomId, event_id);
+            const ev = await this.intent.underlyingClient.getEvent(this.roomId, event_id);
             const issueContent = ev.content["uk.half-shot.matrix-hookshot.github.issue"];
             if (!issueContent) {
                 log.debug('Reaction to event did not pertain to a issue');
@@ -1225,12 +1276,54 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public getProvisionerDetails(): GitHubRepoResponseItem {
         return {
-            ...GitHubRepoConnection.getProvisionerDetails(this.as.botUserId),
+            ...GitHubRepoConnection.getProvisionerDetails(this.intent.userId),
             id: this.connectionId,
             config: {
                 ...this.state,
             },
         }
+    }
+    
+    public static async searchInstallationForRepos(octokit: Octokit, orgName: string, installationId: number, searchTerms?: string) {
+        // First, do a search on GitHub for repos. This will use the user's context so it will find user repos.
+        let searchRepos: string[]|null = null;
+        if (searchTerms) {
+            const terms = encodeURIComponent(searchTerms);
+            const searchResultsData = (await octokit.search.repos({
+                q: `${terms} org:${orgName} `,
+                per_page: MAX_RETURNED_TARGETS,
+            })).data;
+            if (searchResultsData.total_count === 0) {
+                return [];
+            }
+            searchRepos = searchResultsData.items.map(r => r.full_name);
+        }
+
+        // Now, find all the repos that we have the ability to install.
+        const foundRepos = [];
+        let installationsCount = 0;
+        let totalCount = 0;
+        let page = 1;
+        do {
+            const { data } = await octokit.apps.listInstallationReposForAuthenticatedUser({
+                installation_id: installationId,
+                page,
+                per_page: 100,
+            });
+            // No results, so stop trying.
+            if (data.repositories.length === 0) {
+                break;
+            }
+            page++;
+            installationsCount += data.repositories.length;
+            totalCount = data.total_count;
+            // Find any repos that were in our search results. If a search term isn't defined, just return it.
+            foundRepos.push(...data.repositories.filter((installRepo) => searchRepos?.includes(installRepo.full_name) ?? true));
+        } while (
+            installationsCount < totalCount &&
+            foundRepos.length < (searchRepos?.length ?? MAX_RETURNED_TARGETS)
+        )
+        return foundRepos;
     }
 
     public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, githubInstance: GithubInstance, filters: GitHubTargetFilter = {}): Promise<GitHubRepoConnectionTarget[]> {
@@ -1262,37 +1355,25 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         // If we have an instance, search under it.
         const ownSelf = await octokit.users.getAuthenticated();
 
-        const page = filters.page ?? 1;
-        const perPage = filters.perPage ?? 10;
         try {
-            let reposPromise;
-
+            let installationId;
             if (ownSelf.data.login === filters.orgName) {
-                const userInstallation = await githubInstance.appOctokit.apps.getUserInstallation({username: ownSelf.data.login});
-                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
-                    page,
-                    installation_id: userInstallation.data.id,
-                    per_page: perPage,
-                });
+                installationId = (await githubInstance.appOctokit.apps.getUserInstallation({ username: ownSelf.data.login })).data.id;
             } else {
-                const orgInstallation = await githubInstance.appOctokit.apps.getOrgInstallation({org: filters.orgName});
-
+                installationId = (await githubInstance.appOctokit.apps.getOrgInstallation({ org: filters.orgName })).data.id;
                 // Github will error if the authed user tries to list repos of a disallowed installation, even
                 // if we got the installation ID from the app's instance.
-                reposPromise = octokit.apps.listInstallationReposForAuthenticatedUser({
-                    page,
-                    installation_id: orgInstallation.data.id,
-                    per_page: perPage,
-                });
             }
-            const reposRes = await reposPromise;
-            return reposRes.data.repositories
+            const reposRes = await this.searchInstallationForRepos(octokit, filters.orgName, installationId, filters.search);
+            return reposRes
                 .map(r => ({
                     state: {
                         org: filters.orgName,
                         repo: r.name,
                     },
                     name: r.name,
+                    description: r.description,
+                    avatar: r.owner?.avatar_url || r.organization?.avatar_url,
                 })) as GitHubRepoConnectionRepoTarget[];
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${filters.orgName} / ${userId}`, ex);
@@ -1304,21 +1385,21 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
         const newState = { ...this.state, ...config };
         const validatedConfig = GitHubRepoConnection.validateState(newState);
-        await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
         this.hookFilter.enabledHooks = this.state.enableHooks ?? [];
-        this.hookFilter.ignoredHooks = this.state.ignoreHooks ?? [];
     }
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        await this.grantChecker.ungrantConnection(this.roomId, { org: this.org, repo: this.repo });
         // Do a sanity check that the event exists.
         try {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubRepoConnection.CanonicalEventType, this.stateKey, { disabled: true });
         } catch (ex) {
-            await this.as.botClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey);
-            await this.as.botClient.sendStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
+            await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey);
+            await this.intent.underlyingClient.sendStateEvent(this.roomId, GitHubRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
     }
 
@@ -1333,6 +1414,10 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return !!this.state.includingLabels.find(l => labels.includes(l));
         }
         return true;
+    }
+
+    public static getGrantKey(org: string, repo: string) {
+        return `${this.CanonicalEventType}/${org}/${repo}`;
     }
 }
 

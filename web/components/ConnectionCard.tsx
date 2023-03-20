@@ -1,4 +1,3 @@
-import { h } from "preact";
 import style from "./ConnectionCard.module.scss";
 
 interface IProps {
