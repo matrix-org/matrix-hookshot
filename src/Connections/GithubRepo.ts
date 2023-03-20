@@ -28,7 +28,6 @@ import { PermissionCheckFn } from ".";
 import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
-import { GrantChecker } from "../grants/GrantCheck";
 import { GitHubGrantChecker } from "../Github/GrantChecker";
 
 const log = new Logger("GitHubRepoConnection");
@@ -399,7 +398,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
-        await new GrantChecker(as.botIntent, 'github').grantConnection(roomId, this.getGrantKey(validData.org, validData.repo));
+        await new GitHubGrantChecker(as, github, tokenStore).grantConnection(roomId, { org: validData.org, repo: validData.repo });
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,
@@ -1414,10 +1413,6 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return !!this.state.includingLabels.find(l => labels.includes(l));
         }
         return true;
-    }
-
-    public static getGrantKey(org: string, repo: string) {
-        return `${this.CanonicalEventType}/${org}/${repo}`;
     }
 }
 
