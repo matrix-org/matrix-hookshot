@@ -195,7 +195,9 @@ export class Webhooks extends EventEmitter {
     }
 
     public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string, setup_action?: 'install'}> , res: Response) {
-        const oauthResultParams: OAuthPageParams = {};
+        const oauthResultParams: OAuthPageParams = {
+            service: "github"
+        };
 
         const { setup_action, state } = req.query;
         log.info("Got new oauth request", { state, setup_action });
@@ -216,11 +218,11 @@ export class Webhooks extends EventEmitter {
                 oauthResultParams.result = "pending";
             } else if (setup_action) {
                 // GitHub App install is in another, unknown state.
-                oauthResultParams.service = "organisation";
+                oauthResultParams["oauth-kind"] = 'organisation';
                 oauthResultParams.result = setup_action;
             }
             else {
-                oauthResultParams.service = "github";
+                // This is a user account setup flow.
                 oauthResultParams['oauth-kind'] = "account";
                 if (!state) {
                     throw new ApiError(`Missing state`, ErrCode.BadValue);
