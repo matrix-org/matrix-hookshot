@@ -190,7 +190,7 @@ export class Webhooks extends EventEmitter {
         const oauthUrl = this.config.widgets && new URL("oauth.html", this.config.widgets.parsedPublicUrl);
         if (oauthUrl) {
             oauthUrl.searchParams.set('service', 'github');
-            oauthUrl?.searchParams.set('oauth-kind', 'account');
+            oauthUrl.searchParams.set('oauth-kind', 'account');
         }
         const { setup_action, state } = req.query;
         log.info("Got new oauth request", { state, setup_action });
