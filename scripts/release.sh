@@ -44,8 +44,6 @@ echo "Generated tag $TAG"
 
 echo "Pushing to origin"
 git push origin $TAG
-
-# Push to main branch too
 git push
 
 echo "The CI to generate a release is now running. Check https://github.com/$REPO_NAME/releases and publish the release when it's ready."
