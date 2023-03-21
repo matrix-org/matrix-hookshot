@@ -36,6 +36,14 @@ export interface NotificationsDisableEvent {
     instanceUrl?: string;
 }
 
+export interface OAuthPageParams {
+    service?: string;
+    result?: string;
+    'oauth-kind'?: 'account'|'organisation';
+    'error'?: string;
+    'errcode'?: ErrCode;
+}
+
 export class Webhooks extends EventEmitter {
     
     public readonly expressRouter = Router();
@@ -187,11 +195,10 @@ export class Webhooks extends EventEmitter {
     }
 
     public async onGitHubGetOauth(req: Request<unknown, unknown, unknown, {error?: string, error_description?: string, code?: string, state?: string, setup_action?: 'install'}> , res: Response) {
-        const oauthUrl = this.config.widgets && new URL("oauth.html", this.config.widgets.parsedPublicUrl);
-        if (oauthUrl) {
-            oauthUrl.searchParams.set('service', 'github');
-            oauthUrl.searchParams.set('oauth-kind', 'account');
-        }
+        const oauthResultParams: OAuthPageParams = {
+            service: "github"
+        };
+
         const { setup_action, state } = req.query;
         log.info("Got new oauth request", { state, setup_action });
         try {
@@ -201,7 +208,22 @@ export class Webhooks extends EventEmitter {
             if (req.query.error) {
                 throw new ApiError(`GitHub Error: ${req.query.error} ${req.query.error_description}`, ErrCode.Unknown);
             }
-            if (setup_action !== 'install') {
+            if(setup_action === 'install') {
+                // GitHub App successful install.
+                oauthResultParams["oauth-kind"] = 'organisation';
+                oauthResultParams.result = "success";
+            } else if (setup_action === 'request') {
+                // GitHub App install is pending
+                oauthResultParams["oauth-kind"] = 'organisation';
+                oauthResultParams.result = "pending";
+            } else if (setup_action) {
+                // GitHub App install is in another, unknown state.
+                oauthResultParams["oauth-kind"] = 'organisation';
+                oauthResultParams.result = setup_action;
+            }
+            else {
+                // This is a user account setup flow.
+                oauthResultParams['oauth-kind'] = "account";
                 if (!state) {
                     throw new ApiError(`Missing state`, ErrCode.BadValue);
                 }
@@ -230,33 +252,36 @@ export class Webhooks extends EventEmitter {
                 if ("error" in result) {
                     throw new ApiError(`GitHub Error: ${result.error} ${result.error_description}`, ErrCode.Unknown);
                 }
+                oauthResultParams.result = 'success';
                 await this.queue.push<GitHubOAuthTokenResponse>({
                     eventName: "github.oauth.tokens",
                     sender: "GithubWebhooks",
                     data: { ...result, state: req.query.state as string },
                 });
-            } else if (oauthUrl) {
-                // App install.
-                oauthUrl.searchParams.set('oauth-kind', 'organisation');
             }
         } catch (ex) {
             if (ex instanceof ApiError) {
-                if (oauthUrl) {
-                    oauthUrl?.searchParams.set('error', ex.error);
-                    oauthUrl?.searchParams.set('errcode', ex.errcode);
-                } else {
-                    return res.status(ex.statusCode).send(ex.message);
-                }
+                oauthResultParams.result = 'error';
+                oauthResultParams.error = ex.error;
+                oauthResultParams.errcode = ex.errcode;
             } else {
                 log.error("Failed to handle oauth request:", ex);
                 return res.status(500).send('Failed to handle oauth request');
             }
         }
+        const oauthUrl = this.config.widgets && new URL("oauth.html", this.config.widgets.parsedPublicUrl);
         if (oauthUrl) {
             // If we're serving widgets, do something prettier.
+            Object.entries(oauthResultParams).forEach(([key, value]) => oauthUrl.searchParams.set(key, value));
             return res.redirect(oauthUrl.toString());
         } else {
-            return res.send(`<p> Your account has been bridged </p>`);
+            if (oauthResultParams.result === 'success') {
+                return res.send(`<p> Your ${oauthResultParams.service} ${oauthResultParams["oauth-kind"]} has been bridged </p>`);
+            } else if (oauthResultParams.result === 'error') {
+                return res.status(500).send(`<p> There was an error bridging your ${oauthResultParams.service} ${oauthResultParams["oauth-kind"]}. ${oauthResultParams.error} ${oauthResultParams.errcode} </p>`);
+            } else {
+                return res.status(500).send(`<p> Your ${oauthResultParams.service} ${oauthResultParams["oauth-kind"]} is in state ${oauthResultParams.result} </p>`);
+            }
         }
     }
 

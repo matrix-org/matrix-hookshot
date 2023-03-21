@@ -116,7 +116,7 @@ export function ConnectionSearch({
             addNewInstance = <p> You have not connected any {serviceName} instances.</p>;
         }
     } else if (addNewInstanceUrl) {
-        addNewInstance = <p><a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Add a new instance</a></p>
+        addNewInstance = <p><a href={addNewInstanceUrl} rel="noreferrer" target="_blank">Add a new instance</a>.</p>
     } // otherwise, empty
 
     return <div>
