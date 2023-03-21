@@ -1,3 +1,20 @@
+ 3.0.1 (2023-03-21)
+===================
+
+Bugfixes
+--------
+
+- Fix GitHub OAuth button causing a "Could not find user which authorised this request" error . ([\#663](https://github.com/matrix-org/matrix-hookshot/issues/663))
+- Fix GitHub grant checker applying a different grant ID than the one it checks for. ([\#665](https://github.com/matrix-org/matrix-hookshot/issues/665))
+
+
+Internal Changes
+----------------
+
+- Small grammar fix. ([\#664](https://github.com/matrix-org/matrix-hookshot/issues/664))
+- Show a sensible error when a GitHub installation is pending. ([\#666](https://github.com/matrix-org/matrix-hookshot/issues/666))
+
+
 3.0.0 (2023-03-17)
 ==================
 
