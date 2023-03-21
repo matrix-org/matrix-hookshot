@@ -35,16 +35,17 @@ fi
 
 echo "Committing version"
 towncrier build --version $VERSION
-# git commit CHANGELOG.md changelog.d/ package.json -m $TAG
+git commit CHANGELOG.md changelog.d/ package.json -m $TAG
 
 echo "Proceeding to generate tags"
-# cat draft-release.txt | git tag --force -m - -s $TAG
+cat draft-release.txt | git tag --force -m - -s $TAG
 rm draft-release.txt
 echo "Generated tag $TAG"
 
 echo "Pushing to origin"
-# git push origin $TAG
-# # Push develop too
-# git push
+git push origin $TAG
+
+# Push to main branch too
+git push
 
 echo "The CI to generate a release is now running. Check https://github.com/$REPO_NAME/releases and publish the release when it's ready."
