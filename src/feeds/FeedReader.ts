@@ -95,8 +95,13 @@ export class FeedReader {
             strict: false,
             // The parser will break if we don't do this, as it defaults to `res.FEED` rather than `res.feed`.
             normalizeTags: true,
-        }
+            normalize: true,
+            // rss-reader only allows lowercase names, so enforce it.
+            attrNameProcessors: [(name) => name.toLowerCase()],
+        },
+        defaultRSS: 2
     });
+    
 
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
