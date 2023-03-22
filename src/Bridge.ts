@@ -52,6 +52,7 @@ export class Bridge {
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private widgetApi?: BridgeWidgetApi;
+    private feedReader?: FeedReader;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -76,6 +77,8 @@ export class Bridge {
     }
 
     public stop() {
+        this.feedReader?.stop();
+        this.tokenStore.stop();
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
     }
@@ -742,14 +745,13 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
-
-        // Mark ourselves as ready *before* we intensively try to spin up all connections, as this can take a while.
-        this.ready = true;
         await queue.onIdle();
         log.info(`All connections loaded`);
 
+        // Load feeds after connections, to limit the chances of us double
+        // posting to rooms if a previous hookshot instance is being replaced.
         if (this.config.feeds?.enabled) {
-            new FeedReader(
+            this.feedReader = new FeedReader(
                 this.config.feeds,
                 this.connectionManager,
                 this.queue,
@@ -760,6 +762,7 @@ export class Bridge {
 
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
+        this.ready = true;
     }
 
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
