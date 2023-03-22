@@ -1,0 +1,1 @@
+Relax the Feed parser so that it allows RSS feeds with HTML elements in them.
