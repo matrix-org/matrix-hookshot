@@ -197,7 +197,14 @@ export class FeedReader {
                     this.cacheTimes.set(url, { lastModified: res.headers['Last-Modified'] });
                 }
 
-                const feed = await (new Parser()).parseString(res.data);
+                const feed = await (new Parser({
+                    xml2js: {
+                        // Allow HTML bodies, such as value-less attributes.
+                        strict: false,
+                        // The parser will break if we don't do this, as it defaults to `res.FEED` rather than `res.feed`.
+                        normalizeTags: true,
+                    }
+                })).parseString(res.data);
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
                 if (!seenGuids) {
