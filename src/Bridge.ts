@@ -52,6 +52,7 @@ export class Bridge {
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private widgetApi?: BridgeWidgetApi;
+    private feedReader?: FeedReader;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -76,6 +77,8 @@ export class Bridge {
     }
 
     public stop() {
+        this.feedReader?.stop();
+        this.tokenStore.stop();
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
     }
@@ -127,17 +130,6 @@ export class Bridge {
             this.botUsersManager,
             this.github,
         );
-
-        if (this.config.feeds?.enabled) {
-            new FeedReader(
-                this.config.feeds,
-                this.connectionManager,
-                this.queue,
-                // Use default bot when storing account data
-                this.as.botClient,
-            );
-        }
-
 
         if (this.config.provisioning) {
             const routers = [];
@@ -755,6 +747,19 @@ export class Bridge {
         }
         await queue.onIdle();
         log.info(`All connections loaded`);
+
+        // Load feeds after connections, to limit the chances of us double
+        // posting to rooms if a previous hookshot instance is being replaced.
+        if (this.config.feeds?.enabled) {
+            this.feedReader = new FeedReader(
+                this.config.feeds,
+                this.connectionManager,
+                this.queue,
+                // Use default bot when storing account data
+                this.as.botClient,
+            );
+        }
+
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;
