@@ -128,17 +128,6 @@ export class Bridge {
             this.github,
         );
 
-        if (this.config.feeds?.enabled) {
-            new FeedReader(
-                this.config.feeds,
-                this.connectionManager,
-                this.queue,
-                // Use default bot when storing account data
-                this.as.botClient,
-            );
-        }
-
-
         if (this.config.provisioning) {
             const routers = [];
             if (this.config.jira) {
@@ -753,11 +742,24 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
+
+        // Mark ourselves as ready *before* we intensively try to spin up all connections, as this can take a while.
+        this.ready = true;
         await queue.onIdle();
         log.info(`All connections loaded`);
+
+        if (this.config.feeds?.enabled) {
+            new FeedReader(
+                this.config.feeds,
+                this.connectionManager,
+                this.queue,
+                // Use default bot when storing account data
+                this.as.botClient,
+            );
+        }
+
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
-        this.ready = true;
     }
 
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
