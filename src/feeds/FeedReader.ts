@@ -88,6 +88,16 @@ function normalizeUrl(input: string): string {
 }
 
 export class FeedReader {
+
+    private readonly parser = new Parser({
+        xml2js: {
+            // Allow HTML bodies, such as value-less attributes.
+            strict: false,
+            // The parser will break if we don't do this, as it defaults to `res.FEED` rather than `res.feed`.
+            normalizeTags: true,
+        }
+    });
+
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
     private observedFeedUrls: Set<string> = new Set();
@@ -197,7 +207,7 @@ export class FeedReader {
                     this.cacheTimes.set(url, { lastModified: res.headers['Last-Modified'] });
                 }
 
-                const feed = await (new Parser()).parseString(res.data);
+                const feed = await this.parser.parseString(res.data);
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
                 if (!seenGuids) {
