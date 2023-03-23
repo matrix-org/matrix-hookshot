@@ -24,6 +24,8 @@ export class ListenerService {
         resourcesBound: boolean,
     }[] = [];
 
+    private isReady = false;
+
     constructor(config: BridgeConfigListener[]) {
         if (config.length < 1) {
             throw Error('No listeners configured');
@@ -36,6 +38,10 @@ export class ListenerService {
                 resourcesBound: false,
             });
         }
+    }
+
+    public markBridgeReady() {
+        this.isReady = true;
     }
 
     public bindResource(resourceName: ResourceName, router: Router) {
@@ -72,6 +78,11 @@ export class ListenerService {
             }
             const addr = listener.config.bindAddress || "127.0.0.1";
             listener.server = listener.app.listen(listener.config.port, addr);
+
+            // Ensure each listener has a ready probe.
+            listener.app.get("/live", (_, res) => res.send({ok: true}));
+            listener.app.get("/ready", (_, res) => res.status(this.isReady ? 200 : 500).send({ready: this.isReady}));
+
             // Always include the error handler
             listener.app.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
             log.info(`Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)
