@@ -210,7 +210,7 @@ export class ConnectionManager extends EventEmitter {
             await connection.ensureGrant?.(state.sender);
             return connection;
         } catch (ex) {
-            log.info(`Not creating connection for state ${roomId}/${state.type}`, ex);
+            log.error(`Not creating connection for state ${roomId}/${state.type}`, ex);
         }
     }
 
