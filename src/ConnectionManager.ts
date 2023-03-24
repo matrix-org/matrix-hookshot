@@ -61,10 +61,14 @@ export class ConnectionManager extends EventEmitter {
             }
             this.connections.push(connection);
             this.emit('new-connection', connection);
+
+            const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
+            const canonicalEvent = cd?.EventTypes?.[0] ?? 'unknown';
+            Metrics.connections.inc({ type: canonicalEvent });
         }
-        Metrics.connections.set(this.connections.length);
         // Already exists, noop.
     }
+
 
     /**
      * Used by the provisioner API to create new connections on behalf of users.
@@ -388,8 +392,11 @@ export class ConnectionManager extends EventEmitter {
             throw Error('Could not find connection index');
         }
         this.connections.splice(connectionIndex, 1);
-        Metrics.connections.set(this.connections.length);
         this.emit('connection-removed', connection);
+
+        const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
+        const canonicalEvent = cd?.EventTypes?.[0] ?? 'unknown';
+        Metrics.connections.dec({ type: canonicalEvent });
     }
 
     /**
@@ -399,8 +406,14 @@ export class ConnectionManager extends EventEmitter {
      */
     public async removeConnectionsForRoom(roomId: string) {
         log.info(`Removing all connections from ${roomId}`);
-        this.connections = this.connections.filter((c) => c.roomId !== roomId);
-        Metrics.connections.set(this.connections.length);
+        const toRemove = this.connections.filter((c) => c.roomId === roomId);
+        this.connections = this.connections.filter((c) => !toRemove.includes(c));
+
+        for (const connection of toRemove) {
+            const cd: ConnectionDeclaration = Object.getPrototypeOf(connection).constructor;
+            const canonicalEvent = cd?.EventTypes?.[0] ?? 'unknown';
+            Metrics.connections.dec({ type: canonicalEvent });
+        }
     }
 
     public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {
