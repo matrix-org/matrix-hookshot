@@ -2,7 +2,7 @@ import {Appservice, Intent, StateEvent} from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
 import { BridgeConfigFeeds } from "../Config/Config";
-import { FeedEntry, FeedError} from "../feeds/FeedReader";
+import { FeedEntry, FeedError, FeedReader} from "../feeds/FeedReader";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
@@ -37,6 +37,7 @@ export interface FeedConnectionSecrets {
 export type FeedResponseItem = GetConnectionsResponseItem<FeedConnectionState, FeedConnectionSecrets>;
 
 const MAX_LAST_RESULT_ITEMS = 5;
+const VALIDATION_FETCH_TIMEOUT_MS = 5000;
 
 @Connection
 export class FeedConnection extends BaseConnection implements IConnection {
@@ -57,20 +58,11 @@ export class FeedConnection extends BaseConnection implements IConnection {
         } catch (ex) {
             throw new ApiError("Feed URL doesn't appear valid", ErrCode.BadValue);
         }
-        let res;
+
         try {
-            res = await axios.head(url).catch(() => axios.get(url));
+            await FeedReader.fetchFeed(url, {}, VALIDATION_FETCH_TIMEOUT_MS);
         } catch (ex) {
-            throw new ApiError(`Could not read from URL: ${ex.message}`, ErrCode.BadValue);
-        }
-        const contentType = res.headers['content-type'];
-        // we're deliberately liberal here, since different things pop up in the wild
-        if (!contentType.match(/xml/)) {
-            throw new ApiError(
-                `Feed responded with a content type of "${contentType}", which doesn't look like an RSS/Atom feed`,
-                ErrCode.BadValue,
-                StatusCodes.UNSUPPORTED_MEDIA_TYPE
-            );
+            throw new ApiError(`Could not read feed from URL: ${ex.message}`, ErrCode.BadValue);
         }
     }
 
