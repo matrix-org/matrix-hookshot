@@ -104,6 +104,9 @@ export class FeedReader {
 
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
+    private shouldRun = true;
+    private timeout?: NodeJS.Timeout;
+
     constructor(
         private readonly config: BridgeConfigFeeds,
         private readonly connectionManager: ConnectionManager,
@@ -131,6 +134,11 @@ export class FeedReader {
         void this.loadSeenEntries().then(() => {
             return this.pollFeeds();
         });
+    }
+
+    public stop() {
+        clearTimeout(this.timeout);
+        this.shouldRun = false;
     }
 
     private calculateFeedUrls(): void {
@@ -298,7 +306,11 @@ export class FeedReader {
             log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
         }
 
-        setTimeout(() => {
+
+        this.timeout = setTimeout(() => {
+            if (!this.shouldRun) {
+                return;
+            }
             void this.pollFeeds();
         }, sleepFor);
     }
