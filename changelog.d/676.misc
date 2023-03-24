@@ -1,0 +1,1 @@
+Add a /ready and /live endpoint to each listener, so that it can be checked independently.
