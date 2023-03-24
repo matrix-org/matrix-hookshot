@@ -195,20 +195,23 @@ export class ConnectionManager extends EventEmitter {
             return;
         }
 
-        const connection = await connectionType.createConnectionForState(roomId, state, {
-            as: this.as,
-            intent: botUser.intent,
-            config: this.config,
-            tokenStore: this.tokenStore,
-            commentProcessor: this.commentProcessor,
-            messageClient: this.messageClient,
-            storage: this.storage,
-            github: this.github,
-        });
-
-        // Finally, ensure the connection is allowed by us.
-        await connection.ensureGrant?.(state.sender);
-        return connection;
+        try {
+            const connection = await connectionType.createConnectionForState(roomId, state, {
+                as: this.as,
+                intent: botUser.intent,
+                config: this.config,
+                tokenStore: this.tokenStore,
+                commentProcessor: this.commentProcessor,
+                messageClient: this.messageClient,
+                storage: this.storage,
+                github: this.github,
+            });
+            // Finally, ensure the connection is allowed by us.
+            await connection.ensureGrant?.(state.sender);
+            return connection;
+        } catch (ex) {
+            log.info(`Not creating connection for state ${roomId}/${state.type}`, ex);
+        }
     }
 
     /**
