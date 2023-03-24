@@ -67,11 +67,13 @@ export class ListenerService {
             if (listener.server) {
                 throw Error('Cannot run start() twice');
             }
-            if (!listener.resourcesBound) {
-                continue;
-            }
             const addr = listener.config.bindAddress || "127.0.0.1";
             listener.server = listener.app.listen(listener.config.port, addr);
+
+            // Ensure each listener has a ready probe.
+            listener.app.get("/live", (_, res) => res.send({ok: true}));
+            listener.app.get("/ready", (_, res) => res.status(listener.resourcesBound ? 200 : 500).send({ready: listener.resourcesBound}));
+
             // Always include the error handler
             listener.app.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
             log.info(`Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)
