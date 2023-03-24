@@ -118,7 +118,7 @@ export class FeedReader {
     private timeout?: NodeJS.Timeout;
 
     get pollInterval() {
-        return (this.config.pollIntervalSeconds * 1000) / this.feedQueue.length
+        return (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1);
     }
 
     constructor(
