@@ -88,12 +88,27 @@ function normalizeUrl(input: string): string {
 }
 
 export class FeedReader {
+
+    private readonly parser = new Parser({
+        xml2js: {
+            // Allow HTML bodies, such as value-less attributes.
+            strict: false,
+            // The parser will break if we don't do this, as it defaults to `res.FEED` rather than `res.feed`.
+            normalizeTags: true,
+        }
+    });
+
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
     private observedFeedUrls: Set<string> = new Set();
     private seenEntries: Map<string, string[]> = new Map();
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
+    
+    // Reason failures to url map.
+    private feedsFailingHttp = new Set();
+    private feedsFailingParsing = new Set();
+
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
     private shouldRun = true;
@@ -197,6 +212,8 @@ export class FeedReader {
                     // We don't want to wait forever for the feed.
                     timeout: this.config.pollTimeoutSeconds * 1000,
                 });
+                // Clear any HTTP failures
+                this.feedsFailingHttp.delete(url);
                 
                 // Store any entity tags/cache times.
                 if (res.headers.ETag) {
@@ -205,7 +222,9 @@ export class FeedReader {
                     this.cacheTimes.set(url, { lastModified: res.headers['Last-Modified'] });
                 }
 
-                const feed = await (new Parser()).parseString(res.data);
+                const feed = await this.parser.parseString(res.data);
+                this.feedsFailingParsing.delete(url);
+
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
                 if (!seenGuids) {
@@ -266,6 +285,9 @@ export class FeedReader {
                     if (err.response?.status === StatusCodes.NOT_MODIFIED) {
                         continue;
                     }
+                    this.feedsFailingHttp.add(url);
+                } else {
+                    this.feedsFailingParsing.add(url);
                 }
                 const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
                 const feedError = new FeedError(url.toString(), error, fetchKey);
@@ -273,6 +295,10 @@ export class FeedReader {
                 this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
             }
         }
+
+        Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
+        Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
+
         if (seenEntriesChanged) await this.saveSeenEntries();
 
         const elapsed = Date.now() - fetchingStarted;
