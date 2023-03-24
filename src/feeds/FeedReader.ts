@@ -6,7 +6,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { MessageQueue } from "../MessageQueue";
 
 import Ajv from "ajv";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import Parser from "rss-parser";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
@@ -89,14 +89,7 @@ function normalizeUrl(input: string): string {
 
 export class FeedReader {
 
-    private readonly parser = new Parser({
-        xml2js: {
-            // Allow HTML bodies, such as value-less attributes.
-            strict: false,
-            // The parser will break if we don't do this, as it defaults to `res.FEED` rather than `res.feed`.
-            normalizeTags: true,
-        }
-    });
+    private readonly parser = FeedReader.buildParser();
 
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
@@ -179,6 +172,30 @@ export class FeedReader {
         await this.matrixClient.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
+    private static buildParser(): Parser {
+        return new Parser();
+    }
+
+    public static async fetchFeed(
+        url: string,
+        headers: any,
+        timeoutMs: number,
+        parser: Parser = FeedReader.buildParser(),
+    ): Promise<{ response: AxiosResponse<any, any>, feed: Parser.Output<any> }> {
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': UserAgent,
+                ...headers,
+            },
+            // We don't want to wait forever for the feed.
+            timeout: timeoutMs,
+        });
+
+        const feed = await parser.parseString(response.data);
+
+        return { response, feed };
+    }
+
     private async pollFeeds(): Promise<void> {
         log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds`);
 
@@ -190,24 +207,23 @@ export class FeedReader {
             const fetchKey = randomUUID();
             const { etag, lastModified } = this.cacheTimes.get(url) || {};
             try {
-                const res = await axios.get(url, {
-                    headers: {
-                        'User-Agent': UserAgent,
+                const { response, feed } = await FeedReader.fetchFeed(
+                    url,
+                    {
                         ...(lastModified && { 'If-Modified-Since': lastModified}),
                         ...(etag && { 'If-None-Match': etag}),
                     },
                     // We don't want to wait forever for the feed.
-                    timeout: this.config.pollTimeoutSeconds * 1000,
-                });
+                    this.config.pollTimeoutSeconds * 1000,
+                );
                 
                 // Store any entity tags/cache times.
-                if (res.headers.ETag) {
-                    this.cacheTimes.set(url, { etag: res.headers.ETag});
-                } else if (res.headers['Last-Modified']) {
-                    this.cacheTimes.set(url, { lastModified: res.headers['Last-Modified'] });
+                if (response.headers.ETag) {
+                    this.cacheTimes.set(url, { etag: response.headers.ETag});
+                } else if (response.headers['Last-Modified']) {
+                    this.cacheTimes.set(url, { lastModified: response.headers['Last-Modified'] });
                 }
 
-                const feed = await this.parser.parseString(res.data);
                 let initialSync = false;
                 let seenGuids = this.seenEntries.get(url);
                 if (!seenGuids) {
