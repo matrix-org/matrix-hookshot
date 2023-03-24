@@ -1,0 +1,1 @@
+Metric `hookshot_connections` now includes a `type` label that allows you to see which connection types are in use.
