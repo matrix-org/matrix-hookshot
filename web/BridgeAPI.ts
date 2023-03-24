@@ -23,20 +23,27 @@ interface RequestOpts {
 }
 
 export class BridgeAPI {
+    
     static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi): Promise<BridgeAPI> {
-        const sessionToken = localStorage.getItem('hookshot-sessionToken');
-        baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-        if (sessionToken) {
-            const client = new BridgeAPI(baseUrl, sessionToken);
-            try {
-                await client.verify();
-                return client;
-            } catch (ex) {
-                // TODO: Check that the token is actually invalid, rather than just assuming we need to refresh.
-                console.warn(`Failed to verify token, fetching new token`, ex);
-                localStorage.removeItem(sessionToken);
+        try {
+            const sessionToken = localStorage.getItem('hookshot-sessionToken');
+            baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+            if (sessionToken) {
+                const client = new BridgeAPI(baseUrl, sessionToken);
+                try {
+                    await client.verify();
+                    return client;
+                } catch (ex) {
+                    // TODO: Check that the token is actually invalid, rather than just assuming we need to refresh.
+                    console.warn(`Failed to verify token, fetching new token`, ex);
+                    localStorage.removeItem(sessionToken);
+                }
             }
+        } catch (ex) {
+            // E.g. Browser prevents storage access.
+            console.debug(`Failed to fetch session token, requesting new token`, ex);
         }
+
         const creds = await widgetApi.requestOpenIDConnectToken();
         const { matrix_server_name, access_token } = creds;
         // eslint-disable-next-line camelcase
@@ -66,7 +73,12 @@ export class BridgeAPI {
             }
         }
         const response = await res.json() as ExchangeOpenAPIResponseBody;
-        localStorage.setItem('hookshot-sessionToken', response.token);
+        try {
+            localStorage.setItem('hookshot-sessionToken', response.token);
+        } catch (ex) {
+            // E.g. Browser prevents storage access.
+            console.debug(`Failed to store session token, continuing`, ex);
+        }
         return new BridgeAPI(baseUrl, response.token);
     }
 
