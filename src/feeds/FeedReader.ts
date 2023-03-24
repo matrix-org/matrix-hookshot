@@ -215,6 +215,7 @@ export class FeedReader {
                     },
                     // We don't want to wait forever for the feed.
                     this.config.pollTimeoutSeconds * 1000,
+                    this.parser,
                 );
                 
                 // Store any entity tags/cache times.
