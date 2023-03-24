@@ -103,9 +103,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 
     const clearInstance = useCallback(() => setConnectionState(null), [setConnectionState]);
 
+    const consideredAuthenticated = (authedResponse?.authenticated || !showAuthPrompt);
+
     return <form onSubmit={handleSave}>
         {authedResponse && <ServiceAuth onAuthSucceeded={checkAuth} authState={authedResponse} service="github" loginLabel={loginLabel} api={api} />}
-        {!existingConnection && authedResponse?.authenticated && <ConnectionSearch
+        {!existingConnection && consideredAuthenticated && <ConnectionSearch
             serviceName="GitHub"
             addNewInstanceUrl={newInstallationUrl}
             getInstances={getInstances}
@@ -152,7 +154,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && authedResponse?.authenticated && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
+            { canEdit && consideredAuthenticated && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
             { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Remove repository</Button>}
         </ButtonSet>
     </form>;
