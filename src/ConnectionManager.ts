@@ -173,7 +173,7 @@ export class ConnectionManager extends EventEmitter {
      * @param rollbackBadState 
      * @returns 
      */
-    public async createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
+    public async createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean): Promise<IConnection|undefined> {
         // Empty object == redacted
         if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
@@ -211,6 +211,7 @@ export class ConnectionManager extends EventEmitter {
             return connection;
         } catch (ex) {
             log.error(`Not creating connection for state ${roomId}/${state.type}`, ex);
+            return;
         }
     }
 
