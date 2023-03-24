@@ -97,6 +97,11 @@ export class FeedReader {
     private seenEntries: Map<string, string[]> = new Map();
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
+    
+    // Reason failures to url map.
+    private feedsFailingHttp = new Set();
+    private feedsFailingParsing = new Set();
+
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
     constructor(
@@ -190,9 +195,7 @@ export class FeedReader {
             // We don't want to wait forever for the feed.
             timeout: timeoutMs,
         });
-
         const feed = await parser.parseString(response.data);
-
         return { response, feed };
     }
 
@@ -279,12 +282,18 @@ export class FeedReader {
                     this.seenEntries.set(url, newSeenItems);
                 }
                 this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url: url } });
+                // Clear any feed failures
+                this.feedsFailingHttp.delete(url);
+                this.feedsFailingParsing.delete(url);
             } catch (err: unknown) {
                 if (axios.isAxiosError(err)) {
                     // No new feed items, skip.
                     if (err.response?.status === StatusCodes.NOT_MODIFIED) {
                         continue;
                     }
+                    this.feedsFailingHttp.add(url);
+                } else {
+                    this.feedsFailingParsing.add(url);
                 }
                 const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
                 const feedError = new FeedError(url.toString(), error, fetchKey);
@@ -292,6 +301,10 @@ export class FeedReader {
                 this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
             }
         }
+
+        Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
+        Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
+
         if (seenEntriesChanged) await this.saveSeenEntries();
 
         const elapsed = Date.now() - fetchingStarted;
