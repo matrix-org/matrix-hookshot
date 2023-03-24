@@ -43,6 +43,7 @@ Below is the generated list of Prometheus metrics for Hookshot.
 |--------|------|--------|
 | feed_count | The number of RSS feeds that hookshot is subscribed to |  |
 | feed_fetch_ms | The time taken for hookshot to fetch all feeds |  |
+| feed_failing | The number of RSS feeds that hookshot is failing to read | reason |
 ## process
 | Metric | Help | Labels |
 |--------|------|--------|
