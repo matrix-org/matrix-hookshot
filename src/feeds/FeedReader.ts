@@ -117,7 +117,7 @@ export class FeedReader {
     private shouldRun = true;
     private timeout?: NodeJS.Timeout;
 
-    get pollInterval() {
+    get sleepingInterval() {
         return (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1);
     }
 
@@ -223,6 +223,14 @@ export class FeedReader {
         return { response, feed };
     }
 
+    /**
+     * Poll a given feed URL for data, pushing any entries found into the message queue.
+     * We also check the `cacheTimes` cache to see if the feed has recent entries that we can
+     * filter out.
+     * 
+     * @param url The URL to be polled.
+     * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
+     */
     private async pollFeed(url: string): Promise<boolean> {
         let seenEntriesChanged = false;
         const fetchKey = randomUUID();
@@ -343,13 +351,11 @@ export class FeedReader {
         const elapsed = Date.now() - fetchingStarted;
         Metrics.feedFetchMs.set(elapsed);
 
-        let sleepFor: number;
-        if (elapsed > this.pollInterval) {
-            log.warn(`It took us longer to update the feeds than the configured pool interval (${elapsed / 1000}s)`);
-            sleepFor = 0;
-        } else {
-            sleepFor = this.pollInterval; - elapsed;
-            log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
+        const sleepFor = Math.min(this.sleepingInterval - elapsed, 0);
+        log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
+
+        if (elapsed > this.sleepingInterval) {
+            log.warn(`It took us longer to update the feeds than the configured pool interval`);
         }
 
         this.timeout = setTimeout(() => {
