@@ -6,6 +6,8 @@ on:
   push:
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
 
 env:
   DOCKER_NAMESPACE: halfshot

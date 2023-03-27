@@ -3,6 +3,8 @@ name: Newsfile
 on:
   pull_request:
     branches: [ main ]
+    paths:
+      - changelog.d/**'
 
 jobs:
   changelog:
