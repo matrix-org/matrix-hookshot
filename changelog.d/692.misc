@@ -1,0 +1,1 @@
+Only run changelog checks when only the changelog changes in CI.
