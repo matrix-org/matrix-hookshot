@@ -818,7 +818,14 @@ export class Bridge {
         }
 
         // Accept the invite
-        await retry(() => botUser.intent.joinRoom(roomId), 5);
+        await retry(async () => {
+            try {
+                await botUser.intent.joinRoom(roomId);
+            } catch (ex) {
+                log.warn(`Failed to join ${roomId}`, ex);
+                throw ex;
+            }
+        }, 5);
         if (event.content.is_direct) {
             await botUser.intent.underlyingClient.setRoomAccountData(
                 BRIDGE_ROOM_TYPE, roomId, {admin_user: event.sender},

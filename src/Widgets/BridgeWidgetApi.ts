@@ -17,8 +17,7 @@ import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore'
 
 const log = new Logger("BridgeWidgetApi");
 
-export class BridgeWidgetApi {
-    private readonly api: ProvisioningApi;
+export class BridgeWidgetApi extends ProvisioningApi {
     private readonly goNebMigrator?: GoNebMigrator;
 
     constructor(
@@ -32,7 +31,7 @@ export class BridgeWidgetApi {
         private readonly tokenStore: UserTokenStore,
         private readonly github?: GithubInstance,
     ) {
-        this.api = new ProvisioningApi(
+        super(
             storageProvider,
         {
             apiPrefix: "/widgetapi",
@@ -42,29 +41,30 @@ export class BridgeWidgetApi {
             disallowedIpRanges: config.widgets?.disallowedIpRanges,
             openIdOverride: config.widgets?.openIdOverrides,
         });
+        
         const wrapHandler = (handler: (req: ProvisioningRequest, res: Response, next?: NextFunction) => Promise<unknown>) => {
-            return async (req: ProvisioningRequest, res: Response, next?: NextFunction) => {
-                try {
-                    await handler.call(this, req, res);
-                } catch (ex) {
-                    // Pass to error handler without the req
-                    next?.(ex);
-                }
+            return async (req: ProvisioningRequest, res: Response) => {
+                await handler.call(this, req, res);
             }
         }
-        this.api.addRoute("get", "/v1/state", wrapHandler(this.getRoomState));
-        this.api.addRoute("get", '/v1/config/sections', wrapHandler(this.getConfigSections));
-        this.api.addRoute("get", '/v1/service/:service/config', wrapHandler(this.getServiceConfig));
-        this.api.addRoute("get", '/v1/:roomId/connections', wrapHandler(this.getConnections));
-        this.api.addRoute("get", '/v1/:roomId/connections/:service', wrapHandler(this.getConnectionsForService));
-        this.api.addRoute("post", '/v1/:roomId/connections/:type', wrapHandler(this.createConnection));
-        this.api.addRoute("put", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
-        this.api.addRoute("patch", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
-        this.api.addRoute("delete", '/v1/:roomId/connections/:connectionId', wrapHandler(this.deleteConnection));
-        this.api.addRoute("get", '/v1/targets/:type', wrapHandler(this.getConnectionTargets));
-        this.api.addRoute('get', '/v1/service/:service/auth', wrapHandler(this.getAuth));
-        this.api.addRoute('get', '/v1/service/:service/auth/:state', wrapHandler(this.getAuthPoll));
-        this.api.addRoute('post', '/v1/service/:service/auth/logout', wrapHandler(this.postAuthLogout));
+        this.addRoute("get", "/v1/state", wrapHandler(this.getRoomState));
+        this.addRoute("get", '/v1/config/sections', wrapHandler(this.getConfigSections));
+        this.addRoute("get", '/v1/service/:service/config', wrapHandler(this.getServiceConfig));
+        this.addRoute("get", '/v1/:roomId/connections', wrapHandler(this.getConnections));
+        this.addRoute("get", '/v1/:roomId/connections/:service', wrapHandler(this.getConnectionsForService));
+        this.addRoute("post", '/v1/:roomId/connections/:type', wrapHandler(this.createConnection));
+        this.addRoute("put", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
+        this.addRoute("patch", '/v1/:roomId/connections/:connectionId', wrapHandler(this.updateConnection));
+        this.addRoute("delete", '/v1/:roomId/connections/:connectionId', wrapHandler(this.deleteConnection));
+        this.addRoute("get", '/v1/targets/:type', wrapHandler(this.getConnectionTargets));
+        this.addRoute('get', '/v1/service/:service/auth', wrapHandler(this.getAuth));
+        this.addRoute('get', '/v1/service/:service/auth/:state', wrapHandler(this.getAuthPoll));
+        this.addRoute('post', '/v1/service/:service/auth/logout', wrapHandler(this.postAuthLogout));
+        this.baseRoute.use((err: unknown, _req: Express.Request, _res: Express.Response, _next: NextFunction) => {
+            // Needed until https://github.com/matrix-org/matrix-appservice-bridge/pull/465 lands.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).onError(err, _req, _res, _next);
+        });
 
         if (this.config.goNebMigrator) {
             this.goNebMigrator = new GoNebMigrator(
@@ -73,7 +73,7 @@ export class BridgeWidgetApi {
             );
         }
 
-        this.api.addRoute("get", "/v1/:roomId/goNebConnections", wrapHandler(this.getGoNebConnections));
+        this.addRoute("get", "/v1/:roomId/goNebConnections", wrapHandler(this.getGoNebConnections));
     }
 
     private async getGoNebConnections(req: ProvisioningRequest, res: Response) {
@@ -88,17 +88,28 @@ export class BridgeWidgetApi {
             throw Error('Cannot get connections without a valid userId');
         }
 
-        const botUser = this.getBotUserInRoom(roomId);
+        const botUser = await this.getBotUserInRoom(roomId);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
         const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, req.userId);
 
         res.send(connections);
     }
 
-    private getBotUserInRoom(roomId: string, serviceType?: string): BotUser {
-        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+    private async getBotUserInRoom(roomId: string, serviceType?: string): Promise<BotUser> {
+        let botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
         if (!botUser) {
-            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+            // Not bot in the room...yet. Let's try an ensure join.
+            const intent = (serviceType && this.botUsersManager.getBotUserForService(serviceType)?.intent) || this.as.botIntent;
+            try {
+                await intent.ensureJoined(roomId);
+            } catch (ex) {
+                // Just fail with this, we couldn't join.
+                throw new ApiError("Bot was not invited to the room.", ErrCode.NotInRoom);
+            }
+            botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+            if (!botUser) {
+                throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+            }
         }
         return botUser;
     }
@@ -149,7 +160,7 @@ export class BridgeWidgetApi {
         const roomId = req.params.roomId;
         const serviceType = req.params.service;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
         const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
         const powerlevel = new PowerLevelsEvent({content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "")});
@@ -193,7 +204,7 @@ export class BridgeWidgetApi {
         }
         const serviceType = connectionType.ServiceCategory;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         try {
             if (!req.body || typeof req.body !== "object") {
@@ -222,7 +233,7 @@ export class BridgeWidgetApi {
         const serviceType = req.params.type;
         const connectionId = req.params.connectionId;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
@@ -244,7 +255,7 @@ export class BridgeWidgetApi {
         const serviceType = req.params.type;
         const connectionId = req.params.connectionId;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
