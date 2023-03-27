@@ -246,7 +246,9 @@ export class FeedReader {
                 const newGuids = [];
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
                 for (const item of feed.items) {
-                    const guid = item.guid || item.id || item.link || item.title;
+                    // Find the first guid-like that looks like a string.
+                    // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
+                    const guid = [item.guid, item.id, item.link, item.title].find(id => typeof id === 'string');
                     if (!guid) {
                         log.error(`Could not determine guid for entry in ${url}, skipping`);
                         continue;
