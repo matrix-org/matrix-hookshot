@@ -1,10 +1,8 @@
 import { StatusCodes } from "http-status-codes";
-import { Logger } from "matrix-appservice-bridge";
-import { MatrixError } from "matrix-bot-sdk";
 
-const SLEEP_TIME_MS = 250;
+const SLEEP_TIME_MS = 1000;
+const EXPONENT_DIVISOR = 20;
 const DEFAULT_RETRY = () => true;
-const log = new Logger("PromiseUtil");
 
 type RetryFn = (error: Error) => boolean|number;
 
@@ -16,8 +14,8 @@ type RetryFn = (error: Error) => boolean|number;
  *  - A `number` if the action should be retried with a specific wait period.
  *  - `false` if the action should not be retried..
  */
-export function retryMatrixErrorFilter(err: Error) {
-    if (err instanceof MatrixError && err.statusCode >= 400 && err.statusCode <= 499) {
+export function retryMatrixErrorFilter(err: Error|{statusCode: number, retryAfterMs?: number}) {
+    if ('statusCode' in err && err.statusCode >= 400 && err.statusCode <= 499) {
         if (err.statusCode === StatusCodes.TOO_MANY_REQUESTS) {
             return err.retryAfterMs ?? true;
         }
@@ -35,7 +33,7 @@ export function retryMatrixErrorFilter(err: Error) {
  * @returns The result of actionFn
  * @throws If the `maxAttempts` limit is exceeded, or the `filterFn` returns false.
  */
-export async function retry<T>(actionFn: () => T,
+export async function retry<T>(actionFn: () => PromiseLike<T>,
                                maxAttempts: number,
                                waitFor: number = SLEEP_TIME_MS,
                                filterFn: RetryFn = DEFAULT_RETRY): Promise<T> {
@@ -49,8 +47,8 @@ export async function retry<T>(actionFn: () => T,
             if (shouldRetry) {
                 // If the filter returns a retry ms, use that.
                 const timeMs = typeof shouldRetry === "number" ?
-                    shouldRetry : waitFor * Math.pow(2, attempts);
-                log.warn(`Action failed (${ex}), retrying in ${timeMs}ms`);
+                    // 
+                    shouldRetry : Math.pow(waitFor, 1 + (attempts / EXPONENT_DIVISOR));
                 await new Promise((r) => setTimeout(r, timeMs));
             } else {
                 throw ex;
