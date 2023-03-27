@@ -6,7 +6,7 @@ import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
 import { LoadingSpinner } from '../elements/LoadingSpinner';
-import { ApiError, ErrCode } from "../../../src/api";
+import { ErrCode } from "../../../src/api";
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
     loginLabel?: string;
