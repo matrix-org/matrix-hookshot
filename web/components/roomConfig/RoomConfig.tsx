@@ -79,7 +79,10 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     if (ex instanceof BridgeAPIError && ex.errcode === ErrCode.NotInRoom) {
                         attempts++;
                         if (attempts < MAX_CONNECTION_FETCH_ATTEMPTS) {
-                            await new Promise(r => setTimeout(r, 1000));
+                            await new Promise(r => setTimeout(r,
+                                // Space out attempts non-lineraly
+                                Math.pow(1000, 1 + (attempts / 30))
+                            ));
                         } else {
                             throw ex;
                         }
