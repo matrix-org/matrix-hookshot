@@ -1,11 +1,8 @@
 import { StatusCodes } from "http-status-codes";
-import { Logger } from "matrix-appservice-bridge";
-import { MatrixError } from "matrix-bot-sdk";
 
 const SLEEP_TIME_MS = 1000;
 const EXPONENT_DIVISOR = 20;
 const DEFAULT_RETRY = () => true;
-const log = new Logger("PromiseUtil");
 
 type RetryFn = (error: Error) => boolean|number;
 
@@ -17,8 +14,8 @@ type RetryFn = (error: Error) => boolean|number;
  *  - A `number` if the action should be retried with a specific wait period.
  *  - `false` if the action should not be retried..
  */
-export function retryMatrixErrorFilter(err: Error) {
-    if (err instanceof MatrixError && err.statusCode >= 400 && err.statusCode <= 499) {
+export function retryMatrixErrorFilter(err: Error|{statusCode: number, retryAfterMs?: number}) {
+    if ('statusCode' in err && err.statusCode >= 400 && err.statusCode <= 499) {
         if (err.statusCode === StatusCodes.TOO_MANY_REQUESTS) {
             return err.retryAfterMs ?? true;
         }
@@ -52,7 +49,6 @@ export async function retry<T>(actionFn: () => PromiseLike<T>,
                 const timeMs = typeof shouldRetry === "number" ?
                     // 
                     shouldRetry : Math.pow(waitFor, 1 + (attempts / EXPONENT_DIVISOR));
-                log.warn(`Action failed (${ex}), retrying in ${timeMs}ms`);
                 await new Promise((r) => setTimeout(r, timeMs));
             } else {
                 throw ex;
