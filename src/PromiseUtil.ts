@@ -2,7 +2,8 @@ import { StatusCodes } from "http-status-codes";
 import { Logger } from "matrix-appservice-bridge";
 import { MatrixError } from "matrix-bot-sdk";
 
-const SLEEP_TIME_MS = 250;
+const SLEEP_TIME_MS = 1000;
+const EXPONENT_DIVISOR = 20;
 const DEFAULT_RETRY = () => true;
 const log = new Logger("PromiseUtil");
 
@@ -35,7 +36,7 @@ export function retryMatrixErrorFilter(err: Error) {
  * @returns The result of actionFn
  * @throws If the `maxAttempts` limit is exceeded, or the `filterFn` returns false.
  */
-export async function retry<T>(actionFn: () => T,
+export async function retry<T>(actionFn: () => PromiseLike<T>,
                                maxAttempts: number,
                                waitFor: number = SLEEP_TIME_MS,
                                filterFn: RetryFn = DEFAULT_RETRY): Promise<T> {
@@ -49,7 +50,8 @@ export async function retry<T>(actionFn: () => T,
             if (shouldRetry) {
                 // If the filter returns a retry ms, use that.
                 const timeMs = typeof shouldRetry === "number" ?
-                    shouldRetry : waitFor * Math.pow(2, attempts);
+                    // 
+                    shouldRetry : Math.pow(waitFor, 1 + (attempts / EXPONENT_DIVISOR));
                 log.warn(`Action failed (${ex}), retrying in ${timeMs}ms`);
                 await new Promise((r) => setTimeout(r, timeMs));
             } else {

@@ -7,6 +7,7 @@ import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
 import { LoadingSpinner } from '../elements/LoadingSpinner';
 import { ErrCode } from "../../../src/api";
+import { retry } from "../../../src/PromiseUtil";
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
     loginLabel?: string;
@@ -69,32 +70,16 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     }
 
     useEffect(() => {
-        const fetchConnections = async () => {
-            let attempts = 0;
-            do {
-                try {
-                    return await api.getConnectionsForService<ConnectionType>(roomId, type);
-                } catch (ex) {
-                    console.warn("Failed to fetch existing connections", ex, attempts);
-                    if (ex instanceof BridgeAPIError && ex.errcode === ErrCode.NotInRoom) {
-                        attempts++;
-                        if (attempts < MAX_CONNECTION_FETCH_ATTEMPTS) {
-                            await new Promise(r => setTimeout(r,
-                                // Space out attempts non-lineraly
-                                Math.pow(1000, 1 + (attempts / 30))
-                            ));
-                        } else {
-                            throw ex;
-                        }
-                    } else {
-                        throw ex;
-                    }
-                }
-            } while (attempts < MAX_CONNECTION_FETCH_ATTEMPTS)
-            throw Error('Too many attempts trying to fetch connections');
-        };
+        const fetchConnections = retry(
+            () => {
+                return api.getConnectionsForService<ConnectionType>(roomId, type);
+            },
+            MAX_CONNECTION_FETCH_ATTEMPTS,
+            1000,
+            (ex) => ex instanceof BridgeAPIError && ex.errcode === ErrCode.NotInRoom
+        );
 
-        fetchConnections().then((res) => {
+        fetchConnections.then((res) => {
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
             clearCurrentError();
