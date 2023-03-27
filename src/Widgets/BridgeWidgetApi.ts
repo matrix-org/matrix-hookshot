@@ -88,17 +88,28 @@ export class BridgeWidgetApi extends ProvisioningApi {
             throw Error('Cannot get connections without a valid userId');
         }
 
-        const botUser = this.getBotUserInRoom(roomId);
+        const botUser = await this.getBotUserInRoom(roomId);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
         const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, req.userId);
 
         res.send(connections);
     }
 
-    private getBotUserInRoom(roomId: string, serviceType?: string): BotUser {
-        const botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+    private async getBotUserInRoom(roomId: string, serviceType?: string): Promise<BotUser> {
+        let botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
         if (!botUser) {
-            throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+            // Not bot in the room...yet. Let's try an ensure join.
+            const intent = (serviceType && this.botUsersManager.getBotUserForService(serviceType)?.intent) || this.as.botIntent;
+            try {
+                await intent.ensureJoined(roomId);
+            } catch (ex) {
+                // Just fail with this, we couldn't join.
+                throw new ApiError("Bot was not invited to the room.", ErrCode.NotInRoom);
+            }
+            botUser = this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+            if (!botUser) {
+                throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
+            }
         }
         return botUser;
     }
@@ -149,7 +160,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         const roomId = req.params.roomId;
         const serviceType = req.params.service;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
         const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
         const powerlevel = new PowerLevelsEvent({content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "")});
@@ -193,7 +204,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         }
         const serviceType = connectionType.ServiceCategory;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         try {
             if (!req.body || typeof req.body !== "object") {
@@ -222,7 +233,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         const serviceType = req.params.type;
         const connectionId = req.params.connectionId;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
@@ -244,7 +255,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         const serviceType = req.params.type;
         const connectionId = req.params.connectionId;
 
-        const botUser = this.getBotUserInRoom(roomId, serviceType);
+        const botUser = await this.getBotUserInRoom(roomId, serviceType);
         await assertUserPermissionsInRoom(req.userId, roomId, "write", botUser.intent);
         const connection = this.connMan.getConnectionById(roomId, connectionId);
         if (!connection) {
