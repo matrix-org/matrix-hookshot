@@ -6,11 +6,9 @@ import { FeedEntry, FeedError, FeedReader} from "../feeds/FeedReader";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BaseConnection } from "./BaseConnection";
-import axios from "axios";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { StatusCodes } from "http-status-codes";
 const log = new Logger("FeedConnection");
 const md = new markdown();
 
