@@ -1,1 +1,0 @@
-Fix a missing grant for a connection sometimes causing a crash.

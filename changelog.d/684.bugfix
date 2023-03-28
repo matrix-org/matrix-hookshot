@@ -1,1 +1,0 @@
-Don't check Content-Type of RSS feeds when adding a new connection, instead just check if the feed is valid.

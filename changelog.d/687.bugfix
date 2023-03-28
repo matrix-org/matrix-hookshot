@@ -1,1 +1,0 @@
-Make sure we're not treating garbage data in feed items as guids.
