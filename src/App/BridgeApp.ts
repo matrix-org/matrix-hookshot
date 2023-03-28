@@ -19,6 +19,7 @@ async function start() {
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
     const listener = new ListenerService(config.listeners);
+    listener.start();
     Logger.configure({
         console: config.logging.level,
         colorize: config.logging.colorize,
@@ -53,8 +54,6 @@ async function start() {
         const webhookHandler = new Webhooks(config);
         listener.bindResource('webhooks', webhookHandler.expressRouter);
     }
-
-    listener.start();
 }
 
 start().catch((ex) => {

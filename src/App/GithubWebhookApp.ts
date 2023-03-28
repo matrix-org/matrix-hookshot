@@ -20,6 +20,7 @@ async function start() {
     });
     LogService.setLogger(Logger.botSdkLogger);
     const listener = new ListenerService(config.listeners);
+    listener.start();
     if (config.metrics) {
         if (!config.metrics.port) {
             log.warn(`Not running metrics for service, no port specified`);
@@ -31,7 +32,6 @@ async function start() {
     listener.bindResource('webhooks', webhookHandler.expressRouter);
     const userWatcher = new UserNotificationWatcher(config);
     userWatcher.start();
-    listener.start();
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");
         webhookHandler.stop();

@@ -1,4 +1,4 @@
-import { Intent, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
+import { Intent, MatrixError, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { Logger } from "matrix-appservice-bridge";
 
@@ -25,6 +25,8 @@ export interface GetConnectionsResponseItem<Config = object, Secrets = object> e
 const log = new Logger("Provisioner.api");
 
 export async function assertUserPermissionsInRoom(userId: string, roomId: string, requiredPermission: "read"|"write", intent: Intent) {
+    // Always do an ensureJoined to clear any possible invites.
+    await intent.ensureJoined(roomId);
     try {
         const membership = await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.member", intent.userId) as MembershipEventContent;
         if (membership.membership === "invite") {
@@ -33,6 +35,9 @@ export async function assertUserPermissionsInRoom(userId: string, roomId: string
             throw new ApiError("Bot is not joined to the room.", ErrCode.NotInRoom);
         }
     } catch (ex) {
+        if (ex instanceof MatrixError && ex.errcode === "M_FORBIDDEN") {
+            throw new ApiError(`User ${intent.userId} is not invited to the room.`, ErrCode.NotInRoom);
+        }
         if (isNotFoundError(ex)) {
             throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
         }

@@ -173,7 +173,7 @@ export class ConnectionManager extends EventEmitter {
      * @param rollbackBadState 
      * @returns 
      */
-    public async createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean) {
+    public async createConnectionForState(roomId: string, state: StateEvent<any>, rollbackBadState: boolean): Promise<IConnection|undefined> {
         // Empty object == redacted
         if (state.content.disabled === true || Object.keys(state.content).length === 0) {
             log.debug(`${roomId} has disabled state for ${state.type}`);
@@ -195,20 +195,24 @@ export class ConnectionManager extends EventEmitter {
             return;
         }
 
-        const connection = await connectionType.createConnectionForState(roomId, state, {
-            as: this.as,
-            intent: botUser.intent,
-            config: this.config,
-            tokenStore: this.tokenStore,
-            commentProcessor: this.commentProcessor,
-            messageClient: this.messageClient,
-            storage: this.storage,
-            github: this.github,
-        });
-
-        // Finally, ensure the connection is allowed by us.
-        await connection.ensureGrant?.(state.sender);
-        return connection;
+        try {
+            const connection = await connectionType.createConnectionForState(roomId, state, {
+                as: this.as,
+                intent: botUser.intent,
+                config: this.config,
+                tokenStore: this.tokenStore,
+                commentProcessor: this.commentProcessor,
+                messageClient: this.messageClient,
+                storage: this.storage,
+                github: this.github,
+            });
+            // Finally, ensure the connection is allowed by us.
+            await connection.ensureGrant?.(state.sender);
+            return connection;
+        } catch (ex) {
+            log.error(`Not creating connection for state ${roomId}/${state.type}`, ex);
+            return;
+        }
     }
 
     /**

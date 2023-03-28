@@ -22,6 +22,7 @@ async function start() {
     });
     LogService.setLogger(Logger.botSdkLogger);
     const listener = new ListenerService(config.listeners);
+    listener.start();
     const sender = new MatrixSender(config, getAppservice(config, registration).appservice);
     if (config.metrics) {
         if (!config.metrics.port) {
@@ -31,7 +32,6 @@ async function start() {
         }
     }
     sender.listen();
-    listener.start();
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");
         sender.stop();

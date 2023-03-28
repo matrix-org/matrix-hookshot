@@ -81,6 +81,12 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         this.key = await fs.readFile(this.keyPath);
     }
 
+    public stop() {
+        for (const session of this.oauthSessionStore.values()) {
+            clearTimeout(session.timeout);
+        }
+    }
+
     public async storeUserToken(type: TokenType, userId: string, token: string, instanceUrl?: string): Promise<void> {
         if (!this.config.checkPermission(userId, type, BridgePermissionLevel.login)) {
             throw new ApiError('User does not have permission to log in to service', ErrCode.ForbiddenUser);

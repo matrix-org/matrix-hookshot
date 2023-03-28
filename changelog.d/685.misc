@@ -1,0 +1,1 @@
+Stagger RSS feed polling over the interval period, rather than attempting to poll all feeds at once. Should reduce memory / CPU spikes.
