@@ -182,7 +182,7 @@ export class FeedReader {
         try {
             const accountData = await this.matrixClient.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
                 if (err instanceof MatrixError && err.statusCode === 404) {
-                    return {};
+                    return {} as AccountData;
                 } else {
                     throw err;
                 }
