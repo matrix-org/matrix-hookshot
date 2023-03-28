@@ -1,4 +1,4 @@
-import { MatrixClient } from "matrix-bot-sdk";
+import { MatrixClient, MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
@@ -12,6 +12,7 @@ import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
+import { FormatUtil } from "../FormatUtil";
 
 const log = new Logger("FeedReader");
 
@@ -95,6 +96,12 @@ function shuffle<T>(array: T[]): T[] {
     return array;
 }
 
+interface FeedItem {
+    title?: string;
+    link?: string;
+    id?: string;
+}
+
 export class FeedReader {
     private readonly parser = FeedReader.buildParser();
 
@@ -173,15 +180,15 @@ export class FeedReader {
 
     private async loadSeenEntries(): Promise<void> {
         try {
-            const accountData = await this.matrixClient.getAccountData<any>(FeedReader.seenEntriesEventType).catch((err: any) => {
-                if (err.statusCode === 404) {
+            const accountData = await this.matrixClient.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
+                if (err instanceof MatrixError && err.statusCode === 404) {
                     return {};
                 } else {
                     throw err;
                 }
             });
             if (!validateAccountData(accountData)) {
-                const errors = validateAccountData.errors!.map(e => `${e.instancePath} ${e.message}`);
+                const errors = validateAccountData.errors?.map(e => `${e.instancePath} ${e.message}`) || ['No error reported'];
                 throw new Error(`Invalid account data: ${errors.join(', ')}`);
             }
             for (const url in accountData) {
@@ -207,10 +214,10 @@ export class FeedReader {
 
     public static async fetchFeed(
         url: string,
-        headers: any,
+        headers: Record<string, string>,
         timeoutMs: number,
         parser: Parser = FeedReader.buildParser(),
-    ): Promise<{ response: AxiosResponse<any, any>, feed: Parser.Output<any> }> {
+    ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
         const response = await axios.get(url, {
             headers: {
                 'User-Agent': UserAgent,
@@ -262,22 +269,30 @@ export class FeedReader {
                 seenGuids = [];
                 seenEntriesChanged = true; // to ensure we only treat it as an initialSync once
             }
+
+            // migrate legacy, cleartext guids to their md5-hashed counterparts
+            seenGuids = seenGuids.map(guid => guid.startsWith('md5:') ? guid : this.hashGuid(guid));
+
             const seenGuidsSet = new Set(seenGuids);
             const newGuids = [];
             log.debug(`Found ${feed.items.length} entries in ${url}`);
+
             for (const item of feed.items) {
-                const guid = item.guid || item.id || item.link || item.title;
+                // Find the first guid-like that looks like a string.
+                // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
+                const guid = [item.guid, item.id, item.link, item.title].find(id => typeof id === 'string' && id);
                 if (!guid) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
                 }
-                newGuids.push(guid);
+                const hashedGuid = this.hashGuid(guid);
+                newGuids.push(hashedGuid);
 
                 if (initialSync) {
                     log.debug(`Skipping entry ${guid} since we're performing an initial sync`);
                     continue;
                 }
-                if (seenGuidsSet.has(guid)) {
+                if (seenGuidsSet.has(hashedGuid)) {
                     log.debug('Skipping already seen entry', guid);
                     continue;
                 }
@@ -364,5 +379,9 @@ export class FeedReader {
             }
             void this.pollFeeds();
         }, sleepFor);
+    }
+
+    private hashGuid(guid: string): string {
+        return `md5:${FormatUtil.hashId(guid)}`;
     }
 }
