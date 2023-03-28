@@ -38,7 +38,7 @@ towncrier build --version $VERSION
 git commit CHANGELOG.md changelog.d/ package.json -m $TAG
 
 echo "Proceeding to generate tags"
-cat draft-release.txt | git tag --force -m - -s $TAG
+git tag -F draft-release.txt -s $TAG
 rm draft-release.txt
 echo "Generated tag $TAG"
 
