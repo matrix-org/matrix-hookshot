@@ -12,6 +12,7 @@ import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
+import { FormatUtil } from "../FormatUtil";
 
 const log = new Logger("FeedReader");
 
@@ -242,22 +243,29 @@ export class FeedReader {
                     seenGuids = [];
                     seenEntriesChanged = true; // to ensure we only treat it as an initialSync once
                 }
+
+                // migrate legacy, cleartext guids to their md5-hashed counterparts
+                seenGuids = seenGuids.map(guid => guid.startsWith('md5:') ? guid : this.hashGuid(guid));
+
                 const seenGuidsSet = new Set(seenGuids);
                 const newGuids = [];
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
                 for (const item of feed.items) {
-                    const guid = item.guid || item.id || item.link || item.title;
+                    // Find the first guid-like that looks like a string.
+                    // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
+                    const guid = [item.guid, item.id, item.link, item.title].find(id => typeof id === 'string' && id);
                     if (!guid) {
                         log.error(`Could not determine guid for entry in ${url}, skipping`);
                         continue;
                     }
-                    newGuids.push(guid);
+                    const hashedGuid = this.hashGuid(guid);
+                    newGuids.push(hashedGuid);
 
                     if (initialSync) {
                         log.debug(`Skipping entry ${guid} since we're performing an initial sync`);
                         continue;
                     }
-                    if (seenGuidsSet.has(guid)) {
+                    if (seenGuidsSet.has(hashedGuid)) {
                         log.debug('Skipping already seen entry', guid);
                         continue;
                     }
@@ -333,5 +341,9 @@ export class FeedReader {
             }
             void this.pollFeeds();
         }, sleepFor);
+    }
+
+    private hashGuid(guid: string): string {
+        return `md5:${FormatUtil.hashId(guid)}`;
     }
 }
