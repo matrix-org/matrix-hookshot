@@ -1,1 +1,0 @@
-Add `feed_failing` metric to track the number of feeds failing to be read or parsed.

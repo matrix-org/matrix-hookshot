@@ -1,4 +1,29 @@
- 3.0.1 (2023-03-21)
+3.1.0 (2023-03-28)
+==================
+
+Bugfixes
+--------
+
+- Ensure Hookshot shuts down faster when running feeds. ([\#671](https://github.com/matrix-org/matrix-hookshot/issues/671))
+- Fix GitHub repo connections not always applying state updates. ([\#672](https://github.com/matrix-org/matrix-hookshot/issues/672))
+- Don't hide Create Connection button in Migration component. ([\#675](https://github.com/matrix-org/matrix-hookshot/issues/675))
+- Ensure the widget still works without needing to store local storage data. ([\#678](https://github.com/matrix-org/matrix-hookshot/issues/678))
+- Fix a missing grant for a connection sometimes causing a crash. ([\#680](https://github.com/matrix-org/matrix-hookshot/issues/680))
+- Don't check Content-Type of RSS feeds when adding a new connection, instead just check if the feed is valid. ([\#684](https://github.com/matrix-org/matrix-hookshot/issues/684))
+- Make sure we're not treating garbage data in feed items as guids. ([\#687](https://github.com/matrix-org/matrix-hookshot/issues/687))
+- Improve resiliency to invite/join races when Hookshot is added by an integration manager. ([\#691](https://github.com/matrix-org/matrix-hookshot/issues/691))
+
+
+Internal Changes
+----------------
+
+- Add release.sh script and release.yml workflow to make the release process easier. ([\#667](https://github.com/matrix-org/matrix-hookshot/issues/667))
+- Add a /ready and /live endpoint to each listener, so that it can be checked independently. ([\#676](https://github.com/matrix-org/matrix-hookshot/issues/676))
+- Add `feed_failing` metric to track the number of feeds failing to be read or parsed. ([\#681](https://github.com/matrix-org/matrix-hookshot/issues/681))
+- Stagger RSS feed polling over the interval period, rather than attempting to poll all feeds at once. Should reduce memory / CPU spikes. ([\#685](https://github.com/matrix-org/matrix-hookshot/issues/685))
+
+
+3.0.1 (2023-03-21)
 ===================
 
 Bugfixes

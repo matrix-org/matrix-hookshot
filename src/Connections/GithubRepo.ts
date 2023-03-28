@@ -568,14 +568,14 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         return this.state.priority || super.priority;
     }
 
-    public async ensureGrant(sender?: string, state = this.state) {
+    public async ensureGrant(sender?: string, state = { org: this.org, repo: this.repo }) {
         await this.grantChecker.assertConnectionGranted(this.roomId, state, sender);
     }
 
     protected async validateConnectionState(content: unknown) {
         const state = GitHubRepoConnection.validateState(content);
         // Validate the permissions of this state
-        await this.ensureGrant(undefined, state);
+        await this.ensureGrant(undefined, { org: this.org, repo: this.repo });
         return state;
     }
 
