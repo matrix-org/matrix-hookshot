@@ -1,3 +1,18 @@
+3.1.1 (2023-03-28)
+==================
+
+Bugfixes
+--------
+
+- Fix the bridge spamming RSS feeds repeatedly. ([\#694](https://github.com/matrix-org/matrix-hookshot/issues/694))
+
+
+Internal Changes
+----------------
+
+- Fix release script setting the tag message to "-". ([\#693](https://github.com/matrix-org/matrix-hookshot/issues/693))
+
+
 3.1.0 (2023-03-28)
 ==================
 
