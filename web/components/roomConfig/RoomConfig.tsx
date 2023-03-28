@@ -6,8 +6,8 @@ import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
 import { LoadingSpinner } from '../elements/LoadingSpinner';
-
-
+import { ErrCode } from "../../../src/api";
+import { retry } from "../../../src/PromiseUtil";
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
     loginLabel?: string;
@@ -40,6 +40,9 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     migrationCandidates?: ConnectionType[];
     migrationComparator?: (migrated: ConnectionType, native: ConnectionType) => boolean;
 }
+
+const MAX_CONNECTION_FETCH_ATTEMPTS = 10;
+
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const {
         api,
@@ -67,17 +70,25 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     }
 
     useEffect(() => {
-        api.getConnectionsForService<ConnectionType>(roomId, type).then(res => {
+        const fetchConnections = retry(
+            () => {
+                return api.getConnectionsForService<ConnectionType>(roomId, type);
+            },
+            MAX_CONNECTION_FETCH_ATTEMPTS,
+            1000,
+            (ex) => ex instanceof BridgeAPIError && ex.errcode === ErrCode.NotInRoom
+        );
+
+        fetchConnections.then((res) => {
             setCanEditRoom(res.canEdit);
             setConnections(res.connections);
             clearCurrentError();
         }).catch(ex => {
-            console.warn("Failed to fetch existing connections", ex);
             setError({
                 header: "Failed to fetch existing connections",
                 message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
             });
-        });
+        })
     }, [api, roomId, type, newConnectionKey]);
 
     const [ toMigrate, setToMigrate ] = useState<ConnectionType[]>([]);
@@ -158,7 +169,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     showAuthPrompt={showAuthPrompt}
                 />}
             </section>}
-            { connections === null && <LoadingSpinner /> }
+            { !error && connections === null && <LoadingSpinner /> }
             { !!connections?.length && <section>
                 <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
                 { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
