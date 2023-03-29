@@ -293,6 +293,12 @@ export class Bridge {
             (c, data) => c.onPROpened(data),
         );
 
+        this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestOpenedEvent, GitHubRepoConnection>(
+            "github.push",
+            (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),
+            (c, data) => c.onPROpened(data),
+        );
+
         this.bindHandlerToQueue<GitHubWebhookTypes.PullRequestClosedEvent, GitHubRepoConnection>(
             "github.pull_request.closed",
             (data) => connManager.getConnectionsForGithubRepo(data.repository.owner.login, data.repository.name),

@@ -8,7 +8,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
     PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleasePublishedEvent, ReleaseCreatedEvent,
-    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent,
+    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent, PushEvent,
 } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -107,6 +107,7 @@ export type AllowedEventsNames =
     "pull_request.ready_for_review" |
     "pull_request.reviewed" |
     "pull_request" |
+    "push" |
     "release.created" |
     "release.drafted" |
     "release" |
@@ -132,6 +133,7 @@ export const AllowedEvents: AllowedEventsNames[] = [
     "pull_request.ready_for_review" ,
     "pull_request.reviewed" ,
     "pull_request" ,
+    "push",
     "release.created" ,
     "release.drafted" ,
     "release",
@@ -1257,6 +1259,21 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 });
             }
         }
+    }
+
+    public async onPush(event: PushEvent) {
+        if (this.hookFilter.shouldSkip('push')) {
+            return;
+        }
+    
+        const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) in ${event.ref} for ${event.repository.full_name}`;
+
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html",
+        });
     }
 
     public toString() {
