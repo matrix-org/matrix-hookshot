@@ -1281,7 +1281,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return;
         }
     
-        const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) in ${event.ref} for ${event.repository.full_name}`;
+        const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) to \`${event.ref}\` for ${event.repository.full_name}`;
         const eventContent: IPushEventContent = {
             ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
             external_url: event.compare,
