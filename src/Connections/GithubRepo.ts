@@ -334,9 +334,8 @@ interface IPushEventContent {
     external_url: string,
     "uk.half-shot.matrix-hookshot.github.push": {
         commits: string[],
-        commit_count: number,
         ref: string,
-        base_ref: string,
+        base_ref: string|null,
         pusher: string,
     },
     "uk.half-shot.matrix-hookshot.github.repo": GitHubRepoMessageBody["uk.half-shot.matrix-hookshot.github.repo"],
@@ -1283,8 +1282,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
     
         const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) in ${event.ref} for ${event.repository.full_name}`;
-
-        await this.intent.sendEvent(this.roomId, {
+        const eventContent: IPushEventContent = {
             ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
             external_url: event.compare,
             "uk.half-shot.matrix-hookshot.github.push": {
@@ -1297,7 +1295,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html",
-        } as IPushEventContent);
+        };
+        await this.intent.sendEvent(this.roomId, eventContent);
     }
 
     public toString() {
