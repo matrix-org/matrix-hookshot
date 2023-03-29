@@ -25,7 +25,7 @@ import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
-import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
+import { GitHubRepoMessageBody, MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../Github/GrantChecker";
@@ -325,6 +325,22 @@ const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
 const DEFAULT_HOTLINK_PREFIX = "#";
 const MAX_RETURNED_TARGETS = 10;
+
+interface IPushEventContent {
+    body: string,
+    formatted_body: string,
+    msgtype: "m.notice",
+    format: "org.matrix.custom.html",
+    external_url: string,
+    "uk.half-shot.matrix-hookshot.github.push": {
+        commits: string[],
+        commit_count: number,
+        ref: string,
+        base_ref: string,
+        pusher: string,
+    },
+    "uk.half-shot.matrix-hookshot.github.repo": GitHubRepoMessageBody["uk.half-shot.matrix-hookshot.github.repo"],
+}
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
@@ -1269,11 +1285,19 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) in ${event.ref} for ${event.repository.full_name}`;
 
         await this.intent.sendEvent(this.roomId, {
+            ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
+            external_url: event.compare,
+            "uk.half-shot.matrix-hookshot.github.push": {
+                commits: event.commits.map(c => c.id),
+                pusher: `${event.pusher.name} <${event.pusher.email}>`,
+                ref: event.ref,
+                base_ref: event.base_ref,
+            },
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html",
-        });
+        } as IPushEventContent);
     }
 
     public toString() {
