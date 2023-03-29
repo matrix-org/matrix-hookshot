@@ -8,7 +8,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
     PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleasePublishedEvent, ReleaseCreatedEvent,
-    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent,
+    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent, IssueCommentCreatedEvent,
 } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -100,6 +100,8 @@ export type AllowedEventsNames =
     "issue.created" |
     "issue.edited" |
     "issue.labeled" |
+    "issue.comment" |
+    "issue.comment.created" |
     "issue" |
     "pull_request.closed" |
     "pull_request.merged" |
@@ -125,7 +127,9 @@ export const AllowedEvents: AllowedEventsNames[] = [
     "issue.created" ,
     "issue.edited" ,
     "issue.labeled" ,
-    "issue" ,
+    "issue.comment",
+    "issue.comment.created",
+    "issue",
     "pull_request.closed" ,
     "pull_request.merged" ,
     "pull_request.opened" ,
@@ -341,8 +345,9 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 	static validateState(state: unknown, isExistingState = false): ConnectionValidatedState {
         const validator = new Ajv({ allowUnionTypes: true }).compile(ConnectionStateSchema);
         if (validator(state)) {
-            if (!isExistingState && state.enableHooks && !state.enableHooks.every(h => AllowedEvents.includes(h))) {
-                throw new ApiError('`enableHooks` must only contain allowed values', ErrCode.BadValue);
+            const invalidHooks = !isExistingState && state.enableHooks && state.enableHooks.filter(h => !AllowedEvents.includes(h));
+            if (invalidHooks && invalidHooks.length) {
+                throw new ApiError(`'enableHooks' must only contain allowed values. Found invalid values ${invalidHooks}`, ErrCode.BadValue);
             }
             if (state.ignoreHooks) {
                 if (!isExistingState) {
@@ -864,6 +869,24 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
+        });
+    }
+
+    public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
+        if (this.hookFilter.shouldSkip('issue.comment.created', 'issue.comment', 'issue') || !this.matchesLabelFilter(event.issue)) {
+            return;
+        }
+    
+        let message = `**${event.comment.user.login}** [commented](${event.issue.html_url}) on [${event.repository.full_name}#${event.issue.number}](${event.issue.html_url})  `;
+        message += "\n " + emoji.emojify(event.comment.body);
+
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: message,
+            formatted_body: md.renderInline(message),
+            format: "org.matrix.custom.html",
+            ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
+            external_url: event.issue.html_url,
         });
     }
 
