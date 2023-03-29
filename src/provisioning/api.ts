@@ -86,6 +86,18 @@ export async function assertUserPermissionsInRoom(userId: string, roomId: string
     }
 }
 
+export async function getUserPLInRoom(userId: string, roomId: string, intent: Intent): Promise<number> {
+    let pls: PowerLevelsEventContent;
+    try {
+        pls = await intent.underlyingClient.getRoomStateEvent(roomId, "m.room.power_levels", "") as PowerLevelsEventContent;
+    } catch (ex) {
+        log.warn(`Failed to find PL event for room ${roomId}`, ex);
+        throw new ApiError(`Could not get power levels for ${roomId}. Is the bot invited?`, ErrCode.NotInRoom);
+    }
+
+    return pls.users?.[userId] || pls.users_default || 0;
+}
+
 // TODO Use MatrixError as a type once matrix-bot-sdk is updated to a version that exports it
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isNotFoundError(ex: any) {

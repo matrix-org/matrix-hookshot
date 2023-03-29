@@ -46,10 +46,14 @@ interface GoNebGithubWebhookService extends GoNebService {
 }
 
 export class GoNebMigrator {
+    private goNebBotPrefix: string;
     constructor(
         private apiUrl: string,
         private serviceIds?: string[],
-    ) {}
+        goNebBotPrefix?: string,
+    ) {
+        this.goNebBotPrefix = goNebBotPrefix ?? '@_neb_';
+    }
 
     static convertFeeds(goNebFeeds: GoNebFeedsConfig): Map<string, FeedConnectionState[]> {
         const feedsPerRoom = new Map<string, FeedConnectionState[]>();
@@ -83,14 +87,14 @@ export class GoNebMigrator {
         });
     }
 
-    public async getConnectionsForRoom(roomId: string, userId: string): Promise<MigratedConnections> {
+    public async getConnectionsForRoom(roomId: string, userIds: Set<string>): Promise<MigratedConnections> {
         const feeds: MigratedFeed[] = [];
         const github: MigratedGithub[] = [];
 
-        const serviceIds = [
+        const serviceIds = new Set([
             ...(this.serviceIds ?? []),
-            ...['rssbot', 'github'].map(type => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`),
-        ];
+            ...['rssbot', 'github'].flatMap(type => Array.from(userIds).map(userId => `${type}/${strictEncodeURIComponent(userId)}/${strictEncodeURIComponent(roomId)}`)),
+        ]);
 
         for (const id of serviceIds) {
             const endpoint = this.apiUrl + (this.apiUrl.endsWith('/') ? '' : '/') + 'admin/getService';
@@ -116,7 +120,7 @@ export class GoNebMigrator {
                 }
                 case 'github-webhook': {
                     const service = obj as GoNebGithubWebhookService;
-                    if (service.Config.ClientUserID === userId) {
+                    if (userIds.has(service.Config.ClientUserID)) {
                         const roomRepos = service.Config.Rooms[roomId]?.Repos;
                         if (roomRepos) {
                             const githubConnections = GoNebMigrator.convertGithub(roomRepos);
@@ -136,6 +140,43 @@ export class GoNebMigrator {
             feeds,
             github,
         };
+    }
+
+    public getGoNebUsersFromRoomMembers(members: string[]): string[] {
+        const goNebUsers = [];
+
+        for (const member of members) {
+            if (member.startsWith(this.goNebBotPrefix)) {
+                try {
+                    const mxid = this.getUserMxid(member);
+                    goNebUsers.push(mxid);
+                } catch (err: unknown) {
+                    log.error(`${member} looks like a go-neb mxid, but we failed to extract the owner mxid from it (${err})`);
+                }
+            }
+        }
+
+        return goNebUsers;
+    }
+
+    private getUserMxid(bot_mxid: string): string {
+        let user_part = bot_mxid.substring(this.goNebBotPrefix.length);
+        // strip the service type (before first '_') and server name (after ':')
+        try {
+            [, user_part] = user_part.match(/[^_]+_([^:]+):.*/)!;
+        } catch (err: unknown) {
+            throw new Error(`${bot_mxid} does not look like a Scalar-produced go-neb mxid`);
+        }
+
+        // decode according to https://spec.matrix.org/v1.2/appendices/#mapping-from-other-character-sets,
+        return user_part.replace(/=\w\w/g, (match) => {
+            // first the lowercased string...
+            const code = parseInt(match.substring(1), 16);
+            return String.fromCharCode(code);
+        }).replace(/_\w/g, (match) => {
+            // and then reapply the uppercase where applicable
+            return match.substring(1).toUpperCase();
+        });
     }
 }
 

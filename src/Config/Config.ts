@@ -434,6 +434,7 @@ export interface BridgeConfigMetrics {
 export interface BridgeConfigGoNebMigrator {
     apiUrl: string;
     serviceIds?: string[];
+    goNebBotPrefix?: string;
 }
 
 export interface BridgeConfigRoot {
