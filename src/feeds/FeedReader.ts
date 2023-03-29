@@ -366,7 +366,7 @@ export class FeedReader {
         const elapsed = Date.now() - fetchingStarted;
         Metrics.feedFetchMs.set(elapsed);
 
-        const sleepFor = Math.min(this.sleepingInterval - elapsed, 0);
+        const sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
         log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
 
         if (elapsed > this.sleepingInterval) {
