@@ -4,8 +4,12 @@ name: "Docker Hub - Latest"
 
 on:
   push:
+    paths-ignore:
+      - changelog.d/**'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
 
 env:
   DOCKER_NAMESPACE: halfshot
