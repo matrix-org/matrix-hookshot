@@ -159,17 +159,17 @@ export class GoNebMigrator {
         return goNebUsers;
     }
 
-    private getUserMxid(bot_mxid: string): string {
-        let user_part = bot_mxid.substring(this.goNebBotPrefix.length);
+    private getUserMxid(botMxid: string): string {
+        let userPart = botMxid.substring(this.goNebBotPrefix.length);
         // strip the service type (before first '_') and server name (after ':')
         try {
-            [, user_part] = user_part.match(/[^_]+_([^:]+):.*/)!;
+            [, userPart] = userPart.match(/[^_]+_([^:]+):.*/)!;
         } catch (err: unknown) {
-            throw new Error(`${bot_mxid} does not look like a Scalar-produced go-neb mxid`);
+            throw new Error(`${botMxid} does not look like a Scalar-produced go-neb mxid`);
         }
 
         // decode according to https://spec.matrix.org/v1.2/appendices/#mapping-from-other-character-sets,
-        return user_part.replace(/=\w\w/g, (match) => {
+        return userPart.replace(/=\w\w/g, (match) => {
             // first the lowercased string...
             const code = parseInt(match.substring(1), 16);
             return String.fromCharCode(code);
