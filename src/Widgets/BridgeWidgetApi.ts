@@ -8,7 +8,7 @@ import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
-import { assertUserPermissionsInRoom, GetConnectionsResponseItem, getUserPLInRoom } from "../provisioning/api";
+import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GoNebMigrator } from "./GoNebMigrator";
 import { StatusCodes } from "http-status-codes";
@@ -92,13 +92,9 @@ export class BridgeWidgetApi extends ProvisioningApi {
         const botUser = await this.getBotUserInRoom(roomId);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
 
-        const userIds = [req.userId];
-
-        if ((await getUserPLInRoom(req.userId, roomId, botUser.intent)) == 100) {
-            userIds.push(...this.goNebMigrator.getGoNebUsersFromRoomMembers(
-                await botUser.intent.underlyingClient.getJoinedRoomMembers(roomId)
-            ));
-        }
+        const userIds = this.goNebMigrator.getGoNebUsersFromRoomMembers(
+            await botUser.intent.underlyingClient.getJoinedRoomMembers(roomId)
+        );
 
         const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, new Set(userIds));
 
