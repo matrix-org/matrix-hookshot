@@ -136,6 +136,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" hookEventName="pull_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" hookEventName="pull_request.reviewed" onChange={toggleEnabledHook}>Reviewed</EventHookCheckbox>
                 </ul>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="push" onChange={toggleEnabledHook}>Pushed commits</EventHookCheckbox>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="workflow.run" onChange={toggleEnabledHook}>Workflow Runs</EventHookCheckbox>
                 <ul>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="workflow.run" hookEventName="workflow.run.success" onChange={toggleEnabledHook}>Success</EventHookCheckbox>

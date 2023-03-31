@@ -65,6 +65,7 @@ the events marked as default below will be enabled. Otherwise, this is ignored.
   - pull_request.opened *
   - pull_request.ready_for_review *
   - pull_request.reviewed *
+- push
 - release *
   - release.created *
   - release.drafted
