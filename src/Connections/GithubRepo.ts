@@ -8,7 +8,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
     PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleasePublishedEvent, ReleaseCreatedEvent,
-    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent, IssueCommentCreatedEvent,
+    IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent, IssueCommentCreatedEvent, PushEvent
 } from "@octokit/webhooks-types";
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
@@ -25,7 +25,7 @@ import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
-import { MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
+import { GitHubRepoMessageBody, MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../Github/GrantChecker";
@@ -109,6 +109,7 @@ export type AllowedEventsNames =
     "pull_request.ready_for_review" |
     "pull_request.reviewed" |
     "pull_request" |
+    "push" |
     "release.created" |
     "release.drafted" |
     "release" |
@@ -136,6 +137,7 @@ export const AllowedEvents: AllowedEventsNames[] = [
     "pull_request.ready_for_review" ,
     "pull_request.reviewed" ,
     "pull_request" ,
+    "push",
     "release.created" ,
     "release.drafted" ,
     "release",
@@ -328,6 +330,21 @@ const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
 const DEFAULT_HOTLINK_PREFIX = "#";
 const MAX_RETURNED_TARGETS = 10;
+
+interface IPushEventContent {
+    body: string,
+    formatted_body: string,
+    msgtype: "m.notice",
+    format: "org.matrix.custom.html",
+    external_url: string,
+    "uk.half-shot.matrix-hookshot.github.push": {
+        commits: string[],
+        ref: string,
+        base_ref: string|null,
+        pusher: string,
+    },
+    "uk.half-shot.matrix-hookshot.github.repo": GitHubRepoMessageBody["uk.half-shot.matrix-hookshot.github.repo"],
+}
 
 function compareEmojiStrings(e0: string, e1: string, e0Index = 0) {
     return e0.codePointAt(e0Index) === e1.codePointAt(0);
@@ -1281,6 +1298,29 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 });
             }
         }
+    }
+
+    public async onPush(event: PushEvent) {
+        if (this.hookFilter.shouldSkip('push')) {
+            return;
+        }
+    
+        const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) to \`${event.ref}\` for ${event.repository.full_name}`;
+        const eventContent: IPushEventContent = {
+            ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
+            external_url: event.compare,
+            "uk.half-shot.matrix-hookshot.github.push": {
+                commits: event.commits.map(c => c.id),
+                pusher: `${event.pusher.name} <${event.pusher.email}>`,
+                ref: event.ref,
+                base_ref: event.base_ref,
+            },
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.render(content),
+            format: "org.matrix.custom.html",
+        };
+        await this.intent.sendEvent(this.roomId, eventContent);
     }
 
     public toString() {
