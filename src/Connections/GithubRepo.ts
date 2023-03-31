@@ -323,6 +323,7 @@ const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_
     stale: "completed, but is stale 🍞"
 }
 
+const TRUNCATE_COMMENT_SIZE = 256;
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
 const DEFAULT_HOTLINK_PREFIX = "#";
@@ -878,7 +879,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
     
         let message = `**${event.comment.user.login}** [commented](${event.issue.html_url}) on [${event.repository.full_name}#${event.issue.number}](${event.issue.html_url})  `;
-        message += "\n > " + emoji.emojify(event.comment.body);
+        message += "\n > " + event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) + (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
 
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
