@@ -8,6 +8,8 @@ import styles from "./FeedConnection.module.scss";
 
 import FeedsIcon from "../../icons/feeds.png";
 
+const DEFAULT_TEMPLATE = "New post in $FEEDNAME: $LINK"
+
 const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }) => {
     if (!item.secrets) {
         return null;
@@ -25,9 +27,11 @@ const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }
     </>;
 }
 
+const DOCUMENTATION_LINK = "https://matrix-org.github.io/setup/feeds.html#feed-templates";
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove}) => {
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
+    const templateRef = createRef<HTMLInputElement>();
 
     const canEdit = !existingConnection?.id || (existingConnection?.canEdit ?? false);
     const handleSave = useCallback((evt: Event) => {
@@ -40,9 +44,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             onSave({
                 url,
                 label: labelRef?.current?.value || existingConnection?.config.label,
+                template: templateRef.current?.value || existingConnection?.config.template,
             });
         }
-    }, [canEdit, onSave, urlRef, labelRef, existingConnection]);
+    }, [canEdit, onSave, urlRef, labelRef, templateRef, existingConnection]);
 
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
@@ -50,8 +55,12 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         <InputField visible={!existingConnection?.id} label="URL" noPadding={true}>
             <input ref={urlRef} disabled={!canEdit || (existingConnection && !existingConnection.id)} type="text" value={existingConnection?.config.url} />
         </InputField>
-        <InputField visible={!existingConnection?.id} label="Label" noPadding={true}>
+        <InputField visible={true} label="Label" noPadding={true}>
             <input ref={labelRef} disabled={!canEdit} type="text" value={existingConnection?.config.label} />
+        </InputField>
+        <InputField visible={true} label="Template" noPadding={true}>
+            <input ref={templateRef} disabled={!canEdit} type="text" value={existingConnection?.config.template} placeholder={DEFAULT_TEMPLATE} />
+            <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing templates. </p>
         </InputField>
 
         <ButtonSet>
