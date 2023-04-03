@@ -101,7 +101,7 @@
             },
             "editorMode": "builder",
             "exemplar": false,
-            "expr": "irate(process_cpu_seconds_total[$__interval])",
+            "expr": "irate(hookshot_process_cpu_seconds_total[$__interval])",
             "format": "time_series",
             "instant": false,
             "interval": "$delta",
@@ -166,7 +166,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "process_heap_bytes",
+            "expr": "hookshot_process_heap_bytes",
             "hide": false,
             "legendFormat": "{{__name__}}",
             "range": true,
@@ -1369,7 +1369,7 @@
             },
             "editorMode": "builder",
             "exemplar": false,
-            "expr": "feed_count",
+            "expr": "hookshot_feed_count",
             "instant": false,
             "legendFormat": "{{__name__}}",
             "range": true,
@@ -1462,7 +1462,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "feed_fetch_ms",
+            "expr": "hookshot_feed_fetch_ms",
             "legendFormat": "{{__name__}}",
             "range": true,
             "refId": "A"
@@ -1781,7 +1781,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "idelta(matrix_api_calls[$__interval])",
+            "expr": "idelta(hookshot_matrix_api_calls[$__interval])",
             "interval": "$delta",
             "legendFormat": "{{method}}",
             "range": true,
@@ -1873,7 +1873,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "idelta(matrix_api_calls_failed[$__interval])",
+            "expr": "idelta(hookshot_matrix_api_calls_failed[$__interval])",
             "hide": false,
             "interval": "$delta",
             "legendFormat": "{{method}}",
@@ -1967,7 +1967,7 @@
             },
             "editorMode": "builder",
             "exemplar": false,
-            "expr": "idelta(matrix_appservice_events[$__interval])",
+            "expr": "idelta(hookshot_matrix_appservice_events[$__interval])",
             "hide": false,
             "instant": false,
             "interval": "$delta",
