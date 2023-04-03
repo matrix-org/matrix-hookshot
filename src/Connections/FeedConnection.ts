@@ -48,7 +48,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     static readonly ServiceCategory = "feeds";
     
 
-    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, intent, storage}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, intent}: InstantiateConnectionOpts) {
         if (!config.feeds?.enabled) {
             throw Error('RSS/Atom feeds are not configured');
         }
@@ -92,7 +92,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         return { url, label: data.label, template: data.template };
     }
 
-    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {as, intent, config, storage}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, { intent, config }: ProvisionConnectionOpts) {
         if (!config.feeds?.enabled) {
             throw new ApiError('RSS/Atom feeds are not configured', ErrCode.DisabledFeature);
         }
