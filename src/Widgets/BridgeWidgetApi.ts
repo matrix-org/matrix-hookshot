@@ -70,6 +70,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
             this.goNebMigrator = new GoNebMigrator(
                 this.config.goNebMigrator.apiUrl,
                 this.config.goNebMigrator.serviceIds,
+                this.config.goNebMigrator.goNebBotPrefix,
             );
         }
 
@@ -90,7 +91,12 @@ export class BridgeWidgetApi extends ProvisioningApi {
 
         const botUser = await this.getBotUserInRoom(roomId);
         await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
-        const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, req.userId);
+
+        const userIds = this.goNebMigrator.getGoNebUsersFromRoomMembers(
+            await botUser.intent.underlyingClient.getJoinedRoomMembers(roomId)
+        );
+
+        const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, new Set(userIds));
 
         res.send(connections);
     }
