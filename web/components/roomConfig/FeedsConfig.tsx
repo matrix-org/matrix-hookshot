@@ -52,8 +52,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
 
-        <InputField visible={!existingConnection?.id} label="URL" noPadding={true}>
-            <input ref={urlRef} disabled={!canEdit || (existingConnection && !existingConnection.id)} type="text" value={existingConnection?.config.url} />
+        <InputField visible={true} label="URL" noPadding={true}>
+            <input ref={urlRef} disabled={!canEdit || !!existingConnection} type="text" value={existingConnection?.config.url} />
         </InputField>
         <InputField visible={true} label="Label" noPadding={true}>
             <input ref={labelRef} disabled={!canEdit} type="text" value={existingConnection?.config.label} />
