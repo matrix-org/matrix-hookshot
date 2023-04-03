@@ -144,7 +144,9 @@ export class FeedReader {
         }
         if (item.guid) {
             try {
-                // Technically we should be checking isPermaLink but 
+                // The feed librray doesn't give us attributes (needs isPermaLink), so we're not really sure if this a URL or not.
+                // Parse it and see.
+                // https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
                 const url = new URL(item.guid);
                 return url.toString();
             } catch (ex) {
@@ -325,10 +327,6 @@ export class FeedReader {
                     log.debug('Skipping already seen entry', guid);
                     continue;
                 }
-
-                // The feed librray doesn't give us attributes, so we're not really sure if this a URL or not.
-                // https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
-
 
                 const entry = {
                     feed: {
