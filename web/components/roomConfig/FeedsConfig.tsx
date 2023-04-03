@@ -26,8 +26,8 @@ const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }
         </ul>
     </>;
 }
+const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html#feed-templates";
 
-const DOCUMENTATION_LINK = "https://matrix-org.github.io/setup/feeds.html#feed-templates";
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove}) => {
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
