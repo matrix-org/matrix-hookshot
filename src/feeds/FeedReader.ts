@@ -340,7 +340,7 @@ export class FeedReader {
                     fetchKey
                 };
 
-                // log.debug('New entry:', entry);
+                log.debug('New entry:', entry);
                 seenEntriesChanged = true;
 
                 this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: entry });
