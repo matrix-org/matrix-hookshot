@@ -114,7 +114,7 @@ export class FeedReader {
     private seenEntries: Map<string, string[]> = new Map();
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
-    
+
     // Reason failures to url map.
     private feedsFailingHttp = new Set();
     private feedsFailingParsing = new Set();
@@ -176,6 +176,7 @@ export class FeedReader {
         this.feedQueue = shuffle([...this.observedFeedUrls.values()]);
 
         Metrics.feedsCount.set(this.observedFeedUrls.size);
+        Metrics.feedsCountDeprecated.set(this.observedFeedUrls.size);
     }
 
     private async loadSeenEntries(): Promise<void> {
@@ -234,7 +235,7 @@ export class FeedReader {
      * Poll a given feed URL for data, pushing any entries found into the message queue.
      * We also check the `cacheTimes` cache to see if the feed has recent entries that we can
      * filter out.
-     * 
+     *
      * @param url The URL to be polled.
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
@@ -254,7 +255,7 @@ export class FeedReader {
                 this.config.pollTimeoutSeconds * 1000,
                 this.parser,
             );
-            
+
             // Store any entity tags/cache times.
             if (response.headers.ETag) {
                 this.cacheTimes.set(url, { etag: response.headers.ETag});
@@ -317,7 +318,7 @@ export class FeedReader {
                 // Some RSS feeds can return a very small number of items then bounce
                 // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
                 // forget what we sent and resend it. Instead, we'll keep 2x the max number of items that we've ever
-                // seen from this feed, up to a max of 10,000. 
+                // seen from this feed, up to a max of 10,000.
                 // Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
                 const maxGuids = Math.min(Math.max(2 * newGuids.length, seenGuids.length), 10_000);
                 const newSeenItems = Array.from(new Set([ ...newGuids, ...seenGuids ]).values()).slice(0, maxGuids);
@@ -362,9 +363,12 @@ export class FeedReader {
 
         Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
         Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
+        Metrics.feedsFailingDeprecated.set({ reason: "http" }, this.feedsFailingHttp.size );
+        Metrics.feedsFailingDeprecated.set({ reason: "parsing" }, this.feedsFailingParsing.size);
 
         const elapsed = Date.now() - fetchingStarted;
         Metrics.feedFetchMs.set(elapsed);
+        Metrics.feedsFetchMsDeprecated.set(elapsed);
 
         const sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
         log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);

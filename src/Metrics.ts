@@ -27,6 +27,9 @@ export class Metrics {
     public readonly feedsCount = new Gauge({ name: "hookshot_feed_count", help: "The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
     public readonly feedFetchMs = new Gauge({ name: "hookshot_feed_fetch_ms", help: "The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
     public readonly feedsFailing = new Gauge({ name: "hookshot_feed_failing", help: "The number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
+    public readonly feedsCountDeprecated = new Gauge({ name: "feed_count", help: "(Deprecated) The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
+    public readonly feedsFetchMsDeprecated = new Gauge({ name: "feed_fetch_ms", help: "(Deprecated) The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
+    public readonly feedsFailingDeprecated = new Gauge({ name: "feed_failing", help: "(Deprecated) The number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
 
 
     constructor(private registry: Registry = register) {
