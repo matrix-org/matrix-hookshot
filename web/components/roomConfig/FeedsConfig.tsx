@@ -28,15 +28,15 @@ const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }
 }
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html#feed-templates";
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove}) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove, isMigrationCandidate}) => {
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
     const templateRef = createRef<HTMLInputElement>();
-
-    const canEdit = !existingConnection?.id || (existingConnection?.canEdit ?? false);
+    const canSave = !existingConnection?.id || (existingConnection?.canEdit ?? false);
+    const canEdit = canSave && !isMigrationCandidate;
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
-        if (!canEdit) {
+        if (!canSave) {
             return;
         }
         const url = urlRef?.current?.value || existingConnection?.config.url;
@@ -47,8 +47,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
                 template: templateRef.current?.value || existingConnection?.config.template,
             });
         }
-    }, [canEdit, onSave, urlRef, labelRef, templateRef, existingConnection]);
-
+    }, [canSave, onSave, urlRef, labelRef, templateRef, existingConnection]);
+    
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
 
@@ -64,7 +64,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         </InputField>
 
         <ButtonSet>
-            { canEdit && <Button type="submit">{ existingConnection?.id ? "Save" : "Subscribe" }</Button>}
+            { canSave && <Button type="submit">{ existingConnection?.id ? "Save" : "Subscribe" }</Button>}
             { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Unsubscribe</Button>}
         </ButtonSet>
 
@@ -98,7 +98,7 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         });
     }, [api, roomId]);
 
-    const compareConnections = useCallback((goNebConnection, nativeConnection) => goNebConnection.config.url === nativeConnection.config.url, []);
+    const compareConnections = useCallback((goNebConnection: FeedResponseItem, nativeConnection: FeedResponseItem) => goNebConnection.config.url === nativeConnection.config.url, []);
 
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
