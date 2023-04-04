@@ -84,7 +84,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             }
             // Sanity to prevent slowing hookshot down with massive templates.
             if (data.template.length > MAX_TEMPLATE_LENGTH) {
-                throw new ApiError('Template should not be longer than 1024 characters', ErrCode.BadValue);
+                throw new ApiError(`Template should not be longer than ${MAX_TEMPLATE_LENGTH} characters`, ErrCode.BadValue);
             }
         }
 
