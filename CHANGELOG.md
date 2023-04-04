@@ -1,3 +1,21 @@
+3.2.0 (2023-04-04)
+==================
+
+Features
+--------
+
+- Allow users to import other people's go-neb services. ([\#695](https://github.com/matrix-org/matrix-hookshot/issues/695))
+- Add support for push events on Github repo connections. ([\#696](https://github.com/matrix-org/matrix-hookshot/issues/696))
+- Add support for issue created notifications in Github Repo connections. ([\#697](https://github.com/matrix-org/matrix-hookshot/issues/697))
+- Support using the `guid` field of an RSS feed entry as a link ([\#700](https://github.com/matrix-org/matrix-hookshot/issues/700))
+
+
+Internal Changes
+----------------
+
+- Only run changelog checks when only the changelog changes in CI. ([\#692](https://github.com/matrix-org/matrix-hookshot/issues/692))
+
+
 3.1.1 (2023-03-28)
 ==================
 

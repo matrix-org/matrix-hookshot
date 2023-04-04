@@ -1,1 +1,0 @@
-Add support for issue created notifications in Github Repo connections.
