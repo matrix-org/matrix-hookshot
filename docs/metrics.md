@@ -31,6 +31,9 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | hookshot_notifications_push | Number of notifications pushed | service |
 | hookshot_notifications_service_up | Is the notification service up or down | service |
 | hookshot_notifications_watchers | Number of notifications watchers running | service |
+| hookshot_feeds_count | The number of RSS feeds that hookshot is subscribed to |  |
+| hookshot_feeds_fetch_ms | The time taken for hookshot to fetch all feeds |  |
+| hookshot_feeds_failing | The number of RSS feeds that hookshot is failing to read | reason |
 ## matrix
 | Metric | Help | Labels |
 |--------|------|--------|
@@ -41,9 +44,9 @@ Below is the generated list of Prometheus metrics for Hookshot.
 ## feed
 | Metric | Help | Labels |
 |--------|------|--------|
-| feed_count | The number of RSS feeds that hookshot is subscribed to |  |
-| feed_fetch_ms | The time taken for hookshot to fetch all feeds |  |
-| feed_failing | The number of RSS feeds that hookshot is failing to read | reason |
+| feed_count | (Deprecated) The number of RSS feeds that hookshot is subscribed to |  |
+| feed_fetch_ms | (Deprecated) The time taken for hookshot to fetch all feeds |  |
+| feed_failing | (Deprecated) The number of RSS feeds that hookshot is failing to read | reason |
 ## process
 | Metric | Help | Labels |
 |--------|------|--------|
