@@ -103,6 +103,59 @@ interface FeedItem {
 }
 
 export class FeedReader {
+    private static buildParser(): Parser {
+        return new Parser();
+    }
+
+    /**
+     * Read a feed URL and parse it into a set of items.
+     * @param url The feed URL.
+     * @param headers Any headers to provide.
+     * @param timeoutMs How long to wait for the response, in milliseconds.
+     * @param parser The parser instance. If not provided, this creates a new parser.
+     * @returns The raw axios response, and the parsed feed.
+     */
+    public static async fetchFeed(
+        url: string,
+        headers: Record<string, string>,
+        timeoutMs: number,
+        parser: Parser = FeedReader.buildParser(),
+    ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
+        const response = await axios.get(url, {
+            headers: {
+                'User-Agent': UserAgent,
+                ...headers,
+            },
+            // We don't want to wait forever for the feed.
+            timeout: timeoutMs,
+        });
+        const feed = await parser.parseString(response.data);
+        return { response, feed };
+    }
+    
+    /**
+     * Attempt to parse a link from a feed item.
+     * @param item A feed item.
+     * @returns Return either a link to the item, or null.
+     */
+    private static parseLinkFromItem(item: {guid?: string, link?: string}) {
+        if (item.link) {
+            return item.link;
+        }
+        if (item.guid) {
+            try {
+                // The feed librray doesn't give us attributes (needs isPermaLink), so we're not really sure if this a URL or not.
+                // Parse it and see.
+                // https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
+                const url = new URL(item.guid);
+                return url.toString();
+            } catch (ex) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private readonly parser = FeedReader.buildParser();
 
     private connections: FeedConnection[];
@@ -209,28 +262,6 @@ export class FeedReader {
         await this.matrixClient.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
-    private static buildParser(): Parser {
-        return new Parser();
-    }
-
-    public static async fetchFeed(
-        url: string,
-        headers: Record<string, string>,
-        timeoutMs: number,
-        parser: Parser = FeedReader.buildParser(),
-    ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
-        const response = await axios.get(url, {
-            headers: {
-                'User-Agent': UserAgent,
-                ...headers,
-            },
-            // We don't want to wait forever for the feed.
-            timeout: timeoutMs,
-        });
-        const feed = await parser.parseString(response.data);
-        return { response, feed };
-    }
-
     /**
      * Poll a given feed URL for data, pushing any entries found into the message queue.
      * We also check the `cacheTimes` cache to see if the feed has recent entries that we can
@@ -304,7 +335,7 @@ export class FeedReader {
                         url: url,
                     },
                     title: item.title ? stripHtml(item.title) : null,
-                    link: item.link || null,
+                    link: FeedReader.parseLinkFromItem(item),
                     fetchKey
                 };
 
