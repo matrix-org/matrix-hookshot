@@ -172,6 +172,9 @@ There are 3 variables at the top of the dashboard:</p>
 <tr><td>hookshot_notifications_push</td><td>Number of notifications pushed</td><td>service</td></tr>
 <tr><td>hookshot_notifications_service_up</td><td>Is the notification service up or down</td><td>service</td></tr>
 <tr><td>hookshot_notifications_watchers</td><td>Number of notifications watchers running</td><td>service</td></tr>
+<tr><td>hookshot_feeds_count</td><td>The number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
+<tr><td>hookshot_feeds_fetch_ms</td><td>The time taken for hookshot to fetch all feeds</td><td></td></tr>
+<tr><td>hookshot_feeds_failing</td><td>The number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
 </tbody></table>
 <h2 id="matrix"><a class="header" href="#matrix">matrix</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
@@ -182,9 +185,9 @@ There are 3 variables at the top of the dashboard:</p>
 </tbody></table>
 <h2 id="feed"><a class="header" href="#feed">feed</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>feed_count</td><td>The number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
-<tr><td>feed_fetch_ms</td><td>The time taken for hookshot to fetch all feeds</td><td></td></tr>
-<tr><td>feed_failing</td><td>The number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
+<tr><td>feed_count</td><td>(Deprecated) The number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
+<tr><td>feed_fetch_ms</td><td>(Deprecated) The time taken for hookshot to fetch all feeds</td><td></td></tr>
+<tr><td>feed_failing</td><td>(Deprecated) The number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
 </tbody></table>
 <h2 id="process"><a class="header" href="#process">process</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
