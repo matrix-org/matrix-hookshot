@@ -335,9 +335,9 @@ export class FeedReader {
                         url: url,
                     },
                     title: item.title ? stripHtml(item.title) : null,
-                    pubdate: item.pubDate ?? null,
+                    pubdate: item.pubdate ?? null,
                     summary: item.summary ?? null,
-                    author: item.creator ?? null,
+                    author: item.author ?? null,
                     link: FeedReader.parseLinkFromItem(item),
                     fetchKey
                 };

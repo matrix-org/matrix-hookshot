@@ -10,6 +10,9 @@ pub struct FeedItem {
     pub link: Option<String>,
     pub id: Option<String>,
     pub id_is_permalink: bool,
+    pub pubdate: Option<String>,
+    pub summary: Option<String>,
+    pub author: Option<String>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -18,9 +21,12 @@ pub struct JsRssChannel {
     pub title: String,
     pub items: Vec<FeedItem>,
 }
-
 #[napi(js_name = "parseRSSFeed")]
 pub fn js_parse_rss_feed(xml: String) -> Result<JsRssChannel, JsError> {
+    fn map_item_value(original: &str) -> String {
+        original.to_string()
+    }
+
     Channel::from_str(&xml)
         .map(|channel| JsRssChannel {
             title: channel.title().to_string(),
@@ -28,10 +34,13 @@ pub fn js_parse_rss_feed(xml: String) -> Result<JsRssChannel, JsError> {
                 .items()
                 .iter()
                 .map(|item| FeedItem {
-                    title: item.title().map(|f| f.to_string()),
-                    link: item.link().map(|f| f.to_string()),
+                    title: item.title().map(map_item_value),
+                    link: item.link().map(map_item_value),
                     id: item.guid().map(|f| f.value().to_string()),
                     id_is_permalink: item.guid().map_or(false, |f| f.is_permalink()),
+                    pubdate: item.pub_date().map(map_item_value),
+                    summary: item.description().map(map_item_value),
+                    author: item.author().map(map_item_value),
                 })
                 .collect(),
         })
