@@ -37,3 +37,22 @@ It requires no special permissions from the user issuing the command.
 ### Removing feeds
 
 To remove a feed from a room, say `!hookshot feed remove <URL>`, with the URL specifying which feed you want to unsubscribe from.
+
+
+### Feed templates
+
+You can optionally give a feed a specific template to use when sending a message into a room. A template
+may include any of the following tokens:
+
+|Token     |Description                                 |
+|----------|--------------------------------------------|
+|$FEEDNAME | Either the label, title or url of the feed.|
+|$FEEDURL  | The URL of the feed.                       |
+|$FEEDTITLE| The title of the feed.                     |
+|$TITLE    | The title of the feed entry.               |
+|$LINK     | The link of the feed entry.                |
+|$AUTHOR   | The author of the feed entry.              |
+|$DATE     | The publish date (`pubDate`) of the entry. |
+|$SUMMARY  | The summary of the entry.                  |
+
+If not specified, the default template is `New post in $FEEDNAME: $LINK`.
