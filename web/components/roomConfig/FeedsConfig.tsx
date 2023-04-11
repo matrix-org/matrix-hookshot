@@ -56,10 +56,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <input ref={urlRef} disabled={!canEdit || !!existingConnection} type="text" value={existingConnection?.config.url} />
         </InputField>
         <InputField visible={true} label="Label" noPadding={true}>
-            <input ref={labelRef} disabled={!canEdit} type="text" value={existingConnection?.config.label} />
+            <input ref={labelRef} disabled={!canSave} type="text" value={existingConnection?.config.label} />
         </InputField>
         <InputField visible={true} label="Template" noPadding={true}>
-            <input ref={templateRef} disabled={!canEdit} type="text" value={existingConnection?.config.template} placeholder={DEFAULT_TEMPLATE} />
+            <input ref={templateRef} disabled={!canSave} type="text" value={existingConnection?.config.template} placeholder={DEFAULT_TEMPLATE} />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing templates. </p>
         </InputField>
 

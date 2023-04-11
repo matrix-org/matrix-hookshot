@@ -204,7 +204,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         });
     }
 
-    public async handleFeedSuccess() {
+    public handleFeedSuccess() {
         this.hasError = false;
         this.lastResults.unshift({
             ok: true,
