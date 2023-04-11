@@ -2,7 +2,7 @@
 import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
-import { FormatUtil } from "../FormatUtil";
+import { FormatUtil, LooseMinimalGitHubRepo } from "../FormatUtil";
 import { Octokit } from "@octokit/rest";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
@@ -25,7 +25,7 @@ import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../Config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
-import { GitHubRepoMessageBody, MinimalGitHubIssue, MinimalGitHubRepo } from "../libRs";
+import { GitHubRepoMessageBody, MinimalGitHubIssue } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../Github/GrantChecker";
@@ -637,7 +637,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const issueNumber = result?.[1];
 
         if (issueNumber) {
-            let issue: MinimalGitHubIssue & { repository?: MinimalGitHubRepo, pull_request?: unknown, state: string };
+            let issue: MinimalGitHubIssue & { repository?: LooseMinimalGitHubRepo, pull_request?: unknown, state: string };
             try {
                 issue = (await octokit.issues.get({
                     repo: this.state.repo,
