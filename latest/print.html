@@ -627,6 +627,20 @@ It may be checked less often if under exceptional load, but it will never be che
 It requires no special permissions from the user issuing the command.</p>
 <h3 id="removing-feeds"><a class="header" href="#removing-feeds">Removing feeds</a></h3>
 <p>To remove a feed from a room, say <code>!hookshot feed remove &lt;URL&gt;</code>, with the URL specifying which feed you want to unsubscribe from.</p>
+<h3 id="feed-templates"><a class="header" href="#feed-templates">Feed templates</a></h3>
+<p>You can optionally give a feed a specific template to use when sending a message into a room. A template
+may include any of the following tokens:</p>
+<table><thead><tr><th>Token</th><th>Description</th></tr></thead><tbody>
+<tr><td>$FEEDNAME</td><td>Either the label, title or url of the feed.</td></tr>
+<tr><td>$FEEDURL</td><td>The URL of the feed.</td></tr>
+<tr><td>$FEEDTITLE</td><td>The title of the feed.</td></tr>
+<tr><td>$TITLE</td><td>The title of the feed entry.</td></tr>
+<tr><td>$LINK</td><td>The link of the feed entry.</td></tr>
+<tr><td>$AUTHOR</td><td>The author of the feed entry.</td></tr>
+<tr><td>$DATE</td><td>The publish date (<code>pubDate</code>) of the entry.</td></tr>
+<tr><td>$SUMMARY</td><td>The summary of the entry.</td></tr>
+</tbody></table>
+<p>If not specified, the default template is <code>New post in $FEEDNAME: $LINK</code>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="figma"><a class="header" href="#figma">Figma</a></h1>
 <h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
 <p>To bridge Figma webhooks with Hookshot, you will need:</p>
