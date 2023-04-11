@@ -81,6 +81,10 @@ const accountDataSchema = {
 const ajv = new Ajv();
 const validateAccountData = ajv.compile<AccountData>(accountDataSchema);
 
+function isNonEmptyString(input: any): input is string {
+    return input && typeof input === 'string';
+}
+
 function stripHtml(input: string): string {
     return input.replace(/<[^>]*?>/g, '');
 }
@@ -315,7 +319,7 @@ export class FeedReader {
             for (const item of feed.items) {
                 // Find the first guid-like that looks like a string.
                 // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                const guid = [item.guid, item.id, item.link, item.title].find(id => typeof id === 'string' && id);
+                const guid = [item.guid, item.id, item.link, item.title].find(isNonEmptyString);
                 if (!guid) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
@@ -334,10 +338,10 @@ export class FeedReader {
 
                 const entry = {
                     feed: {
-                        title: feed.title ? stripHtml(feed.title) : null,
+                        title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
                         url: url,
                     },
-                    title: item.title ? stripHtml(item.title) : null,
+                    title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
                     pubdate: item.pubDate ?? null,
                     summary: item.summary ?? null,
                     author: item.creator ?? null,
