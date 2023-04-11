@@ -231,11 +231,11 @@ export class Bridge {
             this.github?.onInstallationRemoved(data.data);
         });
 
-        this.bindHandlerToQueue<GitHubWebhookTypes.IssueCommentCreatedEvent, GitHubIssueConnection>(
+        this.bindHandlerToQueue<GitHubWebhookTypes.IssueCommentCreatedEvent, GitHubIssueConnection|GitHubRepoConnection>(
             "github.issue_comment.created",
             (data) => {
                 const { repository, issue, owner } = validateRepoIssue(data);
-                return connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number).filter(c => c instanceof GitHubIssueConnection) as GitHubIssueConnection[];
+                return connManager.getConnectionsForGithubIssue(owner, repository.name, issue.number);
             },
             (c, data) => c.onIssueCommentCreated(data),
         );

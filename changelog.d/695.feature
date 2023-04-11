@@ -1,1 +1,0 @@
-Allow users to import other people's go-neb services.

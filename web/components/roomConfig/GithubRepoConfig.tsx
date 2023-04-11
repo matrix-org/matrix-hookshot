@@ -128,6 +128,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.edited" onChange={toggleEnabledHook}>Edited</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.labeled" onChange={toggleEnabledHook}>Labeled</EventHookCheckbox>
                 </ul>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="issue.comment" onChange={toggleEnabledHook}>Issue Comments</EventHookCheckbox>
+                <ul>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue.comment" hookEventName="issue.comment.created" onChange={toggleEnabledHook}>Created</EventHookCheckbox>
+                </ul>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="pull_request" onChange={toggleEnabledHook}>Pull requests</EventHookCheckbox>
                 <ul>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="pull_request" hookEventName="pull_request.opened" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
