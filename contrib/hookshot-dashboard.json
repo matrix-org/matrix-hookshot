@@ -1369,7 +1369,7 @@
             },
             "editorMode": "builder",
             "exemplar": false,
-            "expr": "feed_count",
+            "expr": "hookshot_feeds_count",
             "instant": false,
             "legendFormat": "{{__name__}}",
             "range": true,
@@ -1462,7 +1462,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "builder",
-            "expr": "feed_fetch_ms",
+            "expr": "hookshot_feeds_fetch_ms",
             "legendFormat": "{{__name__}}",
             "range": true,
             "refId": "A"

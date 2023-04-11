@@ -24,15 +24,18 @@ export class Metrics {
     public readonly matrixAppserviceEvents = new Counter({ name: "matrix_appservice_events", help: "The number of events sent over the AS API", labelNames: [], registers: [this.registry]});
     public readonly matrixAppserviceDecryptionFailed = new Counter({ name: "matrix_appservice_decryption_failed", help: "The number of events sent over the AS API that failed to decrypt", registers: [this.registry]});
 
-    public readonly feedsCount = new Gauge({ name: "feed_count", help: "The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
-    public readonly feedFetchMs = new Gauge({ name: "feed_fetch_ms", help: "The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
-    public readonly feedsFailing = new Gauge({ name: "feed_failing", help: "The number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
+    public readonly feedsCount = new Gauge({ name: "hookshot_feeds_count", help: "The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
+    public readonly feedFetchMs = new Gauge({ name: "hookshot_feeds_fetch_ms", help: "The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
+    public readonly feedsFailing = new Gauge({ name: "hookshot_feeds_failing", help: "The number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
+    public readonly feedsCountDeprecated = new Gauge({ name: "feed_count", help: "(Deprecated) The number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
+    public readonly feedsFetchMsDeprecated = new Gauge({ name: "feed_fetch_ms", help: "(Deprecated) The time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
+    public readonly feedsFailingDeprecated = new Gauge({ name: "feed_failing", help: "(Deprecated) The number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
 
 
     constructor(private registry: Registry = register) {
         this.expressRouter.get('/metrics', this.metricsFunc.bind(this));
         collectDefaultMetrics({
-            register: this.registry
+            register: this.registry,
         })
     }
 
