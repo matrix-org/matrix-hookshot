@@ -68,6 +68,11 @@ interface AccountData {
     [url: string]: string[],
 }
 
+interface AccountDataStore {
+    getAccountData<T>(type: string): Promise<T>;
+    setAccountData<T>(type: string, data: T): Promise<void>;
+}
+
 const accountDataSchema = {
     type: 'object',
     patternProperties: {
@@ -80,6 +85,10 @@ const accountDataSchema = {
 };
 const ajv = new Ajv();
 const validateAccountData = ajv.compile<AccountData>(accountDataSchema);
+
+function isNonEmptyString(input: any): input is string {
+    return input && typeof input === 'string';
+}
 
 function stripHtml(input: string): string {
     return input.replace(/<[^>]*?>/g, '');
@@ -123,8 +132,9 @@ export class FeedReader {
         headers: Record<string, string>,
         timeoutMs: number,
         parser: Parser = FeedReader.buildParser(),
+        httpClient = axios,
     ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
-        const response = await axios.get(url, {
+        const response = await httpClient.get(url, {
             headers: {
                 'User-Agent': UserAgent,
                 ...headers,
@@ -188,7 +198,8 @@ export class FeedReader {
         private readonly config: BridgeConfigFeeds,
         private readonly connectionManager: ConnectionManager,
         private readonly queue: MessageQueue,
-        private readonly matrixClient: MatrixClient,
+        private readonly accountDataStore: AccountDataStore,
+        private readonly httpClient = axios,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
         this.calculateFeedUrls();
@@ -237,7 +248,7 @@ export class FeedReader {
 
     private async loadSeenEntries(): Promise<void> {
         try {
-            const accountData = await this.matrixClient.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
+            const accountData = await this.accountDataStore.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
                 if (err instanceof MatrixError && err.statusCode === 404) {
                     return {} as AccountData;
                 } else {
@@ -262,7 +273,7 @@ export class FeedReader {
         for (const [url, guids] of this.seenEntries.entries()) {
             accountData[url.toString()] = guids;
         }
-        await this.matrixClient.setAccountData(FeedReader.seenEntriesEventType, accountData);
+        await this.accountDataStore.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
     /**
@@ -288,6 +299,7 @@ export class FeedReader {
                 // We don't want to wait forever for the feed.
                 this.config.pollTimeoutSeconds * 1000,
                 this.parser,
+                this.httpClient,
             );
 
             // Store any entity tags/cache times.
@@ -315,7 +327,7 @@ export class FeedReader {
             for (const item of feed.items) {
                 // Find the first guid-like that looks like a string.
                 // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                const guid = [item.guid, item.id, item.link, item.title].find(id => typeof id === 'string' && id);
+                const guid = [item.guid, item.id, item.link, item.title].find(isNonEmptyString);
                 if (!guid) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
@@ -334,10 +346,10 @@ export class FeedReader {
 
                 const entry = {
                     feed: {
-                        title: feed.title ? stripHtml(feed.title) : null,
+                        title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
                         url: url,
                     },
-                    title: item.title ? stripHtml(item.title) : null,
+                    title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
                     pubdate: item.pubDate ?? null,
                     summary: item.summary ?? null,
                     author: item.creator ?? null,
