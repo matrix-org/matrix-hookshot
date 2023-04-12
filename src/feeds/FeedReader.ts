@@ -68,6 +68,11 @@ interface AccountData {
     [url: string]: string[],
 }
 
+interface AccountDataStore {
+    getAccountData<T>(type: string): Promise<T>;
+    setAccountData<T>(type: string, data: T): Promise<void>;
+}
+
 const accountDataSchema = {
     type: 'object',
     patternProperties: {
@@ -127,8 +132,9 @@ export class FeedReader {
         headers: Record<string, string>,
         timeoutMs: number,
         parser: Parser = FeedReader.buildParser(),
+        httpClient = axios,
     ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
-        const response = await axios.get(url, {
+        const response = await httpClient.get(url, {
             headers: {
                 'User-Agent': UserAgent,
                 ...headers,
@@ -192,7 +198,8 @@ export class FeedReader {
         private readonly config: BridgeConfigFeeds,
         private readonly connectionManager: ConnectionManager,
         private readonly queue: MessageQueue,
-        private readonly matrixClient: MatrixClient,
+        private readonly accountDataStore: AccountDataStore,
+        private readonly httpClient = axios,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
         this.calculateFeedUrls();
@@ -241,7 +248,7 @@ export class FeedReader {
 
     private async loadSeenEntries(): Promise<void> {
         try {
-            const accountData = await this.matrixClient.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
+            const accountData = await this.accountDataStore.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
                 if (err instanceof MatrixError && err.statusCode === 404) {
                     return {} as AccountData;
                 } else {
@@ -266,7 +273,7 @@ export class FeedReader {
         for (const [url, guids] of this.seenEntries.entries()) {
             accountData[url.toString()] = guids;
         }
-        await this.matrixClient.setAccountData(FeedReader.seenEntriesEventType, accountData);
+        await this.accountDataStore.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
     /**
@@ -292,6 +299,7 @@ export class FeedReader {
                 // We don't want to wait forever for the feed.
                 this.config.pollTimeoutSeconds * 1000,
                 this.parser,
+                this.httpClient,
             );
 
             // Store any entity tags/cache times.
