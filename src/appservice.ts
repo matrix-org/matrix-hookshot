@@ -1,5 +1,5 @@
 import { Logger } from "matrix-appservice-bridge";
-import { Appservice, IAppserviceRegistration, RustSdkAppserviceCryptoStorageProvider } from "matrix-bot-sdk";
+import { Appservice, IAppserviceRegistration, RustSdkAppserviceCryptoStorageProvider, RustSdkCryptoStoreType } from "matrix-bot-sdk";
 import { BridgeConfig } from "./Config/Config";
 import Metrics from "./Metrics";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
@@ -17,7 +17,11 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
         storage = new MemoryStorageProvider();
     }
 
-    const cryptoStorage = config.encryption?.storagePath ? new RustSdkAppserviceCryptoStorageProvider(config.encryption.storagePath) : undefined;
+    const cryptoStorage = config.encryption?.storagePath ?
+        new RustSdkAppserviceCryptoStorageProvider(
+            config.encryption.storagePath,
+            config.encryption.useLegacySledStore ? RustSdkCryptoStoreType.Sled : RustSdkCryptoStoreType.Sqlite
+        ) : undefined;
 
     const appservice = new Appservice({
         homeserverName: config.bridge.domain,
