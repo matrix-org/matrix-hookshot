@@ -1,0 +1,142 @@
+---
+# Default values for hookshot.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: halfshot/matrix-hookshot
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+# fsGroup: 2000
+
+securityContext: {}
+# capabilities:
+#   drop:
+#   - ALL
+# readOnlyRootFilesystem: true
+# runAsNonRoot: true
+# runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+  labels: {}
+
+  webhook:
+    port: 9000
+  metrics:
+    port: 9001
+  appservice:
+    port: 9002
+
+ingress:
+  webhook:
+    enabled: false
+    className: ""
+    annotations: {}
+    tls: []
+  appservice:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts: []
+    tls: []
+
+resources: {}
+# We usually recommend not to specify default resources and to leave this as a conscious
+# choice for the user. This also increases chances charts run on environments with little
+# resources, such as Minikube. If you do want to specify resources, uncomment the following
+# lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+# limits:
+#   cpu: 100m
+#   memory: 128Mi
+# requests:
+#   cpu: 100m
+#   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+hookshot:
+  existingConfigMap:
+  config:
+    bridge:
+      domain: example.com
+      url: https://example.com
+      port: 9002
+      bindAddress: 0.0.0.0
+    generic:
+      enabled: true
+      enableHttpGet: false
+      urlPrefix: https://example.com/
+      userIdPrefix: _webhooks_
+      allowJsTransformationFunctions: true
+      waitForComplete: false
+    passFile: /data/passkey.pem
+    widgets:
+      addToAdminRooms: false
+      branding:
+        widgetTitle: Hookshot Configuration
+      publicUrl: https://webhook-hookshot.example.com/widgetapi/v1/static
+      roomSetupWidget:
+        addOnInvite: false
+      setRoomName: false
+    metrics:
+      enabled: true
+    logging:
+      level: info
+      colorize: false
+      json: false
+      timestampFormat: HH:mm:ss:SSS
+    listeners:
+      - port: 9000
+        bindAddress: 0.0.0.0
+        resources:
+          - webhooks
+          - widgets
+      - port: 9001
+        bindAddress: 0.0.0.0
+        resources:
+          - metrics
+  registration:
+    id: matrix-hookshot
+    as_token: ""
+    hs_token: ""
+    namespaces:
+      rooms: []
+      users: []
+    sender_localpart: hookshot
+    url: "http://example.com"
+    rate_limited: false
+  passkey: ""
