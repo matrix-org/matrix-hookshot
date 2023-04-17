@@ -23,12 +23,19 @@ export interface ILabel {
     description?: string
 }
 
+export type LooseMinimalGitHubRepo = {
+    id: number,
+    full_name: string,
+    html_url: string,
+    description?: string|null,
+  }
+
 export class FormatUtil {
     public static formatIssueRoomName(issue: MinimalGitHubIssue, repository: { full_name: string}) {
         return emoji.emojify(`${repository.full_name}#${issue.number}: ${issue.title}`);
     }
 
-    public static formatRepoRoomName(repo: MinimalGitHubRepo) {
+    public static formatRepoRoomName(repo: LooseMinimalGitHubRepo) {
         return emoji.emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
     }
 
@@ -40,24 +47,30 @@ export class FormatUtil {
         return `${repo.html_url}`;
     }
 
-    public static getPartialBodyForGithubRepo(repo: MinimalGitHubRepo) {
+    public static getPartialBodyForGithubRepo(repo: LooseMinimalGitHubRepo) {
         if (!repo.id || !repo.html_url || !repo.full_name) {
             throw Error('Missing keys in repo object');
         }
-        return getPartialBodyForGithubRepo(repo);
+        return getPartialBodyForGithubRepo({
+            ...repo,
+            description: repo.description ?? undefined,
+        });
     }
 
-    public static getPartialBodyForGithubIssue(repo: MinimalGitHubRepo, issue: MinimalGitHubIssue) {
+    public static getPartialBodyForGithubIssue(repo: LooseMinimalGitHubRepo, issue: MinimalGitHubIssue) {
         if (!repo.id || !repo.html_url || !repo.full_name) {
             throw Error('Missing keys in repo object');
         }
         if (!issue.html_url || !issue.id || !issue.number || !issue.title) {
             throw Error('Missing keys in issue object');
         }
-        return getPartialBodyForGithubIssue(repo, issue);
+        return getPartialBodyForGithubIssue({
+            ...repo,
+            description: repo.description ?? undefined,
+        }, issue);
     }
 
-    public static getPartialBodyForGitHubPR(repo: MinimalGitHubRepo, issue: IMinimalPR) {
+    public static getPartialBodyForGitHubPR(repo: LooseMinimalGitHubRepo, issue: IMinimalPR) {
         return {
             ...FormatUtil.getPartialBodyForGithubRepo(repo),
             "external_url": issue.html_url,
@@ -72,7 +85,7 @@ export class FormatUtil {
 
 
     public static getPartialBodyForComment(comment: {id: number, html_url: string},
-                                           repo?: MinimalGitHubRepo,
+                                           repo?: LooseMinimalGitHubRepo,
                                            issue?: MinimalGitHubIssue) {
         return {
             ...(issue && repo ? FormatUtil.getPartialBodyForGithubIssue(repo, issue) : undefined),

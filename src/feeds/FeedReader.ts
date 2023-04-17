@@ -1,4 +1,4 @@
-import { MatrixClient, MatrixError } from "matrix-bot-sdk";
+import { MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
@@ -13,6 +13,7 @@ import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
 import { FormatUtil } from "../FormatUtil";
+import { FeedItem, parseRSSFeed } from "../libRs";
 
 const log = new Logger("FeedReader");
 
@@ -86,8 +87,8 @@ const accountDataSchema = {
 const ajv = new Ajv();
 const validateAccountData = ajv.compile<AccountData>(accountDataSchema);
 
-function isNonEmptyString(input: any): input is string {
-    return input && typeof input === 'string';
+function isNonEmptyString(input: unknown): input is string {
+    return Boolean(input) && typeof input === 'string';
 }
 
 function stripHtml(input: string): string {
@@ -108,11 +109,6 @@ function shuffle<T>(array: T[]): T[] {
     return array;
 }
 
-interface FeedItem {
-    title?: string;
-    link?: string;
-    id?: string;
-}
 
 export class FeedReader {
     private static buildParser(): Parser {
@@ -131,7 +127,6 @@ export class FeedReader {
         url: string,
         headers: Record<string, string>,
         timeoutMs: number,
-        parser: Parser = FeedReader.buildParser(),
         httpClient = axios,
     ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
         const response = await httpClient.get(url, {
@@ -142,7 +137,11 @@ export class FeedReader {
             // We don't want to wait forever for the feed.
             timeout: timeoutMs,
         });
-        const feed = await parser.parseString(response.data);
+        
+        if (typeof response.data !== "string") {
+            throw Error('Unexpected response type');
+        }
+        const feed = parseRSSFeed(response.data);
         return { response, feed };
     }
     
@@ -151,16 +150,16 @@ export class FeedReader {
      * @param item A feed item.
      * @returns Return either a link to the item, or null.
      */
-    private static parseLinkFromItem(item: {guid?: string, link?: string}) {
+    private static parseLinkFromItem(item: FeedItem) {
         if (item.link) {
             return item.link;
         }
-        if (item.guid) {
+        if (item.id && item.idIsPermalink) {
             try {
                 // The feed librray doesn't give us attributes (needs isPermaLink), so we're not really sure if this a URL or not.
                 // Parse it and see.
                 // https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
-                const url = new URL(item.guid);
+                const url = new URL(item.id);
                 return url.toString();
             } catch (ex) {
                 return null;
@@ -298,7 +297,6 @@ export class FeedReader {
                 },
                 // We don't want to wait forever for the feed.
                 this.config.pollTimeoutSeconds * 1000,
-                this.parser,
                 this.httpClient,
             );
 
@@ -327,7 +325,7 @@ export class FeedReader {
             for (const item of feed.items) {
                 // Find the first guid-like that looks like a string.
                 // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                const guid = [item.guid, item.id, item.link, item.title].find(isNonEmptyString);
+                const guid = [item.id, item.link, item.title].find(isNonEmptyString);
                 if (!guid) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
@@ -352,7 +350,7 @@ export class FeedReader {
                     title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
                     pubdate: item.pubDate ?? null,
                     summary: item.summary ?? null,
-                    author: item.creator ?? null,
+                    author: item.author ?? null,
                     link: FeedReader.parseLinkFromItem(item),
                     fetchKey
                 };
