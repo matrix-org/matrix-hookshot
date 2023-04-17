@@ -1,4 +1,4 @@
-import { MatrixClient, MatrixError } from "matrix-bot-sdk";
+import { MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigFeeds } from "../Config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
@@ -13,7 +13,7 @@ import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
 import { FormatUtil } from "../FormatUtil";
-import { FeedItem, JsRssChannel, parseRSSFeed } from "../libRs";
+import { FeedItem, parseRSSFeed } from "../libRs";
 
 const log = new Logger("FeedReader");
 
@@ -69,6 +69,11 @@ interface AccountData {
     [url: string]: string[],
 }
 
+interface AccountDataStore {
+    getAccountData<T>(type: string): Promise<T>;
+    setAccountData<T>(type: string, data: T): Promise<void>;
+}
+
 const accountDataSchema = {
     type: 'object',
     patternProperties: {
@@ -81,6 +86,10 @@ const accountDataSchema = {
 };
 const ajv = new Ajv();
 const validateAccountData = ajv.compile<AccountData>(accountDataSchema);
+
+function isNonEmptyString(input: unknown): input is string {
+    return Boolean(input) && typeof input === 'string';
+}
 
 function stripHtml(input: string): string {
     return input.replace(/<[^>]*?>/g, '');
@@ -118,8 +127,9 @@ export class FeedReader {
         url: string,
         headers: Record<string, string>,
         timeoutMs: number,
-    ): Promise<{ response: AxiosResponse, feed: JsRssChannel }> {
-        const response = await axios.get(url, {
+        httpClient = axios,
+    ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
+        const response = await httpClient.get(url, {
             headers: {
                 'User-Agent': UserAgent,
                 ...headers,
@@ -169,7 +179,7 @@ export class FeedReader {
     private seenEntries: Map<string, string[]> = new Map();
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
-    
+
     // Reason failures to url map.
     private feedsFailingHttp = new Set();
     private feedsFailingParsing = new Set();
@@ -187,7 +197,8 @@ export class FeedReader {
         private readonly config: BridgeConfigFeeds,
         private readonly connectionManager: ConnectionManager,
         private readonly queue: MessageQueue,
-        private readonly matrixClient: MatrixClient,
+        private readonly accountDataStore: AccountDataStore,
+        private readonly httpClient = axios,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
         this.calculateFeedUrls();
@@ -231,11 +242,12 @@ export class FeedReader {
         this.feedQueue = shuffle([...this.observedFeedUrls.values()]);
 
         Metrics.feedsCount.set(this.observedFeedUrls.size);
+        Metrics.feedsCountDeprecated.set(this.observedFeedUrls.size);
     }
 
     private async loadSeenEntries(): Promise<void> {
         try {
-            const accountData = await this.matrixClient.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
+            const accountData = await this.accountDataStore.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
                 if (err instanceof MatrixError && err.statusCode === 404) {
                     return {} as AccountData;
                 } else {
@@ -260,14 +272,14 @@ export class FeedReader {
         for (const [url, guids] of this.seenEntries.entries()) {
             accountData[url.toString()] = guids;
         }
-        await this.matrixClient.setAccountData(FeedReader.seenEntriesEventType, accountData);
+        await this.accountDataStore.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
     /**
      * Poll a given feed URL for data, pushing any entries found into the message queue.
      * We also check the `cacheTimes` cache to see if the feed has recent entries that we can
      * filter out.
-     * 
+     *
      * @param url The URL to be polled.
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
@@ -285,8 +297,9 @@ export class FeedReader {
                 },
                 // We don't want to wait forever for the feed.
                 this.config.pollTimeoutSeconds * 1000,
+                this.httpClient,
             );
-            
+
             // Store any entity tags/cache times.
             if (response.headers.ETag) {
                 this.cacheTimes.set(url, { etag: response.headers.ETag});
@@ -312,7 +325,7 @@ export class FeedReader {
             for (const item of feed.items) {
                 // Find the first guid-like that looks like a string.
                 // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                const guid = [item.id, item.link, item.title].find(id => typeof id === 'string' && id);
+                const guid = [item.id, item.link, item.title].find(isNonEmptyString);
                 if (!guid) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
@@ -331,11 +344,11 @@ export class FeedReader {
 
                 const entry = {
                     feed: {
-                        title: feed.title ? stripHtml(feed.title) : null,
+                        title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
                         url: url,
                     },
-                    title: item.title ? stripHtml(item.title) : null,
-                    pubdate: item.pubdate ?? null,
+                    title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
+                    pubdate: item.pubDate ?? null,
                     summary: item.summary ?? null,
                     author: item.author ?? null,
                     link: FeedReader.parseLinkFromItem(item),
@@ -352,7 +365,7 @@ export class FeedReader {
                 // Some RSS feeds can return a very small number of items then bounce
                 // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
                 // forget what we sent and resend it. Instead, we'll keep 2x the max number of items that we've ever
-                // seen from this feed, up to a max of 10,000. 
+                // seen from this feed, up to a max of 10,000.
                 // Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
                 const maxGuids = Math.min(Math.max(2 * newGuids.length, seenGuids.length), 10_000);
                 const newSeenItems = Array.from(new Set([ ...newGuids, ...seenGuids ]).values()).slice(0, maxGuids);
@@ -397,9 +410,12 @@ export class FeedReader {
 
         Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
         Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
+        Metrics.feedsFailingDeprecated.set({ reason: "http" }, this.feedsFailingHttp.size );
+        Metrics.feedsFailingDeprecated.set({ reason: "parsing" }, this.feedsFailingParsing.size);
 
         const elapsed = Date.now() - fetchingStarted;
         Metrics.feedFetchMs.set(elapsed);
+        Metrics.feedsFetchMsDeprecated.set(elapsed);
 
         const sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
         log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
