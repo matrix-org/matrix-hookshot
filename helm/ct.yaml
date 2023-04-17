@@ -1,0 +1,6 @@
+remote: origin
+target-branch: main
+chart-repos: []
+chart-dirs:
+  - helm
+validate-maintainers: false
