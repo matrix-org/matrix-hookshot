@@ -14,7 +14,7 @@ class MockConnectionManager extends EventEmitter {
         super();
     }
     
-    getAllConnectionsOfType(type: unknown) {
+    getAllConnectionsOfType() {
         return this.connections;
     }
 }
@@ -32,7 +32,7 @@ class MockMessageQueue extends EventEmitter implements MessageQueue {
         this.emit('pushed', data, single);
     }
 
-    async pushWait<T, X>(data: MessageQueueMessage<T>, timeout?: number, single?: boolean): Promise<X> {
+    async pushWait<X>(): Promise<X> {
         throw new Error('Not yet implemented');
     }
 }
@@ -73,13 +73,13 @@ describe("FeedReader", () => {
             config, cm, mq,
             {
                 getAccountData: <T>() => Promise.resolve({ 'http://test/': [] } as unknown as T),
-                setAccountData: <T>() => Promise.resolve(),
+                setAccountData: () => Promise.resolve(),
             },
             new MockHttpClient({ headers: {}, data: feedContents } as AxiosResponse) as unknown as AxiosStatic,
         );
 
         const event: any = await new Promise((resolve) => {
-            mq.on('pushed', (data, _) => { resolve(data); feedReader.stop() });
+            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
         });
 
         expect(event.eventName).to.equal('feed.entry');

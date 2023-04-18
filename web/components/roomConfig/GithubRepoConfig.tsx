@@ -159,7 +159,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && consideredAuthenticated && <Button disabled={isUpdating} type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
+            { canEdit && consideredAuthenticated && <Button type="submit" disabled={isUpdating || !existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
             { canEdit && existingConnection?.id && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove repository</Button>}
         </ButtonSet>
     </form>;

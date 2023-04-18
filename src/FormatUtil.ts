@@ -4,7 +4,7 @@ import emoji from "node-emoji";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore 
 import { JiraIssue } from './Jira/Types';
-import { formatLabels, getPartialBodyForJiraIssue, hashId, getPartialBodyForGithubIssue, getPartialBodyForGithubRepo, MinimalGitHubRepo, MinimalGitHubIssue } from "./libRs";
+import { formatLabels, getPartialBodyForJiraIssue, hashId, getPartialBodyForGithubIssue, getPartialBodyForGithubRepo, MinimalGitHubIssue } from "./libRs";
 
 interface IMinimalPR {
     html_url: string;
