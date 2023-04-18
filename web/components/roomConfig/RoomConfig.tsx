@@ -13,6 +13,8 @@ export interface ConnectionConfigurationProps<SConfig, ConnectionType extends Ge
     loginLabel?: string;
     showAuthPrompt?: boolean;
     onSave: (newConfig: ConnectionState) => void,
+    isUpdating: boolean,
+    isMigrationCandidate?: boolean,
     existingConnection?: ConnectionType;
     onRemove?: () => void,
     api: BridgeAPI;
@@ -64,6 +66,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     const [ canEditRoom, setCanEditRoom ] = useState<boolean>(false);
     // We need to increment this every time we create a connection in order to properly reset the state.
     const [ newConnectionKey, incrementConnectionKey ] = useReducer<number, undefined>(n => n+1, 0);
+    const [ updatingConnection, isUpdatingConnection ] = useState<boolean>(false);
 
     const clearCurrentError = () => {
         setError(error => error?.forPrevious ? error : null);
@@ -125,6 +128,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
     }, [api, type]);
 
     const handleSaveOnCreation = useCallback((config: ConnectionState) => {
+        isUpdatingConnection(true);
         api.createConnection(roomId, connectionEventType, config).then(result => {
             // Force reload
             incrementConnectionKey(undefined);
@@ -140,6 +144,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 header: "Failed to create connection",
                 message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
             });
+        }).finally(() => {
+            isUpdatingConnection(false);
         });
     }, [api, roomId, connectionEventType]);
 
@@ -167,6 +173,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     onSave={handleSaveOnCreation}
                     loginLabel={text.login}
                     showAuthPrompt={showAuthPrompt}
+                    isUpdating={updatingConnection}
                 />}
             </section>}
             { !error && connections === null && <LoadingSpinner /> }
@@ -178,6 +185,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                         serviceConfig={serviceConfig}
                         existingConnection={c}
                         onSave={(config) => {
+                            isUpdatingConnection(true);
                             api.updateConnection(roomId, c.id, config).then(() => {
                                 c.config = config;
                                 // Force reload
@@ -189,6 +197,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                                     header: "Failed to create connection",
                                     message: ex instanceof BridgeAPIError ? ex.message : "Unknown error"
                                 });
+                            }).finally(() => {
+                                isUpdatingConnection(false);
                             });
                         }}
                         onRemove={() => {
@@ -203,6 +213,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                                 });
                             });
                         }}
+                        isUpdating={updatingConnection}
                     />
                 </ListItem>)
             }
@@ -214,6 +225,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                       api={api}
                       serviceConfig={serviceConfig}
                       existingConnection={c}
+                      isUpdating={updatingConnection}
+                      isMigrationCandidate={true}
                       onSave={handleSaveOnCreation}
                   />
             </ListItem>) }

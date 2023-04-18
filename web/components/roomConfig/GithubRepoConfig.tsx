@@ -18,7 +18,7 @@ function getRepoFullName(state: GitHubRepoConnectionState) {
 }
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitHubRepoResponseItem, GitHubRepoConnectionState>> = ({
-    showAuthPrompt, loginLabel, serviceConfig, api, existingConnection, onSave, onRemove
+    showAuthPrompt, loginLabel, serviceConfig, api, existingConnection, onSave, onRemove, isUpdating
 }) => {
     // Assume true if we have no auth prompt.
     const [authedResponse, setAuthResponse] = useState<GetAuthResponse|null>(null);
@@ -159,8 +159,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && consideredAuthenticated && <Button type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
-            { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Remove repository</Button>}
+            { canEdit && consideredAuthenticated && <Button disabled={isUpdating} type="submit" disabled={!existingConnection && !connectionState}>{ existingConnection?.id ? "Save" : "Add repository" }</Button>}
+            { canEdit && existingConnection?.id && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove repository</Button>}
         </ButtonSet>
     </form>;
 };

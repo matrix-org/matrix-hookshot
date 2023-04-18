@@ -28,7 +28,7 @@ const FeedRecentResults: FunctionComponent<{item: FeedResponseItem}> = ({ item }
 }
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html#feed-templates";
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove, isMigrationCandidate}) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, FeedResponseItem, FeedConnectionState>> = ({existingConnection, onSave, onRemove, isMigrationCandidate, isUpdating}) => {
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
     const templateRef = createRef<HTMLInputElement>();
@@ -47,10 +47,12 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
                 label: labelRef?.current?.value || existingConnection?.config.label,
                 template: templateRef.current?.value || existingConnection?.config.template,
                 notifyOnFailure: notifyRef.current?.checked || existingConnection?.config.notifyOnFailure,
-            });
+            })
         }
     }, [canSave, onSave, urlRef, labelRef, templateRef, notifyRef, existingConnection]);
-    
+
+    const onlyVisibleOnExistingConnection = !!existingConnection;
+
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
 
@@ -60,16 +62,16 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         <InputField visible={true} label="Label" noPadding={true}>
             <input ref={labelRef} disabled={!canSave} type="text" value={existingConnection?.config.label} />
         </InputField>
-        <InputField visible={true} label="Template" noPadding={true}>
+        <InputField visible={onlyVisibleOnExistingConnection} label="Send a notice on read failure" noPadding={true}>
+            <input ref={notifyRef} disabled={!canSave} type="checkbox" checked={existingConnection?.config.notifyOnFailure} />
+        </InputField>
+        <InputField visible={onlyVisibleOnExistingConnection} label="Template" noPadding={true}>
             <input ref={templateRef} disabled={!canSave} type="text" value={existingConnection?.config.template} placeholder={DEFAULT_TEMPLATE} />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing templates. </p>
         </InputField>
-        <InputField visible={true} label="Send a notice on read failure" noPadding={true}>
-            <input ref={notifyRef} disabled={!canSave} type="checkbox" checked={existingConnection?.config.notifyOnFailure} />
-        </InputField>
         <ButtonSet>
-            { canSave && <Button type="submit">{ existingConnection?.id ? "Save" : "Subscribe" }</Button>}
-            { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Unsubscribe</Button>}
+            { canSave && <Button type="submit" disabled={isUpdating}>{ existingConnection?.id ? "Save" : "Subscribe" }</Button>}
+            { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove} disabled={isUpdating}>Unsubscribe</Button>}
         </ButtonSet>
 
     </form>;

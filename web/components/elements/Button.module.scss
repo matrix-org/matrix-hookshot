@@ -22,4 +22,8 @@
 .remove {
     color: #FF5B55;
     background-color: transparent;
+
+    &:disabled {
+        background-color: transparent;
+    }
 }
