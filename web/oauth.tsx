@@ -31,11 +31,13 @@ function RenderOAuth() {
                 <code>{errcode}</code> {error}
             </p>
         </>;
-    } else if (result === 'pending') {
+    // Pending / update are mostly the same thing. Pending means a new app install, update means updating the existing app install.
+    } else if (result === 'pending' || result === 'update') {
         return <>
             <h1>Your connection to { serviceName } {oauthKind} is pending.</h1>
             <p>
-                The owner may need to approve this.
+                You will need to wait for an administrator of the { serviceName } {oauthKind} instance to approve
+                the new installation. If you think this is a mistake, contact the administrator of your organisation.
             </p>
         </>;
     } else if (result === 'success') {
