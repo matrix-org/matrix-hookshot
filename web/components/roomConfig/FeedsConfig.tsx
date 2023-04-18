@@ -32,6 +32,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
     const templateRef = createRef<HTMLInputElement>();
+    const notifyRef = createRef<HTMLInputElement>();
     const canSave = !existingConnection?.id || (existingConnection?.canEdit ?? false);
     const canEdit = canSave && !isMigrationCandidate;
     const handleSave = useCallback((evt: Event) => {
@@ -45,9 +46,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
                 url,
                 label: labelRef?.current?.value || existingConnection?.config.label,
                 template: templateRef.current?.value || existingConnection?.config.template,
+                notifyOnFailure: notifyRef.current?.checked || existingConnection?.config.notifyOnFailure,
             });
         }
-    }, [canSave, onSave, urlRef, labelRef, templateRef, existingConnection]);
+    }, [canSave, onSave, urlRef, labelRef, templateRef, notifyRef, existingConnection]);
     
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
@@ -62,7 +64,9 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <input ref={templateRef} disabled={!canSave} type="text" value={existingConnection?.config.template} placeholder={DEFAULT_TEMPLATE} />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing templates. </p>
         </InputField>
-
+        <InputField visible={true} label="Send a notice on read failure" noPadding={true}>
+            <input ref={notifyRef} disabled={!canSave} type="checkbox" checked={existingConnection?.config.notifyOnFailure} />
+        </InputField>
         <ButtonSet>
             { canSave && <Button type="submit">{ existingConnection?.id ? "Save" : "Subscribe" }</Button>}
             { canEdit && existingConnection?.id && <Button intent="remove" onClick={onRemove}>Unsubscribe</Button>}
