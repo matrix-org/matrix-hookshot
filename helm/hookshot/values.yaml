@@ -1,34 +1,40 @@
 ---
-# Default values for hookshot.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
+# -- Number of replicas to deploy. Consequences of using multiple Hookshot replicas currently unknown.
 replicaCount: 1
 
 image:
+  # -- Repository to pull hookshot image from
   repository: halfshot/matrix-hookshot
+  # -- Pull policy for Hookshot image
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  # -- Image tag to pull. Defaults to chart's appVersion value as set in Chart.yaml
+  tag:
 
+# -- List of names of k8s secrets to be used as ImagePullSecrets for the pod
 imagePullSecrets: []
+
+# -- Name override for helm chart
 nameOverride: ""
+
+# -- Full name override for helm chart
 fullnameOverride: ""
 
 serviceAccount:
-  # Specifies whether a service account should be created
+  # -- Specifies whether a service account should be created
   create: true
-  # Annotations to add to the service account
+  # -- Annotations to add to the service account
   annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
+  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
   name: ""
 
+# -- Extra annotations for Hookshot pod
 podAnnotations: {}
 
+# -- Pod security context settings
 podSecurityContext: {}
 # fsGroup: 2000
 
+# -- Security context settings
 securityContext: {}
 # capabilities:
 #   drop:
@@ -37,32 +43,53 @@ securityContext: {}
 # runAsNonRoot: true
 # runAsUser: 1000
 
+
 service:
+  # -- Service type for Hookshot service
   type: ClusterIP
+  # -- Port for Hookshot service
   port: 80
+  # -- Extra annotations for service
   annotations: {}
+  # -- Extra labels for service
   labels: {}
 
   webhook:
+    # -- Webhook port as configured in container
     port: 9000
   metrics:
+    # -- Metrics port as configured in container
     port: 9001
   appservice:
+    # -- Appservice port as configured in container
     port: 9002
 
 ingress:
   webhook:
+    # -- Enable ingress for webhook
     enabled: false
+    # -- Ingress class name for webhook ingress
     className: ""
+    # -- Annotations for webhook ingress
     annotations: {}
-    tls: []
-  appservice:
-    enabled: false
-    className: ""
-    annotations: {}
+    # -- Host configuration for webhook ingress
     hosts: []
+    # -- TLS configuration for webhook ingress
     tls: []
 
+  appservice:
+    # -- Enable ingress for appservice
+    enabled: false
+    # -- Ingress class name for appservice ingress
+    className: ""
+    # -- Annotations for appservice ingress
+    annotations: {}
+    # -- Host configuration for appservice ingress
+    hosts: []
+    # -- TLS configuration for appservice ingress
+    tls: []
+
+# -- Pod resource requests / limits
 resources: {}
 # We usually recommend not to specify default resources and to leave this as a conscious
 # choice for the user. This also increases chances charts run on environments with little
@@ -77,19 +104,21 @@ resources: {}
 
 autoscaling:
   enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
 
+# -- Node selector parameters
 nodeSelector: {}
 
+# -- Tolerations for deployment
 tolerations: []
 
+# -- Affinity settings for deployment
 affinity: {}
 
 hookshot:
+  # -- Name of existing ConfigMap with valid Hookshot configuration
   existingConfigMap:
+
+  # -- Raw Hookshot configuration. Gets templated into a YAML file and then loaded unless an existingConfigMap is specified.
   config:
     bridge:
       domain: example.com
