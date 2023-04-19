@@ -52,5 +52,5 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
 
     Metrics.registerMatrixSdkMetrics(appservice);
 
-    return {appservice, storage};
+    return {appservice, storage, cryptoStorage};
 }

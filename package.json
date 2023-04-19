@@ -30,6 +30,7 @@
     "start:app": "node --require source-map-support/register lib/App/BridgeApp.js",
     "start:webhooks": "node --require source-map-support/register lib/App/GithubWebhookApp.js",
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
+    "start:resetcrypto": "node --require source-map-support/register lib/App/ResetCryptoStore.js",
     "test": "mocha -r ts-node/register tests/init.ts tests/*.ts  tests/**/*.ts",
     "test:cover": "nyc --reporter=lcov --reporter=text yarn test",
     "lint": "yarn run lint:js && yarn run lint:rs",
