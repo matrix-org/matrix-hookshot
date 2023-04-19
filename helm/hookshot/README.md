@@ -39,7 +39,7 @@ To configure Hookshot-specific parameters, the value `.Values.hookshot.config` a
 
 ## Existing configuration
 
-If you have an existing configuration file for hookshot, you can create a configmap like so:
+If you have an existing configuration file for Hookshot, you can create a configmap like so:
 
 ``` bash
 kubectl create --namespace "your hookshot namespace" configmap hookshot-custom-config --from-file=config.yml --from-file=registration.yml --from-file=passkey.pem
