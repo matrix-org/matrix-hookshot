@@ -6,7 +6,7 @@ import { LogService, MatrixClient } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 
-const log = new Logger("App");
+const log = new Logger("ResetCryptoStore");
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
@@ -63,12 +63,12 @@ async function start() {
             try {
                 await userStorage.storeValue("accessToken", "");
                 log.info(`Deleted access token for ${botUser.userId}`);
-            } catch (err: unknown) {
-                log.error(`Failed to delete access token for ${botUser.userId}: ${err}`);
+            } catch (ex: unknown) {
+                log.error(`Failed to delete access token for ${botUser.userId}`, ex);
             }
 
-        } catch (err: unknown) {
-            log.error(`Failed to log out crypto device for ${botUser.userId}: ${err}`);
+        } catch (ex: unknown) {
+            log.error(`Failed to log out crypto device for ${botUser.userId}`, ex);
         }
     }
 
@@ -76,8 +76,8 @@ async function start() {
         try {
             await rm(config.encryption.storagePath, { recursive: true, force: true });
             log.info("Removed crypto store from disk");
-        } catch (err) {
-            log.error("Failed to remove crypto store from disk");
+        } catch (ex) {
+            log.error("Failed to remove crypto store from disk", ex);
         }
     }
     // Process hangs without this, maybe because of a leftover promise
