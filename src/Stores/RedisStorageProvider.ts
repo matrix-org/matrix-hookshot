@@ -87,6 +87,10 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         }
     }
 
+    public async disconnect(): Promise<void> {
+        await this.redis.quit();
+    }
+
     public async addRegisteredUser(userId: string) {
         this.redis.sadd(REGISTERED_USERS_KEY, [userId]);
     }

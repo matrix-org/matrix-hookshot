@@ -45,6 +45,8 @@ async function start() {
         log.error("Got SIGTERM");
         listener.stop();
         bridgeApp.stop();
+        // Don't care to await this, as the process is about to end
+        storage.disconnect?.();
     });
     await bridgeApp.start();
 

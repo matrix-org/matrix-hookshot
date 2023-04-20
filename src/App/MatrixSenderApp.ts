@@ -23,7 +23,8 @@ async function start() {
     LogService.setLogger(Logger.botSdkLogger);
     const listener = new ListenerService(config.listeners);
     listener.start();
-    const sender = new MatrixSender(config, getAppservice(config, registration).appservice);
+    const {appservice, storage} = getAppservice(config, registration);
+    const sender = new MatrixSender(config, appservice);
     if (config.metrics) {
         if (!config.metrics.port) {
             log.warn(`Not running metrics for service, no port specified`);
@@ -36,6 +37,7 @@ async function start() {
         log.error("Got SIGTERM");
         sender.stop();
         listener.stop();
+        storage.disconnect?.();
     });
 }
 

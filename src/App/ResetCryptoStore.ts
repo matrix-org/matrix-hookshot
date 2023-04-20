@@ -80,8 +80,8 @@ async function start() {
             log.error("Failed to remove crypto store from disk", ex);
         }
     }
-    // Process hangs without this, maybe because of a leftover promise
-    process.exit(0);
+
+    await storage.disconnect?.();
 }
 
 start().catch((ex) => {
