@@ -1,4 +1,4 @@
-import { rm } from "fs/promises"
+import { rm } from "fs/promises";
 
 import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
 import { Logger } from "matrix-appservice-bridge";
@@ -31,12 +31,12 @@ async function start() {
 
     for (const botUser of botUsersManager.botUsers) {
         try {
-            const userStorage = storage.storageForUser?.(botUser.userId)
+            const userStorage = storage.storageForUser?.(botUser.userId);
             if (!userStorage) {
                 log.warn(`No storage for ${botUser.userId}`);
                 continue;
             }
-            const accessToken = await Promise.resolve(userStorage?.readValue("accessToken"));
+            const accessToken = await userStorage?.readValue("accessToken");
             if (!accessToken) {
                 log.debug(`No access token for ${botUser.userId}: no session to remove`);
                 continue;
@@ -58,26 +58,26 @@ async function start() {
                 user_id: botUser.userId,
                 "org.matrix.msc3202.device_id": deviceId,
             });
-            log.info(`Logged out crypto device for ${botUser.userId}`)
+            log.info(`Logged out crypto device for ${botUser.userId}`);
 
             try {
-                await Promise.resolve(userStorage.storeValue("accessToken", ""))
-                log.info(`Deleted access token for ${botUser.userId}`)
+                await userStorage.storeValue("accessToken", "");
+                log.info(`Deleted access token for ${botUser.userId}`);
             } catch (err: unknown) {
-                log.error(`Failed to delete access token for ${botUser.userId}: ${err}`)
+                log.error(`Failed to delete access token for ${botUser.userId}: ${err}`);
             }
 
         } catch (err: unknown) {
-            log.error(`Failed to log out crypto device for ${botUser.userId}: ${err}`)
+            log.error(`Failed to log out crypto device for ${botUser.userId}: ${err}`);
         }
     }
 
     if (config.encryption?.storagePath) {
         try {
             await rm(config.encryption.storagePath, { recursive: true, force: true });
-            log.info("Removed crypto store from disk")
+            log.info("Removed crypto store from disk");
         } catch (err) {
-            log.error("Failed to remove crypto store from disk")
+            log.error("Failed to remove crypto store from disk");
         }
     }
     // Process hangs without this, maybe because of a leftover promise
