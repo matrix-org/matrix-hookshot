@@ -16,9 +16,9 @@ jobs:
   lint-node:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: 16
     - run: yarn --ignore-scripts
@@ -27,7 +27,7 @@ jobs:
   lint-rust:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
@@ -38,9 +38,9 @@ jobs:
   config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
@@ -49,9 +49,9 @@ jobs:
   metrics-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
@@ -64,9 +64,9 @@ jobs:
       matrix:
         node_version: [18, 20]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node_version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node_version }}
       - uses: actions-rs/toolchain@v1
