@@ -409,6 +409,7 @@ interface BridgeConfigBot {
 }
 interface BridgeConfigEncryption {
     storagePath: string;
+    useLegacySledStore: boolean;
 }
 
 export interface BridgeConfigServiceBot {
