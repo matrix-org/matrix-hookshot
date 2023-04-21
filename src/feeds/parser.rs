@@ -4,6 +4,8 @@ use atom_syndication::{Error as AtomError, Feed, Person};
 use napi::bindgen_prelude::{Error as JsError, Status};
 use rss::{Channel, Error as RssError};
 
+use crate::format_util::hash_id;
+
 #[derive(Serialize, Debug, Deserialize)]
 #[napi(object)]
 pub struct FeedItem {
@@ -14,6 +16,7 @@ pub struct FeedItem {
     pub pubdate: Option<String>,
     pub summary: Option<String>,
     pub author: Option<String>,
+    pub hash_id: Option<String>,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -44,6 +47,7 @@ fn parse_channel_to_js_result(channel: &Channel) -> JsRssChannel {
                 pubdate: item.pub_date().map(map_item_value),
                 summary: item.description().map(map_item_value),
                 author: item.author().map(map_item_value),
+                hash_id: item.guid.clone().and_then(|f| Some(f.value)).or(item.link.clone()).or(item.title.clone()).and_then(|f| hash_id(f).ok()),
             })
             .collect(),
     }
@@ -82,6 +86,7 @@ fn parse_feed_to_js_result(feed: &Feed) -> JsRssChannel {
                 pubdate: item.published.or(Some(item.updated)).map(|date|date.to_rfc2822()),
                 summary: item.summary().map(|v| v.value.clone()),
                 author: authors_to_string(item.authors()),
+                hash_id: hash_id(item.id.clone()).ok(),
             })
             .collect(),
     }

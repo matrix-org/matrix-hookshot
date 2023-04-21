@@ -295,23 +295,20 @@ export class FeedReader {
             for (const item of feed.items) {
                 // Find the first guid-like that looks like a string.
                 // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                const guid = [item.id, item.link, item.title].find(isNonEmptyString);
-                if (!guid) {
+                if (!item.hashId) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
                 }
-                const hashedGuid = this.hashGuid(guid);
-                newGuids.push(hashedGuid);
+                newGuids.push(item.hashId);
 
                 if (initialSync) {
-                    log.debug(`Skipping entry ${guid} since we're performing an initial sync`);
+                    log.debug(`Skipping entry ${item.id ?? item.hashId} since we're performing an initial sync`);
                     continue;
                 }
-                if (seenGuidsSet.has(hashedGuid)) {
-                    log.debug('Skipping already seen entry', guid);
+                if (seenGuidsSet.has(item.hashId)) {
+                    log.debug('Skipping already seen entry', item.id ?? item.hashId);
                     continue;
                 }
-                console.log(item);
                 const entry = {
                     feed: {
                         title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
