@@ -45,18 +45,20 @@ class MockHttpClient {
     }
 }
 
+const FEED_URL = 'http://test/';
+
 function constructFeedReader(feedResponse: () => {headers: Record<string,string>, data: string}) {
     const config = new BridgeConfigFeeds({
         enabled: true,
         pollIntervalSeconds: 1,
         pollTimeoutSeconds: 1,
     });
-    const cm = new MockConnectionManager([{ feedUrl: 'http://test/' } as unknown as IConnection]) as unknown as ConnectionManager
+    const cm = new MockConnectionManager([{ feedUrl: FEED_URL } as unknown as IConnection]) as unknown as ConnectionManager
     const mq = new MockMessageQueue();
     const feedReader = new FeedReader(
         config, cm, mq,
         {
-            getAccountData: <T>() => Promise.resolve({ 'http://test/': [] } as unknown as T),
+            getAccountData: <T>() => Promise.resolve({ [FEED_URL]: [] } as unknown as T),
             setAccountData: () => Promise.resolve(),
         },
         new MockHttpClient({ ...feedResponse() } as AxiosResponse) as unknown as AxiosStatic,
@@ -205,5 +207,32 @@ describe("FeedReader", () => {
         expect(event.data.summary).to.equal('Some text.');
         expect(event.data.link).to.equal('http://example.org/2003/12/13/atom03');
         expect(event.data.pubdate).to.equal('Sat, 13 Dec 2003 18:30:02 +0000');
+    });
+    it("should not duplicate feed entries", async () => {
+        const { mq, feedReader} = constructFeedReader(() => ({
+            headers: {}, data: `
+            <?xml version="1.0" encoding="utf-8"?>
+            <feed xmlns="http://www.w3.org/2005/Atom">
+              <entry>
+                <author>
+                    <name>John Doe</name>
+                </author>
+                <title>Atom-Powered Robots Run Amok</title>
+                <link href="http://example.org/2003/12/13/atom03"/>
+                <id>urn:uuid:1225c695-cfb8-4ebb-aaaa-80da344efa6a</id>
+                <updated>2003-12-13T18:30:02Z</updated>
+                <summary>Some text.</summary>
+              </entry>
+            </feed>
+        `
+        }));
+
+        const events: MessageQueueMessage<FeedEntry>[] = [];
+        mq.on('pushed', (data) => { if (data.eventName === 'feed.entry') {events.push(data);} });
+        await feedReader.pollFeed(FEED_URL);
+        await feedReader.pollFeed(FEED_URL);
+        await feedReader.pollFeed(FEED_URL);
+        feedReader.stop();
+        expect(events).to.have.lengthOf(1);
     });
 });

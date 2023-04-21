@@ -253,7 +253,7 @@ export class FeedReader {
      * @param url The URL to be polled.
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
-    private async pollFeed(url: string): Promise<boolean> {
+    public async pollFeed(url: string): Promise<boolean> {
         let seenEntriesChanged = false;
         const fetchKey = randomUUID();
         const { etag, lastModified } = this.cacheTimes.get(url) || {};
@@ -287,7 +287,6 @@ export class FeedReader {
 
             // migrate legacy, cleartext guids to their md5-hashed counterparts
             seenGuids = seenGuids.map(guid => guid.startsWith('md5:') ? guid : this.hashGuid(guid));
-
             const seenGuidsSet = new Set(seenGuids);
             const newGuids = [];
             log.debug(`Found ${feed.items.length} entries in ${url}`);
@@ -299,14 +298,15 @@ export class FeedReader {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
                 }
-                newGuids.push(item.hashId);
+                const hashId = `md5:${item.hashId}`;
+                newGuids.push(hashId);
 
                 if (initialSync) {
-                    log.debug(`Skipping entry ${item.id ?? item.hashId} since we're performing an initial sync`);
+                    log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
                     continue;
                 }
-                if (seenGuidsSet.has(item.hashId)) {
-                    log.debug('Skipping already seen entry', item.id ?? item.hashId);
+                if (seenGuidsSet.has(hashId)) {
+                    log.debug('Skipping already seen entry', item.id ?? hashId);
                     continue;
                 }
                 const entry = {
@@ -362,7 +362,10 @@ export class FeedReader {
         return seenEntriesChanged;
     }
 
-    private async pollFeeds(): Promise<void> {
+    /**
+     * Start polling all the feeds. 
+     */
+    public async pollFeeds(): Promise<void> {
         log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds`);
 
         const fetchingStarted = Date.now();
