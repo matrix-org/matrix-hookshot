@@ -13,7 +13,7 @@ import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
 import { FormatUtil } from "../FormatUtil";
-import { FeedItem, parseRSSFeed } from "../libRs";
+import { FeedItem, parseFeed } from "../libRs";
 
 const log = new Logger("FeedReader");
 
@@ -141,7 +141,7 @@ export class FeedReader {
         if (typeof response.data !== "string") {
             throw Error('Unexpected response type');
         }
-        const feed = parseRSSFeed(response.data);
+        const feed = parseFeed(response.data);
         return { response, feed };
     }
     

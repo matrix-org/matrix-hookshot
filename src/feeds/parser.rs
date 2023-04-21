@@ -84,6 +84,8 @@ fn parse_feed_to_js_result(feed: &Feed) -> JsRssChannel {
     }
 }
 
+
+#[napi(js_name = "parseFeed")]
 pub fn js_parse_feed(xml: String) -> Result<JsRssChannel, JsError> {
     match Channel::from_str(&xml) {
         Ok(channel) => Ok(parse_channel_to_js_result(&channel)),
