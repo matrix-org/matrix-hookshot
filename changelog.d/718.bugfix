@@ -1,0 +1,1 @@
+Fix cases of GitHub repos not being bridgable if the GitHub App had to be manually approved.

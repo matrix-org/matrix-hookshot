@@ -383,7 +383,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async assertUserHasAccessToRepo(userId: string, org: string, repo: string, github: GithubInstance, tokenStore: UserTokenStore) {
+    static async assertUserHasAccessToRepo(userId: string, org: string, repo: string, tokenStore: UserTokenStore) {
         const octokit = await tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
@@ -407,9 +407,25 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             throw Error('GitHub is not configured');
         }
         const validData = this.validateState(data);
-        await this.assertUserHasAccessToRepo(userId, validData.org, validData.repo, github, tokenStore);
-        const appOctokit = await github.getSafeOctokitForRepo(validData.org, validData.repo);
-        if (!appOctokit) {
+        await this.assertUserHasAccessToRepo(userId, validData.org, validData.repo, tokenStore);
+        const userOctokit = await tokenStore.getOctokitForUser(userId);
+        if (!userOctokit) {
+            // Given we assert the above, this is unlikely.
+            throw new ApiError("User is not authenticated with GitHub", ErrCode.ForbiddenUser);
+        }
+        const ownSelf = await userOctokit.users.getAuthenticated();
+        
+        let installationId = 0;
+
+        if (ownSelf.data.login === validData.org) {
+            installationId = (await github.appOctokit.apps.getUserInstallation({ username: ownSelf.data.login })).data.id;
+        } else {
+            // Github will error if the authed user tries to list repos of a disallowed installation, even
+            // if we got the installation ID from the app's instance.
+            installationId = (await github.appOctokit.apps.getOrgInstallation({ org: validData.org })).data.id;
+        }
+
+        if (!installationId) {
             throw new ApiError(
                 "You need to add a GitHub App to this organisation / repository before you can bridge it. Open the link to add the app, and then retry this request",
                 ErrCode.AdditionalActionRequired,
@@ -421,7 +437,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             );
         }
         const stateEventKey = `${validData.org}/${validData.repo}`;
-        await new GitHubGrantChecker(as, github, tokenStore).grantConnection(roomId, { org: validData.org, repo: validData.repo });
+        await new GitHubGrantChecker(as, tokenStore).grantConnection(roomId, { org: validData.org, repo: validData.repo });
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateEventKey, validData);
         return {
             stateEventContent: validData,
@@ -533,7 +549,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
-    private readonly grantChecker = new GitHubGrantChecker(this.as, this.githubInstance, this.tokenStore);
+    private readonly grantChecker = new GitHubGrantChecker(this.as, this.tokenStore);
 
     constructor(
         roomId: string,
