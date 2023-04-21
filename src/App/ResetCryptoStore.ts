@@ -5,8 +5,11 @@ import { Logger } from "matrix-appservice-bridge";
 import { LogService, MatrixClient } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 
 const log = new Logger("ResetCryptoStore");
+
+let bridgeStorage: IBridgeStorageProvider | undefined;
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
@@ -22,6 +25,7 @@ async function start() {
     LogService.setLogger(Logger.botSdkLogger);
 
     const {appservice, storage, cryptoStorage} = getAppservice(config, registration);
+    bridgeStorage = storage;
     if (!cryptoStorage) {
         log.info(`Encryption is not enabled in the configuration file "${configFile}", so there is no encryption state to be reset`);
         return;
@@ -80,10 +84,10 @@ async function start() {
             log.error("Failed to remove crypto store from disk", ex);
         }
     }
-
-    await storage.disconnect?.();
 }
 
 start().catch((ex) => {
     log.error("ResetCryptoStore encountered an error and has stopped:", ex);
+}).finally(() => {
+    bridgeStorage?.disconnect?.();
 });
