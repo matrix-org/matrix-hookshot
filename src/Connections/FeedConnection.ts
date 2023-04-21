@@ -25,6 +25,7 @@ export interface FeedConnectionState extends IConnectionState {
     url:    string;
     label?: string;
     template?: string;
+    notifyOnFailure?: boolean;
 }
 
 export interface FeedConnectionSecrets {
@@ -223,6 +224,10 @@ export class FeedConnection extends BaseConnection implements IConnection {
         const wasLastResultSuccessful = this.lastResults[0]?.ok !== false;
         if (wasLastResultSuccessful && error.shouldErrorBeSilent) {
             // To avoid short term failures bubbling up, if the error is serious, we still bubble.
+            return;
+        }
+        if (!this.state.notifyOnFailure) {
+            // User hasn't opted into notifications on failure
             return;
         }
         if (!this.hasError) {

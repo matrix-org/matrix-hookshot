@@ -2,7 +2,7 @@ import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
 
 import { FeedConnection, FeedConnectionState, GitHubRepoConnection, GitHubRepoConnectionState } from "../Connections";
-import { AllowedEvents as GitHubAllowedEvents, AllowedEventsNames as GitHubAllowedEventsNames } from "../Connections/GithubRepo";
+import { AllowedEventsNames as GitHubAllowedEventsNames } from "../Connections/GithubRepo";
 
 const log = new Logger("GoNebMigrator");
 
