@@ -37,7 +37,7 @@ fn parse_channel_to_js_result(channel: &Channel) -> JsRssChannel {
                 link: item.link().and_then(
                     |v| Some(v.to_string())
                 ).or_else(
-                    || item.guid().and_then(|i| i.permalink.then(|| i.value))
+                    || item.guid().and_then(|i| i.permalink.then(|| i.value.to_string()))
                 ),
                 id: item.guid().map(|f| f.value().to_string()),
                 id_is_permalink: item.guid().map_or(false, |f| f.is_permalink()),
@@ -84,7 +84,7 @@ fn parse_feed_to_js_result(feed: &Feed) -> JsRssChannel {
                 author: authors_to_string(item.authors()),
             })
             .collect(),
-    };
+    }
 }
 
 

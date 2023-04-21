@@ -90,7 +90,82 @@ describe("FeedReader", () => {
         expect(event.data.feed.title).to.equal(null);
         expect(event.data.title).to.equal(null);
     });
-    it("should handle feeds", async () => {
+    it("should handle RSS 2.0 feeds", async () => {
+        const { mq, feedReader} = constructFeedReader(() => ({
+            headers: {}, data: `
+            <?xml version="1.0" encoding="UTF-8" ?>
+                <rss version="2.0">
+                <channel>
+                    <title>RSS Title</title>
+                    <description>This is an example of an RSS feed</description>
+                    <link>http://www.example.com/main.html</link>
+                    <copyright>2020 Example.com All rights reserved</copyright>
+                    <lastBuildDate>Mon, 6 Sep 2010 00:01:00 +0000</lastBuildDate>
+                    <pubDate>Sun, 6 Sep 2009 16:20:00 +0000</pubDate>
+                    <ttl>1800</ttl>
+                    <item>
+                        <title>Example entry</title>
+                        <author>John Doe</author>
+                        <description>Here is some text containing an interesting description.</description>
+                        <link>http://www.example.com/blog/post/1</link>
+                        <guid isPermaLink="false">7bd204c6-1655-4c27-aeee-53f933c5395f</guid>
+                        <pubDate>Sun, 6 Sep 2009 16:20:00 +0000</pubDate>
+                    </item>
+                </channel>
+            </rss>
+        `
+        }));
+
+        const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
+            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
+        });
+
+        expect(event.eventName).to.equal('feed.entry');
+        expect(event.data.feed.title).to.equal('RSS Title');
+        expect(event.data.author).to.equal('John Doe');
+        expect(event.data.title).to.equal('Example entry');
+        expect(event.data.summary).to.equal('Here is some text containing an interesting description.');
+        expect(event.data.link).to.equal('http://www.example.com/blog/post/1');
+        expect(event.data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
+    });
+    it("should handle RSS feeds with a permalink url", async () => {
+        const { mq, feedReader} = constructFeedReader(() => ({
+            headers: {}, data: `
+            <?xml version="1.0" encoding="UTF-8" ?>
+                <rss version="2.0">
+                <channel>
+                    <title>RSS Title</title>
+                    <description>This is an example of an RSS feed</description>
+                    <link>http://www.example.com/main.html</link>
+                    <copyright>2020 Example.com All rights reserved</copyright>
+                    <lastBuildDate>Mon, 6 Sep 2010 00:01:00 +0000</lastBuildDate>
+                    <pubDate>Sun, 6 Sep 2009 16:20:00 +0000</pubDate>
+                    <ttl>1800</ttl>
+                    <item>
+                        <title>Example entry</title>
+                        <author>John Doe</author>
+                        <description>Here is some text containing an interesting description.</description>
+                        <guid isPermaLink="true">http://www.example.com/blog/post/1</guid>
+                        <pubDate>Sun, 6 Sep 2009 16:20:00 +0000</pubDate>
+                    </item>
+                </channel>
+            </rss>
+        `
+        }));
+
+        const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
+            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
+        });
+
+        expect(event.eventName).to.equal('feed.entry');
+        expect(event.data.feed.title).to.equal('RSS Title');
+        expect(event.data.author).to.equal('John Doe');
+        expect(event.data.title).to.equal('Example entry');
+        expect(event.data.summary).to.equal('Here is some text containing an interesting description.');
+        expect(event.data.link).to.equal('http://www.example.com/blog/post/1');
+        expect(event.data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
+    });
+    it("should handle Atom feeds", async () => {
         const { mq, feedReader} = constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="utf-8"?>
@@ -125,6 +200,7 @@ describe("FeedReader", () => {
 
         expect(event.eventName).to.equal('feed.entry');
         expect(event.data.feed.title).to.equal('Example Feed');
+        expect(event.data.title).to.equal('Atom-Powered Robots Run Amok');
         expect(event.data.author).to.equal('John Doe');
         expect(event.data.summary).to.equal('Some text.');
         expect(event.data.link).to.equal('http://example.org/2003/12/13/atom03');
