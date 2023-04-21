@@ -27,25 +27,22 @@ pub struct JsRssChannel {
 }
 
 fn parse_channel_to_js_result(channel: &Channel) -> JsRssChannel {
-    fn map_item_value(original: &str) -> String {
-        original.to_string()
-    }
     JsRssChannel {
         title: channel.title().to_string(),
         items: channel
             .items()
             .iter()
-            .map(|item| FeedItem {
-                title: item.title().map(map_item_value),
+            .map(|item: &rss::Item| FeedItem {
+                title: item.title().map(String::from),
                 link: item.link().and_then(|v| Some(v.to_string())).or_else(|| {
                     item.guid()
                         .and_then(|i| i.permalink.then(|| i.value.to_string()))
                 }),
                 id: item.guid().map(|f| f.value().to_string()),
                 id_is_permalink: item.guid().map_or(false, |f| f.is_permalink()),
-                pubdate: item.pub_date().map(map_item_value),
-                summary: item.description().map(map_item_value),
-                author: item.author().map(map_item_value),
+                pubdate: item.pub_date().map(String::from),
+                summary: item.description().map(String::from),
+                author: item.author().map(String::from),
                 hash_id: item
                     .guid
                     .clone()
