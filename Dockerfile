@@ -1,7 +1,7 @@
 # Stage 0: Build the thing
 # Need debian based image to build the native rust module
 # as musl doesn't support cdylib
-FROM node:16 AS builder
+FROM node:18 AS builder
 
 # We need rustup so we have a sensible rust version, the version packed with bullsye is too old
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
@@ -30,7 +30,7 @@ RUN yarn build
 
 
 # Stage 1: The actual container
-FROM node:16-slim
+FROM node:18
 
 WORKDIR /bin/matrix-hookshot
 

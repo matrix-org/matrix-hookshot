@@ -10,7 +10,7 @@
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "scripts": {
     "build:web": "vite build",
