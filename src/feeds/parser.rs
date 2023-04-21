@@ -37,17 +37,22 @@ fn parse_channel_to_js_result(channel: &Channel) -> JsRssChannel {
             .iter()
             .map(|item| FeedItem {
                 title: item.title().map(map_item_value),
-                link: item.link().and_then(
-                    |v| Some(v.to_string())
-                ).or_else(
-                    || item.guid().and_then(|i| i.permalink.then(|| i.value.to_string()))
-                ),
+                link: item.link().and_then(|v| Some(v.to_string())).or_else(|| {
+                    item.guid()
+                        .and_then(|i| i.permalink.then(|| i.value.to_string()))
+                }),
                 id: item.guid().map(|f| f.value().to_string()),
                 id_is_permalink: item.guid().map_or(false, |f| f.is_permalink()),
                 pubdate: item.pub_date().map(map_item_value),
                 summary: item.description().map(map_item_value),
                 author: item.author().map(map_item_value),
-                hash_id: item.guid.clone().and_then(|f| Some(f.value)).or(item.link.clone()).or(item.title.clone()).and_then(|f| hash_id(f).ok()),
+                hash_id: item
+                    .guid
+                    .clone()
+                    .and_then(|f| Some(f.value))
+                    .or(item.link.clone())
+                    .or(item.title.clone())
+                    .and_then(|f| hash_id(f).ok()),
             })
             .collect(),
     }
@@ -83,7 +88,10 @@ fn parse_feed_to_js_result(feed: &Feed) -> JsRssChannel {
                 id: Some(item.id.clone()),
                 // No equivalent
                 id_is_permalink: false,
-                pubdate: item.published.or(Some(item.updated)).map(|date|date.to_rfc2822()),
+                pubdate: item
+                    .published
+                    .or(Some(item.updated))
+                    .map(|date| date.to_rfc2822()),
                 summary: item.summary().map(|v| v.value.clone()),
                 author: authors_to_string(item.authors()),
                 hash_id: hash_id(item.id.clone()).ok(),
@@ -91,7 +99,6 @@ fn parse_feed_to_js_result(feed: &Feed) -> JsRssChannel {
             .collect(),
     }
 }
-
 
 #[napi(js_name = "parseFeed")]
 pub fn js_parse_feed(xml: String) -> Result<JsRssChannel, JsError> {
