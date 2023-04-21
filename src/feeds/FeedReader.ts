@@ -7,13 +7,12 @@ import { MessageQueue } from "../MessageQueue";
 
 import Ajv from "ajv";
 import axios, { AxiosResponse } from "axios";
-import Parser from "rss-parser";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
 import { FormatUtil } from "../FormatUtil";
-import { FeedItem, parseFeed } from "../libRs";
+import { JsRssChannel, parseFeed } from "../libRs";
 
 const log = new Logger("FeedReader");
 
@@ -111,10 +110,6 @@ function shuffle<T>(array: T[]): T[] {
 
 
 export class FeedReader {
-    private static buildParser(): Parser {
-        return new Parser();
-    }
-
     /**
      * Read a feed URL and parse it into a set of items.
      * @param url The feed URL.
@@ -128,7 +123,7 @@ export class FeedReader {
         headers: Record<string, string>,
         timeoutMs: number,
         httpClient = axios,
-    ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
+    ): Promise<{ response: AxiosResponse, feed: JsRssChannel }> {
         const response = await httpClient.get(url, {
             headers: {
                 'User-Agent': UserAgent,
@@ -144,31 +139,6 @@ export class FeedReader {
         const feed = parseFeed(response.data);
         return { response, feed };
     }
-    
-    /**
-     * Attempt to parse a link from a feed item.
-     * @param item A feed item.
-     * @returns Return either a link to the item, or null.
-     */
-    private static parseLinkFromItem(item: FeedItem) {
-        if (item.link) {
-            return item.link;
-        }
-        if (item.id && item.idIsPermalink) {
-            try {
-                // The feed librray doesn't give us attributes (needs isPermaLink), so we're not really sure if this a URL or not.
-                // Parse it and see.
-                // https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
-                const url = new URL(item.id);
-                return url.toString();
-            } catch (ex) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private readonly parser = FeedReader.buildParser();
 
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
@@ -341,17 +311,17 @@ export class FeedReader {
                     log.debug('Skipping already seen entry', guid);
                     continue;
                 }
-
+                console.log(item);
                 const entry = {
                     feed: {
                         title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
                         url: url,
                     },
                     title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
-                    pubdate: item.pubDate ?? null,
+                    pubdate: item.pubdate ?? null,
                     summary: item.summary ?? null,
                     author: item.author ?? null,
-                    link: FeedReader.parseLinkFromItem(item),
+                    link: item.link ?? null,
                     fetchKey
                 };
 
