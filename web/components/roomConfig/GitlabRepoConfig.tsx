@@ -10,7 +10,7 @@ import { DropItem } from "../elements/DropdownSearch";
 import { ConnectionSearch } from "../elements/ConnectionSearch";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove }) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove, isUpdating }) => {
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
 
     const toggleEnabledHook = useCallback((evt: any) => {
@@ -107,8 +107,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             </ul>
         </InputField>
         <ButtonSet>
-            { canEdit && <Button type="submit" disabled={!existingConnection && !newConnectionState}>{ existingConnection ? "Save" : "Add project" }</Button>}
-            { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove project</Button>}
+            { canEdit && <Button type="submit" disabled={isUpdating || !existingConnection && !newConnectionState}>{ existingConnection ? "Save" : "Add project" }</Button>}
+            { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove project</Button>}
         </ButtonSet>
     </form>;
 };
