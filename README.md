@@ -4,14 +4,13 @@ Matrix Hookshot
 [![#hookshot:half-shot.uk](https://img.shields.io/matrix/hookshot:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
 [![Docker Image Version (latest by date)](https://img.shields.io/docker/v/halfshot/matrix-hookshot?sort=semver)](https://hub.docker.com/r/halfshot/matrix-hookshot)
 
-A Matrix appservice which notifies you about changes on remote services, such as
-GitHub, GitLab, JIRA and many more.
+A Matrix bot for connecting to external services like GitHub, GitLab, JIRA, and more.
 
 - Several services are supported out of the box.
-- Can support **any** based sevice via [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html), with the ability to write rich templates using JavaScript.
-- Requires **no external database** to run, using the homeserver as a persistent store.
-- Supports End to Bridge encryption, allowing you to run and respond the bot in Matrix rooms.
-- Backs Element's Extensions store, with [powerful widgets](https://matrix-org.github.io/matrix-hookshot/latest/advanced/widgets.html).
+- [Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html) let you connect all kinds of services, with the ability to write rich templates using JavaScript.
+- **No external database** is required, instead using Matrix state as a persistent store.
+- End-to-Bridge encryption allows bots to be used in encrypted Matrix rooms.
+- [Powerful widgets](https://matrix-org.github.io/matrix-hookshot/latest/advanced/widgets.html) let you configure Hookshot from a room or the Element Extensions Store.
 
 ## Features
 
