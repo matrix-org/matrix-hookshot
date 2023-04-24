@@ -1,35 +1,31 @@
-matrix-hookshot
+Matrix Hookshot
 ===============
-
-*Previously matrix-github*
 
 [![#hookshot:half-shot.uk](https://img.shields.io/matrix/hookshot:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
 [![Docker Image Version (latest by date)](https://img.shields.io/docker/v/halfshot/matrix-hookshot?sort=semver)](https://hub.docker.com/r/halfshot/matrix-hookshot)
 
-A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.
+A Matrix appservice which notifies you about changes on remote services, such as
+GitHub, GitLab, JIRA and many more.
 
-## Featureset
+- Several services are supported out of the box.
+- Can support **any** based sevice via [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html), with the ability to write rich templates using JavaScript.
+- Requires **no external database** to run, using the homeserver as a persistent store.
+- Supports End to Bridge encryption, allowing you to run and respond the bot in Matrix rooms.
+- Backs Element's Extensions store, with [powerful widgets](https://matrix-org.github.io/matrix-hookshot/latest/advanced/widgets.html).
 
-This bridge supports:
-- Figma
-  - File comments
-- GitHub
-  - Webhooks (new issues, pull requests, releases etc)
-  - Commands (create issues, assign issues, start workflows etc)
-- GitLab
-  - Webhooks (new issues, merge requests etc)
-  - Commands
-- Jira
-  - Webhooks (new issues, issue changes)
-  - Commands (create new issues)
-- Generic webhooks
-  - Webhooks (via GET, PUT or POST with optional transformation functions)
-- RSS/Atom feeds
-  - New entries
+## Features
 
-## Setup
+This bridge supports connecting to
 
-[See the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html)
+- [Figma](https://matrix-org.github.io/matrix-hookshot/latest/setup/figma.html)
+- [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html)
+- [GitHub](https://matrix-org.github.io/matrix-hookshot/latest/setup/github.html)
+- [GitLab](https://matrix-org.github.io/matrix-hookshot/latest/setup/gitlab.html)
+- [Jira](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html)
+- [RSS/Atom feeds](https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html)
+
+Please read the [the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html) for how to get
+started.
 
 ## Documentation
 
@@ -44,4 +40,4 @@ sensible-browser book/index.html
 
 ## Contact
 
-We have a bridge support room you can drop into at [#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk).
+We have a Matrix support room ([#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk)).
