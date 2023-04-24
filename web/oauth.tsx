@@ -26,16 +26,18 @@ function RenderOAuth() {
 
     if (result === 'error') {
         return <>
-            <h1>Could not connect your { serviceName } {oauthKind} to Hookshot.</h1>
+            <h1>Could not connect your { serviceName } { oauthKind } to Hookshot.</h1>
             <p>
                 <code>{errcode}</code> {error}
             </p>
         </>;
-    } else if (result === 'pending') {
+    // Pending / update are mostly the same thing. Pending means a new app install, update means updating the existing app install.
+    } else if (result === 'pending' || result === 'update') {
         return <>
-            <h1>Your connection to { serviceName } {oauthKind} is pending.</h1>
+            <h1>The connection to your { serviceName } { oauthKind } is pending.</h1>
             <p>
-                The owner may need to approve this.
+                You will need to wait for an administrator of the { serviceName } {oauthKind} instance to approve
+                the new installation. If you think this is a mistake, contact the administrator of your organisation.
             </p>
         </>;
     } else if (result === 'success') {
@@ -45,7 +47,7 @@ function RenderOAuth() {
         </>;
     }
     return <>
-        <h1>Your connection to { serviceName } {oauthKind} is {result}.</h1>
+        <h1>The connection to your { serviceName } { oauthKind } is { result }.</h1>
         <p>
             This is an unknown state, you may need to contact your systems administrator.
         </p>
