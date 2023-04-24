@@ -4,6 +4,8 @@ Matrix Hookshot
 [![#hookshot:half-shot.uk](https://img.shields.io/matrix/hookshot:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
 [![Docker Image Version (latest by date)](https://img.shields.io/docker/v/halfshot/matrix-hookshot?sort=semver)](https://hub.docker.com/r/halfshot/matrix-hookshot)
 
+![screenshot](screenshot.png)
+
 A Matrix bot for connecting to external services like GitHub, GitLab, JIRA, and more.
 
 - Several services are supported out of the box.
@@ -12,9 +14,7 @@ A Matrix bot for connecting to external services like GitHub, GitLab, JIRA, and 
 - End-to-Bridge encryption allows bots to be used in encrypted Matrix rooms.
 - [Powerful widgets](https://matrix-org.github.io/matrix-hookshot/latest/advanced/widgets.html) let you configure Hookshot from a room or the Element Extensions Store.
 
-## Features
-
-This bridge supports connecting to
+We richly support the following integrations:
 
 - [Figma](https://matrix-org.github.io/matrix-hookshot/latest/setup/figma.html)
 - [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html)
@@ -23,8 +23,8 @@ This bridge supports connecting to
 - [Jira](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html)
 - [RSS/Atom feeds](https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html)
 
-Please read the [the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html) for how to get
-started.
+Get started by reading the [the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html)!
+
 
 ## Documentation
 
