@@ -279,6 +279,7 @@ dependencies = [
 name = "matrix-hookshot"
 version = "1.8.1"
 dependencies = [
+ "atom_syndication",
  "contrast",
  "hex",
  "md-5",
