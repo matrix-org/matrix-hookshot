@@ -36,6 +36,7 @@
     "lint": "yarn run lint:js && yarn run lint:rs",
     "lint:js": "eslint -c .eslintrc.js 'src/**/*.ts' 'tests/**/*.ts' 'web/**/*.ts' 'web/**/*.tsx'",
     "lint:rs": "cargo fmt --all -- --check",
+    "lint:rs:apply": "cargo fmt --all",
     "generate-default-config": "ts-node src/Config/Defaults.ts --config > config.sample.yml",
     "validate-config": "ts-node src/Config/Config.ts"
   },
@@ -64,7 +65,6 @@
     "p-queue": "^6.6.2",
     "prom-client": "^14.0.1",
     "reflect-metadata": "^0.1.13",
-    "rss-parser": "^3.12.0",
     "source-map-support": "^0.5.21",
     "string-argv": "^0.3.1",
     "tiny-typed-emitter": "^2.1.0",
