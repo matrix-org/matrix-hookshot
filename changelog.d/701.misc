@@ -1,1 +1,0 @@
-Ensure all Hookshot specific metrics have a `hookshot_` prefix.

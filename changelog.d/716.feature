@@ -1,1 +1,0 @@
-Notifications for RSS feed failures can now be toggled on and off. The feature is now **off** by default.
