@@ -5,7 +5,6 @@ import { Logger } from "matrix-appservice-bridge";
 const log = new Logger("Metrics");
 
 export class Metrics {
-    private readonly registry: Registry = register;
     public readonly expressRouter = Router();
 
     public readonly webhooksHttpRequest = new Counter({ name: "hookshot_webhooks_http_request", help: "Number of requests made to the hookshot webhooks handler", labelNames: ["path", "method"], registers: [this.registry]});
@@ -33,7 +32,7 @@ export class Metrics {
     public readonly feedsFailingDeprecated = new Gauge({ name: "feed_failing", help: "(Deprecated) The number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
 
 
-    constructor() {
+    constructor(private registry: Registry = register) {
         this.expressRouter.get('/metrics', this.metricsFunc.bind(this));
         collectDefaultMetrics({
             register: this.registry,

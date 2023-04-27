@@ -24,7 +24,8 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     // TODO: Type errors
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "target": "es2021"
   },
   "include": [
       "src/**/*"
