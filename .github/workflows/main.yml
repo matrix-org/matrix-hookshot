@@ -16,18 +16,18 @@ jobs:
   lint-node:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Use Node.js
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
-        node-version: 16
+        node-version-file: .node-version
     - run: yarn --ignore-scripts
     - run: yarn lint:js
 
   lint-rust:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
       with:
           toolchain: stable
@@ -38,34 +38,35 @@ jobs:
   config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
       - run: yarn --silent ts-node src/Config/Defaults.ts --config | diff config.sample.yml - 
 
   metrics-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
       - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
   
   test:
-    runs-on: ubuntu-latest
+    # Test on LTS-1
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        node_version: [16, 18]
+        node_version: [18, 20]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Use Node.js ${{ matrix.node_version }}
-        uses: actions/setup-node@v1
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node_version }}
       - uses: actions-rs/toolchain@v1

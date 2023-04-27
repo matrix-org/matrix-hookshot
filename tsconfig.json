@@ -1,5 +1,5 @@
 {
-  "extends": "@tsconfig/node16/tsconfig.json",
+  "extends": "@tsconfig/node18/tsconfig.json",
   "compilerOptions": {
     "incremental": true,
     "declaration": false,
@@ -25,6 +25,8 @@
     "emitDecoratorMetadata": true,
     // TODO: Type errors
     "useUnknownInCatchVariables": false,
+    // ES2022+ is currently broken https://github.com/matrix-org/matrix-hookshot/issues/729
+    "target": "es2021"
   },
   "include": [
       "src/**/*"
