@@ -366,6 +366,18 @@ export class Bridge {
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.approval",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onMergeRequestIndividualReview(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.unapproval",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onMergeRequestIndividualReview(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
             "gitlab.merge_request.update",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestUpdate(data),
