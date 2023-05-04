@@ -41,6 +41,7 @@ const MAX_TEMPLATE_LENGTH = 1024;
 
 const DEFAULT_TEMPLATE = "New post in $FEEDNAME";
 const DEFAULT_TEMPLATE_WITH_CONTENT = "New post in $FEEDNAME: $LINK"
+const DEFAULT_TEMPLATE_WITH_ONLY_TITLE = "New post in $FEEDNAME: $TITLE"
 
 @Connection
 export class FeedConnection extends BaseConnection implements IConnection {
@@ -183,8 +184,10 @@ export class FeedConnection extends BaseConnection implements IConnection {
         let message;
         if (this.state.template) {
             message = this.templateFeedEntry(this.state.template, entry);
-        } else if (entry.title && entry.link) {
+        } else if (entry.link) {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_CONTENT, entry);
+        } else if (entry.title) {
+            message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_ONLY_TITLE, entry);
         } else {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
         }
