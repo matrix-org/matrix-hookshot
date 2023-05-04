@@ -1,13 +1,13 @@
 use crate::Github::types::*;
 use crate::Jira;
 use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
+use ammonia::{Builder, UrlRelative};
 use contrast;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use rgb::RGB;
 use std::fmt::Write;
-use ammonia::{Builder, UrlRelative};
 
 #[derive(Serialize, Debug, Deserialize)]
 #[napi(object)]
@@ -192,63 +192,85 @@ pub fn hash_id(id: String) -> Result<String> {
 }
 
 const ALLOWED_HTML_TAGS: &'static [&'static str] = &[
-    "font", "del", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote",
-    "p", "a", "ul", "ol", "sup", "sub", "li", "b", "i", "u", "strong",
-    "em", "strike", "code", "hr", "br", "div", "table", "thead", "tbody",
-    "tr", "th", "td", "caption", "pre", "span", "img", "details", "summary"];
-
-const FONT_ALLOWED_ATTRIBUTES: &'static [&'static str] = &[
-    "data-mx-bg-color", "data-mx-color", "color"
+    "font",
+    "del",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "p",
+    "a",
+    "ul",
+    "ol",
+    "sup",
+    "sub",
+    "li",
+    "b",
+    "i",
+    "u",
+    "strong",
+    "em",
+    "strike",
+    "code",
+    "hr",
+    "br",
+    "div",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "caption",
+    "pre",
+    "span",
+    "img",
+    "details",
+    "summary",
 ];
 
-const SPAN_ALLOWED_ATTRIBUTES: &'static [&'static str] = &[
-    "data-mx-bg-color", "data-mx-color", "data-mx-spoiler"
-];
+const FONT_ALLOWED_ATTRIBUTES: &'static [&'static str] =
+    &["data-mx-bg-color", "data-mx-color", "color"];
 
-const ANCHOR_ALLOWED_ATTRIBUTES: &'static [&'static str] = &[
-    "name", "target", "href"
-];
+const SPAN_ALLOWED_ATTRIBUTES: &'static [&'static str] =
+    &["data-mx-bg-color", "data-mx-color", "data-mx-spoiler"];
 
-const IMG_ALLOWED_ATTRIBUTES: &'static [&'static str] = &[
-    "width", "height", "alt", "title", "src"
-];
+const ANCHOR_ALLOWED_ATTRIBUTES: &'static [&'static str] = &["name", "target", "href"];
 
-const OL_ALLOWED_ATTRIBUTES: &'static [&'static str] = &[
-    "start"
-];
-const CODE_ALLOWED_ATTRIBUTES: &'static [&'static str] = &[
-    "class"
-];
+const IMG_ALLOWED_ATTRIBUTES: &'static [&'static str] = &["width", "height", "alt", "title", "src"];
 
-const ALLOWED_URL_SCHEMES: &'static [&'static str] = &[
-    "https", "http", "ftp", "mailto", "magnet", "mxc"
-];
+const OL_ALLOWED_ATTRIBUTES: &'static [&'static str] = &["start"];
+const CODE_ALLOWED_ATTRIBUTES: &'static [&'static str] = &["class"];
+
+const ALLOWED_URL_SCHEMES: &'static [&'static str] =
+    &["https", "http", "ftp", "mailto", "magnet", "mxc"];
 
 #[napi]
-pub fn sanitize_html(html: String)-> String {
+pub fn sanitize_html(html: String) -> String {
     // See https://spec.matrix.org/v1.6/client-server-api/#mroommessage-msgtypes
     Builder::default()
-    .link_rel(None)
-    .add_tags(ALLOWED_HTML_TAGS)
-    .add_tag_attributes("font", FONT_ALLOWED_ATTRIBUTES)
-    .add_tag_attributes("span", SPAN_ALLOWED_ATTRIBUTES)
-    .add_tag_attributes("a", ANCHOR_ALLOWED_ATTRIBUTES)
-    .add_tag_attributes("img", IMG_ALLOWED_ATTRIBUTES)
-    .add_tag_attributes("ol", OL_ALLOWED_ATTRIBUTES)
-    .add_tag_attributes("code", CODE_ALLOWED_ATTRIBUTES)
-    .add_url_schemes(ALLOWED_URL_SCHEMES)
-    .attribute_filter(|element, attribute, value| {
-        match (element, attribute) {
+        .link_rel(None)
+        .add_tags(ALLOWED_HTML_TAGS)
+        .add_tag_attributes("font", FONT_ALLOWED_ATTRIBUTES)
+        .add_tag_attributes("span", SPAN_ALLOWED_ATTRIBUTES)
+        .add_tag_attributes("a", ANCHOR_ALLOWED_ATTRIBUTES)
+        .add_tag_attributes("img", IMG_ALLOWED_ATTRIBUTES)
+        .add_tag_attributes("ol", OL_ALLOWED_ATTRIBUTES)
+        .add_tag_attributes("code", CODE_ALLOWED_ATTRIBUTES)
+        .add_url_schemes(ALLOWED_URL_SCHEMES)
+        .attribute_filter(|element, attribute, value| match (element, attribute) {
             ("code", "class") => {
                 if value.starts_with("language-") {
                     return Some(value.into());
                 }
                 None
-            },
-            _ => Some(value.into())
-        }
-    })
-    .url_relative(UrlRelative::PassThrough)
-    .clean(html.as_str())
-    .to_string()
+            }
+            _ => Some(value.into()),
+        })
+        .url_relative(UrlRelative::PassThrough)
+        .clean(html.as_str())
+        .to_string()
 }
