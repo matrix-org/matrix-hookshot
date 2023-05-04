@@ -146,6 +146,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
                     return entry.title || "";
                 case "$LINK":
                     return entry.link ? `[${entry.title ?? entry.link}](${entry.link})` : "";
+                case "$URL":
+                    return entry.link || "";
                 case "$AUTHOR":
                     return entry.author || "";
                 case "$DATE":
