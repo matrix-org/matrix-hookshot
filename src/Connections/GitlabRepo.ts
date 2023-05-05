@@ -808,10 +808,6 @@ ${data.description}`;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
         this.validateMREvent(event);
-        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
-            // Not interested.
-            return;
-        }
         this.debounceMergeRequestReview(
             event.user,
             event.object_attributes,
@@ -832,10 +828,6 @@ ${data.description}`;
 
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
         this.validateMREvent(event);
-        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
-            // Not interested.
-            return;
-        }
         this.debounceMergeRequestReview(
             event.user,
             event.object_attributes,
