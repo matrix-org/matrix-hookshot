@@ -592,7 +592,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public get org() {
-        return this.state.org.toLowerCase();
+        return this.state.org;
     }
 
     private get showIssueRoomLink() {
@@ -600,7 +600,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public get repo() {
-        return this.state.repo.toLowerCase();
+        return this.state.repo;
     }
 
     public get priority(): number {

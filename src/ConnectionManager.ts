@@ -251,31 +251,23 @@ export class ConnectionManager extends EventEmitter {
     }
 
     public getConnectionsForGithubIssue(org: string, repo: string, issueNumber: number): (GitHubIssueConnection|GitHubRepoConnection)[] {
-        org = org.toLowerCase();
-        repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubIssueConnection && c.org === org && c.repo === repo && c.issueNumber === issueNumber) ||
             (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as (GitHubIssueConnection|GitHubRepoConnection)[];
     }
 
     public getConnectionsForGithubRepo(org: string, repo: string): GitHubRepoConnection[] {
-        org = org.toLowerCase();
-        repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubRepoConnection && c.org === org && c.repo === repo)) as GitHubRepoConnection[];
     }
 
     public getConnectionsForGithubRepoDiscussion(owner: string, repo: string): GitHubDiscussionSpace[] {
-        owner = owner.toLowerCase();
-        repo = repo.toLowerCase();
         return this.connections.filter((c) => (c instanceof GitHubDiscussionSpace && c.owner === owner && c.repo === repo)) as GitHubDiscussionSpace[];
     }
 
     public getConnectionForGithubUser(user: string): GitHubUserSpace {
-        return this.connections.find(c => c instanceof GitHubUserSpace && c.owner === user.toLowerCase()) as GitHubUserSpace;
+        return this.connections.find(c => c instanceof GitHubUserSpace && c.owner === user) as GitHubUserSpace;
     }
 
     public getConnectionsForGithubDiscussion(owner: string, repo: string, discussionNumber: number) {
-        owner = owner.toLowerCase();
-        repo = repo.toLowerCase();
         return this.connections.filter(
             c => (
                 c instanceof GitHubDiscussionConnection &&
