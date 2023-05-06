@@ -57,7 +57,9 @@ export class MatrixSender {
             await intent.ensureRegisteredAndJoined(msg.roomId);
         }
         try {
-                const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
+                const eventId = this.shouldEncrypt(msg.content?.msgtype as string)
+                    ? await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content)
+                    : await intent.underlyingClient.sendRawEvent(msg.roomId, msg.type, msg.content);
                 log.info(`Sent event to room ${msg.roomId} (${msg.sender}) > ${eventId}`);
                 await this.mq.push<IMatrixSendMessageResponse>({
                     eventName: "response.matrix.message",
@@ -78,6 +80,10 @@ export class MatrixSender {
             });
         }
     }
+
+    private shouldEncrypt(msgType: string | undefined): boolean {
+        return msgType !== "m.notice" || (this.config.encryption?.encryptNotices ?? true);
+    }
 }
 
 export class MessageSenderClient {
@@ -91,9 +97,12 @@ export class MessageSenderClient {
         }, "m.room.message", sender);
     }
 
-    public async sendMatrixMessage(roomId: string,
-                                   content: unknown, eventType = "m.room.message",
-                                   sender: string|null = null): Promise<string> {
+    public async sendMatrixMessage(
+        roomId: string,
+        content: unknown,
+        eventType = "m.room.message",
+        sender: string|null = null,
+    ): Promise<string> {
         const result = await this.queue.pushWait<IMatrixSendMessage, IMatrixSendMessageResponse|IMatrixSendMessageFailedResponse>({
             eventName: "matrix.message",
             sender: "Bridge",
@@ -108,6 +117,7 @@ export class MessageSenderClient {
         if ("eventId" in result) {
             return result.eventId;
         }
+
         throw Error('Failed to send Matrix message');
     }
 }
