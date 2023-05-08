@@ -1,9 +1,6 @@
 use glob::{Pattern, PatternError};
 use napi::JsFunction;
-use napi::{
-    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsString,
-};
+use napi::threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
@@ -64,15 +61,14 @@ impl MessageQueueMessage {
         }
     }
 
-    pub fn from_js_message(message: &MessageQueueMessagePushJsPush) -> Self {
+    pub fn from_js_message(message: MessageQueueMessagePushJsPush) -> Self {
         MessageQueueMessage {
-            event_name: message.event_name.clone(),
-            sender: message.sender.clone(),
-            data: message.data.clone().unwrap_or(Value::Null),
-            destination: message.destination.clone(),
+            event_name: message.event_name,
+            sender: message.sender,
+            data: message.data.unwrap_or(Value::Null),
+            destination: message.destination,
             id: message
                 .id
-                .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string()),
         }
     }
@@ -128,24 +124,16 @@ impl LocalMQ {
             return;
         }
 
-        let push_msg = MessageQueueMessage {
-            sender: message.sender.clone(),
-            event_name: message.event_name.clone(),
-            data: message.data.clone(),
-            id: message.id,
-            destination: message.destination.clone(),
-        };
-
         let once_vec = self.once_callbacks.remove(&message.event_name);
 
         if once_vec.is_some() {
             for callback in once_vec.unwrap() {
                 match callback {
-                    Callback::RsCallback(cb) => cb(&push_msg),
+                    Callback::RsCallback(cb) => cb(&message),
                     Callback::JsCallback(cb) => {
                         let cb_instance = cb.clone();
                         cb_instance.call(
-                            Ok(push_msg.clone()),
+                            Ok(message.clone()),
                             ThreadsafeFunctionCallMode::NonBlocking,
                         );
                     }
@@ -158,11 +146,11 @@ impl LocalMQ {
         if push_vec.is_some() {
             for callback in push_vec.unwrap() {
                 match callback {
-                    Callback::RsCallback(cb) => cb(&push_msg),
+                    Callback::RsCallback(cb) => cb(&message),
                     Callback::JsCallback(cb) => {
                         let cb_instance: ThreadsafeFunction<MessageQueueMessage> = cb.clone();
                         cb_instance.call(
-                            Ok(push_msg.clone()),
+                            Ok(message.clone()),
                             ThreadsafeFunctionCallMode::NonBlocking,
                         );
                     }
@@ -218,7 +206,7 @@ impl JsLocalMQ {
 
     #[napi]
     pub fn push(&mut self, message: MessageQueueMessagePushJsPush) {
-        self.mq.push(MessageQueueMessage::from_js_message(&message));
+        self.mq.push(MessageQueueMessage::from_js_message(message));
     }
 }
 
