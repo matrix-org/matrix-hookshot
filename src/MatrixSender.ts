@@ -32,7 +32,7 @@ export class MatrixSender {
         this.mq.subscribe("matrix.message");
         this.mq.on<IMatrixSendMessage>("matrix.message", async (msg) => {
             try {
-                await this.sendMatrixMessage(msg.messageId || randomUUID(), msg.data);
+                await this.sendMatrixMessage(msg.id || randomUUID(), msg.data);
             } catch (ex) {
                 log.error(`Failed to send message (${msg.data.roomId}, ${msg.data.sender}, ${msg.data.type})`);
             }
@@ -60,21 +60,19 @@ export class MatrixSender {
                 const eventId = await intent.underlyingClient.sendEvent(msg.roomId, msg.type, msg.content);
                 log.info(`Sent event to room ${msg.roomId} (${msg.sender}) > ${eventId}`);
                 await this.mq.push<IMatrixSendMessageResponse>({
-                    eventName: "response.matrix.message",
+                    eventName: `response.${messageId}`,
                     sender: "MatrixSender",
                     data: {
                         eventId,
                     },
-                    messageId,
                 });
         } catch (ex) {
             await this.mq.push<IMatrixSendMessageFailedResponse>({
-                eventName: "response.matrix.message",
+                eventName: `response.${messageId}`,
                 sender: "MatrixSender",
                 data: {
                     failed: true,
                 },
-                messageId,
             });
         }
     }

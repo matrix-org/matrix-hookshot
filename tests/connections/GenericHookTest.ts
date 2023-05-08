@@ -46,8 +46,8 @@ function createGenericHook(
 function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
     return new Promise(r => mq.once('matrix.message', (msg) => {
         mq.push({
-            eventName: 'response.matrix.message',
-            messageId: msg.messageId,
+            eventName: `response.${msg.id}`,
+            messageId: msg.id,
             sender: 'TestSender',
             data: { 'eventId': '$foo:bar' },
         });

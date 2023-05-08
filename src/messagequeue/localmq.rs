@@ -1,12 +1,13 @@
 use glob::{Pattern, PatternError};
-use napi::JsFunction;
+use napi::{JsFunction};
 use napi::{
-    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsString,
+    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode}
 };
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use uuid::Uuid;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 pub enum Callback {
     RsCallback(fn(&MessageQueueMessage)),
     JsCallback(ThreadsafeFunction<MessageQueueMessage>),
@@ -17,8 +18,11 @@ pub enum Callback {
 pub struct MessageQueueMessage {
     pub sender: String,
     pub event_name: String,
+
+    #[napi(ts_type = "unknown")]
     pub data: Value,
     pub id: String,
+    pub ts: f64,
     pub destination: Option<String>,
 }
 
@@ -29,6 +33,7 @@ pub struct MessageQueueMessagePushJsPush {
     pub event_name: String,
     pub data: Option<Value>,
     pub id: Option<String>,
+    pub ts: Option<f64>,
     pub destination: Option<String>,
 }
 
@@ -41,11 +46,12 @@ pub struct LocalMQ {
 impl MessageQueueMessage {
     pub fn new(event_name: &str, sender: &str, data: Value) -> Self {
         MessageQueueMessage {
-            event_name: String::from(event_name),
-            sender: String::from(sender),
             data,
             destination: None,
+            event_name: String::from(event_name),
             id: Uuid::new_v4().to_string(),
+            sender: String::from(sender),
+            ts:  SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as f64,
         }
     }
 
@@ -56,11 +62,12 @@ impl MessageQueueMessage {
         destination: &str,
     ) -> Self {
         MessageQueueMessage {
-            event_name: String::from(event_name),
-            sender: String::from(sender),
             data,
             destination: Some(String::from(destination)),
+            event_name: String::from(event_name),
             id: Uuid::new_v4().to_string(),
+            sender: String::from(sender),
+            ts:  SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as f64,
         }
     }
 
@@ -70,6 +77,7 @@ impl MessageQueueMessage {
             sender: message.sender.clone(),
             data: message.data.clone().unwrap_or(Value::Null),
             destination: message.destination.clone(),
+            ts:  message.ts.unwrap_or(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as f64),
             id: message
                 .id
                 .clone()
@@ -77,6 +85,7 @@ impl MessageQueueMessage {
         }
     }
 }
+
 
 impl LocalMQ {
     pub fn new() -> Self {
@@ -95,24 +104,24 @@ impl LocalMQ {
         Pattern::new(&event_glob).and_then(|f| Ok(self.subscriptions.remove(&f)))
     }
 
-    pub fn on(&mut self, event_glob: String, callback: Callback) {
-        match self.push_callbacks.get_mut(&event_glob) {
+    pub fn on(&mut self, event_name: String, callback: Callback) {
+        match self.push_callbacks.get_mut(&event_name) {
             Some(existing) => {
                 existing.push(callback);
             }
             None => {
-                self.push_callbacks.insert(event_glob, vec![callback]);
+                self.push_callbacks.insert(event_name, vec![callback]);
             }
         }
     }
 
-    pub fn once(&mut self, event_glob: String, callback: Callback) {
-        match self.once_callbacks.get_mut(&event_glob) {
+    pub fn once(&mut self, event_name: String, callback: Callback) {
+        match self.once_callbacks.get_mut(&event_name) {
             Some(existing) => {
                 existing.push(callback);
             }
             None => {
-                self.once_callbacks.insert(event_glob, vec![callback]);
+                self.once_callbacks.insert(event_name, vec![callback]);
             }
         }
     }
@@ -133,6 +142,7 @@ impl LocalMQ {
             event_name: message.event_name.clone(),
             data: message.data.clone(),
             id: message.id,
+            ts: message.ts,
             destination: message.destination.clone(),
         };
 

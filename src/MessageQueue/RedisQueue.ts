@@ -1,5 +1,5 @@
 
-import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessageOut } from "./Types";
+import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessagePush } from "./Types";
 import { Redis, default as redis } from "ioredis";
 import { BridgeConfigQueue } from "../Config/Config";
 import { EventEmitter } from "events";
@@ -27,9 +27,9 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redis = new redis(config.port ?? 6379, config.host ?? "localhost");
         this.myUuid = randomUUID();
         this.redisSub.on("pmessage", (_: string, channel: string, message: string) => {
-            const msg = JSON.parse(message) as MessageQueueMessageOut<unknown>;
-            if (msg.for && msg.for !== this.myUuid) {
-                log.debug(`Got message for ${msg.for}, dropping`);
+            const msg = JSON.parse(message) as MessageQueueMessage<unknown>;
+            if (msg.destination && msg.destination !== this.myUuid) {
+                log.debug(`Got message for ${msg.destination}, dropping`);
                 return;
             }
             const delay = (process.hrtime()[1]) - msg.ts;
@@ -60,18 +60,18 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         this.redis.srem(`${CONSUMER_TRACK_PREFIX}${eventGlob}`, this.myUuid);
     }
 
-    public async push<T>(message: MessageQueueMessage<T>, single = false) {
-        if (!message.messageId) {
-            message.messageId = randomUUID();
+    public async push<T>(message: MessageQueueMessagePush<T>, single = false) {
+        if (!message.id) {
+            message.id = randomUUID();
         }
         if (single) {
             const recipient = await this.getRecipientForEvent(message.eventName);
             if (!recipient) {
                 throw Error("Cannot find recipient for event");
             }
-            message.for = recipient;
+            message.destination = recipient;
         }
-        const outMsg: MessageQueueMessageOut<T> = {
+        const outMsg: MessageQueueMessagePush<T> = {
             ...message,
             ts: process.hrtime()[1],
         }
@@ -84,7 +84,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         }
     }
 
-    public async pushWait<T, X>(message: MessageQueueMessage<T>,
+    public async pushWait<T, X>(message: MessageQueueMessagePush<T>,
                                 timeout: number = DEFAULT_RES_TIMEOUT): Promise<X> {
         let resolve: (value: X) => void;
         let timer: NodeJS.Timer;
@@ -97,7 +97,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         });
 
         const awaitResponse = (response: MessageQueueMessage<X>) => {
-            if (response.messageId === message.messageId) {
+            if (response.id === message.id) {
                 clearTimeout(timer);
                 this.removeListener(`response.${message.eventName}`, awaitResponse);
                 resolve(response.data);
