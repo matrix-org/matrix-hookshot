@@ -40,6 +40,8 @@ import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types"
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
+import { LocalMQ } from "./libRs";
+import { RsLocalMq } from "./messagequeue/wrapper";
 const log = new Logger("Bridge");
 
 export class Bridge {
@@ -65,7 +67,7 @@ export class Bridge {
         private readonly storage: IBridgeStorageProvider,
         private readonly botUsersManager: BotUsersManager,
     ) {
-        this.queue = createMessageQueue(this.config.queue);
+        this.queue = new RsLocalMq() as any as MessageQueue;
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
