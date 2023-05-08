@@ -912,7 +912,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
     
         let message = `**${event.comment.user.login}** [commented](${event.issue.html_url}) on [${event.repository.full_name}#${event.issue.number}](${event.issue.html_url})  `;
-        message += "\n > " + event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) + (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
+        message += "\n> " + event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) + (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
 
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
