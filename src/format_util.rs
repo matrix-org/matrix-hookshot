@@ -42,7 +42,7 @@ fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
         _ => {
             return Err(Error::new(
                 Status::InvalidArg,
-                format!("color '{}' is invalid", color).to_string(),
+                format!("color '{}' is invalid", color),
             ));
         }
     }
@@ -53,15 +53,14 @@ fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
             .map_err(|e| {
                 Error::new(
                     Status::InvalidArg,
-                    format!("UTF8Error '{}' when converting rgb component", e).to_string(),
+                    format!("UTF8Error '{}' when converting rgb component", e),
                 )
             })
             .and_then(|v| {
                 u8::from_str_radix(v, 16).map_err(|e| {
                     Error::new(
                         Status::InvalidArg,
-                        format!("Integer parse error '{}' when converting rgb component", e)
-                            .to_string(),
+                        format!("Integer parse error '{}' when converting rgb component", e),
                     )
                 })
             })?;
@@ -80,8 +79,7 @@ fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
 pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormatResult> {
     let mut plain = String::new();
     let mut html = String::new();
-    let mut i = 0;
-    for label in array {
+    for (i, label) in array.into_iter().enumerate() {
         if i != 0 {
             plain.push_str(", ");
             html.push_str(" ");
@@ -90,31 +88,24 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
 
         // HTML
         html.push_str("<span");
-        match label.color {
-            Some(color) => {
-                write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
-                // Determine the constrast
-                let color_rgb = parse_rgb(color)?;
-                let contrast_color;
-                if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
-                    contrast_color = "#000000";
-                } else {
-                    contrast_color = "#FFFFFF";
-                }
-                write!(html, " data-mx-color=\"{}\"", contrast_color).unwrap();
+        if let Some(color) = label.color {
+            write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
+            // Determine the constrast
+            let color_rgb = parse_rgb(color)?;
+            let contrast_color;
+            if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
+                contrast_color = "#000000";
+            } else {
+                contrast_color = "#FFFFFF";
             }
-            None => {}
+            write!(html, " data-mx-color=\"{}\"", contrast_color).unwrap();
         }
-        match label.description {
-            Some(description) => {
-                write!(html, " title=\"{}\"", description).unwrap();
-            }
-            None => {}
+        if let Some(description) = label.description {
+            write!(html, " title=\"{}\"", description).unwrap();
         }
         html.push_str(">");
         html.push_str(&label.name);
         html.push_str("</span>");
-        i += 1;
     }
 
     Ok(MatrixMessageFormatResult {
