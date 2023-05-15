@@ -386,12 +386,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         skip?: boolean,
     }>();
 
-    /**
-     * GitLab provides NO threading information in its webhook response objects,
-     * so we need to determine if we've seen a comment for a line before, and
-     * skip it if we have (because it's probably a reply).
-     */
-    private readonly mergeRequestSeenDiscussionIds = new QuickLRU<string, undefined>({ maxSize: 100 });
+    // TODO persistence, somehow
+    private readonly discussionThreads = new QuickLRU<string, Promise<string|undefined>>({ maxSize: 100});
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
     private readonly grantChecker;
@@ -721,7 +717,7 @@ ${data.description}`;
         });
     }
 
-    private renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject) {
+    private async renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject, discussionId?: string) {
         const result = this.debounceMRComments.get(uniqueId);
         if (!result) {
             // Always defined, but for type checking purposes.
@@ -750,14 +746,33 @@ ${data.description}`;
             content += "\n\n> " + result.commentNotes.join("\n\n> ");
         }
 
-        this.intent.sendEvent(this.roomId, {
+        let relation;
+        if (discussionId && this.discussionThreads.has(discussionId)) {
+            const threadEventId = await this.discussionThreads.get(discussionId)!.catch(_ => { /* already logged */ });
+            if (threadEventId) {
+                relation = {
+                    "m.relates_to": {
+                        "event_id": threadEventId,
+                        "rel_type": "m.thread"
+                    },
+                };
+            }
+        }
+
+        const eventPromise = this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
+            ...relation,
         }).catch(ex  => {
             log.error('Failed to send MR review message', ex);
+            return undefined;
         });
+
+        if (discussionId && !relation) {
+            this.discussionThreads.set(discussionId, eventPromise);
+        }
     }
 
     private debounceMergeRequestReview(
@@ -768,6 +783,7 @@ ${data.description}`;
             commentCount: number,
             commentNotes?: string[],
             approved?: boolean,
+            discussionId?: string,
             /**
              * If the MR contains only comments, skip it.
              */
@@ -787,7 +803,7 @@ ${data.description}`;
             if (!opts.skip) {
                 existing.skip = false;
             }
-            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS);
+            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), MRRCOMMENT_DEBOUNCE_MS);
             return;
         }
         this.debounceMRComments.set(uniqueId, {
@@ -796,7 +812,7 @@ ${data.description}`;
             skip: opts.skip,
             approved,
             author: user.name,
-            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS),
+            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), MRRCOMMENT_DEBOUNCE_MS),
         });
     }
 
@@ -822,20 +838,8 @@ ${data.description}`;
         );
     }
 
-    private shouldHandleMRComment(event: IGitLabWebhookNoteEvent) {
-        // Check to see if this line has had a comment before
-        if (event.object_attributes.discussion_id) {
-            if (this.mergeRequestSeenDiscussionIds.has(event.object_attributes.discussion_id)) {
-                // If it has, this is probably a reply. Skip repeated replies.
-                return false;
-            }
-            // Otherwise, record that we have seen the line and continue (it's probably a genuine comment).
-            this.mergeRequestSeenDiscussionIds.set(event.object_attributes.discussion_id, undefined);
-        }
-        return true;
-    }
-
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        log.debug(`Incoming gitlab comment: ${JSON.stringify(event, undefined, 2)}`);
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
             return;
         }
@@ -844,13 +848,11 @@ ${data.description}`;
             // Not a MR comment
             return;
         }
-        if (!this.shouldHandleMRComment(event)) {
-            // Skip it.
-            return;
-        }
+
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
             commentCount: 1,
             commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+            discussionId: event.object_attributes.discussion_id,
             skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
         });
     }
