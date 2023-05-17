@@ -1,6 +1,6 @@
-use crate::Github::types::*;
-use crate::Jira;
-use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
+use crate::github::types::*;
+use crate::jira;
+use crate::jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
 use contrast;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
@@ -23,29 +23,23 @@ pub struct MatrixMessageFormatResult {
 }
 
 fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
-    let chunk_size;
-    let color;
-    if input_color.starts_with('#') {
+    let color = if input_color.starts_with('#') {
         let mut chars = input_color.chars();
         chars.next();
-        color = String::from_iter(chars);
+        String::from_iter(chars)
     } else {
-        color = input_color;
-    }
-    match color.len() {
-        6 => {
-            chunk_size = 2;
-        }
-        3 => {
-            chunk_size = 1;
-        }
+        input_color
+    };
+    let chunk_size = match color.len() {
+        6 => 2,
+        3 => 1,
         _ => {
             return Err(Error::new(
                 Status::InvalidArg,
                 format!("color '{}' is invalid", color),
             ));
         }
-    }
+    };
     let mut rgb = RGB::default();
     let i = 0;
     for color_byte in color.as_bytes().chunks(chunk_size) {
@@ -92,12 +86,12 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
             write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
             // Determine the constrast
             let color_rgb = parse_rgb(color)?;
-            let contrast_color;
-            if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
-                contrast_color = "#000000";
-            } else {
-                contrast_color = "#FFFFFF";
-            }
+            let contrast_color =
+                if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
+                    "#000000"
+                } else {
+                    "#FFFFFF"
+                };
             write!(html, " data-mx-color=\"{}\"", contrast_color).unwrap();
         }
         if let Some(description) = label.description {
@@ -153,7 +147,7 @@ pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssu
         _self: jira_issue._self,
         key: jira_issue.key,
     };
-    let external_url = Jira::utils::generate_jira_web_link_from_issue(&light_issue)?;
+    let external_url = jira::utils::generate_jira_web_link_from_issue(&light_issue)?;
 
     Ok(JiraIssueMessageBody {
         jira_issue: JiraIssueSimpleItem {

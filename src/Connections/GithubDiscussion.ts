@@ -9,10 +9,10 @@ import { Discussion } from "@octokit/webhooks-types";
 import emoji from "node-emoji";
 import markdown from "markdown-it";
 import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
-import { GithubGraphQLClient } from "../Github/GithubInstance";
+import { GithubGraphQLClient } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
-import { BridgeConfig, BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfig, BridgeConfigGitHub } from "../config/Config";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import QuickLRU from "@alloc/quick-lru";
 export interface GitHubDiscussionConnectionState {

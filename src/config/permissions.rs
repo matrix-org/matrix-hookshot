@@ -81,21 +81,15 @@ impl BridgePermissions {
 
     #[napi]
     pub fn add_member_to_cache(&mut self, room_id: String, mxid: String) {
-        match self.room_membership.get_mut(&room_id) {
-            Some(set) => {
-                set.insert(mxid);
-            }
-            None => { /* Do nothing, not interested in this one. */ }
+        if let Some(set) = self.room_membership.get_mut(&room_id) {
+            set.insert(mxid);
         }
     }
 
     #[napi]
     pub fn remove_member_from_cache(&mut self, room_id: String, mxid: String) {
-        match self.room_membership.get_mut(&room_id) {
-            Some(set) => {
-                set.remove(&mxid);
-            }
-            None => { /* Do nothing, not interested in this one. */ }
+        if let Some(set) = self.room_membership.get_mut(&room_id) {
+            set.remove(&mxid);
         }
     }
 
@@ -107,13 +101,12 @@ impl BridgePermissions {
         permission: String,
     ) -> napi::Result<bool> {
         let parts: Vec<&str> = mxid.split(':').collect();
-        let domain: String;
         let permission_int = permission_level_to_int(permission)?;
-        if parts.len() > 1 {
-            domain = parts[1].to_string();
+        let domain = if parts.len() > 1 {
+            parts[1].to_string()
         } else {
-            domain = parts[0].to_string();
-        }
+            parts[0].to_string()
+        };
         for actor_permission in self.config.iter() {
             // Room_id
             if !self.match_actor(actor_permission, &domain, &mxid) {
@@ -139,13 +132,12 @@ impl BridgePermissions {
     #[napi]
     pub fn check_action_any(&self, mxid: String, permission: String) -> napi::Result<bool> {
         let parts: Vec<&str> = mxid.split(':').collect();
-        let domain: String;
         let permission_int = permission_level_to_int(permission)?;
-        if parts.len() > 1 {
-            domain = parts[1].to_string();
+        let domain = if parts.len() > 1 {
+            parts[1].to_string()
         } else {
-            domain = parts[0].to_string();
-        }
+            parts[0].to_string()
+        };
         for actor_permission in self.config.iter() {
             if !self.match_actor(actor_permission, &domain, &mxid) {
                 continue;

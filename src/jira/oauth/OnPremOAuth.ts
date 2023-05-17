@@ -1,4 +1,4 @@
-import { BridgeConfigJiraOnPremOAuth } from "../../Config/Config";
+import { BridgeConfigJiraOnPremOAuth } from "../../config/Config";
 import Axios, { Method } from "axios"
 import qs from "querystring";
 import { createPrivateKey, createSign, KeyObject } from "crypto";
