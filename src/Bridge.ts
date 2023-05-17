@@ -781,6 +781,9 @@ export class Bridge {
                 eventType: msg.eventName,
                 roomId: connection.roomId,
             });
+            scope.setContext("connection", {
+                id: connection.connectionId,
+            });
             new Promise(() => handler(connection, msg.data)).catch((ex) => {
                 Sentry.captureException(ex, scope);
                 Metrics.connectionsEventFailed.inc({ event: msg.eventName, connectionId: connection.connectionId });
@@ -907,12 +910,24 @@ export class Bridge {
         if (!adminRoom) {
             let handled = false;
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+                const scope = new Sentry.Scope();
+                scope.setTransactionName('onRoomMessage');
+                scope.setTags({
+                    eventId: event.event_id,
+                    sender: event.sender,
+                    eventType: event.type,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 try {
                     if (connection.onMessageEvent) {
                         handled = await connection.onMessageEvent(event, checkPermission, processedReplyMetadata);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
+                    Sentry.captureException(ex, scope);
                 }
                 if (handled) {
                     break;
@@ -1079,6 +1094,17 @@ export class Bridge {
                 if (!this.connectionManager.verifyStateEventForConnection(connection, state, true)) {
                     continue;
                 }
+                const scope = new Sentry.Scope();
+                scope.setTransactionName('onStateUpdate');
+                scope.setTags({
+                    eventId: event.event_id,
+                    sender: event.sender,
+                    eventType: event.type,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 try {
                     // Empty object == redacted
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
@@ -1129,11 +1155,24 @@ export class Bridge {
         }
 
         for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+            if (!connection.onEvent) { 
+                continue;
+            }
+            const scope = new Sentry.Scope();
+            scope.setTransactionName('onRoomEvent');
+            scope.setTags({
+                eventId: event.event_id,
+                sender: event.sender,
+                eventType: event.type,
+                roomId: connection.roomId,
+            });
+            scope.setContext("connection", {
+                id: connection.connectionId,
+            });
             try {
-                if (connection.onEvent) {
-                    await connection.onEvent(event);
-                }
+                await connection.onEvent(event);
             } catch (ex) {
+                Sentry.captureException(ex, scope);
                 log.warn(`Connection ${connection.toString()} failed to handle onEvent:`, ex);
             }
         }
