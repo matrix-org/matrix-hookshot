@@ -145,7 +145,11 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
             bindAddress: '0.0.0.0',
             resources: ['widgets'],
         }
-    ]
+    ],
+    sentry: {
+        dsn: "https://examplePublicKey@o0.ingest.sentry.io/0",
+        environment: "production"
+    }
 };
 
 export const DefaultConfig = new BridgeConfig(DefaultConfigRoot);

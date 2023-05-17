@@ -157,6 +157,11 @@ widgets:
   publicUrl: https://example.com/widgetapi/v1/static/
   branding:
     widgetTitle: Hookshot Configuration
+sentry:
+  # (Optional) Add support for sentry.io tracing
+
+  dsn: https://examplePublicKey@o0.ingest.sentry.io/0
+  environment: production
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
 
