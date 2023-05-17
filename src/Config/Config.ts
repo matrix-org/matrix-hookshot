@@ -438,6 +438,11 @@ export interface BridgeConfigGoNebMigrator {
     goNebBotPrefix?: string;
 }
 
+export interface BridgeConfigSentry {
+    dsn: string;
+    environment?: string;
+}
+
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     serviceBots?: BridgeConfigServiceBot[];
@@ -459,6 +464,7 @@ export interface BridgeConfigRoot {
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
     goNebMigrator?: BridgeConfigGoNebMigrator;
+    sentry?: BridgeConfigSentry;
 }
 
 export class BridgeConfig {
@@ -514,6 +520,9 @@ export class BridgeConfig {
     @configKey("go-neb migrator configuration", true)
     public readonly goNebMigrator?: BridgeConfigGoNebMigrator;
 
+    @configKey("Add support for sentry.io tracing", true)
+    public readonly sentry?: BridgeConfigSentry;
+
     @hideKey()
     private readonly bridgePermissions: BridgePermissions;
 
@@ -548,6 +557,7 @@ export class BridgeConfig {
         }
 
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
+        this.sentry = configData.sentry;
 
         // To allow DEBUG as well as debug
         this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";

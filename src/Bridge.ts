@@ -15,7 +15,7 @@ import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNot
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
 import { JiraOAuthResult } from "./Jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import { MessageQueue, createMessageQueue } from "./MessageQueue";
+import { MessageQueue, MessageQueueMessageOut, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
@@ -40,6 +40,8 @@ import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types"
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
+import * as Sentry from '@sentry/node';
+
 const log = new Logger("Bridge");
 
 export class Bridge {
@@ -772,17 +774,28 @@ export class Bridge {
         this.ready = true;
     }
 
+    private handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        Sentry.withScope((scope) => {
+            scope.setTransactionName('handleHookshotEvent');
+            scope.setTags({
+                eventType: msg.eventName,
+                roomId: connection.roomId,
+            });
+            new Promise(() => handler(connection, msg.data)).catch((ex) => {
+                Sentry.captureException(ex, scope);
+                Metrics.connectionsEventFailed.inc({ event: msg.eventName, connectionId: connection.connectionId });
+                log.warn(`Connection ${connection.toString()} failed to handle ${msg.eventName}:`, ex);
+            });
+        });
+    }
+
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        const connectionFetcherBound = connectionFetcher.bind(this);
         this.queue.on<EventType>(event, (msg) => {
-            const connections = connectionFetcher.bind(this)(msg.data);
+            const connections = connectionFetcherBound(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
-            connections.forEach(async (connection) => {
-                try {
-                    await handler(connection, msg.data);
-                } catch (ex) {
-                    Metrics.connectionsEventFailed.inc({ event, connectionId: connection.connectionId });
-                    log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
-                }
+            connections.forEach((connection) => {
+                this.handleHookshotEvent(msg, connection, handler);
             })
         });
     }
