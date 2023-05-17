@@ -82,7 +82,7 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
     for (i, label) in array.into_iter().enumerate() {
         if i != 0 {
             plain.push_str(", ");
-            html.push_str(" ");
+            html.push(' ');
         }
         plain.push_str(&label.name);
 
@@ -103,15 +103,12 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
         if let Some(description) = label.description {
             write!(html, " title=\"{}\"", description).unwrap();
         }
-        html.push_str(">");
+        html.push('>');
         html.push_str(&label.name);
         html.push_str("</span>");
     }
 
-    Ok(MatrixMessageFormatResult {
-        html: html,
-        plain: plain,
-    })
+    Ok(MatrixMessageFormatResult { html, plain })
 }
 
 /// Generate extra message content for GitHub repo related events
@@ -169,7 +166,7 @@ pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssu
             key: jira_issue.fields.project.key,
             api_url: jira_issue.fields.project._self,
         },
-        external_url: external_url,
+        external_url,
     })
 }
 

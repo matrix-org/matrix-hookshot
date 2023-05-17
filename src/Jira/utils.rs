@@ -6,7 +6,7 @@ use url::Url;
 /// Generate a URL for a given Jira Issue object.
 #[napi(js_name = "generateJiraWeblinkFromIssue")]
 pub fn js_generate_jira_web_link_from_issue(jira_issue: JiraIssueLight) -> Result<String> {
-    return generate_jira_web_link_from_issue(&jira_issue);
+    generate_jira_web_link_from_issue(&jira_issue)
 }
 
 pub fn generate_jira_web_link_from_issue(jira_issue: &JiraIssueLight) -> Result<String> {
@@ -27,7 +27,7 @@ pub fn generate_jira_web_link_from_issue(jira_issue: &JiraIssueLight) -> Result<
 /// Generate a URL for a given Jira Version object.
 #[napi(js_name = "generateJiraWeblinkFromVersion")]
 pub fn js_generate_jira_web_link_from_version(jira_version: JiraVersion) -> Result<String> {
-    return generate_jira_web_link_from_version(&jira_version);
+    generate_jira_web_link_from_version(&jira_version)
 }
 
 pub fn generate_jira_web_link_from_version(jira_version: &JiraVersion) -> Result<String> {

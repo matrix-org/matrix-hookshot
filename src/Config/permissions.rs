@@ -42,13 +42,13 @@ impl BridgePermissions {
     pub fn new(config: Vec<BridgeConfigActorPermission>) -> Self {
         let mut room_membership = HashMap::new();
         for entry in config.iter() {
-            if entry.actor.starts_with("!") {
+            if entry.actor.starts_with('!') {
                 room_membership.insert(entry.actor.clone(), HashSet::new());
             }
         }
         BridgePermissions {
-            config: config,
-            room_membership: room_membership,
+            config,
+            room_membership,
         }
     }
 
@@ -58,7 +58,7 @@ impl BridgePermissions {
         domain: &String,
         mxid: &String,
     ) -> bool {
-        if actor_permission.actor.starts_with("!") {
+        if actor_permission.actor.starts_with('!') {
             match self.room_membership.get(&actor_permission.actor) {
                 Some(set) => {
                     return set.contains(mxid);
@@ -69,9 +69,9 @@ impl BridgePermissions {
                 }
             }
         }
-        return actor_permission.actor.eq(domain)
+        actor_permission.actor.eq(domain)
             || actor_permission.actor.eq(mxid)
-            || actor_permission.actor == "*";
+            || actor_permission.actor == "*"
     }
 
     #[napi]
