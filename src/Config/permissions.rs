@@ -76,7 +76,7 @@ impl BridgePermissions {
 
     #[napi]
     pub fn get_interested_rooms(&self) -> Vec<String> {
-        self.room_membership.keys().map(|k| k.clone()).collect()
+        self.room_membership.keys().cloned().collect()
     }
 
     #[napi]

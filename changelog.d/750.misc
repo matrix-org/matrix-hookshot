@@ -1,0 +1,1 @@
+Apply non-style suggestions by `cargo clippy` to reduce allocations in the rust code.
