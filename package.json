@@ -37,8 +37,8 @@
     "lint:js": "eslint -c .eslintrc.js 'src/**/*.ts' 'tests/**/*.ts' 'web/**/*.ts' 'web/**/*.tsx'",
     "lint:rs": "cargo fmt --all -- --check && cargo clippy -- -Dwarnings",
     "lint:rs:apply": "cargo fmt --all && cargo clippy --fix",
-    "generate-default-config": "ts-node src/Config/Defaults.ts --config > config.sample.yml",
-    "validate-config": "ts-node src/Config/Config.ts"
+    "generate-default-config": "ts-node src/config/Defaults.ts --config > config.sample.yml",
+    "validate-config": "ts-node src/config/Config.ts"
   },
   "dependencies": {
     "@alloc/quick-lru": "^5.2.0",
