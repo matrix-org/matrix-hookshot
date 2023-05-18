@@ -190,7 +190,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             // This might be massive and cause us to fail to send the message
             // so confine to a maximum size.
             if (entry.summary.length > MAX_SUMMARY_LENGTH) {
-                entry.summary = entry.summary?.substring(0, MAX_SUMMARY_LENGTH) + "…" ?? null;
+                entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
             }
             entry.summary = sanitizeHtml(entry.summary);
         }
