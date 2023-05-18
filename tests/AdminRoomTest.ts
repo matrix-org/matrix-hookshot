@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { expect } from "chai";
 import { AdminRoom } from "../src/AdminRoom";
-import { DefaultConfig } from "../src/Config/Defaults";
+import { DefaultConfig } from "../src/config/Defaults";
 import { ConnectionManager } from "../src/ConnectionManager";
 import { NotifFilter } from "../src/NotificationFilters";
 import { UserTokenStore } from "../src/UserTokenStore";

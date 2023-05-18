@@ -1,4 +1,4 @@
-import { BridgeConfigJiraCloudOAuth } from "../../Config/Config";
+import { BridgeConfigJiraCloudOAuth } from "../../config/Config";
 import { JiraOAuth } from "../OAuth";
 import qs from "querystring";
 import axios from "axios";

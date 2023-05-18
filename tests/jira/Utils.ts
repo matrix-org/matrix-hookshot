@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { generateJiraWebLinkFromIssue } from "../../src/Jira"; 
+import { generateJiraWebLinkFromIssue, generateJiraWebLinkFromVersion } from "../../src/jira"; 
 
 describe("Jira", () => {
     describe("Utils", () => {
@@ -14,6 +14,15 @@ describe("Jira", () => {
                 self: "https://my-test-jira:9995/",
                 key: "TEST-111",
             })).to.equal("https://my-test-jira:9995/browse/TEST-111");
+        });
+        it("processes a jira issue into a URL with a port", () => {
+            expect(generateJiraWebLinkFromVersion({
+                self: "https://my-test-jira:9995/",
+                description: "foo",
+                name: "bar",
+                projectId: "TEST-111",
+                id: "v1.0.0",
+            })).to.equal("https://my-test-jira:9995/projects/TEST-111/versions/v1.0.0");
         });
     });
 });

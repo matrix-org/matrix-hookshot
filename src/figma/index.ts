@@ -1,4 +1,4 @@
-import { BridgeConfigFigma } from "../Config/Config";
+import { BridgeConfigFigma } from "../config/Config";
 import * as Figma from 'figma-js';
 import { MatrixClient } from "matrix-bot-sdk";
 export * from "./router";

@@ -8,7 +8,7 @@ import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
-import { GithubInstance, GITHUB_CLOUD_URL } from "../Github/GithubInstance";
+import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 
 const log = new Logger("Config");

@@ -1,6 +1,6 @@
 import { Logger } from "matrix-appservice-bridge";
 import { Appservice } from "matrix-bot-sdk";
-import { BridgeConfigGitLab } from "../Config/Config";
+import { BridgeConfigGitLab } from "../config/Config";
 import { GitLabRepoConnection } from "../Connections";
 import { GrantChecker } from "../grants/GrantCheck";
 import { UserTokenStore } from "../UserTokenStore";

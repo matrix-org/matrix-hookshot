@@ -1,5 +1,5 @@
 import { MatrixError } from "matrix-bot-sdk";
-import { BridgeConfigFeeds } from "../Config/Config";
+import { BridgeConfigFeeds } from "../config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";

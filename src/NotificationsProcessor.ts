@@ -5,8 +5,8 @@ import { Logger } from "matrix-appservice-bridge";
 import { AdminRoom } from "./AdminRoom";
 import markdown from "markdown-it";
 import { FormatUtil } from "./FormatUtil";
-import { PullGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "./Github/Types";
-import { GitHubUserNotification } from "./Github/Types";
+import { PullGetResponseData, IssuesGetResponseData, PullsListRequestedReviewersResponseData, PullsListReviewsResponseData, IssuesGetCommentResponseData } from "./github/Types";
+import { GitHubUserNotification } from "./github/Types";
 import { components } from "@octokit/openapi-types/types";
 import { NotifFilter } from "./NotificationFilters";
 

@@ -1,4 +1,4 @@
-import { BridgeConfigProvisioning } from "../Config/Config";
+import { BridgeConfigProvisioning } from "../config/Config";
 import { Router, default as express, NextFunction, Request, Response } from "express";
 import { ConnectionManager } from "../ConnectionManager";
 import { Logger } from "matrix-appservice-bridge";

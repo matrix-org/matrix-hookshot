@@ -1,13 +1,13 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Space, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { ReposGetResponseData } from "../Github/Types";
+import { ReposGetResponseData } from "../github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
-import { GithubInstance } from "../Github/GithubInstance";
+import { GithubInstance } from "../github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 
 const log = new Logger("GitHubDiscussionSpace");
 
