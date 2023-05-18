@@ -907,7 +907,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
-        if (this.hookFilter.shouldSkip('issue.comment.created', 'issue.comment', 'issue') || !this.matchesLabelFilter(event.issue)) {
+        if (this.hookFilter.shouldSkip('issue.comment.created', 'issue.comment') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
     
