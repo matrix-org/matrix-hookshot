@@ -1,7 +1,7 @@
 import { AxiosResponse, AxiosStatic } from "axios";
 import { expect } from "chai";
 import EventEmitter from "events";
-import { BridgeConfigFeeds } from "../src/Config/Config";
+import { BridgeConfigFeeds } from "../src/config/Config";
 import { ConnectionManager } from "../src/ConnectionManager";
 import { IConnection } from "../src/Connections";
 import { FeedEntry, FeedReader } from "../src/feeds/FeedReader";

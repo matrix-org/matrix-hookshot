@@ -4,7 +4,7 @@ import { CommandError, TokenError, TokenErrorCode } from "../errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgePermissionLevel } from "../Config/Config";
+import { BridgePermissionLevel } from "../config/Config";
 
 const log = new Logger('GitHubBotCommands');
 export class GitHubBotCommands extends AdminRoomCommandHandler {

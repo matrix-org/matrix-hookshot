@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
@@ -8,14 +8,14 @@ import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
 import { EmitterWebhookEvent, EmitterWebhookEventName, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
-import { IJiraWebhookEvent } from "./Jira/WebhookTypes";
-import { JiraWebhooksRouter } from "./Jira/Router";
+import { IJiraWebhookEvent } from "./jira/WebhookTypes";
+import { JiraWebhooksRouter } from "./jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
-import { GitHubOAuthTokenResponse } from "./Github/Types";
+import { GitHubOAuthTokenResponse } from "./github/Types";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
-import { GithubInstance } from "./Github/GithubInstance";
+import { GithubInstance } from "./github/GithubInstance";
 import QuickLRU from "@alloc/quick-lru";
 
 const log = new Logger("Webhooks");

@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { GithubInstance } from "../../src/Github/GithubInstance"; 
-import { GITHUB_CLOUD_URL } from "../../src/Github/GithubInstance";
+import { GithubInstance } from "../../src/github/GithubInstance"; 
+import { GITHUB_CLOUD_URL } from "../../src/github/GithubInstance";
 
 describe("GitHub", () => {
     describe("AdminCommands", () => {

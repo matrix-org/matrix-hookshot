@@ -61,5 +61,6 @@ pub struct JiraVersion {
     pub id: String,
     pub description: String,
     pub name: String,
-    pub projectId: String,
+    #[serde(rename = "projectId")]
+    pub project_id: String,
 }

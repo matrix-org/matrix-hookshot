@@ -1,4 +1,4 @@
-import { BridgeConfigJira } from "../Config/Config";
+import { BridgeConfigJira } from "../config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../UserTokenStore";

@@ -3,7 +3,7 @@ import stringArgv from "string-argv";
 import { ApiError } from "./api";
 import { CommandError } from "./errors";
 import { MatrixMessageContent } from "./MatrixEvent";
-import { BridgePermissionLevel } from "./Config/Config";
+import { BridgePermissionLevel } from "./config/Config";
 import { PermissionCheckFn } from "./Connections";
 
 const md = new markdown();

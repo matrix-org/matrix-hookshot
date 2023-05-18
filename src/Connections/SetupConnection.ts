@@ -3,7 +3,7 @@ import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../Bo
 import { CommandConnection } from "./CommandConnection";
 import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
 import { CommandError } from "../errors";
-import { BridgePermissionLevel } from "../Config/Config";
+import { BridgePermissionLevel } from "../config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { FeedConnection, FeedConnectionState } from "./FeedConnection";

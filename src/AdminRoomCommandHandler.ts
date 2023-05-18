@@ -1,6 +1,6 @@
 import EventEmitter from "events";
 import { Intent } from "matrix-bot-sdk";
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { UserTokenStore } from "./UserTokenStore";
 
 
