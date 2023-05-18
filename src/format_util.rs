@@ -6,8 +6,10 @@ use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use rgb::RGB;
+use ruma::events::room::message::sanitize::{
+    sanitize_html, HtmlSanitizerMode, RemoveReplyFallback,
+};
 use std::fmt::Write;
-use ruma::events::room::message::sanitize::{sanitize_html, HtmlSanitizerMode, RemoveReplyFallback};
 
 #[derive(Serialize, Debug, Deserialize)]
 #[napi(object)]
