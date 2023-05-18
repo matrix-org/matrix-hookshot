@@ -7,7 +7,7 @@ import { errorMiddleware } from "./api";
 // See https://github.com/turt2live/matrix-bot-sdk/issues/191
 export type ResourceName = "webhooks"|"widgets"|"metrics"|"provisioning";
 export const ResourceTypeArray: ResourceName[] = ["webhooks","widgets","metrics","provisioning"];
-
+import { Handlers } from "@sentry/node";
 export interface BridgeConfigListener {
     bindAddress?: string;
     port: number;
@@ -30,6 +30,7 @@ export class ListenerService {
         }
         for (const listenerConfig of config) {
             const app = expressApp();
+            app.use(Handlers.requestHandler());
             this.listeners.push({
                 config: listenerConfig,
                 app,
@@ -74,6 +75,8 @@ export class ListenerService {
             listener.app.get("/live", (_, res) => res.send({ok: true}));
             listener.app.get("/ready", (_, res) => res.status(listener.resourcesBound ? 200 : 500).send({ready: listener.resourcesBound}));
 
+            // By default, Sentry only reports 500+ errors, which is what we want.
+            listener.app.use(Handlers.errorHandler());
             // Always include the error handler
             listener.app.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
             log.info(`Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)

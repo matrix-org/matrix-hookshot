@@ -15,7 +15,7 @@ import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNot
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./jira/WebhookTypes";
 import { JiraOAuthResult } from "./jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import { MessageQueue, createMessageQueue } from "./MessageQueue";
+import { MessageQueue, MessageQueueMessageOut, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
@@ -40,6 +40,8 @@ import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types"
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
+import * as Sentry from '@sentry/node';
+
 const log = new Logger("Bridge");
 
 export class Bridge {
@@ -772,17 +774,31 @@ export class Bridge {
         this.ready = true;
     }
 
+    private handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        Sentry.withScope((scope) => {
+            scope.setTransactionName('handleHookshotEvent');
+            scope.setTags({
+                eventType: msg.eventName,
+                roomId: connection.roomId,
+            });
+            scope.setContext("connection", {
+                id: connection.connectionId,
+            });
+            new Promise(() => handler(connection, msg.data)).catch((ex) => {
+                Sentry.captureException(ex, scope);
+                Metrics.connectionsEventFailed.inc({ event: msg.eventName, connectionId: connection.connectionId });
+                log.warn(`Connection ${connection.toString()} failed to handle ${msg.eventName}:`, ex);
+            });
+        });
+    }
+
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        const connectionFetcherBound = connectionFetcher.bind(this);
         this.queue.on<EventType>(event, (msg) => {
-            const connections = connectionFetcher.bind(this)(msg.data);
+            const connections = connectionFetcherBound(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
-            connections.forEach(async (connection) => {
-                try {
-                    await handler(connection, msg.data);
-                } catch (ex) {
-                    Metrics.connectionsEventFailed.inc({ event, connectionId: connection.connectionId });
-                    log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
-                }
+            connections.forEach((connection) => {
+                this.handleHookshotEvent(msg, connection, handler);
             })
         });
     }
@@ -894,12 +910,24 @@ export class Bridge {
         if (!adminRoom) {
             let handled = false;
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+                const scope = new Sentry.Scope();
+                scope.setTransactionName('onRoomMessage');
+                scope.setTags({
+                    eventId: event.event_id,
+                    sender: event.sender,
+                    eventType: event.type,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 try {
                     if (connection.onMessageEvent) {
                         handled = await connection.onMessageEvent(event, checkPermission, processedReplyMetadata);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
+                    Sentry.captureException(ex, scope);
                 }
                 if (handled) {
                     break;
@@ -1066,6 +1094,17 @@ export class Bridge {
                 if (!this.connectionManager.verifyStateEventForConnection(connection, state, true)) {
                     continue;
                 }
+                const scope = new Sentry.Scope();
+                scope.setTransactionName('onStateUpdate');
+                scope.setTags({
+                    eventId: event.event_id,
+                    sender: event.sender,
+                    eventType: event.type,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 try {
                     // Empty object == redacted
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
@@ -1116,11 +1155,24 @@ export class Bridge {
         }
 
         for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+            if (!connection.onEvent) { 
+                continue;
+            }
+            const scope = new Sentry.Scope();
+            scope.setTransactionName('onRoomEvent');
+            scope.setTags({
+                eventId: event.event_id,
+                sender: event.sender,
+                eventType: event.type,
+                roomId: connection.roomId,
+            });
+            scope.setContext("connection", {
+                id: connection.connectionId,
+            });
             try {
-                if (connection.onEvent) {
-                    await connection.onEvent(event);
-                }
+                await connection.onEvent(event);
             } catch (ex) {
+                Sentry.captureException(ex, scope);
                 log.warn(`Connection ${connection.toString()} failed to handle onEvent:`, ex);
             }
         }
