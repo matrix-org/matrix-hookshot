@@ -17,6 +17,7 @@
     - [GitLab Project](./usage/room_configuration/gitlab_project.md)
     - [JIRA Project](./usage/room_configuration/jira_project.md)
 - [📊 Metrics](./metrics.md)
+- [Sentry](./sentry.md)
 
 # 🧑‍💻 Development
 - [Contributing](./contributing.md)
