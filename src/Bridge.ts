@@ -1143,9 +1143,9 @@ export class Bridge {
                 if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
                     log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
                     const plEvent = new PowerLevelsEvent(event);
-                    const currentPl = plEvent.content.users?.[botUser.userId] || plEvent.defaultUserLevel;
-                    const previousPl = plEvent.previousContent?.users?.[botUser.userId] || plEvent.previousContent?.users_default;
-                    const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
+                    const currentPl = plEvent.content.users?.[botUser.userId] ?? plEvent.defaultUserLevel;
+                    const previousPl = plEvent.previousContent?.users?.[botUser.userId] ?? plEvent.previousContent?.users_default;
+                    const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] ?? plEvent.defaultStateEventLevel;
                     if (currentPl !== previousPl && currentPl >= requiredPl) {
                         // PL changed for bot user, check to see if the widget can be created.
                         try {
