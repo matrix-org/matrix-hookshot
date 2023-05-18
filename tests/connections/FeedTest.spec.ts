@@ -93,4 +93,32 @@ describe("FeedConnection", () => {
         expect(matrixEvt.roomId).to.equal(ROOM_ID);
         expect(matrixEvt.content.body).to.equal("Test feed https://example.com/feed.xml Test feed Foo [Foo](foo/bar) Me! today! fibble fobble");
     });
+    it("will handle html in the feed summary ", async () => {
+        const [connection, intent] = createFeed({
+            url: FEED_URL,
+            template: `$FEEDNAME $SUMMARY`
+        });
+        await connection.handleFeedEntry({
+            ...FEED_ENTRY_DEFAULTS,
+            summary: "<p> Some HTML with <disallowed-elements> which should be ignored </disallowed-elements> and an <img src='mxc://fibble/fobble'></img> </p>"
+        });
+        const matrixEvt =intent.sentEvents[0];
+        expect(matrixEvt).to.not.be.undefined;
+        expect(matrixEvt.roomId).to.equal(ROOM_ID);
+        expect(matrixEvt.content.body).to.equal('Test feed <p> Some HTML with  which should be ignored  and an <img src="mxc://fibble/fobble"> </p>');
+    });
+    it("will handle partial html in the feed summary ", async () => {
+        const [connection, intent] = createFeed({
+            url: FEED_URL,
+            template: `$FEEDNAME $SUMMARY`
+        });
+        await connection.handleFeedEntry({
+            ...FEED_ENTRY_DEFAULTS,
+            summary: "<p> Some HTML with <disallowed-elements> which should be ignored and an <img src='mxc://fibble/fobble'></img> </p>"
+        });
+        const matrixEvt =intent.sentEvents[0];
+        expect(matrixEvt).to.not.be.undefined;
+        expect(matrixEvt.roomId).to.equal(ROOM_ID);
+        expect(matrixEvt.content.body).to.equal('Test feed <p> Some HTML with  which should be ignored and an <img src="mxc://fibble/fobble"> </p>');
+    });
 })
