@@ -29,25 +29,30 @@
 /* icons for headers */
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(2) strong:after {
-    content: ' ' url('/matrix-hookshot/latest/icons/feeds.png')
+    content: ' ' url('/matrix-hookshot/latest/icons/feeds.png');
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(3) strong:after {
-    content: ' ' url('/matrix-hookshot/latest/icons/figma.png')
+    content: ' ' url('/matrix-hookshot/latest/icons/figma.png');
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(4) strong:after {
-    content: ' ' url('/matrix-hookshot/latest/icons/github.png')
+    content: ' ' url('/matrix-hookshot/latest/icons/github.png');
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(5) strong:after {
-    content: ' ' url('/matrix-hookshot/latest/icons/gitlab.png')
+    content: ' ' url('/matrix-hookshot/latest/icons/gitlab.png');
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(6) strong:after {
-    content: ' ' url('/matrix-hookshot/latest/icons/jira.png')
+    content: ' ' url('/matrix-hookshot/latest/icons/jira.png');
 }
 
 .chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(7) strong:after {
-    content: ' ' url('/matrix-hookshot/latest/icons/webhooks.png')
+    content: ' ' url('/matrix-hookshot/latest/icons/webhooks.png');
 }
+
+.chapter li:nth-child(7) > a:nth-child(1) > strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/sentry.png');
+}
+
