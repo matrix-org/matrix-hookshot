@@ -520,7 +520,7 @@ export class BridgeConfig {
     @configKey("go-neb migrator configuration", true)
     public readonly goNebMigrator?: BridgeConfigGoNebMigrator;
 
-    @configKey("Add support for sentry.io tracing", true)
+    @configKey("Configure Sentry error reporting", true)
     public readonly sentry?: BridgeConfigSentry;
 
     @hideKey()
