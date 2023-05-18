@@ -1,0 +1,1 @@
+Workflow failures now report the failed step(s) in a threaded reply.
