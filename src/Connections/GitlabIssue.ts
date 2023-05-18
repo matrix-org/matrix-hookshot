@@ -5,7 +5,7 @@ import { UserTokenStore } from "../UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { BridgeConfig, BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
+import { BridgeConfig, BridgeConfigGitLab, GitLabInstance } from "../config/Config";
 import { GetIssueResponse } from "../Gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";

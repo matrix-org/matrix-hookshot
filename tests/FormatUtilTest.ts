@@ -1,6 +1,6 @@
 import { FormatUtil } from "../src/FormatUtil";
 import { expect } from "chai";
-import { JiraIssue, JiraProject } from "../src/Jira/Types";
+import { JiraIssue, JiraProject } from "../src/jira/Types";
 
 const SIMPLE_ISSUE = {
     id: 123,

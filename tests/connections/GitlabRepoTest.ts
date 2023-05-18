@@ -4,7 +4,7 @@ import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";
 import { expect } from "chai";
-import { BridgeConfigGitLab } from "../../src/Config/Config";
+import { BridgeConfigGitLab } from "../../src/config/Config";
 
 const ROOM_ID = "!foo:bar";
 

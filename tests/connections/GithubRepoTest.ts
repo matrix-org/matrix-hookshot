@@ -1,8 +1,8 @@
 import { GitHubRepoConnection, GitHubRepoConnectionState } from "../../src/Connections/GithubRepo"
-import { GithubInstance } from "../../src/Github/GithubInstance";
+import { GithubInstance } from "../../src/github/GithubInstance";
 import { createMessageQueue } from "../../src/MessageQueue";
 import { UserTokenStore } from "../../src/UserTokenStore";
-import { DefaultConfig } from "../../src/Config/Defaults";
+import { DefaultConfig } from "../../src/config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { expect } from "chai";

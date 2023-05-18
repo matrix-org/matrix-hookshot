@@ -1,4 +1,4 @@
-import { IssuesGetResponseData } from "../Github/Types";
+import { IssuesGetResponseData } from "../github/Types";
 import { Redis, default as redis } from "ioredis";
 import { Logger } from "matrix-appservice-bridge";
 

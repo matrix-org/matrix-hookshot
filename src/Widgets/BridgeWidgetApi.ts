@@ -2,7 +2,7 @@ import { Application, NextFunction, Response } from "express";
 import { AdminRoom } from "../AdminRoom";
 import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import { GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
@@ -12,7 +12,7 @@ import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../prov
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GoNebMigrator } from "./GoNebMigrator";
 import { StatusCodes } from "http-status-codes";
-import { GithubInstance } from '../Github/GithubInstance';
+import { GithubInstance } from '../github/GithubInstance';
 import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
 
 const log = new Logger("BridgeWidgetApi");
