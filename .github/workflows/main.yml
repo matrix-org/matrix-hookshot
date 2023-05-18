@@ -35,6 +35,7 @@ jobs:
           profile: minimal
           components: rustfmt
     - run: cargo fmt --all -- --check
+    - run: cargo clippy -- -Dwarnings
 
   config:
     runs-on: ubuntu-latest
