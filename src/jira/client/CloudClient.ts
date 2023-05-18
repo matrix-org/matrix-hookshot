@@ -2,7 +2,7 @@
 import axios from 'axios';
 import QuickLRU from "@alloc/quick-lru";
 import { JiraAPIAccessibleResource, JiraIssue, JiraOAuthResult, JiraProject, JiraCloudProjectSearchResponse, JiraStoredToken } from '../Types';
-import { BridgeConfigJira, BridgeConfigJiraCloudOAuth } from '../../Config/Config';
+import { BridgeConfigJira, BridgeConfigJiraCloudOAuth } from '../../config/Config';
 import { Logger } from "matrix-appservice-bridge";
 import { HookshotJiraApi, JiraClient } from '../Client';
 import JiraApi from 'jira-client';

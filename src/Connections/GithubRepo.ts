@@ -13,22 +13,22 @@ import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestO
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
-import { NAMELESS_ORG_PLACEHOLDER, ReposGetResponseData } from "../Github/Types";
+import { NAMELESS_ORG_PLACEHOLDER, ReposGetResponseData } from "../github/Types";
 import { UserTokenStore } from "../UserTokenStore";
 import axios, { AxiosError } from "axios";
 import emoji from "node-emoji";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
-import { GithubInstance } from "../Github/GithubInstance";
+import { GithubInstance } from "../github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
-import { BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
 import { GitHubRepoMessageBody, MinimalGitHubIssue } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
-import { GitHubGrantChecker } from "../Github/GrantChecker";
+import { GitHubGrantChecker } from "../github/GrantChecker";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();

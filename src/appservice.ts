@@ -1,6 +1,6 @@
 import { Logger } from "matrix-appservice-bridge";
 import { Appservice, IAppserviceCryptoStorageProvider, IAppserviceRegistration, RustSdkAppserviceCryptoStorageProvider, RustSdkCryptoStoreType } from "matrix-bot-sdk";
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import Metrics from "./Metrics";
 import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
 import { RedisStorageProvider } from "./Stores/RedisStorageProvider";

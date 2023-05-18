@@ -1,7 +1,7 @@
 import { Octokit, RestEndpointMethodTypes } from "@octokit/rest";
 import { EventEmitter } from "events";
-import { GithubInstance } from "../Github/GithubInstance";
-import { GitHubUserNotification as HSGitHubUserNotification } from "../Github/Types";
+import { GithubInstance } from "../github/GithubInstance";
+import { GitHubUserNotification as HSGitHubUserNotification } from "../github/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { RequestError } from "@octokit/request-error";

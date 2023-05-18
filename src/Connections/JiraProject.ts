@@ -1,11 +1,11 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "../Jira/WebhookTypes";
+import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "../jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
-import { generateJiraWebLinkFromIssue, generateJiraWebLinkFromVersion } from "../Jira";
-import { JiraProject, JiraVersion } from "../Jira/Types";
+import { generateJiraWebLinkFromIssue, generateJiraWebLinkFromVersion } from "../jira";
+import { JiraProject, JiraVersion } from "../jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
@@ -14,10 +14,10 @@ import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { BridgeConfigJira } from "../Config/Config";
-import { HookshotJiraApi } from "../Jira/Client";
+import { BridgeConfigJira } from "../config/Config";
+import { HookshotJiraApi } from "../jira/Client";
 import { GrantChecker } from "../grants/GrantCheck";
-import { JiraGrantChecker } from "../Jira/GrantChecker";
+import { JiraGrantChecker } from "../jira/GrantChecker";
 
 type JiraAllowedEventsNames =
     "issue_created" |

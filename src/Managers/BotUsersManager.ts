@@ -1,7 +1,7 @@
 import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 
 const log = new Logger("BotUsersManager");
 

@@ -42,13 +42,13 @@ impl BridgePermissions {
     pub fn new(config: Vec<BridgeConfigActorPermission>) -> Self {
         let mut room_membership = HashMap::new();
         for entry in config.iter() {
-            if entry.actor.starts_with("!") {
+            if entry.actor.starts_with('!') {
                 room_membership.insert(entry.actor.clone(), HashSet::new());
             }
         }
         BridgePermissions {
-            config: config,
-            room_membership: room_membership,
+            config,
+            room_membership,
         }
     }
 
@@ -58,7 +58,7 @@ impl BridgePermissions {
         domain: &String,
         mxid: &String,
     ) -> bool {
-        if actor_permission.actor.starts_with("!") {
+        if actor_permission.actor.starts_with('!') {
             match self.room_membership.get(&actor_permission.actor) {
                 Some(set) => {
                     return set.contains(mxid);
@@ -69,33 +69,27 @@ impl BridgePermissions {
                 }
             }
         }
-        return actor_permission.actor.eq(domain)
+        actor_permission.actor.eq(domain)
             || actor_permission.actor.eq(mxid)
-            || actor_permission.actor == "*";
+            || actor_permission.actor == "*"
     }
 
     #[napi]
     pub fn get_interested_rooms(&self) -> Vec<String> {
-        self.room_membership.keys().map(|k| k.clone()).collect()
+        self.room_membership.keys().cloned().collect()
     }
 
     #[napi]
     pub fn add_member_to_cache(&mut self, room_id: String, mxid: String) {
-        match self.room_membership.get_mut(&room_id) {
-            Some(set) => {
-                set.insert(mxid);
-            }
-            None => { /* Do nothing, not interested in this one. */ }
+        if let Some(set) = self.room_membership.get_mut(&room_id) {
+            set.insert(mxid);
         }
     }
 
     #[napi]
     pub fn remove_member_from_cache(&mut self, room_id: String, mxid: String) {
-        match self.room_membership.get_mut(&room_id) {
-            Some(set) => {
-                set.remove(&mxid);
-            }
-            None => { /* Do nothing, not interested in this one. */ }
+        if let Some(set) = self.room_membership.get_mut(&room_id) {
+            set.remove(&mxid);
         }
     }
 
@@ -107,13 +101,12 @@ impl BridgePermissions {
         permission: String,
     ) -> napi::Result<bool> {
         let parts: Vec<&str> = mxid.split(':').collect();
-        let domain: String;
         let permission_int = permission_level_to_int(permission)?;
-        if parts.len() > 1 {
-            domain = parts[1].to_string();
+        let domain = if parts.len() > 1 {
+            parts[1].to_string()
         } else {
-            domain = parts[0].to_string();
-        }
+            parts[0].to_string()
+        };
         for actor_permission in self.config.iter() {
             // Room_id
             if !self.match_actor(actor_permission, &domain, &mxid) {
@@ -139,13 +132,12 @@ impl BridgePermissions {
     #[napi]
     pub fn check_action_any(&self, mxid: String, permission: String) -> napi::Result<bool> {
         let parts: Vec<&str> = mxid.split(':').collect();
-        let domain: String;
         let permission_int = permission_level_to_int(permission)?;
-        if parts.len() > 1 {
-            domain = parts[1].to_string();
+        let domain = if parts.len() > 1 {
+            parts[1].to_string()
         } else {
-            domain = parts[0].to_string();
-        }
+            parts[0].to_string()
+        };
         for actor_permission in self.config.iter() {
             if !self.match_actor(actor_permission, &domain, &mxid) {
                 continue;

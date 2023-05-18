@@ -1,6 +1,6 @@
 
 import { JiraAPIAccessibleResource, JiraProject, JiraStoredToken, JiraOnPremProjectSearchResponse } from '../Types';
-import { BridgeConfigJiraOnPremOAuth } from '../../Config/Config';
+import { BridgeConfigJiraOnPremOAuth } from '../../config/Config';
 import { decodeJiraToken } from '../OAuth';
 import { KeyObject } from 'crypto';
 import { HookshotJiraApi, JiraClient } from '../Client';

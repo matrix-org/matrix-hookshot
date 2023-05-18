@@ -1,0 +1,1 @@
+Apply more Rust clippy suggestions, and run clippy in CI.

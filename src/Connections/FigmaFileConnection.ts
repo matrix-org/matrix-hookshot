@@ -5,7 +5,7 @@ import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 
