@@ -1,6 +1,7 @@
 import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
 import { IssuesGetResponseData } from "../Github/Types";
+import { SerializedGitlabDiscussionThreads } from "../Connections";
 
 export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
     connect?(): Promise<void>;
@@ -15,4 +16,6 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     getFigmaCommentEventId(roomId: string, figmaCommentId: string): Promise<string|null>;
     getStoredTempFile(key: string): Promise<string|null>;
     setStoredTempFile(key: string, value: string): Promise<void>;
+    getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads>;
+    setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void>;
 }

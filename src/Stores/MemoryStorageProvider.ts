@@ -3,6 +3,7 @@ import { IBridgeStorageProvider } from "./StorageProvider";
 import { IssuesGetResponseData } from "../Github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
+import { SerializedGitlabDiscussionThreads } from "../Connections";
 
 export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();
@@ -11,9 +12,16 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private figmaCommentIds: Map<string, string> = new Map();
     private widgetSessions: Map<string, ProvisionSession> = new Map();
     private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
+    private gitlabDiscussionThreads = new Map<string, SerializedGitlabDiscussionThreads>();
 
     constructor() {
         super();
+    }
+    connect?(): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    disconnect?(): Promise<void> {
+        throw new Error("Method not implemented.");
     }
     public async setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope = "") {
         this.issues.set(`${scope}${repo}/${issueNumber}`, data);
@@ -74,5 +82,13 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     
     public async setStoredTempFile(key: string, value: string) {
         this.storedFiles.set(key, value);
+    }
+
+    public async getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads> {
+        return this.gitlabDiscussionThreads.get(connectionId) ?? [];
+    }
+
+    public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
+        this.gitlabDiscussionThreads.set(connectionId, value);
     }
 }

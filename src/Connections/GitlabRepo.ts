@@ -163,6 +163,9 @@ export interface GitLabTargetFilter {
     search?: string;
 }
 
+/** newest last, to enable feeding it straight into an LRU cache */
+export type SerializedGitlabDiscussionThreads = { discussionId: string, eventId: string }[];
+
 /**
  * Handles rooms connected to a GitLab repo.
  */
@@ -203,7 +206,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, tokenStore, config}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, storage, tokenStore, config}: InstantiateConnectionOpts) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -212,7 +215,13 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (!instance) {
             throw Error('Instance name not recognised');
         }
-        return new GitLabRepoConnection(roomId, event.stateKey, as, config.gitlab, intent, state, tokenStore, instance);
+
+        const connection = new GitLabRepoConnection(roomId, event.stateKey, as, config.gitlab, intent, state, tokenStore, instance, storage);
+
+        const discussionThreads = await storage.getGitlabDiscussionThreads(connection.connectionId);
+        connection.setDiscussionThreads(discussionThreads);
+
+        return connection;
     }
 
     public static async assertUserHasAccessToProject(
@@ -240,7 +249,12 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         return permissionLevel;
     }
 
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { as, config, intent, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
+    public static async provisionConnection(
+        roomId: string,
+        requester: string,
+        data: Record<string, unknown>,
+        { as, config, intent, storage, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts
+    ) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -258,7 +272,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
         const project = await client.projects.get(validData.path);
         const stateEventKey = `${validData.instance}/${validData.path}`;
-        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, gitlabConfig, intent, validData, tokenStore, instance);
+        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, gitlabConfig, intent, validData, tokenStore, instance, storage);
+
         const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
         const existing = existingConnections.find(c => c.roomId === roomId && c.instance.url === connection.instance.url && c.path === connection.path);
 
@@ -386,8 +401,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         skip?: boolean,
     }>();
 
-    // TODO persistence, somehow
     private readonly discussionThreads = new QuickLRU<string, Promise<string|undefined>>({ maxSize: 100});
+
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
     private readonly grantChecker;
@@ -401,6 +416,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         state: ConnectionStateValidated,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance,
+        private readonly storage: IBridgeStorageProvider,
     ) {
         super(
             roomId,
@@ -772,6 +788,9 @@ ${data.description}`;
 
         if (discussionId && !relation) {
             this.discussionThreads.set(discussionId, eventPromise);
+            void this.persistDiscussionThreads().catch(ex => {
+                log.error(`Failed to persistently store Gitlab discussion threads for connection ${this.connectionId}:`, ex);
+            });
         }
     }
 
@@ -895,6 +914,24 @@ ${data.description}`;
             await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
         // TODO: Clean up webhooks
+    }
+
+    private setDiscussionThreads(discussionThreads: SerializedGitlabDiscussionThreads): void {
+        for (const { discussionId, eventId } of discussionThreads) {
+            this.discussionThreads.set(discussionId, Promise.resolve(eventId));
+        }
+    }
+
+    private async persistDiscussionThreads(): Promise<void> {
+        const serialized: SerializedGitlabDiscussionThreads = [];
+        for (const [discussionId, eventIdPromise] of this.discussionThreads.entriesAscending()) {
+            const eventId = await eventIdPromise.catch(_ => { /* logged elsewhere */ });
+            if (eventId) {
+                serialized.push({ discussionId, eventId });
+            }
+
+        }
+        return this.storage.setGitlabDiscussionThreads(this.connectionId, serialized);
     }
 }
 
