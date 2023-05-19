@@ -858,7 +858,6 @@ ${data.description}`;
     }
 
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        log.debug(`Incoming gitlab comment: ${JSON.stringify(event, undefined, 2)}`);
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
             return;
         }
