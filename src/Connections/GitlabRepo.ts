@@ -749,19 +749,6 @@ ${data.description}`;
             comments = ` with ${result.commentCount} comments`;
         }
 
-        let approvalState = 'commented on';
-        if (result.approved === true) {
-            approvalState = '✅ approved'
-        } else if (result.approved === false) {
-            approvalState = '🔴 unapproved';
-        }
-
-        let content = `**${result.author}** ${approvalState} MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"${comments}`;
-
-        if (result.commentNotes) {
-            content += "\n\n> " + result.commentNotes.join("\n\n> ");
-        }
-
         let relation;
         if (discussionId && this.discussionThreads.has(discussionId)) {
             const threadEventId = await this.discussionThreads.get(discussionId)!.catch(_ => { /* already logged */ });
@@ -773,6 +760,20 @@ ${data.description}`;
                     },
                 };
             }
+        }
+
+        let approvalState = relation ? 'replied' : 'commented on'; // this is the only place we need this, approve/unapprove don't appear in discussions
+        if (result.approved === true) {
+            approvalState = '✅ approved'
+        } else if (result.approved === false) {
+            approvalState = '🔴 unapproved';
+        }
+
+        let target = relation ? '' : ` MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
+        let content = `**${result.author}** ${approvalState}${target} ${comments}`;
+
+        if (result.commentNotes) {
+            content += "\n\n> " + result.commentNotes.join("\n\n> ");
         }
 
         const eventPromise = this.intent.sendEvent(this.roomId, {
