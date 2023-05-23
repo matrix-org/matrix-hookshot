@@ -20,7 +20,7 @@ For example with this configuration:
 serviceBots:
   - localpart: feeds
     displayname: Feeds
-    avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+    avatar: "./assets/feeds_avatar.png"
     prefix: "!feeds"
     service: feeds
 ```
