@@ -101,41 +101,15 @@ bot:
   # (Optional) Define profile information for the bot user
 
   displayname: Hookshot Bot
-  # Avatars may be a local file path, or mxc:// URL
   avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
 serviceBots:
   # (Optional) Define additional bot users for specific services
 
   - localpart: feeds
     displayname: Feeds
-    avatar: "./assets/feeds_avatar.png"
+    avatar: ./assets/feeds_avatar.png
     prefix: "!feeds"
     service: feeds
-#  - localpart: webhooks
-#    displayname: Webhooks
-#    avatar: "./assets/webhooks_avatar.png"
-#    prefix: "!webhooks"
-#    service: generic
-#  - localpart: github
-#    displayname: GitHub
-#    avatar: "./assets/github_avatar.png"
-#    prefix: "!github"
-#    service: github
-#  - localpart: gitlab
-#    displayname: GitLab
-#    avatar: "./assets/gitlab_avatar.png"
-#    prefix: "!gitlab"
-#    service: gitlab
-#  - localpart: jira
-#    displayname: JIRA
-#    avatar: "./assets/jira_avatar.png"
-#    prefix: "!jira"
-#    service: jira
-#  - localpart: figma
-#    displayname: Figma
-#    avatar: "./assets/figma_avatar.png"
-#    prefix: "!figma"
-#    service: figma
 metrics:
   # (Optional) Prometheus metrics support
 
