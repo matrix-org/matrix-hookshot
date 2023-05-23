@@ -121,7 +121,12 @@ export default class BotUsersManager {
         }
 
         if (!botUser.avatar) {
-            // No avatar configured
+            // Unset any avatar
+            if (profile.avatar_url) {
+                await botUser.intent.underlyingClient.setAvatarUrl('');
+                log.info(`Removed avatar for "${botUser.userId}"`);
+            }
+
             return;
         }
 
