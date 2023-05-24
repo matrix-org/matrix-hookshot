@@ -1,3 +1,30 @@
+4.1.0 (2023-05-24)
+==================
+
+Features
+--------
+
+- Add support for notifying when a GitLab MR has a single review (rather than completed review). ([\#736](https://github.com/matrix-org/matrix-hookshot/issues/736))
+- Add support for Sentry tracing. ([\#754](https://github.com/matrix-org/matrix-hookshot/issues/754))
+
+
+Bugfixes
+--------
+
+- Fix feed message format when the item does not contain a title or link. ([\#737](https://github.com/matrix-org/matrix-hookshot/issues/737))
+- Fix HTML appearing in its escaped form in feed item summaries. ([\#738](https://github.com/matrix-org/matrix-hookshot/issues/738))
+- Fix Github comments not being rendered correctly as blockquotes. ([\#746](https://github.com/matrix-org/matrix-hookshot/issues/746))
+- Fix setup issues when the bot has PL 0 and room default isn't 0. ([\#755](https://github.com/matrix-org/matrix-hookshot/issues/755))
+
+
+Internal Changes
+----------------
+
+- Apply non-style suggestions by `cargo clippy` to reduce allocations in the rust code. ([\#750](https://github.com/matrix-org/matrix-hookshot/issues/750))
+- Apply more Rust clippy suggestions, and run clippy in CI. ([\#753](https://github.com/matrix-org/matrix-hookshot/issues/753))
+- Update eslint to a version that supports Typescript 5. ([\#760](https://github.com/matrix-org/matrix-hookshot/issues/760))
+
+
 4.0.0 (2023-04-27)
 ==================
 
