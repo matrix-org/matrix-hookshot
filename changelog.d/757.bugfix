@@ -1,0 +1,1 @@
+Fix confusing case where issue comments would be notified on if the issue event type is checked on GitHub connections.
