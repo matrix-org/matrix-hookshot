@@ -1,0 +1,1 @@
+Fix setup issues when the bot has PL 0 and room default isn't 0.

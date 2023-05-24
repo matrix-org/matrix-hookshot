@@ -1,5 +1,5 @@
 import axios from "axios";
-import { GitLabInstance } from "../Config/Config";
+import { GitLabInstance } from "../config/Config";
 import { GetIssueResponse, GetUserResponse, CreateIssueOpts, CreateIssueResponse, GetIssueOpts, EditIssueOpts, GetTodosResponse, EventsOpts, CreateIssueNoteOpts, CreateIssueNoteResponse, GetProjectResponse, ProjectHook, ProjectHookOpts, AccessLevel, SimpleProject } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { URLSearchParams } from "url";

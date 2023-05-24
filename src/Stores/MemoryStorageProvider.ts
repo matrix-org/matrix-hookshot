@@ -1,6 +1,6 @@
 import { MemoryStorageProvider as MSP } from "matrix-bot-sdk";
 import { IBridgeStorageProvider } from "./StorageProvider";
-import { IssuesGetResponseData } from "../Github/Types";
+import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
 

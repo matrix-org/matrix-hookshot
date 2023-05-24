@@ -11,6 +11,7 @@ on:
       - changelog.d/**'
 
   workflow_dispatch:
+  merge_group:
 
 jobs:
   lint-node:
@@ -34,6 +35,7 @@ jobs:
           profile: minimal
           components: rustfmt
     - run: cargo fmt --all -- --check
+    - run: cargo clippy -- -Dwarnings
 
   config:
     runs-on: ubuntu-latest
@@ -44,7 +46,7 @@ jobs:
         with:
           node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
-      - run: yarn --silent ts-node src/Config/Defaults.ts --config | diff config.sample.yml - 
+      - run: yarn --silent ts-node src/config/Defaults.ts --config | diff config.sample.yml - 
 
   metrics-docs:
     runs-on: ubuntu-latest

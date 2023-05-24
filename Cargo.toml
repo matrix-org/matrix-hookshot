@@ -19,6 +19,7 @@ md-5 = "0.8.0"
 hex = "0.4.3"
 rss = "2.0.3"
 atom_syndication = "0.12"
+ruma = { version = "0.8.2", features = ["events", "unstable-sanitize"] }
 
 [build-dependencies]
 napi-build = "1"

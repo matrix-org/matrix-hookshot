@@ -9,11 +9,11 @@ import { MessageSenderClient } from "../MatrixSender";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { FormatUtil } from "../FormatUtil";
 import axios from "axios";
-import { GithubInstance } from "../Github/GithubInstance";
-import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData} from "../Github/Types";
+import { GithubInstance } from "../github/GithubInstance";
+import { IssuesGetCommentResponseData, IssuesGetResponseData, ReposGetResponseData} from "../github/Types";
 import { IssuesEditedEvent, IssueCommentCreatedEvent } from "@octokit/webhooks-types";
 import { BaseConnection } from "./BaseConnection";
-import { BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfigGitHub } from "../config/Config";
 
 export interface GitHubIssueConnectionState {
     org: string;

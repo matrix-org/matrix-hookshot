@@ -1,11 +1,14 @@
-use crate::Github::types::*;
-use crate::Jira;
-use crate::Jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
+use crate::github::types::*;
+use crate::jira;
+use crate::jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
 use contrast;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use rgb::RGB;
+use ruma::events::room::message::sanitize::{
+    sanitize_html, HtmlSanitizerMode, RemoveReplyFallback,
+};
 use std::fmt::Write;
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -23,29 +26,23 @@ pub struct MatrixMessageFormatResult {
 }
 
 fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
-    let chunk_size;
-    let color;
-    if input_color.starts_with('#') {
+    let color = if input_color.starts_with('#') {
         let mut chars = input_color.chars();
         chars.next();
-        color = String::from_iter(chars);
+        String::from_iter(chars)
     } else {
-        color = input_color;
-    }
-    match color.len() {
-        6 => {
-            chunk_size = 2;
-        }
-        3 => {
-            chunk_size = 1;
-        }
+        input_color
+    };
+    let chunk_size = match color.len() {
+        6 => 2,
+        3 => 1,
         _ => {
             return Err(Error::new(
                 Status::InvalidArg,
                 format!("color '{}' is invalid", color),
             ));
         }
-    }
+    };
     let mut rgb = RGB::default();
     let i = 0;
     for color_byte in color.as_bytes().chunks(chunk_size) {
@@ -82,7 +79,7 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
     for (i, label) in array.into_iter().enumerate() {
         if i != 0 {
             plain.push_str(", ");
-            html.push_str(" ");
+            html.push(' ');
         }
         plain.push_str(&label.name);
 
@@ -92,26 +89,23 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
             write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
             // Determine the constrast
             let color_rgb = parse_rgb(color)?;
-            let contrast_color;
-            if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
-                contrast_color = "#000000";
-            } else {
-                contrast_color = "#FFFFFF";
-            }
+            let contrast_color =
+                if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
+                    "#000000"
+                } else {
+                    "#FFFFFF"
+                };
             write!(html, " data-mx-color=\"{}\"", contrast_color).unwrap();
         }
         if let Some(description) = label.description {
             write!(html, " title=\"{}\"", description).unwrap();
         }
-        html.push_str(">");
+        html.push('>');
         html.push_str(&label.name);
         html.push_str("</span>");
     }
 
-    Ok(MatrixMessageFormatResult {
-        html: html,
-        plain: plain,
-    })
+    Ok(MatrixMessageFormatResult { html, plain })
 }
 
 /// Generate extra message content for GitHub repo related events
@@ -156,7 +150,7 @@ pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssu
         _self: jira_issue._self,
         key: jira_issue.key,
     };
-    let external_url = Jira::utils::generate_jira_web_link_from_issue(&light_issue)?;
+    let external_url = jira::utils::generate_jira_web_link_from_issue(&light_issue)?;
 
     Ok(JiraIssueMessageBody {
         jira_issue: JiraIssueSimpleItem {
@@ -169,7 +163,7 @@ pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssu
             key: jira_issue.fields.project.key,
             api_url: jira_issue.fields.project._self,
         },
-        external_url: external_url,
+        external_url,
     })
 }
 
@@ -179,4 +173,13 @@ pub fn hash_id(id: String) -> Result<String> {
     let mut hasher = Md5::new();
     hasher.input(id);
     Ok(hex::encode(hasher.result()))
+}
+
+#[napi(js_name = "sanitizeHtml")]
+pub fn hookshot_sanitize_html(html: String) -> String {
+    return sanitize_html(
+        html.as_str(),
+        HtmlSanitizerMode::Compat,
+        RemoveReplyFallback::No,
+    );
 }
