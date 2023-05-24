@@ -42,6 +42,7 @@ RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache cle
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
+COPY --from=builder /src/assets ./assets
 
 VOLUME /data
 EXPOSE 9993
