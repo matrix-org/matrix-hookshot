@@ -1,3 +1,19 @@
+ 4.2.0 (2023-06-05)
+===================
+
+Features
+--------
+
+- Add support for uploading bot avatar images. ([\#767](https://github.com/matrix-org/matrix-hookshot/issues/767))
+
+
+Bugfixes
+--------
+
+- Fix confusing case where issue comments would be notified on if the issue event type is checked on GitHub connections. ([\#757](https://github.com/matrix-org/matrix-hookshot/issues/757))
+- Fix crash when failing to handle events, typically due to lacking permissions to send messages in a room. ([\#771](https://github.com/matrix-org/matrix-hookshot/issues/771))
+
+
 4.1.0 (2023-05-24)
 ==================
 

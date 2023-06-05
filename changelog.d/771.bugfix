@@ -1,1 +1,0 @@
-Fix crash when failing to handle events, typically due to lacking permissions to send messages in a room.
