@@ -787,23 +787,23 @@ export class Bridge {
     }
 
     private async handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
-        Sentry.withScope(async (scope) => {
-            scope.setTransactionName('handleHookshotEvent');
-            scope.setTags({
-                eventType: msg.eventName,
-                roomId: connection.roomId,
-            });
-            scope.setContext("connection", {
-                id: connection.connectionId,
-            });
-            try {
-                await handler(connection, msg.data);
-            } catch (e) {
+        try {
+            await handler(connection, msg.data);
+        } catch (e) {
+            Sentry.withScope((scope) => {
+                scope.setTransactionName('handleHookshotEvent');
+                scope.setTags({
+                    eventType: msg.eventName,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 log.warn(`Connection ${connection.toString()} failed to handle ${msg.eventName}:`, e);
                 Metrics.connectionsEventFailed.inc({ event: msg.eventName, connectionId: connection.connectionId });
                 Sentry.captureException(e, scope);
-            }
-        });
+            });
+        }
     }
 
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
