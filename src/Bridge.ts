@@ -786,22 +786,24 @@ export class Bridge {
         this.ready = true;
     }
 
-    private handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
-        Sentry.withScope((scope) => {
-            scope.setTransactionName('handleHookshotEvent');
-            scope.setTags({
-                eventType: msg.eventName,
-                roomId: connection.roomId,
-            });
-            scope.setContext("connection", {
-                id: connection.connectionId,
-            });
-            new Promise(() => handler(connection, msg.data)).catch((ex) => {
-                Sentry.captureException(ex, scope);
+    private async handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        try {
+            await handler(connection, msg.data);
+        } catch (e) {
+            Sentry.withScope((scope) => {
+                scope.setTransactionName('handleHookshotEvent');
+                scope.setTags({
+                    eventType: msg.eventName,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
+                log.warn(`Connection ${connection.toString()} failed to handle ${msg.eventName}:`, e);
                 Metrics.connectionsEventFailed.inc({ event: msg.eventName, connectionId: connection.connectionId });
-                log.warn(`Connection ${connection.toString()} failed to handle ${msg.eventName}:`, ex);
+                Sentry.captureException(e, scope);
             });
-        });
+        }
     }
 
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
@@ -810,8 +812,8 @@ export class Bridge {
             const connections = connectionFetcherBound(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
             connections.forEach((connection) => {
-                this.handleHookshotEvent(msg, connection, handler);
-            })
+                void this.handleHookshotEvent(msg, connection, handler);
+            });
         });
     }
 
@@ -1167,7 +1169,7 @@ export class Bridge {
         }
 
         for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
-            if (!connection.onEvent) { 
+            if (!connection.onEvent) {
                 continue;
             }
             const scope = new Sentry.Scope();
