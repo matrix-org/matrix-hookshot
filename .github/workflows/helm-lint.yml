@@ -1,6 +1,15 @@
-name: Validate Charts
+name: Helm Chart - Validate
 on:
   push:
+    branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
+
+  workflow_dispatch:
 jobs:
   lint-helm:
     runs-on: ubuntu-latest
