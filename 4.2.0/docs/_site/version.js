@@ -1,0 +1,1 @@
+window.HOOKSHOT_VERSION = "4.2.0";
