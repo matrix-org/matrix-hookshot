@@ -30,6 +30,17 @@ jobs:
         with:
           version: v3.10.0
 
+      - name: Pre-build chart
+        uses: mikefarah/yq@v4.34.1
+        with:
+          cmd: |
+            HOOKSHOT_VERSION="$(cat package.json | yq .version)"
+            yq ".appVersion=\"$HOOKSHOT_VERSION\"" helm/hookshot/Chart.yaml
+
+            yq -i eval-all 'select(fileIndex==0).hookshot.config = select(fileIndex==1) | select(fileIndex==0)' \
+              helm/hookshot/values.yaml \
+              config.sample.yml
+
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.5.0
         env:
