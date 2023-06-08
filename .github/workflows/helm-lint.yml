@@ -1,0 +1,27 @@
+name: Helm Chart - Validate
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
+
+  workflow_dispatch:
+jobs:
+  lint-helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Lint Helm
+        uses: WyriHaximus/github-action-helm3@v3
+        with:
+          exec: helm lint ./helm/hookshot/
+
+      - name: Validate
+        uses: nlamirault/helm-kubeconform-action@v0.1.0
+        with:
+          charts: ./helm/
