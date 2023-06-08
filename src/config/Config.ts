@@ -479,7 +479,8 @@ export class BridgeConfig {
  For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue / cache configuration options for large scale deployments.
- For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
+ For encryption to work, must be set to monolithic mode and have a host & port specified.
+ See https://matrix-org.github.io/matrix-hookshot/latest/advanced/workers.html`, true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
