@@ -208,6 +208,9 @@ yarn # or npm i
     halfshot/matrix-hookshot:latest
 </code></pre>
 <p>Where <code>/etc/matrix-hookshot</code> would contain the configuration files <code>config.yml</code> and <code>registration.yml</code>. The <code>passKey</code> file should also be stored alongside these files. In your config, you should use the path <code>/data/passkey.pem</code>.</p>
+<h2 id="installation-via-helm"><a class="header" href="#installation-via-helm">Installation via Helm</a></h2>
+<p>There's now a basic chart defined in <a href="/helm/hookshot/">helm/hookshot</a> that can be used to deploy the Hookshot Docker container in a Kubernetes-native way.</p>
+<p>More information on this method is available <a href="https://github.com/matrix-org/matrix-hookshot/helm/hookshot/README.md">here</a></p>
 <h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
 <p>Copy the <code>config.sample.yml</code> to a new file <code>config.yml</code>. The sample config is also hosted
 <a href="./setup/sample-configuration.html">here</a> for your convenience.</p>
