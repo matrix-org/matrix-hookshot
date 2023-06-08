@@ -2,6 +2,7 @@ import { expect } from "chai";
 import { createMessageQueue } from "../src/MessageQueue/MessageQueue";
 
 const mq = createMessageQueue({
+    enabled: true,
     monolithic: true,
 });
 
