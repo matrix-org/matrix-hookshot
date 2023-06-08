@@ -393,7 +393,7 @@ interface BridgeConfigWebhook {
 }
 
 export interface BridgeConfigQueue {
-    enabled: boolean;
+    enabled?: boolean;
     monolithic: boolean;
     port?: number;
     host?: string;
