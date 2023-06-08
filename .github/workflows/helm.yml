@@ -33,7 +33,7 @@ jobs:
       - name: "Get app version from package.json"
         id: get_hookshot_version
         run: |
-          echo "::set-output hookshot_version=$(cat package.json | yq .version)"
+          echo "::set-output hookshot_version=$(cat package.json | yq .version)" >> "$GITHUB_OUTPUT"
 
       - name: Set chart appVersion to current package.json version
         uses: mikefarah/yq@v4.34.1
