@@ -37,7 +37,7 @@ export enum BridgePermissionLevel {
 interface BridgeConfigGitHubYAML {
     enterpriseUrl?: string;
     auth: {
-        id: number|string;
+        id: number | string;
         privateKeyFile: string;
     };
     webhook: {
@@ -58,7 +58,7 @@ interface BridgeConfigGitHubYAML {
 export class BridgeConfigGitHub {
     @configKey("Authentication for the GitHub App.", false)
     readonly auth: {
-        id: number|string;
+        id: number | string;
         privateKeyFile: string;
     };
     @configKey("Webhook settings for the GitHub app.", false)
@@ -124,7 +124,7 @@ export interface BridgeConfigJiraYAML {
         secret: string;
     };
     url?: string,
-    oauth?: BridgeConfigJiraCloudOAuth|BridgeConfigJiraOnPremOAuth;
+    oauth?: BridgeConfigJiraCloudOAuth | BridgeConfigJiraOnPremOAuth;
 
 }
 export class BridgeConfigJira implements BridgeConfigJiraYAML {
@@ -140,7 +140,7 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
     @configKey("URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)", true)
     readonly url?: string;
     @configKey("OAuth settings for connecting users to JIRA. See documentation for more information", true)
-    readonly oauth?: BridgeConfigJiraCloudOAuth|BridgeConfigJiraOnPremOAuth;
+    readonly oauth?: BridgeConfigJiraCloudOAuth | BridgeConfigJiraOnPremOAuth;
 
     @hideKey()
     readonly instanceUrl?: URL;
@@ -158,7 +158,7 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
         if (!yaml.oauth) {
             return;
         }
-        let oauth: BridgeConfigJiraCloudOAuth|BridgeConfigJiraOnPremOAuth;
+        let oauth: BridgeConfigJiraCloudOAuth | BridgeConfigJiraOnPremOAuth;
 
         assert.ok(yaml.oauth.redirect_uri);
         // Validate oauth settings
@@ -191,12 +191,12 @@ export interface BridgeConfigGitLabYAML {
         publicUrl?: string;
         secret: string;
     },
-    instances: {[name: string]: GitLabInstance};
+    instances: { [name: string]: GitLabInstance };
     userIdPrefix: string;
 }
 
 export class BridgeConfigGitLab {
-    readonly instances: {[name: string]: GitLabInstance};
+    readonly instances: { [name: string]: GitLabInstance };
     readonly webhook: {
         publicUrl?: string;
         secret: string;
@@ -226,10 +226,10 @@ export class BridgeConfigGitLab {
     }
 
 
-    public getInstanceByProjectUrl(url: string): {name: string, instance: GitLabInstance}|null {
+    public getInstanceByProjectUrl(url: string): { name: string, instance: GitLabInstance } | null {
         for (const [name, instance] of Object.entries(this.instances)) {
             if (url.startsWith(instance.url)) {
-                return {name, instance};
+                return { name, instance };
             }
         }
         return null;
@@ -266,11 +266,13 @@ export class BridgeConfigFeeds {
 export interface BridgeConfigFigma {
     publicUrl: string;
     overrideUserId?: string;
-    instances: {[name: string]: {
-        teamId: string;
-        accessToken: string;
-        passcode: string;
-    }};
+    instances: {
+        [name: string]: {
+            teamId: string;
+            accessToken: string;
+            passcode: string;
+        }
+    };
 }
 
 export interface BridgeGenericWebhooksConfigYAML {
@@ -391,13 +393,14 @@ interface BridgeConfigWebhook {
 }
 
 export interface BridgeConfigQueue {
+    enabled?: boolean;
     monolithic: boolean;
     port?: number;
     host?: string;
 }
 
 export interface BridgeConfigLogging {
-    level: "debug"|"info"|"warn"|"error"|"trace";
+    level: "debug" | "info" | "warn" | "error" | "trace";
     json?: boolean;
     colorize?: boolean;
     timestampFormat?: string;
@@ -476,7 +479,8 @@ export class BridgeConfig {
  For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue / cache configuration options for large scale deployments.
- For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
+ For encryption to work, must be set to monolithic mode and have a host & port specified.
+ See https://matrix-org.github.io/matrix-hookshot/latest/advanced/workers.html`, true)
     public readonly queue: BridgeConfigQueue;
     @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
@@ -526,7 +530,7 @@ export class BridgeConfig {
     @hideKey()
     private readonly bridgePermissions: BridgePermissions;
 
-    constructor(configData: BridgeConfigRoot, env?: {[key: string]: string|undefined}) {
+    constructor(configData: BridgeConfigRoot, env?: { [key: string]: string | undefined }) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
         this.github = configData.github && new BridgeConfigGitHub(configData.github);
@@ -546,9 +550,19 @@ export class BridgeConfig {
         this.bot = configData.bot;
         this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
+
         this.queue = configData.queue || {
+            enabled: false,
             monolithic: true,
         };
+
+        if (!this.queue?.enabled) {
+            this.queue = {
+                enabled: false,
+                monolithic: true,
+            }
+        }
+
         this.encryption = configData.experimentalEncryption;
 
 
@@ -560,7 +574,7 @@ export class BridgeConfig {
         this.sentry = configData.sentry;
 
         // To allow DEBUG as well as debug
-        this.logging.level = this.logging.level.toLowerCase() as "debug"|"info"|"warn"|"error"|"trace";
+        this.logging.level = this.logging.level.toLowerCase() as "debug" | "info" | "warn" | "error" | "trace";
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
             throw new ConfigError("logging.level", `Logging level is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
         }
@@ -672,7 +686,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
     public async prefillMembershipCache(client: MatrixClient) {
         const permissionRooms = this.bridgePermissions.getInterestedRooms();
         log.info(`Prefilling room membership for permissions for ${permissionRooms.length} rooms`);
-        for(const roomEntry of permissionRooms) {
+        for (const roomEntry of permissionRooms) {
             const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
             log.debug(`Found ${membership.length} users for ${roomEntry}`);
@@ -719,7 +733,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
     }
 
     public getPublicConfigForService(serviceName: string): Record<string, unknown> {
-        let config: undefined|Record<string, unknown>;
+        let config: undefined | Record<string, unknown>;
         switch (serviceName) {
             case "feeds":
                 config = this.feeds?.publicConfig;
@@ -746,7 +760,7 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         return config;
     }
 
-    static async parseConfig(filename: string, env: {[key: string]: string|undefined}) {
+    static async parseConfig(filename: string, env: { [key: string]: string | undefined }) {
         const file = await fs.readFile(filename, "utf-8");
         return new BridgeConfig(YAML.parse(file), env);
     }
@@ -760,7 +774,7 @@ export async function parseRegistrationFile(filename: string) {
 
 // Can be called directly
 if (require.main === module) {
-    Logger.configure({console: "info"});
+    Logger.configure({ console: "info" });
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
         // eslint-disable-next-line no-console
         console.log('Config successfully validated.');

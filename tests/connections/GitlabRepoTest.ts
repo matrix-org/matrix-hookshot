@@ -21,7 +21,7 @@ const GITLAB_MR = {
 };
 
 const GITLAB_ISSUE_CREATED_PAYLOAD = {
-    object_kind: "merge_request",
+	object_kind: "merge_request",
 	user: {
 		name: "Alice",
 		username: "alice",
@@ -33,7 +33,7 @@ const GITLAB_ISSUE_CREATED_PAYLOAD = {
 	}
 };
 
-function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
+function createConnection(state: Record<string, unknown> = {}, isExistingState = false) {
 	const mq = createMessageQueue({
 		monolithic: true
 	});
@@ -56,7 +56,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 			url: "https://gitlab.example.com"
 		},
 	);
-	return {connection, intent};
+	return { connection, intent };
 }
 
 describe("GitLabRepoConnection", () => {

@@ -34,7 +34,7 @@ const GITHUB_ISSUE_CREATED_PAYLOAD = {
 	}
 };
 
-function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
+function createConnection(state: Record<string, unknown> = {}, isExistingState = false) {
 	const mq = createMessageQueue({
 		monolithic: true
 	});
@@ -58,7 +58,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		DefaultConfig.github!
 	);
-	return {connection, intent};
+	return { connection, intent };
 }
 
 describe("GitHubRepoConnection", () => {

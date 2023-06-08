@@ -1,0 +1,1 @@
+Adds an `enabled` attribute to the `queue` configuration defaulted to false so that default configuration-based installs / Helm chart installs do not fail without Redis available

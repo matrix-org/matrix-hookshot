@@ -13,11 +13,11 @@ You must first have a working redis instance somewhere which can talk between pr
 
 `docker run --name github-bridge-redis -p 6379:6379 -d redis`.
 
-
 The processes should all share the same config, which should contain the correct config enable redis:
 
 ```yaml
 queue:
+  enabled: true
   monolithic: false
   port: 6379
   host: github-bridge-redis
@@ -26,6 +26,7 @@ queue:
 Note that if [encryption](./encryption.md) is enabled, `queue.monolithic` must be set to `true`, as worker mode is not yet supported with encryption.
 
 Once that is done, you can simply start the processes by name using yarn:
+
 ```
 yarn start:webhooks
 yarn start:matrixsender
