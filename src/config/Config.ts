@@ -549,9 +549,19 @@ export class BridgeConfig {
         this.bot = configData.bot;
         this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
+
         this.queue = configData.queue || {
+            enabled: false,
             monolithic: true,
         };
+
+        if (!this.queue?.enabled) {
+            this.queue = {
+                enabled: false,
+                monolithic: true,
+            }
+        }
+
         this.encryption = configData.experimentalEncryption;
 
 
