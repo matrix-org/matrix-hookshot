@@ -118,6 +118,7 @@ queue:
   # (Optional) Message queue / cache configuration options for large scale deployments.
   # For encryption to work, must be set to monolithic mode and have a host & port specified.
   # See https://matrix-org.github.io/matrix-hookshot/latest/advanced/workers.html
+
   enabled: false
   monolithic: true
 logging:
