@@ -16,6 +16,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         bindAddress: "127.0.0.1",
     },
     queue: {
+        enabled: false,
         monolithic: true,
         port: 6379,
         host: "localhost",
@@ -184,9 +185,9 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
         }
 
         if (parentNode) {
-            parentNode.add({key, value: newNode});
+            parentNode.add({ key, value: newNode });
         } else {
-            doc.add({key, value: newNode});
+            doc.add({ key, value: newNode });
         }
     })
 }
@@ -219,14 +220,14 @@ async function renderRegistrationFile(configPath?: string) {
             aliases: [{
                 exclusive: true,
                 regex: `#github_.+:${bridgeConfig.bridge.domain}`
-            },{
+            }, {
                 exclusive: true,
                 regex: `#gitlab_.+:${bridgeConfig.bridge.domain}`
             }],
             users: [{
                 exclusive: true,
                 regex: `@_github_.+:${bridgeConfig.bridge.domain}`
-            },{
+            }, {
                 exclusive: true,
                 regex: `@_gitlab_.+:${bridgeConfig.bridge.domain}`
             }],
