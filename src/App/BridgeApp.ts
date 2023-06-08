@@ -1,14 +1,15 @@
 import { Bridge } from "../Bridge";
 
-import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
+import { BridgeConfig, parseRegistrationFile } from "../config/Config";
 import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
-import { Logger } from "matrix-appservice-bridge";
+import { Logger, getBridgeVersion } from "matrix-appservice-bridge";
 import { LogService } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
+import * as Sentry from '@sentry/node';
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
@@ -37,6 +38,17 @@ async function start() {
         userNotificationWatcher.start();
     }
 
+    if (config.sentry) {
+        Sentry.init({
+            dsn: config.sentry.dsn,
+            environment: config.sentry.environment,
+            release: getBridgeVersion(),
+            serverName: config.bridge.domain,
+            includeLocalVariables: true,
+        });
+        log.info("Sentry reporting enabled");
+    }
+
     const botUsersManager = new BotUsersManager(config, appservice);
 
     const bridgeApp = new Bridge(config, listener, appservice, storage, botUsersManager);
@@ -45,6 +57,8 @@ async function start() {
         log.error("Got SIGTERM");
         listener.stop();
         bridgeApp.stop();
+        // Don't care to await this, as the process is about to end
+        storage.disconnect?.();
     });
     await bridgeApp.start();
 

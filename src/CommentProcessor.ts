@@ -6,7 +6,7 @@ import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
 import { FormatUtil } from "./FormatUtil";
-import { IssuesGetCommentResponseData, ReposGetResponseData, IssuesGetResponseData } from "./Github/Types"
+import { IssuesGetCommentResponseData, ReposGetResponseData, IssuesGetResponseData } from "./github/Types"
 import { IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/ig;

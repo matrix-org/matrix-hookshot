@@ -2,7 +2,7 @@ import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgePermissionLevel } from "../Config/Config";
+import { BridgePermissionLevel } from "../config/Config";
 
 const log = new Logger('JiraBotCommands');
 

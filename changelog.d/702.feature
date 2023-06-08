@@ -1,1 +1,0 @@
-Add support for specifying custom templates for feeds.

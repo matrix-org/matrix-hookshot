@@ -6,15 +6,15 @@
 
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
-import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./config/Config";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { GitLabClient } from "./Gitlab/Client";
-import { GithubInstance } from "./Github/GithubInstance";
+import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
-import { JiraProject, JiraVersion } from "./Jira/Types";
+import { JiraProject, JiraVersion } from "./jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./UserTokenStore";

@@ -28,7 +28,7 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
 const CODE_MIRROR_EXTENSIONS = [javascript({})];
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove}) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
     const nameRef = createRef<HTMLInputElement>();
@@ -67,8 +67,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>
         <ButtonSet>
-            { canEdit && <Button type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
-            { canEdit && existingConnection && <Button intent="remove" onClick={onRemove}>Remove webhook</Button>}
+            { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
+            { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove webhook</Button>}
         </ButtonSet>
     </form>;
 };

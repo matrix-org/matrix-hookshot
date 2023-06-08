@@ -2,44 +2,46 @@ import { AdminAccountData } from "./AdminRoomCommandHandler";
 import { AdminRoom, BRIDGE_ROOM_TYPE, LEGACY_BRIDGE_ROOM_TYPE } from "./AdminRoom";
 import { Appservice, RichRepliesPreprocessor, IRichReplyMetadata, StateEvent, EventKind, PowerLevelsEvent, Intent } from "matrix-bot-sdk";
 import BotUsersManager from "./Managers/BotUsersManager";
-import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./Config/Config";
+import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./config/Config";
 import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
 import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
-import { GithubInstance } from "./Github/GithubInstance";
+import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
     GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
-import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./Jira/WebhookTypes";
-import { JiraOAuthResult } from "./Jira/Types";
+import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./jira/WebhookTypes";
+import { JiraOAuthResult } from "./jira/Types";
 import { MatrixEvent, MatrixMemberContent, MatrixMessageContent } from "./MatrixEvent";
-import { MessageQueue, createMessageQueue } from "./MessageQueue";
+import { MessageQueue, MessageQueueMessageOut, createMessageQueue } from "./MessageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
 import { NotificationsEnableEvent, NotificationsDisableEvent } from "./Webhooks";
-import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./Github/Types";
+import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./github/Types";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
 import { Provisioner } from "./provisioning/provisioner";
-import { JiraProvisionerRouter } from "./Jira/Router";
-import { GitHubProvisionerRouter } from "./Github/Router";
+import { JiraProvisionerRouter } from "./jira/Router";
+import { GitHubProvisionerRouter } from "./github/Router";
 import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
 import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
-import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./Jira/OAuth";
+import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
+import * as Sentry from '@sentry/node';
+
 const log = new Logger("Bridge");
 
 export class Bridge {
@@ -363,6 +365,18 @@ export class Bridge {
             "gitlab.merge_request.unapproved",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestReviewed(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.approval",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onMergeRequestIndividualReview(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.unapproval",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onMergeRequestIndividualReview(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
@@ -772,18 +786,34 @@ export class Bridge {
         this.ready = true;
     }
 
+    private async handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        try {
+            await handler(connection, msg.data);
+        } catch (e) {
+            Sentry.withScope((scope) => {
+                scope.setTransactionName('handleHookshotEvent');
+                scope.setTags({
+                    eventType: msg.eventName,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
+                log.warn(`Connection ${connection.toString()} failed to handle ${msg.eventName}:`, e);
+                Metrics.connectionsEventFailed.inc({ event: msg.eventName, connectionId: connection.connectionId });
+                Sentry.captureException(e, scope);
+            });
+        }
+    }
+
     private async bindHandlerToQueue<EventType, ConnType extends IConnection>(event: string, connectionFetcher: (data: EventType) => ConnType[], handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
+        const connectionFetcherBound = connectionFetcher.bind(this);
         this.queue.on<EventType>(event, (msg) => {
-            const connections = connectionFetcher.bind(this)(msg.data);
+            const connections = connectionFetcherBound(msg.data);
             log.debug(`${event} for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
-            connections.forEach(async (connection) => {
-                try {
-                    await handler(connection, msg.data);
-                } catch (ex) {
-                    Metrics.connectionsEventFailed.inc({ event, connectionId: connection.connectionId });
-                    log.warn(`Connection ${connection.toString()} failed to handle ${event}:`, ex);
-                }
-            })
+            connections.forEach((connection) => {
+                void this.handleHookshotEvent(msg, connection, handler);
+            });
         });
     }
 
@@ -894,12 +924,24 @@ export class Bridge {
         if (!adminRoom) {
             let handled = false;
             for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+                const scope = new Sentry.Scope();
+                scope.setTransactionName('onRoomMessage');
+                scope.setTags({
+                    eventId: event.event_id,
+                    sender: event.sender,
+                    eventType: event.type,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 try {
                     if (connection.onMessageEvent) {
                         handled = await connection.onMessageEvent(event, checkPermission, processedReplyMetadata);
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} failed to handle message:`, ex);
+                    Sentry.captureException(ex, scope);
                 }
                 if (handled) {
                     break;
@@ -1066,6 +1108,17 @@ export class Bridge {
                 if (!this.connectionManager.verifyStateEventForConnection(connection, state, true)) {
                     continue;
                 }
+                const scope = new Sentry.Scope();
+                scope.setTransactionName('onStateUpdate');
+                scope.setTags({
+                    eventId: event.event_id,
+                    sender: event.sender,
+                    eventType: event.type,
+                    roomId: connection.roomId,
+                });
+                scope.setContext("connection", {
+                    id: connection.connectionId,
+                });
                 try {
                     // Empty object == redacted
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
@@ -1092,9 +1145,9 @@ export class Bridge {
                 if (this.config.widgets?.roomSetupWidget?.addOnInvite && event.type === "m.room.power_levels" && event.state_key === "" && !this.connectionManager.isRoomConnected(roomId)) {
                     log.debug(`${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`)
                     const plEvent = new PowerLevelsEvent(event);
-                    const currentPl = plEvent.content.users?.[botUser.userId] || plEvent.defaultUserLevel;
-                    const previousPl = plEvent.previousContent?.users?.[botUser.userId] || plEvent.previousContent?.users_default;
-                    const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] || plEvent.defaultStateEventLevel;
+                    const currentPl = plEvent.content.users?.[botUser.userId] ?? plEvent.defaultUserLevel;
+                    const previousPl = plEvent.previousContent?.users?.[botUser.userId] ?? plEvent.previousContent?.users_default;
+                    const requiredPl = plEvent.content.events?.["im.vector.modular.widgets"] ?? plEvent.defaultStateEventLevel;
                     if (currentPl !== previousPl && currentPl >= requiredPl) {
                         // PL changed for bot user, check to see if the widget can be created.
                         try {
@@ -1116,11 +1169,24 @@ export class Bridge {
         }
 
         for (const connection of this.connectionManager.getAllConnectionsForRoom(roomId)) {
+            if (!connection.onEvent) {
+                continue;
+            }
+            const scope = new Sentry.Scope();
+            scope.setTransactionName('onRoomEvent');
+            scope.setTags({
+                eventId: event.event_id,
+                sender: event.sender,
+                eventType: event.type,
+                roomId: connection.roomId,
+            });
+            scope.setContext("connection", {
+                id: connection.connectionId,
+            });
             try {
-                if (connection.onEvent) {
-                    await connection.onEvent(event);
-                }
+                await connection.onEvent(event);
             } catch (ex) {
+                Sentry.captureException(ex, scope);
                 log.warn(`Connection ${connection.toString()} failed to handle onEvent:`, ex);
             }
         }

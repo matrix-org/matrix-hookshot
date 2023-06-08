@@ -1,4 +1,4 @@
-import { IssuesGetResponseData } from "../Github/Types";
+import { IssuesGetResponseData } from "../github/Types";
 import { Redis, default as redis } from "ioredis";
 import { Logger } from "matrix-appservice-bridge";
 
@@ -85,6 +85,10 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         } catch (ex) {
             log.warn("Failed to set expiry time on as.completed_transactions", ex);
         }
+    }
+
+    public async disconnect(): Promise<void> {
+        await this.redis.quit();
     }
 
     public async addRegisteredUser(userId: string) {

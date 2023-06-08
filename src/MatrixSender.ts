@@ -1,4 +1,4 @@
-import { BridgeConfig } from "./Config/Config";
+import { BridgeConfig } from "./config/Config";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
 import { Appservice } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";

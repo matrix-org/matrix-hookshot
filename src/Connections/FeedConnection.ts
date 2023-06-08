@@ -7,8 +7,11 @@ import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
+import { sanitizeHtml } from "../libRs";
 const log = new Logger("FeedConnection");
-const md = new markdown();
+const md = new markdown({
+    html: true,
+});
 
 export interface LastResultOk {
     timestamp: number;
@@ -25,6 +28,7 @@ export interface FeedConnectionState extends IConnectionState {
     url:    string;
     label?: string;
     template?: string;
+    notifyOnFailure?: boolean;
 }
 
 export interface FeedConnectionSecrets {
@@ -40,6 +44,7 @@ const MAX_TEMPLATE_LENGTH = 1024;
 
 const DEFAULT_TEMPLATE = "New post in $FEEDNAME";
 const DEFAULT_TEMPLATE_WITH_CONTENT = "New post in $FEEDNAME: $LINK"
+const DEFAULT_TEMPLATE_WITH_ONLY_TITLE = "New post in $FEEDNAME: $TITLE"
 
 @Connection
 export class FeedConnection extends BaseConnection implements IConnection {
@@ -144,6 +149,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
                     return entry.title || "";
                 case "$LINK":
                     return entry.link ? `[${entry.title ?? entry.link}](${entry.link})` : "";
+                case "$URL":
+                    return entry.link || "";
                 case "$AUTHOR":
                     return entry.author || "";
                 case "$DATE":
@@ -178,20 +185,25 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
+        // We will need to tidy this up.
+        if (this.state.template?.match(/\$SUMMARY\b/) && entry.summary) {
+            // This might be massive and cause us to fail to send the message
+            // so confine to a maximum size.
+            if (entry.summary.length > MAX_SUMMARY_LENGTH) {
+                entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
+            }
+            entry.summary = sanitizeHtml(entry.summary);
+        }
 
         let message;
         if (this.state.template) {
             message = this.templateFeedEntry(this.state.template, entry);
-        } else if (entry.title && entry.link) {
+        } else if (entry.link) {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_CONTENT, entry);
+        } else if (entry.title) {
+            message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_ONLY_TITLE, entry);
         } else {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
-        }
-
-        // This might be massive and cause us to fail to send the message
-        // so confine to a maximum size.
-        if (entry.summary?.length ?? 0 > MAX_SUMMARY_LENGTH) {
-            entry.summary = entry.summary?.substring(0, MAX_SUMMARY_LENGTH) + "…" ?? null;
         }
 
         await this.intent.sendEvent(this.roomId, {
@@ -223,6 +235,10 @@ export class FeedConnection extends BaseConnection implements IConnection {
         const wasLastResultSuccessful = this.lastResults[0]?.ok !== false;
         if (wasLastResultSuccessful && error.shouldErrorBeSilent) {
             // To avoid short term failures bubbling up, if the error is serious, we still bubble.
+            return;
+        }
+        if (!this.state.notifyOnFailure) {
+            // User hasn't opted into notifications on failure
             return;
         }
         if (!this.hasError) {

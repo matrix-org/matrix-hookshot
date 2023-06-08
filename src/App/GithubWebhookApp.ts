@@ -1,4 +1,4 @@
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import { Webhooks } from "../Webhooks";
 import { Logger } from "matrix-appservice-bridge";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";

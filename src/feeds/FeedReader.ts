@@ -1,5 +1,5 @@
 import { MatrixError } from "matrix-bot-sdk";
-import { BridgeConfigFeeds } from "../Config/Config";
+import { BridgeConfigFeeds } from "../config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
@@ -7,13 +7,12 @@ import { MessageQueue } from "../MessageQueue";
 
 import Ajv from "ajv";
 import axios, { AxiosResponse } from "axios";
-import Parser from "rss-parser";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
 import { FormatUtil } from "../FormatUtil";
-import { FeedItem, parseRSSFeed } from "../libRs";
+import { JsRssChannel, parseFeed } from "../libRs";
 
 const log = new Logger("FeedReader");
 
@@ -111,10 +110,6 @@ function shuffle<T>(array: T[]): T[] {
 
 
 export class FeedReader {
-    private static buildParser(): Parser {
-        return new Parser();
-    }
-
     /**
      * Read a feed URL and parse it into a set of items.
      * @param url The feed URL.
@@ -128,7 +123,7 @@ export class FeedReader {
         headers: Record<string, string>,
         timeoutMs: number,
         httpClient = axios,
-    ): Promise<{ response: AxiosResponse, feed: Parser.Output<FeedItem> }> {
+    ): Promise<{ response: AxiosResponse, feed: JsRssChannel }> {
         const response = await httpClient.get(url, {
             headers: {
                 'User-Agent': UserAgent,
@@ -141,34 +136,9 @@ export class FeedReader {
         if (typeof response.data !== "string") {
             throw Error('Unexpected response type');
         }
-        const feed = parseRSSFeed(response.data);
+        const feed = parseFeed(response.data);
         return { response, feed };
     }
-    
-    /**
-     * Attempt to parse a link from a feed item.
-     * @param item A feed item.
-     * @returns Return either a link to the item, or null.
-     */
-    private static parseLinkFromItem(item: FeedItem) {
-        if (item.link) {
-            return item.link;
-        }
-        if (item.id && item.idIsPermalink) {
-            try {
-                // The feed librray doesn't give us attributes (needs isPermaLink), so we're not really sure if this a URL or not.
-                // Parse it and see.
-                // https://validator.w3.org/feed/docs/rss2.html#ltguidgtSubelementOfLtitemgt
-                const url = new URL(item.id);
-                return url.toString();
-            } catch (ex) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private readonly parser = FeedReader.buildParser();
 
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
@@ -283,7 +253,7 @@ export class FeedReader {
      * @param url The URL to be polled.
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
-    private async pollFeed(url: string): Promise<boolean> {
+    public async pollFeed(url: string): Promise<boolean> {
         let seenEntriesChanged = false;
         const fetchKey = randomUUID();
         const { etag, lastModified } = this.cacheTimes.get(url) || {};
@@ -317,7 +287,6 @@ export class FeedReader {
 
             // migrate legacy, cleartext guids to their md5-hashed counterparts
             seenGuids = seenGuids.map(guid => guid.startsWith('md5:') ? guid : this.hashGuid(guid));
-
             const seenGuidsSet = new Set(seenGuids);
             const newGuids = [];
             log.debug(`Found ${feed.items.length} entries in ${url}`);
@@ -325,33 +294,31 @@ export class FeedReader {
             for (const item of feed.items) {
                 // Find the first guid-like that looks like a string.
                 // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                const guid = [item.id, item.link, item.title].find(isNonEmptyString);
-                if (!guid) {
+                if (!item.hashId) {
                     log.error(`Could not determine guid for entry in ${url}, skipping`);
                     continue;
                 }
-                const hashedGuid = this.hashGuid(guid);
-                newGuids.push(hashedGuid);
+                const hashId = `md5:${item.hashId}`;
+                newGuids.push(hashId);
 
                 if (initialSync) {
-                    log.debug(`Skipping entry ${guid} since we're performing an initial sync`);
+                    log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
                     continue;
                 }
-                if (seenGuidsSet.has(hashedGuid)) {
-                    log.debug('Skipping already seen entry', guid);
+                if (seenGuidsSet.has(hashId)) {
+                    log.debug('Skipping already seen entry', item.id ?? hashId);
                     continue;
                 }
-
                 const entry = {
                     feed: {
                         title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
                         url: url,
                     },
                     title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
-                    pubdate: item.pubDate ?? null,
+                    pubdate: item.pubdate ?? null,
                     summary: item.summary ?? null,
                     author: item.author ?? null,
-                    link: FeedReader.parseLinkFromItem(item),
+                    link: item.link ?? null,
                     fetchKey
                 };
 
@@ -395,7 +362,10 @@ export class FeedReader {
         return seenEntriesChanged;
     }
 
-    private async pollFeeds(): Promise<void> {
+    /**
+     * Start polling all the feeds. 
+     */
+    public async pollFeeds(): Promise<void> {
         log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds`);
 
         const fetchingStarted = Date.now();

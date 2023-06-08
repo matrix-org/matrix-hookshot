@@ -1,3 +1,82 @@
+ 4.2.0 (2023-06-05)
+===================
+
+Features
+--------
+
+- Add support for uploading bot avatar images. ([\#767](https://github.com/matrix-org/matrix-hookshot/issues/767))
+
+
+Bugfixes
+--------
+
+- Fix confusing case where issue comments would be notified on if the issue event type is checked on GitHub connections. ([\#757](https://github.com/matrix-org/matrix-hookshot/issues/757))
+- Fix crash when failing to handle events, typically due to lacking permissions to send messages in a room. ([\#771](https://github.com/matrix-org/matrix-hookshot/issues/771))
+
+
+4.1.0 (2023-05-24)
+==================
+
+Features
+--------
+
+- Add support for notifying when a GitLab MR has a single review (rather than completed review). ([\#736](https://github.com/matrix-org/matrix-hookshot/issues/736))
+- Add support for Sentry tracing. ([\#754](https://github.com/matrix-org/matrix-hookshot/issues/754))
+
+
+Bugfixes
+--------
+
+- Fix feed message format when the item does not contain a title or link. ([\#737](https://github.com/matrix-org/matrix-hookshot/issues/737))
+- Fix HTML appearing in its escaped form in feed item summaries. ([\#738](https://github.com/matrix-org/matrix-hookshot/issues/738))
+- Fix Github comments not being rendered correctly as blockquotes. ([\#746](https://github.com/matrix-org/matrix-hookshot/issues/746))
+- Fix setup issues when the bot has PL 0 and room default isn't 0. ([\#755](https://github.com/matrix-org/matrix-hookshot/issues/755))
+
+
+Internal Changes
+----------------
+
+- Apply non-style suggestions by `cargo clippy` to reduce allocations in the rust code. ([\#750](https://github.com/matrix-org/matrix-hookshot/issues/750))
+- Apply more Rust clippy suggestions, and run clippy in CI. ([\#753](https://github.com/matrix-org/matrix-hookshot/issues/753))
+- Update eslint to a version that supports Typescript 5. ([\#760](https://github.com/matrix-org/matrix-hookshot/issues/760))
+
+
+4.0.0 (2023-04-27)
+==================
+
+Features
+--------
+
+- Add support for specifying custom templates for feeds. ([\#702](https://github.com/matrix-org/matrix-hookshot/issues/702))
+- Use SQLite for file-based crypto stores by default, instead of Sled. ([\#714](https://github.com/matrix-org/matrix-hookshot/issues/714))
+- Notifications for RSS feed failures can now be toggled on and off. The feature is now **off** by default. ([\#716](https://github.com/matrix-org/matrix-hookshot/issues/716))
+
+
+Bugfixes
+--------
+
+- Fix mishandling of empty feed/item title tags. ([\#708](https://github.com/matrix-org/matrix-hookshot/issues/708))
+- Add information about GitHub App Installs in 'update' state on the oauth status page. ([\#717](https://github.com/matrix-org/matrix-hookshot/issues/717))
+- Fix cases of GitHub repos not being bridgable if the GitHub App had to be manually approved. ([\#718](https://github.com/matrix-org/matrix-hookshot/issues/718))
+- Switch to using Rust for parsing RSS feeds. ([\#721](https://github.com/matrix-org/matrix-hookshot/issues/721))
+
+
+Deprecations and Removals
+-------------------------
+
+- Add support for Node 20, and drop support for Node 16. ([\#724](https://github.com/matrix-org/matrix-hookshot/issues/724))
+
+
+Internal Changes
+----------------
+
+- Ensure all Hookshot specific metrics have a `hookshot_` prefix. ([\#701](https://github.com/matrix-org/matrix-hookshot/issues/701))
+- Update dependency used in Generic Webhook JS functions to fix a security flaw. ([\#705](https://github.com/matrix-org/matrix-hookshot/issues/705))
+- Switch to using Rust for parsing RSS feeds. ([\#709](https://github.com/matrix-org/matrix-hookshot/issues/709))
+- Update the README with a prettier set of features. ([\#726](https://github.com/matrix-org/matrix-hookshot/issues/726))
+- Update `yaml` dependency to `2.2.2` ([\#728](https://github.com/matrix-org/matrix-hookshot/issues/728))
+
+
 3.2.0 (2023-04-04)
 ==================
 

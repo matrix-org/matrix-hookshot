@@ -1,7 +1,6 @@
 import { BridgeConfig, BridgeConfigRoot } from "./Config";
-import YAML from "yaml";
 import { getConfigKeyMetadata, keyIsHidden } from "./Decorators";
-import { Node, YAMLSeq } from "yaml/types";
+import { Node, YAMLSeq, default as YAML } from "yaml";
 import { randomBytes } from "crypto";
 import { DefaultDisallowedIpRanges } from "matrix-appservice-bridge";
 
@@ -54,7 +53,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         {
             localpart: "feeds",
             displayname: "Feeds",
-            avatar: "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d",
+            avatar: "./assets/feeds_avatar.png",
             prefix: "!feeds",
             service: "feeds",
         },
@@ -146,7 +145,11 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
             bindAddress: '0.0.0.0',
             resources: ['widgets'],
         }
-    ]
+    ],
+    sentry: {
+        dsn: "https://examplePublicKey@o0.ingest.sentry.io/0",
+        environment: "production"
+    }
 };
 
 export const DefaultConfig = new BridgeConfig(DefaultConfigRoot);
@@ -164,15 +167,15 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
 
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
-            newNode = YAML.createNode({});
+            newNode = doc.createNode({});
             renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq);
         } else if (typeof value === "function") {
             if (value.length !== 0) {
                 throw Error("Only zero-argument functions are allowed as config values");
             }
-            newNode = YAML.createNode(value());
+            newNode = doc.createNode(value());
         } else {
-            newNode = YAML.createNode(value);
+            newNode = doc.createNode(value);
         }
 
         const metadata = getConfigKeyMetadata(obj, key);
@@ -190,7 +193,7 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
 
 function renderDefaultConfig() {
     const doc = new YAML.Document();
-    doc.contents = YAML.createNode({});
+    doc.contents = doc.createNode({});
     doc.commentBefore = ' This is an example configuration file';
     // Needed because the entries syntax below would not work otherwise
     renderSection(doc, DefaultConfig as unknown as Record<string, unknown>);

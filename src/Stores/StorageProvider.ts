@@ -1,9 +1,10 @@
 import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
-import { IssuesGetResponseData } from "../Github/Types";
+import { IssuesGetResponseData } from "../github/Types";
 
 export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
     connect?(): Promise<void>;
+    disconnect?(): Promise<void>;
     setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope?: string): Promise<void>;
     getGithubIssue(repo: string, issueNumber: string, scope?: string): Promise<IssuesGetResponseData|null>;
     setLastNotifCommentUrl(repo: string, issueNumber: string, url: string, scope?: string): Promise<void>;

@@ -6,7 +6,7 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgeConfigGitLab, GitLabInstance } from "../Config/Config";
+import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
 import { IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
@@ -70,6 +70,7 @@ type AllowedEventsNames =
     "merge_request.close" |
     "merge_request.merge" |
     "merge_request.review" |
+    "merge_request.review.individual" |
     "merge_request.ready_for_review" |
     "merge_request.review.comments" |
     `merge_request.${string}` |
@@ -86,6 +87,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.close",
     "merge_request.merge",
     "merge_request.review",
+    "merge_request.review.individual",
     "merge_request.ready_for_review",
     "merge_request.review.comments",
     "merge_request",
@@ -806,10 +808,26 @@ ${data.description}`;
         }
         log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
         this.validateMREvent(event);
-        if (event.object_attributes.action !== "approved" && event.object_attributes.action !== "unapproved") {
-            // Not interested.
+        this.debounceMergeRequestReview(
+            event.user,
+            event.object_attributes,
+            event.project,
+            {
+                commentCount: 0,
+                approved: "approved" === event.object_attributes.action,
+                skip: false,
+            }
+        );
+    }
+
+
+    public async onMergeRequestIndividualReview(event: IGitLabWebhookMREvent) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review.individual') || !this.matchesLabelFilter(event)) {
             return;
         }
+
+        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        this.validateMREvent(event);
         this.debounceMergeRequestReview(
             event.user,
             event.object_attributes,
