@@ -108,6 +108,7 @@ function shuffle<T>(array: T[]): T[] {
     return array;
 }
 
+const FEED_CONCURRENCY = 4;
 
 export class FeedReader {
     /**
@@ -189,7 +190,9 @@ export class FeedReader {
         log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
         void this.loadSeenEntries().then(() => {
-            return this.pollFeeds();
+            for (let workerIndex = 0; workerIndex < FEED_CONCURRENCY; workerIndex++) {
+                return this.pollFeeds(workerIndex);
+            }
         });
     }
 
@@ -365,8 +368,8 @@ export class FeedReader {
     /**
      * Start polling all the feeds. 
      */
-    public async pollFeeds(): Promise<void> {
-        log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds`);
+    public async pollFeeds(workerId: number): Promise<void> {
+        log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds (worker: ${workerId})`);
 
         const fetchingStarted = Date.now();
 
@@ -398,7 +401,7 @@ export class FeedReader {
             if (!this.shouldRun) {
                 return;
             }
-            void this.pollFeeds();
+            void this.pollFeeds(workerId);
         }, sleepFor);
     }
 
