@@ -1,0 +1,21 @@
+---
+{{- if not .Values.hookshot.existingConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "hookshot.configMapName" . }}
+  namespace: {{ template "hookshot.namespace" . }}
+  labels:
+    {{- include "hookshot.labels" . | nindent 4 }}
+{{- with .Values.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+data:
+  config.yml: |
+{{ toYaml .Values.hookshot.config | indent 4 }}
+  registration.yml: |
+{{ toYaml .Values.hookshot.registration | indent 4 }}
+  passkey.pem: |
+{{ .Values.hookshot.passkey | indent 4 }}
+{{- end }}

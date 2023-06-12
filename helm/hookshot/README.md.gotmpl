@@ -1,0 +1,74 @@
+{{ template "chart.header" . }}
+{{ template "chart.deprecationWarning" . }}
+{{ template "chart.badgesSection" . }}
+{{ template "chart.description" . }}
+
+Status: Beta
+
+## About
+
+This chart creates a basic Hookshot deployment inside Kubernetes.
+
+# Installation
+
+You'll need to have the Helm repository added to your local environment:
+
+``` bash
+helm repo add hookshot https://matrix-org.github.io/matrix-hookshot
+helm repo update
+```
+
+Which should allow you to see the Hookshot chart in the repo:
+
+``` bash
+helm search repo hookshot
+
+NAME                            CHART VERSION   APP VERSION     DESCRIPTION                
+matrix-org/hookshot             0.1.13          1.16.0          A Helm chart for Kubernetes
+```
+
+Before you can install, however, you'll need to make sure to configure Hookshot properly.
+
+# Configuration
+
+You'll need to create a `values.yaml` for your deployment of this chart. You can use the [included defaults](./values.yaml) as a starting point.
+
+## Helm Values
+
+To configure Hookshot-specific parameters, the value `.Values.hookshot.config` accepts an arbitrary YAML map as configuration. This gets templated into the container by [templates/configmap.yaml](./templates/configmap.yaml) - thus anything you can set in the [Example Configuration](https://matrix-org.github.io/matrix-hookshot/latest/setup/sample-configuration.html) can be set here.
+
+## Existing configuration
+
+If you have an existing configuration file for hookshot, you can create a configmap like so:
+
+``` bash
+kubectl create --namespace "your hookshot namespace" configmap hookshot-custom-config --from-file=config.yml --from-file=registration.yml --from-file=passkey.pem
+```
+
+Note that the filenames must remain as listed based on the templating done in [templates/configmap.yaml](./templates/configmap.yaml)
+
+Once created, you can set `.Values.hookshot.existingConfigMap` to `custom-hookshot-config` (or whichever name you chose for your secret) and set `.Values.hookshot.config` to `{}` or null to prevent confusion with the default parameters.
+
+# Installation
+
+Once you have your `values.yaml` file ready you can install the chart like this:
+
+``` bash
+helm install hookshot --create-namespace --namespace hookshot matrix-org/hookshot -f values.yaml
+```
+
+And upgrades can be done via:
+
+``` bash
+helm upgrade hookshot --namespace hookshot matrix-org/hookshot -f values.yaml
+```
+
+# External access
+
+You'll need to configure your Ingress connectivity according to your environment. This chart should be compatible with most Ingress controllers and has been tested successfully with [ingress-nginx](https://github.com/kubernetes/ingress-nginx) and EKS ALB. You should also ensure that you have a way to provision certificates i.e. [cert-manager](https://cert-manager.io/) as HTTPS is required for appservice traffic.
+
+{{ template "chart.maintainersSection" . }}
+{{ template "chart.sourcesSection" . }}
+{{ template "chart.requirementsSection" . }}
+{{ template "chart.valuesSection" . }}
+{{ template "helm-docs.versionFooter" . }}
