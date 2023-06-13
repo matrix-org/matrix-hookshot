@@ -188,7 +188,7 @@ export class FeedReader {
         log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
         void this.loadSeenEntries().then(() => {
-            Promise.all(new Array(config.pollConcurrency).map((_, i) => this.pollFeeds(i)))
+            Promise.all(Array.from({length: config.pollConcurrency}, (_, i) => this.pollFeeds(i)))
         });
     }
 
@@ -392,7 +392,10 @@ export class FeedReader {
             if (elapsed > this.sleepingInterval) {
                 log.warn(`It took us longer to update the feeds than the configured pool interval`);
             }
-        } // else, it may be possible that we have more workers than feeds. This will cause the worker to just sleep.
+        } else {
+            // It may be possible that we have more workers than feeds. This will cause the worker to just sleep.
+            log.debug(`No feeds available to poll for worker ${workerId}`);
+        }
 
         this.timeout = setTimeout(() => {
             if (!this.shouldRun) {
