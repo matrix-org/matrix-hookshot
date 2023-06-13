@@ -123,7 +123,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         enabled: false,
         pollIntervalSeconds: 600,
         pollTimeoutSeconds: 30,
-        feedConcurrency: 4,
+        pollConcurrency: 4,
     },
     provisioning: {
         secret: "!secretToken"
