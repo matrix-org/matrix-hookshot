@@ -239,7 +239,7 @@ export class BridgeConfigGitLab {
 export interface BridgeConfigFeedsYAML {
     enabled: boolean;
     pollIntervalSeconds?: number;
-    feedConcurrency?: number;
+    pollConcurrency?: number;
     pollTimeoutSeconds?: number;
 }
 
@@ -247,11 +247,11 @@ export class BridgeConfigFeeds {
     public enabled: boolean;
     public pollIntervalSeconds: number;
     public pollTimeoutSeconds: number;
-    public feedConcurrency: number;
+    public pollConcurrency: number;
 
     constructor(yaml: BridgeConfigFeedsYAML) {
         this.enabled = yaml.enabled;
-        this.feedConcurrency = yaml.feedConcurrency ?? 4;
+        this.pollConcurrency = yaml.pollConcurrency ?? 4;
         this.pollIntervalSeconds = yaml.pollIntervalSeconds ?? 600;
         assert.strictEqual(typeof this.pollIntervalSeconds, "number");
         this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 30;

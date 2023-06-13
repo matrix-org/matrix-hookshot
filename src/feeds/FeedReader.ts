@@ -108,8 +108,6 @@ function shuffle<T>(array: T[]): T[] {
     return array;
 }
 
-const FEED_CONCURRENCY = 4;
-
 export class FeedReader {
     /**
      * Read a feed URL and parse it into a set of items.
@@ -190,9 +188,7 @@ export class FeedReader {
         log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
         void this.loadSeenEntries().then(() => {
-            for (let workerIndex = 0; workerIndex < FEED_CONCURRENCY; workerIndex++) {
-                return this.pollFeeds(workerIndex);
-            }
+            Promise.all(new Array(config.pollConcurrency).map((_, i) => this.pollFeeds(i)))
         });
     }
 
