@@ -188,7 +188,9 @@ export class FeedReader {
         log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
         void this.loadSeenEntries().then(() => {
-            Promise.all(Array.from({length: config.pollConcurrency}, (_, i) => this.pollFeeds(i)))
+            for (let i = 0; i < config.pollConcurrency; i++) {
+                this.pollFeeds(i);
+            }
         });
     }
 
