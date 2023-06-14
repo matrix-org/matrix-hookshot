@@ -86,6 +86,7 @@ feeds:
   # (Optional) Configure this to enable RSS/Atom feed support
 
   enabled: false
+  pollConcurrency: 4
   pollIntervalSeconds: 600
   pollTimeoutSeconds: 30
 provisioning:
