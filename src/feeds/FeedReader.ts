@@ -189,7 +189,7 @@ export class FeedReader {
 
         void this.loadSeenEntries().then(() => {
             for (let i = 0; i < config.pollConcurrency; i++) {
-                this.pollFeeds(i);
+                void this.pollFeeds(i);
             }
         });
     }
