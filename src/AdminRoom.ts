@@ -175,7 +175,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
                 },
             };
         });
-        await this.sendNotice(`${newData.github?.notifications?.enabled ? "En" : "Dis"}abled GitHub notifcations`);
+        await this.sendNotice(`${newData.github?.notifications?.enabled ? "En" : "Dis"}abled GitHub notifications`);
     }
 
     @botCommand("github notifications filter participating", {help: "Toggle enabling/disabling GitHub notifications in this room", category: Category.Github})
