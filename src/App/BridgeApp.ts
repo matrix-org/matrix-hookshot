@@ -7,12 +7,15 @@ import { UserNotificationWatcher } from "../Notifications/UserNotificationWatche
 import { ListenerService } from "../ListenerService";
 import { Logger, getBridgeVersion } from "matrix-appservice-bridge";
 import { LogService } from "matrix-bot-sdk";
+import { initTracing as initRustSdkTracing } from "@matrix-org/matrix-sdk-crypto-nodejs"
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 import * as Sentry from '@sentry/node';
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
+
+initRustSdkTracing();
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";

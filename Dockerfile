@@ -16,6 +16,17 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 # See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
 RUN apt-get update && apt-get install -y build-essential cmake
 
+# --- FOR TRACING
+WORKDIR /src-sdk
+RUN git clone https://github.com/matrix-org/matrix-rust-sdk.git
+WORKDIR /src-sdk/matrix-rust-sdk/bindings/matrix-sdk-crypto-nodejs
+RUN git checkout matrix-sdk-crypto-nodejs-v0.1.0-beta.6
+RUN npm install --ignore-scripts
+# Workaround for "dbg" profile builds not quite working
+RUN sed -i 's/debug = 0/debug = 2/' ../../Cargo.toml
+RUN npm run build -- --features tracing
+RUN yarn link
+# ---
 WORKDIR /src
 
 COPY package.json yarn.lock ./
@@ -26,6 +37,9 @@ COPY . ./
 
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN node node_modules/esbuild/install.js
+# --- FOR TRACING
+RUN yarn link @matrix-org/matrix-sdk-crypto-nodejs
+# ---
 RUN yarn build
 
 
@@ -38,7 +52,15 @@ COPY --from=builder /src/yarn.lock /src/package.json ./
 COPY --from=builder /cache/yarn /cache/yarn
 RUN yarn config set yarn-offline-mirror /cache/yarn
 
-RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
+# --- FOR TRACING
+COPY --from=builder /src-sdk/matrix-rust-sdk/bindings/matrix-sdk-crypto-nodejs /opt/matrix-sdk-crypto-nodejs
+WORKDIR /opt/matrix-sdk-crypto-nodejs
+RUN yarn link
+WORKDIR /bin/matrix-hookshot
+RUN yarn link @matrix-org/matrix-sdk-crypto-nodejs
+# Ignore postinstall scripts to avoid downloading the non-debug version of the native Rust library
+RUN yarn --network-timeout 600000 --production --pure-lockfile --ignore-scripts && yarn cache clean
+# ---
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
@@ -48,4 +70,7 @@ VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
 
+# --- FOR TRACING
+ENV MATRIX_LOG=debug
+# ---
 CMD ["node", "/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
