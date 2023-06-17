@@ -81,7 +81,12 @@ fn parse_feed_to_js_result(feed: &Feed) -> JsRssChannel {
             .iter()
             .map(|item| FeedItem {
                 title: Some(item.title().value.clone()),
-                link: item.links().first().map(|f| f.href.clone()),
+                link: item
+                    .links()
+                    .iter()
+                    .find(|l| l.mime_type.as_ref().map_or(false, |t| t == "text/html"))
+                    .or_else(|| item.links().first())
+                    .map(|f| f.href.clone()),
                 id: Some(item.id.clone()),
                 // No equivalent
                 id_is_permalink: false,
