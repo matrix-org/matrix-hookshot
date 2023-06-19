@@ -1,4 +1,14 @@
- 4.2.0 (2023-06-05)
+4.3.0 (2023-06-19)
+==================
+
+Features
+--------
+
+- Added basic helm chart to repository with GitHub Actions / chart-releaser builds ([\#719](https://github.com/matrix-org/matrix-hookshot/issues/719))
+- Feeds are now polled concurrently (defaulting to 4 feeds at a time). ([\#779](https://github.com/matrix-org/matrix-hookshot/issues/779))
+
+
+4.2.0 (2023-06-05)
 ===================
 
 Features
