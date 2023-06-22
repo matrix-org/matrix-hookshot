@@ -15,4 +15,10 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     getFigmaCommentEventId(roomId: string, figmaCommentId: string): Promise<string|null>;
     getStoredTempFile(key: string): Promise<string|null>;
     setStoredTempFile(key: string, value: string): Promise<void>;
+    storeAllFeedGuids(data: {[url: string]: string[]}): Promise<void>;
+    getAllFeedGuids(urls: string[]): Promise<Record<string, string[]>>;
+    storeFeedGuid(url: string, ...guid: string[]): Promise<void>;
+    hasSeenFeed(url: string, ...guid: string[]): Promise<boolean>;
+    hasSeenFeedGuid(url: string, guid: string): Promise<boolean>;
+    
 }

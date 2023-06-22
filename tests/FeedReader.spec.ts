@@ -6,6 +6,7 @@ import { ConnectionManager } from "../src/ConnectionManager";
 import { IConnection } from "../src/Connections";
 import { FeedEntry, FeedReader } from "../src/feeds/FeedReader";
 import { MessageQueue, MessageQueueMessage } from "../src/MessageQueue";
+import { MemoryStorageProvider } from "../src/Stores/MemoryStorageProvider";
 
 class MockConnectionManager extends EventEmitter {
     constructor(
@@ -57,6 +58,7 @@ function constructFeedReader(feedResponse: () => {headers: Record<string,string>
     const mq = new MockMessageQueue();
     const feedReader = new FeedReader(
         config, cm, mq,
+        new MemoryStorageProvider(),
         {
             getAccountData: <T>() => Promise.resolve({ [FEED_URL]: [] } as unknown as T),
             setAccountData: () => Promise.resolve(),

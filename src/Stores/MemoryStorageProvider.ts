@@ -15,6 +15,24 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     constructor() {
         super();
     }
+
+    storeAllFeedGuids(data: { [url: string]: string[]; }): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    storeFeedGuid(url: string, string: string): Promise<void> {
+        throw new Error("Method not implemented.");
+    }
+    hasSeenFeed(url: string): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+    hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
+        throw new Error("Method not implemented.");
+    }
+
+    getAllFeedGuids(urls: string[]): Promise<Record<string, string[]>> {
+        throw new Error("Method not implemented.");
+    }
+
     public async setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope = "") {
         this.issues.set(`${scope}${repo}/${issueNumber}`, data);
     }

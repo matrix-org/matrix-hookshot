@@ -4,18 +4,16 @@ import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageQueue } from "../MessageQueue";
-
 import Ajv from "ajv";
 import axios, { AxiosResponse } from "axios";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
-import { FormatUtil } from "../FormatUtil";
 import { JsRssChannel, parseFeed } from "../libRs";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 
 const log = new Logger("FeedReader");
-
 export class FeedError extends Error {
     constructor(
         public url: string,
@@ -136,7 +134,7 @@ export class FeedReader {
             throw Error('Unexpected response type');
         }
         const feed = parseFeed(response.data);
-        return { response, feed };
+        return { response, feed };  
     }
 
     private connections: FeedConnection[];
@@ -145,7 +143,6 @@ export class FeedReader {
 
     private feedQueue: string[] = [];
 
-    private seenEntries: Map<string, string[]> = new Map();
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
 
@@ -156,7 +153,8 @@ export class FeedReader {
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
     private shouldRun = true;
-    private timeout?: NodeJS.Timeout;
+    private readonly timeouts: NodeJS.Timeout[] = [];
+    private readonly accountDataPeriodicSave: NodeJS.Timer;
 
     get sleepingInterval() {
         return (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1);
@@ -166,6 +164,7 @@ export class FeedReader {
         private readonly config: BridgeConfigFeeds,
         private readonly connectionManager: ConnectionManager,
         private readonly queue: MessageQueue,
+        private readonly storage: IBridgeStorageProvider,
         private readonly accountDataStore: AccountDataStore,
         private readonly httpClient = axios,
     ) {
@@ -192,11 +191,16 @@ export class FeedReader {
                 void this.pollFeeds(i);
             }
         });
+        this.accountDataPeriodicSave = setInterval(() => {
+            void this.saveSeenEntries();
+        }, 300*1000);
     }
 
     public stop() {
-        clearTimeout(this.timeout);
         this.shouldRun = false;
+        this.timeouts.forEach(t => clearTimeout(t));
+        clearInterval(this.accountDataPeriodicSave);
+        this.saveSeenEntries();
     }
 
     private calculateFeedUrls(): void {
@@ -229,9 +233,7 @@ export class FeedReader {
                 const errors = validateAccountData.errors?.map(e => `${e.instancePath} ${e.message}`) || ['No error reported'];
                 throw new Error(`Invalid account data: ${errors.join(', ')}`);
             }
-            for (const url in accountData) {
-                this.seenEntries.set(url, accountData[url]);
-            }
+            await this.storage.storeAllFeedGuids(accountData);
         } catch (err: unknown) {
             log.error(`Failed to load seen feed entries from accountData: ${err}. This may result in skipped entries`);
             // no need to wipe it manually, next saveSeenEntries() will make it right
@@ -239,10 +241,8 @@ export class FeedReader {
     }
 
     private async saveSeenEntries(): Promise<void> {
-        const accountData: AccountData = {};
-        for (const [url, guids] of this.seenEntries.entries()) {
-            accountData[url.toString()] = guids;
-        }
+        log.debug(`Saving seen entries`);
+        const accountData: AccountData = await this.storage.getAllFeedGuids([...this.observedFeedUrls]);
         await this.accountDataStore.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
@@ -279,16 +279,12 @@ export class FeedReader {
             }
 
             let initialSync = false;
-            let seenGuids = this.seenEntries.get(url);
-            if (!seenGuids) {
+            if (!await this.storage.hasSeenFeed(url)) {
                 initialSync = true;
-                seenGuids = [];
                 seenEntriesChanged = true; // to ensure we only treat it as an initialSync once
             }
 
             // migrate legacy, cleartext guids to their md5-hashed counterparts
-            seenGuids = seenGuids.map(guid => guid.startsWith('md5:') ? guid : this.hashGuid(guid));
-            const seenGuidsSet = new Set(seenGuids);
             const newGuids = [];
             log.debug(`Found ${feed.items.length} entries in ${url}`);
 
@@ -306,7 +302,7 @@ export class FeedReader {
                     log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
                     continue;
                 }
-                if (seenGuidsSet.has(hashId)) {
+                if (await this.storage.hasSeenFeedGuid(url, hashId)) {
                     log.debug('Skipping already seen entry', item.id ?? hashId);
                     continue;
                 }
@@ -330,14 +326,7 @@ export class FeedReader {
             }
 
             if (seenEntriesChanged) {
-                // Some RSS feeds can return a very small number of items then bounce
-                // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
-                // forget what we sent and resend it. Instead, we'll keep 2x the max number of items that we've ever
-                // seen from this feed, up to a max of 10,000.
-                // Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
-                const maxGuids = Math.min(Math.max(2 * newGuids.length, seenGuids.length), 10_000);
-                const newSeenItems = Array.from(new Set([ ...newGuids, ...seenGuids ]).values()).slice(0, maxGuids);
-                this.seenEntries.set(url, newSeenItems);
+                await this.storage.storeFeedGuid(url, ...newGuids);
             }
             this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url: url } });
             // Clear any feed failures
@@ -383,7 +372,7 @@ export class FeedReader {
 
         if (url) {
             if (await this.pollFeed(url)) {
-                await this.saveSeenEntries();
+                log.debug(`Feed changed and will be saved`);
             }
             const elapsed = Date.now() - fetchingStarted;
             Metrics.feedFetchMs.set(elapsed);
@@ -399,15 +388,11 @@ export class FeedReader {
             log.debug(`No feeds available to poll for worker ${workerId}`);
         }
 
-        this.timeout = setTimeout(() => {
+        this.timeouts[workerId] = setTimeout(() => {
             if (!this.shouldRun) {
                 return;
             }
             void this.pollFeeds(workerId);
         }, sleepFor);
-    }
-
-    private hashGuid(guid: string): string {
-        return `md5:${FormatUtil.hashId(guid)}`;
     }
 }
