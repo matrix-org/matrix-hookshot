@@ -14,7 +14,7 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 
 # Needed to build rust things for matrix-sdk-crypto-nodejs
 # See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
+RUN apt-get update && apt-get install -y build-essential cmake valgrind
 
 # --- FOR TRACING
 WORKDIR /src-sdk
@@ -73,4 +73,4 @@ EXPOSE 7775
 # --- FOR TRACING
 ENV MATRIX_LOG=debug
 # ---
-CMD ["node", "/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
+CMD ["bash", "-c", "exec valgrind --tool=massif --massif-out-file=/storage/massif.out.$(date +%F_%H:%M:%S) node /bin/matrix-hookshot/App/BridgeApp.js /data/config.yml /data/registration.yml"]
