@@ -14,7 +14,7 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 
 # Needed to build rust things for matrix-sdk-crypto-nodejs
 # See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake valgrind
+RUN apt-get update && apt-get install -y build-essential cmake
 
 # --- FOR TRACING
 WORKDIR /src-sdk
@@ -45,6 +45,10 @@ RUN yarn build
 
 # Stage 1: The actual container
 FROM node:18
+
+# --- FOR PROFILING
+RUN apt-get update && apt-get install -y valgrind
+# ---
 
 WORKDIR /bin/matrix-hookshot
 
