@@ -1,6 +1,6 @@
 import { rm } from "fs/promises";
 
-import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
+import { BridgeConfig, parseRegistrationFile } from "../config/Config";
 import { Logger } from "matrix-appservice-bridge";
 import { LogService, MatrixClient } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";

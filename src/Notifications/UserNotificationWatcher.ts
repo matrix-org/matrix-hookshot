@@ -4,9 +4,9 @@ import { createMessageQueue, MessageQueue, MessageQueueMessage } from "../Messag
 import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";
-import { GitHubUserNotification } from "../Github/Types";
+import { GitHubUserNotification } from "../github/Types";
 import { GitLabWatcher } from "./GitLabWatcher";
-import { BridgeConfig, BridgePermissionLevel } from "../Config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
 import Metrics from "../Metrics";
 export interface UserNotificationsEvent {
     roomId: string;

@@ -13,22 +13,22 @@ import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestO
 import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
-import { NAMELESS_ORG_PLACEHOLDER, ReposGetResponseData } from "../Github/Types";
+import { NAMELESS_ORG_PLACEHOLDER, ReposGetResponseData } from "../github/Types";
 import { UserTokenStore } from "../UserTokenStore";
 import axios, { AxiosError } from "axios";
 import emoji from "node-emoji";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
-import { GithubInstance } from "../Github/GithubInstance";
+import { GithubInstance } from "../github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
-import { BridgeConfigGitHub } from "../Config/Config";
+import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
 import { GitHubRepoMessageBody, MinimalGitHubIssue } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
-import { GitHubGrantChecker } from "../Github/GrantChecker";
+import { GitHubGrantChecker } from "../github/GrantChecker";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -907,12 +907,12 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
     }
 
     public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
-        if (this.hookFilter.shouldSkip('issue.comment.created', 'issue.comment', 'issue') || !this.matchesLabelFilter(event.issue)) {
+        if (this.hookFilter.shouldSkip('issue.comment.created', 'issue.comment') || !this.matchesLabelFilter(event.issue)) {
             return;
         }
     
         let message = `**${event.comment.user.login}** [commented](${event.issue.html_url}) on [${event.repository.full_name}#${event.issue.number}](${event.issue.html_url})  `;
-        message += "\n > " + event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) + (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
+        message += "\n> " + event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) + (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
 
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",

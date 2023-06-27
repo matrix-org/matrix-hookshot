@@ -86,6 +86,7 @@ feeds:
   # (Optional) Configure this to enable RSS/Atom feed support
 
   enabled: false
+  pollConcurrency: 4
   pollIntervalSeconds: 600
   pollTimeoutSeconds: 30
 provisioning:
@@ -107,7 +108,7 @@ serviceBots:
 
   - localpart: feeds
     displayname: Feeds
-    avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+    avatar: ./assets/feeds_avatar.png
     prefix: "!feeds"
     service: feeds
 metrics:
@@ -157,6 +158,11 @@ widgets:
   publicUrl: https://example.com/widgetapi/v1/static/
   branding:
     widgetTitle: Hookshot Configuration
+sentry:
+  # (Optional) Configure Sentry error reporting
+
+  dsn: https://examplePublicKey@o0.ingest.sentry.io/0
+  environment: production
 permissions:
   # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
 

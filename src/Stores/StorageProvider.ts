@@ -1,7 +1,7 @@
 import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
-import { IssuesGetResponseData } from "../Github/Types";
 import { SerializedGitlabDiscussionThreads } from "../Connections";
+import { IssuesGetResponseData } from "../github/Types";
 
 export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
     connect?(): Promise<void>;

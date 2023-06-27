@@ -1,10 +1,10 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { ProjectsGetResponseData } from "../Github/Types";
+import { ProjectsGetResponseData } from "../github/Types";
 import { BaseConnection } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 
 export interface GitHubProjectConnectionState {
     // eslint-disable-next-line camelcase

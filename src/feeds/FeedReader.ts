@@ -1,5 +1,5 @@
 import { MatrixError } from "matrix-bot-sdk";
-import { BridgeConfigFeeds } from "../Config/Config";
+import { BridgeConfigFeeds } from "../config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
@@ -108,7 +108,6 @@ function shuffle<T>(array: T[]): T[] {
     return array;
 }
 
-
 export class FeedReader {
     /**
      * Read a feed URL and parse it into a set of items.
@@ -189,7 +188,9 @@ export class FeedReader {
         log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
         void this.loadSeenEntries().then(() => {
-            return this.pollFeeds();
+            for (let i = 0; i < config.pollConcurrency; i++) {
+                void this.pollFeeds(i);
+            }
         });
     }
 
@@ -365,40 +366,44 @@ export class FeedReader {
     /**
      * Start polling all the feeds. 
      */
-    public async pollFeeds(): Promise<void> {
-        log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds`);
+    public async pollFeeds(workerId: number): Promise<void> {
 
-        const fetchingStarted = Date.now();
-
-        const [ url ] = this.feedQueue.splice(0, 1);
-
-        if (url) {
-            if (await this.pollFeed(url)) {
-                await this.saveSeenEntries();
-            }
-        }
-
+        // Update on each iteration
         Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
         Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
         Metrics.feedsFailingDeprecated.set({ reason: "http" }, this.feedsFailingHttp.size );
         Metrics.feedsFailingDeprecated.set({ reason: "parsing" }, this.feedsFailingParsing.size);
 
-        const elapsed = Date.now() - fetchingStarted;
-        Metrics.feedFetchMs.set(elapsed);
-        Metrics.feedsFetchMsDeprecated.set(elapsed);
+        log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds (worker: ${workerId})`);
 
-        const sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
-        log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
+        const fetchingStarted = Date.now();
 
-        if (elapsed > this.sleepingInterval) {
-            log.warn(`It took us longer to update the feeds than the configured pool interval`);
+        const [ url ] = this.feedQueue.splice(0, 1);
+        let sleepFor = this.sleepingInterval;
+
+        if (url) {
+            if (await this.pollFeed(url)) {
+                await this.saveSeenEntries();
+            }
+            const elapsed = Date.now() - fetchingStarted;
+            Metrics.feedFetchMs.set(elapsed);
+            Metrics.feedsFetchMsDeprecated.set(elapsed);
+            sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
+            log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
+    
+            if (elapsed > this.sleepingInterval) {
+                log.warn(`It took us longer to update the feeds than the configured pool interval`);
+            }
+        } else {
+            // It may be possible that we have more workers than feeds. This will cause the worker to just sleep.
+            log.debug(`No feeds available to poll for worker ${workerId}`);
         }
 
         this.timeout = setTimeout(() => {
             if (!this.shouldRun) {
                 return;
             }
-            void this.pollFeeds();
+            void this.pollFeeds(workerId);
         }, sleepFor);
     }
 

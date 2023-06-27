@@ -1,8 +1,8 @@
-pub mod Config;
-pub mod Github;
-pub mod Jira;
+pub mod config;
 pub mod feeds;
 pub mod format_util;
+pub mod github;
+pub mod jira;
 
 #[macro_use]
 extern crate napi_derive;

@@ -1,6 +1,6 @@
 import { expect } from "chai";
-import { BridgeConfig } from "../../src/Config/Config";
-import { DefaultConfigRoot } from "../../src/Config/Defaults";
+import { BridgeConfig } from "../../src/config/Config";
+import { DefaultConfigRoot } from "../../src/config/Defaults";
 import { FormatUtil } from "../../src/FormatUtil";
 import { ConfigGrantChecker, GrantChecker, GrantRejectedError } from '../../src/grants/GrantCheck';
 import { AppserviceMock } from "../utils/AppserviceMock";

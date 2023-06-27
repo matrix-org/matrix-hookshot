@@ -7,8 +7,11 @@ import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
+import { sanitizeHtml } from "../libRs";
 const log = new Logger("FeedConnection");
-const md = new markdown();
+const md = new markdown({
+    html: true,
+});
 
 export interface LastResultOk {
     timestamp: number;
@@ -182,6 +185,15 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
+        // We will need to tidy this up.
+        if (this.state.template?.match(/\$SUMMARY\b/) && entry.summary) {
+            // This might be massive and cause us to fail to send the message
+            // so confine to a maximum size.
+            if (entry.summary.length > MAX_SUMMARY_LENGTH) {
+                entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
+            }
+            entry.summary = sanitizeHtml(entry.summary);
+        }
 
         let message;
         if (this.state.template) {
@@ -192,12 +204,6 @@ export class FeedConnection extends BaseConnection implements IConnection {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_ONLY_TITLE, entry);
         } else {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
-        }
-
-        // This might be massive and cause us to fail to send the message
-        // so confine to a maximum size.
-        if (entry.summary?.length ?? 0 > MAX_SUMMARY_LENGTH) {
-            entry.summary = entry.summary?.substring(0, MAX_SUMMARY_LENGTH) + "…" ?? null;
         }
 
         await this.intent.sendEvent(this.roomId, {

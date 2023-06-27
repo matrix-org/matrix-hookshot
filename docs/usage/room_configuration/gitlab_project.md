@@ -48,6 +48,7 @@ the events marked as default below will be enabled. Otherwise, this is ignored.
   - merge_request.open *
   - merge_request.review.comments *
   - merge_request.review *
+  - merge_request.review.individual
 - push *
 - release *
   - release.created *

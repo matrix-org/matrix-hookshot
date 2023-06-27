@@ -1,7 +1,10 @@
+import { promises as fs } from "fs";
+import axios from "axios";
+import mime from "mime";
 import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 
 const log = new Logger("BotUsersManager");
 
@@ -84,21 +87,121 @@ export default class BotUsersManager {
             log.debug(`Ensuring bot user ${botUser.userId} is registered`);
             await botUser.intent.ensureRegistered();
 
-            // Set up the bot profile
-            let profile;
+            await this.ensureProfile(botUser);
+        }
+    }
+
+    /**
+     * Ensures the bot user profile display name and avatar image are updated.
+     *
+     * @returns Promise resolving when the user profile has been ensured.
+     */
+    private async ensureProfile(botUser: BotUser): Promise<void> {
+        log.debug(`Ensuring profile for ${botUser.userId} is updated`);
+
+        let profile: {
+            avatar_url?: string,
+            displayname?: string,
+        };
+        try {
+            profile = await botUser.intent.underlyingClient.getUserProfile(botUser.userId);
+        } catch (e) {
+            log.error(`Failed to get user profile for ${botUser.userId}:`, e);
+            profile = {};
+        }
+
+        // Update display name if necessary
+        if (botUser.displayname && profile.displayname !== botUser.displayname) {
             try {
-                profile = await botUser.intent.underlyingClient.getUserProfile(botUser.userId);
-            } catch {
-                profile = {}
-            }
-            if (botUser.avatar && profile.avatar_url !== botUser.avatar) {
-                log.info(`Setting avatar for "${botUser.userId}" to ${botUser.avatar}`);
-                await botUser.intent.underlyingClient.setAvatarUrl(botUser.avatar);
-            }
-            if (botUser.displayname && profile.displayname !== botUser.displayname) {
-                log.info(`Setting displayname for "${botUser.userId}" to ${botUser.displayname}`);
                 await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
+                log.info(`Updated displayname for "${botUser.userId}" to ${botUser.displayname}`);
+            } catch (e) {
+                log.error(`Failed to set displayname for ${botUser.userId}:`, e);
             }
+        }
+
+        if (!botUser.avatar) {
+            // Unset any avatar
+            if (profile.avatar_url) {
+                await botUser.intent.underlyingClient.setAvatarUrl('');
+                log.info(`Removed avatar for "${botUser.userId}"`);
+            }
+
+            return;
+        }
+
+        if (botUser.avatar.startsWith("mxc://")) {
+            // Configured avatar is a Matrix content URL
+            if (profile.avatar_url === botUser.avatar) {
+                // Avatar is current, no need to update
+                log.debug(`Avatar for ${botUser.userId} is already updated`);
+                return;
+            }
+
+            try {
+                await botUser.intent.underlyingClient.setAvatarUrl(botUser.avatar);
+                log.info(`Updated avatar for ${botUser.userId} to ${botUser.avatar}`);
+            } catch (e) {
+                log.error(`Failed to set avatar for ${botUser.userId}:`, e);
+            }
+
+            return;
+        }
+
+        // Otherwise assume configured avatar is a file path
+        let avatarImage: {
+            image: Buffer,
+            contentType: string,
+        };
+        try {
+            const contentType = mime.getType(botUser.avatar);
+            if (!contentType) {
+                throw new Error("Could not determine content type");
+            }
+            // File path
+            avatarImage = {
+                image: await fs.readFile(botUser.avatar),
+                contentType,
+            };
+        } catch (e) {
+            log.error(`Failed to load avatar at ${botUser.avatar}:`, e);
+            return;
+        }
+
+        // Determine if an avatar update is needed
+        if (profile.avatar_url) {
+            try {
+                const res = await axios.get(
+                    botUser.intent.underlyingClient.mxcToHttp(profile.avatar_url),
+                    { responseType: "arraybuffer" },
+                );
+                const currentAvatarImage = {
+                    image: Buffer.from(res.data),
+                    contentType: res.headers["content-type"],
+                };
+                if (
+                    currentAvatarImage.image.equals(avatarImage.image)
+                    && currentAvatarImage.contentType === avatarImage.contentType
+                ) {
+                    // Avatar is current, no need to update
+                    log.debug(`Avatar for ${botUser.userId} is already updated`);
+                    return;
+                }
+            } catch (e) {
+                log.error(`Failed to get current avatar image for ${botUser.userId}:`, e);
+            }
+        }
+
+        // Update the avatar
+        try {
+            const uploadedAvatarMxcUrl = await botUser.intent.underlyingClient.uploadContent(
+                avatarImage.image,
+                avatarImage.contentType,
+            );
+            await botUser.intent.underlyingClient.setAvatarUrl(uploadedAvatarMxcUrl);
+            log.info(`Updated avatar for ${botUser.userId} to ${uploadedAvatarMxcUrl}`);
+        } catch (e) {
+            log.error(`Failed to set avatar for ${botUser.userId}:`, e);
         }
     }
 
