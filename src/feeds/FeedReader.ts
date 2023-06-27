@@ -1,10 +1,8 @@
-import { MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigFeeds } from "../config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageQueue } from "../MessageQueue";
-import Ajv from "ajv";
 import axios, { AxiosResponse } from "axios";
 import Metrics from "../Metrics";
 import UserAgent from "../UserAgent";
@@ -61,28 +59,6 @@ export interface FeedEntry {
 export interface FeedSuccess {
     url: string,
 }
-
-interface AccountData {
-    [url: string]: string[],
-}
-
-interface AccountDataStore {
-    getAccountData<T>(type: string): Promise<T>;
-    setAccountData<T>(type: string, data: T): Promise<void>;
-}
-
-const accountDataSchema = {
-    type: 'object',
-    patternProperties: {
-        "https?://.+": {
-            type: 'array',
-            items: { type: 'string' },
-        }
-    },
-    additionalProperties: false,
-};
-const ajv = new Ajv();
-const validateAccountData = ajv.compile<AccountData>(accountDataSchema);
 
 function isNonEmptyString(input: unknown): input is string {
     return Boolean(input) && typeof input === 'string';
@@ -154,7 +130,6 @@ export class FeedReader {
 
     private shouldRun = true;
     private readonly timeouts: NodeJS.Timeout[] = [];
-    private readonly accountDataPeriodicSave: NodeJS.Timer;
 
     get sleepingInterval() {
         return (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1);
@@ -165,7 +140,6 @@ export class FeedReader {
         private readonly connectionManager: ConnectionManager,
         private readonly queue: MessageQueue,
         private readonly storage: IBridgeStorageProvider,
-        private readonly accountDataStore: AccountDataStore,
         private readonly httpClient = axios,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
@@ -186,21 +160,14 @@ export class FeedReader {
 
         log.debug('Loaded feed URLs:', this.observedFeedUrls);
 
-        void this.loadSeenEntries().then(() => {
-            for (let i = 0; i < config.pollConcurrency; i++) {
-                void this.pollFeeds(i);
-            }
-        });
-        this.accountDataPeriodicSave = setInterval(() => {
-            void this.saveSeenEntries();
-        }, 300*1000);
+        for (let i = 0; i < config.pollConcurrency; i++) {
+            void this.pollFeeds(i);
+        }
     }
 
     public stop() {
         this.shouldRun = false;
         this.timeouts.forEach(t => clearTimeout(t));
-        clearInterval(this.accountDataPeriodicSave);
-        this.saveSeenEntries();
     }
 
     private calculateFeedUrls(): void {
@@ -218,32 +185,6 @@ export class FeedReader {
 
         Metrics.feedsCount.set(this.observedFeedUrls.size);
         Metrics.feedsCountDeprecated.set(this.observedFeedUrls.size);
-    }
-
-    private async loadSeenEntries(): Promise<void> {
-        try {
-            const accountData = await this.accountDataStore.getAccountData<AccountData>(FeedReader.seenEntriesEventType).catch((err: MatrixError|unknown) => {
-                if (err instanceof MatrixError && err.statusCode === 404) {
-                    return {} as AccountData;
-                } else {
-                    throw err;
-                }
-            });
-            if (!validateAccountData(accountData)) {
-                const errors = validateAccountData.errors?.map(e => `${e.instancePath} ${e.message}`) || ['No error reported'];
-                throw new Error(`Invalid account data: ${errors.join(', ')}`);
-            }
-            await this.storage.storeAllFeedGuids(accountData);
-        } catch (err: unknown) {
-            log.error(`Failed to load seen feed entries from accountData: ${err}. This may result in skipped entries`);
-            // no need to wipe it manually, next saveSeenEntries() will make it right
-        }
-    }
-
-    private async saveSeenEntries(): Promise<void> {
-        log.debug(`Saving seen entries`);
-        const accountData: AccountData = await this.storage.getAllFeedGuids([...this.observedFeedUrls]);
-        await this.accountDataStore.setAccountData(FeedReader.seenEntriesEventType, accountData);
     }
 
     /**

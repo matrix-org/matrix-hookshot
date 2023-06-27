@@ -11,26 +11,27 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private figmaCommentIds: Map<string, string> = new Map();
     private widgetSessions: Map<string, ProvisionSession> = new Map();
     private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
+    private feedGuids = new Map<string, Set<string>>();
 
     constructor() {
         super();
     }
 
-    storeAllFeedGuids(data: { [url: string]: string[]; }): Promise<void> {
-        throw new Error("Method not implemented.");
-    }
-    storeFeedGuid(url: string, string: string): Promise<void> {
-        throw new Error("Method not implemented.");
-    }
-    hasSeenFeed(url: string): Promise<boolean> {
-        throw new Error("Method not implemented.");
-    }
-    hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
-        throw new Error("Method not implemented.");
+    async storeFeedGuid(url: string, guid: string): Promise<void> {
+        let set = this.feedGuids.get(url);
+        if (!set) {
+            set = new Set<string>();
+            this.feedGuids.set(url, set);
+        }
+        set.add(guid);
     }
 
-    getAllFeedGuids(urls: string[]): Promise<Record<string, string[]>> {
-        throw new Error("Method not implemented.");
+    async hasSeenFeed(url: string): Promise<boolean> {
+        return this.feedGuids.has(url);
+    }
+
+    async hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
+        return this.feedGuids.get(url)?.has(guid) ?? false;
     }
 
     public async setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope = "") {
