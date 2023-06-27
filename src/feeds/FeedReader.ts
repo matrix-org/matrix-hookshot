@@ -3,13 +3,13 @@ import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageQueue } from "../MessageQueue";
-import axios, { AxiosResponse } from "axios";
+import axios from "axios";
 import Metrics from "../Metrics";
-import UserAgent from "../UserAgent";
 import { randomUUID } from "crypto";
 import { StatusCodes } from "http-status-codes";
-import { JsRssChannel, parseFeed } from "../libRs";
+import { readFeed } from "../libRs";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import UserAgent from "../UserAgent";
 
 const log = new Logger("FeedReader");
 export class FeedError extends Error {
@@ -83,35 +83,6 @@ function shuffle<T>(array: T[]): T[] {
 }
 
 export class FeedReader {
-    /**
-     * Read a feed URL and parse it into a set of items.
-     * @param url The feed URL.
-     * @param headers Any headers to provide.
-     * @param timeoutMs How long to wait for the response, in milliseconds.
-     * @param parser The parser instance. If not provided, this creates a new parser.
-     * @returns The raw axios response, and the parsed feed.
-     */
-    public static async fetchFeed(
-        url: string,
-        headers: Record<string, string>,
-        timeoutMs: number,
-        httpClient = axios,
-    ): Promise<{ response: AxiosResponse, feed: JsRssChannel }> {
-        const response = await httpClient.get(url, {
-            headers: {
-                'User-Agent': UserAgent,
-                ...headers,
-            },
-            // We don't want to wait forever for the feed.
-            timeout: timeoutMs,
-        });
-        
-        if (typeof response.data !== "string") {
-            throw Error('Unexpected response type');
-        }
-        const feed = parseFeed(response.data);
-        return { response, feed };  
-    }
 
     private connections: FeedConnection[];
     // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
@@ -201,84 +172,88 @@ export class FeedReader {
         const { etag, lastModified } = this.cacheTimes.get(url) || {};
         log.debug(`Checking for updates in ${url} (${etag ?? lastModified})`);
         try {
-            const { response, feed } = await FeedReader.fetchFeed(
-                url,
-                {
-                    ...(lastModified && { 'If-Modified-Since': lastModified}),
-                    ...(etag && { 'If-None-Match': etag}),
-                },
-                // We don't want to wait forever for the feed.
-                this.config.pollTimeoutSeconds * 1000,
-                this.httpClient,
-            );
-
-            // Store any entity tags/cache times.
-            if (response.headers.ETag) {
-                this.cacheTimes.set(url, { etag: response.headers.ETag});
-            } else if (response.headers['Last-Modified']) {
-                this.cacheTimes.set(url, { lastModified: response.headers['Last-Modified'] });
+            let result;
+            try {
+                result = await readFeed(url, {
+                    pollTimeoutSeconds: this.config.pollTimeoutSeconds,
+                    etag,
+                    lastModified,
+                    // TODO: Make this static in Rust somehow.
+                    userAgent: UserAgent,
+                });
+            } catch (ex) {
+                this.feedsFailingHttp.add(url);
+                throw ex;
             }
 
+            // Store any entity tags/cache times.
+            if (result.etag) {
+                this.cacheTimes.set(url, { etag: result.etag });
+            } else if (result.lastModified) {
+                this.cacheTimes.set(url, { lastModified: result.lastModified });
+            }
+
+            const { feed } = result;
             let initialSync = false;
             if (!await this.storage.hasSeenFeed(url)) {
                 initialSync = true;
                 seenEntriesChanged = true; // to ensure we only treat it as an initialSync once
             }
 
-            // migrate legacy, cleartext guids to their md5-hashed counterparts
             const newGuids = [];
-            log.debug(`Found ${feed.items.length} entries in ${url}`);
+            if (feed) {
+                // If undefined, we got a not-modified.
+                log.debug(`Found ${feed.items.length} entries in ${url}`);
 
-            for (const item of feed.items) {
-                // Find the first guid-like that looks like a string.
-                // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
-                if (!item.hashId) {
-                    log.error(`Could not determine guid for entry in ${url}, skipping`);
-                    continue;
+                for (const item of feed.items) {
+                    // Find the first guid-like that looks like a string.
+                    // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
+                    if (!item.hashId) {
+                        log.error(`Could not determine guid for entry in ${url}, skipping`);
+                        continue;
+                    }
+                    const hashId = `md5:${item.hashId}`;
+                    newGuids.push(hashId);
+    
+                    if (initialSync) {
+                        log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
+                        continue;
+                    }
+                    if (await this.storage.hasSeenFeedGuid(url, hashId)) {
+                        log.debug('Skipping already seen entry', item.id ?? hashId);
+                        continue;
+                    }
+                    const entry = {
+                        feed: {
+                            title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
+                            url: url,
+                        },
+                        title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
+                        pubdate: item.pubdate ?? null,
+                        summary: item.summary ?? null,
+                        author: item.author ?? null,
+                        link: item.link ?? null,
+                        fetchKey
+                    };
+    
+                    log.debug('New entry:', entry);
+                    seenEntriesChanged = true;
+    
+                    this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: entry });
                 }
-                const hashId = `md5:${item.hashId}`;
-                newGuids.push(hashId);
-
-                if (initialSync) {
-                    log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
-                    continue;
+    
+                if (seenEntriesChanged) {
+                    await this.storage.storeFeedGuid(url, ...newGuids);
                 }
-                if (await this.storage.hasSeenFeedGuid(url, hashId)) {
-                    log.debug('Skipping already seen entry', item.id ?? hashId);
-                    continue;
-                }
-                const entry = {
-                    feed: {
-                        title: isNonEmptyString(feed.title) ? stripHtml(feed.title) : null,
-                        url: url,
-                    },
-                    title: isNonEmptyString(item.title) ? stripHtml(item.title) : null,
-                    pubdate: item.pubdate ?? null,
-                    summary: item.summary ?? null,
-                    author: item.author ?? null,
-                    link: item.link ?? null,
-                    fetchKey
-                };
-
-                log.debug('New entry:', entry);
-                seenEntriesChanged = true;
-
-                this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: entry });
+    
             }
-
-            if (seenEntriesChanged) {
-                await this.storage.storeFeedGuid(url, ...newGuids);
-            }
-            this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url: url } });
+            this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url } });
             // Clear any feed failures
             this.feedsFailingHttp.delete(url);
             this.feedsFailingParsing.delete(url);
         } catch (err: unknown) {
-            if (axios.isAxiosError(err)) {
-                // No new feed items, skip.
-                if (err.response?.status === StatusCodes.NOT_MODIFIED) {
-                    return false;
-                }
+            // TODO: Proper Rust Type error.
+            if ((err as Error).message.includes('Failed to fetch feed due to HTTP')) {
                 this.feedsFailingHttp.add(url);
             } else {
                 this.feedsFailingParsing.add(url);

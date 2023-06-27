@@ -1,7 +1,8 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
 
 use atom_syndication::{Error as AtomError, Feed, Person};
 use napi::bindgen_prelude::{Error as JsError, Status};
+use reqwest::{Method, header::{HeaderMap, HeaderValue}, StatusCode};
 use rss::{Channel, Error as RssError};
 
 use crate::format_util::hash_id;
@@ -24,6 +25,23 @@ pub struct FeedItem {
 pub struct JsRssChannel {
     pub title: String,
     pub items: Vec<FeedItem>,
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+#[napi(object)]
+pub struct ReadFeedOptions {
+    pub last_modified: Option<String>,
+    pub etag: Option<String>,
+    pub poll_timeout_seconds: i64,
+    pub user_agent: String,
+}
+
+#[derive(Serialize, Debug, Deserialize)]
+#[napi(object)]
+pub struct FeedResult {
+    pub feed: Option<JsRssChannel>,
+    pub etag: Option<String>,
+    pub last_modified: Option<String>,
 }
 
 fn parse_channel_to_js_result(channel: &Channel) -> JsRssChannel {
@@ -143,5 +161,75 @@ pub fn js_parse_feed(xml: String) -> Result<JsRssChannel, JsError> {
             format!("XML parsing error. {}", err),
         )),
         Err(RssError::Eof) => Err(JsError::new(Status::Unknown, "Unexpected end of input")),
+    }
+}
+
+
+
+#[napi(js_name = "readFeed")]
+pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedResult, JsError> {
+    let client = reqwest::Client::new();
+    let req = client.request(Method::GET, url).timeout(Duration::from_secs(options.poll_timeout_seconds.try_into().unwrap()));
+
+    let mut headers: HeaderMap = HeaderMap::new();
+
+    headers.append("User-Agent", HeaderValue::from_str(&options.user_agent).unwrap());
+
+    if let Some(last_modifed) = options.last_modified {
+        headers.append("If-Modified-Since", HeaderValue::from_str(&last_modifed).unwrap());
+    }
+    if let Some(etag) = options.etag {
+        headers.append("If-None-Match", HeaderValue::from_str(&etag).unwrap());
+    }
+
+    match req.headers(headers).send().await {
+        Ok(res) => {
+            let res_headers = res.headers().clone();
+            match res.status() {
+                StatusCode::OK => {
+                    match res.text().await {
+                        Ok (body) => {
+                            match js_parse_feed(body) {
+                                Ok(feed) => {
+                                    Ok(FeedResult {
+                                        feed: Some(feed),
+                                        etag: res_headers.get("ETag").map(|v| v.to_str().unwrap()).map(|v| v.to_string()),
+                                        last_modified: res_headers.get("Last-Modified").map(|v| v.to_str().unwrap()).map(|v| v.to_string()),
+                                    })
+                                }
+                                Err(err) => {
+                                    Err(err)
+                                }
+                            }
+                        },
+                        Err(err) => {
+                            Err(JsError::new(
+                                Status::Unknown,
+                                err,
+                            ))
+                        }
+                    }
+                }
+                StatusCode::NOT_MODIFIED => {
+                    Ok(FeedResult {
+                        feed: None,
+                        etag: None,
+                        last_modified: None
+                    })
+                }
+                status => {
+                    Err(JsError::new(
+                        Status::Unknown,
+                        format!("Failed to fetch feed due to HTTP {}", status),
+                    ))
+                }
+            }
+        },
+        Err(err) => {
+            Err(JsError::new(
+                Status::Unknown,
+                err,
+            ))
+        }
     }
 }
