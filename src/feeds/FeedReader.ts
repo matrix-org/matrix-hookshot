@@ -6,7 +6,6 @@ import { MessageQueue } from "../MessageQueue";
 import axios from "axios";
 import Metrics from "../Metrics";
 import { randomUUID } from "crypto";
-import { StatusCodes } from "http-status-codes";
 import { readFeed } from "../libRs";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import UserAgent from "../UserAgent";
@@ -103,7 +102,11 @@ export class FeedReader {
     private readonly timeouts: NodeJS.Timeout[] = [];
 
     get sleepingInterval() {
-        return (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1);
+        return (
+            // Calculate the number of MS to wait in between feeds.
+            (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length ?? 1)
+            // And multiply by the number of concurrent readers
+        ) * this.config.pollConcurrency;
     }
 
     constructor(
@@ -111,7 +114,6 @@ export class FeedReader {
         private readonly connectionManager: ConnectionManager,
         private readonly queue: MessageQueue,
         private readonly storage: IBridgeStorageProvider,
-        private readonly httpClient = axios,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
         this.calculateFeedUrls();
@@ -172,19 +174,13 @@ export class FeedReader {
         const { etag, lastModified } = this.cacheTimes.get(url) || {};
         log.debug(`Checking for updates in ${url} (${etag ?? lastModified})`);
         try {
-            let result;
-            try {
-                result = await readFeed(url, {
-                    pollTimeoutSeconds: this.config.pollTimeoutSeconds,
-                    etag,
-                    lastModified,
-                    // TODO: Make this static in Rust somehow.
-                    userAgent: UserAgent,
-                });
-            } catch (ex) {
-                this.feedsFailingHttp.add(url);
-                throw ex;
-            }
+            const result = await readFeed(url, {
+                pollTimeoutSeconds: this.config.pollTimeoutSeconds,
+                etag,
+                lastModified,
+                // TODO: Make this static in Rust somehow.
+                userAgent: UserAgent,
+            });
 
             // Store any entity tags/cache times.
             if (result.etag) {
