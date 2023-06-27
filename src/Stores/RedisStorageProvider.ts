@@ -2,7 +2,7 @@ import { IssuesGetResponseData } from "../github/Types";
 import { Redis, default as redis } from "ioredis";
 import { Logger } from "matrix-appservice-bridge";
 
-import { IBridgeStorageProvider } from "./StorageProvider";
+import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
 
@@ -27,12 +27,7 @@ const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const FEED_GUIDS = "feeds.guids.";
 
-// Some RSS feeds can return a very small number of items then bounce
-// back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
-// forget what we sent and resend it. Instead, we'll keep 2x the max number of items that we've ever
-// seen from this feed, up to a max of 10,000.
-// Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
-const MAX_FEED_ITEMS = 10_000;
+
 
 const log = new Logger("RedisASProvider");
 
@@ -207,23 +202,6 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     
     public async setStoredTempFile(key: string, value: string) {
         await this.redis.set(STORED_FILES_KEY + key, value);
-    }
-
-    public async storeAllFeedGuids(data: { [url: string]: string[]; }): Promise<void> {
-        let chain = this.redis.multi();
-        for (const [url, guids] of Object.keys(data)) {
-            chain = chain.lpush(`${FEED_GUIDS}${url}`, guids);
-        }
-        await chain.exec();
-    }
-
-    public async getAllFeedGuids(urls: string[]): Promise<Record<string, string[]>> {
-        const map: Record<string, string[]> = {};
-
-        for (const url of urls) {
-            map[url] = await this.redis.lrange(`${FEED_GUIDS}${url}`, 0, MAX_FEED_ITEMS);
-        }
-        return map;
     }
 
     public async storeFeedGuid(url: string, ...guid: string[]): Promise<void> {
