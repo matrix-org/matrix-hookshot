@@ -70,6 +70,8 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | nodejs_eventloop_lag_p50_seconds | The 50th percentile of the recorded event loop delays. |  |
 | nodejs_eventloop_lag_p90_seconds | The 90th percentile of the recorded event loop delays. |  |
 | nodejs_eventloop_lag_p99_seconds | The 99th percentile of the recorded event loop delays. |  |
+| nodejs_active_resources | Number of active resources that are currently keeping the event loop alive, grouped by async resource type. | type |
+| nodejs_active_resources_total | Total number of active resources. |  |
 | nodejs_active_handles | Number of active libuv handles grouped by handle type. Every handle type is C++ class name. | type |
 | nodejs_active_handles_total | Total number of active handles. |  |
 | nodejs_active_requests | Number of active libuv requests grouped by request type. Every request type is C++ class name. | type |

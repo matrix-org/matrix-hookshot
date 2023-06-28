@@ -2,6 +2,13 @@ import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
 import { IssuesGetResponseData } from "../github/Types";
 
+// Some RSS feeds can return a very small number of items then bounce
+// back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
+// forget what we sent and resend it. Instead, we'll keep 2x the max number of items that we've ever
+// seen from this feed, up to a max of 10,000.
+// Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
+export const MAX_FEED_ITEMS = 10_000;
+
 export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
     connect?(): Promise<void>;
     disconnect?(): Promise<void>;
@@ -15,4 +22,7 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     getFigmaCommentEventId(roomId: string, figmaCommentId: string): Promise<string|null>;
     getStoredTempFile(key: string): Promise<string|null>;
     setStoredTempFile(key: string, value: string): Promise<void>;
+    storeFeedGuids(url: string, ...guid: string[]): Promise<void>;
+    hasSeenFeed(url: string, ...guid: string[]): Promise<boolean>;
+    hasSeenFeedGuid(url: string, guid: string): Promise<boolean>;
 }

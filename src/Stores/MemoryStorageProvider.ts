@@ -1,5 +1,5 @@
 import { MemoryStorageProvider as MSP } from "matrix-bot-sdk";
-import { IBridgeStorageProvider } from "./StorageProvider";
+import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
@@ -11,10 +11,32 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private figmaCommentIds: Map<string, string> = new Map();
     private widgetSessions: Map<string, ProvisionSession> = new Map();
     private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
+    private feedGuids = new Map<string, Array<string>>();
 
     constructor() {
         super();
     }
+
+    async storeFeedGuids(url: string, ...guids: string[]): Promise<void> {
+        let set = this.feedGuids.get(url);
+        if (!set) {
+            set = []
+            this.feedGuids.set(url, set);
+        }
+        set.unshift(...guids);
+        while (set.length > MAX_FEED_ITEMS) {
+            set.pop();
+        } 
+    }
+
+    async hasSeenFeed(url: string): Promise<boolean> {
+        return this.feedGuids.has(url);
+    }
+
+    async hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
+        return this.feedGuids.get(url)?.includes(guid) ?? false;
+    }
+
     public async setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope = "") {
         this.issues.set(`${scope}${repo}/${issueNumber}`, data);
     }

@@ -1,4 +1,3 @@
-import { AxiosResponse, AxiosStatic } from "axios";
 import { expect } from "chai";
 import EventEmitter from "events";
 import { BridgeConfigFeeds } from "../src/config/Config";
@@ -6,6 +5,9 @@ import { ConnectionManager } from "../src/ConnectionManager";
 import { IConnection } from "../src/Connections";
 import { FeedEntry, FeedReader } from "../src/feeds/FeedReader";
 import { MessageQueue, MessageQueueMessage } from "../src/MessageQueue";
+import { MemoryStorageProvider } from "../src/Stores/MemoryStorageProvider";
+import { Server, createServer } from 'http';
+import { AddressInfo } from "net";
 
 class MockConnectionManager extends EventEmitter {
     constructor(
@@ -37,38 +39,41 @@ class MockMessageQueue extends EventEmitter implements MessageQueue {
     }
 }
 
-class MockHttpClient {
-    constructor(public response: AxiosResponse) {}
-
-    get(): Promise<AxiosResponse> {
-        return Promise.resolve(this.response);
-    }
-}
-
-const FEED_URL = 'http://test/';
-
-function constructFeedReader(feedResponse: () => {headers: Record<string,string>, data: string}) {
+async function constructFeedReader(feedResponse: () => {headers: Record<string,string>, data: string}) {
+    const httpServer = await new Promise<Server>(resolve => {
+        const srv = createServer((_req, res) => {
+            res.writeHead(200);
+            const { headers, data } = feedResponse();
+            Object.entries(headers).forEach(([key,value]) => {
+                res.setHeader(key, value);
+            });
+            res.write(data);
+            res.end();
+        }).listen(0, '127.0.0.1', () => {
+            resolve(srv);
+        });
+    });
+    const address = httpServer.address() as AddressInfo;
+    const feedUrl = `http://127.0.0.1:${address.port}/`
     const config = new BridgeConfigFeeds({
         enabled: true,
         pollIntervalSeconds: 1,
         pollTimeoutSeconds: 1,
     });
-    const cm = new MockConnectionManager([{ feedUrl: FEED_URL } as unknown as IConnection]) as unknown as ConnectionManager
+    const cm = new MockConnectionManager([{ feedUrl } as unknown as IConnection]) as unknown as ConnectionManager
     const mq = new MockMessageQueue();
+    const storage = new MemoryStorageProvider();
+    // Ensure we don't initial sync by storing a guid.
+    await storage.storeFeedGuids(feedUrl, '-test-guid-');
     const feedReader = new FeedReader(
-        config, cm, mq,
-        {
-            getAccountData: <T>() => Promise.resolve({ [FEED_URL]: [] } as unknown as T),
-            setAccountData: () => Promise.resolve(),
-        },
-        new MockHttpClient({ ...feedResponse() } as AxiosResponse) as unknown as AxiosStatic,
+        config, cm, mq, storage,
     );
-    return {config, cm, mq, feedReader};   
+    return {config, cm, mq, feedReader, feedUrl, httpServer};   
 }
 
 describe("FeedReader", () => {
     it("should correctly handle empty titles", async () => {
-        const { mq, feedReader} = constructFeedReader(() => ({
+        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="UTF-8"?>
             <rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
@@ -84,6 +89,8 @@ describe("FeedReader", () => {
         `
         }));
 
+        after(() => httpServer.close());
+
         const event: any = await new Promise((resolve) => {
             mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
         });
@@ -93,7 +100,7 @@ describe("FeedReader", () => {
         expect(event.data.title).to.equal(null);
     });
     it("should handle RSS 2.0 feeds", async () => {
-        const { mq, feedReader} = constructFeedReader(() => ({
+        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="UTF-8" ?>
                 <rss version="2.0">
@@ -118,6 +125,8 @@ describe("FeedReader", () => {
         `
         }));
 
+        after(() => httpServer.close());
+
         const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
             mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
         });
@@ -131,7 +140,7 @@ describe("FeedReader", () => {
         expect(event.data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
     });
     it("should handle RSS feeds with a permalink url", async () => {
-        const { mq, feedReader} = constructFeedReader(() => ({
+        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="UTF-8" ?>
                 <rss version="2.0">
@@ -155,6 +164,8 @@ describe("FeedReader", () => {
         `
         }));
 
+        after(() => httpServer.close());
+
         const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
             mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
         });
@@ -168,7 +179,7 @@ describe("FeedReader", () => {
         expect(event.data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
     });
     it("should handle Atom feeds", async () => {
-        const { mq, feedReader} = constructFeedReader(() => ({
+        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="utf-8"?>
             <feed xmlns="http://www.w3.org/2005/Atom">
@@ -196,6 +207,8 @@ describe("FeedReader", () => {
         `
         }));
 
+        after(() => httpServer.close());
+
         const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
             mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
         });
@@ -209,7 +222,7 @@ describe("FeedReader", () => {
         expect(event.data.pubdate).to.equal('Sat, 13 Dec 2003 18:30:02 +0000');
     });
     it("should not duplicate feed entries", async () => {
-        const { mq, feedReader} = constructFeedReader(() => ({
+        const { mq, feedReader, httpServer, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="utf-8"?>
             <feed xmlns="http://www.w3.org/2005/Atom">
@@ -227,11 +240,13 @@ describe("FeedReader", () => {
         `
         }));
 
+        after(() => httpServer.close());
+
         const events: MessageQueueMessage<FeedEntry>[] = [];
         mq.on('pushed', (data) => { if (data.eventName === 'feed.entry') {events.push(data);} });
-        await feedReader.pollFeed(FEED_URL);
-        await feedReader.pollFeed(FEED_URL);
-        await feedReader.pollFeed(FEED_URL);
+        await feedReader.pollFeed(feedUrl);
+        await feedReader.pollFeed(feedUrl);
+        await feedReader.pollFeed(feedUrl);
         feedReader.stop();
         expect(events).to.have.lengthOf(1);
     });
