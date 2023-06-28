@@ -104,7 +104,7 @@ export class FeedReader {
     get sleepingInterval() {
         return (
             // Calculate the number of MS to wait in between feeds.
-            (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length ?? 1)
+            (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1)
             // And multiply by the number of concurrent readers
         ) * this.config.pollConcurrency;
     }
@@ -178,7 +178,6 @@ export class FeedReader {
                 pollTimeoutSeconds: this.config.pollTimeoutSeconds,
                 etag,
                 lastModified,
-                // TODO: Make this static in Rust somehow.
                 userAgent: UserAgent,
             });
 
