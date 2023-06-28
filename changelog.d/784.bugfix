@@ -1,1 +1,0 @@
-Feeds now tries to find an HTML-type link before falling back to the first link when parsing atom feeds
