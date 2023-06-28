@@ -211,6 +211,8 @@ There are 3 variables at the top of the dashboard:</p>
 <tr><td>nodejs_eventloop_lag_p50_seconds</td><td>The 50th percentile of the recorded event loop delays.</td><td></td></tr>
 <tr><td>nodejs_eventloop_lag_p90_seconds</td><td>The 90th percentile of the recorded event loop delays.</td><td></td></tr>
 <tr><td>nodejs_eventloop_lag_p99_seconds</td><td>The 99th percentile of the recorded event loop delays.</td><td></td></tr>
+<tr><td>nodejs_active_resources</td><td>Number of active resources that are currently keeping the event loop alive, grouped by async resource type.</td><td>type</td></tr>
+<tr><td>nodejs_active_resources_total</td><td>Total number of active resources.</td><td></td></tr>
 <tr><td>nodejs_active_handles</td><td>Number of active libuv handles grouped by handle type. Every handle type is C++ class name.</td><td>type</td></tr>
 <tr><td>nodejs_active_handles_total</td><td>Total number of active handles.</td><td></td></tr>
 <tr><td>nodejs_active_requests</td><td>Number of active libuv requests grouped by request type. Every request type is C++ class name.</td><td>type</td></tr>
