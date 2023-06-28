@@ -2,7 +2,10 @@ use std::{str::FromStr, time::Duration};
 
 use atom_syndication::{Error as AtomError, Feed, Person};
 use napi::bindgen_prelude::{Error as JsError, Status};
-use reqwest::{Method, header::{HeaderMap, HeaderValue}, StatusCode};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Method, StatusCode,
+};
 use rss::{Channel, Error as RssError};
 
 use crate::format_util::hash_id;
@@ -164,19 +167,27 @@ pub fn js_parse_feed(xml: String) -> Result<JsRssChannel, JsError> {
     }
 }
 
-
-
 #[napi(js_name = "readFeed")]
 pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedResult, JsError> {
     let client = reqwest::Client::new();
-    let req = client.request(Method::GET, url).timeout(Duration::from_secs(options.poll_timeout_seconds.try_into().unwrap()));
+    let req = client
+        .request(Method::GET, url)
+        .timeout(Duration::from_secs(
+            options.poll_timeout_seconds.try_into().unwrap(),
+        ));
 
     let mut headers: HeaderMap = HeaderMap::new();
 
-    headers.append("User-Agent", HeaderValue::from_str(&options.user_agent).unwrap());
+    headers.append(
+        "User-Agent",
+        HeaderValue::from_str(&options.user_agent).unwrap(),
+    );
 
     if let Some(last_modifed) = options.last_modified {
-        headers.append("If-Modified-Since", HeaderValue::from_str(&last_modifed).unwrap());
+        headers.append(
+            "If-Modified-Since",
+            HeaderValue::from_str(&last_modifed).unwrap(),
+        );
     }
     if let Some(etag) = options.etag {
         headers.append("If-None-Match", HeaderValue::from_str(&etag).unwrap());
@@ -186,50 +197,34 @@ pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedR
         Ok(res) => {
             let res_headers = res.headers().clone();
             match res.status() {
-                StatusCode::OK => {
-                    match res.text().await {
-                        Ok (body) => {
-                            match js_parse_feed(body) {
-                                Ok(feed) => {
-                                    Ok(FeedResult {
-                                        feed: Some(feed),
-                                        etag: res_headers.get("ETag").map(|v| v.to_str().unwrap()).map(|v| v.to_string()),
-                                        last_modified: res_headers.get("Last-Modified").map(|v| v.to_str().unwrap()).map(|v| v.to_string()),
-                                    })
-                                }
-                                Err(err) => {
-                                    Err(err)
-                                }
-                            }
-                        },
-                        Err(err) => {
-                            Err(JsError::new(
-                                Status::Unknown,
-                                err,
-                            ))
-                        }
-                    }
-                }
-                StatusCode::NOT_MODIFIED => {
-                    Ok(FeedResult {
-                        feed: None,
-                        etag: None,
-                        last_modified: None
-                    })
-                }
-                status => {
-                    Err(JsError::new(
-                        Status::Unknown,
-                        format!("Failed to fetch feed due to HTTP {}", status),
-                    ))
-                }
+                StatusCode::OK => match res.text().await {
+                    Ok(body) => match js_parse_feed(body) {
+                        Ok(feed) => Ok(FeedResult {
+                            feed: Some(feed),
+                            etag: res_headers
+                                .get("ETag")
+                                .map(|v| v.to_str().unwrap())
+                                .map(|v| v.to_string()),
+                            last_modified: res_headers
+                                .get("Last-Modified")
+                                .map(|v| v.to_str().unwrap())
+                                .map(|v| v.to_string()),
+                        }),
+                        Err(err) => Err(err),
+                    },
+                    Err(err) => Err(JsError::new(Status::Unknown, err)),
+                },
+                StatusCode::NOT_MODIFIED => Ok(FeedResult {
+                    feed: None,
+                    etag: None,
+                    last_modified: None,
+                }),
+                status => Err(JsError::new(
+                    Status::Unknown,
+                    format!("Failed to fetch feed due to HTTP {}", status),
+                )),
             }
-        },
-        Err(err) => {
-            Err(JsError::new(
-                Status::Unknown,
-                err,
-            ))
         }
+        Err(err) => Err(JsError::new(Status::Unknown, err)),
     }
 }
