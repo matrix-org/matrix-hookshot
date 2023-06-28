@@ -1,6 +1,6 @@
 [package]
 name = "matrix-hookshot"
-version = "1.8.1"
+version = "4.4.0"
 edition = "2021"
 
 [lib]
