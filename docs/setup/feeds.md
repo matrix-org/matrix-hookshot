@@ -19,6 +19,9 @@ Each feed will only be checked once, regardless of the number of rooms to which 
 
 No entries will be bridged upon the “initial sync” -- all entries that exist at the moment of setup will be considered to be already seen.
 
+Please note that Hookshot **must** be configued with Redis to retain seen entries between restarts. By default, Hookshot will
+run an "initial sync" on each startup and will not process any entries from feeds from before the first sync.
+
 ## Usage
 
 ### Adding new feeds
