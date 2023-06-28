@@ -1,0 +1,1 @@
+Refactor Hookshot to use Redis for caching of feed information, massively improving memory usage.
