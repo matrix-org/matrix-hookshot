@@ -99,7 +99,7 @@ export class FeedReader {
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
     private shouldRun = true;
-    private readonly timeouts: NodeJS.Timeout[] = [];
+    private readonly timeouts: (NodeJS.Timeout|undefined)[];
 
     get sleepingInterval() {
         return (
@@ -115,6 +115,10 @@ export class FeedReader {
         private readonly queue: MessageQueue,
         private readonly storage: IBridgeStorageProvider,
     ) {
+        // Ensure a fixed length array,
+        this.timeouts = new Array(config.pollConcurrency);
+        this.timeouts.fill(undefined);
+        Object.seal(this.timeouts);
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
         this.calculateFeedUrls();
         connectionManager.on('new-connection', c => {
@@ -201,7 +205,6 @@ export class FeedReader {
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
 
                 for (const item of feed.items) {
-                    // Find the first guid-like that looks like a string.
                     // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
                     if (!item.hashId) {
                         log.error(`Could not determine guid for entry in ${url}, skipping`);

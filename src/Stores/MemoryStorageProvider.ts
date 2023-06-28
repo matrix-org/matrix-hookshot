@@ -17,13 +17,13 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
         super();
     }
 
-    async storeFeedGuid(url: string, guid: string): Promise<void> {
+    async storeFeedGuid(url: string, ...guids: string[]): Promise<void> {
         let set = this.feedGuids.get(url);
         if (!set) {
             set = []
             this.feedGuids.set(url, set);
         }
-        set.splice(0, 0, guid);
+        set.unshift(...guids);
         while (set.length > MAX_FEED_ITEMS) {
             set.pop();
         } 
