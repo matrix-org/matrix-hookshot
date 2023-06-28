@@ -204,7 +204,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         await this.redis.set(STORED_FILES_KEY + key, value);
     }
 
-    public async storeFeedGuid(url: string, ...guid: string[]): Promise<void> {
+    public async storeFeedGuids(url: string, ...guid: string[]): Promise<void> {
         const feedKey = `${FEED_GUIDS}${url}`;
         await this.redis.lpush(feedKey, ...guid);
         await this.redis.ltrim(feedKey, 0, MAX_FEED_ITEMS);

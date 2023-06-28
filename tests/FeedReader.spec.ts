@@ -64,7 +64,7 @@ async function constructFeedReader(feedResponse: () => {headers: Record<string,s
     const mq = new MockMessageQueue();
     const storage = new MemoryStorageProvider();
     // Ensure we don't initial sync by storing a guid.
-    await storage.storeFeedGuid(feedUrl, '-test-guid-');
+    await storage.storeFeedGuids(feedUrl, '-test-guid-');
     const feedReader = new FeedReader(
         config, cm, mq, storage,
     );

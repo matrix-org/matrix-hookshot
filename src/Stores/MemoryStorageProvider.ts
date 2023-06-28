@@ -17,7 +17,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
         super();
     }
 
-    async storeFeedGuid(url: string, ...guids: string[]): Promise<void> {
+    async storeFeedGuids(url: string, ...guids: string[]): Promise<void> {
         let set = this.feedGuids.get(url);
         if (!set) {
             set = []

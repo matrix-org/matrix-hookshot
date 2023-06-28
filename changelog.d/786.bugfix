@@ -2,4 +2,4 @@ Refactor Hookshot to use Redis for caching of feed information, massively improv
 
 Please note that this is a behavioural change: Hookshots configured to use in-memory caching (not Redis),
 will no longer bridge any RSS entries it may have missed during downtime, and will instead perform an initial
-sync instead.
+sync (not reporting any entries) instead.

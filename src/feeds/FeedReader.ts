@@ -241,7 +241,7 @@ export class FeedReader {
                 }
     
                 if (seenEntriesChanged) {
-                    await this.storage.storeFeedGuid(url, ...newGuids);
+                    await this.storage.storeFeedGuids(url, ...newGuids);
                 }
     
             }
