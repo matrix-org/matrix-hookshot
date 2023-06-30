@@ -17,14 +17,21 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 RUN apt-get update && apt-get install -y build-essential cmake
 
 # --- FOR TRACING
-WORKDIR /src-sdk
+WORKDIR /src-rust-sdk
 RUN git clone https://github.com/matrix-org/matrix-rust-sdk.git
-WORKDIR /src-sdk/matrix-rust-sdk/bindings/matrix-sdk-crypto-nodejs
+WORKDIR /src-rust-sdk/matrix-rust-sdk/bindings/matrix-sdk-crypto-nodejs
 RUN git checkout matrix-sdk-crypto-nodejs-v0.1.0-beta.6
 RUN npm install --ignore-scripts
 # Workaround for "dbg" profile builds not quite working
 RUN sed -i 's/debug = 0/debug = 2/' ../../Cargo.toml
 RUN npm run build -- --features tracing
+RUN yarn link
+
+WORKDIR /src-bot-sdk
+RUN git clone https://github.com/vector-im/matrix-bot-sdk.git
+WORKDIR /src-bot-sdk/matrix-bot-sdk
+RUN git checkout af/dbg-useridTrace
+RUN yarn && yarn build:dev
 RUN yarn link
 # ---
 WORKDIR /src
@@ -39,6 +46,7 @@ COPY . ./
 RUN node node_modules/esbuild/install.js
 # --- FOR TRACING
 RUN yarn link @matrix-org/matrix-sdk-crypto-nodejs
+RUN yarn link matrix-bot-sdk
 # ---
 RUN yarn build
 
@@ -57,11 +65,15 @@ COPY --from=builder /cache/yarn /cache/yarn
 RUN yarn config set yarn-offline-mirror /cache/yarn
 
 # --- FOR TRACING
-COPY --from=builder /src-sdk/matrix-rust-sdk/bindings/matrix-sdk-crypto-nodejs /opt/matrix-sdk-crypto-nodejs
+COPY --from=builder /src-rust-sdk/matrix-rust-sdk/bindings/matrix-sdk-crypto-nodejs /opt/matrix-sdk-crypto-nodejs
 WORKDIR /opt/matrix-sdk-crypto-nodejs
+RUN yarn link
+COPY --from=builder /src-bot-sdk/matrix-bot-sdk /opt/matrix-bot-sdk
+WORKDIR /opt/matrix-bot-sdk
 RUN yarn link
 WORKDIR /bin/matrix-hookshot
 RUN yarn link @matrix-org/matrix-sdk-crypto-nodejs
+RUN yarn link matrix-bot-sdk
 # Ignore postinstall scripts to avoid downloading the non-debug version of the native Rust library
 RUN yarn --network-timeout 600000 --production --pure-lockfile --ignore-scripts && yarn cache clean
 # ---
