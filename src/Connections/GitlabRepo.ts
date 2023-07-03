@@ -408,6 +408,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
     private readonly grantChecker;
+    private readonly commentDebounceMs: number;
 
     constructor(
         roomId: string,
@@ -439,7 +440,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.hookFilter = new HookFilter(
             state.enableHooks ?? DefaultHooks,
         );
-}
+        this.commentDebounceMs = config.commentDebounceMs ?? MRRCOMMENT_DEBOUNCE_MS;
+    }
 
     public get path() {
         return this.state.path.toLowerCase();
@@ -825,7 +827,7 @@ ${data.description}`;
             if (!opts.skip) {
                 existing.skip = false;
             }
-            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), MRRCOMMENT_DEBOUNCE_MS);
+            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), this.commentDebounceMs);
             return;
         }
         this.debounceMRComments.set(uniqueId, {
@@ -834,7 +836,7 @@ ${data.description}`;
             skip: opts.skip,
             approved,
             author: user.name,
-            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), MRRCOMMENT_DEBOUNCE_MS),
+            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), this.commentDebounceMs),
         });
     }
 

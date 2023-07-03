@@ -205,6 +205,9 @@ export class BridgeConfigGitLab {
     @configKey("Prefix used when creating ghost users for GitLab accounts.", true)
     readonly userIdPrefix: string;
 
+    @configKey("Aggregate comments by waiting this many miliseconds before posting them to Matrix", false)
+    readonly commentDebounceMs?: number;
+
     constructor(yaml: BridgeConfigGitLabYAML) {
         this.instances = yaml.instances;
         this.webhook = yaml.webhook;
