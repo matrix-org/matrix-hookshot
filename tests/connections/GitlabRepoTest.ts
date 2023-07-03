@@ -177,8 +177,8 @@ describe("GitLabRepoConnection", () => {
 				...GITLAB_MR_COMMENT,
 				'object_attributes': {
 					...GITLAB_MR_COMMENT.object_attributes,
-			        'discussion_id': 'fa5d',
-			        'note': 'different comment',
+					'discussion_id': 'fa5d',
+					'note': 'different comment',
 				},
 			} as never);
 			await waitForDebouncing();

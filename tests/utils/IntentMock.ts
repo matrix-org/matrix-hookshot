@@ -95,12 +95,10 @@ export class IntentMock {
 
     expectEventMatches(matcher: (content: any) => boolean, description: string, eventIndex?: number) {
         if (eventIndex !== undefined) {
-            console.log(`Matching event ${eventIndex}`);
             expect(this.sentEvents[eventIndex], `Expected event ${eventIndex} to exist`).to.not.be.undefined;
             expect(matcher(this.sentEvents[eventIndex]), description).to.be.true;
             return;
         }
-        console.log(`Matching any event`);
         expect(this.sentEvents.some(ev => matcher(ev)), description).to.be.true;
     }
 

@@ -773,7 +773,7 @@ ${data.description}`;
             approvalState = '🔴 unapproved';
         }
 
-        let target = relation ? '' : ` MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
+        const target = relation ? '' : ` MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
         let content = `**${result.author}** ${approvalState}${target} ${comments}`;
 
         if (result.commentNotes) {
