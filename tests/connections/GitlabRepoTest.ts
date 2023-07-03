@@ -160,7 +160,7 @@ describe("GitLabRepoConnection", () => {
 			}, true);
 		});
 	});
-	describe.only("onCommentCreated", () => {
+	describe("onCommentCreated", () => {
 		it("will handle an MR comment", async () => {
 			const { connection, intent } = createConnection();
 			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
