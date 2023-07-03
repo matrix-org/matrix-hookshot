@@ -1,13 +1,14 @@
 import {Intent, StateEvent} from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
-import { FeedEntry, FeedError, FeedReader} from "../feeds/FeedReader";
+import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { sanitizeHtml } from "../libRs";
+import { readFeed, sanitizeHtml } from "../libRs";
+import UserAgent from "../UserAgent";
 const log = new Logger("FeedConnection");
 const md = new markdown({
     html: true,
@@ -38,7 +39,7 @@ export interface FeedConnectionSecrets {
 export type FeedResponseItem = GetConnectionsResponseItem<FeedConnectionState, FeedConnectionSecrets>;
 
 const MAX_LAST_RESULT_ITEMS = 5;
-const VALIDATION_FETCH_TIMEOUT_MS = 5000;
+const VALIDATION_FETCH_TIMEOUT_S = 5;
 const MAX_SUMMARY_LENGTH = 512;
 const MAX_TEMPLATE_LENGTH = 1024;
 
@@ -68,7 +69,10 @@ export class FeedConnection extends BaseConnection implements IConnection {
         }
 
         try {
-            await FeedReader.fetchFeed(url, {}, VALIDATION_FETCH_TIMEOUT_MS);
+            await readFeed(url, {
+                userAgent: UserAgent,
+                pollTimeoutSeconds: VALIDATION_FETCH_TIMEOUT_S,
+            });
         } catch (ex) {
             throw new ApiError(`Could not read feed from URL: ${ex.message}`, ErrCode.BadValue);
         }

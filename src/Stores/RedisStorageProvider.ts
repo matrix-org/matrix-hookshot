@@ -2,7 +2,7 @@ import { IssuesGetResponseData } from "../github/Types";
 import { Redis, default as redis } from "ioredis";
 import { Logger } from "matrix-appservice-bridge";
 
-import { IBridgeStorageProvider } from "./StorageProvider";
+import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import { SerializedGitlabDiscussionThreads } from "../Connections";
@@ -26,6 +26,10 @@ const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
 
 const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
+
+const FEED_GUIDS = "feeds.guids.";
+
+
 
 const log = new Logger("RedisASProvider");
 
@@ -62,6 +66,7 @@ export class RedisStorageContextualProvider implements IStorageProvider {
     }
 
 }
+
 
 export class RedisStorageProvider extends RedisStorageContextualProvider implements IBridgeStorageProvider {
     constructor(host: string, port: number, contextSuffix = '') {
@@ -209,5 +214,19 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
         const key = `${GL_DISCUSSIONTHREADS_KEY}:${connectionId}`;
         await this.redis.set(key, JSON.stringify(value));
+    }
+
+    public async storeFeedGuids(url: string, ...guid: string[]): Promise<void> {
+        const feedKey = `${FEED_GUIDS}${url}`;
+        await this.redis.lpush(feedKey, ...guid);
+        await this.redis.ltrim(feedKey, 0, MAX_FEED_ITEMS);
+    }
+
+    public async hasSeenFeed(url: string): Promise<boolean> {
+        return (await this.redis.exists(`${FEED_GUIDS}${url}`)) === 1;
+    }
+
+    public async hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
+        return (await this.redis.lpos(`${FEED_GUIDS}${url}`, guid)) != null;
     }
 }

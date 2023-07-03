@@ -776,8 +776,7 @@ export class Bridge {
                 this.config.feeds,
                 this.connectionManager,
                 this.queue,
-                // Use default bot when storing account data
-                this.as.botClient,
+                this.storage,
             );
         }
 
