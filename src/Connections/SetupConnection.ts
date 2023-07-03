@@ -290,7 +290,9 @@ export class SetupConnection extends CommandConnection {
         if (feeds.length === 0) {
             return this.client.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
         } else {
-            const feedDescriptions = feeds.map(feed => {
+            const feedDescriptions = feeds.sort(
+                (a, b) => (a.label ?? a.url).localeCompare(b.label ?? b.url)
+            ).map(feed => {
                 if (feed.label) {
                     return `[${feed.label}](${feed.url})`;
                 }
