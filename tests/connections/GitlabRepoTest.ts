@@ -202,6 +202,55 @@ describe("GitLabRepoConnection", () => {
 				1,
 			);
 		});
+		it("will correctly map new comments to aggregated discussions", async () => {
+			const { connection, intent } = createConnection();
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc1',
+				},
+			} as never);
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc2',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(1);
+
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc1',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(2);
+			intent.expectEventMatches(
+				(ev: any) => ev.content['m.relates_to'].event_id === 'event_0',
+				'disc1 reply goes to existing thread',
+				1
+			);
+
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc2',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(3);
+			intent.expectEventMatches(
+				(ev: any) => ev.content['m.relates_to'].event_id === 'event_0',
+				'disc2 reply also goes to existing thread',
+				2
+			);
+		});
 	});
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
