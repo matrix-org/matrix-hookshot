@@ -3,7 +3,7 @@ import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
-import { SerializedGitlabDiscussionThreads } from "../Connections";
+import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 
 export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();

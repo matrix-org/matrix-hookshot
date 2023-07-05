@@ -12,7 +12,7 @@ import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
-import { AccessLevel } from "../Gitlab/Types";
+import { AccessLevel, SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
 import { CommandError } from "../errors";
 import QuickLRU from "@alloc/quick-lru";
@@ -164,9 +164,6 @@ export interface GitLabTargetFilter {
     parent?: string;
     search?: string;
 }
-
-/** newest last, to enable feeding it straight into an LRU cache */
-export type SerializedGitlabDiscussionThreads = { discussionId: string, eventId: string }[];
 
 /**
  * Handles rooms connected to a GitLab repo.

@@ -1,7 +1,7 @@
 import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
-import { SerializedGitlabDiscussionThreads } from "../Connections";
 import { IssuesGetResponseData } from "../github/Types";
+import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 
 // Some RSS feeds can return a very small number of items then bounce
 // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll

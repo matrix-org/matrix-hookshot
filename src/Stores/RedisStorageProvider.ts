@@ -5,7 +5,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
-import { SerializedGitlabDiscussionThreads } from "../Connections";
+import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";
