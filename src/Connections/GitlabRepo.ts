@@ -397,6 +397,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     private readonly debounceMRComments = new Map<string, {
         commentCount: number,
         commentNotes?: string[],
+        discussions: string[],
         author: string,
         timeout: NodeJS.Timeout,
         approved?: boolean,
@@ -737,7 +738,7 @@ ${data.description}`;
         });
     }
 
-    private async renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject, discussionId?: string) {
+    private async renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject) {
         const result = this.debounceMRComments.get(uniqueId);
         if (!result) {
             // Always defined, but for type checking purposes.
@@ -754,8 +755,9 @@ ${data.description}`;
         }
 
         let relation;
-        if (discussionId && this.discussionThreads.has(discussionId)) {
-            const threadEventId = await this.discussionThreads.get(discussionId)!.catch(_ => { /* already logged */ });
+        const discussionWithThread = result.discussions.find(discussionId => this.discussionThreads.has(discussionId));
+        if (discussionWithThread) {
+            const threadEventId = await this.discussionThreads.get(discussionWithThread)!.catch(_ => { /* already logged */ });
             if (threadEventId) {
                 relation = {
                     "m.relates_to": {
@@ -791,12 +793,14 @@ ${data.description}`;
             return undefined;
         });
 
-        if (discussionId && !relation) {
-            this.discussionThreads.set(discussionId, eventPromise);
-            void this.persistDiscussionThreads().catch(ex => {
-                log.error(`Failed to persistently store Gitlab discussion threads for connection ${this.connectionId}:`, ex);
-            });
+        for (const discussionId of result.discussions) {
+            if (!this.discussionThreads.has(discussionId)) {
+                this.discussionThreads.set(discussionId, eventPromise);
+            }
         }
+        void this.persistDiscussionThreads().catch(ex => {
+            log.error(`Failed to persistently store Gitlab discussion threads for connection ${this.connectionId}:`, ex);
+        });
     }
 
     private debounceMergeRequestReview(
@@ -827,16 +831,20 @@ ${data.description}`;
             if (!opts.skip) {
                 existing.skip = false;
             }
-            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), this.commentDebounceMs);
+            if (opts.discussionId) {
+                existing.discussions.push(opts.discussionId);
+            }
+            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), this.commentDebounceMs);
             return;
         }
         this.debounceMRComments.set(uniqueId, {
             commentCount: commentCount,
             commentNotes: commentNotes,
+            discussions: opts.discussionId ? [opts.discussionId] : [],
             skip: opts.skip,
             approved,
             author: user.name,
-            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project, opts.discussionId), this.commentDebounceMs),
+            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), this.commentDebounceMs),
         });
     }
 
