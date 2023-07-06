@@ -187,7 +187,7 @@ yarn # or npm i
 <a href="./setup/sample-configuration.html">here</a> for your convenience.</p>
 <p>You should read and fill this in as the bridge will not start without a complete config.</p>
 <p>You may validate your config without starting the service by running <code>yarn validate-config</code>.
-For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml</code></p>
+For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node config/Config.js /config.yml</code></p>
 <p>Copy <code>registration.sample.yml</code> into <code>registration.yml</code> and fill in:</p>
 <ul>
 <li>At a minimum, you will need to replace the <code>as_token</code> and <code>hs_token</code> and change the domain part of the namespaces. The sample config can be also found at our <a href="https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml">github repo</a> for your convienence.</li>
