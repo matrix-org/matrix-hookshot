@@ -325,6 +325,12 @@ const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_
     stale: "completed, but is stale 🍞"
 }
 
+const WORKFLOW_JOB_TO_NOTICE: Record<string, string> = {
+    success: "✅",
+    failure: "failed ⚠️",
+    skipped: "skipped ⏭️"
+}
+
 const TRUNCATE_COMMENT_SIZE = 256;
 const LABELED_DEBOUNCE_MS = 5000;
 const CREATED_GRACE_PERIOD_MS = 6000;
@@ -1260,12 +1266,72 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
         const orgRepoName = event.repository.full_name;
         const content = `Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``;
-        await this.intent.sendEvent(this.roomId, {
+
+        let extraThreadContent: {plain: string, html: string}|null = null;
+
+        if (workflowRun.conclusion === "failure") {
+            let jobs;
+            try {
+                jobs = await this.githubInstance.getOctokitForRepo(
+                    event.repository.owner.login,
+                    event.repository.name,
+                ).actions.listJobsForWorkflowRunAttempt({
+                    owner: event.repository.owner.login,
+                    repo: event.repository.name,
+                    run_id: event.workflow_run.id,
+                    attempt_number: event.workflow_run.run_attempt,
+                });
+
+                extraThreadContent = {
+                    plain: "#### Workflow log \n\n",
+                    html: "<h4> Workflow log </h4><ul>",
+                };
+                
+                for (const job of jobs.data.jobs) {
+                    const jobConclusion = job.conclusion ? WORKFLOW_JOB_TO_NOTICE[job.conclusion] : "No conclusion";
+                    extraThreadContent.plain += `  - Job \`${job.name}\` - ${jobConclusion}\n`;
+                    extraThreadContent.html += `<li> Job <code>${job.name}</code> ${jobConclusion}</li><ul>`;
+                    if (job.conclusion !== "success") {
+                        for (const step of job.steps || []) {
+                            const conclusion = step.conclusion ? WORKFLOW_JOB_TO_NOTICE[step.conclusion] : "No conclusion";
+                            extraThreadContent.plain += `    - <strong>${conclusion}</strong> ${step.name} \n`;
+                            extraThreadContent.html += `<li><strong>${conclusion}</strong> ${step.name} </li>`;
+                        }
+                    }
+                    extraThreadContent.html += `</ul>`;
+                }
+                extraThreadContent.html += `</ul>`;
+            } catch (ex) {
+                log.warn(`Failed to fetch extra workflow info`, ex);
+            }
+        }
+
+        const matrixEvent = await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
             format: "org.matrix.custom.html",
+            ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
         });
+
+        if (extraThreadContent) {
+            this.intent.sendEvent(this.roomId, {
+                "m.relates_to": {
+                    rel_type: "m.thread",
+                    event_id: matrixEvent,
+                    // Needed to prevent clients from showing these as actual replies
+                    is_falling_back: true,
+                    "m.in_reply_to": {
+                        event_id: matrixEvent,
+                    }
+                },
+                body: extraThreadContent.plain,
+                formatted_body: extraThreadContent.html,
+                format: "org.matrix.custom.html",
+                msgtype: "m.notice",
+                ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
+            })
+        }
     }
 
     public async onEvent(evt: MatrixEvent<unknown>) {
