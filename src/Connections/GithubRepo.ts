@@ -885,7 +885,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
         const orgRepoName = event.repository.full_name;
 
-	const icon = '📥';
+        const icon = '📥';
         let message = emoji.emojify(`${icon} **${event.issue.user.login}** created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
         message += (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
         if (this.showIssueRoomLink) {
@@ -912,7 +912,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             return;
         }
 
-	const icon = '🗣';
+        const icon = '🗣';
         let message = emoji.emojify(`${icon} **${event.comment.user.login}** [commented](${event.issue.html_url}) on [${event.repository.full_name}#${event.issue.number}](${event.issue.html_url})  `);
         message += "\n> " + event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) + (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
 
@@ -962,7 +962,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 }
             }
         }
-	const icon = state === 'reopened' ? '🔷' : '⬛';
+        const icon = state === 'reopened' ? '🔷' : '⬛';
         const content = emoji.emojify(`${icon} **${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"${withComment}`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -982,7 +982,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         }
         log.info(`onIssueEdited ${this.roomId} ${this.org}/${this.repo} #${event.issue.number}`);
         const orgRepoName = event.repository.full_name;
-	const icon = '✏';
+        const icon = '✏';
         const content = emoji.emojify(`${icon} **${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -1014,7 +1014,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
             const orgRepoName = event.repository.full_name;
             const {plain, html} = FormatUtil.formatLabels(event.issue.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
-	    const icon = '🗃';
+            const icon = '🗃';
             const content = emoji.emojify(`${icon} **${event.sender.login}** labeled issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emoji.emojify(event.issue.title)}"`);
             this.intent.sendEvent(this.roomId, {
                 msgtype: "m.notice",
@@ -1072,7 +1072,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 diffContentHtml = `\n<pre><code class="language-diff">${diff.data}\n</code></pre>`;
             }
         }
-	const icon = verb === 'opened' ? '🔵' : '⚪';
+        const icon = verb === 'opened' ? '🔵' : '⚪';
         const content = emoji.emojify(`${icon} **${event.sender.login}** ${verb} a new PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"`);
         const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
         await this.intent.sendEvent(this.roomId, {
@@ -1097,7 +1097,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-	const icon = '🔬';
+        const icon = '🔬';
         const content = emoji.emojify(`${icon} **${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review "${event.pull_request.title}"`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -1177,7 +1177,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
 
-	const icon = verb === 'merged' ? '✳' : '⚫';
+        const icon = verb === 'merged' ? '✳' : '⚫';
         const content = emoji.emojify(`${icon} **${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -1205,7 +1205,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             throw Error('No repository content!');
         }
         const orgRepoName = event.repository.full_name;
-	const icon = '📣';
+        const icon = '📣';
         let content = emoji.emojify(`${icon} **${event.sender.login}** released [${event.release.name ?? event.release.tag_name}](${event.release.html_url}) for ${orgRepoName}`);
         if (event.release.body) {
             content += `\n\n${event.release.body}`
@@ -1231,7 +1231,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (!event.repository) {
             throw Error('No repository content!');
         }
-	const icon = '📝';
+        const icon = '📝';
         const orgRepoName = event.repository.full_name;
         let content = emoji.emojify(`${icon} **${event.sender.login}** drafted release [${event.release.name ?? event.release.tag_name}](${event.release.html_url}) for ${orgRepoName}`);
         if (event.release.body) {
@@ -1269,7 +1269,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
         log.info(`onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`);
         const orgRepoName = event.repository.full_name;
-	const icon = '☑';
+        const icon = '☑';
         const content = emoji.emojify(`${icon} Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
