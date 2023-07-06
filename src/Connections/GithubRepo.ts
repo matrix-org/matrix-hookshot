@@ -1177,7 +1177,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
             }
         }
 
-	const icon = '⚫';
+	const icon = verb === 'merged' ? '✳' : '⚫';
         const content = emoji.emojify(`${icon} **${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
