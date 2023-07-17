@@ -22,7 +22,7 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
         log.info('Initialising crypto storage')
         cryptoStorage = new RustSdkAppserviceCryptoStorageProvider(
             config.encryption.storagePath,
-            config.encryption.useLegacySledStore ? RustSdkCryptoStoreType.Sled : RustSdkCryptoStoreType.Sqlite
+            RustSdkCryptoStoreType.Sqlite,
         );
     }
 
