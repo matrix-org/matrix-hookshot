@@ -1,1 +1,1 @@
-Bridge Gitlab comment replies as Matrix threads
+Bridge Gitlab comment replies as Matrix threads.
