@@ -763,15 +763,15 @@ ${data.description}`;
             }
         }
 
-        let approvalState = relation ? 'replied' : 'commented on'; // this is the only place we need this, approve/unapprove don't appear in discussions
+        let action = relation ? 'replied' : 'commented on'; // this is the only place we need this, approve/unapprove don't appear in discussions
         if (result.approved === true) {
-            approvalState = '✅ approved'
+            action = '✅ approved'
         } else if (result.approved === false) {
-            approvalState = '🔴 unapproved';
+            action = '🔴 unapproved';
         }
 
         const target = relation ? '' : ` MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
-        let content = `**${result.author}** ${approvalState}${target} ${comments}`;
+        let content = `**${result.author}** ${action}${target} ${comments}`;
 
         if (result.commentNotes) {
             content += "\n\n> " + result.commentNotes.join("\n\n> ");
