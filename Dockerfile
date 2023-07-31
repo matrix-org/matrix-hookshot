@@ -1,51 +1,87 @@
-# Stage 0: Build the thing
-# Need debian based image to build the native rust module
-# as musl doesn't support cdylib
-FROM node:18 AS builder
+# syntax = docker/dockerfile:1.4
+
+# The Debian version and version name must be in sync
+ARG DEBIAN_VERSION=11
+ARG DEBIAN_VERSION_NAME=bullseye
+ARG RUSTC_VERSION=1.71.0
+ARG ZIG_VERSION=0.10.1
+ARG NODEJS_VERSION=18
+ARG CARGO_ZIGBUILD_VERSION=0.16.12
+# This needs to be kept in sync with the version in the package.json
+ARG MATRIX_SDK_VERSION=0.1.0-beta.6
+
+# Stage 1: Build the native rust module and the frontend assets
+FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS builder
+
+ARG CARGO_ZIGBUILD_VERSION
+ARG RUSTC_VERSION
+ARG ZIG_VERSION
+ARG TARGETPLATFORM
 
 # We need rustup so we have a sensible rust version, the version packed with bullsye is too old
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
+RUN curl --proto '=https' --tlsv1.2 -sSf  https://sh.rustup.rs | sh -s -- -y --default-toolchain "${RUSTC_VERSION}" --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# arm64 builds consume a lot of memory if `CARGO_NET_GIT_FETCH_WITH_CLI` is not
-# set to true, so we expose it as a build-arg.
-ARG CARGO_NET_GIT_FETCH_WITH_CLI=false
-ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
+RUN rustup target add  \
+  --toolchain "${RUSTC_VERSION}" \
+  x86_64-unknown-linux-gnu \
+  aarch64-unknown-linux-gnu
 
-# Needed to build rust things for matrix-sdk-crypto-nodejs
-# See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
+# Install zig and cargo-zigbuild, which are used by napi to cross-compile the native module
+RUN \
+  curl --proto '=https' --tlsv1.2 -sSf "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(uname -m)-${ZIG_VERSION}.tar.xz" | tar -J -x -C /usr/local && \
+  ln -s "/usr/local/zig-linux-$(uname -m)-${ZIG_VERSION}/zig" /usr/local/bin/zig
+
+RUN cargo install --locked cargo-zigbuild@=${CARGO_ZIGBUILD_VERSION}
 
 WORKDIR /src
 
 COPY package.json yarn.lock ./
 RUN yarn config set yarn-offline-mirror /cache/yarn
-RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
-
-COPY . ./
+RUN --mount=type=cache,target=/cache/yarn \
+    yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN node node_modules/esbuild/install.js
-RUN yarn build
+
+COPY . ./
+
+RUN --mount=type=cache,target=/cache/yarn \
+    sh ./scripts/docker-cross-env.sh "$TARGETPLATFORM" \
+    yarn build
 
 
-# Stage 1: The actual container
-FROM node:18
+# Stage 2: Install the production dependencies
+FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION} AS deps
+
+ARG TARGETPLATFORM
+ARG MATRIX_SDK_VERSION
+
+WORKDIR /src
+
+COPY yarn.lock package.json scripts/docker-cross-env.sh scripts/docker-download-sdk.sh ./
+RUN yarn config set yarn-offline-mirror /cache/yarn
+
+RUN --mount=type=cache,target=/cache/yarn \
+    sh ./docker-cross-env.sh "$TARGETPLATFORM" \
+    yarn --ignore-scripts --pure-lockfile --network-timeout 600000 --production
+# Workaround: the install script of the matrix-rust-sdk only installs for the current platform, not the target one
+RUN sh ./docker-download-sdk.sh "$TARGETPLATFORM" "$MATRIX_SDK_VERSION"
+
+
+# Stage 3: Build the final runtime image
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/nodejs${NODEJS_VERSION}-debian${DEBIAN_VERSION}:nonroot AS runtime
 
 WORKDIR /bin/matrix-hookshot
 
-COPY --from=builder /src/yarn.lock /src/package.json ./
-COPY --from=builder /cache/yarn /cache/yarn
-RUN yarn config set yarn-offline-mirror /cache/yarn
-
-RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
-
+COPY package.json ./package.json
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
 COPY --from=builder /src/assets ./assets
+COPY --from=deps /src/node_modules ./node_modules
 
 VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
 
-CMD ["node", "/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
+CMD ["/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
