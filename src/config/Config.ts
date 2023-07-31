@@ -193,6 +193,7 @@ export interface BridgeConfigGitLabYAML {
     },
     instances: {[name: string]: GitLabInstance};
     userIdPrefix: string;
+    commentDebounceMs?: number;
 }
 
 export class BridgeConfigGitLab {
@@ -205,8 +206,8 @@ export class BridgeConfigGitLab {
     @configKey("Prefix used when creating ghost users for GitLab accounts.", true)
     readonly userIdPrefix: string;
 
-    @configKey("Aggregate comments by waiting this many miliseconds before posting them to Matrix", false)
-    readonly commentDebounceMs?: number;
+    @configKey("Aggregate comments by waiting this many miliseconds before posting them to Matrix. Defaults to 5000 (5 seconds)", true)
+    readonly commentDebounceMs: number;
 
     constructor(yaml: BridgeConfigGitLabYAML) {
         this.instances = yaml.instances;
@@ -218,6 +219,12 @@ export class BridgeConfigGitLab {
             if (url.endsWith("/")) {
                 this.instances[name].url = url.slice(0, -1);
             }
+        }
+
+        if (yaml.commentDebounceMs === undefined) {
+            this.commentDebounceMs = 5000;
+        } else {
+            this.commentDebounceMs = yaml.commentDebounceMs;
         }
     }
 

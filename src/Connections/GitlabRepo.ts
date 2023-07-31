@@ -59,8 +59,6 @@ const log = new Logger("GitLabRepoConnection");
 const md = new markdown();
 
 const PUSH_MAX_COMMITS = 5;
-const MRRCOMMENT_DEBOUNCE_MS = 5000;
-
 
 export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
@@ -438,7 +436,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.hookFilter = new HookFilter(
             state.enableHooks ?? DefaultHooks,
         );
-        this.commentDebounceMs = config.commentDebounceMs ?? MRRCOMMENT_DEBOUNCE_MS;
+        this.commentDebounceMs = config.commentDebounceMs;
     }
 
     public get path() {
