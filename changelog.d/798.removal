@@ -1,1 +1,1 @@
-Drop support for the Sled crypto store format. The configuration key of `experimentalEncryption.useLegacySledStore` is now ignored, and the crypto store will always use the SQLite format. If an existing SQLite store does not exist on bridge startup, one will be created.
+Drop support for the Sled crypto store format. Users must disable/remove the configuration key of `experimentalEncryption.useLegacySledStore`, and the crypto store will always use the SQLite format. If an existing SQLite store does not exist on bridge startup, one will be created.

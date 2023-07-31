@@ -412,6 +412,7 @@ interface BridgeConfigBot {
 }
 interface BridgeConfigEncryption {
     storagePath: string;
+    useLegacySledStore: boolean;
 }
 
 export interface BridgeConfigServiceBot {
@@ -566,12 +567,6 @@ export class BridgeConfig {
         if (!ValidLogLevelStrings.includes(this.logging.level)) {
             throw new ConfigError("logging.level", `Logging level is not valid. Must be one of ${ValidLogLevelStrings.join(', ')}`)
         }
-        if (this.encryption) {
-            log.warn(`
-You have enabled encryption support in the bridge. This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
-For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
-            `)
-        }
 
         this.permissions = configData.permissions || [{
             actor: this.bridge.domain,
@@ -655,15 +650,34 @@ For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
         }
 
         if (this.bridge.pantalaimon) {
-            throw new ConfigError("bridge.pantalaimon", "Pantalaimon support has been removed. Encrypted bridges should now use the `encryption` config option");
+            throw new ConfigError("bridge.pantalaimon", "Pantalaimon support has been removed. Encrypted bridges should now use the `experimentalEncryption` config option");
         }
 
-        if (this.encryption && !this.queue.monolithic) {
-            throw new ConfigError("queue.monolithic", "Encryption is not supported in worker mode yet.");
-        }
+        if (this.encryption) {
+            log.warn(`
+You have enabled encryption support in the bridge. This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
+For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
+            `);
 
-        if (this.encryption && !this.queue.port) {
-            throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
+            if (!this.encryption.storagePath) {
+                throw new ConfigError("experimentalEncryption.storagePath", "The crypto storage path must not be empty.");
+            }
+
+            if (this.encryption.useLegacySledStore) {
+                throw new ConfigError(
+                    "experimentalEncryption.useLegacySledStore", `
+The Sled crypto store format is no longer supported.
+Please back up your crypto store at ${this.encryption.storagePath},
+remove "useLegacySledStore" from your configuration file, and restart Hookshot.
+                `);
+            }
+            if (!this.queue.monolithic) {
+                throw new ConfigError("queue.monolithic", "Encryption is not supported in worker mode yet.");
+            }
+
+            if (!this.queue.port) {
+                throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
+            }
         }
 
         if (this.figma?.overrideUserId) {
