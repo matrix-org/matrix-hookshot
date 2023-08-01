@@ -1,48 +1,81 @@
-# Stage 0: Build the thing
-# Need debian based image to build the native rust module
-# as musl doesn't support cdylib
-FROM node:18 AS builder
+# syntax = docker/dockerfile:1.4
 
-# We need rustup so we have a sensible rust version, the version packed with bullsye is too old
-RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
+# The Debian version and version name must be in sync
+ARG DEBIAN_VERSION_NAME=bookworm
+ARG RUSTC_VERSION=1.71.0
+# XXX: zig v0.10.x has issues with building with the current napi CLI tool. This should be fixed in the
+# next release of the napi CLI, which leverages cargo-zigbuild and does not have this issue.
+ARG ZIG_VERSION=0.9.1
+ARG NODEJS_VERSION=18.17.0
+# This needs to be kept in sync with the version in the package.json
+ARG MATRIX_SDK_VERSION=0.1.0-beta.6
+
+# Stage 1: Build the native rust module and the frontend assets
+FROM --platform=${BUILDPLATFORM} docker.io/library/node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS builder
+
+# We need rustup so we have a sensible rust version, the version packed with bullseye is too old
+ARG RUSTC_VERSION
+RUN curl --proto '=https' --tlsv1.2 -sSf  https://sh.rustup.rs | sh -s -- -y --default-toolchain "${RUSTC_VERSION}" --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# arm64 builds consume a lot of memory if `CARGO_NET_GIT_FETCH_WITH_CLI` is not
-# set to true, so we expose it as a build-arg.
-ARG CARGO_NET_GIT_FETCH_WITH_CLI=false
-ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
+RUN rustup target add  \
+  --toolchain "${RUSTC_VERSION}" \
+  x86_64-unknown-linux-gnu \
+  aarch64-unknown-linux-gnu
 
-# Needed to build rust things for matrix-sdk-crypto-nodejs
-# See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
+# Install zig, which is then used by napi to cross-compile the native module
+ARG ZIG_VERSION
+RUN \
+  curl --proto '=https' --tlsv1.2 -sSf "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(uname -m)-${ZIG_VERSION}.tar.xz" | tar -J -x -C /usr/local && \
+  ln -s "/usr/local/zig-linux-$(uname -m)-${ZIG_VERSION}/zig" /usr/local/bin/zig
 
 WORKDIR /src
 
 COPY package.json yarn.lock ./
 RUN yarn config set yarn-offline-mirror /cache/yarn
-RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
-
-COPY . ./
+RUN --mount=type=cache,target=/cache/yarn \
+    yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 # Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
 RUN node node_modules/esbuild/install.js
-RUN yarn build
+
+COPY . ./
+
+ARG TARGETPLATFORM
+RUN --mount=type=cache,target=/cache/yarn \
+    sh ./scripts/docker-cross-env.sh "$TARGETPLATFORM" \
+    yarn build
 
 
-# Stage 1: The actual container
-FROM node:18
+# Stage 2: Install the production dependencies
+FROM --platform=${BUILDPLATFORM} docker.io/library/node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS deps
+
+
+WORKDIR /src
+
+COPY yarn.lock package.json scripts/docker-cross-env.sh scripts/docker-download-sdk.sh ./
+RUN yarn config set yarn-offline-mirror /cache/yarn
+
+ARG TARGETPLATFORM
+RUN --mount=type=cache,target=/cache/yarn \
+    sh ./docker-cross-env.sh "$TARGETPLATFORM" \
+    yarn --ignore-scripts --pure-lockfile --network-timeout 600000 --production
+
+# Workaround: the install script of the matrix-rust-sdk only installs for the current platform, not the target one
+ARG MATRIX_SDK_VERSION
+RUN sh ./docker-download-sdk.sh "$TARGETPLATFORM" "$MATRIX_SDK_VERSION"
+
+
+# Stage 3: Build the final runtime image
+FROM --platform=$TARGETPLATFORM docker.io/library/node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME}-slim AS runtime
 
 WORKDIR /bin/matrix-hookshot
 
-COPY --from=builder /src/yarn.lock /src/package.json ./
-COPY --from=builder /cache/yarn /cache/yarn
-RUN yarn config set yarn-offline-mirror /cache/yarn
-
-RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
-
+COPY package.json ./package.json
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
 COPY --from=builder /src/assets ./assets
+COPY --from=deps /src/node_modules ./node_modules
 
 VOLUME /data
 EXPOSE 9993
