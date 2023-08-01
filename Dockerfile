@@ -1,18 +1,17 @@
 # syntax = docker/dockerfile:1.4
 
 # The Debian version and version name must be in sync
-ARG DEBIAN_VERSION=11
-ARG DEBIAN_VERSION_NAME=bullseye
+ARG DEBIAN_VERSION_NAME=bookworm
 ARG RUSTC_VERSION=1.71.0
 # XXX: zig v0.10.x has issues with building with the current napi CLI tool. This should be fixed in the
 # next release of the napi CLI, which leverages cargo-zigbuild and does not have this issue.
 ARG ZIG_VERSION=0.9.1
-ARG NODEJS_VERSION=18
+ARG NODEJS_VERSION=18.17.0
 # This needs to be kept in sync with the version in the package.json
 ARG MATRIX_SDK_VERSION=0.1.0-beta.6
 
 # Stage 1: Build the native rust module and the frontend assets
-FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS builder
+FROM --platform=${BUILDPLATFORM} docker.io/library/node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS builder
 
 # We need rustup so we have a sensible rust version, the version packed with bullseye is too old
 ARG RUSTC_VERSION
@@ -49,7 +48,7 @@ RUN --mount=type=cache,target=/cache/yarn \
 
 
 # Stage 2: Install the production dependencies
-FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS deps
+FROM --platform=${BUILDPLATFORM} docker.io/library/node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS deps
 
 
 WORKDIR /src
@@ -68,7 +67,7 @@ RUN sh ./docker-download-sdk.sh "$TARGETPLATFORM" "$MATRIX_SDK_VERSION"
 
 
 # Stage 3: Build the final runtime image
-FROM --platform=$TARGETPLATFORM gcr.io/distroless/nodejs${NODEJS_VERSION}-debian${DEBIAN_VERSION}:nonroot AS runtime
+FROM --platform=$TARGETPLATFORM docker.io/library/node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME}-slim AS runtime
 
 WORKDIR /bin/matrix-hookshot
 
@@ -82,4 +81,4 @@ VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
 
-CMD ["/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
+CMD ["node", "/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
