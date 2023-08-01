@@ -7,6 +7,8 @@ public/
 registration.yml
 tests/
 tsconfig.tsbuildinfo
+Dockerfile
+.dockerignore
 
 # Added by cargo
 /target

@@ -4,21 +4,18 @@
 ARG DEBIAN_VERSION=11
 ARG DEBIAN_VERSION_NAME=bullseye
 ARG RUSTC_VERSION=1.71.0
-ARG ZIG_VERSION=0.10.1
+# XXX: zig v0.10.x has issues with building with the current napi CLI tool. This should be fixed in the
+# next release of the napi CLI, which leverages cargo-zigbuild and does not have this issue.
+ARG ZIG_VERSION=0.9.1
 ARG NODEJS_VERSION=18
-ARG CARGO_ZIGBUILD_VERSION=0.16.12
 # This needs to be kept in sync with the version in the package.json
 ARG MATRIX_SDK_VERSION=0.1.0-beta.6
 
 # Stage 1: Build the native rust module and the frontend assets
 FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS builder
 
-ARG CARGO_ZIGBUILD_VERSION
+# We need rustup so we have a sensible rust version, the version packed with bullseye is too old
 ARG RUSTC_VERSION
-ARG ZIG_VERSION
-ARG TARGETPLATFORM
-
-# We need rustup so we have a sensible rust version, the version packed with bullsye is too old
 RUN curl --proto '=https' --tlsv1.2 -sSf  https://sh.rustup.rs | sh -s -- -y --default-toolchain "${RUSTC_VERSION}" --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -27,12 +24,11 @@ RUN rustup target add  \
   x86_64-unknown-linux-gnu \
   aarch64-unknown-linux-gnu
 
-# Install zig and cargo-zigbuild, which are used by napi to cross-compile the native module
+# Install zig, which is then used by napi to cross-compile the native module
+ARG ZIG_VERSION
 RUN \
   curl --proto '=https' --tlsv1.2 -sSf "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-$(uname -m)-${ZIG_VERSION}.tar.xz" | tar -J -x -C /usr/local && \
   ln -s "/usr/local/zig-linux-$(uname -m)-${ZIG_VERSION}/zig" /usr/local/bin/zig
-
-RUN cargo install --locked cargo-zigbuild@=${CARGO_ZIGBUILD_VERSION}
 
 WORKDIR /src
 
@@ -46,26 +42,28 @@ RUN node node_modules/esbuild/install.js
 
 COPY . ./
 
+ARG TARGETPLATFORM
 RUN --mount=type=cache,target=/cache/yarn \
     sh ./scripts/docker-cross-env.sh "$TARGETPLATFORM" \
     yarn build
 
 
 # Stage 2: Install the production dependencies
-FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION} AS deps
+FROM --platform=${BUILDPLATFORM} node:${NODEJS_VERSION}-${DEBIAN_VERSION_NAME} AS deps
 
-ARG TARGETPLATFORM
-ARG MATRIX_SDK_VERSION
 
 WORKDIR /src
 
 COPY yarn.lock package.json scripts/docker-cross-env.sh scripts/docker-download-sdk.sh ./
 RUN yarn config set yarn-offline-mirror /cache/yarn
 
+ARG TARGETPLATFORM
 RUN --mount=type=cache,target=/cache/yarn \
     sh ./docker-cross-env.sh "$TARGETPLATFORM" \
     yarn --ignore-scripts --pure-lockfile --network-timeout 600000 --production
+
 # Workaround: the install script of the matrix-rust-sdk only installs for the current platform, not the target one
+ARG MATRIX_SDK_VERSION
 RUN sh ./docker-download-sdk.sh "$TARGETPLATFORM" "$MATRIX_SDK_VERSION"
 
 
