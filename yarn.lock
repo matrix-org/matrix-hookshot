@@ -901,10 +901,10 @@
   dependencies:
     "@lezer/common" "^1.0.0"
 
-"@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.6":
-  version "0.1.0-beta.6"
-  resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.1.0-beta.6.tgz#0ecae51103ee3c107af0d6d0738f33eb7cc9857e"
-  integrity sha512-JXyrHuCVMydUGgSetWsfqbbvHj3aUMOX5TUghlMtLFromyEu7wIsNgYt7PjJ+k3WdF4GVABRy4P6GNjaEMy2uA==
+"@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.6", "@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.9":
+  version "0.1.0-beta.9"
+  resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.1.0-beta.9.tgz#dc21f3b0f4b35b73befc64a257b8e519afbcbed0"
+  integrity sha512-ee2YlBoXPLgp1aav9MqREJKvWJfURn9Jcs46FyWT4NXEl37KQDNC8CWWnqgqsHkLfBxxSxfq9kMA/mWQZF7QJw==
   dependencies:
     https-proxy-agent "^5.0.1"
     node-downloader-helper "^2.1.5"
