@@ -1,23 +1,26 @@
-:root {
-  --background-color: #FFFFFF;
-  --foreground-color: #17191C;
-  --light-color: #737D8C;
-  --primary-color: #0DBD8B;
-  --primary-color-disabled: #0dbd8baf;
+@import url("@vector-im/compound-design-tokens/assets/web/css/cpd-light.css");
+@import url("@vector-im/compound-design-tokens/assets/web/css/cpd-dark.css");
+@import url("@vector-im/compound-design-tokens/assets/web/css/cpd-common.css");
 
-  background-color: #F4F6FA;
+:root {
+  --background-color: var(--cpd-color-bg-canvas-default);
+  --foreground-color: var(--cpd-color-text-primary);
+  --light-color: var(--cpd-color-bg-subtle-secondary-level-0);
+  --primary-color: var(--cpd-color-icon-success-primary);
+  --primary-color-disabled: #99CAC0;
+
+  background-color: var(--cpd-color-bg-subtle-secondary);
   color: var(--foreground-color);
   min-height: 100%;
   width: 100%;
   font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
 }
 
-// @media (prefers-color-scheme: dark) {
-//   :root {
-//     --background-color: #111111;
-//     --foreground-color: #f2f5f8;
-//   }
-// }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --primary-color-disabled: #11493E;
+  }
+}
 
 a {
   color: var(--primary-color);
@@ -56,13 +59,13 @@ button {
 
 .chevron.down::before {
 	transform: rotate(-225deg);
-  border-color: var(--light-color);
+  border-color: var(--foreground-color);
   float: right;
 }
 
 
 .chevron.up::before {
 	transform: rotate(-45deg);
-  border-color: var(--light-color);
+  border-color: var(--foreground-color);
   float: right;
 }
