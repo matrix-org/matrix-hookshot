@@ -1,3 +1,19 @@
+/**
+ * This is a transformation function for Prometheus Alertmanager webhooks.
+ * https://prometheus.io/docs/alerting/latest/configuration/#webhook_config
+ *
+ * Creates a formatted `m.text` message with plaintext fallback, containing:
+ * - alert status and severity
+ * - alert name and description
+ * - URL to the entity that caused the alert
+ * The formatted message also contains a clickable link that silences the alert.
+ */
+
+/**
+ * @param status resolved or firing
+ * @param severity from the labels of the alert
+ * @returns colored text rendering of the status and severity
+ */
 function statusBadge(status, severity) {
     let statusColor;
     if (status === "resolved") {
@@ -15,6 +31,11 @@ function statusBadge(status, severity) {
     }
 }
 
+/**
+ * @param alert object from the webhook payload
+ * @param externalURL from the webhook payload
+ * @returns a formatted link that will silence the alert when clicked
+ */
 function silenceLink(alert, externalURL) {
     filters = []
     for (const [label, val] of Object.entries(alert.labels)) {
