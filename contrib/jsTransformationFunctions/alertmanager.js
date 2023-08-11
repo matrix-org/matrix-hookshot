@@ -58,11 +58,11 @@ const { externalURL, alerts } = data;
 
 for (const alert of data.alerts) {
     plainErrors.push(`**[${alert.status.toUpperCase()} - ${alert.labels.severity}]** - ${alert.labels.alertname}: ${alert.annotations.description} [source](${alert.generatorURL})`);
-    htmlErrors.push(`${statusBadge(alert.status, alert.labels.severity)}${alert.labels.alertname}: ${alert.annotations.description} <a href="${alert.generatorURL}">source</a> ${silenceLink(alert, externalURL)}`)
+    htmlErrors.push(`${statusBadge(alert.status, alert.labels.severity)}<br/>${alert.labels.alertname}: ${alert.annotations.description}<br/><a href="${alert.generatorURL}">source</a> | ${silenceLink(alert, externalURL)}`)
     result = {
         version: 'v2',
         plain: plainErrors.join(`\n\n`),
-        html: htmlErrors.join(`<br/>`),
+        html: htmlErrors.join(`<br/><br/>`),
         msgtype: 'm.text'
     };
 }
