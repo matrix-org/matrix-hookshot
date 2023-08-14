@@ -3,6 +3,7 @@ import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
+import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 
 export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();
@@ -11,6 +12,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private figmaCommentIds: Map<string, string> = new Map();
     private widgetSessions: Map<string, ProvisionSession> = new Map();
     private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
+    private gitlabDiscussionThreads = new Map<string, SerializedGitlabDiscussionThreads>();
     private feedGuids = new Map<string, Array<string>>();
 
     constructor() {
@@ -96,5 +98,13 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     
     public async setStoredTempFile(key: string, value: string) {
         this.storedFiles.set(key, value);
+    }
+
+    public async getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads> {
+        return this.gitlabDiscussionThreads.get(connectionId) ?? [];
+    }
+
+    public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
+        this.gitlabDiscussionThreads.set(connectionId, value);
     }
 }

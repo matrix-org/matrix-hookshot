@@ -5,6 +5,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
+import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";
@@ -16,6 +17,7 @@ const GH_ISSUES_LAST_COMMENT_KEY = "gh.issues.last_comment";
 const GH_ISSUES_REVIEW_DATA_KEY = "gh.issues.review_data";
 const FIGMA_EVENT_COMMENT_ID = "figma.comment_event_id";
 const STORED_FILES_KEY = "storedfiles.";
+const GL_DISCUSSIONTHREADS_KEY = "gl.discussion-threads";
 const STORED_FILES_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
@@ -202,6 +204,16 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     
     public async setStoredTempFile(key: string, value: string) {
         await this.redis.set(STORED_FILES_KEY + key, value);
+    }
+
+    public async getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads> {
+        const key = `${GL_DISCUSSIONTHREADS_KEY}:${connectionId}`;
+        return JSON.parse(await this.redis.get(key) ?? '[]');
+    }
+
+    public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
+        const key = `${GL_DISCUSSIONTHREADS_KEY}:${connectionId}`;
+        await this.redis.set(key, JSON.stringify(value));
     }
 
     public async storeFeedGuids(url: string, ...guid: string[]): Promise<void> {

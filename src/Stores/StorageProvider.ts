@@ -1,6 +1,7 @@
 import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
 import { IssuesGetResponseData } from "../github/Types";
+import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 
 // Some RSS feeds can return a very small number of items then bounce
 // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
@@ -22,6 +23,8 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     getFigmaCommentEventId(roomId: string, figmaCommentId: string): Promise<string|null>;
     getStoredTempFile(key: string): Promise<string|null>;
     setStoredTempFile(key: string, value: string): Promise<void>;
+    getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads>;
+    setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void>;
     storeFeedGuids(url: string, ...guid: string[]): Promise<void>;
     hasSeenFeed(url: string, ...guid: string[]): Promise<boolean>;
     hasSeenFeedGuid(url: string, guid: string): Promise<boolean>;

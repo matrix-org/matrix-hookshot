@@ -5,6 +5,8 @@ import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";
 import { expect } from "chai";
 import { BridgeConfigGitLab } from "../../src/config/Config";
+import { IBridgeStorageProvider } from "../../src/Stores/StorageProvider";
+import { IntentMock } from "../utils/IntentMock";
 
 const ROOM_ID = "!foo:bar";
 
@@ -20,20 +22,40 @@ const GITLAB_MR = {
 	title: "My MR",
 };
 
-const GITLAB_ISSUE_CREATED_PAYLOAD = {
-    object_kind: "merge_request",
-	user: {
-		name: "Alice",
-		username: "alice",
-	},
-	object_attributes: GITLAB_MR,
-	project: {
-		path_with_namespace: `${GITLAB_ORG_REPO.org}/${GITLAB_ORG_REPO.repo}`,
-		web_url: `https://gitlab.example.com/${GITLAB_ORG_REPO.org}/${GITLAB_ORG_REPO.repo}`,
-	}
+const GITLAB_USER = {
+	name: "Alice",
+	username: "alice",
 };
 
-function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
+const GITLAB_PROJECT = {
+	path_with_namespace: `${GITLAB_ORG_REPO.org}/${GITLAB_ORG_REPO.repo}`,
+	web_url: `https://gitlab.example.com/${GITLAB_ORG_REPO.org}/${GITLAB_ORG_REPO.repo}`,
+};
+
+const GITLAB_ISSUE_CREATED_PAYLOAD = {
+    object_kind: "merge_request",
+	user: GITLAB_USER,
+	object_attributes: GITLAB_MR,
+	project: GITLAB_PROJECT,
+};
+
+const GITLAB_MR_COMMENT = {
+	'object_kind': 'note',
+	'event_type': 'note',
+	'merge_request': GITLAB_MR,
+	'object_attributes': {
+        'discussion_id': '6babfc4ad3be2355db286ed50be111a5220d5751',
+        'note': 'I am starting a new thread',
+        'noteable_type': 'MergeRequest',
+        'url': 'https://gitlab.com/tadeuszs/my-awesome-project/-/merge_requests/2#note_1455087141'
+	},
+	'project': GITLAB_PROJECT,
+	'user': GITLAB_USER,
+};
+
+const COMMENT_DEBOUNCE_MS = 25;
+
+function createConnection(state: Record<string, unknown> = {}, isExistingState=false): { connection: GitLabRepoConnection, intent: IntentMock } {
 	const mq = createMessageQueue({
 		monolithic: true
 	});
@@ -44,7 +66,9 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		ROOM_ID,
 		"state_key",
 		as,
-		{} as BridgeConfigGitLab,
+		{
+			commentDebounceMs: COMMENT_DEBOUNCE_MS,
+		} as BridgeConfigGitLab,
 		intent,
 		GitLabRepoConnection.validateState({
 			instance: "bar",
@@ -55,8 +79,16 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		{
 			url: "https://gitlab.example.com"
 		},
+		{
+			setGitlabDiscussionThreads: () => Promise.resolve(),
+			getGitlabDiscussionThreads: () => Promise.resolve([]),
+		} as unknown as IBridgeStorageProvider,
 	);
 	return {connection, intent};
+}
+
+async function waitForDebouncing(): Promise<void> {
+	return new Promise(resolve => setTimeout(resolve, COMMENT_DEBOUNCE_MS * 2));
 }
 
 describe("GitLabRepoConnection", () => {
@@ -126,6 +158,98 @@ describe("GitLabRepoConnection", () => {
 				path: "foo",
 				enabledHooks: ["not-real"],
 			}, true);
+		});
+	});
+	describe("onCommentCreated", () => {
+		it("will handle an MR comment", async () => {
+			const { connection, intent } = createConnection();
+			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
+			await waitForDebouncing();
+			intent.expectEventMatches(
+				(ev: any) => ev.content.body.includes('**Alice** commented on MR'),
+				'event body indicates MR comment'
+			);
+		});
+		it("will debounce MR comments", async () => {
+			const { connection, intent } = createConnection();
+			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'fa5d',
+					'note': 'different comment',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(1);
+			intent.expectEventMatches(
+				(ev: any) => ev.content.body.includes('with 2 comments'),
+				'one event sent for both comments',
+				0,
+			);
+		});
+		it("will add new comments in a Matrix thread", async () => {
+			const { connection, intent } = createConnection();
+			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
+			await waitForDebouncing();
+			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(2);
+			intent.expectEventMatches(
+				(ev: any) => ev.content['m.relates_to'].event_id === 'event_0',
+				'one event sent for both comments',
+				1,
+			);
+		});
+		it("will correctly map new comments to aggregated discussions", async () => {
+			const { connection, intent } = createConnection();
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc1',
+				},
+			} as never);
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc2',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(1);
+
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc1',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(2);
+			intent.expectEventMatches(
+				(ev: any) => ev.content['m.relates_to'].event_id === 'event_0',
+				'disc1 reply goes to existing thread',
+				1
+			);
+
+			await connection.onCommentCreated({
+				...GITLAB_MR_COMMENT,
+				'object_attributes': {
+					...GITLAB_MR_COMMENT.object_attributes,
+					'discussion_id': 'disc2',
+				},
+			} as never);
+			await waitForDebouncing();
+			expect(intent.sentEvents.length).to.equal(3);
+			intent.expectEventMatches(
+				(ev: any) => ev.content['m.relates_to'].event_id === 'event_0',
+				'disc2 reply also goes to existing thread',
+				2
+			);
 		});
 	});
 	describe("onIssueCreated", () => {
