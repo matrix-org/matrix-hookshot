@@ -58,7 +58,7 @@ const { externalURL, alerts } = data;
 
 for (const alert of data.alerts) {
     plainErrors.push(`**[${alert.status.toUpperCase()} - ${alert.labels.severity}]** - ${alert.labels.alertname}: ${alert.annotations.description} [source](${alert.generatorURL})`);
-    htmlErrors.push(`<p>${statusBadge(alert.status, alert.labels.severity)}</p><p><b>${alert.labels.alertname}</b>: ${alert.annotations.description}</p><p><a href="${alert.generatorURL}">source</a> | ${silenceLink(alert, externalURL)}</p>`)
+    htmlErrors.push(`<p>${statusBadge(alert.status, alert.labels.severity)}</p><p><b>${alert.labels.alertname}</b>: ${alert.annotations.description.replaceAll("\n","<br\>")}</p><p><a href="${alert.generatorURL}">source</a> | ${silenceLink(alert, externalURL)}</p>`)
     result = {
         version: 'v2',
         plain: plainErrors.join(`\n\n`),
