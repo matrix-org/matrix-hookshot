@@ -702,7 +702,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-hookshot"
-version = "1.8.1"
+version = "4.4.1"
 dependencies = [
  "atom_syndication",
  "contrast",
