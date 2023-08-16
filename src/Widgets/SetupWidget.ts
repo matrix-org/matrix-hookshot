@@ -74,7 +74,7 @@ export class SetupWidget {
                 "id": stateKey,
                 "name": config.branding.widgetTitle,
                 "type": "m.custom",
-                "url": new URL(`#/?kind=${kind}&roomId=$matrix_room_id&widgetId=$matrix_widget_id${serviceScope ? `&serviceScope=${serviceScope}` : ''}`, config.parsedPublicUrl).href,
+                "url": new URL(`#/?kind=${kind}&theme=$org.matrix.msc2873.client_theme&roomId=$matrix_room_id&widgetId=$matrix_widget_id${serviceScope ? `&serviceScope=${serviceScope}` : ''}`, config.parsedPublicUrl).href,
                 "waitForIframeLoad": true,
             }
         );

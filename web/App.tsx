@@ -11,6 +11,7 @@ import RoomConfigView from './components/RoomConfigView';
 interface IMinimalState {
     error: string|null,
     busy: boolean,
+    theme?: string,
 }
 interface ICompleteState extends IMinimalState {
     roomId: string,
@@ -57,6 +58,7 @@ export default class App extends Component<void, IState> {
         const roomId = assertParam(qs, 'roomId');
         const widgetKind = qs.get('kind') as "invite"|"admin"|"roomConfig";
         const serviceScope = qs.get('serviceScope');
+        const theme = qs.get('theme');
         const embedType = qs.get(embedTypeParameter);
         // Fetch via config.
         this.widgetApi = new WA.WidgetApi(widgetId);
@@ -90,6 +92,7 @@ export default class App extends Component<void, IState> {
             embedType: embedType === EmbedType.IntegrationManager ? EmbedType.IntegrationManager : EmbedType.Default,
             kind: widgetKind,
             busy: false,
+            theme: theme || undefined,
         });
     } catch (ex) {
         console.error(`Failed to set up widget:`, ex);
@@ -141,10 +144,20 @@ export default class App extends Component<void, IState> {
             content = <b>Invalid state</b>;
         }
 
+        let cpdTheme = "";
+
+        if (this.state.theme?.includes("dark")) {
+            cpdTheme = "cpd-theme-dark";
+        } else {
+            cpdTheme = "cpd-theme-light";
+        }
+
+        document.querySelector("html")?.classList.add(cpdTheme);
+
         return (
             <div style={{
                 padding: this.state.embedType === "integration-manager" ? "0" : "16px",
-            }}>
+            }}> 
                 {content}
             </div>
         );
