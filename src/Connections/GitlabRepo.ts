@@ -12,7 +12,7 @@ import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
-import { AccessLevel } from "../Gitlab/Types";
+import { AccessLevel, SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
 import { CommandError } from "../errors";
 import QuickLRU from "@alloc/quick-lru";
@@ -59,8 +59,6 @@ const log = new Logger("GitLabRepoConnection");
 const md = new markdown();
 
 const PUSH_MAX_COMMITS = 5;
-const MRRCOMMENT_DEBOUNCE_MS = 5000;
-
 
 export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnectionState>;
 
@@ -205,7 +203,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         throw new ValidatorApiError(validator.errors);
     }
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, tokenStore, config}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, storage, tokenStore, config}: InstantiateConnectionOpts) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -214,7 +212,13 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (!instance) {
             throw Error('Instance name not recognised');
         }
-        return new GitLabRepoConnection(roomId, event.stateKey, as, config.gitlab, intent, state, tokenStore, instance);
+
+        const connection = new GitLabRepoConnection(roomId, event.stateKey, as, config.gitlab, intent, state, tokenStore, instance, storage);
+
+        const discussionThreads = await storage.getGitlabDiscussionThreads(connection.connectionId);
+        connection.setDiscussionThreads(discussionThreads);
+
+        return connection;
     }
 
     public static async assertUserHasAccessToProject(
@@ -242,7 +246,12 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         return permissionLevel;
     }
 
-    public static async provisionConnection(roomId: string, requester: string, data: Record<string, unknown>, { as, config, intent, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts) {
+    public static async provisionConnection(
+        roomId: string,
+        requester: string,
+        data: Record<string, unknown>,
+        { as, config, intent, storage, tokenStore, getAllConnectionsOfType }: ProvisionConnectionOpts
+    ) {
         if (!config.gitlab) {
             throw Error('GitLab is not configured');
         }
@@ -260,7 +269,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
         const project = await client.projects.get(validData.path);
         const stateEventKey = `${validData.instance}/${validData.path}`;
-        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, gitlabConfig, intent, validData, tokenStore, instance);
+        const connection = new GitLabRepoConnection(roomId, stateEventKey, as, gitlabConfig, intent, validData, tokenStore, instance, storage);
+
         const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
         const existing = existingConnections.find(c => c.roomId === roomId && c.instance.url === connection.instance.url && c.path === connection.path);
 
@@ -382,21 +392,19 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
     private readonly debounceMRComments = new Map<string, {
         commentCount: number,
         commentNotes?: string[],
+        discussions: string[],
         author: string,
         timeout: NodeJS.Timeout,
         approved?: boolean,
         skip?: boolean,
     }>();
 
-    /**
-     * GitLab provides NO threading information in its webhook response objects,
-     * so we need to determine if we've seen a comment for a line before, and
-     * skip it if we have (because it's probably a reply).
-     */
-    private readonly mergeRequestSeenDiscussionIds = new QuickLRU<string, undefined>({ maxSize: 100 });
+    private readonly discussionThreads = new QuickLRU<string, Promise<string|undefined>>({ maxSize: 100});
+
     private readonly hookFilter: HookFilter<AllowedEventsNames>;
 
     private readonly grantChecker;
+    private readonly commentDebounceMs: number;
 
     constructor(
         roomId: string,
@@ -407,6 +415,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         state: ConnectionStateValidated,
         private readonly tokenStore: UserTokenStore,
         private readonly instance: GitLabInstance,
+        private readonly storage: IBridgeStorageProvider,
     ) {
         super(
             roomId,
@@ -427,7 +436,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.hookFilter = new HookFilter(
             state.enableHooks ?? DefaultHooks,
         );
-}
+        this.commentDebounceMs = config.commentDebounceMs;
+    }
 
     public get path() {
         return this.state.path.toLowerCase();
@@ -723,7 +733,7 @@ ${data.description}`;
         });
     }
 
-    private renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject) {
+    private async renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject) {
         const result = this.debounceMRComments.get(uniqueId);
         if (!result) {
             // Always defined, but for type checking purposes.
@@ -739,26 +749,52 @@ ${data.description}`;
             comments = ` with ${result.commentCount} comments`;
         }
 
-        let approvalState = 'commented on';
-        if (result.approved === true) {
-            approvalState = '✅ approved'
-        } else if (result.approved === false) {
-            approvalState = '🔴 unapproved';
+        let relation;
+        const discussionWithThread = result.discussions.find(discussionId => this.discussionThreads.has(discussionId));
+        if (discussionWithThread) {
+            const threadEventId = await this.discussionThreads.get(discussionWithThread)!.catch(_ => { /* already logged */ });
+            if (threadEventId) {
+                relation = {
+                    "m.relates_to": {
+                        "event_id": threadEventId,
+                        "rel_type": "m.thread"
+                    },
+                };
+            }
         }
 
-        let content = `**${result.author}** ${approvalState} MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"${comments}`;
+        let action = relation ? 'replied' : 'commented on'; // this is the only place we need this, approve/unapprove don't appear in discussions
+        if (result.approved === true) {
+            action = '✅ approved'
+        } else if (result.approved === false) {
+            action = '🔴 unapproved';
+        }
+
+        const target = relation ? '' : ` MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
+        let content = `**${result.author}** ${action}${target} ${comments}`;
 
         if (result.commentNotes) {
             content += "\n\n> " + result.commentNotes.join("\n\n> ");
         }
 
-        this.intent.sendEvent(this.roomId, {
+        const eventPromise = this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
+            ...relation,
         }).catch(ex  => {
             log.error('Failed to send MR review message', ex);
+            return undefined;
+        });
+
+        for (const discussionId of result.discussions) {
+            if (!this.discussionThreads.has(discussionId)) {
+                this.discussionThreads.set(discussionId, eventPromise);
+            }
+        }
+        void this.persistDiscussionThreads().catch(ex => {
+            log.error(`Failed to persistently store Gitlab discussion threads for connection ${this.connectionId}:`, ex);
         });
     }
 
@@ -770,6 +806,7 @@ ${data.description}`;
             commentCount: number,
             commentNotes?: string[],
             approved?: boolean,
+            discussionId?: string,
             /**
              * If the MR contains only comments, skip it.
              */
@@ -789,16 +826,20 @@ ${data.description}`;
             if (!opts.skip) {
                 existing.skip = false;
             }
-            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS);
+            if (opts.discussionId) {
+                existing.discussions.push(opts.discussionId);
+            }
+            existing.timeout = setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), this.commentDebounceMs);
             return;
         }
         this.debounceMRComments.set(uniqueId, {
             commentCount: commentCount,
             commentNotes: commentNotes,
+            discussions: opts.discussionId ? [opts.discussionId] : [],
             skip: opts.skip,
             approved,
             author: user.name,
-            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), MRRCOMMENT_DEBOUNCE_MS),
+            timeout: setTimeout(() => this.renderDebouncedMergeRequest(uniqueId, mergeRequest, project), this.commentDebounceMs),
         });
     }
 
@@ -840,19 +881,6 @@ ${data.description}`;
         );
     }
 
-    private shouldHandleMRComment(event: IGitLabWebhookNoteEvent) {
-        // Check to see if this line has had a comment before
-        if (event.object_attributes.discussion_id) {
-            if (this.mergeRequestSeenDiscussionIds.has(event.object_attributes.discussion_id)) {
-                // If it has, this is probably a reply. Skip repeated replies.
-                return false;
-            }
-            // Otherwise, record that we have seen the line and continue (it's probably a genuine comment).
-            this.mergeRequestSeenDiscussionIds.set(event.object_attributes.discussion_id, undefined);
-        }
-        return true;
-    }
-
     public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
             return;
@@ -862,13 +890,11 @@ ${data.description}`;
             // Not a MR comment
             return;
         }
-        if (!this.shouldHandleMRComment(event)) {
-            // Skip it.
-            return;
-        }
+
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
             commentCount: 1,
             commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+            discussionId: event.object_attributes.discussion_id,
             skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
         });
     }
@@ -911,6 +937,24 @@ ${data.description}`;
             await this.intent.underlyingClient.sendStateEvent(this.roomId, GitLabRepoConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
         // TODO: Clean up webhooks
+    }
+
+    private setDiscussionThreads(discussionThreads: SerializedGitlabDiscussionThreads): void {
+        for (const { discussionId, eventId } of discussionThreads) {
+            this.discussionThreads.set(discussionId, Promise.resolve(eventId));
+        }
+    }
+
+    private async persistDiscussionThreads(): Promise<void> {
+        const serialized: SerializedGitlabDiscussionThreads = [];
+        for (const [discussionId, eventIdPromise] of this.discussionThreads.entriesAscending()) {
+            const eventId = await eventIdPromise.catch(_ => { /* logged elsewhere */ });
+            if (eventId) {
+                serialized.push({ discussionId, eventId });
+            }
+
+        }
+        return this.storage.setGitlabDiscussionThreads(this.connectionId, serialized);
     }
 }
 

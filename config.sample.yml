@@ -49,6 +49,10 @@ gitlab:
     # (Optional) Prefix used when creating ghost users for GitLab accounts.
 
     _gitlab_
+  commentDebounceMs:
+    # (Optional) Aggregate comments by waiting this many miliseconds before posting them to Matrix. Defaults to 5000 (5 seconds)
+
+    5000
 figma:
   # (Optional) Configure this to enable Figma support
 
