@@ -6,7 +6,7 @@ import { MessageQueue } from "../MessageQueue";
 import axios from "axios";
 import Metrics from "../Metrics";
 import { randomUUID } from "crypto";
-import { readFeed } from "../libRs";
+import { FeedItem, readFeed } from "../libRs";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import UserAgent from "../UserAgent";
 
@@ -204,6 +204,8 @@ export class FeedReader {
                 // If undefined, we got a not-modified.
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
 
+                const newEntries: FeedEntry[] = [];
+
                 for (const item of feed.items) {
                     // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
                     if (!item.hashId) {
@@ -212,11 +214,7 @@ export class FeedReader {
                     }
                     const hashId = `md5:${item.hashId}`;
                     newGuids.push(hashId);
-    
-                    if (initialSync) {
-                        log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
-                        continue;
-                    }
+
                     if (await this.storage.hasSeenFeedGuid(url, hashId)) {
                         log.debug('Skipping already seen entry', item.id ?? hashId);
                         continue;
@@ -235,9 +233,22 @@ export class FeedReader {
                     };
     
                     log.debug('New entry:', entry);
+                    newEntries.push(entry);
                     seenEntriesChanged = true;
+                }
     
-                    this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: entry });
+                if (initialSync) {
+                    if (this.storage.isPersistent) {
+                        try {
+                            const latest = newEntries.sort((a, b) => new Date(b.pubdate!).getTime() - new Date(a.pubdate!).getTime())[0];
+                            this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: latest });
+                        } catch (err: unknown) {
+                            // no pubdates available, or they parse incorrectly. Null sweat
+                            log.debug(`Could not determine the latest entry in ${url} (${err}), won't report anything`);
+                        }
+                    }
+                } else {
+                    newEntries.forEach(entry => this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: entry }));
                 }
     
                 if (seenEntriesChanged) {

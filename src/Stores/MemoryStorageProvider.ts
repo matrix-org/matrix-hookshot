@@ -19,6 +19,10 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
         super();
     }
 
+    get isPersistent(): boolean {
+        return false;
+    }
+
     async storeFeedGuids(url: string, ...guids: string[]): Promise<void> {
         let set = this.feedGuids.get(url);
         if (!set) {

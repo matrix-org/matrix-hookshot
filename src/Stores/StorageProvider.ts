@@ -11,6 +11,7 @@ import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 export const MAX_FEED_ITEMS = 10_000;
 
 export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
+    get isPersistent(): boolean;
     connect?(): Promise<void>;
     disconnect?(): Promise<void>;
     setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope?: string): Promise<void>;
