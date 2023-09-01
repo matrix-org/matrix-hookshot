@@ -7,6 +7,7 @@ import { GenericHookConnectionState, GenericHookResponseItem } from "../../../sr
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhooks.svg";
+import WebhookIconDark from "../../icons/webhooks_dark.svg";
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
@@ -86,9 +87,9 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
 
-export const GenericWebhookConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+export const GenericWebhookConfig: BridgeConfig = ({ api, roomId, showHeader, darkMode }) => {
     return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
-        headerImg={WebhookIcon}
+        headerImg={darkMode ? WebhookIconDark : WebhookIcon}
         showHeader={showHeader}
         api={api}
         roomId={roomId}

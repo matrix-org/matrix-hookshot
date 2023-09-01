@@ -122,6 +122,16 @@ export default class App extends Component<void, IState> {
             </Card>;
         }
 
+        let cpdTheme = "";
+        let darkMode = false;
+
+        if (this.state.theme?.includes("dark")) {
+            cpdTheme = "cpd-theme-dark";
+            darkMode = true;
+        } else {
+            cpdTheme = "cpd-theme-light";
+        }
+
         if ("kind" in this.state) {
             if (this.state.roomState && this.state.kind === "admin") {
                 content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState} />;
@@ -133,6 +143,7 @@ export default class App extends Component<void, IState> {
                     supportedServices={this.state.supportedServices}
                     serviceScope={this.state.serviceScope}
                     embedType={this.state.embedType}
+                    darkMode={darkMode}
                     bridgeApi={this.bridgeApi}
                     widgetApi={this.widgetApi}
                  />;
@@ -142,14 +153,6 @@ export default class App extends Component<void, IState> {
         if (!content) {
             console.warn("invalid state", this.state);
             content = <b>Invalid state</b>;
-        }
-
-        let cpdTheme = "";
-
-        if (this.state.theme?.includes("dark")) {
-            cpdTheme = "cpd-theme-dark";
-        } else {
-            cpdTheme = "cpd-theme-light";
         }
 
         document.querySelector("html")?.classList.add(cpdTheme);

@@ -1,4 +1,5 @@
 import GitHubIcon from "../../icons/github.svg";
+import GitHubIconDark from "../../icons/github_dark.svg";
 import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
@@ -175,7 +176,7 @@ const roomConfigText: IRoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
-export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader, darkMode }) => {
     const [ goNebConnections, setGoNebConnections ] = useState(undefined);
 
     useEffect(() => {
@@ -196,7 +197,7 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     );
 
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
-        headerImg={GitHubIcon}
+        headerImg={darkMode ? GitHubIconDark : GitHubIcon}
         showHeader={showHeader}
         api={api}
         roomId={roomId}

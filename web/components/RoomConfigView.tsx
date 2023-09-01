@@ -11,9 +11,11 @@ import { JiraProjectConfig } from "./roomConfig/JiraProjectConfig";
 
 import FeedsIcon from "../icons/feeds.svg";
 import GitHubIcon from "../icons/github.svg";
+import GitHubIconDark from "../icons/github_dark.svg";
 import GitLabIcon from "../icons/gitlab.svg";
 import JiraIcon from "../icons/jira.svg";
 import WebhookIcon from "../icons/webhooks.svg";
+import WebhookIconDark from "../icons/webhooks_dark.svg";
 
 
 interface IProps {
@@ -21,6 +23,7 @@ interface IProps {
     bridgeApi: BridgeAPI,
     supportedServices: {[service: string]: boolean},
     serviceScope?: string,
+    darkMode: boolean,
     embedType: EmbedType,
     roomId: string,
 }
@@ -77,6 +80,11 @@ export default function RoomConfigView(props: IProps) {
     const serviceScope = props.serviceScope && props.supportedServices[props.serviceScope] ? props.serviceScope as ConnectionType : null;
     const [ activeConnectionType, setActiveConnectionType ] = useState<ConnectionType|null>(serviceScope);
 
+    if (props.darkMode) {
+        connections[ConnectionType.Github].icon = GitHubIconDark;
+        connections[ConnectionType.Generic].icon = WebhookIconDark;
+    }
+
     let content;
 
     if (activeConnectionType) {
@@ -85,6 +93,7 @@ export default function RoomConfigView(props: IProps) {
             roomId={props.roomId}
             api={props.bridgeApi}
             showHeader={props.embedType !== EmbedType.IntegrationManager}
+            darkMode={props.darkMode}
         />;
     } else {
         content = <>
