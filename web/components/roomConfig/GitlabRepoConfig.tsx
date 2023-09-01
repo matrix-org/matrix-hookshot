@@ -1,4 +1,4 @@
-import GitLabIcon from "../../icons/gitlab.png";
+import GitLabIcon from "../../icons/gitlab.svg";
 import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';

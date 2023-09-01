@@ -9,11 +9,11 @@ import { GithubRepoConfig } from "./roomConfig/GithubRepoConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
 import { JiraProjectConfig } from "./roomConfig/JiraProjectConfig";
 
-import FeedsIcon from "../icons/feeds.png";
-import GitHubIcon from "../icons/github.png";
-import GitLabIcon from "../icons/gitlab.png";
-import JiraIcon from "../icons/jira.png";
-import WebhookIcon from "../icons/webhook.png";
+import FeedsIcon from "../icons/feeds.svg";
+import GitHubIcon from "../icons/github.svg";
+import GitLabIcon from "../icons/gitlab.svg";
+import JiraIcon from "../icons/jira.svg";
+import WebhookIcon from "../icons/webhooks.svg";
 
 
 interface IProps {

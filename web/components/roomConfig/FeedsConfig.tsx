@@ -6,7 +6,7 @@ import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./Roo
 import { Button, ButtonSet, InputField } from "../elements";
 import styles from "./FeedConnection.module.scss";
 
-import FeedsIcon from "../../icons/feeds.png";
+import FeedsIcon from "../../icons/feeds.svg";
 
 const DEFAULT_TEMPLATE = "New post in $FEEDNAME: $LINK"
 

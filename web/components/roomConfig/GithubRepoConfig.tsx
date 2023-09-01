@@ -1,4 +1,4 @@
-import GitHubIcon from "../../icons/github.png";
+import GitHubIcon from "../../icons/github.svg";
 import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';

@@ -5,7 +5,7 @@ import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraProjectConnectionInstanceTarget } from "../../../src/Connections/JiraProject";
 import { InputField, ButtonSet, Button } from "../elements";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
-import JiraIcon from "../../icons/jira.png";
+import JiraIcon from "../../icons/jira.svg";
 import ConnectionSearch from "../elements/ConnectionSearch";
 import { DropItem } from "../elements/DropdownSearch";
 

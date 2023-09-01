@@ -6,7 +6,7 @@ import { BridgeConfig } from "../../BridgeAPI";
 import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
-import WebhookIcon from "../../icons/webhook.png";
+import WebhookIcon from "../../icons/webhooks.svg";
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
