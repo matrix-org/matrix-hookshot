@@ -901,6 +901,14 @@
   dependencies:
     "@lezer/common" "^1.0.0"
 
+"@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.11":
+  version "0.1.0-beta.11"
+  resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.1.0-beta.11.tgz#537cd7a7bbce1d9745b812a5a7ffa9a5944e146c"
+  integrity sha512-z5adcQo4o0UAry4zs6JHGxbTDlYTUMKUfpOpigmso65ETBDumbeTSQCWRw8UeUV7aCAyVoHARqDTol9SrauEFA==
+  dependencies:
+    https-proxy-agent "^5.0.1"
+    node-downloader-helper "^2.1.5"
+
 "@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.6":
   version "0.1.0-beta.6"
   resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.1.0-beta.6.tgz#0ecae51103ee3c107af0d6d0738f33eb7cc9857e"
@@ -4460,6 +4468,29 @@ matrix-appservice@^2.0.0:
   integrity sha512-YZApoyJhGW9clpD/h1HpCnyX6iaQueFIbdir229acGMD35ViEfvCLp8QynuvNpba1gn+TMWlebFZELTRC+TeCQ==
   dependencies:
     "@matrix-org/matrix-sdk-crypto-nodejs" "0.1.0-beta.6"
+    "@types/express" "^4.17.13"
+    another-json "^0.2.0"
+    async-lock "^1.3.2"
+    chalk "^4"
+    express "^4.18.1"
+    glob-to-regexp "^0.4.1"
+    hash.js "^1.1.7"
+    html-to-text "^8.2.0"
+    htmlencode "^0.0.4"
+    lowdb "^1"
+    lru-cache "^7.10.1"
+    mkdirp "^1.0.4"
+    morgan "^1.10.0"
+    request "^2.88.2"
+    request-promise "^4.2.6"
+    sanitize-html "^2.8.0"
+
+"matrix-bot-sdk@npm:@vector-im/matrix-bot-sdk@^0.6.7-element.1":
+  version "0.6.7-element.1"
+  resolved "https://registry.yarnpkg.com/@vector-im/matrix-bot-sdk/-/matrix-bot-sdk-0.6.7-element.1.tgz#f33721ca33f05b181b52287672b09dbbb2f3f852"
+  integrity sha512-SFaCorDIibhMcJq3AfdacecKALWBEL+sDZVCUDkdA/pgqoWyJiC5c5TcMJT+Gs/vCxCYZzD1qmYssXJ6w7wEYQ==
+  dependencies:
+    "@matrix-org/matrix-sdk-crypto-nodejs" "0.1.0-beta.11"
     "@types/express" "^4.17.13"
     another-json "^0.2.0"
     async-lock "^1.3.2"

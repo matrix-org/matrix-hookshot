@@ -57,7 +57,7 @@
     "jira-client": "^8.0.0",
     "markdown-it": "^12.3.2",
     "matrix-appservice-bridge": "^9.0.1",
-    "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@^0.6.6-element.1",
+    "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@^0.6.7-element.1",
     "matrix-widget-api": "^1.0.0",
     "micromatch": "^4.0.4",
     "mime": "^3.0.0",
