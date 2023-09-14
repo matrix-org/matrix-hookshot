@@ -240,7 +240,7 @@ export class FeedReader {
                     this.queue.push<FeedEntry>({ eventName: 'feed.entry', sender: 'FeedReader', data: entry });
                 }
     
-                if (seenEntriesChanged) {
+                if (seenEntriesChanged && newGuids.length) {
                     await this.storage.storeFeedGuids(url, ...newGuids);
                 }
     
