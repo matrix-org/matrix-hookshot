@@ -1,0 +1,1 @@
+Fix feed metrics treating request failures as parsing failures.
