@@ -2,7 +2,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { VMScript as Script, NodeVM } from "vm2";
+import { QuickJSRuntime, QuickJSWASMModule, newQuickJSWASMModule } from "quickjs-emscripten";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
@@ -65,6 +65,11 @@ const SANITIZE_MAX_BREADTH = 50;
  */
 @Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
+    private static quickModule: QuickJSWASMModule;
+
+    public static async initaliseQuickJS() {
+        GenericHookConnection.quickModule = await newQuickJSWASMModule();
+    }
 
     /**
      * Ensures a JSON payload is compatible with Matrix JSON requirements, such
@@ -197,7 +202,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         GenericHookConnection.LegacyCanonicalEventType,
     ];
 
-    private transformationFunction?: Script;
+    private transformationRuntime?: QuickJSRuntime;
+    private transformationFunction?: string;
     private cachedDisplayname?: string;
     constructor(
         roomId: string,
@@ -211,7 +217,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     ) {
         super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
         if (state.transformationFunction && config.allowJsTransformationFunctions) {
-            this.transformationFunction = new Script(state.transformationFunction);
+            this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
+            // TODO: Validate code.
+            this.transformationFunction = state.transformationFunction;
         }
     }
 
@@ -261,13 +269,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>, this.config.allowJsTransformationFunctions || false);
         if (validatedConfig.transformationFunction) {
-            try {
-                this.transformationFunction = new Script(validatedConfig.transformationFunction);
-            } catch (ex) {
-                await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + ex, "m.text", this.intent.userId);
-            }
-        } else {
-            this.transformationFunction = undefined;
+            this.transformationRuntime?.dispose();
+            this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
+            this.transformationFunction = validatedConfig.transformationFunction;
+            // const codeEvalResult = this.transformationRuntime.newContext().evalCode(validatedConfig.transformationFunction);
+            // if (codeEvalResult.error) {
+            //     this.transformationRuntime?.dispose();
+            //     this.transformationRuntime = undefined;
+            //     await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + codeEvalResult.error, "m.text", this.intent.userId);
+            // }
         }
         this.state = validatedConfig;
     }
@@ -301,20 +311,23 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     }
 
     public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
-        if (!this.transformationFunction) {
-            throw Error('Transformation function not defined');
+        if (!this.transformationRuntime) {
+            throw Error('Transformation runtime not defined');
         }
-        const vm = new NodeVM({
-            console: 'off',
-            wrapper: 'none',
-            wasm: false,
-            eval: false,
-            timeout: TRANSFORMATION_TIMEOUT_MS,
-        });
-        vm.setGlobal('HookshotApiVersion', 'v2');
-        vm.setGlobal('data', data);
-        vm.run(this.transformationFunction);
-        const result = vm.getGlobal('result');
+        let result: any;
+        const ctx = this.transformationRuntime.newContext();
+        try {
+            ctx.setProp(ctx.global, 'HookshotApiVersion', ctx.newString('v2'));
+            const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n\n${this.transformationFunction}`);
+    
+            if (ctxResult.error){
+                throw Error("Transformation failed to run " + ctxResult.error);
+            } else {
+                result = ctx.dump(result.value);
+            }
+        } finally {
+            ctx.dispose();
+        }
 
         // Legacy v1 api
         if (typeof result === "string") {
@@ -358,7 +371,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string, msgtype?: string};
         let success = true;
-        if (!this.transformationFunction) {
+        if (!this.transformationRuntime) {
             content = this.transformHookData(data);
         } else {
             try {
