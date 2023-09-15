@@ -321,9 +321,11 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n\n${this.transformationFunction}`);
     
             if (ctxResult.error){
-                throw Error("Transformation failed to run " + ctxResult.error);
+                const err = ctx.dump(ctxResult.error);
+                throw Error("Transformation failed to run " + err);
             } else {
-                result = ctx.dump(result.value);
+                const value = ctx.getProp(ctx.global, 'result');
+                result = ctx.dump(value);
             }
         } finally {
             ctx.dispose();
