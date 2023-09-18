@@ -67,7 +67,7 @@ const SANITIZE_MAX_BREADTH = 50;
 export class GenericHookConnection extends BaseConnection implements IConnection {
     private static quickModule: QuickJSWASMModule;
 
-    public static async initaliseQuickJS() {
+    public static async initialiseQuickJS() {
         GenericHookConnection.quickModule = await newQuickJSWASMModule();
     }
 

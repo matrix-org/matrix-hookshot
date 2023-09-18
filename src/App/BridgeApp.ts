@@ -51,7 +51,7 @@ async function start() {
     }
 
     if (config.generic?.allowJsTransformationFunctions) {
-        await GenericHookConnection.initaliseQuickJS();
+        await GenericHookConnection.initialiseQuickJS();
     }
 
     const botUsersManager = new BotUsersManager(config, appservice);
