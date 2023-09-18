@@ -64,7 +64,7 @@ const SANITIZE_MAX_BREADTH = 50;
  */
 @Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
-    private static quickModule: QuickJSWASMModule;
+    private static quickModule?: QuickJSWASMModule;
 
     public static async initialiseQuickJS() {
         GenericHookConnection.quickModule = await newQuickJSWASMModule();
@@ -111,11 +111,11 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return obj;
     }
 
-    static validateState(state: Record<string, unknown>, allowJsTransformationFunctions?: boolean): GenericHookConnectionState {
+    static validateState(state: Record<string, unknown>): GenericHookConnectionState {
         const {name, transformationFunction} = state;
         let transformationFunctionResult: string|undefined;
         if (transformationFunction) {
-            if (allowJsTransformationFunctions !== undefined && !allowJsTransformationFunctions) {
+            if (!this.quickModule) {
                 throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
             }
             if (typeof transformationFunction !== "string") {
@@ -167,7 +167,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             throw Error('Generic Webhooks are not configured');
         }
         const hookId = randomUUID();
-        const validState = GenericHookConnection.validateState(data, config.generic.allowJsTransformationFunctions || false);
+        const validState = GenericHookConnection.validateState(data);
         await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
         const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config.generic, as, intent);
@@ -215,7 +215,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         private readonly intent: Intent,
     ) {
         super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
-        if (state.transformationFunction && config.allowJsTransformationFunctions) {
+        if (GenericHookConnection.quickModule && state.transformationFunction) {
             this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
             // TODO: Validate code.
             this.transformationFunction = state.transformationFunction;
@@ -266,10 +266,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     }
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
-        const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>, this.config.allowJsTransformationFunctions || false);
+        const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>);
         if (validatedConfig.transformationFunction) {
             this.transformationRuntime?.dispose();
-            this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
+            this.transformationRuntime = GenericHookConnection.quickModule!.newRuntime();
             this.transformationFunction = validatedConfig.transformationFunction;
             // const codeEvalResult = this.transformationRuntime.newContext().evalCode(validatedConfig.transformationFunction);
             // if (codeEvalResult.error) {
@@ -451,7 +451,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
         config = { ...this.state, ...config };
-        const validatedConfig = GenericHookConnection.validateState(config, this.config.allowJsTransformationFunctions || false);
+        const validatedConfig = GenericHookConnection.validateState(config);
         await this.intent.underlyingClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey,
             {
                 ...validatedConfig,
