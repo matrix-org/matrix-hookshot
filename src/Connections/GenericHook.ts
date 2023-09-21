@@ -320,7 +320,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!this.transformationRuntime) {
             throw Error('Transformation runtime not defined');
         }
-        let result: any;
+        let result;
         const ctx = this.transformationRuntime.newContext();
         try {
             ctx.setProp(ctx.global, 'HookshotApiVersion', ctx.newString('v2'));
