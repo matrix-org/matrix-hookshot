@@ -113,25 +113,24 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     static validateState(state: Record<string, unknown>): Omit<GenericHookConnectionState, "hookId"> {
         const {name, transformationFunction} = state;
-        let transformationFunctionResult: string|undefined;
-        if (transformationFunction) {
-            if (!this.quickModule) {
-                throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
-            }
-            if (typeof transformationFunction !== "string") {
-                throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
-            }
-            transformationFunctionResult = transformationFunction;
-        }
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
         }
         if (typeof name !== "string" || name.length < 3 || name.length > 64) {
             throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
         }
+        // Use !=, not !==, to check for both undefined and null
+        if (transformationFunction != undefined) {
+            if (!this.quickModule) {
+                throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
+            }
+            if (typeof transformationFunction !== "string") {
+                throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
+            }
+        }
         return {
             name,
-            ...(transformationFunctionResult && {transformationFunction: transformationFunctionResult}),
+            ...(transformationFunction && {transformationFunction}),
         };
     }
 
