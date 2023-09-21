@@ -16,7 +16,7 @@ export interface GenericHookConnectionState extends IConnectionState {
     /**
      * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
      */
-    hookId?: string;
+    hookId: string;
     /**
      * The name given in the provisioning UI and displaynames.
      */
@@ -111,7 +111,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return obj;
     }
 
-    static validateState(state: Record<string, unknown>): GenericHookConnectionState {
+    static validateState(state: Record<string, unknown>): Omit<GenericHookConnectionState, "hookId"> {
         const {name, transformationFunction} = state;
         let transformationFunctionResult: string|undefined;
         if (transformationFunction) {
@@ -141,7 +141,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         // Generic hooks store the hookId in the account data
         const acctData = await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
-        const state = this.validateState(event.content);
         // hookId => stateKey
         let hookId = Object.entries(acctData).find(([, v]) => v === event.stateKey)?.[0];
         if (!hookId) {
@@ -152,9 +151,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
         return new GenericHookConnection(
             roomId,
-            state,
+            event.content,
             hookId,
-            event.stateKey,
             messageClient,
             config.generic,
             as,
@@ -166,14 +164,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!config.generic) {
             throw Error('Generic Webhooks are not configured');
         }
-        const hookId = randomUUID();
-        const validState = GenericHookConnection.validateState(data);
-        await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
-        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
-        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config.generic, as, intent);
+        const connection = new GenericHookConnection(roomId, data, randomUUID(), messageClient, config.generic, as, intent);
+        await GenericHookConnection.ensureRoomAccountData(roomId, intent, connection.state.hookId, connection.state.name);
+        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, connection.state.name, connection.state);
         return {
             connection,
-            stateEventContent: validState,
+            stateEventContent: connection.state,
         }
     }
 
@@ -182,12 +178,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      */
     static async ensureRoomAccountData(roomId: string, intent: Intent, hookId: string, stateKey: string, remove = false) {
         const data = await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(GenericHookConnection.CanonicalEventType, roomId, {});
-        if (remove && data[hookId] === stateKey) {
-            delete data[hookId];
-            await intent.underlyingClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, data);
-        }
-        if (!remove && data[hookId] !== stateKey) {
-            data[hookId] = stateKey;
+        if (remove === (data[hookId] === stateKey)) {
+            if (remove) {
+                delete data[hookId];
+            } else {
+                data[hookId] = stateKey;
+            }
             await intent.underlyingClient.setRoomAccountData(GenericHookConnection.CanonicalEventType, roomId, data);
         }
     }
@@ -201,25 +197,34 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         GenericHookConnection.LegacyCanonicalEventType,
     ];
 
+    private state: GenericHookConnectionState;
     private transformationRuntime?: QuickJSRuntime;
     private transformationFunction?: string;
     private cachedDisplayname?: string;
     constructor(
         roomId: string,
-        private state: GenericHookConnectionState,
-        public readonly hookId: string,
-        stateKey: string,
+        stateContent: Record<string, unknown>,
+        hookId: string,
         private readonly messageClient: MessageSenderClient,
         private readonly config: BridgeConfigGenericWebhooks,
         private readonly as: Appservice,
         private readonly intent: Intent,
     ) {
-        super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
-        if (GenericHookConnection.quickModule && state.transformationFunction) {
+        const validState = GenericHookConnection.validateState(stateContent);
+        super(roomId, validState.name, GenericHookConnection.CanonicalEventType);
+        this.state = {
+            ...validState,
+            hookId,
+        };
+        if (GenericHookConnection.quickModule && this.state.transformationFunction) {
             this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
             // TODO: Validate code.
-            this.transformationFunction = state.transformationFunction;
+            this.transformationFunction = this.state.transformationFunction;
         }
+    }
+
+    public get hookId() {
+        return this.state.hookId;
     }
 
     public get priority(): number {
@@ -278,7 +283,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             //     await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + codeEvalResult.error, "m.text", this.intent.userId);
             // }
         }
-        this.state = validatedConfig;
+        this.state = {
+            ...validatedConfig,
+            hookId: this.state.hookId,
+        };
     }
 
     public transformHookData(data: unknown): {plain: string, html?: string} {
@@ -369,7 +377,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @returns `true` if the webhook completed, or `false` if it failed to complete
      */
     public async onGenericHook(data: unknown): Promise<boolean> {
-        log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
+        log.info(`onGenericHook ${this.roomId} ${this.state.hookId}`);
         let content: {plain: string, html?: string, msgtype?: string};
         let success = true;
         if (!this.transformationRuntime) {
@@ -427,10 +435,11 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             config: {
                 transformationFunction: this.state.transformationFunction,
                 name: this.state.name,
+                hookId: this.state.hookId,
             },
             ...(showSecrets ? { secrets: {
-                url: new URL(this.hookId, this.config.parsedUrlPrefix),
-                hookId: this.hookId,
+                url: new URL(this.state.hookId, this.config.parsedUrlPrefix),
+                hookId: this.state.hookId,
             } as GenericHookSecrets} : undefined)
         }
     }
@@ -445,7 +454,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GenericHookConnection.LegacyCanonicalEventType, this.stateKey);
             await this.intent.underlyingClient.sendStateEvent(this.roomId, GenericHookConnection.LegacyCanonicalEventType, this.stateKey, { disabled: true });
         }
-        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.intent, this.hookId, this.stateKey, true);
+        await GenericHookConnection.ensureRoomAccountData(this.roomId, this.intent, this.state.hookId, this.stateKey, true);
     }
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
@@ -455,13 +464,16 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         await this.intent.underlyingClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey,
             {
                 ...validatedConfig,
-                hookId: this.hookId
+                hookId: this.state.hookId,
             }
         );
-        this.state = validatedConfig;
+        this.state = {
+            ...validatedConfig,
+            hookId: this.state.hookId,
+        };
     }
 
     public toString() {
-        return `GenericHookConnection ${this.hookId}`;
+        return `GenericHookConnection ${this.state.hookId}`;
     }
 }
