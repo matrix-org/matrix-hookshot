@@ -2,7 +2,7 @@
 import { expect } from "chai";
 import { MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/Config";
-import { GenericHookConnection, GenericHookConnectionState } from "../../src/Connections/GenericHook";
+import { GenericHookConnection } from "../../src/Connections/GenericHook";
 import { MessageSenderClient, IMatrixSendMessage } from "../../src/MatrixSender";
 import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
 import { AppserviceMock } from "../utils/AppserviceMock";

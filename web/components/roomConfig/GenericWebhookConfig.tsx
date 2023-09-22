@@ -20,7 +20,7 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     };
   } else {
     result = {
-          plain: \`*Everything is fine*, the counter is under by\${data.maxValue - data.counter}\`,
+          plain: \`*Everything is fine*, the counter is under by \${data.maxValue - data.counter}\`,
           version: "v2"
     };
   }`;
