@@ -198,7 +198,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     private state: GenericHookConnectionState;
     private transformationRuntime?: QuickJSRuntime;
-    private transformationFunction?: string;
     private cachedDisplayname?: string;
     constructor(
         roomId: string,
@@ -215,11 +214,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             ...validState,
             hookId,
         };
-        if (GenericHookConnection.quickModule && this.state.transformationFunction) {
-            this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
-            // TODO: Validate code.
-            this.transformationFunction = this.state.transformationFunction;
-        }
+        void this.validateTransformationFunction();
     }
 
     public get hookId() {
@@ -271,21 +266,29 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>);
-        if (validatedConfig.transformationFunction) {
-            this.transformationRuntime?.dispose();
-            this.transformationRuntime = GenericHookConnection.quickModule!.newRuntime();
-            this.transformationFunction = validatedConfig.transformationFunction;
-            // const codeEvalResult = this.transformationRuntime.newContext().evalCode(validatedConfig.transformationFunction);
-            // if (codeEvalResult.error) {
-            //     this.transformationRuntime?.dispose();
-            //     this.transformationRuntime = undefined;
-            //     await this.messageClient.sendMatrixText(this.roomId, 'Could not compile transformation function:' + codeEvalResult.error, "m.text", this.intent.userId);
-            // }
-        }
         this.state = {
             ...validatedConfig,
             hookId: this.state.hookId,
         };
+        this.validateTransformationFunction();
+    }
+
+    private async validateTransformationFunction(): Promise<void> {
+        if (!GenericHookConnection.quickModule || !this.state.transformationFunction) {
+            return;
+        }
+        this.transformationRuntime?.dispose();
+        this.transformationRuntime = GenericHookConnection.quickModule.newRuntime();
+        const ctx = this.transformationRuntime.newContext();
+        const codeEvalResult = ctx.evalCode(this.state.transformationFunction);
+        if (codeEvalResult.error) {
+            const message = 'Could not compile transformation function: ' + ctx.dump(codeEvalResult.error);
+            this.transformationRuntime.dispose();
+            this.transformationRuntime = undefined;
+            await this.messageClient.sendMatrixText(this.roomId, message, "m.text", this.intent.userId);
+        } else {
+            ctx.dispose();
+        }
     }
 
     public transformHookData(data: unknown): {plain: string, html?: string} {
@@ -324,8 +327,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const ctx = this.transformationRuntime.newContext();
         try {
             ctx.setProp(ctx.global, 'HookshotApiVersion', ctx.newString('v2'));
-            const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n\n${this.transformationFunction}`);
-    
+            const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n\n${this.state.transformationFunction}`);
+
             if (ctxResult.error){
                 const err = ctx.dump(ctxResult.error);
                 throw Error("Transformation failed to run " + err);
