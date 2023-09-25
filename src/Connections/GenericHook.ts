@@ -197,7 +197,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     ];
 
     private state: GenericHookConnectionState;
-    private hasValidTransformation = false;
     private cachedDisplayname?: string;
     constructor(
         roomId: string,
@@ -281,7 +280,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!GenericHookConnection.quickModule || !this.state.transformationFunction) {
             return result;
         }
-        this.hasValidTransformation = false;
         const ctx = GenericHookConnection.quickModule.newContext();
         const codeEvalResult = ctx.evalCode(`function f(data) {${this.state.transformationFunction}}`);
         if (codeEvalResult.error) {
@@ -295,7 +293,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 format: "org.matrix.custom.html",
             }).then();
         } else {
-            this.hasValidTransformation = true;
             codeEvalResult.value.dispose();
         }
         ctx.dispose();
@@ -399,7 +396,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         log.info(`onGenericHook ${this.roomId} ${this.state.hookId}`);
         let content: {plain: string, html?: string, msgtype?: string};
         let success = true;
-        if (!this.hasValidTransformation) {
+        if (!this.state.transformationFunction) {
             content = this.transformHookData(data);
         } else {
             try {
