@@ -10,6 +10,7 @@ import { LogService } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 import * as Sentry from '@sentry/node';
+import { GenericHookConnection } from "../Connections";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
@@ -47,6 +48,10 @@ async function start() {
             includeLocalVariables: true,
         });
         log.info("Sentry reporting enabled");
+    }
+
+    if (config.generic?.allowJsTransformationFunctions) {
+        await GenericHookConnection.initialiseQuickJS();
     }
 
     const botUsersManager = new BotUsersManager(config, appservice);

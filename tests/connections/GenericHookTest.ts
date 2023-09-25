@@ -56,6 +56,9 @@ function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
 }
 
 describe("GenericHookConnection", () => {
+    before(async () => {
+        await GenericHookConnection.initialiseQuickJS();
+    })
     it("will handle simple hook events", async () => {
         const [connection, mq] = createGenericHook();
         await testSimpleWebhook(connection, mq, "data");
