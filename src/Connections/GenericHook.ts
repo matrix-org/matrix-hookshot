@@ -2,7 +2,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { QuickJSRuntime, QuickJSWASMModule, newQuickJSWASMModule } from "quickjs-emscripten";
+import { QuickJSRuntime, QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
@@ -56,6 +56,7 @@ interface WebhookTransformationResult {
 const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
+const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 10;
 const SANITIZE_MAX_BREADTH = 50;
 
@@ -335,6 +336,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         let result;
         const ctx = GenericHookConnection.quickModule.newContext();
+        ctx.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + TRANSFORMATION_TIMEOUT_MS));
         try {
             ctx.setProp(ctx.global, 'HookshotApiVersion', ctx.newString('v2'));
             const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n\n${this.state.transformationFunction}`);
