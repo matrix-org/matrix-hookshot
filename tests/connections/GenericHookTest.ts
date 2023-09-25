@@ -2,7 +2,7 @@
 import { expect } from "chai";
 import { MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/Config";
-import { GenericHookConnection } from "../../src/Connections/GenericHook";
+import { GenericHookConnection, GenericHookConnectionState } from "../../src/Connections/GenericHook";
 import { MessageSenderClient, IMatrixSendMessage } from "../../src/MatrixSender";
 import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
 import { AppserviceMock } from "../utils/AppserviceMock";
@@ -31,7 +31,7 @@ async function testSimpleWebhook(connection: GenericHookConnection, mq: LocalMQ,
 }
 
 function createGenericHook(
-    state: Record<string, unknown> = { name: "some-name", hookId: "some-hookId" },
+    state: GenericHookConnectionState = { name: "some-name" },
     config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}
 ) {
     const mq = new LocalMQ();
@@ -39,7 +39,7 @@ function createGenericHook(
     const messageClient = new MessageSenderClient(mq);
     const as = AppserviceMock.create();
     const intent = as.getIntentForUserId('@webhooks:example.test');
-    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
+    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
     return [connection, mq, as, intent];
 }
 
@@ -178,7 +178,7 @@ describe("GenericHookConnection", () => {
     });
     it("will handle a hook event with a v2 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
-        const [connection, mq] = createGenericHook({name: 'test', hookId: 'test', transformationFunction: V2TFFunction}, {
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
                 enabled: true,
                 urlPrefix: "https://example.com/webhookurl",
                 allowJsTransformationFunctions: true,
