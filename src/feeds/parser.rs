@@ -226,10 +226,13 @@ pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedR
                 }),
                 status => Err(JsError::new(
                     Status::Unknown,
-                    format!("Failed to fetch feed due to HTTP {}", status),
+                    format!("Failed to fetch feed due to HTTP status {}", status),
                 )),
             }
         }
-        Err(err) => Err(JsError::new(Status::Unknown, err)),
+        Err(err) => Err(JsError::new(
+            Status::Unknown,
+            format!("Failed to fetch feed due to HTTP error {}", err),
+        )),
     }
 }
