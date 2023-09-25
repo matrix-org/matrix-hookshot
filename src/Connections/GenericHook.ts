@@ -282,7 +282,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             return result;
         }
         const ctx = GenericHookConnection.quickModule.newContext();
-        const codeEvalResult = ctx.evalCode(`function f(data) {${this.state.transformationFunction}}`);
+        const codeEvalResult = ctx.evalCode(`function f(data) {${this.state.transformationFunction}}`, undefined, { compileOnly: true });
         if (codeEvalResult.error) {
             const errorString = JSON.stringify(ctx.dump(codeEvalResult.error), null, 2);
             codeEvalResult.error.dispose();
