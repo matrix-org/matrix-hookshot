@@ -285,12 +285,13 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const ctx = GenericHookConnection.quickModule.newContext();
         const codeEvalResult = ctx.evalCode(`function f(data) {${this.state.transformationFunction}}`);
         if (codeEvalResult.error) {
-            const message = "Could not compile transformation function:\n```" + JSON.stringify(ctx.dump(codeEvalResult.error)) + "```";
+            const errorString = JSON.stringify(ctx.dump(codeEvalResult.error), null, 2);
             codeEvalResult.error.dispose();
+            const errorPrefix = "Could not compile transformation function:";
             result = this.intent.sendEvent(this.roomId, {
                 msgtype: "m.text",
-                body: message,
-                formatted_body: md.renderInline(message).replaceAll("\n", "<br>"),
+                body: errorPrefix + "\n\n```json\n\n" + errorString + "\n\n```",
+                formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${errorString}</code></pre></p>`,
                 format: "org.matrix.custom.html",
             }).then();
         } else {
@@ -310,8 +311,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         } else if (typeof safeData?.text === "string") {
             msg.plain = safeData.text;
         } else {
-            msg.plain = "Received webhook data:\n\n" + "```json\n\n" + JSON.stringify(data, null, 2) + "\n\n```";
-            msg.html = `<p>Received webhook data:</p><p><pre><code class=\\"language-json\\">${JSON.stringify(data, null, 2)}</code></pre></p>`
+            const dataString = JSON.stringify(data, null, 2);
+            const dataPrefix = "Received webhook data:";
+            msg.plain = dataPrefix + "\n\n```json\n\n" + dataString + "\n\n```";
+            msg.html = `<p>${dataPrefix}</p><p><pre><code class=\\"language-json\\">${dataString}</code></pre></p>`
         }
 
         if (typeof safeData?.html === "string") {
