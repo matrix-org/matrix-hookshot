@@ -8,11 +8,22 @@ then
 fi
 
 VERSION=`jq -r .version package.json`
-CARGO_VERSION=`awk '$1 == "version" {gsub("\"", "", $3); print $3}' Cargo.toml`
-if [[ $VERSION != $CARGO_VERSION ]]; then
+
+function parseCargoVersion {
+    awk '$1 == "version" {gsub("\"", "", $3); print $3}' $1
+}
+CARGO_TOML_VERSION=`parseCargoVersion Cargo.toml`
+if [[ $VERSION != $CARGO_TOML_VERSION ]]; then
     echo "Node & Rust package versions do not match."
     echo "Node version (package.json): ${VERSION}"
-    echo "Rust version (Cargo.toml): ${CARGO_VERSION}"
+    echo "Rust version (Cargo.toml): ${CARGO_TOML_VERSION}"
+    exit 1
+fi
+CARGO_LOCK_VERSION=`parseCargoVersion <(grep -A1 matrix-hookshot Cargo.lock)`
+if [[ $CARGO_TOML_VERSION != $CARGO_LOCK_VERSION ]]; then
+    echo "Rust package version does not match the lockfile."
+    echo "Rust version (Cargo.toml): ${CARGO_TOML_VERSION}"
+    echo "Lockfile version (Cargo.lock): ${CARGO_LOCK_VERSION}"
     exit 1
 fi
 TAG="$VERSION"
