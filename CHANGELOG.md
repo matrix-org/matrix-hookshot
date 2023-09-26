@@ -1,3 +1,34 @@
+4.5.0 (2023-09-26)
+==================
+
+Features
+--------
+
+- Bridge Gitlab comment replies as Matrix threads. ([\#758](https://github.com/matrix-org/matrix-hookshot/issues/758))
+- Add generic webhook transformation JS snippet for Prometheus Alertmanager. ([\#808](https://github.com/matrix-org/matrix-hookshot/issues/808))
+
+
+Bugfixes
+--------
+
+- Fix a potential memory leak where Hookshot may hold onto certain requests forever in memory. ([\#814](https://github.com/matrix-org/matrix-hookshot/issues/814))
+- Fix feed metrics treating request failures as parsing failures. ([\#816](https://github.com/matrix-org/matrix-hookshot/issues/816))
+
+
+Deprecations and Removals
+-------------------------
+
+- Drop support for the Sled crypto store format. Users must disable/remove the configuration key of `experimentalEncryption.useLegacySledStore`, and the crypto store will always use the SQLite format. If an existing SQLite store does not exist on bridge startup, one will be created. ([\#798](https://github.com/matrix-org/matrix-hookshot/issues/798))
+
+
+Internal Changes
+----------------
+
+- Update the version number of Hookshot's Rust package. ([\#803](https://github.com/matrix-org/matrix-hookshot/issues/803))
+- Update eslint to a version that supports Typescript 5.1.3. ([\#815](https://github.com/matrix-org/matrix-hookshot/issues/815))
+- Use quickjs instead of vm2 for evaluating JS transformation functions. ([\#817](https://github.com/matrix-org/matrix-hookshot/issues/817))
+
+
 4.4.1 (2023-07-31)
 ==================
 
