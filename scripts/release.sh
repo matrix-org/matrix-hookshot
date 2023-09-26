@@ -3,23 +3,41 @@
 
 if ! command -v jq &> /dev/null
 then
-    echo "You must install jq to use this script"
-    exit
+    echo "You must install jq to use this script" >&2
+    exit 1
 fi
 
 VERSION=`jq -r .version package.json`
+
+function parseCargoVersion {
+    awk '$1 == "version" {gsub("\"", "", $3); print $3}' $1
+}
+CARGO_TOML_VERSION=`parseCargoVersion Cargo.toml`
+if [[ $VERSION != $CARGO_TOML_VERSION ]]; then
+    echo "Node & Rust package versions do not match." >&2
+    echo "Node version (package.json): ${VERSION}" >&2
+    echo "Rust version (Cargo.toml): ${CARGO_TOML_VERSION}" >&2
+    exit 2
+fi
+CARGO_LOCK_VERSION=`parseCargoVersion <(grep -A1 matrix-hookshot Cargo.lock)`
+if [[ $CARGO_TOML_VERSION != $CARGO_LOCK_VERSION ]]; then
+    echo "Rust package version does not match the lockfile." >&2
+    echo "Rust version (Cargo.toml): ${CARGO_TOML_VERSION}" >&2
+    echo "Lockfile version (Cargo.lock): ${CARGO_LOCK_VERSION}" >&2
+    exit 3
+fi
 TAG="$VERSION"
 HEAD_BRANCH=`git remote show origin | sed -n '/HEAD branch/s/.*: //p'`
 REPO_NAME=`git remote show origin -n | grep -m 1 -oP '(?<=git@github.com:)(.*)(?=.git)'`
 
 if [[ "`git branch --show-current`" != $HEAD_BRANCH ]]; then
-    echo "You must be on the develop branch to run this command."
-    exit 1
+    echo "You must be on the $HEAD_BRANCH branch to run this command." >&2
+    exit 4
 fi
 
 if [ $(git tag -l "$TAG") ]; then
-    echo "Tag $TAG already exists, not continuing."
-    exit 1
+    echo "Tag $TAG already exists, not continuing." >&2
+    exit 5
 fi
 
 echo "Drafting a new release"
