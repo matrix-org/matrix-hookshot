@@ -8,6 +8,13 @@ then
 fi
 
 VERSION=`jq -r .version package.json`
+CARGO_VERSION=`awk '$1 == "version" {gsub("\"", "", $3); print $3}' Cargo.toml`
+if [[ $VERSION != $CARGO_VERSION ]]; then
+    echo "Node & Rust package versions do not match."
+    echo "Node version (package.json): ${VERSION}"
+    echo "Rust version (Cargo.toml): ${CARGO_VERSION}"
+    exit 1
+fi
 TAG="$VERSION"
 HEAD_BRANCH=`git remote show origin | sed -n '/HEAD branch/s/.*: //p'`
 REPO_NAME=`git remote show origin -n | grep -m 1 -oP '(?<=git@github.com:)(.*)(?=.git)'`
