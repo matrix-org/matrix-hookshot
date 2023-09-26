@@ -31,7 +31,7 @@ HEAD_BRANCH=`git remote show origin | sed -n '/HEAD branch/s/.*: //p'`
 REPO_NAME=`git remote show origin -n | grep -m 1 -oP '(?<=git@github.com:)(.*)(?=.git)'`
 
 if [[ "`git branch --show-current`" != $HEAD_BRANCH ]]; then
-    echo "You must be on the develop branch to run this command."
+    echo "You must be on the $HEAD_BRANCH branch to run this command."
     exit 1
 fi
 
