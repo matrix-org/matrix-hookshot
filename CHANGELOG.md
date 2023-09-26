@@ -1,3 +1,12 @@
+4.5.1 (2023-09-26)
+==================
+
+Bugfixes
+--------
+
+- Fix transformation scripts breaking if they include a `return` at the top level ([\#818](https://github.com/matrix-org/matrix-hookshot/issues/818))
+
+
 4.5.0 (2023-09-26)
 ==================
 
