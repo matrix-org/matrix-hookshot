@@ -11,6 +11,7 @@ const ROOM_ID = "!foo:bar";
 
 const V1TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
 const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}";
+const V2TFFunctionWithReturn = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}; return;";
 
 async function testSimpleWebhook(connection: GenericHookConnection, mq: LocalMQ, testValue: string) {
     const webhookData = {simple: testValue};
@@ -179,6 +180,29 @@ describe("GenericHookConnection", () => {
     it("will handle a hook event with a v2 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
+                enabled: true,
+                urlPrefix: "https://example.com/webhookurl",
+                allowJsTransformationFunctions: true,
+            }
+        );
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "The answer to 'What is the meaning of life?' is 42",
+                format: "org.matrix.custom.html",
+                formatted_body: "<p>The answer to 'What is the meaning of life?' is 42</p>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event with a top-level return", async () => {
+        const webhookData = {question: 'What is the meaning of life?', answer: 42};
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunctionWithReturn}, {
                 enabled: true,
                 urlPrefix: "https://example.com/webhookurl",
                 allowJsTransformationFunctions: true,

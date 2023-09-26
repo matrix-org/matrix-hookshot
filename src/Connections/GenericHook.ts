@@ -332,7 +332,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         ctx.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + TRANSFORMATION_TIMEOUT_MS));
         try {
             ctx.setProp(ctx.global, 'HookshotApiVersion', ctx.newString('v2'));
-            const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n\n${this.state.transformationFunction}`);
+            const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n(() => { ${this.state.transformationFunction} })();`);
 
             if (ctxResult.error) {
                 const e = Error(`Transformation failed to run: ${JSON.stringify(ctx.dump(ctxResult.error))}`);

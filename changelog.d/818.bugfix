@@ -1,0 +1,1 @@
+Fix transformation scripts breaking if they include a `return` at the top level
