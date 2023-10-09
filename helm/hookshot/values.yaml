@@ -126,7 +126,7 @@ hookshot:
       mediaUrl: https://example.com
       port: 9993
       bindAddress: 127.0.0.1
-    github: {}
+    github:
       # (Optional) Configure this to enable GitHub support
       #
       # auth:
@@ -153,7 +153,7 @@ hookshot:
       # userIdPrefix: _github_
       # (Optional) Prefix used when creating ghost users for GitHub accounts.
       #
-    gitlab: {}
+    gitlab:
       # (Optional) Configure this to enable GitLab support
       #
       # instances:
@@ -165,7 +165,7 @@ hookshot:
       # userIdPrefix: _gitlab_
       # (Optional) Prefix used when creating ghost users for GitLab accounts.
       #
-    figma: {}
+    figma:
       # (Optional) Configure this to enable Figma support
       #
       # publicUrl: https://example.com/hookshot/
@@ -174,7 +174,7 @@ hookshot:
           # teamId: your-team-id
           # accessToken: your-personal-access-token
           # passcode: your-webhook-passcode
-    jira: {}
+    jira:
       # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
       #
       # webhook:
@@ -204,7 +204,7 @@ hookshot:
       enabled: false
       pollIntervalSeconds: 600
       pollTimeoutSeconds: 30
-    provisioning: {}
+    provisioning:
       # (Optional) Provisioning API for integration managers
       #
       # secret: "!secretToken"
@@ -212,12 +212,12 @@ hookshot:
     # A passkey used to encrypt tokens stored inside the bridge.
     # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
     #
-    bot: {}
+    bot:
       # (Optional) Define profile information for the bot user
       #
       # displayname: Hookshot Bot
       # avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
-    serviceBots: {}
+    serviceBots:
       # (Optional) Define additional bot users for specific services
       #
       # - localpart: feeds
@@ -229,7 +229,7 @@ hookshot:
       # (Optional) Prometheus metrics support
       #
       enabled: true
-    queue: {}
+    queue:
       # (Optional) Message queue / cache configuration options for large scale deployments.
       # For encryption to work, must be set to monolithic mode and have a host & port specified.
       #
