@@ -7,7 +7,7 @@ export function configKey(comment?: string, optional = false) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getConfigKeyMetadata(target: any, propertyKey: string): [string, boolean] {
+export function getConfigKeyMetadata(target: any, propertyKey: string): [string, boolean]|null {
     return Reflect.getMetadata(configKeyMetadataKey, target, propertyKey);
 }
 

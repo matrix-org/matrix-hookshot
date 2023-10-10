@@ -491,7 +491,7 @@ export class BridgeConfig {
     @configKey(`Message queue / cache configuration options for large scale deployments.
  For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
     public readonly queue: BridgeConfigQueue;
-    @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
+    @configKey("Logging settings. You can have a severity debug,info,warn,error")
     public readonly logging: BridgeConfigLogging;
     @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
     public readonly permissions: BridgeConfigActorPermission[];
@@ -527,7 +527,7 @@ export class BridgeConfig {
  Bind resource endpoints to ports and addresses.
  'port' must be specified. Each listener must listen on a unique port.
  'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
- 'resources' may be any of ${ResourceTypeArray.join(', ')}`, true)
+ 'resources' may be any of ${ResourceTypeArray.join(', ')}`)
     public readonly listeners: BridgeConfigListener[];
 
     @configKey("go-neb migrator configuration", true)
