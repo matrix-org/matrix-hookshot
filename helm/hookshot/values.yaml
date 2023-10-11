@@ -1,4 +1,6 @@
 ---
+# Note: This chart is released using the config.sample.yml file
+#
 # -- Number of replicas to deploy. Consequences of using multiple Hookshot replicas currently unknown.
 replicaCount: 1
 
