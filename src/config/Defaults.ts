@@ -156,7 +156,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
 
 export const DefaultConfig = new BridgeConfig(DefaultConfigRoot);
 
-function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode?: YAMLSeq) {
+function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentNode: YAMLSeq|YAML.Document = doc, parentIsOptional = false) {
     const entries = Object.entries(obj);
     entries.forEach(([key, value]) => {
         if (keyIsHidden(obj, key)) {
@@ -167,10 +167,11 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
             return;
         }
 
+        const [comment, optional] = getConfigKeyMetadata(obj, key) ?? [];
         let newNode: Node;
         if (typeof value === "object" && !Array.isArray(value)) {
             newNode = doc.createNode({});
-            renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq);
+            renderSection(doc, value as Record<string, unknown>, newNode as YAMLSeq, optional ?? parentIsOptional);
         } else if (typeof value === "function") {
             if (value.length !== 0) {
                 throw Error("Only zero-argument functions are allowed as config values");
@@ -179,16 +180,23 @@ function renderSection(doc: YAML.Document, obj: Record<string, unknown>, parentN
         } else {
             newNode = doc.createNode(value);
         }
-
-        const metadata = getConfigKeyMetadata(obj, key);
-        if (metadata) {
-            newNode.commentBefore = `${metadata[1] ? ' (Optional)' : ''} ${metadata[0]}\n`;
+        if (comment) {
+            newNode.commentBefore = `${optional ? ' (Optional)' : ''} ${comment}`;
+        }
+        
+        if (optional && !parentIsOptional) {
+            const tempDoc = new YAML.Document();
+            tempDoc.contents = tempDoc.createNode({});
+            tempDoc.add({key, value: newNode});
+            // Apply to the parent node after required options
+            parentNode.comment = (parentNode.comment || "") + tempDoc.toString() + `\n`;
+            return;
         }
 
-        if (parentNode) {
+        if (optional) {
+            parentNode.add({key: key, value: newNode});
+        } else if (parentNode) {
             parentNode.add({key, value: newNode});
-        } else {
-            doc.add({key, value: newNode});
         }
     })
 }
