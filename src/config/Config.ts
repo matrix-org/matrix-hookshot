@@ -340,6 +340,7 @@ interface BridgeWidgetConfigYAML {
         addOnInvite?: boolean;
     };
     disallowedIpRanges?: string[];
+    allowedIpRanges?: string[];
     branding?: {
         widgetTitle: string,
     }
@@ -357,6 +358,8 @@ export class BridgeWidgetConfig {
         addOnInvite?: boolean;
     };
     public readonly disallowedIpRanges?: string[];
+    public readonly allowedIpRanges?: string[];
+
     public readonly branding: {
         widgetTitle: string,
     }
@@ -366,9 +369,13 @@ export class BridgeWidgetConfig {
     constructor(yaml: BridgeWidgetConfigYAML) {
         this.addToAdminRooms = yaml.addToAdminRooms || false;
         this.disallowedIpRanges = yaml.disallowedIpRanges;
+        this.allowedIpRanges = yaml.allowedIpRanges;
         this.roomSetupWidget = yaml.roomSetupWidget;
         if (yaml.disallowedIpRanges !== undefined && (!Array.isArray(yaml.disallowedIpRanges) || !yaml.disallowedIpRanges.every(s => typeof s === "string"))) {
             throw new ConfigError("widgets.disallowedIpRanges", "must be a string array");
+        }
+        if (yaml.allowedIpRanges !== undefined && (!Array.isArray(yaml.allowedIpRanges) || !yaml.allowedIpRanges.every(s => typeof s === "string"))) {
+            throw new ConfigError("widgets.allowedIpRanges", "must be a string array");
         }
         try {
             this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
