@@ -1,0 +1,1 @@
+Adds `allowedIpRanges` widgets config
