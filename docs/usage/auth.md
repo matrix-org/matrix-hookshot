@@ -20,8 +20,9 @@ To authenticate with a personal access token:
 1. Click **Generate new token**
 1. Give it a good name, and a sensible expiration date. For scopes you will need:
     - Repo (to access repo information)
-      - public_repo
-      - repo:status
+      - If you want notifications for private repos, you need `repo: Full control of private repositories`. If you just want notifications for public repos, you only need:
+        - repo:status
+        - public_repo
     - Workflow (if you want to be able to launch workflows / GitHub actions from Matrix)
     - Notifications (if you want to bridge in your notifications to Matrix)
     - User
