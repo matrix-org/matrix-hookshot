@@ -174,8 +174,12 @@ This is a limitation of GitHub's API.
 <ul>
 <li>Repo (to access repo information)
 <ul>
-<li>public_repo</li>
+<li>If you want notifications for private repos, you need <code>repo: Full control of private repositories</code>. If you just want notifications for public repos, you only need:
+<ul>
 <li>repo:status</li>
+<li>public_repo</li>
+</ul>
+</li>
 </ul>
 </li>
 <li>Workflow (if you want to be able to launch workflows / GitHub actions from Matrix)</li>
