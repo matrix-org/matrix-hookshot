@@ -40,6 +40,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         roomSetupWidget: {
             addOnInvite: false,
         },
+        allowedIpRanges: [],
         disallowedIpRanges: DefaultDisallowedIpRanges,
         branding: {
             widgetTitle: "Hookshot Configuration"
