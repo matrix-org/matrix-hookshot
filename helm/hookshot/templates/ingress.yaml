@@ -1,7 +1,7 @@
 ---
 {{- if .Values.ingress.webhook.enabled -}}
 {{- $fullName := include "hookshot.fullname" . -}}
-{{- $svcPort := .Values.service.port -}}
+{{- $svcPort := .Values.service.webhook.port -}}
 {{- if and .Values.ingress.webhook.className (not (semverCompare ">=1.18-0" .Capabilities.KubeVersion.GitVersion)) }}
   {{- if not (hasKey .Values.ingress.webhook.annotations "kubernetes.io/ingress.class") }}
   {{- $_ := set .Values.ingress.webhook.annotations "kubernetes.io/ingress.class" .Values.ingress.webhook.className}}
@@ -44,18 +44,18 @@ spec:
         paths:
           {{- range .paths }}
           - path: {{ .path }}
-            {{- if and .pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ .pathType }}
+            {{- if semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion }}
+            pathType: {{ .pathType | default "ImplementationSpecific" }}
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
               service:
                 name: {{ $fullName }}
                 port:
-                  number: {{ .port }}
+                  number: {{ $svcPort }}
               {{- else }}
               serviceName: {{ $fullName }}
-              servicePort: {{ .port }}
+              servicePort: {{ $svcPort}}
               {{- end }}
           {{- end }}
     {{- end }}
