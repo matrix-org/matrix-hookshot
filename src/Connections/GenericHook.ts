@@ -22,6 +22,10 @@ export interface GenericHookConnectionState extends IConnectionState {
      */
     name: string;
     transformationFunction?: string;
+    /**
+     * Should the webhook only respond on completion.
+     */
+    waitForComplete?: boolean;
 }
 
 export interface GenericHookSecrets {
@@ -45,12 +49,19 @@ export interface GenericHookAccountData {
     [hookId: string]: string;
 }
 
+export interface WebhookResponse {
+    body: string;
+    contentType?: string;
+    statusCode?: number;
+}
+
 interface WebhookTransformationResult {
     version: string;
     plain?: string;
     html?: string;
     msgtype?: string;
     empty?: boolean;
+    webhookResponse?: WebhookResponse;
 }
 
 const log = new Logger("GenericHookConnection");
@@ -113,12 +124,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     }
 
     static validateState(state: Record<string, unknown>): GenericHookConnectionState {
-        const {name, transformationFunction} = state;
+        const {name, transformationFunction, waitForComplete} = state;
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
         }
         if (typeof name !== "string" || name.length < 3 || name.length > 64) {
             throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
+        }
+        if (waitForComplete !== undefined && typeof waitForComplete !== "boolean") {
+            throw new ApiError("'waitForComplete' must be a boolean", ErrCode.BadValue);
         }
         // Use !=, not !==, to check for both undefined and null
         if (transformationFunction != undefined) {
@@ -132,6 +146,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return {
             name,
             ...(transformationFunction && {transformationFunction}),
+            waitForComplete,
         };
     }
 
@@ -220,6 +235,14 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (state.transformationFunction && GenericHookConnection.quickModule) {
             this.transformationFunction = state.transformationFunction;
         }
+    }
+
+    /**
+     * Should the webhook handler wait for this to finish before
+     * sending a response back.
+     */
+    public get waitForComplete(): boolean {
+        return this.state.waitForComplete ?? false;
     }
 
     public get priority(): number {
@@ -323,7 +346,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
+    public executeTransformationFunction(data: unknown): {content: {plain: string, html?: string, msgtype?: string}, webhookResponse?: WebhookResponse}|null {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -351,9 +374,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
         // Legacy v1 api
         if (typeof result === "string") {
-            return {plain: `Received webhook: ${result}`};
+            return {content: {plain: `Received webhook: ${result}`}};
         } else if (typeof result !== "object") {
-            return {plain: `No content`};
+            return {content: {plain: `No content`}};
         }
         const transformationResult = result as WebhookTransformationResult;
         if (transformationResult.version !== "v2") {
@@ -376,9 +399,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
 
         return {
-            plain: plain,
-            html: transformationResult.html,
-            msgtype: transformationResult.msgtype,
+            content: {
+                plain: plain,
+                html: transformationResult.html,
+                msgtype: transformationResult.msgtype,
+            },
+            webhookResponse: transformationResult.webhookResponse,
         }
     }
 
@@ -387,24 +413,26 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @param data Structured data. This may either be a string, or an object.
      * @returns `true` if the webhook completed, or `false` if it failed to complete
      */
-    public async onGenericHook(data: unknown): Promise<boolean> {
+    public async onGenericHook(data: unknown): Promise<{successful: boolean, response?: WebhookResponse}> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
         let content: {plain: string, html?: string, msgtype?: string};
-        let success = true;
+        let webhookResponse: WebhookResponse|undefined;
+        let successful = true;
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
         } else {
             try {
-                const potentialContent = this.executeTransformationFunction(data);
-                if (potentialContent === null) {
+                const result = this.executeTransformationFunction(data);
+                if (result === null) {
                     // Explitly no action
-                    return true;
+                    return { successful: true };
                 }
-                content = potentialContent;
+                content = result.content;
+                webhookResponse = result.webhookResponse;
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
                 content = {plain: `Webhook received but failed to process via transformation function`};
-                success = false;
+                successful = false;
             }
         }
 
@@ -425,7 +453,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             format: "org.matrix.custom.html",
             "uk.half-shot.hookshot.webhook_data": safeData,
         }, 'm.room.message', sender);
-        return success;
+        return {
+            successful,
+            response: webhookResponse,
+        };
 
     }
 

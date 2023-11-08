@@ -31,6 +31,8 @@ const CODE_MIRROR_EXTENSIONS = [javascript({})];
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
+    const [waitForComplete, setWaitForComplete] = useState(!!existingConnection?.config.waitForComplete);
+
     const nameRef = createRef<HTMLInputElement>();
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
@@ -42,6 +44,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
+            ...(waitForComplete ? { waitForComplete } : undefined),
         });
     }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled]);
 
@@ -66,6 +69,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>
+
+        <InputField visible={serviceConfig.allowJsTransformationFunctions} label="Wait for webhook function to complete before responding." noPadding={true}>
+            <input disabled={!canEdit && transFnEnabled} type="checkbox" checked={waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
+        </InputField>
+
         <ButtonSet>
             { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
             { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove webhook</Button>}
