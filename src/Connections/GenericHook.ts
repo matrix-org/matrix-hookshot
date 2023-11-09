@@ -2,7 +2,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { QuickJSRuntime, QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
+import { QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
@@ -346,7 +346,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {content: {plain: string, html?: string, msgtype?: string}, webhookResponse?: WebhookResponse}|null {
+    public executeTransformationFunction(data: unknown): {content?: {plain: string, html?: string, msgtype?: string}, webhookResponse?: WebhookResponse} {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -383,27 +383,38 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             throw Error("Result returned from transformation didn't specify version = v2");
         }
 
-        if (transformationResult.empty) {
-            return null; // No-op
+        let content;
+        if (!transformationResult.empty) {
+            if (typeof transformationResult.plain !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for plain");
+            }
+            if (transformationResult.html && typeof transformationResult.html !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for html");
+            }
+            if (transformationResult.msgtype && typeof transformationResult.msgtype !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for msgtype");
+            }
+            content = {
+                plain: transformationResult.plain,
+                html: transformationResult.html,
+                msgtype: transformationResult.msgtype,
+            };
         }
 
-        const plain = transformationResult.plain;
-        if (typeof plain !== "string") {
-            throw Error("Result returned from transformation didn't provide a string value for plain");
-        }
-        if (transformationResult.html && typeof transformationResult.html !== "string") {
-            throw Error("Result returned from transformation didn't provide a string value for html");
-        }
-        if (transformationResult.msgtype && typeof transformationResult.msgtype !== "string") {
-            throw Error("Result returned from transformation didn't provide a string value for msgtype");
+        if (transformationResult.webhookResponse) {
+            if (typeof transformationResult.webhookResponse.body !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for webhookResponse.body");
+            }
+            if (transformationResult.webhookResponse.statusCode && typeof transformationResult.webhookResponse.statusCode !== "number" && Number.isInteger(transformationResult.webhookResponse.statusCode)) {
+                throw Error("Result returned from transformation didn't provide a number value for webhookResponse.statusCode");
+            }
+            if (transformationResult.webhookResponse.contentType && typeof transformationResult.webhookResponse.contentType !== "string") {
+                throw Error("Result returned from transformation didn't provide a contentType value for msgtype");
+            }
         }
 
         return {
-            content: {
-                plain: plain,
-                html: transformationResult.html,
-                msgtype: transformationResult.msgtype,
-            },
+            content,
             webhookResponse: transformationResult.webhookResponse,
         }
     }
@@ -415,7 +426,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      */
     public async onGenericHook(data: unknown): Promise<{successful: boolean, response?: WebhookResponse}> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
-        let content: {plain: string, html?: string, msgtype?: string};
+        let content: {plain: string, html?: string, msgtype?: string}|undefined;
         let webhookResponse: WebhookResponse|undefined;
         let successful = true;
         if (!this.transformationFunction) {
@@ -423,10 +434,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         } else {
             try {
                 const result = this.executeTransformationFunction(data);
-                if (result === null) {
-                    // Explitly no action
-                    return { successful: true };
-                }
                 content = result.content;
                 webhookResponse = result.webhookResponse;
             } catch (ex) {
@@ -436,23 +443,26 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             }
         }
 
-        const sender = this.getUserId();
-        const senderIntent = this.as.getIntentForUserId(sender);
-        await this.ensureDisplayname(senderIntent);
+        if (content) {
+            const sender = this.getUserId();
+            const senderIntent = this.as.getIntentForUserId(sender);
+            await this.ensureDisplayname(senderIntent);
+    
+            await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
+    
+            // Matrix cannot handle float data, so make sure we parse out any floats.
+            const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
+    
+            await this.messageClient.sendMatrixMessage(this.roomId, {
+                msgtype: content.msgtype || "m.notice",
+                body: content.plain,
+                // render can output redundant trailing newlines, so trim it.
+                formatted_body: content.html || md.render(content.plain).trim(),
+                format: "org.matrix.custom.html",
+                "uk.half-shot.hookshot.webhook_data": safeData,
+            }, 'm.room.message', sender);
+        }
 
-        await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
-
-        // Matrix cannot handle float data, so make sure we parse out any floats.
-        const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
-
-        await this.messageClient.sendMatrixMessage(this.roomId, {
-            msgtype: content.msgtype || "m.notice",
-            body: content.plain,
-            // render can output redundant trailing newlines, so trim it.
-            formatted_body: content.html || md.render(content.plain).trim(),
-            format: "org.matrix.custom.html",
-            "uk.half-shot.hookshot.webhook_data": safeData,
-        }, 'm.room.message', sender);
         return {
             successful,
             response: webhookResponse,
