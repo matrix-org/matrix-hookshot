@@ -43,10 +43,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
+            waitForComplete,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
-            ...(waitForComplete ? { waitForComplete } : undefined),
         });
-    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled]);
+    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
 
     return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="Friendly name" noPadding={true}>
@@ -61,6 +61,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={useCallback(() => setTransFnEnabled(v => !v), [])} />
         </InputField>
 
+
+        <InputField visible={serviceConfig.allowJsTransformationFunctions && transFnEnabled} label="Respond after function completes" noPadding={true}>
+            <input disabled={!canEdit} type="checkbox" checked={waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
+        </InputField>
+
         <InputField visible={transFnEnabled} noPadding={true}>
             <CodeMirror
                 value={transFn}
@@ -69,11 +74,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             />
             <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </InputField>
-
-        <InputField visible={serviceConfig.allowJsTransformationFunctions} label="Wait for webhook function to complete before responding." noPadding={true}>
-            <input disabled={!canEdit && transFnEnabled} type="checkbox" checked={waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
-        </InputField>
-
         <ButtonSet>
             { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
             { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove webhook</Button>}
