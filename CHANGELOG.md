@@ -1,3 +1,14 @@
+4.5.1 (2023-11-09)
+==================
+
+Internal Changes
+----------------
+
+- Update the release script to check for consistency between Node & Rust package versions. ([\#819](https://github.com/matrix-org/matrix-hookshot/issues/819))
+- Chart version 0.1.14
+  Do not populate optional values in default helm config, as default values are not valid. ([\#821](https://github.com/matrix-org/matrix-hookshot/issues/821))
+
+
 4.5.1 (2023-09-26)
 ==================
 
