@@ -486,6 +486,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             id: this.connectionId,
             config: {
                 transformationFunction: this.state.transformationFunction,
+                waitForComplete: this.waitForComplete,
                 name: this.state.name,
             },
             ...(showSecrets ? { secrets: {
