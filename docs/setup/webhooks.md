@@ -105,7 +105,7 @@ variable, so it will contain proper float values.
 ### Wait for complete
 
 It is possible to choose whether a webhook response should be instant, or after hookshot has handled the message. The reason
-for this is that some services expect a quick response time (Slack) whereas others will wait for the request to complete. You
+for this is that some services expect a quick response time (like Slack) whereas others will wait for the request to complete. You
 can specify this either globally in your config, or on the widget with `waitForComplete`.
 
 If you make use of the `webhookResponse` feature, you will need to enable `waitForComplete` as otherwise hookshot will
