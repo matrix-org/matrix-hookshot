@@ -388,10 +388,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             if (typeof transformationResult.plain !== "string") {
                 throw Error("Result returned from transformation didn't provide a string value for plain");
             }
-            if (transformationResult.html && typeof transformationResult.html !== "string") {
+            if (transformationResult.html !== undefined && typeof transformationResult.html !== "string") {
                 throw Error("Result returned from transformation didn't provide a string value for html");
             }
-            if (transformationResult.msgtype && typeof transformationResult.msgtype !== "string") {
+            if (transformationResult.msgtype !== undefined && typeof transformationResult.msgtype !== "string") {
                 throw Error("Result returned from transformation didn't provide a string value for msgtype");
             }
             content = {
@@ -405,10 +405,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             if (typeof transformationResult.webhookResponse.body !== "string") {
                 throw Error("Result returned from transformation didn't provide a string value for webhookResponse.body");
             }
-            if (transformationResult.webhookResponse.statusCode && typeof transformationResult.webhookResponse.statusCode !== "number" && Number.isInteger(transformationResult.webhookResponse.statusCode)) {
+            if (transformationResult.webhookResponse.statusCode !== undefined && typeof transformationResult.webhookResponse.statusCode !== "number" && Number.isInteger(transformationResult.webhookResponse.statusCode)) {
                 throw Error("Result returned from transformation didn't provide a number value for webhookResponse.statusCode");
             }
-            if (transformationResult.webhookResponse.contentType && typeof transformationResult.webhookResponse.contentType !== "string") {
+            if (transformationResult.webhookResponse.contentType !== undefined && typeof transformationResult.webhookResponse.contentType !== "string") {
                 throw Error("Result returned from transformation didn't provide a contentType value for msgtype");
             }
         }
