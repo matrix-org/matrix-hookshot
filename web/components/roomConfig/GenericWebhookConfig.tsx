@@ -31,6 +31,8 @@ const CODE_MIRROR_EXTENSIONS = [javascript({})];
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
+    const [waitForComplete, setWaitForComplete] = useState(existingConnection?.config.waitForComplete ?? false);
+
     const nameRef = createRef<HTMLInputElement>();
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
@@ -41,9 +43,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
+            waitForComplete,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
-    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled]);
+    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
 
     return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="Friendly name" noPadding={true}>
@@ -56,6 +59,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
 
         <InputField visible={serviceConfig.allowJsTransformationFunctions} label="Enable Transformation JavaScript" noPadding={true}>
             <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={useCallback(() => setTransFnEnabled(v => !v), [])} />
+        </InputField>
+
+
+        <InputField visible={serviceConfig.allowJsTransformationFunctions && transFnEnabled} label="Respond after function completes" noPadding={true}>
+            <input disabled={!canEdit || serviceConfig.waitForComplete} type="checkbox" checked={waitForComplete || serviceConfig.waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
         </InputField>
 
         <InputField visible={transFnEnabled} noPadding={true}>
@@ -74,7 +82,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
 };
 
 interface ServiceConfig {
-    allowJsTransformationFunctions: boolean
+    allowJsTransformationFunctions: boolean,
+    waitForComplete: boolean,
 }
 
 const RoomConfigText = {

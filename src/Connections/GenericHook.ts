@@ -2,7 +2,7 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { QuickJSRuntime, QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
+import { QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
@@ -22,6 +22,10 @@ export interface GenericHookConnectionState extends IConnectionState {
      */
     name: string;
     transformationFunction?: string;
+    /**
+     * Should the webhook only respond on completion.
+     */
+    waitForComplete?: boolean;
 }
 
 export interface GenericHookSecrets {
@@ -45,12 +49,19 @@ export interface GenericHookAccountData {
     [hookId: string]: string;
 }
 
+export interface WebhookResponse {
+    body: string;
+    contentType?: string;
+    statusCode?: number;
+}
+
 interface WebhookTransformationResult {
     version: string;
     plain?: string;
     html?: string;
     msgtype?: string;
     empty?: boolean;
+    webhookResponse?: WebhookResponse;
 }
 
 const log = new Logger("GenericHookConnection");
@@ -113,12 +124,15 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     }
 
     static validateState(state: Record<string, unknown>): GenericHookConnectionState {
-        const {name, transformationFunction} = state;
+        const {name, transformationFunction, waitForComplete} = state;
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
         }
         if (typeof name !== "string" || name.length < 3 || name.length > 64) {
             throw new ApiError("'name' must be a string between 3-64 characters long", ErrCode.BadValue);
+        }
+        if (waitForComplete !== undefined && typeof waitForComplete !== "boolean") {
+            throw new ApiError("'waitForComplete' must be a boolean", ErrCode.BadValue);
         }
         // Use !=, not !==, to check for both undefined and null
         if (transformationFunction != undefined) {
@@ -132,6 +146,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return {
             name,
             ...(transformationFunction && {transformationFunction}),
+            waitForComplete,
         };
     }
 
@@ -220,6 +235,14 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (state.transformationFunction && GenericHookConnection.quickModule) {
             this.transformationFunction = state.transformationFunction;
         }
+    }
+
+    /**
+     * Should the webhook handler wait for this to finish before
+     * sending a response back.
+     */
+    public get waitForComplete(): boolean {
+        return this.state.waitForComplete ?? false;
     }
 
     public get priority(): number {
@@ -323,7 +346,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {plain: string, html?: string, msgtype?: string}|null {
+    public executeTransformationFunction(data: unknown): {content?: {plain: string, html?: string, msgtype?: string}, webhookResponse?: WebhookResponse} {
         if (!this.transformationFunction) {
             throw Error('Transformation function not defined');
         }
@@ -351,34 +374,48 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
         // Legacy v1 api
         if (typeof result === "string") {
-            return {plain: `Received webhook: ${result}`};
+            return {content: {plain: `Received webhook: ${result}`}};
         } else if (typeof result !== "object") {
-            return {plain: `No content`};
+            return {content: {plain: `No content`}};
         }
         const transformationResult = result as WebhookTransformationResult;
         if (transformationResult.version !== "v2") {
             throw Error("Result returned from transformation didn't specify version = v2");
         }
 
-        if (transformationResult.empty) {
-            return null; // No-op
+        let content;
+        if (!transformationResult.empty) {
+            if (typeof transformationResult.plain !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for plain");
+            }
+            if (transformationResult.html !== undefined && typeof transformationResult.html !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for html");
+            }
+            if (transformationResult.msgtype !== undefined && typeof transformationResult.msgtype !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for msgtype");
+            }
+            content = {
+                plain: transformationResult.plain,
+                html: transformationResult.html,
+                msgtype: transformationResult.msgtype,
+            };
         }
 
-        const plain = transformationResult.plain;
-        if (typeof plain !== "string") {
-            throw Error("Result returned from transformation didn't provide a string value for plain");
-        }
-        if (transformationResult.html && typeof transformationResult.html !== "string") {
-            throw Error("Result returned from transformation didn't provide a string value for html");
-        }
-        if (transformationResult.msgtype && typeof transformationResult.msgtype !== "string") {
-            throw Error("Result returned from transformation didn't provide a string value for msgtype");
+        if (transformationResult.webhookResponse) {
+            if (typeof transformationResult.webhookResponse.body !== "string") {
+                throw Error("Result returned from transformation didn't provide a string value for webhookResponse.body");
+            }
+            if (transformationResult.webhookResponse.statusCode !== undefined && typeof transformationResult.webhookResponse.statusCode !== "number" && Number.isInteger(transformationResult.webhookResponse.statusCode)) {
+                throw Error("Result returned from transformation didn't provide a number value for webhookResponse.statusCode");
+            }
+            if (transformationResult.webhookResponse.contentType !== undefined && typeof transformationResult.webhookResponse.contentType !== "string") {
+                throw Error("Result returned from transformation didn't provide a contentType value for msgtype");
+            }
         }
 
         return {
-            plain: plain,
-            html: transformationResult.html,
-            msgtype: transformationResult.msgtype,
+            content,
+            webhookResponse: transformationResult.webhookResponse,
         }
     }
 
@@ -387,45 +424,49 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @param data Structured data. This may either be a string, or an object.
      * @returns `true` if the webhook completed, or `false` if it failed to complete
      */
-    public async onGenericHook(data: unknown): Promise<boolean> {
+    public async onGenericHook(data: unknown): Promise<{successful: boolean, response?: WebhookResponse}> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
-        let content: {plain: string, html?: string, msgtype?: string};
-        let success = true;
+        let content: {plain: string, html?: string, msgtype?: string}|undefined;
+        let webhookResponse: WebhookResponse|undefined;
+        let successful = true;
         if (!this.transformationFunction) {
             content = this.transformHookData(data);
         } else {
             try {
-                const potentialContent = this.executeTransformationFunction(data);
-                if (potentialContent === null) {
-                    // Explitly no action
-                    return true;
-                }
-                content = potentialContent;
+                const result = this.executeTransformationFunction(data);
+                content = result.content;
+                webhookResponse = result.webhookResponse;
             } catch (ex) {
                 log.warn(`Failed to run transformation function`, ex);
                 content = {plain: `Webhook received but failed to process via transformation function`};
-                success = false;
+                successful = false;
             }
         }
 
-        const sender = this.getUserId();
-        const senderIntent = this.as.getIntentForUserId(sender);
-        await this.ensureDisplayname(senderIntent);
+        if (content) {
+            const sender = this.getUserId();
+            const senderIntent = this.as.getIntentForUserId(sender);
+            await this.ensureDisplayname(senderIntent);
+    
+            await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
+    
+            // Matrix cannot handle float data, so make sure we parse out any floats.
+            const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
+    
+            await this.messageClient.sendMatrixMessage(this.roomId, {
+                msgtype: content.msgtype || "m.notice",
+                body: content.plain,
+                // render can output redundant trailing newlines, so trim it.
+                formatted_body: content.html || md.render(content.plain).trim(),
+                format: "org.matrix.custom.html",
+                "uk.half-shot.hookshot.webhook_data": safeData,
+            }, 'm.room.message', sender);
+        }
 
-        await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
-
-        // Matrix cannot handle float data, so make sure we parse out any floats.
-        const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
-
-        await this.messageClient.sendMatrixMessage(this.roomId, {
-            msgtype: content.msgtype || "m.notice",
-            body: content.plain,
-            // render can output redundant trailing newlines, so trim it.
-            formatted_body: content.html || md.render(content.plain).trim(),
-            format: "org.matrix.custom.html",
-            "uk.half-shot.hookshot.webhook_data": safeData,
-        }, 'm.room.message', sender);
-        return success;
+        return {
+            successful,
+            response: webhookResponse,
+        };
 
     }
 
@@ -445,6 +486,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             id: this.connectionId,
             config: {
                 transformationFunction: this.state.transformationFunction,
+                waitForComplete: this.waitForComplete,
                 name: this.state.name,
             },
             ...(showSecrets ? { secrets: {

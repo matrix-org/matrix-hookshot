@@ -75,6 +75,7 @@ If the body *also* contains a `username` key, then the message will be prepended
 
 If the body does NOT contain a `text` field, the full payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
 
+
 ### Payload formats
 
 If the request is a `POST`/`PUT`, the body of the request will be decoded and stored inside the event. Currently, Hookshot supports:
@@ -100,6 +101,15 @@ Matrix does NOT support floating point values in JSON, so the <code>uk.half-shot
 to a string representation of that value. This change is <strong>not applied</strong> to the JavaScript transformation <code>data</code>
 variable, so it will contain proper float values.
 </section>
+
+### Wait for complete
+
+It is possible to choose whether a webhook response should be instant, or after hookshot has handled the message. The reason
+for this is that some services expect a quick response time (like Slack) whereas others will wait for the request to complete. You
+can specify this either globally in your config, or on the widget with `waitForComplete`.
+
+If you make use of the `webhookResponse` feature, you will need to enable `waitForComplete` as otherwise hookshot will
+immeditately respond with it's default response values.
 
 ## JavaScript Transformations
 
@@ -142,6 +152,11 @@ The `v2` api expects an object to be returned from the `result` variable.
   "plain": "Some text", // The plaintext value to be used for the Matrix message.
   "html": "<b>Some</b> text", // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
   "msgtype": "some.type", // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
+  "webhookResponse": { // Optional response to send to the webhook requestor. All fields are optional. Defaults listed.
+    "body": "{ \"ok\": true }",
+    "contentType": "application/json",
+    "statusCode": 200
+  }
 }
 ```
 

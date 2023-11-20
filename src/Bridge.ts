@@ -10,7 +10,7 @@ import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types"
 import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { IConnection, GitHubDiscussionSpace, GitHubDiscussionConnection, GitHubUserSpace, JiraProjectConnection, GitLabRepoConnection,
-    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection } from "./Connections";
+    GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitLabIssueConnection, FigmaFileConnection, FeedConnection, GenericHookConnection, WebhookResponse } from "./Connections";
 import { IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "./Gitlab/WebhookTypes";
 import { JiraIssueEvent, JiraIssueUpdatedEvent, JiraVersionEvent } from "./jira/WebhookTypes";
 import { JiraOAuthResult } from "./jira/Types";
@@ -615,19 +615,27 @@ export class Bridge {
                         return;
                     }
                     let successful: boolean|null = null;
-                    if (this.config.generic?.waitForComplete) {
-                        successful = await c.onGenericHook(data.hookData);
-                    }
-                    await this.queue.push<GenericWebhookEventResult>({
-                        data: {successful},
-                        sender: "Bridge",
-                        messageId,
-                        eventName: "response.generic-webhook.event",
-                    });
-                    didPush = true;
-                    if (!this.config.generic?.waitForComplete) {
+                    let response: WebhookResponse|undefined;
+                    if (this.config.generic?.waitForComplete || c.waitForComplete) {
+                        const result = await c.onGenericHook(data.hookData);
+                        successful = result.successful;
+                        response = result.response;
+                        await this.queue.push<GenericWebhookEventResult>({
+                            data: {successful, response},
+                            sender: "Bridge",
+                            messageId,
+                            eventName: "response.generic-webhook.event",
+                        });
+                    } else {
+                        await this.queue.push<GenericWebhookEventResult>({
+                            data: {},
+                            sender: "Bridge",
+                            messageId,
+                            eventName: "response.generic-webhook.event",
+                        });
                         await c.onGenericHook(data.hookData);
                     }
+                    didPush = true;
                 }
                 catch (ex) {
                     log.warn(`Failed to handle generic webhook`, ex);

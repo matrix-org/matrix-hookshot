@@ -11,7 +11,7 @@ const log = new Logger('GenericWebhooksRouter');
 export class GenericWebhooksRouter {
     constructor(private readonly queue: MessageQueue, private readonly deprecatedPath = false, private readonly allowGet: boolean) { }
 
-    private onWebhook(req: Request<{hookId: string}, unknown, unknown, unknown>, res: Response<{ok: true}|{ok: false, error: string}>, next: NextFunction) {
+    private onWebhook(req: Request<{hookId: string}, unknown, unknown, unknown>, res: Response<unknown|{ok: false, error: string}>, next: NextFunction) {
         if (req.method === "GET" && !this.allowGet) {
             throw new ApiError("Invalid Method. Expecting PUT or POST", ErrCode.MethodNotAllowed);
         }
@@ -43,7 +43,11 @@ export class GenericWebhooksRouter {
                 }
                 res.status(404).send({ok: false, error: "Webhook not found"});
             } else if (response.successful) {
-                res.status(200).send({ok: true});
+                const body = response.response?.body ?? {ok: true};
+                if (response.response?.contentType) {
+                    res.contentType(response.response.contentType);
+                }
+                res.status(response.response?.statusCode ?? 200).send(body);
             } else if (response.successful === false) {
                 res.status(500).send({ok: false, error: "Failed to process webhook"});
             } else {

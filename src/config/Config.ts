@@ -325,6 +325,7 @@ export class BridgeConfigGenericWebhooks {
         return {
             userIdPrefix: this.userIdPrefix,
             allowJsTransformationFunctions: this.allowJsTransformationFunctions,
+            waitForComplete: this.waitForComplete,
         }
     }
 
