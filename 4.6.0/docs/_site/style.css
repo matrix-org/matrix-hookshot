@@ -1,0 +1,58 @@
+.notice {
+    color: black;
+    border: 2px solid #0098d4;
+    border-left-width: 2px;
+    border-left-width: 5px;
+    background: #e5f5fb;
+    padding: 10px 20px;
+}
+
+.notice::before {
+    content: "INFO: ";
+    font-weight: 700;
+}
+
+.warning {
+    color: black;
+    border: 2px solid #dda02f;
+    border-left-width: 2px;
+    border-left-width: 5px;
+    background: #fdcd74;
+    padding: 10px 20px;
+}
+
+.warning::before {
+    content: "WARNING: ";
+    font-weight: 700;
+}
+
+/* icons for headers */
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(2) strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/feeds.png');
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(3) strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/figma.png');
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(4) strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/github.png');
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(5) strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/gitlab.png');
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(6) strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/jira.png');
+}
+
+.chapter > li:nth-child(3) > ol:nth-child(1) > li:nth-child(7) strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/webhooks.png');
+}
+
+.chapter li:nth-child(7) > a:nth-child(1) > strong:after {
+    content: ' ' url('/matrix-hookshot/latest/icons/sentry.png');
+}
+
