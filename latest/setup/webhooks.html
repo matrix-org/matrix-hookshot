@@ -224,6 +224,12 @@ Matrix does NOT support floating point values in JSON, so the <code>uk.half-shot
 to a string representation of that value. This change is <strong>not applied</strong> to the JavaScript transformation <code>data</code>
 variable, so it will contain proper float values.
 </section>
+<h3 id="wait-for-complete"><a class="header" href="#wait-for-complete">Wait for complete</a></h3>
+<p>It is possible to choose whether a webhook response should be instant, or after hookshot has handled the message. The reason
+for this is that some services expect a quick response time (like Slack) whereas others will wait for the request to complete. You
+can specify this either globally in your config, or on the widget with <code>waitForComplete</code>.</p>
+<p>If you make use of the <code>webhookResponse</code> feature, you will need to enable <code>waitForComplete</code> as otherwise hookshot will
+immeditately respond with it's default response values.</p>
 <h2 id="javascript-transformations"><a class="header" href="#javascript-transformations">JavaScript Transformations</a></h2>
 <section class="notice">
 Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
@@ -252,6 +258,11 @@ for a more precise error.</p>
   &quot;plain&quot;: &quot;Some text&quot;, // The plaintext value to be used for the Matrix message.
   &quot;html&quot;: &quot;&lt;b&gt;Some&lt;/b&gt; text&quot;, // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
   &quot;msgtype&quot;: &quot;some.type&quot;, // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
+  &quot;webhookResponse&quot;: { // Optional response to send to the webhook requestor. All fields are optional. Defaults listed.
+    &quot;body&quot;: &quot;{ \&quot;ok\&quot;: true }&quot;,
+    &quot;contentType&quot;: &quot;application/json&quot;,
+    &quot;statusCode&quot;: 200
+  }
 }
 </code></pre>
 <h4 id="example-script"><a class="header" href="#example-script">Example script</a></h4>
