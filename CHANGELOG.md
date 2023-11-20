@@ -1,3 +1,34 @@
+4.6.0 (2023-11-20)
+==================
+
+Features
+--------
+
+- Add new `webhookResponse` field to the transformation API to specify your own response data. See the documentation for help. ([\#839](https://github.com/matrix-org/matrix-hookshot/issues/839))
+
+
+Bugfixes
+--------
+
+- Fix version picker on docs site not loading. ([\#843](https://github.com/matrix-org/matrix-hookshot/issues/843))
+
+
+Improved Documentation
+----------------------
+
+- Add note about GitHub token scope for private vs. public repo notifications ([\#830](https://github.com/matrix-org/matrix-hookshot/issues/830))
+
+
+Internal Changes
+----------------
+
+- Update the release script to check for consistency between Node & Rust package versions. ([\#819](https://github.com/matrix-org/matrix-hookshot/issues/819))
+- Chart version 0.1.14
+  Do not populate optional values in default helm config, as default values are not valid. ([\#821](https://github.com/matrix-org/matrix-hookshot/issues/821))
+- Release chart version 0.1.15.
+  Sample config now comments out optional parameters by default. ([\#826](https://github.com/matrix-org/matrix-hookshot/issues/826))
+
+
 4.5.1 (2023-09-26)
 ==================
 

@@ -1,1 +1,0 @@
-Update the release script to check for consistency between Node & Rust package versions.
