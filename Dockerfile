@@ -1,9 +1,11 @@
 # Stage 0: Build the thing
 # Need debian based image to build the native rust module
 # as musl doesn't support cdylib
-FROM node:18 AS builder
+FROM node:20-slim AS builder
 
-# We need rustup so we have a sensible rust version, the version packed with bullsye is too old
+# Needed in order to build rust FFI bindings.
+RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config pkg-config libssl-dev
+
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -12,9 +14,6 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 ARG CARGO_NET_GIT_FETCH_WITH_CLI=false
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 
-# Needed to build rust things for matrix-sdk-crypto-nodejs
-# See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
 
 WORKDIR /src
 
@@ -30,9 +29,11 @@ RUN yarn build
 
 
 # Stage 1: The actual container
-FROM node:18
+FROM node:20-slim
 
 WORKDIR /bin/matrix-hookshot
+
+RUN apt-get update && apt-get install -y openssl ca-certificates
 
 COPY --from=builder /src/yarn.lock /src/package.json ./
 COPY --from=builder /cache/yarn /cache/yarn

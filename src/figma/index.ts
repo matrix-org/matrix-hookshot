@@ -32,7 +32,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
         try {
             await client.me();
         } catch (ex) {
-            const axiosErr = ex as AxiosError;
+            const axiosErr = ex as AxiosError<{message: string}>;
             if (axiosErr.isAxiosError) {
                 log.error(`Failed to check figma access token: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
             }
@@ -46,7 +46,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                 webhookDefinition = (await client.client.get(`webhooks/${webhookId}`, axiosConfig)).data;
                 log.info(`Found existing hook for Figma instance ${instanceName} ${webhookId}`);
             } catch (ex) {
-                const axiosErr = ex as AxiosError;
+                const axiosErr = ex as AxiosError<{message: string}>;
                 if (axiosErr.response?.status !== 404) {
                     // Missing webhook, probably not found.
                     if (axiosErr.isAxiosError) {
@@ -66,7 +66,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                         endpoint: publicUrl,
                     }, axiosConfig);
                 } catch (ex) {
-                    const axiosErr = ex as AxiosError;
+                    const axiosErr = ex as AxiosError<{message: string}>;
                     if (axiosErr.isAxiosError) {
                         log.error(`Failed to update webhook: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
                     }
@@ -86,7 +86,7 @@ export async function ensureFigmaWebhooks(figmaConfig: BridgeConfigFigma, matrix
                 webhookDefinition = res.data as FigmaWebhookDefinition;
                 await matrixClient.setAccountData(accountDataKey, {webhookId: webhookDefinition.id});
             } catch (ex) {
-                const axiosErr = ex as AxiosError;
+                const axiosErr = ex as AxiosError<{message: string}>;
                 if (axiosErr.isAxiosError) {
                     log.error(`Failed to create webhook: ${axiosErr.code} ${axiosErr.response?.data?.message ?? ""}`)
                 }
