@@ -4,7 +4,7 @@
 FROM node:20-slim AS builder
 
 # Needed in order to build rust FFI bindings.
-RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config openssl
+RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config pkg-config libssl-dev
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
@@ -32,6 +32,8 @@ RUN yarn build
 FROM node:20-slim
 
 WORKDIR /bin/matrix-hookshot
+
+RUN apt-get update && apt-get install -y openssl ca-certificates
 
 COPY --from=builder /src/yarn.lock /src/package.json ./
 COPY --from=builder /cache/yarn /cache/yarn
