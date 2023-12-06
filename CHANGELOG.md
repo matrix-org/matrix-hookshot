@@ -1,3 +1,13 @@
+4.7.0 (2023-12-06)
+==================
+
+Internal Changes
+----------------
+
+- Update the release script to examine the staged contents of package files when checking for consistency between Node & Rust package versions. ([\#846](https://github.com/matrix-org/matrix-hookshot/issues/846))
+- Use Node 20 (slim) for Docker image base. ([\#849](https://github.com/matrix-org/matrix-hookshot/issues/849))
+
+
 4.6.0 (2023-11-20)
 ==================
 

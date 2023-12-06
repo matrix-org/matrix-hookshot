@@ -1,1 +1,0 @@
-Update the release script to examine the staged contents of package files when checking for consistency between Node & Rust package versions.
