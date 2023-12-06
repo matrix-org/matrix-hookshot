@@ -168,9 +168,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
             }
             { !canSendMessages && canEditRoom &&
                 <WarningPane header={"Misconfigured permissions"}>
-                    The room settings currently do not permit the bot to send
-                    messages in this room. Please go to the room settings in your client
-                    and adjust permissions.
+                    This room does not permit the bot to send messages.
+                    Please go to the room settings in your client and adjust permissions.
                 </WarningPane>
             }
             { canEditRoom && <section>
