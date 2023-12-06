@@ -96,6 +96,8 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
 
     const [ toMigrate, setToMigrate ] = useState<ConnectionType[]>([]);
 
+    const canSendMessages = connections?.every(c => c.canSendMessages) ?? true;
+
     useEffect(() => {
         // produce `toMigrate` composed of `migrationCandidates` with anything already in `connections` filtered out
         // use `migrationComparator` to determine duplicates
@@ -163,6 +165,13 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                     <img alt="" src={headerImg} />
                     <h1>{text.header}</h1>
                 </header>
+            }
+            { !canSendMessages && canEditRoom &&
+                <WarningPane header={"Misconfigured permissions"}>
+                    The room settings currently do not permit the bot to send
+                    messages in this room. Please go to the room settings in your client
+                    and adjust permissions.
+                </WarningPane>
             }
             { canEditRoom && <section>
                 <h2>{text.createNew}</h2>

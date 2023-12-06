@@ -18,6 +18,7 @@ export interface GetConnectionsResponseItem<Config = object, Secrets = object> e
     id: string;
     config: Config;
     secrets?: Secrets;
+    canSendMessages?: boolean;
     canEdit?: boolean;
     warning?: ConnectionWarning;
 }
