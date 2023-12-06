@@ -3,7 +3,10 @@
 # as musl doesn't support cdylib
 FROM node:20-slim AS builder
 
-# We need rustup so we have a sensible rust version, the version packed with bullsye is too old
+# Needed to build rust things for matrix-sdk-crypto-nodejs
+# See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
+RUN apt-get update && apt-get install -y build-essential cmake curl 
+
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -12,9 +15,6 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 ARG CARGO_NET_GIT_FETCH_WITH_CLI=false
 ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 
-# Needed to build rust things for matrix-sdk-crypto-nodejs
-# See https://github.com/matrix-org/matrix-rust-sdk-bindings/blob/main/crates/matrix-sdk-crypto-nodejs/release/Dockerfile.linux#L5-L6
-RUN apt-get update && apt-get install -y build-essential cmake
 
 WORKDIR /src
 
