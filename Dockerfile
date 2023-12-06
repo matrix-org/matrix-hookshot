@@ -4,7 +4,7 @@
 FROM node:20-slim AS builder
 
 # Needed in order to build rust FFI bindings.
-RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config
+RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config openssl
 
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
