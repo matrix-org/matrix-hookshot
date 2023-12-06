@@ -862,7 +862,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 inputs: workflowArgs,
             });
         } catch (ex) {
-            const httpError = ex as AxiosError;
+            const httpError = ex as AxiosError<{message: string}>;
             if (httpError.response?.data) {
                 throw new CommandError(httpError.response?.data.message, httpError.response?.data.message);
             }
