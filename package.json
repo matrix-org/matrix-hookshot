@@ -48,7 +48,7 @@
     "@octokit/webhooks": "^9.1.2",
     "@sentry/node": "^7.52.1",
     "ajv": "^8.11.0",
-    "axios": "^0.24.0",
+    "axios": "^1.6.0",
     "cors": "^2.8.5",
     "express": "^4.17.3",
     "figma-js": "^1.14.0",
