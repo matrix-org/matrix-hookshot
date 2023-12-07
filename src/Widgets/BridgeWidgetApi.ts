@@ -176,9 +176,13 @@ export class BridgeWidgetApi extends ProvisioningApi {
             // If we have a service filter.
             .filter(c => typeof serviceFilter !== "string" || c?.service === serviceFilter) as GetConnectionsResponseItem[];
         const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
+        const botPl = powerlevel.content.users?.[botUser.userId] || powerlevel.defaultUserLevel;
         for (const c of connections) {
-            const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
-            c.canEdit = userPl >= requiredPl;
+            // TODO: What about crypto?
+            const requiredPlForEdit = Math.max(powerlevel.content.events?.[c.type] ?? 0, powerlevel.defaultStateEventLevel);
+            const requiredPlForMessages = Math.max(powerlevel.content.events?.["m.room.message"] ?? powerlevel.content.events_default ?? 0);
+            c.canEdit = userPl >= requiredPlForEdit;
+            c.canSendMessages = botPl >= requiredPlForMessages;
             if (!c.canEdit) {
                 delete c.secrets;
             }
