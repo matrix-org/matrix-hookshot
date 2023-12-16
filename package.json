@@ -45,7 +45,7 @@
     "@octokit/auth-app": "^3.3.0",
     "@octokit/auth-token": "^2.4.5",
     "@octokit/rest": "^18.10.0",
-    "@octokit/webhooks": "^9.1.2",
+    "@octokit/webhooks": "^9.26.3",
     "@sentry/node": "^7.52.1",
     "ajv": "^8.11.0",
     "axios": "^1.6.2",
