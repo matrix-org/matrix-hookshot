@@ -156,9 +156,9 @@
 This feature is <b>experimental</b> and should only be used when you are reaching natural limits in the monolith process.
 </section>
 <h2 id="running-in-multi-process-mode"><a class="header" href="#running-in-multi-process-mode">Running in multi-process mode</a></h2>
-<p>You must first have a working redis instance somewhere which can talk between processes. For example, in Docker you can run:</p>
+<p>You must first have a working Redis instance somewhere which can talk between processes. For example, in Docker you can run:</p>
 <p><code>docker run --name github-bridge-redis -p 6379:6379 -d redis</code>.</p>
-<p>The processes should all share the same config, which should contain the correct config enable redis:</p>
+<p>The processes should all share the same config, which should contain the correct config to enable Redis:</p>
 <pre><code class="language-yaml">queue:
   monolithic: false
   port: 6379
