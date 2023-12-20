@@ -196,14 +196,14 @@ This can be enabled by setting <code>roomSetupWidget</code> to an object. You ca
 When <code>addOnInvite</code> is true, the bridge will add a widget to rooms when the bot is invited, and the room has <strong>no existing connections</strong>.</p>
 <p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
 Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convenience.</p>
-<p><code>publicUrl</code> should be set to the publicly reachable address for the widget <code>public</code> content. By default, hookshot hosts this content on the
+<p><code>publicUrl</code> should be set to the publicly reachable address for the widget <code>public</code> content. By default, Hookshot hosts this content on the
 <code>widgets</code> listener under <code>/widgetapi/v1/static</code>.</p>
 <p><code>branding</code> allows you to change the strings used for various bits of widget UI. At the moment you can:</p>
 <ul>
 <li>Set <code>widgetTitle</code> to change the title of the widget that is created.</li>
 </ul>
 <p><code>openIdOverrides</code> allows you to configure the correct federation endpoints for a given set of Matrix server names. This is useful if you are
-testing/developing hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
+testing/developing Hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
 should be resolvable). The config takes a mapping of Matrix server name =&gt; base path for federation.
 E.g. if your server name was <code>my-local-server</code> and your federation was readable via http://localhost/_matrix/federation,
 you would put configure <code>my-local-server: &quot;http://localhost&quot;</code>.</p>
