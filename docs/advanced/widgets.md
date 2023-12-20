@@ -56,14 +56,14 @@ When `addOnInvite` is true, the bridge will add a widget to rooms when the bot i
 `disallowedIpRanges` describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
 Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convenience.
 
-`publicUrl` should be set to the publicly reachable address for the widget `public` content. By default, hookshot hosts this content on the
+`publicUrl` should be set to the publicly reachable address for the widget `public` content. By default, Hookshot hosts this content on the
 `widgets` listener under `/widgetapi/v1/static`.
 
 `branding` allows you to change the strings used for various bits of widget UI. At the moment you can:
  - Set `widgetTitle` to change the title of the widget that is created.
 
 `openIdOverrides` allows you to configure the correct federation endpoints for a given set of Matrix server names. This is useful if you are
-testing/developing hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
+testing/developing Hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
 should be resolvable). The config takes a mapping of Matrix server name => base path for federation.
 E.g. if your server name was `my-local-server` and your federation was readable via http://localhost/_matrix/federation,
 you would put configure `my-local-server: "http://localhost"`.
