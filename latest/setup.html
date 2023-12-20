@@ -153,7 +153,7 @@
                         <h1 id="getting-set-up"><a class="header" href="#getting-set-up">Getting set up</a></h1>
 <p>This page explains how to set up Hookshot for use with a Matrix homeserver.</p>
 <h2 id="requirements"><a class="header" href="#requirements">Requirements</a></h2>
-<p>Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
+<p>Hookshot is fairly light on resources, and can run in as low as 100 MB or so of memory.
 Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.</p>
 <p>You <strong>must</strong> have administrative access to an existing homeserver in order to set up Hookshot, as
 Hookshot requires the homeserver to be configured with its appservice registration.</p>
@@ -189,13 +189,11 @@ yarn # or npm i
 <p>You may validate your config without starting the service by running <code>yarn validate-config</code>.
 For Docker you can run <code>docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node config/Config.js /config.yml</code></p>
 <p>Copy <code>registration.sample.yml</code> into <code>registration.yml</code> and fill in:</p>
-<ul>
-<li>At a minimum, you will need to replace the <code>as_token</code> and <code>hs_token</code> and change the domain part of the namespaces. The sample config can be also found at our <a href="https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml">github repo</a> for your convienence.</li>
-</ul>
+<p>At a minimum, you will need to replace the <code>as_token</code> and <code>hs_token</code> and change the domain part of the namespaces. The sample config can be also found at our <a href="https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml">github repo</a> for your convienence.</p>
 <p>You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/application_services.html">Synapse documents the process here</a>.</p>
 <h3 id="homeserver-configuration"><a class="header" href="#homeserver-configuration">Homeserver Configuration</a></h3>
-<p>In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.</p>
+<p>In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, Hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.</p>
 <pre><code class="language-yaml">bridge:
   domain: example.com # The homeserver's server name.
   url: http://localhost:8008 # The URL where Hookshot can reach the client-server API.
@@ -203,7 +201,7 @@ on how to add appservices. <a href="https://matrix-org.github.io/synapse/latest/
   port: 9993 # The port where hookshot will listen for appservice requests.
   bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
 </code></pre>
-<p>The <code>port</code> and <code>bindAddress</code> must not conflict with the other listeners in the bridge config. This listeners should <strong>not</strong> be reachable
+<p>The <code>port</code> and <code>bindAddress</code> must not conflict with the other listeners in the bridge config. This listener should <strong>not</strong> be reachable
 over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on <code>/_matrix/app/</code>.</p>
 <h3 id="permissions"><a class="header" href="#permissions">Permissions</a></h3>
 <p>The bridge supports fine grained permission control over what services a user can access.
@@ -222,7 +220,7 @@ By default, any user on the bridge's own homeserver has full permission to use i
 <li><code>&quot;*&quot;</code>, to match all users.</li>
 </ul>
 <p>MxIDs. room IDs and <code>*</code> <strong>must</strong> be wrapped in quotes.</p>
-<p>Each permission set can have a services. The <code>service</code> field can be:</p>
+<p>Each permission set can have a service. The <code>service</code> field can be:</p>
 <ul>
 <li><code>github</code></li>
 <li><code>gitlab</code></li>
@@ -240,7 +238,7 @@ By default, any user on the bridge's own homeserver has full permission to use i
 <li><code>manageConnections</code> All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).</li>
 <li><code>admin</code> All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.</li>
 </ul>
-<p>When permissions are checked, if a user matches any of the permission set and one
+<p>When permissions are checked, if a user matches any of the permissions set and one
 of those grants the right level for a service, they are allowed access. If none of the
 definitions match, they are denied.</p>
 <h4 id="example"><a class="header" href="#example">Example</a></h4>
@@ -299,8 +297,15 @@ definitions match, they are denied.</p>
 <p>At a minimum, you should bind the <code>webhooks</code> resource to a port and address. You can have multiple resources on the same
 port, or one on each. Each listener MUST listen on a unique port.</p>
 <p>You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is recommended to factor hookshot into your load balancer configuration, but currently this process is left as an
+is recommended to factor Hookshot into your load balancer configuration, but currently this process is left as an
 exercise to the user.</p>
+<p>However, if you use Nginx, have a look at this example:</p>
+<pre><code>    location ~ ^/widgetapi(.*)$ {
+        set $backend &quot;127.0.0.1:9002&quot;;
+        proxy_pass http://$backend/widgetapi$1$is_args$args;
+    }
+</code></pre>
+<p>This will pass all requests at <code>/widgetapi</code> to Hookshot.</p>
 <p>In terms of API endpoints:</p>
 <ul>
 <li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
