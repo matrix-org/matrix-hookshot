@@ -5,7 +5,7 @@ This page explains how to set up Hookshot for use with a Matrix homeserver.
 
 ## Requirements
 
-Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
+Hookshot is fairly light on resources, and can run in as low as 100 MB or so of memory.
 Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.
 
 You **must** have administrative access to an existing homeserver in order to set up Hookshot, as
@@ -64,14 +64,14 @@ For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
 
-- At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
+At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
 
 ### Homeserver Configuration
 
-In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.
+In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, Hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.
 
 ```yaml
 bridge:
@@ -82,7 +82,7 @@ bridge:
   bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
 ```
 
-The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listeners should **not** be reachable
+The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listener should **not** be reachable
 over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on `/_matrix/app/`.
 
 ### Permissions
@@ -107,7 +107,7 @@ You must configure a set of "actors" with access to services. An `actor` can be:
 
 MxIDs. room IDs and `*` **must** be wrapped in quotes.
 
-Each permission set can have a services. The `service` field can be:
+Each permission set can have a service. The `service` field can be:
 
 - `github`
 - `gitlab`
@@ -125,7 +125,7 @@ The `level` can be:
 - `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
 - `admin` All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.
 
-When permissions are checked, if a user matches any of the permission set and one
+When permissions are checked, if a user matches any of the permissions set and one
 of those grants the right level for a service, they are allowed access. If none of the
 definitions match, they are denied.
 
@@ -194,8 +194,20 @@ At a minimum, you should bind the `webhooks` resource to a port and address. You
 port, or one on each. Each listener MUST listen on a unique port.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is recommended to factor hookshot into your load balancer configuration, but currently this process is left as an
+is recommended to factor Hookshot into your load balancer configuration, but currently this process is left as an
 exercise to the user.
+
+However, if you use Nginx, have a look at this example:
+
+```
+    location ~ ^/widgetapi(.*)$ {
+        set $backend "127.0.0.1:9002";
+        proxy_pass http://$backend/widgetapi$1$is_args$args;
+    }
+```
+
+This will pass all requests at `/widgetapi` to Hookshot.
+
 
 In terms of API endpoints:
 
