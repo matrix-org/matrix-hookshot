@@ -23,14 +23,14 @@ We richly support the following integrations:
 - [Jira](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html)
 - [RSS/Atom feeds](https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html)
 
-Get started by reading the [the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html)!
+Get started by reading [the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html)!
 
 
 ## Documentation
 
 Documentation can be found on [GitHub Pages](https://matrix-org.github.io/matrix-hookshot).
 
-You can build the documentation yourself by:
+You can build the documentation yourself by typing:
 ```sh
 # cargo install mdbook
 mdbook build
