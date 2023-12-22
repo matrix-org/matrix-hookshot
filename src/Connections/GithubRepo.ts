@@ -20,7 +20,7 @@ import emoji from "node-emoji";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { CommandConnection } from "./CommandConnection";
-import { GithubInstance } from "../github/GithubInstance";
+import { getNameForGitHubAccount, GithubInstance } from "../github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
@@ -322,7 +322,8 @@ const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_
     cancelled: "was cancelled 🙅",
     timed_out: "timed out ⏰",
     action_required: "requires further action 🖱️",
-    stale: "completed, but is stale 🍞"
+    stale: "completed, but is stale 🍞",
+    skipped: "skipped ⏭️"
 }
 
 const TRUNCATE_COMMENT_SIZE = 256;
@@ -1430,7 +1431,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 for (const install of installs.data.installations) {
                     if (install.account) {
                         results.push({
-                            name: install.account.login || NAMELESS_ORG_PLACEHOLDER, // org or user name
+                            name: getNameForGitHubAccount(install.account), // org or user name
                         });
                     } else {
                         log.debug(`Skipping install ${install.id}, has no attached account`);

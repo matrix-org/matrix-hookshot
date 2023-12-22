@@ -87,7 +87,7 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     public async pushWait<T, X>(message: MessageQueueMessage<T>,
                                 timeout: number = DEFAULT_RES_TIMEOUT): Promise<X> {
         let resolve: (value: X) => void;
-        let timer: NodeJS.Timer;
+        let timer: NodeJS.Timeout;
 
         const p = new Promise<X>((res, rej) => {
             resolve = res;
