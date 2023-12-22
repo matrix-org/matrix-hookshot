@@ -1,8 +1,5 @@
-/* eslint-disable camelcase */
 import { ProjectsListResponseData } from './github/Types';
-import emoji from "node-emoji";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore 
+import { emojify } from "node-emoji";
 import { JiraIssue } from './jira/Types';
 import { formatLabels, getPartialBodyForJiraIssue, hashId, getPartialBodyForGithubIssue, getPartialBodyForGithubRepo, MinimalGitHubIssue } from "./libRs";
 
@@ -32,11 +29,11 @@ export type LooseMinimalGitHubRepo = {
 
 export class FormatUtil {
     public static formatIssueRoomName(issue: MinimalGitHubIssue, repository: { full_name: string}) {
-        return emoji.emojify(`${repository.full_name}#${issue.number}: ${issue.title}`);
+        return emojify(`${repository.full_name}#${issue.number}: ${issue.title}`);
     }
 
     public static formatRepoRoomName(repo: LooseMinimalGitHubRepo) {
-        return emoji.emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
+        return emojify(repo.description ? `${repo.full_name}: ${repo.description}` : repo.full_name);
     }
 
     public static formatRoomTopic(repo: {state: string, html_url: string}) {
