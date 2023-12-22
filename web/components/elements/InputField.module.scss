@@ -17,8 +17,7 @@
         text-overflow: ellipsis;
         max-width: calc(100% - 20px);
         padding: 0 2px;
-        color:  var(--light-color);
-        background: var(--background-color);
+        color:  var(--cpd-color-text-primary);
     }
 
     > ul {
@@ -37,23 +36,24 @@
     }
 
     input[type="text"],input[type="search"] {
-        border: 1px solid #E3E8F0;
+        border: 1px solid var(--cpd-color-border-interactive-primary);
         box-sizing: border-box;
         border-radius: 8px;
         width: 100%;
         font-size: 14px;
         padding: 8px 12px;
-        color:  var(--light-color);
+        color:  var(--cpd-color-text-primary);
+        background: var(--cpd-color-bg-subtle-primary); 
     }
 
     select {
-        border: 1px solid #E3E8F0;
+        border: 1px solid var(--cpd-color-border-interactive-primary);
         box-sizing: border-box;
         border-radius: 8px;
         width: 100%;
         font-size: 14px;
-        background: var(--background-color); 
         padding: 8px 12px;
-        color:  var(--light-color);
+        color:  var(--cpd-color-text-primary);
+        background: var(--cpd-color-bg-subtle-primary); 
     }
 }

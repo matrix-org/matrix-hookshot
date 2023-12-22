@@ -1,7 +1,6 @@
 :root {
   --background-color: #FFFFFF;
   --foreground-color: #17191C;
-  --light-color: #737D8C;
   --primary-color: #0DBD8B;
   --primary-color-disabled: #0dbd8baf;
 
@@ -29,6 +28,8 @@ a:visited {
 
 body {
   margin: 0;
+  height: fit-content;
+  block-size: fit-content !important;
 }
 
 
@@ -56,13 +57,13 @@ button {
 
 .chevron.down::before {
 	transform: rotate(-225deg);
-  border-color: var(--light-color);
+  border-color: var(--cpd-color-text-primary);
   float: right;
 }
 
 
 .chevron.up::before {
 	transform: rotate(-45deg);
-  border-color: var(--light-color);
+  border-color: var(--cpd-color-text-primary);
   float: right;
 }
