@@ -698,7 +698,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 )
             );
             // Typescript is dumb.
-            // @ts-ignore - property is used
+            // @ts-expect-error - property is used
             const reviewEvent = reviewKey && EMOJI_TO_REVIEW_STATE[reviewKey];
             if (body && repoInfo && pullRequestId  && reviewEvent) {
                 log.info(`Handling reply to PR ${pullRequestId}`);
