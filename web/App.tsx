@@ -4,9 +4,10 @@ import WA, { MatrixCapabilities } from 'matrix-widget-api';
 import { BridgeAPI, BridgeAPIError, EmbedType, embedTypeParameter } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import { LoadingSpinner } from './components/elements/LoadingSpinner';
-import { Card, ErrorPane } from './components/elements';
+import { Card } from './components/elements';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
+import { Alert } from '@vector-im/compound-web';
 
 interface IMinimalState {
     error: string|null,
@@ -31,7 +32,7 @@ function parseFragment() {
     return new URLSearchParams(fragmentString.substring(Math.max(fragmentString.indexOf('?'), 0)));
 }
 
-function assertParam(fragment, name) {
+function assertParam(fragment: URLSearchParams, name: string) {
     const val = fragment.get(name);
     if (!val) throw new Error(`${name} is not present in URL - cannot load widget`);
     return val;
@@ -59,7 +60,7 @@ export default class App extends Component<void, IState> {
         const serviceScope = qs.get('serviceScope');
         const embedType = qs.get(embedTypeParameter);
         // Fetch via config.
-        this.widgetApi = new WA.WidgetApi(widgetId);
+        this.widgetApi = new WA.WidgetApi(widgetId, 'http://localhost');
         this.widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
         this.widgetApi.on("ready", () => {
             console.log("Widget ready:", this);
@@ -112,7 +113,7 @@ export default class App extends Component<void, IState> {
         // Return the App component.
         let content;
         if (this.state.error) {
-            content = <ErrorPane>{this.state.error}</ErrorPane>;
+            content = <Alert type="critical" title="An error occured">{this.state.error}</Alert>;
         } else if (this.state.busy) {
             content = <Card>
                 <LoadingSpinner />

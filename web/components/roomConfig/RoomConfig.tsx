@@ -1,13 +1,14 @@
 import { FunctionComponent } from "preact";
 import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
-import { ErrorPane, ListItem, WarningPane, Card } from "../elements";
+import { ListItem, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
 import { IConnectionState } from "../../../src/Connections";
 import { LoadingSpinner } from '../elements/LoadingSpinner';
 import { ErrCode } from "../../../src/api";
 import { retry } from "../../../src/PromiseUtil";
+import { Alert } from "@vector-im/compound-web";
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
     loginLabel?: string;
@@ -153,24 +154,21 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
 
     return <Card>
         <main>
-            {
-                error &&
-                (!error.isWarning
-                        ? <ErrorPane header={error.header || "Error"}>{error.message}</ErrorPane>
-                        : <WarningPane header={error.header || "Warning"}>{error.message}</WarningPane>
-                )
-            }
             { showHeader &&
                 <header className={style.header}>
                     <img alt="" src={headerImg} />
                     <h1>{text.header}</h1>
                 </header>
             }
+            {
+                error &&
+                <Alert type="critical" text={error.header || error.isWarning ? "Warning" : "Error"}>{error.message}</Alert>
+            }
             { !canSendMessages && canEditRoom &&
-                <WarningPane header={"Misconfigured permissions"}>
+                <Alert type="info" title={"Misconfigured permissions"}>
                     This room does not permit the bot to send messages.
                     Please go to the room settings in your client and adjust permissions.
-                </WarningPane>
+                </Alert>
             }
             { canEditRoom && <section>
                 <h2>{text.createNew}</h2>

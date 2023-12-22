@@ -1,6 +1,5 @@
 import { Appservice } from "matrix-bot-sdk";
 import markdown from "markdown-it";
-import mime from "mime";
 import emoji from "node-emoji";
 import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import { Logger } from "matrix-appservice-bridge";
@@ -14,6 +13,7 @@ const REGEX_MATRIX_MENTION = /<a href="https:\/\/matrix\.to\/#\/(.+)">(.*)<\/a>/
 const REGEX_IMAGES = /!\[.*]\((.*\.(\w+))\)/gm;
 const md = new markdown();
 const log = new Logger("CommentProcessor");
+const mime = import('mime');
 
 interface IMatrixCommentEvent extends MatrixMessageContent {
     // eslint-disable-next-line camelcase
@@ -131,7 +131,7 @@ export class CommentProcessor {
         let match = REGEX_IMAGES.exec(bodyCopy);
         while (match) {
             bodyCopy = bodyCopy.replace(match[1], "");
-            const contentType = mime.getType(match[1]) || "none";
+            const contentType = (await mime).default.getType(match[1]) || "none";
             if (
                 !contentType.startsWith("image") &&
                 !contentType.startsWith("video") &&
@@ -145,7 +145,7 @@ export class CommentProcessor {
             try {
                 const { data, headers } = await axios.get(rawUrl, {responseType: "arraybuffer"});
                 const imageData = data;
-                const contentType = headers["content-type"] || mime.getType(rawUrl) || "application/octet-stream";
+                const contentType = headers["content-type"] || (await mime).default.getType(rawUrl) || "application/octet-stream";
                 let url;
                 if (convertToMxc) {
                     url = await this.as.botIntent.underlyingClient.uploadContent(imageData, contentType);
