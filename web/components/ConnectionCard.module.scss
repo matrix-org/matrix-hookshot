@@ -1,9 +1,7 @@
-.card {
-    /* Compound/Light/Background */
-    background: #FFFFFF;
 
-    /* Compound/Light/Quinary Content */
-    border: 1px solid #E3E8F0;
+.card {
+    background: var(--cpd-color-bg-subtle-secondary);
+    border: 1px solid var(--cpd-color-border-interactive-secondary);
     box-sizing: border-box;
     border-radius: 8px;
 
@@ -14,6 +12,13 @@
     margin-top: 10px;
 
     cursor: pointer;
+
+
+    @media (prefers-color-scheme: dark) {
+        img.invert {
+            filter: invert(100%);
+        }
+    }
 
     img {
         width: 52px;

@@ -197,6 +197,7 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
 
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
         headerImg={GitHubIcon}
+        darkHeaderImg={true}
         showHeader={showHeader}
         api={api}
         roomId={roomId}
