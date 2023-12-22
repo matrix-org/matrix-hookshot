@@ -6,9 +6,7 @@ use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use rgb::RGB;
-use ruma::html::{
-    sanitize_html, HtmlSanitizerMode, RemoveReplyFallback,
-};
+use ruma::html::{sanitize_html, HtmlSanitizerMode, RemoveReplyFallback};
 use std::fmt::Write;
 
 #[derive(Serialize, Debug, Deserialize)]
