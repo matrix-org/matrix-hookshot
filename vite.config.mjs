@@ -1,26 +1,33 @@
 import { defineConfig } from 'vite'
 import preact from '@preact/preset-vite'
 import { resolve } from 'path'
-import magicalSvg from 'vite-plugin-magical-svg'
+import alias from '@rollup/plugin-alias'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [preact(), magicalSvg.default({
-    // By default, the output will be a dom element (the <svg> you can use inside the webpage).
-    // You can also change the output to react (or preact) to get a component you can use.
-    target: 'preact',
-    // By default, the svgs are optimized with svgo. You can disable this by setting this to false.
-    svgo: true
-  })],
+  plugins: [preact()],
   root: 'web',
   base: '',
+  optimizeDeps: {
+    exclude: ['@vector-im/compound-web'],
+  },
   build: {
     outDir: '../public',
     rollupOptions: {
       input: {
         main: resolve('web', 'index.html'),
         oauth: resolve('web', 'oauth.html'),
-      }
+      },
+      plugins: [
+        alias({
+          entries: [
+            { find: 'react', replacement: 'preact/compat' },
+            { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+            { find: 'react-dom', replacement: 'preact/compat' },
+            { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' }
+          ]
+        })
+      ]
     },
     emptyOutDir: true,
   },
