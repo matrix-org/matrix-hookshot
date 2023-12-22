@@ -61,7 +61,7 @@
     "markdown-it": "^14.0.0",
     "matrix-appservice-bridge": "^9.0.1",
     "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@^0.6.7-element.1",
-    "matrix-widget-api": "^1.6.0",
+    "matrix-widget-api": "^1.0.0",
     "micromatch": "^4.0.5",
     "mime": "^4.0.1",
     "node-emoji": "^2.1.3",
