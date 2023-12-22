@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useCallback, useState } from "preact/hooks"
+import { useCallback, useEffect, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { BridgeConfig } from "../../BridgeAPI";
@@ -48,6 +48,21 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         });
     }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
 
+    const [codeMirrorTheme, setCodeMirrorTheme] = useState<"light"|"dark">("light");
+    useEffect(() => {
+        if (!transFnEnabled) {
+            return;
+        }
+        const mm = window.matchMedia('(prefers-color-scheme: dark)');
+        const fn = (event: MediaQueryListEvent) => {
+            console.log('media change!');
+            setCodeMirrorTheme(event.matches ? "dark" : "light");
+        };
+        mm.addEventListener('change', fn);
+        setCodeMirrorTheme(mm.matches ? "dark" : "light");
+        return () => mm.removeEventListener('change', fn);
+    }, [transFnEnabled]);
+
     return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="Friendly name" noPadding={true}>
             <input ref={nameRef} disabled={!canEdit} placeholder="My webhook" type="text" value={existingConnection?.config.name} />
@@ -69,6 +84,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         <InputField visible={transFnEnabled} noPadding={true}>
             <CodeMirror
                 value={transFn}
+                theme={codeMirrorTheme}
                 extensions={CODE_MIRROR_EXTENSIONS}
                 onChange={setTransFn}
             />
@@ -98,6 +114,7 @@ const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
 export const GenericWebhookConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
         headerImg={WebhookIcon}
+        darkHeaderImg={true}
         showHeader={showHeader}
         api={api}
         roomId={roomId}

@@ -1,9 +1,16 @@
-.icon {
-    width: 48px;
-}
 
 .serviceCard {
     display: grid !important;
     grid-template-columns: 0.6fr 1fr 1fr;
     padding: 0.5rem;
+
+    img {
+        width: 48px;
+        @media (prefers-color-scheme: dark) {
+            &.invert {
+                filter: invert(100%);
+            }
+        }
+    }
+    
 }

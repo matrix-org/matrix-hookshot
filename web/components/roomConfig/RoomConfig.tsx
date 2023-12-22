@@ -35,6 +35,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     type: string;
     showAuthPrompt?: boolean;
     showHeader: boolean;
+    darkHeaderImg?: boolean;
     headerImg: string;
     text: IRoomConfigText;
     connectionEventType: string;
@@ -52,6 +53,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         roomId,
         type,
         showAuthPrompt = false,
+        darkHeaderImg,
         headerImg,
         showHeader,
         text,
@@ -156,7 +158,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         <main>
             { showHeader &&
                 <header className={style.header}>
-                    <img alt="" src={headerImg} />
+                    <img alt="" className={darkHeaderImg ? style.invert : undefined} src={headerImg} />
                     <h1>{text.header}</h1>
                 </header>
             }
