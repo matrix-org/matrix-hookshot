@@ -1,11 +1,11 @@
 import { promises as fs } from "fs";
 import axios from "axios";
-import mime from "mime";
 import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
 import { BridgeConfig } from "../config/Config";
 
+const mime = import('mime');
 const log = new Logger("BotUsersManager");
 
 export class BotUser {
@@ -154,7 +154,7 @@ export default class BotUsersManager {
             contentType: string,
         };
         try {
-            const contentType = mime.getType(botUser.avatar);
+            const contentType = (await mime).default.getType(botUser.avatar);
             if (!contentType) {
                 throw new Error("Could not determine content type");
             }
