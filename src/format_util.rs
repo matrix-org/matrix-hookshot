@@ -6,9 +6,7 @@ use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use rgb::RGB;
-use ruma::events::room::message::sanitize::{
-    sanitize_html, HtmlSanitizerMode, RemoveReplyFallback,
-};
+use ruma::html::{sanitize_html, HtmlSanitizerMode, RemoveReplyFallback};
 use std::fmt::Write;
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -171,8 +169,8 @@ pub fn get_partial_body_for_jira_issue(jira_issue: JiraIssue) -> Result<JiraIssu
 #[napi]
 pub fn hash_id(id: String) -> Result<String> {
     let mut hasher = Md5::new();
-    hasher.input(id);
-    Ok(hex::encode(hasher.result()))
+    hasher.update(id);
+    Ok(hex::encode(hasher.finalize()))
 }
 
 #[napi(js_name = "sanitizeHtml")]

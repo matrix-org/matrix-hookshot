@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { BridgeAPIError } from "../../BridgeAPI";
 import { DropdownSearch, DropItem } from "./DropdownSearch";
-import { ErrorPane } from "./ErrorPane";
 import { InputField } from "./InputField";
+import { Alert } from "@vector-im/compound-web";
 
 interface Instance { 
     name: string;
@@ -121,7 +121,7 @@ export function ConnectionSearch({
 
     return <div>
         {!searchError && instances === null && <p> Loading {serviceName} instances. </p>}
-        {searchError && <ErrorPane header="Search error"> {searchError} </ErrorPane> }
+        {searchError && <Alert type="critical" title="Search error"> {searchError} </Alert> }
         <InputField visible={!!instances?.length} label={`${serviceName} Instance`} noPadding={true}>
             <select onChange={onInstancePicked}>
                 {instanceListResults}

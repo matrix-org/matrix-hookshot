@@ -3,7 +3,7 @@ import { Octokit } from "@octokit/rest";
 import { Logger } from "matrix-appservice-bridge";
 import { DiscussionQLResponse, DiscussionQL } from "./Discussion";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
-import { GitHubOAuthErrorResponse, GitHubOAuthTokenResponse, InstallationDataType } from "./Types";
+import { GitHubOAuthErrorResponse, GitHubOAuthTokenResponse, InstallationDataType, NAMELESS_ORG_PLACEHOLDER } from "./Types";
 import axios from "axios";
 import UserAgent from "../UserAgent";
 
@@ -18,9 +18,15 @@ export class GitHubOAuthError extends Error {
     }
 }
 
+export function getNameForGitHubAccount(account: {login: string}|{name?: string}) {
+    return ('login' in account) ? account.login : account.name ?? NAMELESS_ORG_PLACEHOLDER;
+}
+
 interface Installation {
     account: {
         login?: string;
+    } | {
+        name: string;
     } | null; 
     id: number;
     repository_selection: "selected"|"all";
@@ -155,8 +161,8 @@ export class GithubInstance {
 
     private async addInstallation(install: InstallationDataType, repos?: {full_name: string}[]) {
         let matchesRepository: string[] = [];
-        if (install.repository_selection === "all") {
-            matchesRepository = [`${install.account?.login}/*`.toLowerCase()];
+        if (install.repository_selection === "all" && install.account && 'login' in install.account) {
+            matchesRepository = [`${install.account.login}/*`.toLowerCase()];
         } else if (repos) {
             matchesRepository = repos.map(r => r.full_name.toLowerCase());
         } else {

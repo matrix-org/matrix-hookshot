@@ -74,8 +74,9 @@ export class GitHubProvisionerRouter {
             const installs = await octokit.apps.listInstallationsForAuthenticatedUser({page: page, per_page: perPage});
             for (const install of installs.data.installations) {
                 if (install.account) {
+                    const name = ('login' in install.account) ? install.account.login : install.account.name ?? NAMELESS_ORG_PLACEHOLDER;
                     organisations.push({
-                        name: install.account.login || NAMELESS_ORG_PLACEHOLDER, // org or user name
+                        name, // org or user name
                         avatarUrl: install.account.avatar_url,
                     });
                 } else {

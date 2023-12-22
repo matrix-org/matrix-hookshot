@@ -1,11 +1,11 @@
 import markdown from "markdown-it";
-import stringArgv from "string-argv";
 import { ApiError } from "./api";
 import { CommandError } from "./errors";
 import { MatrixMessageContent } from "./MatrixEvent";
 import { BridgePermissionLevel } from "./config/Config";
 import { PermissionCheckFn } from "./Connections";
 
+const stringArgv = import("string-argv");
 const md = new markdown();
 
 export const botCommandSymbol = Symbol("botCommandMetadata");
@@ -124,7 +124,7 @@ export async function handleCommand(
         }
         command = command.substring(prefix.length);
     }
-    const parts = stringArgv(command);
+    const parts = (await stringArgv).parseArgsStringToArgv(command);
     for (let i = parts.length; i > 0; i--) {
         const prefix = parts.slice(0, i).join(" ").toLowerCase();
         // We have a match!
