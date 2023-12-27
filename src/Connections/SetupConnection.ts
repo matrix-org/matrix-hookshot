@@ -272,11 +272,14 @@ export class SetupConnection extends CommandConnection {
             }
             throw err;
         });
-        if (!event || Object.keys(event).length === 0) {
+        if (!event || event.disabled === true || Object.keys(event).length === 0) {
             throw new CommandError("Invalid webhook name", `No webhook by the name of "${name}" is configured.`);
         }
 
-        await this.client.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {});
+        await this.client.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {
+            disabled: true
+        });
+
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Removed webhook \`${name}\``));
     }
 
