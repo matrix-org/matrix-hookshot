@@ -1,7 +1,7 @@
 // We need to instantiate some functions which are not directly called, which confuses typescript.
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
+import { GenericHookConnection, GenericHookConnectionState, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
 import { CommandError } from "../errors";
 import { BridgePermissionLevel } from "../config/Config";
 import markdown from "markdown-it";
@@ -229,6 +229,58 @@ export class SetupConnection extends CommandConnection {
             `Please configure your webhook source to use\n${url}`
         );
         return this.client.sendNotice(this.roomId, `Room configured to bridge webhooks. See admin room for secret url.`);
+    }
+
+
+
+    @botCommand("webhook list", { help: "Show webhooks currently configured.", category: "generic"})
+    public async onWebhookList() {
+        const webhooks: GenericHookConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return []; // not an error to us
+            }
+            throw err;
+        }).then(events =>
+            events.filter(
+                (ev: any) => ev.type === GenericHookConnection.CanonicalEventType && ev.content.name
+            ).map(ev => ev.content)
+        );
+
+        if (webhooks.length === 0) {
+            return this.client.sendHtmlNotice(this.roomId, md.renderInline('No webhooks configured'));
+        } else {
+            const feedDescriptions = webhooks.sort(
+                (a, b) => a.name.localeCompare(b.name)
+            ).map(feed => {
+                return feed.name;
+            });
+
+            return this.client.sendHtmlNotice(this.roomId, md.render(
+                'Webhooks configured:\n\n' +
+                 feedDescriptions.map(desc => ` - ${desc}`).join('\n')
+            ));
+        }
+    }
+
+    @botCommand("webhook remove", { help: "Remove a webhook from the room.", requiredArgs: ["name"], includeUserId: true, category: "generic"})
+    public async onWebhookRemove(userId: string, name: string) {
+        await this.checkUserPermissions(userId, "generic", GenericHookConnection.CanonicalEventType);
+
+        const event = await this.client.getRoomStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return null; // not an error to us
+            }
+            throw err;
+        });
+        if (!event || event.disabled === true || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid webhook name", `No webhook by the name of "${name}" is configured.`);
+        }
+
+        await this.client.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name, {
+            disabled: true
+        });
+
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Removed webhook \`${name}\``));
     }
 
     @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: "figma"})
