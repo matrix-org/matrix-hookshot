@@ -35,12 +35,14 @@ metrics:
   port: 9002
 \`\`\`
 
+Hookshot will then provide metrics on \`127.0.0.1\` at port \`9002\`.
+
 An example dashboard that can be used with [Grafana](https://grafana.com) can be found at [/contrib/hookshot-dashboard.json](https://github.com/matrix-org/matrix-hookshot/blob/main/contrib/hookshot-dashboard.json).
 There are 3 variables at the top of the dashboard:
 
 ![image](https://user-images.githubusercontent.com/2803622/179366574-1bb83e30-05c6-4558-9e66-e813e85b3a6e.png)
 
-Select the Prometheus with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value ([why?](https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618)).
+Select the Prometheus instance with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value ([why?](https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618)).
 
 Below is the generated list of Prometheus metrics for Hookshot.
 

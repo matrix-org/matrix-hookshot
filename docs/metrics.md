@@ -10,12 +10,14 @@ metrics:
   port: 9002
 ```
 
+Hookshot will then provide metrics on `127.0.0.1` at port `9002`.
+
 An example dashboard that can be used with [Grafana](https://grafana.com) can be found at [/contrib/hookshot-dashboard.json](https://github.com/matrix-org/matrix-hookshot/blob/main/contrib/hookshot-dashboard.json).
 There are 3 variables at the top of the dashboard:
 
 ![image](https://user-images.githubusercontent.com/2803622/179366574-1bb83e30-05c6-4558-9e66-e813e85b3a6e.png)
 
-Select the Prometheus with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value ([why?](https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618)).
+Select the Prometheus instance with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value ([why?](https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618)).
 
 Below is the generated list of Prometheus metrics for Hookshot.
 
@@ -24,29 +26,29 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | Metric | Help | Labels |
 |--------|------|--------|
 | hookshot_webhooks_http_request | Number of requests made to the hookshot webhooks handler | path, method |
-| hookshot_provisioning_http_request | Number of requests made to the hookshot webhooks handler | path, method |
+| hookshot_provisioning_http_request | Number of requests made to the hookshot provisioner handler | path, method |
 | hookshot_queue_event_pushes | Number of events pushed through the queue | event |
-| hookshot_connection_event_failed | The number of events that failed to process | event, connectionId |
-| hookshot_connections | The number of active hookshot connections | service |
+| hookshot_connection_event_failed | Number of events that failed to process | event, connectionId |
+| hookshot_connections | Number of active hookshot connections | service |
 | hookshot_notifications_push | Number of notifications pushed | service |
-| hookshot_notifications_service_up | Is the notification service up or down | service |
+| hookshot_notifications_service_up | Whether the notification service is up or down | service |
 | hookshot_notifications_watchers | Number of notifications watchers running | service |
-| hookshot_feeds_count | The number of RSS feeds that hookshot is subscribed to |  |
-| hookshot_feeds_fetch_ms | The time taken for hookshot to fetch all feeds |  |
-| hookshot_feeds_failing | The number of RSS feeds that hookshot is failing to read | reason |
+| hookshot_feeds_count | Number of RSS feeds that hookshot is subscribed to |  |
+| hookshot_feeds_fetch_ms | Time taken for hookshot to fetch all feeds |  |
+| hookshot_feeds_failing | Number of RSS feeds that hookshot is failing to read | reason |
 ## matrix
 | Metric | Help | Labels |
 |--------|------|--------|
-| matrix_api_calls | The number of Matrix client API calls made | method |
-| matrix_api_calls_failed | The number of Matrix client API calls which failed | method |
-| matrix_appservice_events | The number of events sent over the AS API |  |
-| matrix_appservice_decryption_failed | The number of events sent over the AS API that failed to decrypt |  |
+| matrix_api_calls | Number of Matrix client API calls made | method |
+| matrix_api_calls_failed | Number of Matrix client API calls which failed | method |
+| matrix_appservice_events | Number of events sent over the AS API |  |
+| matrix_appservice_decryption_failed | Number of events sent over the AS API that failed to decrypt |  |
 ## feed
 | Metric | Help | Labels |
 |--------|------|--------|
-| feed_count | (Deprecated) The number of RSS feeds that hookshot is subscribed to |  |
-| feed_fetch_ms | (Deprecated) The time taken for hookshot to fetch all feeds |  |
-| feed_failing | (Deprecated) The number of RSS feeds that hookshot is failing to read | reason |
+| feed_count | (Deprecated) Number of RSS feeds that hookshot is subscribed to |  |
+| feed_fetch_ms | (Deprecated) Time taken for hookshot to fetch all feeds |  |
+| feed_failing | (Deprecated) Number of RSS feeds that hookshot is failing to read | reason |
 ## process
 | Metric | Help | Labels |
 |--------|------|--------|
