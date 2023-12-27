@@ -157,37 +157,38 @@
   bindAddress: 127.0.0.1
   port: 9002
 </code></pre>
+<p>Hookshot will then provide metrics on <code>127.0.0.1</code> at port <code>9002</code>.</p>
 <p>An example dashboard that can be used with <a href="https://grafana.com">Grafana</a> can be found at <a href="https://github.com/matrix-org/matrix-hookshot/blob/main/contrib/hookshot-dashboard.json">/contrib/hookshot-dashboard.json</a>.
 There are 3 variables at the top of the dashboard:</p>
 <p><img src="https://user-images.githubusercontent.com/2803622/179366574-1bb83e30-05c6-4558-9e66-e813e85b3a6e.png" alt="image" /></p>
-<p>Select the Prometheus with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value (<a href="https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618">why?</a>).</p>
+<p>Select the Prometheus instance with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value (<a href="https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618">why?</a>).</p>
 <p>Below is the generated list of Prometheus metrics for Hookshot.</p>
 <h2 id="hookshot"><a class="header" href="#hookshot">hookshot</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
 <tr><td>hookshot_webhooks_http_request</td><td>Number of requests made to the hookshot webhooks handler</td><td>path, method</td></tr>
-<tr><td>hookshot_provisioning_http_request</td><td>Number of requests made to the hookshot webhooks handler</td><td>path, method</td></tr>
+<tr><td>hookshot_provisioning_http_request</td><td>Number of requests made to the hookshot provisioner handler</td><td>path, method</td></tr>
 <tr><td>hookshot_queue_event_pushes</td><td>Number of events pushed through the queue</td><td>event</td></tr>
-<tr><td>hookshot_connection_event_failed</td><td>The number of events that failed to process</td><td>event, connectionId</td></tr>
-<tr><td>hookshot_connections</td><td>The number of active hookshot connections</td><td>service</td></tr>
+<tr><td>hookshot_connection_event_failed</td><td>Number of events that failed to process</td><td>event, connectionId</td></tr>
+<tr><td>hookshot_connections</td><td>Number of active hookshot connections</td><td>service</td></tr>
 <tr><td>hookshot_notifications_push</td><td>Number of notifications pushed</td><td>service</td></tr>
-<tr><td>hookshot_notifications_service_up</td><td>Is the notification service up or down</td><td>service</td></tr>
+<tr><td>hookshot_notifications_service_up</td><td>Whether the notification service is up or down</td><td>service</td></tr>
 <tr><td>hookshot_notifications_watchers</td><td>Number of notifications watchers running</td><td>service</td></tr>
-<tr><td>hookshot_feeds_count</td><td>The number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
-<tr><td>hookshot_feeds_fetch_ms</td><td>The time taken for hookshot to fetch all feeds</td><td></td></tr>
-<tr><td>hookshot_feeds_failing</td><td>The number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
+<tr><td>hookshot_feeds_count</td><td>Number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
+<tr><td>hookshot_feeds_fetch_ms</td><td>Time taken for hookshot to fetch all feeds</td><td></td></tr>
+<tr><td>hookshot_feeds_failing</td><td>Number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
 </tbody></table>
 <h2 id="matrix"><a class="header" href="#matrix">matrix</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>matrix_api_calls</td><td>The number of Matrix client API calls made</td><td>method</td></tr>
-<tr><td>matrix_api_calls_failed</td><td>The number of Matrix client API calls which failed</td><td>method</td></tr>
-<tr><td>matrix_appservice_events</td><td>The number of events sent over the AS API</td><td></td></tr>
-<tr><td>matrix_appservice_decryption_failed</td><td>The number of events sent over the AS API that failed to decrypt</td><td></td></tr>
+<tr><td>matrix_api_calls</td><td>Number of Matrix client API calls made</td><td>method</td></tr>
+<tr><td>matrix_api_calls_failed</td><td>Number of Matrix client API calls which failed</td><td>method</td></tr>
+<tr><td>matrix_appservice_events</td><td>Number of events sent over the AS API</td><td></td></tr>
+<tr><td>matrix_appservice_decryption_failed</td><td>Number of events sent over the AS API that failed to decrypt</td><td></td></tr>
 </tbody></table>
 <h2 id="feed"><a class="header" href="#feed">feed</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>feed_count</td><td>(Deprecated) The number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
-<tr><td>feed_fetch_ms</td><td>(Deprecated) The time taken for hookshot to fetch all feeds</td><td></td></tr>
-<tr><td>feed_failing</td><td>(Deprecated) The number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
+<tr><td>feed_count</td><td>(Deprecated) Number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
+<tr><td>feed_fetch_ms</td><td>(Deprecated) Time taken for hookshot to fetch all feeds</td><td></td></tr>
+<tr><td>feed_failing</td><td>(Deprecated) Number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
 </tbody></table>
 <h2 id="process"><a class="header" href="#process">process</a></h2>
 <table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
