@@ -1,3 +1,33 @@
+5.0.0 (2023-12-27)
+==================
+
+Features
+--------
+
+- Warn if the bot does not have permissions to talk in a room. ([\#852](https://github.com/matrix-org/matrix-hookshot/issues/852))
+- Support dark mode for the widget interface. ([\#863](https://github.com/matrix-org/matrix-hookshot/issues/863))
+- Add `webhook list` and `webhook remove` commands. ([\#866](https://github.com/matrix-org/matrix-hookshot/issues/866))
+
+
+Bugfixes
+--------
+
+- Fix notify on failure not being toggleable in the feeds widget interface. ([\#865](https://github.com/matrix-org/matrix-hookshot/issues/865))
+
+
+Improved Documentation
+----------------------
+
+- Documentation tidyups. ([\#855](https://github.com/matrix-org/matrix-hookshot/issues/855), [\#857](https://github.com/matrix-org/matrix-hookshot/issues/857), [\#858](https://github.com/matrix-org/matrix-hookshot/issues/858), [\#859](https://github.com/matrix-org/matrix-hookshot/issues/859), [\#860](https://github.com/matrix-org/matrix-hookshot/issues/860))
+- Generally tidy up and improve metrics documentation. ([\#856](https://github.com/matrix-org/matrix-hookshot/issues/856))
+
+
+Deprecations and Removals
+-------------------------
+
+- Drop support for Node 18 and start supporting Node 21. ([\#862](https://github.com/matrix-org/matrix-hookshot/issues/862))
+
+
 4.7.0 (2023-12-06)
 ==================
 
