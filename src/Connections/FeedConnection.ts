@@ -97,8 +97,11 @@ export class FeedConnection extends BaseConnection implements IConnection {
             }
         }
 
+        if (typeof data.notifyOnFailure !== 'undefined' && typeof data.notifyOnFailure !== 'boolean') {
+            throw new ApiError('notifyOnFailure must be a boolean', ErrCode.BadValue);
+        }
 
-        return { url, label: data.label, template: data.template };
+        return { url, label: data.label, template: data.template, notifyOnFailure: data.notifyOnFailure };
     }
 
     static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, { intent, config }: ProvisionConnectionOpts) {

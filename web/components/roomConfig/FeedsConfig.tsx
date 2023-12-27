@@ -34,7 +34,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     const templateRef = createRef<HTMLInputElement>();
     const canSave = !existingConnection?.id || (existingConnection?.canEdit ?? false);
     const canEdit = canSave && !isMigrationCandidate;
-    const [notifyOnFailure, setNotifyOnFailure] = useState<string>(existingConnection?.config.notifyOnFailure ?? false);
+    const [notifyOnFailure, setNotifyOnFailure] = useState<boolean>(existingConnection?.config.notifyOnFailure ?? false);
 
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
