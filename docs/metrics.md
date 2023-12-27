@@ -26,7 +26,7 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | Metric | Help | Labels |
 |--------|------|--------|
 | hookshot_webhooks_http_request | Number of requests made to the hookshot webhooks handler | path, method |
-| hookshot_provisioning_http_request | Number of requests made to the hookshot webhooks handler | path, method |
+| hookshot_provisioning_http_request | Number of requests made to the hookshot provisioner handler | path, method |
 | hookshot_queue_event_pushes | Number of events pushed through the queue | event |
 | hookshot_connection_event_failed | Number of events that failed to process | event, connectionId |
 | hookshot_connections | Number of active hookshot connections | service |
@@ -65,13 +65,13 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | Metric | Help | Labels |
 |--------|------|--------|
 | nodejs_eventloop_lag_seconds | Lag of event loop in seconds. |  |
-| nodejs_eventloop_lag_min_seconds | Minimum recorded event loop delay. |  |
-| nodejs_eventloop_lag_max_seconds | Maximum recorded event loop delay. |  |
-| nodejs_eventloop_lag_mean_seconds | Mean of the recorded event loop delays. |  |
-| nodejs_eventloop_lag_stddev_seconds | Standard deviation of the recorded event loop delays. |  |
-| nodejs_eventloop_lag_p50_seconds | 50th percentile of the recorded event loop delays. |  |
-| nodejs_eventloop_lag_p90_seconds | 90th percentile of the recorded event loop delays. |  |
-| nodejs_eventloop_lag_p99_seconds | 99th percentile of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_min_seconds | The minimum recorded event loop delay. |  |
+| nodejs_eventloop_lag_max_seconds | The maximum recorded event loop delay. |  |
+| nodejs_eventloop_lag_mean_seconds | The mean of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_stddev_seconds | The standard deviation of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_p50_seconds | The 50th percentile of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_p90_seconds | The 90th percentile of the recorded event loop delays. |  |
+| nodejs_eventloop_lag_p99_seconds | The 99th percentile of the recorded event loop delays. |  |
 | nodejs_active_resources | Number of active resources that are currently keeping the event loop alive, grouped by async resource type. | type |
 | nodejs_active_resources_total | Total number of active resources. |  |
 | nodejs_active_handles | Number of active libuv handles grouped by handle type. Every handle type is C++ class name. | type |
