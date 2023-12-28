@@ -140,6 +140,7 @@ jobs:
         timeout-minutes: 10
         env:
           HOMERUNNER_SPAWN_HS_TIMEOUT_SECS: 100
+          HOMERUNNER_IMAGE: ghcr.io/element-hq/synapse/complement-synapse:latest
           NODE_OPTIONS: --dns-result-order ipv4first
         run: |
           docker pull $HOMERUNNER_IMAGE
