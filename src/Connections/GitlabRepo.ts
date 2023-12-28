@@ -1,5 +1,3 @@
-// We need to instantiate some functions which are not directly called, which confuses typescript.
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import { UserTokenStore } from "../UserTokenStore";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
