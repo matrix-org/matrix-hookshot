@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../elements/LoadingSpinner';
 import { ErrCode } from "../../../src/api";
 import { retry } from "../../../src/PromiseUtil";
 import { Alert } from "@vector-im/compound-web";
+
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
     loginLabel?: string;

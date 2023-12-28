@@ -176,25 +176,6 @@ const roomConfigText: IRoomConfigText = {
 const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
 export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
-    const [ goNebConnections, setGoNebConnections ] = useState(undefined);
-
-    useEffect(() => {
-        api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
-            if (!res) return;
-            setGoNebConnections(res.github.map((config: any) => ({
-                config,
-            })));
-        }).catch(ex => {
-            console.warn("Failed to fetch go neb connections", ex);
-        });
-    }, [api, roomId]);
-
-    const compareConnections = useCallback(
-        (goNebConnection, nativeConnection) => goNebConnection.config.org === nativeConnection.config.org
-                                            && goNebConnection.config.repo === nativeConnection.config.repo,
-        []
-    );
-
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
         headerImg={GitHubIcon}
         darkHeaderImg={true}
@@ -207,7 +188,5 @@ export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         listItemName={RoomConfigListItemFunc}
         connectionEventType={EventType}
         connectionConfigComponent={ConnectionConfiguration}
-        migrationCandidates={goNebConnections}
-        migrationComparator={compareConnections}
     />;
 };
