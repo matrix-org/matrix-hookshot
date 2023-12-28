@@ -21,11 +21,11 @@ export interface GenericHookConnectionState extends IConnectionState {
      * The name given in the provisioning UI and displaynames.
      */
     name: string;
-    transformationFunction?: string;
+    transformationFunction: string|undefined;
     /**
      * Should the webhook only respond on completion.
      */
-    waitForComplete?: boolean;
+    waitForComplete: boolean|undefined;
 }
 
 export interface GenericHookSecrets {
@@ -145,7 +145,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         return {
             name,
-            ...(transformationFunction && {transformationFunction}),
+            transformationFunction: transformationFunction || undefined,
             waitForComplete,
         };
     }
