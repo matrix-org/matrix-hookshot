@@ -315,7 +315,7 @@ const EMOJI_TO_REVIEW_STATE = {
 };
 
 const WORKFLOW_CONCLUSION_TO_NOTICE: Record<WorkflowRunCompletedEvent["workflow_run"]["conclusion"], string> = {
-    success: "completed sucessfully 🎉",
+    success: "completed successfully 🎉",
     failure: "failed 😟",
     neutral: "completed neutrally 😐",
     cancelled: "was cancelled 🙅",
