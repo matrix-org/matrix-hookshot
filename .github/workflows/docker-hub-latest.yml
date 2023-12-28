@@ -12,6 +12,11 @@ on:
       - changelog.d/**'
   merge_group:
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOCKER_NAMESPACE: halfshot
   PLATFORMS: linux/amd64
