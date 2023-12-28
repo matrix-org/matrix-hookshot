@@ -10,7 +10,6 @@ import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
-import { StatusCodes } from "http-status-codes";
 import { GithubInstance } from '../github/GithubInstance';
 import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
 
