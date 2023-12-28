@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useCallback, useEffect, useState } from "preact/hooks"
+import { useCallback, useState } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
 import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
@@ -93,20 +93,6 @@ const roomConfigText: IRoomConfigText = {
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
 export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
-    const [ goNebConnections, setGoNebConnections ] = useState(undefined);
-
-    useEffect(() => {
-        api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
-            if (!res) return;
-            setGoNebConnections(res.feeds.map((config: any) => ({
-                config,
-            })));
-        }).catch(ex => {
-            console.warn("Failed to fetch go neb connections", ex);
-        });
-    }, [api, roomId]);
-
-    const compareConnections = useCallback((goNebConnection: FeedResponseItem, nativeConnection: FeedResponseItem) => goNebConnection.config.url === nativeConnection.config.url, []);
 
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
@@ -118,7 +104,5 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         text={roomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionConfigComponent={ConnectionConfiguration}
-        migrationCandidates={goNebConnections}
-        migrationComparator={compareConnections}
     />;
 };
