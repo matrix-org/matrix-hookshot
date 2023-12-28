@@ -61,7 +61,7 @@ export class GoNebMigrator {
         for (const [url, config] of Object.entries(goNebFeeds)) {
             for (const roomId of config.rooms) {
                 const existing = feedsPerRoom.get(roomId) ?? [];
-                existing.push({ url });
+                existing.push({ url, label: undefined, template: undefined, notifyOnFailure: undefined });
                 feedsPerRoom.set(roomId, existing);
             }
         }
