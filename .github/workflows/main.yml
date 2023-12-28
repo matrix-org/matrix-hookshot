@@ -81,6 +81,8 @@ jobs:
             toolchain: stable
             profile: minimal
       - uses: Swatinem/rust-cache@v2
+        with: 
+          shared-key: rust-cache
       - run: yarn
       - run: yarn test:cover
 
@@ -145,6 +147,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: matrix-hookshot
+          shared-key: rust-cache
       - name: Run Homerunner tests
         timeout-minutes: 10
         env:
