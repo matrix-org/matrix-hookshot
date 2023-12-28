@@ -80,6 +80,7 @@ jobs:
         with:
             toolchain: stable
             profile: minimal
+      - uses: Swatinem/rust-cache@v2
       - run: yarn
       - run: yarn test:cover
 
@@ -141,6 +142,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version-file: matrix-hookshot/.node-version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: matrix-hookshot
       - name: Run Homerunner tests
         timeout-minutes: 10
         env:
