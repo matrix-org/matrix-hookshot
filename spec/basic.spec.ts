@@ -28,7 +28,7 @@ describe('Basic test setup', () => {
     });
 
     // TODO: Move test to it's own generic connections file.
-    it.only('should be able to setup a webhook', async () => {
+    it('should be able to setup a webhook', async () => {
         const user = testEnv.getUser('user');
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
         await user.waitForRoomJoin({sender: testEnv.botMxid, roomId: testRoomId });
