@@ -446,12 +446,6 @@ export interface BridgeConfigMetrics {
     port?: number;
 }
 
-export interface BridgeConfigGoNebMigrator {
-    apiUrl: string;
-    serviceIds?: string[];
-    goNebBotPrefix?: string;
-}
-
 export interface BridgeConfigSentry {
     dsn: string;
     environment?: string;
@@ -477,7 +471,6 @@ export interface BridgeConfigRoot {
     widgets?: BridgeWidgetConfigYAML;
     metrics?: BridgeConfigMetrics;
     listeners?: BridgeConfigListener[];
-    goNebMigrator?: BridgeConfigGoNebMigrator;
     sentry?: BridgeConfigSentry;
 }
 
@@ -530,9 +523,6 @@ export class BridgeConfig {
  'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
  'resources' may be any of ${ResourceTypeArray.join(', ')}`)
     public readonly listeners: BridgeConfigListener[];
-
-    @configKey("go-neb migrator configuration", true)
-    public readonly goNebMigrator?: BridgeConfigGoNebMigrator;
 
     @configKey("Configure Sentry error reporting", true)
     public readonly sentry?: BridgeConfigSentry;
@@ -603,7 +593,9 @@ export class BridgeConfig {
             this.queue.port = env?.CFG_QUEUE_POST ? parseInt(env?.CFG_QUEUE_POST, 10) : undefined;
         }
 
-        this.goNebMigrator = configData.goNebMigrator;
+        if ('goNebMigrator' in configData) {
+            log.warn(`The GoNEB migrator has been removed from this release. You should remove the 'goNebMigrator' from your config.`);
+        }
 
         // Listeners is a bit special
         this.listeners = configData.listeners || [];
