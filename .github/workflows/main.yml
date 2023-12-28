@@ -13,6 +13,11 @@ on:
   workflow_dispatch:
   merge_group:
 
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-node:
    runs-on: ubuntu-latest
@@ -75,5 +80,83 @@ jobs:
         with:
             toolchain: stable
             profile: minimal
+      - uses: Swatinem/rust-cache@v2
+        with: 
+          shared-key: rust-cache
       - run: yarn
       - run: yarn test:cover
+
+  build-homerunner:
+    runs-on: ubuntu-latest
+    outputs:
+      homerunnersha: ${{ steps.gitsha.outputs.sha }}
+    steps:
+      - name: Checkout matrix-org/complement
+        uses: actions/checkout@v3
+        with:
+          repository: matrix-org/complement
+      - name: Get complement git sha
+        id: gitsha
+        run: echo sha=`git rev-parse --short HEAD` >> "$GITHUB_OUTPUT"
+      - name: Cache homerunner
+        id: cached
+        uses: actions/cache@v3
+        with:
+          path: homerunner
+          key: ${{ runner.os }}-homerunner-${{ steps.gitsha.outputs.sha }}
+      - name: "Set Go Version"
+        if: ${{ steps.cached.outputs.cache-hit != 'true' }}
+        run: |
+          echo "$GOROOT_1_18_X64/bin" >> $GITHUB_PATH
+          echo "~/go/bin" >> $GITHUB_PATH
+      # Build and install homerunner
+      - name: Install Complement Dependencies
+        if: ${{ steps.cached.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
+      - name: Build homerunner
+        if: ${{ steps.cached.outputs.cache-hit != 'true' }}
+        run: |
+          go build ./cmd/homerunner
+
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - test
+      - build-homerunner
+    steps:
+      - name: Install Complement Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y libolm3
+      - name: Load cached homerunner bin
+        uses: actions/cache@v3
+        with:
+          path: homerunner
+          key: ${{ runner.os }}-homerunner-${{ needs.build-synapse.outputs.homerunnersha }}
+          fail-on-cache-miss: true # Shouldn't happen, we build this in the needs step.
+      - name: Checkout matrix-hookshot
+        uses: actions/checkout@v3
+        with:
+          path: matrix-hookshot
+      # Setup node & run tests
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: matrix-hookshot/.node-version
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: matrix-hookshot
+          shared-key: rust-cache
+      - name: Run Homerunner tests
+        timeout-minutes: 10
+        env:
+          HOMERUNNER_SPAWN_HS_TIMEOUT_SECS: 100
+          HOMERUNNER_IMAGE: ghcr.io/element-hq/synapse/complement-synapse:latest
+          NODE_OPTIONS: --dns-result-order ipv4first
+        run: |
+          docker pull $HOMERUNNER_IMAGE
+          cd matrix-hookshot
+          yarn --strict-semver --frozen-lockfile
+          ../homerunner &
+          bash -ic 'yarn test:e2e'
