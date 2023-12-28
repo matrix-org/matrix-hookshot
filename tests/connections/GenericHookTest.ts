@@ -32,7 +32,7 @@ async function testSimpleWebhook(connection: GenericHookConnection, mq: LocalMQ,
 }
 
 function createGenericHook(
-    state: GenericHookConnectionState = { name: "some-name" },
+    state: Partial<GenericHookConnectionState> = { },
     config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}
 ) {
     const mq = new LocalMQ();
@@ -40,7 +40,12 @@ function createGenericHook(
     const messageClient = new MessageSenderClient(mq);
     const as = AppserviceMock.create();
     const intent = as.getIntentForUserId('@webhooks:example.test');
-    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
+    const connection =  new GenericHookConnection(ROOM_ID, {
+        name: "some-name",
+        transformationFunction: undefined,
+        waitForComplete: undefined,
+        ...state,
+    }, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
     return [connection, mq, as, intent];
 }
 
