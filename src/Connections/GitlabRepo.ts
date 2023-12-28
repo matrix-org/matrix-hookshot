@@ -752,7 +752,7 @@ ${data.description}`;
         let relation;
         const discussionWithThread = result.discussions.find(discussionId => this.discussionThreads.has(discussionId));
         if (discussionWithThread) {
-            const threadEventId = await this.discussionThreads.get(discussionWithThread)!.catch(_ => { /* already logged */ });
+            const threadEventId = await this.discussionThreads.get(discussionWithThread)?.catch(() => { /* already logged */ });
             if (threadEventId) {
                 relation = {
                     "m.relates_to": {
@@ -948,7 +948,7 @@ ${data.description}`;
     private async persistDiscussionThreads(): Promise<void> {
         const serialized: SerializedGitlabDiscussionThreads = [];
         for (const [discussionId, eventIdPromise] of this.discussionThreads.entriesAscending()) {
-            const eventId = await eventIdPromise.catch(_ => { /* logged elsewhere */ });
+            const eventId = await eventIdPromise.catch(() => { /* logged elsewhere */ });
             if (eventId) {
                 serialized.push({ discussionId, eventId });
             }

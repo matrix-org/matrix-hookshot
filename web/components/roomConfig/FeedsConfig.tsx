@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useCallback, useEffect, useState } from "preact/hooks"
+import { useCallback, useState } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
 import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
