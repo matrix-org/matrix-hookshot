@@ -22,11 +22,17 @@ const FEED_ENTRY_DEFAULTS: FeedEntry = {
 }
 
 function createFeed(
-    state: FeedConnectionState = { url: FEED_URL  }
+    state: Partial<FeedConnectionState> = { }
 ): [FeedConnection, IntentMock] {
     const as = AppserviceMock.create();
     const intent = as.getIntentForUserId('@webhooks:example.test');
-    const connection =  new FeedConnection(ROOM_ID, "foobar", state, intent);
+    const connection =  new FeedConnection(ROOM_ID, "foobar", {
+        label: undefined,
+        template: undefined,
+        notifyOnFailure: undefined,
+        url: FEED_URL,
+        ...state
+    }, intent);
     return [connection, intent];
 }
 describe("FeedConnection", () => {
@@ -55,9 +61,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.content.body).to.equal("New post in Test feed");
     });
     it("will handle simple feed message with a missing title ", async () => {
-        const [connection, intent] = createFeed({
-            url: FEED_URL,
-        });
+        const [connection, intent] = createFeed();
         await connection.handleFeedEntry({
             ...FEED_ENTRY_DEFAULTS,
             title: null,
@@ -68,9 +72,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.content.body).to.equal("New post in Test feed: [foo/bar](foo/bar)");
     });
     it("will handle simple feed message with a missing link ", async () => {
-        const [connection, intent] = createFeed({
-            url: FEED_URL,
-        });
+        const [connection, intent] = createFeed();
         await connection.handleFeedEntry({
             ...FEED_ENTRY_DEFAULTS,
             link: null,
@@ -82,7 +84,6 @@ describe("FeedConnection", () => {
     });
     it("will handle simple feed message with all the template options possible ", async () => {
         const [connection, intent] = createFeed({
-            url: FEED_URL,
             template: `$FEEDNAME $FEEDURL $FEEDTITLE $TITLE $LINK $AUTHOR $DATE $SUMMARY`
         });
         await connection.handleFeedEntry({
@@ -95,7 +96,6 @@ describe("FeedConnection", () => {
     });
     it("will handle html in the feed summary ", async () => {
         const [connection, intent] = createFeed({
-            url: FEED_URL,
             template: `$FEEDNAME $SUMMARY`
         });
         await connection.handleFeedEntry({
@@ -109,7 +109,6 @@ describe("FeedConnection", () => {
     });
     it("will handle partial html in the feed summary ", async () => {
         const [connection, intent] = createFeed({
-            url: FEED_URL,
             template: `$FEEDNAME $SUMMARY`
         });
         await connection.handleFeedEntry({

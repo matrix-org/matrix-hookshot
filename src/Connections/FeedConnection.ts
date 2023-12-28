@@ -26,10 +26,10 @@ export interface LastResultFail {
 
 
 export interface FeedConnectionState extends IConnectionState {
-    url:    string;
-    label?: string;
-    template?: string;
-    notifyOnFailure?: boolean;
+    url: string;
+    label: string|undefined;
+    template: string|undefined;
+    notifyOnFailure: boolean|undefined;
 }
 
 export interface FeedConnectionSecrets {
@@ -136,6 +136,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
             config: {
                 url: this.feedUrl,
                 label: this.state.label,
+                template: this.state.template,
+                notifyOnFailure: this.state.notifyOnFailure,
             },
             secrets: {
                 lastResults: this.lastResults,
