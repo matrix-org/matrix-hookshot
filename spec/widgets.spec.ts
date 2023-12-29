@@ -15,6 +15,7 @@ describe('Widgets', () => {
             listeners: [{
                 port: webhooksPort,
                 bindAddress: '0.0.0.0',
+                // Bind to the SAME listener to ensure we don't have conflicts.
                 resources: ['webhooks', 'widgets'],
             }],
             
@@ -26,7 +27,7 @@ describe('Widgets', () => {
         return testEnv?.tearDown();
     });
 
-    it('should be able to invite the bot to a room', async () => {
+    it('should be able to authenticate with the widget API', async () => {
         const user = testEnv.getUser('user');
         const bridgeApi = await BridgeAPI.getBridgeAPI(testEnv.opts.config?.widgets?.publicUrl!, {
             requestOpenIDConnectToken: () => {
