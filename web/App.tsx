@@ -60,10 +60,10 @@ export default class App extends Component<void, IState> {
         const serviceScope = qs.get('serviceScope');
         const embedType = qs.get(embedTypeParameter);
         // Fetch via config.
-        this.widgetApi = new WA.WidgetApi(widgetId, 'http://localhost');
         this.widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
         this.widgetApi.on("ready", () => {
             console.log("Widget ready:", this);
+        const widgetApi = new WA.WidgetApi(widgetId, '*');
         });
         this.widgetApi.on(`action:${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, (ev) => {
             console.log(`${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, ev);
