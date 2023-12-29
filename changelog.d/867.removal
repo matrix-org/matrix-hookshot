@@ -1,1 +1,0 @@
-The GoNEB migrator is being removed in this release. Users wishing to migrate from GoNEB deployments should use <=5.0.0 and then upgrade.
