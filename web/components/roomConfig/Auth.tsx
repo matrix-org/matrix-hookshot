@@ -1,24 +1,23 @@
-import { useCallback, useEffect, useState } from "preact/hooks";
+import { useCallback, useContext, useEffect, useState } from "preact/hooks";
 import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
-import { BridgeAPI } from "../../BridgeAPI";
 import { Button } from "../elements";
+import { BridgeContext } from "../../context";
 
 const PollAuthEveryMs = 3000;
 
 
 export const ServiceAuth = ({
-    api,
     service,
     loginLabel = "Log in",
     authState,
     onAuthSucceeded,
 }: {
-    api: BridgeAPI,
     service: string,
     authState: GetAuthResponse,
     onAuthSucceeded: () => void,
     loginLabel?: string,
 }) => {
+    const api = useContext(BridgeContext).bridgeApi;
     const [pollStateId, setPollStateId] = useState<string|null>();
 
     const pollAuth = useCallback(async (pollId) => {

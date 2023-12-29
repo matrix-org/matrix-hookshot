@@ -1,6 +1,5 @@
-import { WidgetApi } from "matrix-widget-api";
 import { useState } from "preact/hooks"
-import { BridgeAPI, BridgeConfig, EmbedType } from "../BridgeAPI";
+import { BridgeConfig, EmbedType } from "../BridgeAPI";
 import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
 import { FeedsConfig } from "./roomConfig/FeedsConfig";
@@ -17,8 +16,6 @@ import WebhookIcon from "../icons/webhook.png";
 
 
 interface IProps {
-    widgetApi: WidgetApi,
-    bridgeApi: BridgeAPI,
     supportedServices: {[service: string]: boolean},
     serviceScope?: string,
     embedType: EmbedType,
@@ -86,7 +83,6 @@ export default function RoomConfigView(props: IProps) {
         const ConfigComponent = connections[activeConnectionType].component;
         content = <ConfigComponent
             roomId={props.roomId}
-            api={props.bridgeApi}
             showHeader={props.embedType !== EmbedType.IntegrationManager}
         />;
     } else {
@@ -109,6 +105,7 @@ export default function RoomConfigView(props: IProps) {
     }
 
     return <div className={style.root}>
+
         {!serviceScope && activeConnectionType &&
             <header>
                 <span className={style.backButton} onClick={() => setActiveConnectionType(null)}>

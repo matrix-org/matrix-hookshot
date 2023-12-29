@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useMemo } from "preact/hooks";
+import { useState, useCallback, useMemo, useContext } from "preact/hooks";
 import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraProjectConnectionInstanceTarget } from "../../../src/Connections/JiraProject";
@@ -8,11 +8,13 @@ import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import JiraIcon from "../../icons/jira.png";
 import ConnectionSearch from "../elements/ConnectionSearch";
 import { DropItem } from "../elements/DropdownSearch";
+import { BridgeContext } from "../../context";
 
 const EventType = "uk.half-shot.matrix-hookshot.jira.project";
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({api, existingConnection, onSave, onRemove, isUpdating }) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({existingConnection, onSave, onRemove, isUpdating }) => {
     const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);
+    const api = useContext(BridgeContext).bridgeApi;
 
     const toggleEvent = useCallback((evt: Event) => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
@@ -108,11 +110,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: JiraProjectResponseItem) => c.config.url;
 
-export const JiraProjectConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+export const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, JiraProjectResponseItem, JiraProjectConnectionState>
         headerImg={JiraIcon}
         showHeader={showHeader}
-        api={api}
         roomId={roomId}
         type="jira"
         text={RoomConfigText}

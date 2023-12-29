@@ -5,13 +5,15 @@ import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { GitLabRepoConnectionState, GitLabRepoResponseItem, GitLabRepoConnectionProjectTarget, GitLabRepoConnectionInstanceTarget } from "../../../src/Connections/GitlabRepo";
 import { InputField, ButtonSet, Button } from "../elements";
 import { FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useMemo } from "preact/hooks";
+import { useState, useCallback, useMemo, useContext } from "preact/hooks";
 import { DropItem } from "../elements/DropdownSearch";
 import { ConnectionSearch } from "../elements/ConnectionSearch";
+import { BridgeContext } from "../../context";
 
 const EventType = "uk.half-shot.matrix-hookshot.gitlab.repository";
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({api, existingConnection, onSave, onRemove, isUpdating }) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitLabRepoResponseItem, GitLabRepoConnectionState>> = ({existingConnection, onSave, onRemove, isUpdating }) => {
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
+    const api = useContext(BridgeContext).bridgeApi;
 
     const toggleEnabledHook = useCallback((evt: any) => {
         const key = (evt.target as HTMLElement).getAttribute('x-event-name');
@@ -123,11 +125,10 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitLabRepoResponseItem) => c.config.path;
 
-export const GitlabRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+export const GitlabRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, GitLabRepoResponseItem, GitLabRepoConnectionState>
         headerImg={GitLabIcon}
         showHeader={showHeader}
-        api={api}
         roomId={roomId}
         type="gitlab"
         text={RoomConfigText}
