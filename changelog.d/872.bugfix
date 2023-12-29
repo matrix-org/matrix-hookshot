@@ -1,1 +1,0 @@
-Fix widgets not loading when bound to the same listener as "webhooks".

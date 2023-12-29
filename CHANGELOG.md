@@ -1,3 +1,12 @@
+5.1.1 (2023-12-29)
+==================
+
+Bugfixes
+--------
+
+- Fix widgets not loading when bound to the same listener as "webhooks". ([\#872](https://github.com/matrix-org/matrix-hookshot/issues/872))
+
+
 5.1.0 (2023-12-29)
 ==================
 
