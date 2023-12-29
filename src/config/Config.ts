@@ -334,6 +334,9 @@ export class BridgeConfigGenericWebhooks {
 
 interface BridgeWidgetConfigYAML {
     publicUrl: string;
+    /**
+     * @deprecated Prefer using listener config.
+     */
     port?: number;
     addToAdminRooms?: boolean;
     roomSetupWidget?: {

@@ -60,13 +60,6 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
         // Don't care to await this, as the process is about to end
         storage.disconnect?.();
     });
-
-    // XXX: Since the webhook listener listens on /, it must listen AFTER other resources
-    // have bound themselves.
-    if (config.queue.monolithic) {
-        const webhookHandler = new Webhooks(config);
-        listener.bindResource('webhooks', webhookHandler.expressRouter);
-    }
     return {
         bridgeApp,
         storage,
