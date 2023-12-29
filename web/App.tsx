@@ -4,7 +4,6 @@ import WA, { MatrixCapabilities } from 'matrix-widget-api';
 import { BridgeAPI, BridgeAPIError, EmbedType, embedTypeParameter } from './BridgeAPI';
 import { BridgeRoomState } from '../src/Widgets/BridgeWidgetInterface';
 import { LoadingSpinner } from './components/elements/LoadingSpinner';
-import { Card } from './components/elements';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
 import { Alert } from '@vector-im/compound-web';
@@ -23,6 +22,8 @@ interface ICompleteState extends IMinimalState {
     serviceScope?: string,
     embedType: EmbedType,
     kind: "invite"|"admin"|"roomConfig",
+    widgetApi: WA.WidgetApi,
+    bridgeApi: BridgeAPI,
 }
 
 type IState = IMinimalState|ICompleteState;
@@ -39,9 +40,6 @@ function assertParam(fragment: URLSearchParams, name: string) {
 }
 
 export default class App extends Component<void, IState> {
-  private widgetApi: WA.WidgetApi;
-  private bridgeApi: BridgeAPI;
-
   constructor() {
     super();
     this.state = {
@@ -60,26 +58,31 @@ export default class App extends Component<void, IState> {
         const serviceScope = qs.get('serviceScope');
         const embedType = qs.get(embedTypeParameter);
         // Fetch via config.
-        this.widgetApi = new WA.WidgetApi(widgetId, 'http://localhost');
-        this.widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
-        this.widgetApi.on("ready", () => {
-            console.log("Widget ready:", this);
+        const widgetApi = new WA.WidgetApi(widgetId, '*');
+        widgetApi.requestCapability(MatrixCapabilities.RequiresClient);
+        const widgetReady = new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Communication timed out to your Matrix client. Your browser may be blocking access.')), 5000);
+            widgetApi.on("ready", () => {
+                clearTimeout(timeout);
+                resolve();
+            });
         });
-        this.widgetApi.on(`action:${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, (ev) => {
+        widgetApi.on(`action:${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, (ev) => {
             console.log(`${WA.WidgetApiToWidgetAction.NotifyCapabilities}`, ev);
         })
-        this.widgetApi.on(`action:${WA.WidgetApiToWidgetAction.SendEvent}`, (ev) => {
+        widgetApi.on(`action:${WA.WidgetApiToWidgetAction.SendEvent}`, (ev) => {
             console.log(`${WA.WidgetApiToWidgetAction.SendEvent}`, ev);
         })
         // Start the widget as soon as possible too, otherwise the client might time us out.
-        this.widgetApi.start();
+        widgetApi.start();
 
         // Assuming the hosted widget is on the same API path.
         const widgetApiUrl = new URL(`${window.location.origin}${window.location.pathname.replace("/widgetapi/v1/static", "")}`);
-        this.bridgeApi = await BridgeAPI.getBridgeAPI(widgetApiUrl.toString(), this.widgetApi);
-        const { userId } = await this.bridgeApi.verify();
-        const roomState = widgetKind === "admin" ? await this.bridgeApi.state() : undefined;
-        const supportedServices = await this.bridgeApi.getEnabledConfigSections();
+        const bridgeApi = await BridgeAPI.getBridgeAPI(widgetApiUrl.toString(), widgetApi);
+        const { userId } = await bridgeApi.verify();
+        const roomState = widgetKind === "admin" ? await bridgeApi.state() : undefined;
+        const supportedServices = await bridgeApi.getEnabledConfigSections();
+        await widgetReady;
         // Calling setState is ok because we've awaited a network request.
         // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
@@ -91,6 +94,8 @@ export default class App extends Component<void, IState> {
             embedType: embedType === EmbedType.IntegrationManager ? EmbedType.IntegrationManager : EmbedType.Default,
             kind: widgetKind,
             busy: false,
+            widgetApi,
+            bridgeApi,
         });
     } catch (ex) {
         console.error(`Failed to set up widget:`, ex);
@@ -115,14 +120,12 @@ export default class App extends Component<void, IState> {
         if (this.state.error) {
             content = <Alert type="critical" title="An error occured">{this.state.error}</Alert>;
         } else if (this.state.busy) {
-            content = <Card>
-                <LoadingSpinner />
-            </Card>;
+            content = <LoadingSpinner />;
         }
 
         if ("kind" in this.state) {
             if (this.state.roomState && this.state.kind === "admin") {
-                content = <AdminSettings bridgeApi={this.bridgeApi} roomState={this.state.roomState} />;
+                content = <AdminSettings bridgeApi={this.state.bridgeApi} roomState={this.state.roomState} />;
             } else if (this.state.kind === "invite") {
                 // Fall through for now, we don't support invite widgets *just* yet.
             } else if (this.state.kind === "roomConfig") {
@@ -131,8 +134,8 @@ export default class App extends Component<void, IState> {
                     supportedServices={this.state.supportedServices}
                     serviceScope={this.state.serviceScope}
                     embedType={this.state.embedType}
-                    bridgeApi={this.bridgeApi}
-                    widgetApi={this.widgetApi}
+                    bridgeApi={this.state.bridgeApi}
+                    widgetApi={this.state.widgetApi}
                  />;
             }
         }
@@ -142,9 +145,11 @@ export default class App extends Component<void, IState> {
             content = <b>Invalid state</b>;
         }
 
+        const embedType = 'embedType' in this.state ? this.state.embedType : EmbedType.Default;
+
         return (
             <div style={{
-                padding: this.state.embedType === "integration-manager" ? "0" : "16px",
+                padding: embedType === "integration-manager" ? "0" : "16px",
             }}>
                 {content}
             </div>
