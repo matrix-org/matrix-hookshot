@@ -127,6 +127,7 @@ export default class App extends Component<void, IState> {
             console.warn("invalid state", this.state);
             return <div style={style}><Alert type="critical" title="An error occured">Widget got into an invalid state.</Alert></div>;
         }
+
         // Return the App component.
         let content;
 

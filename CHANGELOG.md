@@ -1,3 +1,25 @@
+5.1.0 (2023-12-29)
+==================
+
+Bugfixes
+--------
+
+- Fix feed widget not showing the true values for template / notify on failure. ([\#866](https://github.com/matrix-org/matrix-hookshot/issues/866))
+- Fix widgets failing with "Request timed out". ([\#870](https://github.com/matrix-org/matrix-hookshot/issues/870))
+
+
+Deprecations and Removals
+-------------------------
+
+- The GoNEB migrator is being removed in this release. Users wishing to migrate from GoNEB deployments should use <=5.0.0 and then upgrade. ([\#867](https://github.com/matrix-org/matrix-hookshot/issues/867))
+
+
+Internal Changes
+----------------
+
+- Integrate end to end testing. ([\#869](https://github.com/matrix-org/matrix-hookshot/issues/869))
+
+
 5.0.0 (2023-12-27)
 ==================
 
