@@ -1,3 +1,21 @@
+5.1.2 (2024-01-02)
+==================
+
+Bugfixes
+--------
+
+- Fix widget pinning to light theme. ([\#873](https://github.com/matrix-org/matrix-hookshot/issues/873))
+- Fix hookshot failing to format API errors.
+  Only log a stacktrace of API errors on debug level logging, log limited error on info. ([\#874](https://github.com/matrix-org/matrix-hookshot/issues/874))
+- Fix GitHub events not working due to verification failures. ([\#875](https://github.com/matrix-org/matrix-hookshot/issues/875))
+
+
+Internal Changes
+----------------
+
+- Fix spelling of "successfully". ([\#869](https://github.com/matrix-org/matrix-hookshot/issues/869))
+
+
 5.1.1 (2023-12-29)
 ==================
 

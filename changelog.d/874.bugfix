@@ -1,2 +1,0 @@
-Fix hookshot failing to format API errors.
-Only log a stacktrace of API errors on debug level logging, log limited error on info.
