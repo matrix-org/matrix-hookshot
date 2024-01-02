@@ -1,7 +1,6 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
 import { describe, it, beforeEach, afterEach } from "@jest/globals";
-import { BridgeAPI } from "../web/BridgeAPI";
-import { WidgetApi } from "matrix-widget-api";
+import { getBridgeApi } from "./util/bridge-api";
 
 describe('Widgets', () => {
     let testEnv: E2ETestEnv;
@@ -29,14 +28,7 @@ describe('Widgets', () => {
 
     it('should be able to authenticate with the widget API', async () => {
         const user = testEnv.getUser('user');
-        const bridgeApi = await BridgeAPI.getBridgeAPI(testEnv.opts.config?.widgets?.publicUrl!, {
-            requestOpenIDConnectToken: () => {
-                return user.getOpenIDConnectToken()
-            },
-        } as unknown as WidgetApi, {
-            getItem() { return null},
-            setItem() { },
-        } as unknown as Storage);
+        const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         expect(await bridgeApi.verify()).toEqual({
             "type": "widget",
             "userId": "@user:hookshot",

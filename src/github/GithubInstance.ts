@@ -66,11 +66,11 @@ export class GithubInstance {
     public static baseOctokitConfig(baseUrl: URL) {
         // Enterprise GitHub uses a /api/v3 basepath (https://github.com/octokit/octokit.js#constructor-options)
         // Cloud uses api.github.com
-        const url = baseUrl.hostname === GITHUB_CLOUD_URL.hostname ? baseUrl : new URL("/api/v3", baseUrl);
+        const url = (baseUrl.hostname === GITHUB_CLOUD_URL.hostname ? baseUrl : new URL("/api/v3", baseUrl)).toString();
         return {
             userAgent: UserAgent,
             // Remove trailing slash, which is always included in URL objects.
-            baseUrl: url.toString().substring(0,-1),
+            baseUrl: url.endsWith('/') ? url.slice(0, -1) : url,
         }
     }
 
@@ -141,7 +141,6 @@ export class GithubInstance {
             auth,
             ...GithubInstance.baseOctokitConfig(this.baseUrl),
         });
-
 
         const appDetails = await this.internalOctokit.apps.getAuthenticated();
         this.internalAppSlug = appDetails.data.slug;

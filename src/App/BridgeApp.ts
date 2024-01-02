@@ -61,6 +61,7 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
         storage.disconnect?.();
     });
     return {
+        appservice,
         bridgeApp,
         storage,
         listener,

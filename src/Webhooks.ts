@@ -1,3 +1,4 @@
+
 /* eslint-disable camelcase */
 import { BridgeConfig } from "./config/Config";
 import { Router, default as express, Request, Response } from "express";
@@ -42,6 +43,15 @@ export interface OAuthPageParams {
     'oauth-kind'?: 'account'|'organisation';
     'error'?: string;
     'errcode'?: ErrCode;
+}
+
+interface GitHubRequestData {
+    payload: string;
+    signature: string;
+}
+
+interface WebhooksExpressRequest extends Request {
+    github?: GitHubRequestData;
 }
 
 export class Webhooks extends EventEmitter {
@@ -146,7 +156,7 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private onPayload(req: Request, res: Response) {
+    private onPayload(req: WebhooksExpressRequest, res: Response) {
         try {
             let eventName: string|null = null;
             const body = req.body;
@@ -162,11 +172,15 @@ export class Webhooks extends EventEmitter {
                     return;
                 }
                 this.handledGuids.set(githubGuid);
+                const githubData = req.github as GitHubRequestData;
+                if (!githubData) {
+                    throw Error('Expected github data to be set on request');
+                }
                 this.ghWebhooks.verifyAndReceive({
                     id: githubGuid as string,
                     name: req.headers["x-github-event"] as EmitterWebhookEventName,
-                    payload: body,
-                    signature: req.headers["x-hub-signature-256"] as string,
+                    payload: githubData.payload,
+                    signature: githubData.signature,
                 }).catch((err) => {
                     log.error(`Failed handle GitHubEvent: ${err}`);
                 });
@@ -285,7 +299,7 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private verifyRequest(req: Request, res: Response) {
+    private verifyRequest(req: WebhooksExpressRequest, res: Response, buffer: Buffer, encoding: BufferEncoding) {
         if (req.headers['x-gitlab-token']) {
             // GitLab
             if (!this.config.gitlab) {
@@ -301,9 +315,21 @@ export class Webhooks extends EventEmitter {
                 res.sendStatus(403);
                 throw Error("Invalid signature.");
             }
-        } else if (req.headers["x-hub-signature"]) {
+        } else if (req.headers["x-hub-signature-256"] && this.ghWebhooks) {
             // GitHub
-            // Verified within handler.
+            if (typeof req.headers["x-hub-signature-256"] !== "string") {
+                throw new ApiError("Unexpected multiple headers for x-hub-signature-256", ErrCode.BadValue, 400);
+            }
+            let jsonStr;
+            try {
+                jsonStr = buffer.toString(encoding)
+            } catch (ex) {
+                throw new ApiError("Could not decode buffer", ErrCode.BadValue, 400);
+            }
+            req.github = {
+                payload: jsonStr,
+                signature: req.headers["x-hub-signature-256"]
+            };
             return true;
         } else if (JiraWebhooksRouter.IsJIRARequest(req)) {
             // JIRA
