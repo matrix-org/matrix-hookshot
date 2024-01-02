@@ -70,6 +70,8 @@ const ErrCodeToStatusCode: Record<ErrCode, StatusCodes> = {
 }
 
 export class ApiError extends Error implements IApiError {
+    static readonly GenericFailure = new ApiError("An internal error occurred");
+
     constructor(
         public readonly error: string,
         public readonly errcode = ErrCode.Unknown,
@@ -109,19 +111,19 @@ export class ValidatorApiError extends ApiError {
 
 
 export function errorMiddleware(log: Logger) {
-    return (err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    return (err: unknown, req: Request, res: Response, next: NextFunction) => {
         if (!err) {
             next();
             return;
         }
-        log.warn(err);
+        const apiError = err instanceof ApiError ? err : ApiError.GenericFailure;
+        // Log a reduced error on info
+        log.info(`${req.method} ${req.path} ${apiError.statusCode} - ${apiError.errcode} - ${apiError.error}`);
+        // Only show full error on debug level.
+        log.debug(err);
         if (res.headersSent) {
             return;
         }
-        if (err instanceof ApiError) {
-            err.apply(res);
-        } else {
-            new ApiError("An internal error occurred").apply(res);
-        }
+        apiError.apply(res);
     }
 }
