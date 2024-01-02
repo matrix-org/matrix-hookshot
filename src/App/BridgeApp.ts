@@ -72,8 +72,9 @@ async function startFromFile() {
     const registrationFile = process.argv[3] || "./registration.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
-    const { bridgeApp } = await start(config, registration);
+    const { bridgeApp, listener } = await start(config, registration);
     await bridgeApp.start();
+    listener.finaliseListeners();
 }
 
 if (require.main === module) {

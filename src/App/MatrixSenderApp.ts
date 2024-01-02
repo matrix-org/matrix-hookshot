@@ -32,6 +32,7 @@ async function start() {
             listener.bindResource('metrics', Metrics.expressRouter);
         }
     }
+    listener.finaliseListeners();
     sender.listen();
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");

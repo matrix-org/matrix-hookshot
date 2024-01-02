@@ -30,6 +30,7 @@ async function start() {
     }
     const webhookHandler = new Webhooks(config);
     listener.bindResource('webhooks', webhookHandler.expressRouter);
+    listener.finaliseListeners();
     const userWatcher = new UserNotificationWatcher(config);
     userWatcher.start();
     process.once("SIGTERM", () => {
