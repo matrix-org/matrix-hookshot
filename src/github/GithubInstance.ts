@@ -135,7 +135,7 @@ export class GithubInstance {
             privateKey: this.privateKey,
         };
 
-        
+
         this.internalOctokit = new Octokit({
             authStrategy: createAppAuth,
             auth,
@@ -149,7 +149,6 @@ export class GithubInstance {
         let page = 1;
         do {
             const installations = await this.internalOctokit.apps.listInstallations({ per_page: 100, page: page++ });
-            console.log(installations);
             for (const install of installations.data) {
                 await this.addInstallation(install);
             }
