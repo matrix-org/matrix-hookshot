@@ -50,6 +50,10 @@ interface GitHubRequestData {
     signature: string;
 }
 
+interface WebhooksExpressRequest extends Request {
+    github?: GitHubRequestData;
+}
+
 export class Webhooks extends EventEmitter {
     
     public readonly expressRouter = Router();
@@ -152,7 +156,7 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private onPayload(req: Request, res: Response) {
+    private onPayload(req: WebhooksExpressRequest, res: Response) {
         try {
             let eventName: string|null = null;
             const body = req.body;
@@ -168,7 +172,10 @@ export class Webhooks extends EventEmitter {
                     return;
                 }
                 this.handledGuids.set(githubGuid);
-                const githubData = (req as any).github as GitHubRequestData;
+                const githubData = req.github as GitHubRequestData;
+                if (!githubData) {
+                    throw Error('Expected github data to be set on request');
+                }
                 this.ghWebhooks.verifyAndReceive({
                     id: githubGuid as string,
                     name: req.headers["x-github-event"] as EmitterWebhookEventName,
@@ -292,7 +299,7 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private verifyRequest(req: Request, res: Response, buffer: Buffer, encoding: BufferEncoding) {
+    private verifyRequest(req: WebhooksExpressRequest, res: Response, buffer: Buffer, encoding: BufferEncoding) {
         if (req.headers['x-gitlab-token']) {
             // GitLab
             if (!this.config.gitlab) {
@@ -319,10 +326,10 @@ export class Webhooks extends EventEmitter {
             } catch (ex) {
                 throw new ApiError("Could not decode buffer", ErrCode.BadValue, 400);
             }
-            (req as any).github = {
+            req.github = {
                 payload: jsonStr,
                 signature: req.headers["x-hub-signature-256"]
-            } satisfies GitHubRequestData;
+            };
             return true;
         } else if (JiraWebhooksRouter.IsJIRARequest(req)) {
             // JIRA
