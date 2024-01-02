@@ -4,17 +4,37 @@ import { createHmac, randomUUID } from "crypto";
 import { GitHubRepoConnection, GitHubRepoConnectionState } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
 import { getBridgeApi } from "./util/bridge-api";
+import { Server, createServer } from "http";
 
 describe('GitHub', () => {
     let testEnv: E2ETestEnv;
+    let githubServer: Server;
     const webhooksPort = 9500 + E2ETestEnv.workerId;
+    const githubPort = 9700 + E2ETestEnv.workerId;
 
     beforeEach(async () => {
+        // Fake out enough of a GitHub API to get past startup. Later
+        // tests might make more use of this.
+        githubServer = createServer((req, res) => {
+            if (req.method === 'GET' && req.url === '/api/v3/app') {
+                res.writeHead(200, undefined, { "content-type": 'application/json'});
+                res.write(JSON.stringify({}));
+            } else if (req.method === 'GET' && req.url === '/api/v3/app/installations?per_page=100&page=1') {
+                res.writeHead(200, undefined, { "content-type": 'application/json'});
+                res.write(JSON.stringify([]));
+            } else {
+                console.log('Unknown request', req.method, req.url);
+                res.writeHead(404);
+            }
+            res.end();
+        }).listen(githubPort);
         testEnv = await E2ETestEnv.createTestEnv({matrixLocalparts: ['user'], config: {
             github: {
                 webhook: {
                     secret: randomUUID(),
                 },
+                // So we can mock out the URL
+                enterpriseUrl: `http://localhost:${githubPort}`,
                 auth: {
                     privateKeyFile: 'replaced',
                     id: '1234',
@@ -29,16 +49,16 @@ describe('GitHub', () => {
                 // Bind to the SAME listener to ensure we don't have conflicts.
                 resources: ['webhooks', 'widgets'],
             }],
-            
         }});
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
     afterEach(() => {
+        githubServer?.close();
         return testEnv?.tearDown();
     });
 
-    it('should be able to handle a GitHub event', async () => {
+    it.only('should be able to handle a GitHub event', async () => {
         const user = testEnv.getUser('user');
         const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
