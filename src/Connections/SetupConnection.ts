@@ -358,7 +358,7 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
-    @botCommand("feed list-yaml", { help: "Show feeds currently subscribed to formatted into YAML", category: "feeds"})
+    @botCommand("feed list-yaml", { help: "Show feeds currently subscribed to formatted into YAML.", category: "feeds"})
     public async onFeedListYaml() {
         const feeds: FeedConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
