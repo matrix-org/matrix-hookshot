@@ -358,6 +358,40 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
+    @botCommand("feed list-yaml", { help: "Show feeds currently subscribed to formatted into YAML", category: "feeds"})
+    public async onFeedListYaml() {
+        const feeds: FeedConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return []; // not an error to us
+            }
+            throw err;
+        }).then(events =>
+            events.filter(
+                (ev: any) => ev.type === FeedConnection.CanonicalEventType && ev.content.url
+            ).map(ev => ev.content)
+        );
+
+        if (feeds.length === 0) {
+            return this.client.sendHtmlNotice(this.roomId, md.renderInline('Not subscribed to any feeds'));
+        } else {
+            const feedDescriptions = feeds.sort(
+                (a, b) => (a.label ?? a.url).localeCompare(b.label ?? b.url)
+            ).map(feed => {
+                return `- url: ${feed.url}` +
+                `  label: ${feed.label || 'null'}` +
+                `  notifyOnFailure: ${feed.notifyOnFailure || 'false'}` +
+                `  template: ${feed.template || 'null'}`;
+            });
+
+            return this.client.sendHtmlNotice(this.roomId, md.render(
+                'Currently subscribed to these feeds:\n\n' +
+                '```yaml\n' +
+                feedDescriptions.map(desc => desc).join('\n') +
+                '\n```' 
+            ));
+        }
+    }
+
     @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom feed.", requiredArgs: ["url"], includeUserId: true, category: "feeds"})
     public async onFeedRemove(userId: string, url: string) {
         await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
