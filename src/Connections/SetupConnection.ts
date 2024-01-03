@@ -377,9 +377,9 @@ export class SetupConnection extends CommandConnection {
             const feedDescriptions = feeds.sort(
                 (a, b) => (a.label ?? a.url).localeCompare(b.label ?? b.url)
             ).map(feed => {
-                return `- url: ${feed.url}` +
-                `  label: ${feed.label || 'null'}` +
-                `  notifyOnFailure: ${feed.notifyOnFailure || 'false'}` +
+                return `- url: ${feed.url}\n` +
+                `  label: ${feed.label || 'null'}\n` +
+                `  notifyOnFailure: ${feed.notifyOnFailure || 'false'}\n` +
                 `  template: ${feed.template || 'null'}`;
             });
 
