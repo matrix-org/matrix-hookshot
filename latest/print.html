@@ -599,7 +599,7 @@ listeners:
 It may be checked less often if under exceptional load, but it will never be checked more often than every <code>pollIntervalSeconds</code>.</p>
 <p>Each feed will only be checked once, regardless of the number of rooms to which it's bridged.</p>
 <p>No entries will be bridged upon the “initial sync” -- all entries that exist at the moment of setup will be considered to be already seen.</p>
-<p>Please note that Hookshot <strong>must</strong> be configued with Redis to retain seen entries between restarts. By default, Hookshot will
+<p>Please note that Hookshot <strong>must</strong> be configured with Redis to retain seen entries between restarts. By default, Hookshot will
 run an &quot;initial sync&quot; on each startup and will not process any entries from feeds from before the first sync.</p>
 <h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
 <h3 id="adding-new-feeds"><a class="header" href="#adding-new-feeds">Adding new feeds</a></h3>
@@ -611,7 +611,8 @@ run an &quot;initial sync&quot; on each startup and will not process any entries
 </ul>
 <h3 id="listing-feeds"><a class="header" href="#listing-feeds">Listing feeds</a></h3>
 <p>You can list all feeds that a room you're in is currently subscribed to with <code>!hookshot feed list</code>.
-It requires no special permissions from the user issuing the command.</p>
+It requires no special permissions from the user issuing the command. Optionally you can format the list as <code>json</code> or
+<code>yaml</code> with <code>!hookshot feed list &lt;format&gt;</code>.</p>
 <h3 id="removing-feeds"><a class="header" href="#removing-feeds">Removing feeds</a></h3>
 <p>To remove a feed from a room, say <code>!hookshot feed remove &lt;URL&gt;</code>, with the URL specifying which feed you want to unsubscribe from.</p>
 <h3 id="feed-templates"><a class="header" href="#feed-templates">Feed templates</a></h3>
@@ -622,7 +623,8 @@ may include any of the following tokens:</p>
 <tr><td>$FEEDURL</td><td>The URL of the feed.</td></tr>
 <tr><td>$FEEDTITLE</td><td>The title of the feed.</td></tr>
 <tr><td>$TITLE</td><td>The title of the feed entry.</td></tr>
-<tr><td>$LINK</td><td>The link of the feed entry.</td></tr>
+<tr><td>$URL</td><td>The URL of the feed entry.</td></tr>
+<tr><td>$LINK</td><td>The link of the feed entry. Formatted as <code>[$TITLE]($URL)</code>.</td></tr>
 <tr><td>$AUTHOR</td><td>The author of the feed entry.</td></tr>
 <tr><td>$DATE</td><td>The publish date (<code>pubDate</code>) of the entry.</td></tr>
 <tr><td>$SUMMARY</td><td>The summary of the entry.</td></tr>
