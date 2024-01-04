@@ -1,1 +1,1 @@
-Add `webhook list-yaml` command to easily export all feeds from a room.
+Add command to list feeds in JSON and YAML format to easily export all feeds from a room.
