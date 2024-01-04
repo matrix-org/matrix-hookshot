@@ -14,6 +14,7 @@ import { GitLabRepoConnection } from "./GitlabRepo";
 import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConnection";
 import { ApiError, Logger } from "matrix-appservice-bridge";
 import { Intent } from "matrix-bot-sdk";
+import YAML from 'yaml';
 const md = new markdown();
 const log = new Logger("SetupConnection");
 
@@ -326,8 +327,11 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
-    @botCommand("feed list", { help: "Show feeds currently subscribed to.", category: "feeds"})
-    public async onFeedList() {
+    @botCommand("feed list", { help: "Show feeds currently subscribed to. Supported formats `json` and `yaml`.", optionalArgs: ["format"], category: "feeds"})
+    public async onFeedList(format?: string) {
+        const useJsonFormat = format?.toLowerCase() === 'json';
+        const useYamlFormat = format?.toLowerCase() === 'yaml';
+
         const feeds: FeedConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
                 return []; // not an error to us
@@ -345,16 +349,25 @@ export class SetupConnection extends CommandConnection {
             const feedDescriptions = feeds.sort(
                 (a, b) => (a.label ?? a.url).localeCompare(b.label ?? b.url)
             ).map(feed => {
+                if (useJsonFormat || useYamlFormat) {
+                    return feed;
+                }
                 if (feed.label) {
                     return `[${feed.label}](${feed.url})`;
                 }
                 return feed.url;
             });
 
-            return this.client.sendHtmlNotice(this.roomId, md.render(
-                'Currently subscribed to these feeds:\n\n' +
-                 feedDescriptions.map(desc => ` - ${desc}`).join('\n')
-            ));
+            let message = 'Currently subscribed to these feeds:\n';
+            if (useJsonFormat) {
+                message += `\`\`\`json\n${JSON.stringify(feedDescriptions, null, 4)}\n\`\`\``
+            } else if (useYamlFormat) {
+                message += `\`\`\`yaml\n${YAML.stringify(feedDescriptions)}\`\`\``
+            } else {
+                message += feedDescriptions.map(desc => `- ${desc}`).join('\n')
+            }
+
+            return this.client.sendHtmlNotice(this.roomId, md.render(message));
         }
     }
 
