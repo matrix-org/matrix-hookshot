@@ -68,11 +68,12 @@ export class IntentMock {
         });
     }
 
-    sendEvent(roomId: string, content: any) {
+    sendEvent(roomId: string, content: any): Promise<string> {
         this.sentEvents.push({
             roomId,
             content,
         });
+        return Promise.resolve(`event_${this.sentEvents.length - 1}`);
     }
 
     expectNoEvent() {
@@ -87,8 +88,18 @@ export class IntentMock {
                 body.includes(matcher),
                 `Expected event body ${eventIndex} to match '${matcher}'.\nMessage was: '${body}'`
             ).to.be.true;
+            return;
         }
         expect(!!this.sentEvents.find(ev => ev.content.body.includes(matcher)), `Expected any event body to match '${matcher}'`).to.be.true;
+    }
+
+    expectEventMatches(matcher: (content: any) => boolean, description: string, eventIndex?: number) {
+        if (eventIndex !== undefined) {
+            expect(this.sentEvents[eventIndex], `Expected event ${eventIndex} to exist`).to.not.be.undefined;
+            expect(matcher(this.sentEvents[eventIndex]), description).to.be.true;
+            return;
+        }
+        expect(this.sentEvents.some(ev => matcher(ev)), description).to.be.true;
     }
 
     async ensureJoined() {

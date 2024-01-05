@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { expect } from "chai";
 import { MatrixError } from "matrix-bot-sdk";
-import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/Config/Config";
+import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/Config";
 import { GenericHookConnection, GenericHookConnectionState } from "../../src/Connections/GenericHook";
 import { MessageSenderClient, IMatrixSendMessage } from "../../src/MatrixSender";
 import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
@@ -11,6 +11,7 @@ const ROOM_ID = "!foo:bar";
 
 const V1TFFunction = "result = `The answer to '${data.question}' is ${data.answer}`;";
 const V2TFFunction = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}";
+const V2TFFunctionWithReturn = "result = {plain: `The answer to '${data.question}' is ${data.answer}`, version: 'v2'}; return;";
 
 async function testSimpleWebhook(connection: GenericHookConnection, mq: LocalMQ, testValue: string) {
     const webhookData = {simple: testValue};
@@ -31,7 +32,7 @@ async function testSimpleWebhook(connection: GenericHookConnection, mq: LocalMQ,
 }
 
 function createGenericHook(
-    state: GenericHookConnectionState = { name: "some-name" },
+    state: Partial<GenericHookConnectionState> = { },
     config: BridgeGenericWebhooksConfigYAML = { enabled: true, urlPrefix: "https://example.com/webhookurl"}
 ) {
     const mq = new LocalMQ();
@@ -39,7 +40,12 @@ function createGenericHook(
     const messageClient = new MessageSenderClient(mq);
     const as = AppserviceMock.create();
     const intent = as.getIntentForUserId('@webhooks:example.test');
-    const connection =  new GenericHookConnection(ROOM_ID, state, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
+    const connection =  new GenericHookConnection(ROOM_ID, {
+        name: "some-name",
+        transformationFunction: undefined,
+        waitForComplete: undefined,
+        ...state,
+    }, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
     return [connection, mq, as, intent];
 }
 
@@ -56,6 +62,9 @@ function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
 }
 
 describe("GenericHookConnection", () => {
+    before(async () => {
+        await GenericHookConnection.initialiseQuickJS();
+    })
     it("will handle simple hook events", async () => {
         const [connection, mq] = createGenericHook();
         await testSimpleWebhook(connection, mq, "data");
@@ -176,6 +185,29 @@ describe("GenericHookConnection", () => {
     it("will handle a hook event with a v2 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
+                enabled: true,
+                urlPrefix: "https://example.com/webhookurl",
+                allowJsTransformationFunctions: true,
+            }
+        );
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "The answer to 'What is the meaning of life?' is 42",
+                format: "org.matrix.custom.html",
+                formatted_body: "<p>The answer to 'What is the meaning of life?' is 42</p>",
+                msgtype: "m.notice",
+                "uk.half-shot.hookshot.webhook_data": webhookData,
+            },
+            type: 'm.room.message',
+        });
+    });
+    it("will handle a hook event with a top-level return", async () => {
+        const webhookData = {question: 'What is the meaning of life?', answer: 42};
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunctionWithReturn}, {
                 enabled: true,
                 urlPrefix: "https://example.com/webhookurl",
                 allowJsTransformationFunctions: true,

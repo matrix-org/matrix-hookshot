@@ -10,6 +10,12 @@ on:
     branches: [ main ]
     paths-ignore:
       - changelog.d/**'
+  merge_group:
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOCKER_NAMESPACE: halfshot

@@ -24,9 +24,9 @@ interface RequestOpts {
 
 export class BridgeAPI {
     
-    static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi): Promise<BridgeAPI> {
+    static async getBridgeAPI(baseUrl: string, widgetApi: WidgetApi, storage = localStorage): Promise<BridgeAPI> {
         try {
-            const sessionToken = localStorage.getItem('hookshot-sessionToken');
+            const sessionToken = storage.getItem('hookshot-sessionToken');
             baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
             if (sessionToken) {
                 const client = new BridgeAPI(baseUrl, sessionToken);
@@ -36,7 +36,7 @@ export class BridgeAPI {
                 } catch (ex) {
                     // TODO: Check that the token is actually invalid, rather than just assuming we need to refresh.
                     console.warn(`Failed to verify token, fetching new token`, ex);
-                    localStorage.removeItem(sessionToken);
+                    storage.removeItem(sessionToken);
                 }
             }
         } catch (ex) {
@@ -74,7 +74,7 @@ export class BridgeAPI {
         }
         const response = await res.json() as ExchangeOpenAPIResponseBody;
         try {
-            localStorage.setItem('hookshot-sessionToken', response.token);
+            storage.setItem('hookshot-sessionToken', response.token);
         } catch (ex) {
             // E.g. Browser prevents storage access.
             console.debug(`Failed to store session token, continuing`, ex);
@@ -128,10 +128,6 @@ export class BridgeAPI {
 
     async getConnectionsForRoom(roomId: string): Promise<GetConnectionsResponseItem[]> {
         return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/connections`);
-    }
-
-    async getGoNebConnectionsForRoom(roomId: string): Promise<any|undefined> {
-        return this.request('GET', `/widgetapi/v1/${encodeURIComponent(roomId)}/goNebConnections`);
     }
 
     async getConnectionsForService<T extends GetConnectionsResponseItem >(roomId: string, service: string): Promise<GetConnectionsForServiceResponse<T>> {

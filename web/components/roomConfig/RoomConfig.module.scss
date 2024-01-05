@@ -8,6 +8,12 @@
         height: 52px;
     }
 
+    @media (prefers-color-scheme: dark) {
+        img.invert {
+            filter: invert(100%);
+        }
+    }
+
     h1 {
         margin-left: 10px;
         font-weight: 600;

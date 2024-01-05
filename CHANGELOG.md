@@ -1,3 +1,262 @@
+5.1.2 (2024-01-02)
+==================
+
+Bugfixes
+--------
+
+- Fix widget pinning to light theme. ([\#873](https://github.com/matrix-org/matrix-hookshot/issues/873))
+- Fix hookshot failing to format API errors.
+  Only log a stacktrace of API errors on debug level logging, log limited error on info. ([\#874](https://github.com/matrix-org/matrix-hookshot/issues/874))
+- Fix GitHub events not working due to verification failures. ([\#875](https://github.com/matrix-org/matrix-hookshot/issues/875))
+
+
+Internal Changes
+----------------
+
+- Fix spelling of "successfully". ([\#869](https://github.com/matrix-org/matrix-hookshot/issues/869))
+
+
+5.1.1 (2023-12-29)
+==================
+
+Bugfixes
+--------
+
+- Fix widgets not loading when bound to the same listener as "webhooks". ([\#872](https://github.com/matrix-org/matrix-hookshot/issues/872))
+
+
+5.1.0 (2023-12-29)
+==================
+
+Bugfixes
+--------
+
+- Fix feed widget not showing the true values for template / notify on failure. ([\#866](https://github.com/matrix-org/matrix-hookshot/issues/866))
+- Fix widgets failing with "Request timed out". ([\#870](https://github.com/matrix-org/matrix-hookshot/issues/870))
+
+
+Deprecations and Removals
+-------------------------
+
+- The GoNEB migrator is being removed in this release. Users wishing to migrate from GoNEB deployments should use <=5.0.0 and then upgrade. ([\#867](https://github.com/matrix-org/matrix-hookshot/issues/867))
+
+
+Internal Changes
+----------------
+
+- Integrate end to end testing. ([\#869](https://github.com/matrix-org/matrix-hookshot/issues/869))
+
+
+5.0.0 (2023-12-27)
+==================
+
+Features
+--------
+
+- Warn if the bot does not have permissions to talk in a room. ([\#852](https://github.com/matrix-org/matrix-hookshot/issues/852))
+- Support dark mode for the widget interface. ([\#863](https://github.com/matrix-org/matrix-hookshot/issues/863))
+- Add `webhook list` and `webhook remove` commands. ([\#866](https://github.com/matrix-org/matrix-hookshot/issues/866))
+
+
+Bugfixes
+--------
+
+- Fix notify on failure not being toggleable in the feeds widget interface. ([\#865](https://github.com/matrix-org/matrix-hookshot/issues/865))
+
+
+Improved Documentation
+----------------------
+
+- Documentation tidyups. ([\#855](https://github.com/matrix-org/matrix-hookshot/issues/855), [\#857](https://github.com/matrix-org/matrix-hookshot/issues/857), [\#858](https://github.com/matrix-org/matrix-hookshot/issues/858), [\#859](https://github.com/matrix-org/matrix-hookshot/issues/859), [\#860](https://github.com/matrix-org/matrix-hookshot/issues/860))
+- Generally tidy up and improve metrics documentation. ([\#856](https://github.com/matrix-org/matrix-hookshot/issues/856))
+
+
+Deprecations and Removals
+-------------------------
+
+- Drop support for Node 18 and start supporting Node 21. ([\#862](https://github.com/matrix-org/matrix-hookshot/issues/862))
+
+
+4.7.0 (2023-12-06)
+==================
+
+Internal Changes
+----------------
+
+- Update the release script to examine the staged contents of package files when checking for consistency between Node & Rust package versions. ([\#846](https://github.com/matrix-org/matrix-hookshot/issues/846))
+- Use Node 20 (slim) for Docker image base. ([\#849](https://github.com/matrix-org/matrix-hookshot/issues/849))
+
+
+4.6.0 (2023-11-20)
+==================
+
+Features
+--------
+
+- Add new `webhookResponse` field to the transformation API to specify your own response data. See the documentation for help. ([\#839](https://github.com/matrix-org/matrix-hookshot/issues/839))
+
+
+Bugfixes
+--------
+
+- Fix version picker on docs site not loading. ([\#843](https://github.com/matrix-org/matrix-hookshot/issues/843))
+
+
+Improved Documentation
+----------------------
+
+- Add note about GitHub token scope for private vs. public repo notifications ([\#830](https://github.com/matrix-org/matrix-hookshot/issues/830))
+
+
+Internal Changes
+----------------
+
+- Update the release script to check for consistency between Node & Rust package versions. ([\#819](https://github.com/matrix-org/matrix-hookshot/issues/819))
+- Chart version 0.1.14
+  Do not populate optional values in default helm config, as default values are not valid. ([\#821](https://github.com/matrix-org/matrix-hookshot/issues/821))
+- Release chart version 0.1.15.
+  Sample config now comments out optional parameters by default. ([\#826](https://github.com/matrix-org/matrix-hookshot/issues/826))
+
+
+4.5.1 (2023-09-26)
+==================
+
+Bugfixes
+--------
+
+- Fix transformation scripts breaking if they include a `return` at the top level ([\#818](https://github.com/matrix-org/matrix-hookshot/issues/818))
+
+
+4.5.0 (2023-09-26)
+==================
+
+Features
+--------
+
+- Bridge Gitlab comment replies as Matrix threads. ([\#758](https://github.com/matrix-org/matrix-hookshot/issues/758))
+- Add generic webhook transformation JS snippet for Prometheus Alertmanager. ([\#808](https://github.com/matrix-org/matrix-hookshot/issues/808))
+
+
+Bugfixes
+--------
+
+- Fix a potential memory leak where Hookshot may hold onto certain requests forever in memory. ([\#814](https://github.com/matrix-org/matrix-hookshot/issues/814))
+- Fix feed metrics treating request failures as parsing failures. ([\#816](https://github.com/matrix-org/matrix-hookshot/issues/816))
+
+
+Deprecations and Removals
+-------------------------
+
+- Drop support for the Sled crypto store format. Users must disable/remove the configuration key of `experimentalEncryption.useLegacySledStore`, and the crypto store will always use the SQLite format. If an existing SQLite store does not exist on bridge startup, one will be created. ([\#798](https://github.com/matrix-org/matrix-hookshot/issues/798))
+
+
+Internal Changes
+----------------
+
+- Update the version number of Hookshot's Rust package. ([\#803](https://github.com/matrix-org/matrix-hookshot/issues/803))
+- Update eslint to a version that supports Typescript 5.1.3. ([\#815](https://github.com/matrix-org/matrix-hookshot/issues/815))
+- Use quickjs instead of vm2 for evaluating JS transformation functions. ([\#817](https://github.com/matrix-org/matrix-hookshot/issues/817))
+
+
+4.4.1 (2023-07-31)
+==================
+
+It is **strongly** reccomended you upgrade your bridge, as this release contains security fixes.
+
+🔒 Security
+-----------
+
+- Fixes for GHSA-vc7j-h8xg-fv5x.
+
+
+Features
+--------
+
+- Add more icons to GitHub repo hooks ([\#795](https://github.com/matrix-org/matrix-hookshot/issues/795))
+
+
+Bugfixes
+--------
+
+- Fix instructions for validating your config using Docker ([\#787](https://github.com/matrix-org/matrix-hookshot/issues/787))
+
+
+Internal Changes
+----------------
+
+- Sort feed list alphabetically in bot command response ([\#791](https://github.com/matrix-org/matrix-hookshot/issues/791))
+- Update word-wrap from 1.2.3 to 1.2.4. ([\#799](https://github.com/matrix-org/matrix-hookshot/issues/799))
+- Update matrix-appservice-bridge to 9.0.1. ([\#800](https://github.com/matrix-org/matrix-hookshot/issues/800))
+
+
+4.4.0 (2023-06-28)
+==================
+
+Bugfixes
+--------
+
+- Refactor Hookshot to use Redis for caching of feed information, massively improving memory usage.
+
+  Please note that this is a behavioural change: Hookshots configured to use in-memory caching (not Redis),
+  will no longer bridge any RSS entries it may have missed during downtime, and will instead perform an initial
+  sync (not reporting any entries) instead. ([\#786](https://github.com/matrix-org/matrix-hookshot/issues/786))
+
+- Feeds now tries to find an HTML-type link before falling back to the first link when parsing atom feeds ([\#784](https://github.com/matrix-org/matrix-hookshot/issues/784))
+
+
+4.3.0 (2023-06-19)
+==================
+
+Features
+--------
+
+- Added basic helm chart to repository with GitHub Actions / chart-releaser builds ([\#719](https://github.com/matrix-org/matrix-hookshot/issues/719))
+- Feeds are now polled concurrently (defaulting to 4 feeds at a time). ([\#779](https://github.com/matrix-org/matrix-hookshot/issues/779))
+
+
+4.2.0 (2023-06-05)
+===================
+
+Features
+--------
+
+- Add support for uploading bot avatar images. ([\#767](https://github.com/matrix-org/matrix-hookshot/issues/767))
+
+
+Bugfixes
+--------
+
+- Fix confusing case where issue comments would be notified on if the issue event type is checked on GitHub connections. ([\#757](https://github.com/matrix-org/matrix-hookshot/issues/757))
+- Fix crash when failing to handle events, typically due to lacking permissions to send messages in a room. ([\#771](https://github.com/matrix-org/matrix-hookshot/issues/771))
+
+
+4.1.0 (2023-05-24)
+==================
+
+Features
+--------
+
+- Add support for notifying when a GitLab MR has a single review (rather than completed review). ([\#736](https://github.com/matrix-org/matrix-hookshot/issues/736))
+- Add support for Sentry tracing. ([\#754](https://github.com/matrix-org/matrix-hookshot/issues/754))
+
+
+Bugfixes
+--------
+
+- Fix feed message format when the item does not contain a title or link. ([\#737](https://github.com/matrix-org/matrix-hookshot/issues/737))
+- Fix HTML appearing in its escaped form in feed item summaries. ([\#738](https://github.com/matrix-org/matrix-hookshot/issues/738))
+- Fix Github comments not being rendered correctly as blockquotes. ([\#746](https://github.com/matrix-org/matrix-hookshot/issues/746))
+- Fix setup issues when the bot has PL 0 and room default isn't 0. ([\#755](https://github.com/matrix-org/matrix-hookshot/issues/755))
+
+
+Internal Changes
+----------------
+
+- Apply non-style suggestions by `cargo clippy` to reduce allocations in the rust code. ([\#750](https://github.com/matrix-org/matrix-hookshot/issues/750))
+- Apply more Rust clippy suggestions, and run clippy in CI. ([\#753](https://github.com/matrix-org/matrix-hookshot/issues/753))
+- Update eslint to a version that supports Typescript 5. ([\#760](https://github.com/matrix-org/matrix-hookshot/issues/760))
+
+
 4.0.0 (2023-04-27)
 ==================
 

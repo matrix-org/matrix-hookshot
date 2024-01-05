@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useCallback, useEffect, useState } from "preact/hooks"
+import { useCallback, useState } from "preact/hooks"
 import { BridgeConfig } from "../../BridgeAPI";
 import { FeedConnectionState, FeedResponseItem } from "../../../src/Connections/FeedConnection";
 import { ConnectionConfigurationProps, IRoomConfigText, RoomConfig } from "./RoomConfig";
@@ -32,9 +32,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     const urlRef = createRef<HTMLInputElement>();
     const labelRef = createRef<HTMLInputElement>();
     const templateRef = createRef<HTMLInputElement>();
-    const notifyRef = createRef<HTMLInputElement>();
     const canSave = !existingConnection?.id || (existingConnection?.canEdit ?? false);
     const canEdit = canSave && !isMigrationCandidate;
+    const [notifyOnFailure, setNotifyOnFailure] = useState<boolean>(existingConnection?.config.notifyOnFailure ?? false);
+
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
         if (!canSave) {
@@ -46,12 +47,13 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
                 url,
                 label: labelRef?.current?.value || existingConnection?.config.label,
                 template: templateRef.current?.value || existingConnection?.config.template,
-                notifyOnFailure: notifyRef.current?.checked || existingConnection?.config.notifyOnFailure,
+                notifyOnFailure,
             })
         }
-    }, [canSave, onSave, urlRef, labelRef, templateRef, notifyRef, existingConnection]);
+    }, [canSave, onSave, urlRef, labelRef, templateRef, notifyOnFailure, existingConnection]);
 
     const onlyVisibleOnExistingConnection = !!existingConnection;
+    
 
     return <form onSubmit={handleSave}>
         { existingConnection && <FeedRecentResults item={existingConnection} />}
@@ -63,7 +65,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <input ref={labelRef} disabled={!canSave} type="text" value={existingConnection?.config.label} />
         </InputField>
         <InputField visible={onlyVisibleOnExistingConnection} label="Send a notice on read failure" noPadding={true}>
-            <input ref={notifyRef} disabled={!canSave} type="checkbox" checked={existingConnection?.config.notifyOnFailure} />
+            <input disabled={!canSave} type="checkbox" checked={notifyOnFailure} onChange={useCallback(() => setNotifyOnFailure(v => !v), [])} />
         </InputField>
         <InputField visible={onlyVisibleOnExistingConnection} label="Template" noPadding={true}>
             <input ref={templateRef} disabled={!canSave} type="text" value={existingConnection?.config.template} placeholder={DEFAULT_TEMPLATE} />
@@ -91,20 +93,6 @@ const roomConfigText: IRoomConfigText = {
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
 export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
-    const [ goNebConnections, setGoNebConnections ] = useState(undefined);
-
-    useEffect(() => {
-        api.getGoNebConnectionsForRoom(roomId).then((res: any) => {
-            if (!res) return;
-            setGoNebConnections(res.feeds.map((config: any) => ({
-                config,
-            })));
-        }).catch(ex => {
-            console.warn("Failed to fetch go neb connections", ex);
-        });
-    }, [api, roomId]);
-
-    const compareConnections = useCallback((goNebConnection: FeedResponseItem, nativeConnection: FeedResponseItem) => goNebConnection.config.url === nativeConnection.config.url, []);
 
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
@@ -116,7 +104,5 @@ export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
         text={roomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionConfigComponent={ConnectionConfiguration}
-        migrationCandidates={goNebConnections}
-        migrationComparator={compareConnections}
     />;
 };

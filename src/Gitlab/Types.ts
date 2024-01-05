@@ -220,6 +220,9 @@ export interface ProjectHook extends ProjectHookOpts {
     created_at?: string;
 }
 
+/** newest last, to enable feeding it straight into an LRU cache */
+export type SerializedGitlabDiscussionThreads = { discussionId: string, eventId: string }[];
+
 export interface SimpleProject {
     avatar_url?: string;
     description?: string;

@@ -1,4 +1,4 @@
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import { Webhooks } from "../Webhooks";
 import { Logger } from "matrix-appservice-bridge";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
@@ -30,6 +30,7 @@ async function start() {
     }
     const webhookHandler = new Webhooks(config);
     listener.bindResource('webhooks', webhookHandler.expressRouter);
+    listener.finaliseListeners();
     const userWatcher = new UserNotificationWatcher(config);
     userWatcher.start();
     process.once("SIGTERM", () => {

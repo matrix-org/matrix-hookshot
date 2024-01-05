@@ -2,7 +2,7 @@ import { Application, NextFunction, Response } from "express";
 import { AdminRoom } from "../AdminRoom";
 import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 import { GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
@@ -10,16 +10,12 @@ import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
-import { GoNebMigrator } from "./GoNebMigrator";
-import { StatusCodes } from "http-status-codes";
-import { GithubInstance } from '../Github/GithubInstance';
+import { GithubInstance } from '../github/GithubInstance';
 import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
 
 const log = new Logger("BridgeWidgetApi");
 
 export class BridgeWidgetApi extends ProvisioningApi {
-    private readonly goNebMigrator?: GoNebMigrator;
-
     constructor(
         private adminRooms: Map<string, AdminRoom>,
         private readonly config: BridgeConfig,
@@ -60,45 +56,6 @@ export class BridgeWidgetApi extends ProvisioningApi {
         this.addRoute('get', '/v1/service/:service/auth', wrapHandler(this.getAuth));
         this.addRoute('get', '/v1/service/:service/auth/:state', wrapHandler(this.getAuthPoll));
         this.addRoute('post', '/v1/service/:service/auth/logout', wrapHandler(this.postAuthLogout));
-        this.baseRoute.use((err: unknown, _req: Express.Request, _res: Express.Response, _next: NextFunction) => {
-            // Needed until https://github.com/matrix-org/matrix-appservice-bridge/pull/465 lands.
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (this as any).onError(err, _req, _res, _next);
-        });
-
-        if (this.config.goNebMigrator) {
-            this.goNebMigrator = new GoNebMigrator(
-                this.config.goNebMigrator.apiUrl,
-                this.config.goNebMigrator.serviceIds,
-                this.config.goNebMigrator.goNebBotPrefix,
-            );
-        }
-
-        this.addRoute("get", "/v1/:roomId/goNebConnections", wrapHandler(this.getGoNebConnections));
-    }
-
-    private async getGoNebConnections(req: ProvisioningRequest, res: Response) {
-        if (!this.goNebMigrator) {
-            res.status(StatusCodes.NO_CONTENT).send();
-            return;
-        }
-
-        const roomId = req.params.roomId;
-
-        if (!req.userId) {
-            throw Error('Cannot get connections without a valid userId');
-        }
-
-        const botUser = await this.getBotUserInRoom(roomId);
-        await assertUserPermissionsInRoom(req.userId, roomId, "read", botUser.intent);
-
-        const userIds = this.goNebMigrator.getGoNebUsersFromRoomMembers(
-            await botUser.intent.underlyingClient.getJoinedRoomMembers(roomId)
-        );
-
-        const connections = await this.goNebMigrator.getConnectionsForRoom(roomId, new Set(userIds));
-
-        res.send(connections);
     }
 
     private async getBotUserInRoom(roomId: string, serviceType?: string): Promise<BotUser> {
@@ -176,9 +133,13 @@ export class BridgeWidgetApi extends ProvisioningApi {
             // If we have a service filter.
             .filter(c => typeof serviceFilter !== "string" || c?.service === serviceFilter) as GetConnectionsResponseItem[];
         const userPl = powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
+        const botPl = powerlevel.content.users?.[botUser.userId] || powerlevel.defaultUserLevel;
         for (const c of connections) {
-            const requiredPl = Math.max(powerlevel.content.events?.[c.type] || 0, powerlevel.defaultStateEventLevel);
-            c.canEdit = userPl >= requiredPl;
+            // TODO: What about crypto?
+            const requiredPlForEdit = Math.max(powerlevel.content.events?.[c.type] ?? 0, powerlevel.defaultStateEventLevel);
+            const requiredPlForMessages = Math.max(powerlevel.content.events?.["m.room.message"] ?? powerlevel.content.events_default ?? 0);
+            c.canEdit = userPl >= requiredPlForEdit;
+            c.canSendMessages = botPl >= requiredPlForMessages;
             if (!c.canEdit) {
                 delete c.secrets;
             }

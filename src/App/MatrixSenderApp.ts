@@ -1,4 +1,4 @@
-import { BridgeConfig, parseRegistrationFile } from "../Config/Config";
+import { BridgeConfig, parseRegistrationFile } from "../config/Config";
 import { MatrixSender } from "../MatrixSender";
 import { Logger } from "matrix-appservice-bridge";
 import Metrics from "../Metrics";
@@ -32,6 +32,7 @@ async function start() {
             listener.bindResource('metrics', Metrics.expressRouter);
         }
     }
+    listener.finaliseListeners();
     sender.listen();
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");

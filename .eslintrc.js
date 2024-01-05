@@ -15,6 +15,8 @@ module.exports = {
     },
     rules: {
         "@typescript-eslint/explicit-module-boundary-types": "off",
+        "@typescript-eslint/no-explicit-any": "warn",
+        "@typescript-eslint/no-unused-vars": "warn",
         "camelcase": ["error", { "properties": "never", "ignoreDestructuring": true }],
         "no-console": "error"
     },
@@ -48,6 +50,7 @@ module.exports = {
             rules: {
                 "no-console": "off",
                 "no-unused-vars": "off",
+                "@typescript-eslint/no-explicit-any": "warn",
                 "@typescript-eslint/no-unused-vars": ["error"],
                 "no-useless-constructor": "off",
                 "@typescript-eslint/no-useless-constructor": ["error"],

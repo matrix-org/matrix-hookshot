@@ -5,12 +5,11 @@ This page explains how to set up Hookshot for use with a Matrix homeserver.
 
 ## Requirements
 
-Hookshot is fairly light on resources, and can run in as low as 100MB or so of memory.
+Hookshot is fairly light on resources, and can run in as low as 100 MB or so of memory.
 Hookshot memory requirements may increase depending on the traffic and the number of rooms bridged.
 
 You **must** have administrative access to an existing homeserver in order to set up Hookshot, as
 Hookshot requires the homeserver to be configured with its appservice registration.
-
 
 ## Local installation
 
@@ -47,6 +46,11 @@ docker run \
 
 Where `/etc/matrix-hookshot` would contain the configuration files `config.yml` and `registration.yml`. The `passKey` file should also be stored alongside these files. In your config, you should use the path `/data/passkey.pem`.
 
+## Installation via Helm
+
+There's now a basic chart defined in [helm/hookshot](/helm/hookshot/) that can be used to deploy the Hookshot Docker container in a Kubernetes-native way.
+
+More information on this method is available [here](https://github.com/matrix-org/matrix-hookshot/helm/hookshot/README.md)
 
 ## Configuration
 
@@ -56,16 +60,18 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 You should read and fill this in as the bridge will not start without a complete config.
 
 You may validate your config without starting the service by running `yarn validate-config`.
-For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node Config/Config.js /config.yml`
+For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node config/Config.js /config.yml`
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
-- At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
+
+At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
 on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
+
 ### Homeserver Configuration
 
-In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.
+In addition to providing the registration file above, you also need to tell Hookshot how to reach the homeserver which is hosting it. For clarity, Hookshot expects to be able to connect to an existing homeserver which has the Hookshot registration file configured.
 
 ```yaml
 bridge:
@@ -76,9 +82,8 @@ bridge:
   bindAddress: 127.0.0.1 # The address which Hookshot will bind to. Docker users should set this to `0.0.0.0`.
 ```
 
-The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listeners should **not** be reachable
+The `port` and `bindAddress` must not conflict with the other listeners in the bridge config. This listener should **not** be reachable
 over the internet to users, as it's intended to be used by the homeserver exclusively. This service listens on `/_matrix/app/`.
-
 
 ### Permissions
 
@@ -94,6 +99,7 @@ permissions:
 ```
 
 You must configure a set of "actors" with access to services. An `actor` can be:
+
 - A MxID (also known as a User ID) e.g. `"@Half-Shot:half-shot.uk"`
 - A homeserver domain e.g. `matrix.org`
 - A roomId. This will allow any member of this room to complete actions. e.g. `"!TlZdPIYrhwNvXlBiEk:half-shot.uk"`
@@ -101,7 +107,8 @@ You must configure a set of "actors" with access to services. An `actor` can be:
 
 MxIDs. room IDs and `*` **must** be wrapped in quotes.
 
-Each permission set can have a services. The `service` field can be:
+Each permission set can have a service. The `service` field can be:
+
 - `github`
 - `gitlab`
 - `jira`
@@ -111,13 +118,14 @@ Each permission set can have a services. The `service` field can be:
 - `*`, for any service.
 
 The `level` can be:
- - `commands` Can run commands within connected rooms, but NOT log in to the bridge.
- - `login` All the above, and can also log in to the bridge.
- - `notifications` All the above, and can also bridge their notifications.
- - `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
- - `admin` All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.
 
-When permissions are checked, if a user matches any of the permission set and one
+- `commands` Can run commands within connected rooms, but NOT log in to the bridge.
+- `login` All the above, and can also log in to the bridge.
+- `notifications` All the above, and can also bridge their notifications.
+- `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
+- `admin` All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.
+
+When permissions are checked, if a user matches any of the permissions set and one
 of those grants the right level for a service, they are allowed access. If none of the
 definitions match, they are denied.
 
@@ -186,8 +194,20 @@ At a minimum, you should bind the `webhooks` resource to a port and address. You
 port, or one on each. Each listener MUST listen on a unique port.
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
-is recommended to factor hookshot into your load balancer configuration, but currently this process is left as an
+is recommended to factor Hookshot into your load balancer configuration, but currently this process is left as an
 exercise to the user.
+
+However, if you use Nginx, have a look at this example:
+
+```
+    location ~ ^/widgetapi(.*)$ {
+        set $backend "127.0.0.1:9002";
+        proxy_pass http://$backend/widgetapi$1$is_args$args;
+    }
+```
+
+This will pass all requests at `/widgetapi` to Hookshot.
+
 
 In terms of API endpoints:
 
@@ -201,7 +221,6 @@ In terms of API endpoints:
 Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
-
 
 ### Services configuration
 
@@ -229,7 +248,6 @@ logging:
   #  Ignored if `json` is enabled. The timestamp format to use in log lines. See https://github.com/taylorhakes/fecha#formatting-tokens for help on formatting tokens.
   timestampFormat: HH:mm:ss:SSS
 ```
-
 
 #### JSON Logging
 

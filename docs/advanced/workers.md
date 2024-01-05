@@ -9,12 +9,11 @@ This feature is <b>experimental</b> and should only be used when you are reachin
 
 ## Running in multi-process mode
 
-You must first have a working redis instance somewhere which can talk between processes. For example, in Docker you can run:
+You must first have a working Redis instance somewhere which can talk between processes. For example, in Docker you can run:
 
 `docker run --name github-bridge-redis -p 6379:6379 -d redis`.
 
-
-The processes should all share the same config, which should contain the correct config enable redis:
+The processes should all share the same config, which should contain the correct config to enable Redis:
 
 ```yaml
 queue:

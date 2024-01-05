@@ -37,6 +37,7 @@ interface IConnectionProps {
     displayName: string,
     description: string,
     icon: string,
+    darkIcon?: true,
     component: BridgeConfig,
 }
 
@@ -51,6 +52,7 @@ const connections: Record<ConnectionType, IConnectionProps> = {
         displayName: 'Github',
         description: "Connect the room to a GitHub project",
         icon: GitHubIcon,
+        darkIcon: true,
         component: GithubRepoConfig,
     },
     [ConnectionType.Gitlab]: {
@@ -69,6 +71,7 @@ const connections: Record<ConnectionType, IConnectionProps> = {
         displayName: 'Generic Webhook',
         description: "Create a webhook which can be used to connect any service to Matrix",
         icon: WebhookIcon,
+        darkIcon: true,
         component: GenericWebhookConfig,
     },
 };
@@ -97,6 +100,7 @@ export default function RoomConfigView(props: IProps) {
                         description={connection.description}
                         key={connectionType}
                         imageSrc={connection.icon}
+                        darkImage={connection.darkIcon}
                         onClick={() => setActiveConnectionType(connectionType)}
                     />
                 })}

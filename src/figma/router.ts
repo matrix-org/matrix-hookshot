@@ -1,4 +1,4 @@
-import { BridgeConfigFigma } from "../Config/Config";
+import { BridgeConfigFigma } from "../config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Request, Response, Router, json } from "express";
 import { FigmaPayload } from "./types";

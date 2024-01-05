@@ -1,5 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
-import { useCallback, useState } from "preact/hooks"
+import { useCallback, useEffect, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { BridgeConfig } from "../../BridgeAPI";
@@ -20,7 +20,7 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     };
   } else {
     result = {
-          plain: \`*Everything is fine*, the counter is under by\${data.maxValue - data.counter}\`,
+          plain: \`*Everything is fine*, the counter is under by \${data.maxValue - data.counter}\`,
           version: "v2"
     };
   }`;
@@ -31,6 +31,8 @@ const CODE_MIRROR_EXTENSIONS = [javascript({})];
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
+    const [waitForComplete, setWaitForComplete] = useState(existingConnection?.config.waitForComplete ?? false);
+
     const nameRef = createRef<HTMLInputElement>();
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
@@ -41,9 +43,25 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
+            waitForComplete,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
-    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled]);
+    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
+
+    const [codeMirrorTheme, setCodeMirrorTheme] = useState<"light"|"dark">("light");
+    useEffect(() => {
+        if (!transFnEnabled) {
+            return;
+        }
+        const mm = window.matchMedia('(prefers-color-scheme: dark)');
+        const fn = (event: MediaQueryListEvent) => {
+            console.log('media change!');
+            setCodeMirrorTheme(event.matches ? "dark" : "light");
+        };
+        mm.addEventListener('change', fn);
+        setCodeMirrorTheme(mm.matches ? "dark" : "light");
+        return () => mm.removeEventListener('change', fn);
+    }, [transFnEnabled]);
 
     return <form onSubmit={handleSave}>
         <InputField visible={!existingConnection} label="Friendly name" noPadding={true}>
@@ -58,9 +76,15 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={useCallback(() => setTransFnEnabled(v => !v), [])} />
         </InputField>
 
+
+        <InputField visible={serviceConfig.allowJsTransformationFunctions && transFnEnabled} label="Respond after function completes" noPadding={true}>
+            <input disabled={!canEdit || serviceConfig.waitForComplete} type="checkbox" checked={waitForComplete || serviceConfig.waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
+        </InputField>
+
         <InputField visible={transFnEnabled} noPadding={true}>
             <CodeMirror
                 value={transFn}
+                theme={codeMirrorTheme}
                 extensions={CODE_MIRROR_EXTENSIONS}
                 onChange={setTransFn}
             />
@@ -74,7 +98,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
 };
 
 interface ServiceConfig {
-    allowJsTransformationFunctions: boolean
+    allowJsTransformationFunctions: boolean,
+    waitForComplete: boolean,
 }
 
 const RoomConfigText = {
@@ -89,6 +114,7 @@ const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
 export const GenericWebhookConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
     return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
         headerImg={WebhookIcon}
+        darkHeaderImg={true}
         showHeader={showHeader}
         api={api}
         roomId={roomId}

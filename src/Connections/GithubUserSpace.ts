@@ -3,10 +3,10 @@ import { Appservice, Space, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
-import { GithubInstance } from "../Github/GithubInstance";
+import { GithubInstance } from "../github/GithubInstance";
 import { BaseConnection } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
-import { BridgeConfig } from "../Config/Config";
+import { BridgeConfig } from "../config/Config";
 
 const log = new Logger("GitHubOwnerSpace");
 

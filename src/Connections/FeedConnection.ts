@@ -1,14 +1,18 @@
 import {Intent, StateEvent} from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
-import { FeedEntry, FeedError, FeedReader} from "../feeds/FeedReader";
+import { FeedEntry, FeedError} from "../feeds/FeedReader";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
+import { readFeed, sanitizeHtml } from "../libRs";
+import UserAgent from "../UserAgent";
 const log = new Logger("FeedConnection");
-const md = new markdown();
+const md = new markdown({
+    html: true,
+});
 
 export interface LastResultOk {
     timestamp: number;
@@ -22,10 +26,10 @@ export interface LastResultFail {
 
 
 export interface FeedConnectionState extends IConnectionState {
-    url:    string;
-    label?: string;
-    template?: string;
-    notifyOnFailure?: boolean;
+    url: string;
+    label: string|undefined;
+    template: string|undefined;
+    notifyOnFailure: boolean|undefined;
 }
 
 export interface FeedConnectionSecrets {
@@ -35,7 +39,7 @@ export interface FeedConnectionSecrets {
 export type FeedResponseItem = GetConnectionsResponseItem<FeedConnectionState, FeedConnectionSecrets>;
 
 const MAX_LAST_RESULT_ITEMS = 5;
-const VALIDATION_FETCH_TIMEOUT_MS = 5000;
+const VALIDATION_FETCH_TIMEOUT_S = 5;
 const MAX_SUMMARY_LENGTH = 512;
 const MAX_TEMPLATE_LENGTH = 1024;
 
@@ -65,7 +69,10 @@ export class FeedConnection extends BaseConnection implements IConnection {
         }
 
         try {
-            await FeedReader.fetchFeed(url, {}, VALIDATION_FETCH_TIMEOUT_MS);
+            await readFeed(url, {
+                userAgent: UserAgent,
+                pollTimeoutSeconds: VALIDATION_FETCH_TIMEOUT_S,
+            });
         } catch (ex) {
             throw new ApiError(`Could not read feed from URL: ${ex.message}`, ErrCode.BadValue);
         }
@@ -90,8 +97,11 @@ export class FeedConnection extends BaseConnection implements IConnection {
             }
         }
 
+        if (typeof data.notifyOnFailure !== 'undefined' && typeof data.notifyOnFailure !== 'boolean') {
+            throw new ApiError('notifyOnFailure must be a boolean', ErrCode.BadValue);
+        }
 
-        return { url, label: data.label, template: data.template };
+        return { url, label: data.label, template: data.template, notifyOnFailure: data.notifyOnFailure };
     }
 
     static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, { intent, config }: ProvisionConnectionOpts) {
@@ -126,6 +136,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
             config: {
                 url: this.feedUrl,
                 label: this.state.label,
+                template: this.state.template,
+                notifyOnFailure: this.state.notifyOnFailure,
             },
             secrets: {
                 lastResults: this.lastResults,
@@ -182,6 +194,15 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
+        // We will need to tidy this up.
+        if (this.state.template?.match(/\$SUMMARY\b/) && entry.summary) {
+            // This might be massive and cause us to fail to send the message
+            // so confine to a maximum size.
+            if (entry.summary.length > MAX_SUMMARY_LENGTH) {
+                entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
+            }
+            entry.summary = sanitizeHtml(entry.summary);
+        }
 
         let message;
         if (this.state.template) {
@@ -192,12 +213,6 @@ export class FeedConnection extends BaseConnection implements IConnection {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_ONLY_TITLE, entry);
         } else {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
-        }
-
-        // This might be massive and cause us to fail to send the message
-        // so confine to a maximum size.
-        if (entry.summary?.length ?? 0 > MAX_SUMMARY_LENGTH) {
-            entry.summary = entry.summary?.substring(0, MAX_SUMMARY_LENGTH) + "…" ?? null;
         }
 
         await this.intent.sendEvent(this.roomId, {
