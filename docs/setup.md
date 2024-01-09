@@ -212,7 +212,7 @@ This will pass all requests at `/widgetapi` to Hookshot.
 In terms of API endpoints:
 
 - The `webhooks` resource handles resources under `/`, so it should be on its own listener.
-  Note that OAuth requests also go through this listener.
+  Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work, administators are advised to use `/webhook`. 
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
