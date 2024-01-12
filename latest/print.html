@@ -338,7 +338,7 @@ exercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
 <li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
-Note that OAuth requests also go through this listener.</li>
+Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on <code>/</code> rather than <code>/webhook</code>. While this behaviour will continue to work, administators are advised to use <code>/webhook</code>. </li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
 <li>The <code>widgets</code> resource handles resources under <code>/widgetapi/v1...</code>. This may only be bound to <strong>one</strong> listener at present.</li>
