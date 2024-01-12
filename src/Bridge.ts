@@ -19,7 +19,7 @@ import { MessageQueue, MessageQueueMessageOut, createMessageQueue } from "./Mess
 import { MessageSenderClient } from "./MatrixSender";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import { NotificationsEnableEvent, NotificationsDisableEvent } from "./Webhooks";
+import { NotificationsEnableEvent, NotificationsDisableEvent, Webhooks } from "./Webhooks";
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./github/Types";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
@@ -787,6 +787,9 @@ export class Bridge {
                 this.storage,
             );
         }
+
+        const webhookHandler = new Webhooks(this.config);
+        this.listener.bindResource('webhooks', webhookHandler.expressRouter);
 
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);

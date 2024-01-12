@@ -51,6 +51,14 @@ export class ListenerService {
         }
     }
 
+    public finaliseListeners() {
+        for (const listener of this.listeners) {
+            // By default, Sentry only reports 500+ errors, which is what we want.
+            listener.app.use(Handlers.errorHandler());
+            listener.app.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
+        }
+    }
+
     public getApplicationsForResource(resourceName: ResourceName): Application[] {
         const listeners = this.listeners.filter((l) => l.config.resources.includes(resourceName));
         if (listeners.length === 0) {
@@ -74,11 +82,6 @@ export class ListenerService {
             // Ensure each listener has a ready probe.
             listener.app.get("/live", (_, res) => res.send({ok: true}));
             listener.app.get("/ready", (_, res) => res.status(listener.resourcesBound ? 200 : 500).send({ready: listener.resourcesBound}));
-
-            // By default, Sentry only reports 500+ errors, which is what we want.
-            listener.app.use(Handlers.errorHandler());
-            // Always include the error handler
-            listener.app.use((err: unknown, req: Request, res: Response, next: NextFunction) => errorMiddleware(log)(err, req, res, next));
             log.info(`Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(', ')}`)
         }
     }

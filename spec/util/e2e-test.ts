@@ -151,8 +151,13 @@ export class E2ETestMatrixClient extends MatrixClient {
 }
 
 export class E2ETestEnv {
+
+    static get workerId() {
+        return parseInt(process.env.JEST_WORKER_ID ?? '0');
+    }
+
     static async createTestEnv(opts: Opts): Promise<E2ETestEnv> {
-        const workerID = parseInt(process.env.JEST_WORKER_ID ?? '0');
+        const workerID = this.workerId;
         const { matrixLocalparts, config: providedConfig  } = opts;
         const keyPromise = new Promise<string>((resolve, reject) => generateKeyPair("rsa", {
             modulusLength: 4096,
@@ -177,6 +182,16 @@ export class E2ETestEnv {
         const keyPath = path.join(dir, 'key.pem');
         await writeFile(keyPath, privateKey, 'utf-8');
         const webhooksPort = 9500 + workerID;
+
+        if (providedConfig?.widgets) {
+            providedConfig.widgets.openIdOverrides = {
+                'hookshot': homeserver.url,
+            }
+        }
+
+        if (providedConfig?.github) {
+            providedConfig.github.auth.privateKeyFile = keyPath;
+        }
 
         const config = new BridgeConfig({
             bridge: {
@@ -218,6 +233,7 @@ export class E2ETestEnv {
             }
         };
         const app = await start(config, registration);
+        app.listener.finaliseListeners();
         
         return new E2ETestEnv(homeserver, app, opts, config, dir);
     }
