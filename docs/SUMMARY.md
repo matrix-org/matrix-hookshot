@@ -18,6 +18,7 @@
     - [JIRA Project](./usage/room_configuration/jira_project.md)
 - [📊 Metrics](./metrics.md)
 - [Sentry](./sentry.md)
+- [🆘 Troubleshooting](./troubleshooting.md)
 
 # 🧑‍💻 Development
 - [Contributing](./contributing.md)
