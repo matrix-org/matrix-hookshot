@@ -5,11 +5,12 @@ import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import { FunctionComponent, createRef } from "preact";
 import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnectionRepoTarget, GitHubRepoConnectionOrgTarget } from "../../../src/Connections/GithubRepo";
 import { InputField, ButtonSet, Button } from "../elements";
-import { useState, useCallback, useMemo, useEffect } from "preact/hooks";
+import { useState, useCallback, useMemo, useEffect, useContext } from "preact/hooks";
 import { DropItem } from "../elements/DropdownSearch";
 import ConnectionSearch from "../elements/ConnectionSearch";
 import { ServiceAuth } from "./Auth";
 import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
+import { BridgeContext } from "../../context";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";
 
@@ -18,11 +19,12 @@ function getRepoFullName(state: GitHubRepoConnectionState) {
 }
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, GitHubRepoResponseItem, GitHubRepoConnectionState>> = ({
-    showAuthPrompt, loginLabel, serviceConfig, api, existingConnection, onSave, onRemove, isUpdating
+    showAuthPrompt, loginLabel, serviceConfig, existingConnection, onSave, onRemove, isUpdating
 }) => {
     // Assume true if we have no auth prompt.
     const [authedResponse, setAuthResponse] = useState<GetAuthResponse|null>(null);
     const [enabledHooks, setEnabledHooks] = useState<string[]>(existingConnection?.config.enableHooks || []);
+    const api = useContext(BridgeContext).bridgeApi;
 
     const checkAuth = useCallback(() => {
         api.getAuth("github").then((res) => {
@@ -106,7 +108,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     const consideredAuthenticated = (authedResponse?.authenticated || !showAuthPrompt);
 
     return <form onSubmit={handleSave}>
-        {authedResponse && <ServiceAuth onAuthSucceeded={checkAuth} authState={authedResponse} service="github" loginLabel={loginLabel} api={api} />}
+        {authedResponse && <ServiceAuth onAuthSucceeded={checkAuth} authState={authedResponse} service="github" loginLabel={loginLabel} />}
         {!existingConnection && consideredAuthenticated && <ConnectionSearch
             serviceName="GitHub"
             addNewInstanceUrl={newInstallationUrl}
@@ -175,12 +177,11 @@ const roomConfigText: IRoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
-export const GithubRepoConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+export const GithubRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
         headerImg={GitHubIcon}
         darkHeaderImg={true}
         showHeader={showHeader}
-        api={api}
         roomId={roomId}
         type="github"
         showAuthPrompt={true}

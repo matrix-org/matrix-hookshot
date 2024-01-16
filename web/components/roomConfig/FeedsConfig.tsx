@@ -92,12 +92,11 @@ const roomConfigText: IRoomConfigText = {
 
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
-export const FeedsConfig: BridgeConfig = ({ api, roomId, showHeader }) => {
+export const FeedsConfig: BridgeConfig = ({ roomId, showHeader }) => {
 
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
         showHeader={showHeader}
-        api={api}
         roomId={roomId}
         type="feeds"
         connectionEventType="uk.half-shot.matrix-hookshot.feed"

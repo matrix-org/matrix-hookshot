@@ -171,7 +171,6 @@ export enum EmbedType {
 }
 
 export type BridgeConfig = FunctionComponent<{
-    api: BridgeAPI,
     roomId: string,
     showHeader: boolean,
 }>;

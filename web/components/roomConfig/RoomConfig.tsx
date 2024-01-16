@@ -1,6 +1,6 @@
 import { FunctionComponent } from "preact";
-import { useCallback, useEffect, useReducer, useState } from "preact/hooks"
-import { BridgeAPI, BridgeAPIError } from "../../BridgeAPI";
+import { useCallback, useContext, useEffect, useReducer, useState } from "preact/hooks"
+import { BridgeAPIError } from "../../BridgeAPI";
 import { ListItem, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
 import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../elements/LoadingSpinner';
 import { ErrCode } from "../../../src/api";
 import { retry } from "../../../src/PromiseUtil";
 import { Alert } from "@vector-im/compound-web";
+import { BridgeContext } from "../../context";
 
 export interface ConnectionConfigurationProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
     serviceConfig: SConfig;
@@ -19,7 +20,6 @@ export interface ConnectionConfigurationProps<SConfig, ConnectionType extends Ge
     isMigrationCandidate?: boolean,
     existingConnection?: ConnectionType;
     onRemove?: () => void,
-    api: BridgeAPI;
 }
 
 export interface IRoomConfigText {
@@ -31,7 +31,6 @@ export interface IRoomConfigText {
 }
 
 interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState> {
-    api: BridgeAPI;
     roomId: string;
     type: string;
     showAuthPrompt?: boolean;
@@ -48,7 +47,6 @@ const MAX_CONNECTION_FETCH_ATTEMPTS = 10;
 
 export const RoomConfig = function<SConfig, ConnectionType extends GetConnectionsResponseItem, ConnectionState extends IConnectionState>(props: IRoomConfigProps<SConfig, ConnectionType, ConnectionState>) {
     const {
-        api,
         roomId,
         type,
         showAuthPrompt = false,
@@ -59,6 +57,7 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
         listItemName,
         connectionEventType,
     } = props;
+    const api = useContext(BridgeContext).bridgeApi;
     const ConnectionConfigComponent = props.connectionConfigComponent;
     const [ error, setError ] = useState<null|{header?: string, message: string, isWarning?: boolean, forPrevious?: boolean}>(null);
     const [ connections, setConnections ] = useState<ConnectionType[]|null>(null);
@@ -153,7 +152,6 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 <h2>{text.createNew}</h2>
                 {serviceConfig && <ConnectionConfigComponent
                     key={newConnectionKey}
-                    api={api}
                     serviceConfig={serviceConfig}
                     onSave={handleSaveOnCreation}
                     loginLabel={text.login}
@@ -166,7 +164,6 @@ export const RoomConfig = function<SConfig, ConnectionType extends GetConnection
                 <h2>{ canEditRoom ? text.listCanEdit : text.listCantEdit }</h2>
                 { serviceConfig && connections?.map(c => <ListItem key={c.id} text={listItemName(c)}>
                     <ConnectionConfigComponent
-                        api={api}
                         serviceConfig={serviceConfig}
                         existingConnection={c}
                         onSave={(config) => {

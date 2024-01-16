@@ -7,6 +7,7 @@ import { LoadingSpinner } from './components/elements/LoadingSpinner';
 import AdminSettings from './components/AdminSettings';
 import RoomConfigView from './components/RoomConfigView';
 import { Alert } from '@vector-im/compound-web';
+import { BridgeContext } from './context';
 
 interface IMinimalState {
     error: string|null,
@@ -115,43 +116,39 @@ export default class App extends Component<void, IState> {
   }
 
     render() {
+        const style = {
+            padding: 'embedType' in this.state && this.state.embedType === EmbedType.IntegrationManager ? "0" : "16px",
+        };
+        if (this.state.error) {
+            return <div style={style}><Alert type="critical" title="An error occured">{this.state.error}</Alert></div>;
+        } else if (this.state.busy) {
+            return <div style={style}><LoadingSpinner /></div>;
+        } else if ("kind" in this.state === false) {
+            console.warn("invalid state", this.state);
+            return <div style={style}><Alert type="critical" title="An error occured">Widget got into an invalid state.</Alert></div>;
+        }
+
         // Return the App component.
         let content;
-        if (this.state.error) {
-            content = <Alert type="critical" title="An error occured">{this.state.error}</Alert>;
-        } else if (this.state.busy) {
-            content = <LoadingSpinner />;
-        }
 
-        if ("kind" in this.state) {
-            if (this.state.roomState && this.state.kind === "admin") {
-                content = <AdminSettings bridgeApi={this.state.bridgeApi} roomState={this.state.roomState} />;
-            } else if (this.state.kind === "invite") {
-                // Fall through for now, we don't support invite widgets *just* yet.
-            } else if (this.state.kind === "roomConfig") {
-                content = <RoomConfigView
-                    roomId={this.state.roomId}
-                    supportedServices={this.state.supportedServices}
-                    serviceScope={this.state.serviceScope}
-                    embedType={this.state.embedType}
-                    bridgeApi={this.state.bridgeApi}
-                    widgetApi={this.state.widgetApi}
-                 />;
-            }
+        if (this.state.kind === "admin") {
+            content = <AdminSettings roomState={this.state.roomState} />;
+        }else if (this.state.kind === "roomConfig") {
+            content = <RoomConfigView
+                roomId={this.state.roomId}
+                supportedServices={this.state.supportedServices}
+                serviceScope={this.state.serviceScope}
+                embedType={this.state.embedType}
+                />;
+        } else {
+            return <div style={style}><Alert type="critical" title="An error occured">Unknown widget kind.</Alert></div>;
         }
-
-        if (!content) {
-            console.warn("invalid state", this.state);
-            content = <b>Invalid state</b>;
-        }
-
-        const embedType = 'embedType' in this.state ? this.state.embedType : EmbedType.Default;
 
         return (
-            <div style={{
-                padding: embedType === "integration-manager" ? "0" : "16px",
-            }}>
-                {content}
+            <div style={style}>
+                <BridgeContext.Provider value={{bridgeApi: this.state.bridgeApi}}>
+                    {content}
+                </BridgeContext.Provider>
             </div>
         );
     }
