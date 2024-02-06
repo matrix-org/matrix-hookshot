@@ -1,4 +1,4 @@
-import {Intent, StateEvent} from "matrix-bot-sdk";
+import { Intent, StateEvent } from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
@@ -9,6 +9,7 @@ import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
+import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
 const log = new Logger("FeedConnection");
 const md = new markdown({
     html: true,
@@ -42,6 +43,8 @@ const MAX_LAST_RESULT_ITEMS = 5;
 const VALIDATION_FETCH_TIMEOUT_S = 5;
 const MAX_SUMMARY_LENGTH = 512;
 const MAX_TEMPLATE_LENGTH = 1024;
+const SEND_EVENT_MAX_ATTEMPTS = 5;
+const SEND_EVENT_INTERVAL_MS = 5000;
 
 const DEFAULT_TEMPLATE = "New post in $FEEDNAME";
 const DEFAULT_TEMPLATE_WITH_CONTENT = "New post in $FEEDNAME: $LINK"
@@ -194,17 +197,17 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
-        // We will need to tidy this up.
-        if (this.state.template?.match(/\$SUMMARY\b/) && entry.summary) {
-            // This might be massive and cause us to fail to send the message
-            // so confine to a maximum size.
+        // This might be massive and cause us to fail to send the message
+        // so confine to a maximum size.
+
+        if (entry.summary) {
             if (entry.summary.length > MAX_SUMMARY_LENGTH) {
                 entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
             }
             entry.summary = sanitizeHtml(entry.summary);
         }
 
-        let message;
+        let message: string;
         if (this.state.template) {
             message = this.templateFeedEntry(this.state.template, entry);
         } else if (entry.link) {
@@ -215,14 +218,23 @@ export class FeedConnection extends BaseConnection implements IConnection {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
         }
 
-        await this.intent.sendEvent(this.roomId, {
-            msgtype: 'm.notice',
-            format: "org.matrix.custom.html",
-            formatted_body: md.renderInline(message),
-            body: message,
-            external_url: entry.link ?? undefined,
-            "uk.half-shot.matrix-hookshot.feeds.item": entry,
-        });
+        // We want to retry these sends, because sometimes the network / HS
+        // craps out.
+        await retry(
+            () => this.intent.sendEvent(this.roomId, {
+                msgtype: 'm.notice',
+                format: "org.matrix.custom.html",
+                formatted_body: md.renderInline(message),
+                body: message,
+                external_url: entry.link ?? undefined,
+                "uk.half-shot.matrix-hookshot.feeds.item": entry,
+            }),
+            SEND_EVENT_MAX_ATTEMPTS,
+            SEND_EVENT_INTERVAL_MS,
+            // Filter for showstopper errors like 4XX errors, but otherwise
+            // retry until we hit the attempt limit.
+            retryMatrixErrorFilter
+        );
     }
 
     public handleFeedSuccess() {
