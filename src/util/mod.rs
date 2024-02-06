@@ -39,14 +39,13 @@ impl QueueWithBackoff {
         let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap().as_millis();
 
         // We only need to check this once, as we won't be adding to the backoff queue
-        // as often as we pull from it. 
+        // as often as we pull from it.
         if let Some(item) = self.backoff.first_entry() {
             if *item.key() < since_the_epoch {
                 let v = item.remove();
                 self.queue.push_back(v);
             }
         }
-
 
         self.queue.pop_front()
     }
@@ -79,7 +78,7 @@ impl QueueWithBackoff {
         while self.backoff.contains_key(&time) {
             time = time + 1;
         }
-    
+
         self.backoff.insert(time, backoff_item);
         backoff_duration
     }
