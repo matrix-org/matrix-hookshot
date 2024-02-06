@@ -23,6 +23,7 @@ const GITHUB_ISSUE = {
 	},
 	html_url: `https://github.com/${GITHUB_ORG_REPO.org}/${GITHUB_ORG_REPO.repo}/issues/1234`,
 	title: "My issue",
+	assignees: []
 };
 
 const GITHUB_ISSUE_CREATED_PAYLOAD = {
@@ -137,7 +138,7 @@ describe("GitHubRepoConnection", () => {
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
 		});
-		it.only("will handle assignees on issue creation", async () => {
+		it("will handle assignees on issue creation", async () => {
 			const { connection, intent } = createConnection();
 			await connection.onIssueCreated({
 				...GITHUB_ISSUE_CREATED_PAYLOAD,
