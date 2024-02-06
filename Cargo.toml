@@ -21,6 +21,7 @@ rss = "2.0"
 atom_syndication = "0.12"
 ruma = { version = "0.9", features = ["events", "html"] }
 reqwest = "0.11"
+rand = "0.8.5"
 
 [build-dependencies]
 napi-build = "2"
