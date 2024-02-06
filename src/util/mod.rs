@@ -12,8 +12,14 @@ const BACKOFF_TIME_MS: f32 = 5f32 * 1000f32;
 
 pub struct QueueWithBackoff {
     queue: LinkedList<String>,
+    /**
+     * A map of absolute backoff timestamps mapped to the value.
+     */
     backoff: BTreeMap<u128, String>,
-    last_backoff: HashMap<String, u32>,
+    /**
+     * The last duration applied when a value was backed off.
+     */
+    last_backoff_duration: HashMap<String, u32>,
 }
 
 impl Default for QueueWithBackoff {
@@ -29,7 +35,7 @@ impl QueueWithBackoff {
         QueueWithBackoff {
             queue: LinkedList::new(),
             backoff: BTreeMap::new(),
-            last_backoff: HashMap::new(),
+            last_backoff_duration: HashMap::new(),
         }
     }
 
@@ -52,13 +58,13 @@ impl QueueWithBackoff {
 
     #[napi]
     pub fn push(&mut self, item: String) {
-        self.last_backoff.remove(&item);
+        self.last_backoff_duration.remove(&item);
         self.queue.push_back(item);
     }
 
     #[napi]
     pub fn backoff(&mut self, item: String) -> u32 {
-        let last_backoff = (*self.last_backoff.get(&item).unwrap_or(&0)) as f32;
+        let last_backoff = (*self.last_backoff_duration.get(&item).unwrap_or(&0)) as f32;
 
         let mut rng = rand::thread_rng();
         let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0 and 1
@@ -66,7 +72,7 @@ impl QueueWithBackoff {
         let backoff_duration = ((y * BACKOFF_TIME_MS) + last_backoff.powf(BACKOFF_POW))
             .min(BACKOFF_TIME_MAX_MS) as u32;
         let backoff_item = item.clone();
-        self.last_backoff.insert(item, backoff_duration);
+        self.last_backoff_duration.insert(item, backoff_duration);
 
         let start = SystemTime::now();
         let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
