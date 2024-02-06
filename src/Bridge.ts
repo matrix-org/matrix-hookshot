@@ -686,12 +686,13 @@ export class Bridge {
         });
 
         // Set up already joined rooms
-        let allJoinedRooms = await this.storage.getAllRoomsWithActiveConnections();
-        if (!allJoinedRooms.length) {
-            allJoinedRooms = this.botUsersManager.joinedRooms;
+        let allActiveJoinedRooms = await this.storage.getAllRoomsWithActiveConnections();
+        if (!allActiveJoinedRooms.length) {
+            allActiveJoinedRooms = this.botUsersManager.joinedRooms;
         }
-        log.info(`Found ${allJoinedRooms.length} active rooms`);
-        await queue.addAll(allJoinedRooms.map((roomId) => async () => {
+        log.info(`Found ${allActiveJoinedRooms.length} active rooms`);
+
+        const loadRoom = async (roomId: string) => {
             log.debug("Fetching state for " + roomId);
 
             try {
@@ -749,7 +750,9 @@ export class Bridge {
             } catch (ex) {
                 log.error(`Failed to set up admin room ${roomId}:`, ex);
             }
-        }));
+        }
+
+        await queue.addAll(allActiveJoinedRooms.map(roomId => () => loadRoom(roomId)));
 
         // Handle spaces
         for (const discussion of connManager.getAllConnectionsOfType(GitHubDiscussionSpace)) {
@@ -782,8 +785,9 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
+        // This will load all the *active* connections
         await queue.onIdle();
-        log.info(`All connections loaded`);
+        log.info(`All active connections loaded`);
 
         // Load feeds after connections, to limit the chances of us double
         // posting to rooms if a previous hookshot instance is being replaced.
@@ -802,6 +806,9 @@ export class Bridge {
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;
+        const inactiveRooms = this.botUsersManager.joinedRooms.filter(rId => !allActiveJoinedRooms.includes(rId));
+        log.info(`Checking ${inactiveRooms.length} rooms with previously inactive state in the background`);
+        await queue.addAll(inactiveRooms.map(rId => () => loadRoom(rId)));
     }
 
     private async handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
