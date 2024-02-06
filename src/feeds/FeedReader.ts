@@ -274,7 +274,7 @@ export class FeedReader {
 
         const fetchingStarted = Date.now();
 
-        const url = this.feedQueue.next();
+        const url = this.feedQueue.pop();
         let sleepFor = this.sleepingInterval;
 
         if (url) {
