@@ -12,7 +12,7 @@ import UserAgent from "../UserAgent";
 
 const FEED_BACKOFF_TIME_MS = 5 * 1000;
 const FEED_BACKOFF_POW = 1.05;
-const FEED_BACKOFF_TIME_MAX_MS = 60 * 60 * 1000;
+const FEED_BACKOFF_TIME_MAX_MS = 24 * 60 * 60 * 1000;
 
 const log = new Logger("FeedReader");
 export class FeedError extends Error {
