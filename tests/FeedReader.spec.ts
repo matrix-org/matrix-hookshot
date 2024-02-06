@@ -250,4 +250,34 @@ describe("FeedReader", () => {
         feedReader.stop();
         expect(events).to.have.lengthOf(1);
     });
+    it("should handle feed entries without a title", async () => {
+        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
+            headers: {}, data: `<?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0" xmlns:webfeeds="http://webfeeds.org/rss/1.0" xmlns:media="http://search.yahoo.com/mrss/">
+          <channel>
+            <title>Example Feed</title>
+            <item>
+              <guid isPermaLink="true">http://example.org/123456</guid>
+              <link>http://example.org/123456</link>
+              <pubDate>Sun, 04 Feb 2024 20:10:08 +0000</pubDate>
+              <description>Some text.</description>
+            </item>
+          </channel>
+        </rss>
+        `
+        }));
+        after(() => httpServer.close());
+        const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
+            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
+        });
+
+        expect(event.eventName).to.equal('feed.entry');
+        expect(event.data.feed.title).to.equal('Example Feed');
+        expect(event.data.title).to.be.null;
+        expect(event.data.author).to.be.null;
+        expect(event.data.summary).to.equal('Some text.');
+        expect(event.data.link).to.equal('http://example.org/123456');
+        expect(event.data.pubdate).to.equal('Sun, 04 Feb 2024 20:10:08 +0000');
+        console.log(event.data);
+    });
 });

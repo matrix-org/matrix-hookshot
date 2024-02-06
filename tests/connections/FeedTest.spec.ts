@@ -82,6 +82,23 @@ describe("FeedConnection", () => {
         expect(matrixEvt.roomId).to.equal(ROOM_ID);
         expect(matrixEvt.content.body).to.equal("New post in Test feed: Foo");
     });
+    // https://github.com/matrix-org/matrix-hookshot/issues/888
+    it("will handle a mastodon-style rss feed ", async () => {
+        const [connection, intent] = createFeed();
+        await connection.handleFeedEntry({
+            feed: { title: 'Example Feed', url: 'http://127.0.0.1:35339/' },
+            title: null,
+            pubdate: 'Sun, 04 Feb 2024 20:10:08 +0000',
+            summary: 'Some text.',
+            author: null,
+            link: 'http://example.org/123456',
+            fetchKey: randomUUID(),
+        });
+        const matrixEvt =intent.sentEvents[0];
+        expect(matrixEvt).to.not.be.undefined;
+        expect(matrixEvt.roomId).to.equal(ROOM_ID);
+        expect(matrixEvt.content.body).to.equal("New post in Example Feed: [http://example.org/123456](http://example.org/123456)");
+    });
     it("will handle simple feed message with all the template options possible ", async () => {
         const [connection, intent] = createFeed({
             template: `$FEEDNAME $FEEDURL $FEEDTITLE $TITLE $LINK $AUTHOR $DATE $SUMMARY`
