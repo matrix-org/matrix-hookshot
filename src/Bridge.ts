@@ -1141,9 +1141,6 @@ export class Bridge {
                     // Empty object == redacted
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
                         await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
-                        if (this.connectionManager.getAllConnectionsForRoom(connection.roomId).length === 0) {
-                            this.storage.removeRoomHasActiveConnections(roomId);
-                        }
                     } else {
                         await connection.onStateUpdate?.(event);
                     }
@@ -1155,7 +1152,6 @@ export class Bridge {
                 // Is anyone interested in this state?
                 const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
                 if (connection) {
-                    this.storage.addRoomHasActiveConnections(roomId);
                     log.info(`New connected added to ${roomId}: ${connection.toString()}`);
                     this.connectionManager.push(connection);
                 }
@@ -1396,6 +1392,7 @@ export class Bridge {
         const adminRoom = new AdminRoom(
             roomId, accountData, notifContent, intent, this.tokenStore, this.config, this.connectionManager,
         );
+        this.storage.addRoomHasActiveConnections(roomId);
 
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {
