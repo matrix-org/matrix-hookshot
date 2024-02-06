@@ -1,4 +1,4 @@
-import {Intent, MatrixError, StateEvent} from "matrix-bot-sdk";
+import { Intent, StateEvent } from "matrix-bot-sdk";
 import { IConnection, IConnectionState, InstantiateConnectionOpts } from ".";
 import { ApiError, ErrCode } from "../api";
 import { FeedEntry, FeedError} from "../feeds/FeedReader";
