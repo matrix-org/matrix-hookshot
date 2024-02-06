@@ -272,7 +272,6 @@ export class FeedReader {
             const feedError = new FeedError(url.toString(), error, fetchKey);
             log.error("Unable to read feed:", feedError.message, `backing off for ${backoffDuration}ms`);
             this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
-        } finally {
         }
         return seenEntriesChanged;
     }
