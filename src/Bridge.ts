@@ -684,12 +684,19 @@ export class Bridge {
         const queue = new PQueue({
             concurrency: 2,
         });
+
         // Set up already joined rooms
-        await queue.addAll(this.botUsersManager.joinedRooms.map((roomId) => async () => {
+        let allJoinedRooms = await this.storage.getAllRoomsWithActiveConnections();
+        if (!allJoinedRooms.length) {
+            allJoinedRooms = this.botUsersManager.joinedRooms;
+        }
+        log.info(`Found ${allJoinedRooms.length} active rooms`);
+        await queue.addAll(allJoinedRooms.map((roomId) => async () => {
             log.debug("Fetching state for " + roomId);
 
             try {
                 await connManager.createConnectionsForRoomId(roomId, false);
+                this.storage.addRoomHasActiveConnections(roomId);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 return;
@@ -735,6 +742,7 @@ export class Bridge {
                     }
                 }
                 const adminRoom = await this.setUpAdminRoom(botUser.intent, roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                this.storage.addRoomHasActiveConnections(roomId);
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
@@ -1133,6 +1141,9 @@ export class Bridge {
                     // Empty object == redacted
                     if (event.content.disabled === true || Object.keys(event.content).length === 0) {
                         await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
+                        if (this.connectionManager.getAllConnectionsForRoom(connection.roomId).length === 0) {
+                            this.storage.removeRoomHasActiveConnections(roomId);
+                        }
                     } else {
                         await connection.onStateUpdate?.(event);
                     }
@@ -1144,6 +1155,7 @@ export class Bridge {
                 // Is anyone interested in this state?
                 const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
                 if (connection) {
+                    this.storage.addRoomHasActiveConnections(roomId);
                     log.info(`New connected added to ${roomId}: ${connection.toString()}`);
                     this.connectionManager.push(connection);
                 }
