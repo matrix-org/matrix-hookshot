@@ -1,7 +1,7 @@
-use std::collections::LinkedList;
-use std::collections::HashMap;
-use std::time::{SystemTime, UNIX_EPOCH};
 use rand::prelude::*;
+use std::collections::HashMap;
+use std::collections::LinkedList;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const BACKOFF_TIME_MAX_MS: f32 = 24f32 * 60f32 * 60f32 * 1000f32;
 const BACKOFF_POW: f32 = 1.05f32;
@@ -12,9 +12,14 @@ const BACKOFF_TIME_MS: f32 = 5f32 * 1000f32;
 pub struct QueueWithBackoff {
     queue: LinkedList<String>,
     backoff: HashMap<String, u128>,
-    last_backoff: HashMap<String, u32>
+    last_backoff: HashMap<String, u32>,
 }
 
+impl Default for QueueWithBackoff {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 #[napi]
 
 impl QueueWithBackoff {
@@ -27,12 +32,10 @@ impl QueueWithBackoff {
         }
     }
 
-
     #[napi]
-    pub fn next(&mut self) -> Option<String> {
+    pub fn pop(&mut self) -> Option<String> {
         let start = SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH).unwrap();
+        let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
 
         let mut items_to_rm: Vec<String> = vec![];
         for item in self.backoff.iter() {
@@ -46,16 +49,14 @@ impl QueueWithBackoff {
             self.backoff.remove(&item);
         }
 
-        return self.queue.pop_front()
+        self.queue.pop_front()
     }
-
 
     #[napi]
     pub fn push(&mut self, item: String) {
         self.last_backoff.remove(&item);
         self.queue.push_back(item);
     }
-
 
     #[napi]
     pub fn backoff(&mut self, item: String) -> u32 {
@@ -64,20 +65,19 @@ impl QueueWithBackoff {
         let mut rng = rand::thread_rng();
         let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0 and 1
 
-        let backoff_duration = ((y * BACKOFF_TIME_MS) + f32::from(last_backoff).powf(BACKOFF_POW)).min(BACKOFF_TIME_MAX_MS) as u32;
+        let backoff_duration = ((y * BACKOFF_TIME_MS) + last_backoff.powf(BACKOFF_POW))
+            .min(BACKOFF_TIME_MAX_MS) as u32;
         let backoff_item = item.clone();
         self.last_backoff.insert(item, backoff_duration);
 
         let start = SystemTime::now();
-        let since_the_epoch = start
-            .duration_since(UNIX_EPOCH).unwrap();
+        let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
 
         let time = since_the_epoch.as_millis() + backoff_duration as u128;
 
         self.backoff.insert(backoff_item, time);
-        return backoff_duration;
+        backoff_duration
     }
-
 
     #[napi]
     pub fn length(&self) -> u32 {
