@@ -10,6 +10,10 @@ import { readFeed } from "../libRs";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import UserAgent from "../UserAgent";
 
+const FEED_BACKOFF_TIME_MS = 5 * 1000;
+const FEED_BACKOFF_POW = 1.05;
+const FEED_BACKOFF_TIME_MAX_MS = 60 * 60 * 1000;
+
 const log = new Logger("FeedReader");
 export class FeedError extends Error {
     constructor(
@@ -88,6 +92,9 @@ export class FeedReader {
     private observedFeedUrls: Set<string> = new Set();
 
     private feedQueue: string[] = [];
+
+    private feedBackoff: Map<string, number> = new Map();
+    private feedLastBackoff: Map<string, number> = new Map();
 
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
@@ -249,6 +256,8 @@ export class FeedReader {
             // Clear any feed failures
             this.feedsFailingHttp.delete(url);
             this.feedsFailingParsing.delete(url);
+            this.feedLastBackoff.delete(url);
+            this.feedQueue.push(url);
         } catch (err: unknown) {
             // TODO: Proper Rust Type error.
             if ((err as Error).message.includes('Failed to fetch feed due to HTTP')) {
@@ -256,12 +265,14 @@ export class FeedReader {
             } else {
                 this.feedsFailingParsing.add(url);
             }
+            const backoffDuration = Math.min(FEED_BACKOFF_TIME_MAX_MS, (
+                Math.ceil((Math.random() + 0.5) * FEED_BACKOFF_TIME_MS)) + Math.pow(this.feedLastBackoff.get(url) ?? 0, FEED_BACKOFF_POW));
+            this.feedBackoff.set(url, Date.now() + backoffDuration);
             const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
             const feedError = new FeedError(url.toString(), error, fetchKey);
-            log.error("Unable to read feed:", feedError.message);
+            log.error("Unable to read feed:", feedError.message, `backing off for ${backoffDuration}ms`);
             this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
         } finally {
-            this.feedQueue.push(url);
         }
         return seenEntriesChanged;
     }
@@ -308,5 +319,15 @@ export class FeedReader {
             }
             void this.pollFeeds(workerId);
         }, sleepFor);
+
+        // Reinsert any feeds that we may have backed off.
+        for (const [feedUrl, retryAfter] of this.feedBackoff.entries()) {
+            if (retryAfter < Date.now()) {
+                log.debug(`Adding back ${feedUrl} from backoff set`);
+                this.feedQueue.push(feedUrl);
+                // Store the last backoff time.
+                this.feedBackoff.delete(feedUrl)
+            }
+        }
     }
 }
