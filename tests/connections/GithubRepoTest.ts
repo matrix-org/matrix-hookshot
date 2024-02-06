@@ -6,6 +6,7 @@ import { DefaultConfig } from "../../src/config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { expect } from "chai";
+import { IntentMock } from "../utils/IntentMock";
 
 const ROOM_ID = "!foo:bar";
 
@@ -58,7 +59,7 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 		DefaultConfig.github!
 	);
-	return {connection, intent};
+	return {connection, intent: intent as IntentMock};
 }
 
 describe("GitHubRepoConnection", () => {
@@ -133,6 +134,21 @@ describe("GitHubRepoConnection", () => {
 			await connection.onIssueCreated(GITHUB_ISSUE_CREATED_PAYLOAD as never);
 			// Statement text.
 			intent.expectEventBodyContains('**alice** created new issue', 0);
+			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
+			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
+		});
+		it.only("will handle assignees on issue creation", async () => {
+			const { connection, intent } = createConnection();
+			await connection.onIssueCreated({
+				...GITHUB_ISSUE_CREATED_PAYLOAD,
+				issue: {
+					...GITHUB_ISSUE,
+					assignees: [{ login: 'alice'}, { login: 'bob'}]
+				}
+			} as never);
+			// Statement text.
+			intent.expectEventBodyContains('**alice** created new issue', 0);
+			intent.expectEventBodyContains('"My issue" assigned to alice, bob', 0);
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
 		});

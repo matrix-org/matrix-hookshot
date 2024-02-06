@@ -887,7 +887,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
         const icon = '📥';
         let message = emojify(`${icon} **${event.issue.user.login}** created new issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${event.issue.title}"`);
-        message += (event.issue.assignee ? ` assigned to ${event.issue.assignee.login}` : '');
+        message += (event.issue.assignees.length ? ` assigned to ${event.issue.assignees.map(a => a.login).join(', ')}` : '');
         if (this.showIssueRoomLink) {
             const appInstance = await this.githubInstance.getSafeOctokitForRepo(this.org, this.repo);
             if (appInstance) {
