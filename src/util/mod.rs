@@ -1,4 +1,5 @@
 use rand::prelude::*;
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::LinkedList;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -11,7 +12,7 @@ const BACKOFF_TIME_MS: f32 = 5f32 * 1000f32;
 
 pub struct QueueWithBackoff {
     queue: LinkedList<String>,
-    backoff: HashMap<String, u128>,
+    backoff: BTreeMap<u128, String>,
     last_backoff: HashMap<String, u32>,
 }
 
@@ -27,7 +28,7 @@ impl QueueWithBackoff {
     pub fn new() -> Self {
         QueueWithBackoff {
             queue: LinkedList::new(),
-            backoff: HashMap::new(),
+            backoff: BTreeMap::new(),
             last_backoff: HashMap::new(),
         }
     }
@@ -35,19 +36,17 @@ impl QueueWithBackoff {
     #[napi]
     pub fn pop(&mut self) -> Option<String> {
         let start = SystemTime::now();
-        let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
+        let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap().as_millis();
 
-        let mut items_to_rm: Vec<String> = vec![];
-        for item in self.backoff.iter() {
-            if *item.1 < since_the_epoch.as_millis() {
-                self.queue.push_back(item.0.clone());
-                items_to_rm.push(item.0.clone());
+        // We only need to check this once, as we won't be adding to the backoff queue
+        // as often as we pull from it. 
+        if let Some(item) = self.backoff.first_entry() {
+            if *item.key() < since_the_epoch {
+                let v = item.remove();
+                self.queue.push_back(v);
             }
         }
 
-        for item in items_to_rm {
-            self.backoff.remove(&item);
-        }
 
         self.queue.pop_front()
     }
@@ -73,9 +72,15 @@ impl QueueWithBackoff {
         let start = SystemTime::now();
         let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
 
-        let time = since_the_epoch.as_millis() + backoff_duration as u128;
+        let mut time = since_the_epoch.as_millis() + backoff_duration as u128;
 
-        self.backoff.insert(backoff_item, time);
+        // If the backoff queue contains this time (unlikely, but we don't)
+        // want to overwrite, then add an extra ms.
+        while self.backoff.contains_key(&time) {
+            time = time + 1;
+        }
+    
+        self.backoff.insert(time, backoff_item);
         backoff_duration
     }
 
