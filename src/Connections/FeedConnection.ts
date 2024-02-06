@@ -218,6 +218,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
             message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
         }
 
+        // We want to retry these sends, because sometimes the network / HS
+        // craps out.
         await retry(
             () => this.intent.sendEvent(this.roomId, {
                 msgtype: 'm.notice',
@@ -229,6 +231,8 @@ export class FeedConnection extends BaseConnection implements IConnection {
             }),
             SEND_EVENT_MAX_ATTEMPTS,
             SEND_EVENT_INTERVAL_MS,
+            // Filter for showstopper errors like 4XX errors, but otherwise
+            // retry until we hit the attempt limit.
             retryMatrixErrorFilter
         );
     }
