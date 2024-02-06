@@ -76,7 +76,7 @@ impl QueueWithBackoff {
         // If the backoff queue contains this time (unlikely, but we don't)
         // want to overwrite, then add an extra ms.
         while self.backoff.contains_key(&time) {
-            time = time + 1;
+            time += 1;
         }
 
         self.backoff.insert(time, backoff_item);
