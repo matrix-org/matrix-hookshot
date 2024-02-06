@@ -58,7 +58,7 @@ describe('GitHub', () => {
         return testEnv?.tearDown();
     });
 
-    it.only('should be able to handle a GitHub event', async () => {
+    it('should be able to handle a GitHub event', async () => {
         const user = testEnv.getUser('user');
         const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
