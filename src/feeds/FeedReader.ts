@@ -268,6 +268,7 @@ export class FeedReader {
             const backoffDuration = Math.min(FEED_BACKOFF_TIME_MAX_MS, (
                 Math.ceil((Math.random() + 0.5) * FEED_BACKOFF_TIME_MS)) + Math.pow(this.feedLastBackoff.get(url) ?? 0, FEED_BACKOFF_POW));
             this.feedBackoff.set(url, Date.now() + backoffDuration);
+            this.feedLastBackoff.set(url, backoffDuration);
             const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
             const feedError = new FeedError(url.toString(), error, fetchKey);
             log.error("Unable to read feed:", feedError.message, `backing off for ${backoffDuration}ms`);
