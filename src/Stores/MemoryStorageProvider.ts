@@ -107,4 +107,14 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
         this.gitlabDiscussionThreads.set(connectionId, value);
     }
+    public addRoomHasActiveConnections(): void {
+        // no-op: only used for startup speedups
+    }
+    public removeRoomHasActiveConnections(): void {
+        // no-op: only used for startup speedups
+    }
+    public async getAllRoomsWithActiveConnections(): Promise<string[]> {
+        // no-op: only used for startup speedups
+        return [];
+    }
 }

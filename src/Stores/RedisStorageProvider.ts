@@ -18,18 +18,14 @@ const GH_ISSUES_REVIEW_DATA_KEY = "gh.issues.review_data";
 const FIGMA_EVENT_COMMENT_ID = "figma.comment_event_id";
 const STORED_FILES_KEY = "storedfiles.";
 const GL_DISCUSSIONTHREADS_KEY = "gl.discussion-threads";
+const ACTIVE_ROOMS = "cache.active_rooms";
 const STORED_FILES_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
-
-
 const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
-
 const FEED_GUIDS = "feeds.guids.";
-
-
 
 const log = new Logger("RedisASProvider");
 
@@ -228,5 +224,21 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
 
     public async hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
         return (await this.redis.lpos(`${FEED_GUIDS}${url}`, guid)) != null;
+    }
+
+    public addRoomHasActiveConnections(roomId: string): void {
+        this.redis.sadd(ACTIVE_ROOMS, roomId).catch((ex) => {
+            log.warn(`Failed to add ${roomId} to active rooms`, ex);
+        });
+    }
+
+    public removeRoomHasActiveConnections(roomId: string): void {
+        this.redis.srem(ACTIVE_ROOMS, roomId).catch((ex) => {
+            log.warn(`Failed to remove ${roomId} from active rooms`, ex);
+        });
+    }
+
+    public getAllRoomsWithActiveConnections(): Promise<string[]> {
+        return this.redis.smembers(ACTIVE_ROOMS);
     }
 }

@@ -684,12 +684,20 @@ export class Bridge {
         const queue = new PQueue({
             concurrency: 2,
         });
+
         // Set up already joined rooms
-        await queue.addAll(this.botUsersManager.joinedRooms.map((roomId) => async () => {
+        let allActiveJoinedRooms = await this.storage.getAllRoomsWithActiveConnections();
+        if (!allActiveJoinedRooms.length) {
+            allActiveJoinedRooms = this.botUsersManager.joinedRooms;
+        }
+        log.info(`Found ${allActiveJoinedRooms.length} active rooms`);
+
+        const loadRoom = async (roomId: string) => {
             log.debug("Fetching state for " + roomId);
 
             try {
                 await connManager.createConnectionsForRoomId(roomId, false);
+                this.storage.addRoomHasActiveConnections(roomId);
             } catch (ex) {
                 log.error(`Unable to create connection for ${roomId}`, ex);
                 return;
@@ -735,13 +743,16 @@ export class Bridge {
                     }
                 }
                 const adminRoom = await this.setUpAdminRoom(botUser.intent, roomId, accountData, notifContent || NotifFilter.getDefaultContent());
+                this.storage.addRoomHasActiveConnections(roomId);
                 // Call this on startup to set the state
                 await this.onAdminRoomSettingsChanged(adminRoom, accountData, { admin_user: accountData.admin_user });
                 log.debug(`Room ${roomId} is connected to: ${adminRoom.toString()}`);
             } catch (ex) {
                 log.error(`Failed to set up admin room ${roomId}:`, ex);
             }
-        }));
+        }
+
+        await queue.addAll(allActiveJoinedRooms.map(roomId => () => loadRoom(roomId)));
 
         // Handle spaces
         for (const discussion of connManager.getAllConnectionsOfType(GitHubDiscussionSpace)) {
@@ -774,8 +785,9 @@ export class Bridge {
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
         }
+        // This will load all the *active* connections
         await queue.onIdle();
-        log.info(`All connections loaded`);
+        log.info(`All active connections loaded`);
 
         // Load feeds after connections, to limit the chances of us double
         // posting to rooms if a previous hookshot instance is being replaced.
@@ -794,6 +806,9 @@ export class Bridge {
         await this.as.begin();
         log.info(`Bridge is now ready. Found ${this.connectionManager.size} connections`);
         this.ready = true;
+        const inactiveRooms = this.botUsersManager.joinedRooms.filter(rId => !allActiveJoinedRooms.includes(rId));
+        log.info(`Checking ${inactiveRooms.length} rooms with previously inactive state in the background`);
+        await queue.addAll(inactiveRooms.map(rId => () => loadRoom(rId)));
     }
 
     private async handleHookshotEvent<EventType, ConnType extends IConnection>(msg: MessageQueueMessageOut<EventType>, connection: ConnType, handler: (c: ConnType, data: EventType) => Promise<unknown>|unknown) {
@@ -1384,6 +1399,7 @@ export class Bridge {
         const adminRoom = new AdminRoom(
             roomId, accountData, notifContent, intent, this.tokenStore, this.config, this.connectionManager,
         );
+        this.storage.addRoomHasActiveConnections(roomId);
 
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
         adminRoom.on("open.project", async (project: ProjectsGetResponseData) => {

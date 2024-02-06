@@ -61,6 +61,7 @@ export class ConnectionManager extends EventEmitter {
             }
             this.connections.push(connection);
             this.emit('new-connection', connection);
+            this.storage.addRoomHasActiveConnections(connection.roomId);
         }
         Metrics.connections.set(this.connections.length);
         // Already exists, noop.
@@ -394,6 +395,9 @@ export class ConnectionManager extends EventEmitter {
         this.connections.splice(connectionIndex, 1);
         Metrics.connections.set(this.connections.length);
         this.emit('connection-removed', connection);
+        if (this.getAllConnectionsForRoom(roomId).length === 0) {
+            this.storage.removeRoomHasActiveConnections(roomId);
+        }
     }
 
     /**
@@ -403,8 +407,13 @@ export class ConnectionManager extends EventEmitter {
      */
     public async removeConnectionsForRoom(roomId: string) {
         log.info(`Removing all connections from ${roomId}`);
-        this.connections = this.connections.filter((c) => c.roomId !== roomId);
+        const removedConnections = this.connections.filter((c) => c.roomId === roomId);
+        this.connections = this.connections.filter((c) => !removedConnections.includes(c));
+        removedConnections.forEach(c => {
+            this.emit('connection-removed', c);
+        })
         Metrics.connections.set(this.connections.length);
+        this.storage.removeRoomHasActiveConnections(roomId);
     }
 
     public registerProvisioningConnection(connType: {getProvisionerDetails: (botUserId: string) => GetConnectionTypeResponseItem}) {

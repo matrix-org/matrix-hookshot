@@ -28,4 +28,7 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     storeFeedGuids(url: string, ...guid: string[]): Promise<void>;
     hasSeenFeed(url: string, ...guid: string[]): Promise<boolean>;
     hasSeenFeedGuid(url: string, guid: string): Promise<boolean>;
+    addRoomHasActiveConnections(roomId: string): void;
+    removeRoomHasActiveConnections(roomId: string): void;
+    getAllRoomsWithActiveConnections(): Promise<string[]>;
 }
