@@ -197,10 +197,10 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
 
     public async handleFeedEntry(entry: FeedEntry): Promise<void> {
-        // We will need to tidy this up.
-        if (this.state.template?.match(/\$SUMMARY\b/) && entry.summary) {
-            // This might be massive and cause us to fail to send the message
-            // so confine to a maximum size.
+        // This might be massive and cause us to fail to send the message
+        // so confine to a maximum size.
+
+        if (entry.summary) {
             if (entry.summary.length > MAX_SUMMARY_LENGTH) {
                 entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
             }
