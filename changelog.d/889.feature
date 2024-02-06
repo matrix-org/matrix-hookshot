@@ -1,0 +1,1 @@
+Mention all assignees when a new issue is created on GitHub.
