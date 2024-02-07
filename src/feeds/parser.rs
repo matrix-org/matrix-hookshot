@@ -71,7 +71,7 @@ fn parse_channel_to_js_result(channel: &Channel) -> JsRssChannel {
                     .or(item.link.clone())
                     .or(item.title.clone())
                     .and_then(|f| hash_id(f).ok())
-                    .and_then(|f| Some(format!("md5:{}", f)))
+                    .and_then(|f| Some(format!("md5:{}", f))),
             })
             .collect(),
     }
