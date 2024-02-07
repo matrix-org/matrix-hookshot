@@ -4,9 +4,9 @@ use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const BACKOFF_TIME_MAX_MS: f32 = 24f32 * 60f32 * 60f32 * 1000f32;
-const BACKOFF_POW: f32 = 1.05f32;
-const BACKOFF_TIME_MS: f32 = 5f32 * 1000f32;
+const DEFAULT_BACKOFF_TIME_MAX_MS: f64 = 24f64 * 60f64 * 60f64 * 1000f64;
+const DEFAULT_BACKOFF_POW: f64 = 1.05f64;
+const DEFAULT_BACKOFF_TIME_MS: f64 = 5f64 * 1000f64;
 
 #[napi]
 
@@ -15,34 +15,41 @@ pub struct QueueWithBackoff {
     /**
      * A map of absolute backoff timestamps mapped to the value.
      */
-    backoff: BTreeMap<u128, String>,
+    backoff: BTreeMap<u64, String>,
     /**
      * The last duration applied when a value was backed off.
      */
     last_backoff_duration: HashMap<String, u32>,
+
+    backoff_time: f64,
+    backoff_exponent: f64,
+    backoff_max: f64,
 }
 
 impl Default for QueueWithBackoff {
     fn default() -> Self {
-        Self::new()
+        Self::new(DEFAULT_BACKOFF_TIME_MS, DEFAULT_BACKOFF_POW, DEFAULT_BACKOFF_TIME_MAX_MS)
     }
 }
 #[napi]
 
 impl QueueWithBackoff {
     #[napi(constructor)]
-    pub fn new() -> Self {
+    pub fn new(backoff_time: f64, backoff_exponent: f64, backoff_max: f64) -> Self {
         QueueWithBackoff {
             queue: VecDeque::new(),
             backoff: BTreeMap::new(),
             last_backoff_duration: HashMap::new(),
+            backoff_time,
+            backoff_exponent,
+            backoff_max,
         }
     }
 
     #[napi]
     pub fn pop(&mut self) -> Option<String> {
         let start = SystemTime::now();
-        let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap().as_millis();
+        let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
 
         // We only need to check this once, as we won't be adding to the backoff queue
         // as often as we pull from it.
@@ -64,25 +71,27 @@ impl QueueWithBackoff {
 
     #[napi]
     pub fn backoff(&mut self, item: String) -> u32 {
-        let last_backoff = (*self.last_backoff_duration.get(&item).unwrap_or(&0)) as f32;
+        let last_backoff = (*self.last_backoff_duration.get(&item).unwrap_or(&0)) as f64;
 
         let mut rng = rand::thread_rng();
-        let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0.5 and 1.1
+        let y: f64 = rng.gen::<f64>() + 0.5f64; // generates a float between 0.5 and 1.1
 
-        let backoff_duration = ((y * BACKOFF_TIME_MS) + last_backoff.powf(BACKOFF_POW))
-            .min(BACKOFF_TIME_MAX_MS) as u32;
+        let backoff_duration = ((y * self.backoff_time) + last_backoff.powf(self.backoff_exponent))
+            .min(self.backoff_max) as u32;
         let backoff_item = item.clone();
         self.last_backoff_duration.insert(item, backoff_duration);
 
         let start = SystemTime::now();
         let since_the_epoch = start.duration_since(UNIX_EPOCH).unwrap();
 
-        let mut time = since_the_epoch.as_millis() + backoff_duration as u128;
+        let mut time = since_the_epoch.as_millis() as u64 + backoff_duration as u64;
 
-        // If the backoff queue contains this time (unlikely, but we don't)
-        // want to overwrite, then add some variance.
+        // If the backoff queue contains this time (likely)
+        // then we want to increase the backoff time slightly
+        // to allow for it.
+        let incr: f64 = (rng.gen::<f64>() * 2f64) + 2f64;
         while self.backoff.contains_key(&time) {
-            time += (y * BACKOFF_TIME_MS) as u128;
+            time += (incr * self.backoff_time) as u64;
         }
 
         self.backoff.insert(time, backoff_item);
