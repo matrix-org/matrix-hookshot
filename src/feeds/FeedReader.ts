@@ -196,22 +196,20 @@ export class FeedReader {
             if (feed) {
                 // If undefined, we got a not-modified.
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
-
+                const seenItems = await this.storage.hasSeenFeedGuids(url, ...feed.items.filter(item => !!item.hashId).map(item => item.hashId!))
                 for (const item of feed.items) {
                     // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
                     if (!item.hashId) {
                         log.error(`Could not determine guid for entry in ${url}, skipping`);
                         continue;
                     }
-                    const hashId = `md5:${item.hashId}`;
-                    newGuids.push(hashId);
-    
-                    if (initialSync) {
-                        log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
+                    if (seenItems.includes(item.hashId)) {
                         continue;
                     }
-                    if (await this.storage.hasSeenFeedGuid(url, hashId)) {
-                        log.debug('Skipping already seen entry', item.id ?? hashId);
+                    newGuids.push(item.hashId);
+    
+                    if (initialSync) {
+                        log.debug(`Skipping entry ${item.id ?? item.hashId} since we're performing an initial sync`);
                         continue;
                     }
                     const entry = {
@@ -236,7 +234,6 @@ export class FeedReader {
                 if (seenEntriesChanged && newGuids.length) {
                     await this.storage.storeFeedGuids(url, ...newGuids);
                 }
-    
             }
             this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url } });
             // Clear any feed failures
@@ -291,7 +288,7 @@ export class FeedReader {
                 log.warn(`It took us longer to update the feeds than the configured pool interval`);
             }
         } else {
-            // It may be possible that we have more workers than feeds. This will cause the worker to just sleep.
+            // It is possible that we have more workers than feeds. This will cause the worker to just sleep.
             log.debug(`No feeds available to poll for worker ${workerId}`);
         }
 

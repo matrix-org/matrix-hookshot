@@ -29,11 +29,10 @@ const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const FEED_GUIDS = "feeds.guids.";
 
-
-
 const log = new Logger("RedisASProvider");
 
 export class RedisStorageContextualProvider implements IStorageProvider {
+
     constructor(protected readonly redis: Redis, protected readonly contextSuffix = '') { }
 
     public setSyncToken(token: string|null){
@@ -216,9 +215,9 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         await this.redis.set(key, JSON.stringify(value));
     }
 
-    public async storeFeedGuids(url: string, ...guid: string[]): Promise<void> {
+    public async storeFeedGuids(url: string, ...guids: string[]): Promise<void> {
         const feedKey = `${FEED_GUIDS}${url}`;
-        await this.redis.lpush(feedKey, ...guid);
+        await this.redis.lpush(feedKey, ...guids);
         await this.redis.ltrim(feedKey, 0, MAX_FEED_ITEMS);
     }
 
@@ -226,7 +225,16 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         return (await this.redis.exists(`${FEED_GUIDS}${url}`)) === 1;
     }
 
-    public async hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
-        return (await this.redis.lpos(`${FEED_GUIDS}${url}`, guid)) != null;
+    public async hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]> {
+        let multi = this.redis.multi();
+        for (const guid of guids) {
+            multi = multi.lpos(`${FEED_GUIDS}${url}`, guid);
+        }
+        const res = await multi.exec();
+        if (res === null) {
+            // Just assume we've seen none.
+            return [];
+        }
+        return guids.filter((_guid, index) => res[index][1] !== null);
     }
 }
