@@ -97,14 +97,6 @@ impl QueueWithBackoff {
     #[napi]
     pub fn shuffle(&mut self) {
         let mut rng = rand::thread_rng();
-        let old_queue = self.queue.clone();
-        self.queue.clear();
-        for item in old_queue {
-            if rng.gen_bool(0.5) {
-                self.queue.push_front(item);
-            } else {
-                self.queue.push_back(item);
-            }
-        }
+        self.queue.make_contiguous().shuffle(&mut rng);
     }
 }
