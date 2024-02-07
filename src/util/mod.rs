@@ -1,7 +1,7 @@
 use rand::prelude::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::LinkedList;
+use std::collections::VecDeque;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const BACKOFF_TIME_MAX_MS: f32 = 24f32 * 60f32 * 60f32 * 1000f32;
@@ -11,7 +11,7 @@ const BACKOFF_TIME_MS: f32 = 5f32 * 1000f32;
 #[napi]
 
 pub struct QueueWithBackoff {
-    queue: LinkedList<String>,
+    queue: VecDeque<String>,
     /**
      * A map of absolute backoff timestamps mapped to the value.
      */
@@ -33,7 +33,7 @@ impl QueueWithBackoff {
     #[napi(constructor)]
     pub fn new() -> Self {
         QueueWithBackoff {
-            queue: LinkedList::new(),
+            queue: VecDeque::new(),
             backoff: BTreeMap::new(),
             last_backoff_duration: HashMap::new(),
         }
@@ -67,7 +67,7 @@ impl QueueWithBackoff {
         let last_backoff = (*self.last_backoff_duration.get(&item).unwrap_or(&0)) as f32;
 
         let mut rng = rand::thread_rng();
-        let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0 and 1
+        let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0.5 and 1.1
 
         let backoff_duration = ((y * BACKOFF_TIME_MS) + last_backoff.powf(BACKOFF_POW))
             .min(BACKOFF_TIME_MAX_MS) as u32;
@@ -80,9 +80,9 @@ impl QueueWithBackoff {
         let mut time = since_the_epoch.as_millis() + backoff_duration as u128;
 
         // If the backoff queue contains this time (unlikely, but we don't)
-        // want to overwrite, then add an extra ms.
+        // want to overwrite, then add some variance.
         while self.backoff.contains_key(&time) {
-            time += 1;
+            time += (y * BACKOFF_TIME_MS) as u128;
         }
 
         self.backoff.insert(time, backoff_item);
