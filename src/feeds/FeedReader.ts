@@ -77,8 +77,6 @@ function normalizeUrl(input: string): string {
 export class FeedReader {
 
     private connections: FeedConnection[];
-    // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
-    private observedFeedUrls: Set<string> = new Set();
 
     private feedQueue = new QueueWithBackoff();
 
@@ -113,7 +111,7 @@ export class FeedReader {
         this.timeouts.fill(undefined);
         Object.seal(this.timeouts);
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
-        this.calculateFeedUrls();
+        const initialFeeds = this.calculateFeedUrls();
         connectionManager.on('new-connection', c => {
             if (c instanceof FeedConnection) {
                 log.debug('New connection tracked:', c.connectionId);
@@ -128,7 +126,7 @@ export class FeedReader {
             }
         });
 
-        log.debug('Loaded feed URLs:', this.observedFeedUrls);
+        log.debug('Loaded feed URLs:', [...initialFeeds].join(', '));
 
         for (let i = 0; i < config.pollConcurrency; i++) {
             void this.pollFeeds(i);
@@ -140,7 +138,7 @@ export class FeedReader {
         this.timeouts.forEach(t => clearTimeout(t));
     }
 
-    private calculateFeedUrls(): void {
+    private calculateFeedUrls(): Set<string> {
         // just in case we got an invalid URL somehow
         const observedFeedUrls = new Set<string>();
         for (const conn of this.connections) {
@@ -150,11 +148,14 @@ export class FeedReader {
                 log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`);
             }
         }
+        observedFeedUrls.add("http://example.com/not-an-rss-feed");
         observedFeedUrls.forEach(url => this.feedQueue.push(url));
         this.feedQueue.shuffle();
 
-        Metrics.feedsCount.set(this.observedFeedUrls.size);
-        Metrics.feedsCountDeprecated.set(this.observedFeedUrls.size);
+
+        Metrics.feedsCount.set(observedFeedUrls.size);
+        Metrics.feedsCountDeprecated.set(observedFeedUrls.size);
+        return observedFeedUrls;
     }
 
     /**
