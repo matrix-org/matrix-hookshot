@@ -67,7 +67,7 @@ impl QueueWithBackoff {
         let last_backoff = (*self.last_backoff_duration.get(&item).unwrap_or(&0)) as f32;
 
         let mut rng = rand::thread_rng();
-        let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0 and 1
+        let y: f32 = rng.gen::<f32>() + 0.5f32; // generates a float between 0.5 and 1.1
 
         let backoff_duration = ((y * BACKOFF_TIME_MS) + last_backoff.powf(BACKOFF_POW))
             .min(BACKOFF_TIME_MAX_MS) as u32;
