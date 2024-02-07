@@ -150,8 +150,6 @@ export class FeedReader {
         }
         observedFeedUrls.forEach(url => this.feedQueue.push(url));
         this.feedQueue.shuffle();
-
-
         Metrics.feedsCount.set(observedFeedUrls.size);
         Metrics.feedsCountDeprecated.set(observedFeedUrls.size);
         return observedFeedUrls;
