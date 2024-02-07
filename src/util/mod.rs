@@ -80,9 +80,9 @@ impl QueueWithBackoff {
         let mut time = since_the_epoch.as_millis() + backoff_duration as u128;
 
         // If the backoff queue contains this time (unlikely, but we don't)
-        // want to overwrite, then add an extra ms.
+        // want to overwrite, then add some variance.
         while self.backoff.contains_key(&time) {
-            time += 1;
+            time += (y * BACKOFF_TIME_MS) as u128;
         }
 
         self.backoff.insert(time, backoff_item);
