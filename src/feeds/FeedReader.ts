@@ -148,7 +148,6 @@ export class FeedReader {
                 log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`);
             }
         }
-        observedFeedUrls.add("http://example.com/not-an-rss-feed");
         observedFeedUrls.forEach(url => this.feedQueue.push(url));
         this.feedQueue.shuffle();
 
