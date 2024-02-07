@@ -1,7 +1,7 @@
 use rand::prelude::*;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::LinkedList;
+use std::collections::VecDeque;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const BACKOFF_TIME_MAX_MS: f32 = 24f32 * 60f32 * 60f32 * 1000f32;
@@ -11,7 +11,7 @@ const BACKOFF_TIME_MS: f32 = 5f32 * 1000f32;
 #[napi]
 
 pub struct QueueWithBackoff {
-    queue: LinkedList<String>,
+    queue: VecDeque<String>,
     /**
      * A map of absolute backoff timestamps mapped to the value.
      */
@@ -33,7 +33,7 @@ impl QueueWithBackoff {
     #[napi(constructor)]
     pub fn new() -> Self {
         QueueWithBackoff {
-            queue: LinkedList::new(),
+            queue: VecDeque::new(),
             backoff: BTreeMap::new(),
             last_backoff_duration: HashMap::new(),
         }
