@@ -12,6 +12,11 @@ import UserAgent from "../UserAgent";
 import { QueueWithBackoff } from "../libRs";
 
 const log = new Logger("FeedReader");
+
+const BACKOFF_TIME_MAX_MS = 24 * 60 * 60 * 1000;
+const BACKOFF_POW = 1.05;
+const BACKOFF_TIME_MS = 5 * 1000;
+
 export class FeedError extends Error {
     constructor(
         public url: string,
@@ -78,7 +83,7 @@ export class FeedReader {
 
     private connections: FeedConnection[];
 
-    private feedQueue = new QueueWithBackoff();
+    private feedQueue = new QueueWithBackoff(BACKOFF_TIME_MS, BACKOFF_POW, BACKOFF_TIME_MAX_MS);
 
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
