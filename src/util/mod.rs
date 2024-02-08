@@ -28,7 +28,11 @@ pub struct QueueWithBackoff {
 
 impl Default for QueueWithBackoff {
     fn default() -> Self {
-        Self::new(DEFAULT_BACKOFF_TIME_MS, DEFAULT_BACKOFF_POW, DEFAULT_BACKOFF_TIME_MAX_MS)
+        Self::new(
+            DEFAULT_BACKOFF_TIME_MS,
+            DEFAULT_BACKOFF_POW,
+            DEFAULT_BACKOFF_TIME_MAX_MS,
+        )
     }
 }
 #[napi]
