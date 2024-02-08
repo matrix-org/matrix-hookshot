@@ -79,6 +79,10 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         });
     }
 
+    get isPersistent(): boolean {
+        return true;
+    }
+
     public async connect(): Promise<void> {
         try {
             await this.redis.ping();
