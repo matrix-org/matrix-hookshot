@@ -67,7 +67,7 @@ export class Bridge {
         private readonly storage: IBridgeStorageProvider,
         private readonly botUsersManager: BotUsersManager,
     ) {
-        this.queue = createMessageQueue(this.config.queue);
+        this.queue = createMessageQueue(config.queue);
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
@@ -423,8 +423,7 @@ export class Bridge {
             await this.queue.push<boolean>({
                 data: !!userId,
                 sender: "Bridge",
-                messageId: msg.messageId,
-                eventName: "response.github.oauth.response",
+                eventName: `response.${msg.id}`,
             });
         });
 
@@ -555,8 +554,7 @@ export class Bridge {
                 return this.queue.push<JiraOAuthRequestResult>({
                     data: JiraOAuthRequestResult.UserNotFound,
                     sender: "Bridge",
-                    messageId: msg.messageId,
-                    eventName: "response.jira.oauth.response",
+                    eventName: `response.${msg.id}`,
                 });
             }
             try {
@@ -586,14 +584,13 @@ export class Bridge {
             await this.queue.push<JiraOAuthRequestResult>({
                 data: result,
                 sender: "Bridge",
-                messageId: msg.messageId,
-                eventName: "response.jira.oauth.response",
+                eventName: `response.${msg.id}`,
             });
 
         });
 
         this.queue.on<GenericWebhookEvent>("generic-webhook.event", async (msg) => {
-            const { data, messageId } = msg;
+            const { data, id } = msg;
             const connections = connManager.getConnectionsForGenericWebhook(data.hookId);
             log.debug(`generic-webhook.event for ${connections.map(c => c.toString()).join(', ') || '[empty]'}`);
 
@@ -601,8 +598,7 @@ export class Bridge {
                 await this.queue.push<GenericWebhookEventResult>({
                     data: {notFound: true},
                     sender: "Bridge",
-                    messageId: messageId,
-                    eventName: "response.generic-webhook.event",
+                    eventName: `response.${id}`,
                 });
             }
 
@@ -623,14 +619,12 @@ export class Bridge {
                         await this.queue.push<GenericWebhookEventResult>({
                             data: {successful, response},
                             sender: "Bridge",
-                            messageId,
                             eventName: "response.generic-webhook.event",
                         });
                     } else {
                         await this.queue.push<GenericWebhookEventResult>({
                             data: {},
                             sender: "Bridge",
-                            messageId,
                             eventName: "response.generic-webhook.event",
                         });
                         await c.onGenericHook(data.hookData);
@@ -653,8 +647,7 @@ export class Bridge {
                         successful: false
                     },
                     sender: "Bridge",
-                    messageId,
-                    eventName: "response.generic-webhook.event",
+                    eventName: `response.${id}`,
                 });
             }
         });

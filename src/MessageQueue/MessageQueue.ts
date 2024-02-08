@@ -1,9 +1,9 @@
 import { BridgeConfigQueue } from "../config/Config";
-import { LocalMQ } from "./LocalMQ";
+import { RsLocalMQ } from "../messagequeue/wrapper";
 import { RedisMQ } from "./RedisQueue";
 import { MessageQueue } from "./Types";
 
-const staticLocalMq = new LocalMQ();
+const staticLocalMq = new RsLocalMQ();
 let staticRedisMq: RedisMQ|null = null;
 
 export function createMessageQueue(config: BridgeConfigQueue): MessageQueue {

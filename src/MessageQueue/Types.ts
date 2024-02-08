@@ -1,21 +1,19 @@
-export interface MessageQueueMessage<T> {
-    sender: string;
-    eventName: string;
-    data: T;
-    messageId?: string;
-    for?: string;
-}
+import {MessageQueueMessagePushJsPush, MessageQueueMessage as MessageQueueMessageRs } from "../libRs"; 
 
-export interface MessageQueueMessageOut<T> extends MessageQueueMessage<T> {
-    ts: number;
+
+export interface MessageQueueMessagePush<T> extends MessageQueueMessagePushJsPush {
+    data: T;
+}
+export interface MessageQueueMessage<T> extends MessageQueueMessageRs {
+    data: T;
 }
 
 export interface MessageQueue {
     subscribe: (eventGlob: string) => void;
     unsubscribe: (eventGlob: string) => void;
-    push: <T>(data: MessageQueueMessage<T>, single?: boolean) => Promise<void>;
-    pushWait: <T, X>(data: MessageQueueMessage<T>, timeout?: number, single?: boolean) => Promise<X>;
-    on: <T>(eventName: string, cb: (data: MessageQueueMessageOut<T>) => void) => void;
+    push: <T>(data: MessageQueueMessagePush<T>, single?: boolean) => Promise<void>;
+    pushWait: <T, X>(data: MessageQueueMessagePush<T>, timeout?: number, single?: boolean) => Promise<X>;
+    on: <T>(eventName: string, cb: (data: MessageQueueMessage<T>) => void) => void;
     stop?(): void;
     connect?(): Promise<void>;
 }
