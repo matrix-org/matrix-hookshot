@@ -96,6 +96,7 @@ export class FeedReader {
 
     private shouldRun = true;
     private readonly timeouts: (NodeJS.Timeout|undefined)[];
+    private readonly feedsToRetain = new Set();
 
     get sleepingInterval() {
         return (
@@ -116,22 +117,38 @@ export class FeedReader {
         this.timeouts.fill(undefined);
         Object.seal(this.timeouts);
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
-        const initialFeeds = this.calculateFeedUrls();
-        connectionManager.on('new-connection', c => {
-            if (c instanceof FeedConnection) {
-                log.debug('New connection tracked:', c.connectionId);
-                this.connections.push(c);
-                this.calculateFeedUrls();
+        const feeds = this.calculateInitialFeedUrls();
+        connectionManager.on('new-connection', newConnection => {
+            if (!(newConnection instanceof FeedConnection)) {
+                return;
+            }
+            const normalisedUrl = normalizeUrl(newConnection.feedUrl);
+            if (!feeds.has(normalisedUrl)) {
+                this.feedQueue.push(normalisedUrl);
+                feeds.add(normalisedUrl);
             }
         });
         connectionManager.on('connection-removed', removed => {
-            if (removed instanceof FeedConnection) {
-                this.connections = this.connections.filter(c => c.connectionId !== removed.connectionId);
-                this.calculateFeedUrls();
+            if (!(removed instanceof FeedConnection)) {
+                return;
             }
+            let shouldKeepUrl = false;
+            const normalisedUrl = normalizeUrl(removed.feedUrl);
+            this.connections = this.connections.filter(c => {
+                // Cheeky reuse of iteration to determine if we should remove this URL.
+                if (c.connectionId !== removed.connectionId) {
+                    shouldKeepUrl = shouldKeepUrl || normalizeUrl(c.feedUrl) === normalisedUrl;
+                    return true;
+                }
+                return false;
+            });
+            this.feedQueue.remove(normalisedUrl);
+            feeds.delete(normalisedUrl);
+            this.feedsFailingHttp.delete(normalisedUrl);
+            this.feedsFailingParsing.delete(normalisedUrl);
         });
 
-        log.debug('Loaded feed URLs:', [...initialFeeds].join(', '));
+        log.debug('Loaded feed URLs:', [...feeds].join(', '));
 
         for (let i = 0; i < config.pollConcurrency; i++) {
             void this.pollFeeds(i);
@@ -143,7 +160,11 @@ export class FeedReader {
         this.timeouts.forEach(t => clearTimeout(t));
     }
 
-    private calculateFeedUrls(): Set<string> {
+    /**
+     * Calculate the initial feed set for the reader. Should never
+     * be called twice.
+     */
+    private calculateInitialFeedUrls(): Set<string> {
         // just in case we got an invalid URL somehow
         const observedFeedUrls = new Set<string>();
         for (const conn of this.connections) {
@@ -153,8 +174,7 @@ export class FeedReader {
                 log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`);
             }
         }
-        observedFeedUrls.forEach(url => this.feedQueue.push(url));
-        this.feedQueue.shuffle();
+        this.feedQueue.populate([...observedFeedUrls]);
         Metrics.feedsCount.set(observedFeedUrls.size);
         Metrics.feedsCountDeprecated.set(observedFeedUrls.size);
         return observedFeedUrls;
@@ -169,6 +189,7 @@ export class FeedReader {
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
     public async pollFeed(url: string): Promise<boolean> {
+        this.feedsToRetain.add(url);
         let seenEntriesChanged = false;
         const fetchKey = randomUUID();
         const { etag, lastModified } = this.cacheTimes.get(url) || {};
@@ -242,7 +263,10 @@ export class FeedReader {
             // Clear any feed failures
             this.feedsFailingHttp.delete(url);
             this.feedsFailingParsing.delete(url);
-            this.feedQueue.push(url);
+            if (this.feedsToRetain.has(url)) {
+                // If we've removed this feed since processing it, do not requeue.
+                this.feedQueue.push(url);
+            }
         } catch (err: unknown) {
             // TODO: Proper Rust Type error.
             if ((err as Error).message.includes('Failed to fetch feed due to HTTP')) {

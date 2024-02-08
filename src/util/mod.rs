@@ -20,7 +20,6 @@ pub struct QueueWithBackoff {
      * The last duration applied when a value was backed off.
      */
     last_backoff_duration: HashMap<String, u32>,
-
     backoff_time: f64,
     backoff_exponent: f64,
     backoff_max: f64,
@@ -68,6 +67,32 @@ impl QueueWithBackoff {
     }
 
     #[napi]
+    pub fn remove(&mut self, item: String) -> bool {
+        // Remove from the queue
+        if let Ok(index) = self.queue.binary_search(&item) {
+            self.queue.remove(index);
+            return true;
+        } else {
+            // We didn't find the key queued, so let's ensure we delete it
+            // from any backoff.
+            // This is *expensive* but hopefully called rarely.
+            let mut found_key: u64 = 0;
+            for (key, value) in self.backoff.iter() {
+                if *value == item {
+                    found_key = *key;
+                }
+            }
+            if found_key != 0 {
+                self.backoff.remove(&found_key);
+                return true;
+            }
+        }
+        // Always remove the duration on removal.
+        self.last_backoff_duration.remove(&item);
+        return false;
+    }
+
+    #[napi]
     pub fn push(&mut self, item: String) {
         self.last_backoff_duration.remove(&item);
         self.queue.push_back(item);
@@ -111,5 +136,14 @@ impl QueueWithBackoff {
     pub fn shuffle(&mut self) {
         let mut rng = rand::thread_rng();
         self.queue.make_contiguous().shuffle(&mut rng);
+    }
+
+    #[napi]
+    pub fn populate(&mut self, values: Vec<String>) {
+        // This assumes an empty queue.
+        for v in values {
+            self.queue.push_back(v);
+        }
+        self.shuffle();
     }
 }
