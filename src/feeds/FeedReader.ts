@@ -124,6 +124,7 @@ export class FeedReader {
             }
             const normalisedUrl = normalizeUrl(newConnection.feedUrl);
             if (!feeds.has(normalisedUrl)) {
+                log.info(`Connection added, adding "${normalisedUrl}" to queue`);
                 this.feedQueue.push(normalisedUrl);
                 feeds.add(normalisedUrl);
             }
@@ -142,6 +143,12 @@ export class FeedReader {
                 }
                 return false;
             });
+            if (shouldKeepUrl) {
+                log.info(`Connection removed, but not removing "${normalisedUrl}" as it is still in use`);
+                return;
+            }
+            log.info(`Connection removed, removing "${normalisedUrl}" from queue`);
+            this.feedsToRetain.delete(normalisedUrl);
             this.feedQueue.remove(normalisedUrl);
             feeds.delete(normalisedUrl);
             this.feedsFailingHttp.delete(normalisedUrl);
