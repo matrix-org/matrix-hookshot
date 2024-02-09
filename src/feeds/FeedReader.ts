@@ -200,6 +200,10 @@ export class FeedReader {
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
     public async pollFeed(url: string): Promise<boolean> {
+        // If a feed is deleted while it is being polled, we need
+        // to remember NOT to add it back to the queue. This
+        // set keeps track of all the feeds that *should* be
+        // requeued.
         this.feedsToRetain.add(url);
         let seenEntriesChanged = false;
         const fetchKey = randomUUID();
