@@ -127,6 +127,8 @@ export class FeedReader {
                 log.info(`Connection added, adding "${normalisedUrl}" to queue`);
                 this.feedQueue.push(normalisedUrl);
                 feeds.add(normalisedUrl);
+                Metrics.feedsCount.inc();
+                Metrics.feedsCountDeprecated.inc();
             }
         });
         connectionManager.on('connection-removed', removed => {
@@ -153,6 +155,8 @@ export class FeedReader {
             feeds.delete(normalisedUrl);
             this.feedsFailingHttp.delete(normalisedUrl);
             this.feedsFailingParsing.delete(normalisedUrl);
+            Metrics.feedsCount.dec();
+            Metrics.feedsCountDeprecated.dec();
         });
 
         log.debug('Loaded feed URLs:', [...feeds].join(', '));
