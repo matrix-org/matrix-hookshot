@@ -89,7 +89,7 @@ impl QueueWithBackoff {
         }
         // Always remove the duration on removal.
         self.last_backoff_duration.remove(&item);
-        return false;
+        false
     }
 
     #[napi]
