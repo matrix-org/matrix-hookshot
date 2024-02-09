@@ -5,6 +5,8 @@ pub mod github;
 pub mod jira;
 pub mod util;
 
+mod stores;
+
 #[macro_use]
 extern crate napi_derive;
 

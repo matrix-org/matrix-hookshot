@@ -5,7 +5,7 @@ import { ApiError, ErrCode } from "../api";
 import { BridgeConfig } from "../config/Config";
 import { GetAuthPollResponse, GetAuthResponse, GetConnectionsForServiceResponse } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";

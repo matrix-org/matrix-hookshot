@@ -1,5 +1,5 @@
 import { MessageSenderClient } from "./MatrixSender";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { IBridgeStorageProvider } from "./stores/StorageProvider";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
 import { Logger } from "matrix-appservice-bridge";
 import { AdminRoom } from "./AdminRoom";

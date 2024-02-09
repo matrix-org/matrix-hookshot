@@ -5,7 +5,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { LogService, MatrixClient } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 
 const log = new Logger("ResetCryptoStore");
 

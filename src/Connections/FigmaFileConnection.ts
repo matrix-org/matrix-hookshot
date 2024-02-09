@@ -4,7 +4,7 @@ import { FigmaPayload } from "../figma/types";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { BridgeConfig } from "../config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";

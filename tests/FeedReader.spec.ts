@@ -5,7 +5,7 @@ import { ConnectionManager } from "../src/ConnectionManager";
 import { IConnection } from "../src/Connections";
 import { FeedEntry, FeedReader } from "../src/feeds/FeedReader";
 import { MessageQueue, MessageQueueMessage } from "../src/MessageQueue";
-import { MemoryStorageProvider } from "../src/Stores/MemoryStorageProvider";
+import { MemoryStorageProvider } from "../src/stores/MemoryStorageProvider";
 import { Server, createServer } from 'http';
 import { AddressInfo } from "net";
 
