@@ -7,7 +7,7 @@ import axios from "axios";
 import Metrics from "../Metrics";
 import { randomUUID } from "crypto";
 import { readFeed } from "../libRs";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import UserAgent from "../UserAgent";
 import { QueueWithBackoff } from "../libRs";
 

@@ -2,9 +2,9 @@ import { Logger } from "matrix-appservice-bridge";
 import { Appservice, IAppserviceCryptoStorageProvider, IAppserviceRegistration, RustSdkAppserviceCryptoStorageProvider, RustSdkCryptoStoreType } from "matrix-bot-sdk";
 import { BridgeConfig } from "./config/Config";
 import Metrics from "./Metrics";
-import { MemoryStorageProvider } from "./Stores/MemoryStorageProvider";
-import { RedisStorageProvider } from "./Stores/RedisStorageProvider";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { MemoryStorageProvider } from "./stores/MemoryStorageProvider";
+import { RedisStorageProvider } from "./stores/RedisStorageProvider";
+import { IBridgeStorageProvider } from "./stores/StorageProvider";
 const log = new Logger("Appservice");
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration) {

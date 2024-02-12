@@ -16,7 +16,7 @@ import { CommandError } from "../errors";
 import QuickLRU from "@alloc/quick-lru";
 import { HookFilter } from "../HookFilter";
 import { GitLabClient } from "../Gitlab/Client";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../Gitlab/GrantChecker";
 

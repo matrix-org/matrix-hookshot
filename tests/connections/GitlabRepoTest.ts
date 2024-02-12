@@ -5,7 +5,7 @@ import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";
 import { expect } from "chai";
 import { BridgeConfigGitLab } from "../../src/config/Config";
-import { IBridgeStorageProvider } from "../../src/Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
 import { IntentMock } from "../utils/IntentMock";
 
 const ROOM_ID = "!foo:bar";

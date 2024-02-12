@@ -6,7 +6,7 @@ import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
 import { UserTokenStore } from "../UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import "reflect-metadata";
 
