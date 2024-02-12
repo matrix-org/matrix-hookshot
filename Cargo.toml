@@ -25,6 +25,7 @@ rand = "0.8.5"
 uuid = { version = "1.7.0", features = ["v4"] }
 async-std = "1.12.0"
 redis = { version = "0.24.0", features = ["aio", "tokio-comp"] }
+futures = "0.3.30"
 
 [build-dependencies]
 napi-build = "2"

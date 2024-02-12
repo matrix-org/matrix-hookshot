@@ -1,10 +1,12 @@
 use std::collections::{HashMap, HashSet};
+use std::future;
 use crate::util::QueueWithBackoff;
 use std::time::{Duration, Instant};
-use napi::bindgen_prelude::{Error as JsError, Status};
+use napi::bindgen_prelude::Error as JsError;
 use napi::tokio::sync::RwLock;
 use std::sync::Arc;
 use uuid::Uuid;
+use futures::future::{Future, select_all};
 use crate::feeds::parser::{js_read_feed, ReadFeedOptions};
 use crate::stores::memory::MemoryStorageProvider;
 use crate::stores::traits::StorageProvider;
@@ -51,7 +53,6 @@ pub struct FeedReader {
     queue: QueueWithBackoff,
     feeds_to_retain: HashSet<String>,
     cache_times: Arc<RwLock<HashMap<String, CacheTime>>>,
-    storage_provider: Box<impl StorageProvider>,
     poll_interval_seconds: f64,
     poll_concurrency: u8,
     poll_timeout_seconds: i64,
@@ -70,14 +71,12 @@ impl FeedReader {
     pub fn new(poll_interval_seconds: f64, poll_concurrency: u8, poll_timeout_seconds: i64) -> Self {
         let mut cache_times: HashMap<String, CacheTime> = HashMap::new();
         let mut lock = Arc::new(RwLock::new(cache_times));
-        let mut storage_provider = MemoryStorageProvider::new();
         FeedReader {
             queue: QueueWithBackoff::new(
                 BACKOFF_TIME_MS,
                 BACKOFF_POW,
                 BACKOFF_TIME_MAX_MS,
             ),
-            storage_provider,
             feeds_to_retain: HashSet::new(),
             poll_interval_seconds,
             poll_concurrency,
@@ -105,7 +104,7 @@ impl FeedReader {
 
     }
 
-    async fn poll_feed(&self, url: &String, cache_times: Arc<RwLock<HashMap<String, CacheTime>>>) -> Result<Option<HookshotFeedInfo>, JsError> {
+    async fn poll_feed(&self, url: &String, cache_times: Arc<RwLock<HashMap<String, CacheTime>>>, mut storage: &impl StorageProvider) -> Result<Option<HookshotFeedInfo>, JsError> {
         let seen_entries_changed = false;
         let fetch_key = Uuid::new_v4().to_string();
 
@@ -128,13 +127,17 @@ impl FeedReader {
             });
             drop(c_t_w);
 
-            let initial_sync = false; // TODO: Implement
-            let seen_items: HashSet<String> = HashSet::new();  // TODO: Implement
+            let initial_sync = storage.has_seen_feed(url).await;
             let mut new_guids: Vec<String> = Vec::new();
             let new_entries: Vec<HookshotFeedEntry> = Vec::new();
 
 
             if let Some(feed) = result.feed {
+                let items = feed.items.iter().map(|x| x.hash_id.clone()).collect::<Vec<_>>();
+                let seen_items = storage.has_seen_feed_guids(
+                    url,
+                    &items,
+                ).await;
                 println!("Got feed result!");
                 let mut feed_info = HookshotFeedInfo {
                     title: feed.title,
@@ -144,26 +147,25 @@ impl FeedReader {
                 };
                 for item in feed.items {
                     println!("Got feed result! {:?}", item);
-                    if let Some(hash_id) = item.hash_id {
-                        if seen_items.contains(&hash_id) {
-                            continue;
-                        }
-                        // TODO: Drop unwrap
-                        new_guids.push(hash_id);
-
-                        if initial_sync {
-                            // Skip.
-                            continue;
-                        }
-                        feed_info.entries.push(HookshotFeedEntry {
-                            title: item.title,
-                            pubdate: item.pubdate,
-                            summary: item.summary,
-                            author: item.author,
-                            link: item.link,
-                        });
+                    if seen_items.contains(&item.hash_id) {
+                        continue;
                     }
+
+                    new_guids.push(item.hash_id.clone());
+
+                    if initial_sync {
+                        // Skip.
+                        continue;
+                    }
+                    feed_info.entries.push(HookshotFeedEntry {
+                        title: item.title,
+                        pubdate: item.pubdate,
+                        summary: item.summary,
+                        author: item.author,
+                        link: item.link,
+                    });
                 }
+                storage.store_feed_guids(&url, &new_guids).await;
                 return Ok(Some(feed_info));
             } else {
                 // TODO: Implement
@@ -178,20 +180,33 @@ impl FeedReader {
         return (self.poll_interval_seconds * 1000.0) / self.queue.length() as f64;
     }
 
+    async unsafe fn poll_feed_int(&mut self, url: &String, mut storage_provider: &impl StorageProvider) {
+        let mut sleep_for = self.sleeping_interval();
+        self.feeds_to_retain.insert(url.clone());
+        let now = Instant::now();
+        let result = self.poll_feed(url, self.cache_times.clone(), &storage_provider).await;
+        self.feeds_to_retain.remove(url);
+        let elapsed = now.elapsed();
+        sleep_for = (sleep_for - (elapsed.as_millis() as f64)).max(0.0);
+        async_std::task::sleep(Duration::from_millis(sleep_for as u64)).await;
+    }
+
     #[napi]
     pub async unsafe fn poll_feeds(&mut self) -> Result<(), JsError> {
-        let mut sleep_for = self.sleeping_interval();
-        if let Some(url) = self.queue.pop() {
-            self.feeds_to_retain.insert(url.clone());
-            let now = Instant::now();
-            let result = self.poll_feed(&url, self.cache_times.clone()).await?;
-            self.feeds_to_retain.remove(&url);
-            let elapsed = now.elapsed();
-            sleep_for = (sleep_for - (elapsed.as_millis() as f64)).max(0.0);
-        } else {
-            println!("No feeds available");
+        let concurrency = self.poll_concurrency as usize;
+        let mut storage_provider = MemoryStorageProvider::new();
+        let mut future_set: Vec<_> = Vec::new();
+        loop {
+            if let Some(url) = self.queue.pop() {
+                let result = Box::pin(self.poll_feed_int(&url, &storage_provider));
+                future_set.push(result);
+            } else {
+                async_std::task::sleep(Duration::from_millis(self.sleeping_interval() as u64)).await;
+            }
+            if future_set.len() >= concurrency {
+                let (item_resolved, ready_future_index, _remaining_futures) =
+                select_all(future_set).await;
+            } 
         }
-        async_std::task::sleep(Duration::from_millis(sleep_for as u64)).await;
-        Ok(())
     }
 }
