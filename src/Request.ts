@@ -30,10 +30,6 @@ export function installRequestFunction() {
         } satisfies Partial<RequestInit>);
         clearTimeout(tOut);
         let rBody: Buffer|unknown;
-        if (!res.ok) {
-            const text = await res.text();
-            throw Error(`Request failed ${res.status} ${res.statusText}: ${text}`);
-        }
         if (res.headers.get('Content-Type') === 'application/json') {
             rBody = await res.json();
         } else{
