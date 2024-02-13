@@ -12,7 +12,8 @@ export function installRequestFunction() {
     if (installed) {
         return;
     }
-    const dispatcher = new Agent({ allowH2: true, keepAliveTimeout: 1000, pipelining: 8 });
+    // Keep connections alive for long enough to be reused.
+    const dispatcher = new Agent({ allowH2: true, keepAliveTimeout: 10000, pipelining: 8 });
     const fn = async (params: OptionsWithUri): Promise<{response: RequestResponse, rBody: Buffer|unknown}> => {
         let url = params.uri.toString();
         if (params.qs) {
