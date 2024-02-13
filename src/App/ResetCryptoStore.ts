@@ -6,10 +6,12 @@ import { LogService, MatrixClient } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { installRequestFunction } from "../Request";
 
 const log = new Logger("ResetCryptoStore");
 
 let bridgeStorage: IBridgeStorageProvider | undefined;
+installRequestFunction();
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";

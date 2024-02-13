@@ -1,20 +1,22 @@
 import { Bridge } from "../Bridge";
 import { BridgeConfig, parseRegistrationFile } from "../config/Config";
-import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
 import { Logger, getBridgeVersion } from "matrix-appservice-bridge";
-import { IAppserviceRegistration, LogService } from "matrix-bot-sdk";
+import { IAppserviceRegistration, LogService, setRequestFn } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 import * as Sentry from '@sentry/node';
 import { GenericHookConnection } from "../Connections";
+import { installRequestFunction } from "../Request";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
 
+
 export async function start(config: BridgeConfig, registration: IAppserviceRegistration) {
+    installRequestFunction();
     const listener = new ListenerService(config.listeners);
     listener.start();
     Logger.configure({
