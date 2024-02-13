@@ -4,13 +4,20 @@ import { Agent } from "undici";
 
 let installed = false;
 
+/**
+ * Install a request function for the bot-sdk that uses "fetch" and a dedicated
+ * agent to achieve more performance.
+ */
 export function installRequestFunction() {
     if (installed) {
         return;
     }
     const dispatcher = new Agent();
     const fn = async (params: OptionsWithUri): Promise<{response: RequestResponse, rBody: Buffer|unknown}> => {
-        const url = params.uri.toString() + new URLSearchParams(params.qs).toString();
+        let url = params.uri.toString();
+        if (params.qs) {
+            url += `?${new URLSearchParams(params.qs).toString()}`
+        }
         const abort = new AbortController();
         const tOut = params.timeout !== undefined ? setTimeout(() => abort.abort("Timed out"), params.timeout): undefined;
         const res = await fetch(url, {
@@ -30,8 +37,11 @@ export function installRequestFunction() {
         if (res.headers.get('Content-Type') === 'application/json') {
             rBody = await res.json();
         } else{
-            rBody = Buffer.from((await (await res.blob()).arrayBuffer()));
+            rBody = Buffer.from(await res.arrayBuffer());
         }
+        // We don't return an entirely compatible "request" response
+        // as we barely use any of it. This covers the usage of the bot-sdk
+        // today.
         return { rBody, response: {
             body: rBody,
             headers: Object.fromEntries(res.headers.entries()),

@@ -13,10 +13,10 @@ import { installRequestFunction } from "../Request";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
+installRequestFunction();
 
 
 export async function start(config: BridgeConfig, registration: IAppserviceRegistration) {
-    installRequestFunction();
     const listener = new ListenerService(config.listeners);
     listener.start();
     Logger.configure({
