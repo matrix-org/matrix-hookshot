@@ -9,8 +9,14 @@ import { randomUUID } from "crypto";
 import { readFeed } from "../libRs";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import UserAgent from "../UserAgent";
+import { QueueWithBackoff } from "../libRs";
 
 const log = new Logger("FeedReader");
+
+const BACKOFF_TIME_MAX_MS = 24 * 60 * 60 * 1000;
+const BACKOFF_POW = 1.05;
+const BACKOFF_TIME_MS = 5 * 1000;
+
 export class FeedError extends Error {
     constructor(
         public url: string,
@@ -73,21 +79,11 @@ function normalizeUrl(input: string): string {
     return url.toString();
 }
 
-function shuffle<T>(array: T[]): T[] {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
 export class FeedReader {
 
     private connections: FeedConnection[];
-    // ts should notice that we do in fact initialize it in constructor, but it doesn't (in this version)
-    private observedFeedUrls: Set<string> = new Set();
 
-    private feedQueue: string[] = [];
+    private feedQueue = new QueueWithBackoff(BACKOFF_TIME_MS, BACKOFF_POW, BACKOFF_TIME_MAX_MS);
 
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
@@ -100,11 +96,12 @@ export class FeedReader {
 
     private shouldRun = true;
     private readonly timeouts: (NodeJS.Timeout|undefined)[];
+    private readonly feedsToRetain = new Set();
 
     get sleepingInterval() {
         return (
             // Calculate the number of MS to wait in between feeds.
-            (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length || 1)
+            (this.config.pollIntervalSeconds * 1000) / (this.feedQueue.length() || 1)
             // And multiply by the number of concurrent readers
         ) * this.config.pollConcurrency;
     }
@@ -120,22 +117,49 @@ export class FeedReader {
         this.timeouts.fill(undefined);
         Object.seal(this.timeouts);
         this.connections = this.connectionManager.getAllConnectionsOfType(FeedConnection);
-        this.calculateFeedUrls();
-        connectionManager.on('new-connection', c => {
-            if (c instanceof FeedConnection) {
-                log.debug('New connection tracked:', c.connectionId);
-                this.connections.push(c);
-                this.calculateFeedUrls();
+        const feeds = this.calculateInitialFeedUrls();
+        connectionManager.on('new-connection', newConnection => {
+            if (!(newConnection instanceof FeedConnection)) {
+                return;
+            }
+            const normalisedUrl = normalizeUrl(newConnection.feedUrl);
+            if (!feeds.has(normalisedUrl)) {
+                log.info(`Connection added, adding "${normalisedUrl}" to queue`);
+                this.feedQueue.push(normalisedUrl);
+                feeds.add(normalisedUrl);
+                Metrics.feedsCount.inc();
+                Metrics.feedsCountDeprecated.inc();
             }
         });
         connectionManager.on('connection-removed', removed => {
-            if (removed instanceof FeedConnection) {
-                this.connections = this.connections.filter(c => c.connectionId !== removed.connectionId);
-                this.calculateFeedUrls();
+            if (!(removed instanceof FeedConnection)) {
+                return;
             }
+            let shouldKeepUrl = false;
+            const normalisedUrl = normalizeUrl(removed.feedUrl);
+            this.connections = this.connections.filter(c => {
+                // Cheeky reuse of iteration to determine if we should remove this URL.
+                if (c.connectionId !== removed.connectionId) {
+                    shouldKeepUrl = shouldKeepUrl || normalizeUrl(c.feedUrl) === normalisedUrl;
+                    return true;
+                }
+                return false;
+            });
+            if (shouldKeepUrl) {
+                log.info(`Connection removed, but not removing "${normalisedUrl}" as it is still in use`);
+                return;
+            }
+            log.info(`Connection removed, removing "${normalisedUrl}" from queue`);
+            this.feedsToRetain.delete(normalisedUrl);
+            this.feedQueue.remove(normalisedUrl);
+            feeds.delete(normalisedUrl);
+            this.feedsFailingHttp.delete(normalisedUrl);
+            this.feedsFailingParsing.delete(normalisedUrl);
+            Metrics.feedsCount.dec();
+            Metrics.feedsCountDeprecated.dec();
         });
 
-        log.debug('Loaded feed URLs:', this.observedFeedUrls);
+        log.debug('Loaded feed URLs:', [...feeds].join(', '));
 
         for (let i = 0; i < config.pollConcurrency; i++) {
             void this.pollFeeds(i);
@@ -147,21 +171,24 @@ export class FeedReader {
         this.timeouts.forEach(t => clearTimeout(t));
     }
 
-    private calculateFeedUrls(): void {
+    /**
+     * Calculate the initial feed set for the reader. Should never
+     * be called twice.
+     */
+    private calculateInitialFeedUrls(): Set<string> {
         // just in case we got an invalid URL somehow
-        const normalizedUrls = [];
+        const observedFeedUrls = new Set<string>();
         for (const conn of this.connections) {
             try {
-                normalizedUrls.push(normalizeUrl(conn.feedUrl));
+                observedFeedUrls.add(normalizeUrl(conn.feedUrl));
             } catch (err: unknown) {
                 log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`);
             }
         }
-        this.observedFeedUrls = new Set(normalizedUrls);
-        this.feedQueue = shuffle([...this.observedFeedUrls.values()]);
-
-        Metrics.feedsCount.set(this.observedFeedUrls.size);
-        Metrics.feedsCountDeprecated.set(this.observedFeedUrls.size);
+        this.feedQueue.populate([...observedFeedUrls]);
+        Metrics.feedsCount.set(observedFeedUrls.size);
+        Metrics.feedsCountDeprecated.set(observedFeedUrls.size);
+        return observedFeedUrls;
     }
 
     /**
@@ -173,6 +200,11 @@ export class FeedReader {
      * @returns A boolean that returns if we saw any changes on the feed since the last poll time.
      */
     public async pollFeed(url: string): Promise<boolean> {
+        // If a feed is deleted while it is being polled, we need
+        // to remember NOT to add it back to the queue. This
+        // set keeps track of all the feeds that *should* be
+        // requeued.
+        this.feedsToRetain.add(url);
         let seenEntriesChanged = false;
         const fetchKey = randomUUID();
         const { etag, lastModified } = this.cacheTimes.get(url) || {};
@@ -203,22 +235,20 @@ export class FeedReader {
             if (feed) {
                 // If undefined, we got a not-modified.
                 log.debug(`Found ${feed.items.length} entries in ${url}`);
-
+                const seenItems = await this.storage.hasSeenFeedGuids(url, ...feed.items.filter(item => !!item.hashId).map(item => item.hashId!))
                 for (const item of feed.items) {
                     // Some feeds have a nasty habit of leading a empty tag there, making us parse it as garbage.
                     if (!item.hashId) {
                         log.error(`Could not determine guid for entry in ${url}, skipping`);
                         continue;
                     }
-                    const hashId = `md5:${item.hashId}`;
-                    newGuids.push(hashId);
-    
-                    if (initialSync) {
-                        log.debug(`Skipping entry ${item.id ?? hashId} since we're performing an initial sync`);
+                    if (seenItems.includes(item.hashId)) {
                         continue;
                     }
-                    if (await this.storage.hasSeenFeedGuid(url, hashId)) {
-                        log.debug('Skipping already seen entry', item.id ?? hashId);
+                    newGuids.push(item.hashId);
+    
+                    if (initialSync) {
+                        log.debug(`Skipping entry ${item.id ?? item.hashId} since we're performing an initial sync`);
                         continue;
                     }
                     const entry = {
@@ -243,12 +273,15 @@ export class FeedReader {
                 if (seenEntriesChanged && newGuids.length) {
                     await this.storage.storeFeedGuids(url, ...newGuids);
                 }
-    
             }
             this.queue.push<FeedSuccess>({ eventName: 'feed.success', sender: 'FeedReader', data: { url } });
             // Clear any feed failures
             this.feedsFailingHttp.delete(url);
             this.feedsFailingParsing.delete(url);
+            if (this.feedsToRetain.has(url)) {
+                // If we've removed this feed since processing it, do not requeue.
+                this.feedQueue.push(url);
+            }
         } catch (err: unknown) {
             // TODO: Proper Rust Type error.
             if ((err as Error).message.includes('Failed to fetch feed due to HTTP')) {
@@ -256,12 +289,11 @@ export class FeedReader {
             } else {
                 this.feedsFailingParsing.add(url);
             }
+            const backoffDuration = this.feedQueue.backoff(url);
             const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
             const feedError = new FeedError(url.toString(), error, fetchKey);
-            log.error("Unable to read feed:", feedError.message);
+            log.error("Unable to read feed:", feedError.message, `backing off for ${backoffDuration}ms`);
             this.queue.push<FeedError>({ eventName: 'feed.error', sender: 'FeedReader', data: feedError});
-        } finally {
-            this.feedQueue.push(url);
         }
         return seenEntriesChanged;
     }
@@ -277,11 +309,11 @@ export class FeedReader {
         Metrics.feedsFailingDeprecated.set({ reason: "http" }, this.feedsFailingHttp.size );
         Metrics.feedsFailingDeprecated.set({ reason: "parsing" }, this.feedsFailingParsing.size);
 
-        log.debug(`Checking for updates in ${this.observedFeedUrls.size} RSS/Atom feeds (worker: ${workerId})`);
+        log.debug(`Checking for updates in ${this.feedQueue.length()} RSS/Atom feeds (worker: ${workerId})`);
 
         const fetchingStarted = Date.now();
 
-        const [ url ] = this.feedQueue.splice(0, 1);
+        const url = this.feedQueue.pop();
         let sleepFor = this.sleepingInterval;
 
         if (url) {
@@ -298,7 +330,7 @@ export class FeedReader {
                 log.warn(`It took us longer to update the feeds than the configured pool interval`);
             }
         } else {
-            // It may be possible that we have more workers than feeds. This will cause the worker to just sleep.
+            // It is possible that we have more workers than feeds. This will cause the worker to just sleep.
             log.debug(`No feeds available to poll for worker ${workerId}`);
         }
 

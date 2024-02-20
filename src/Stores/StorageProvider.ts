@@ -25,7 +25,7 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     setStoredTempFile(key: string, value: string): Promise<void>;
     getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads>;
     setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void>;
-    storeFeedGuids(url: string, ...guid: string[]): Promise<void>;
-    hasSeenFeed(url: string, ...guid: string[]): Promise<boolean>;
-    hasSeenFeedGuid(url: string, guid: string): Promise<boolean>;
+    storeFeedGuids(url: string, ...guids: string[]): Promise<void>;
+    hasSeenFeed(url: string): Promise<boolean>;
+    hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]>;
 }

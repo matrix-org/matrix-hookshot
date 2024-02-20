@@ -35,8 +35,9 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
         return this.feedGuids.has(url);
     }
 
-    async hasSeenFeedGuid(url: string, guid: string): Promise<boolean> {
-        return this.feedGuids.get(url)?.includes(guid) ?? false;
+    async hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]> {
+        const existing = this.feedGuids.get(url);
+        return existing ? guids.filter((existingGuid) => existing.includes(existingGuid)) : [];
     }
 
     public async setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope = "") {

@@ -220,15 +220,16 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
         // We want to retry these sends, because sometimes the network / HS
         // craps out.
+        const content = {
+            msgtype: 'm.notice',
+            format: "org.matrix.custom.html",
+            formatted_body: md.renderInline(message),
+            body: message,
+            external_url: entry.link ?? undefined,
+            "uk.half-shot.matrix-hookshot.feeds.item": entry,
+        };
         await retry(
-            () => this.intent.sendEvent(this.roomId, {
-                msgtype: 'm.notice',
-                format: "org.matrix.custom.html",
-                formatted_body: md.renderInline(message),
-                body: message,
-                external_url: entry.link ?? undefined,
-                "uk.half-shot.matrix-hookshot.feeds.item": entry,
-            }),
+            () => this.intent.sendEvent(this.roomId, content),
             SEND_EVENT_MAX_ATTEMPTS,
             SEND_EVENT_INTERVAL_MS,
             // Filter for showstopper errors like 4XX errors, but otherwise
