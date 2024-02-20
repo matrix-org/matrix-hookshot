@@ -132,8 +132,7 @@ impl QueueWithBackoff {
         self.queue.len() as u32
     }
 
-    #[napi]
-    pub fn shuffle(&mut self) {
+    fn shuffle(&mut self) {
         let mut rng = rand::thread_rng();
         self.queue.make_contiguous().shuffle(&mut rng);
     }
