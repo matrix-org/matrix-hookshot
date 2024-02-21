@@ -227,8 +227,10 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
 
     public async hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]> {
         let multi = this.redis.multi();
+        const feedKey = `${FEED_GUIDS}${url}`;
+
         for (const guid of guids) {
-            multi = multi.lpos(`${FEED_GUIDS}${url}`, guid);
+            multi = multi.lpos(feedKey, guid);
         }
         const res = await multi.exec();
         if (res === null) {
