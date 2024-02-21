@@ -23,7 +23,6 @@ export function installRequestFunction() {
         const tOut = params.timeout !== undefined ? setTimeout(() => abort.abort("Timed out"), params.timeout): undefined;
         let res;
         try {
-            console.log(params.method ?? "GET", url);
             res = await undiciFetch(url, {
                 method: params.method ?? 'GET',
                 body: params.body,
@@ -32,7 +31,6 @@ export function installRequestFunction() {
                 dispatcher,
                 signal: tOut ? abort.signal : undefined,
             } satisfies Partial<RequestInit>);
-            console.log("response");
         } catch (ex) {
             if (ex instanceof Error && ex.cause) {
                 throw ex.cause;
@@ -56,10 +54,12 @@ export function installRequestFunction() {
             headers: Object.fromEntries(res.headers.entries()),
             statusCode: res.status,
             statusMessage: res.statusText,
+        // Use any as we aren't returning a "true" reqeust response.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } satisfies Partial<RequestResponse> as any};
     };
     setRequestFn(
-        (params: OptionsWithUri, callback: (err: Error|null, response?: any, rBody?: any) => void) => 
+        (params: OptionsWithUri, callback: (err: Error|null, response?: unknown, rBody?: unknown) => void) => 
         fn(params).then(({response, rBody}) => callback(null, response, rBody)).catch(callback)
     );
     installed = true;
