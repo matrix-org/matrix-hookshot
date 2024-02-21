@@ -62,18 +62,22 @@ async function constructFeedReader(feedResponse: () => {headers: Record<string,s
     });
     const cm = new MockConnectionManager([{ feedUrl } as unknown as IConnection]) as unknown as ConnectionManager
     const mq = new MockMessageQueue();
+    const events: MessageQueueMessage<FeedEntry>[] = [];
+    mq.on('pushed', (data) => { if (data.eventName === 'feed.entry') {events.push(data);} });
+
     const storage = new MemoryStorageProvider();
     // Ensure we don't initial sync by storing a guid.
     await storage.storeFeedGuids(feedUrl, '-test-guid-');
     const feedReader = new FeedReader(
         config, cm, mq, storage,
     );
-    return {config, cm, mq, feedReader, feedUrl, httpServer};   
+    after(() => httpServer.close());
+    return {config, cm, events, feedReader, feedUrl, httpServer, storage};   
 }
 
 describe("FeedReader", () => {
     it("should correctly handle empty titles", async () => {
-        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
+        const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="UTF-8"?>
             <rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
@@ -89,18 +93,15 @@ describe("FeedReader", () => {
         `
         }));
 
-        after(() => httpServer.close());
+        await feedReader.pollFeed(feedUrl);
+        feedReader.stop();
+        expect(events).to.have.lengthOf(1);
 
-        const event: any = await new Promise((resolve) => {
-            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
-        });
-
-        expect(event.eventName).to.equal('feed.entry');
-        expect(event.data.feed.title).to.equal(null);
-        expect(event.data.title).to.equal(null);
+        expect(events[0].data.feed.title).to.equal(null);
+        expect(events[0].data.title).to.equal(null);
     });
     it("should handle RSS 2.0 feeds", async () => {
-        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
+        const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="UTF-8" ?>
                 <rss version="2.0">
@@ -125,22 +126,19 @@ describe("FeedReader", () => {
         `
         }));
 
-        after(() => httpServer.close());
+        await feedReader.pollFeed(feedUrl);
+        feedReader.stop();
+        expect(events).to.have.lengthOf(1);
 
-        const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
-            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
-        });
-
-        expect(event.eventName).to.equal('feed.entry');
-        expect(event.data.feed.title).to.equal('RSS Title');
-        expect(event.data.author).to.equal('John Doe');
-        expect(event.data.title).to.equal('Example entry');
-        expect(event.data.summary).to.equal('Here is some text containing an interesting description.');
-        expect(event.data.link).to.equal('http://www.example.com/blog/post/1');
-        expect(event.data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
+        expect(events[0].data.feed.title).to.equal('RSS Title');
+        expect(events[0].data.author).to.equal('John Doe');
+        expect(events[0].data.title).to.equal('Example entry');
+        expect(events[0].data.summary).to.equal('Here is some text containing an interesting description.');
+        expect(events[0].data.link).to.equal('http://www.example.com/blog/post/1');
+        expect(events[0].data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
     });
     it("should handle RSS feeds with a permalink url", async () => {
-        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
+        const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="UTF-8" ?>
                 <rss version="2.0">
@@ -164,22 +162,19 @@ describe("FeedReader", () => {
         `
         }));
 
-        after(() => httpServer.close());
+        await feedReader.pollFeed(feedUrl);
+        feedReader.stop();
+        expect(events).to.have.lengthOf(1);
 
-        const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
-            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
-        });
-
-        expect(event.eventName).to.equal('feed.entry');
-        expect(event.data.feed.title).to.equal('RSS Title');
-        expect(event.data.author).to.equal('John Doe');
-        expect(event.data.title).to.equal('Example entry');
-        expect(event.data.summary).to.equal('Here is some text containing an interesting description.');
-        expect(event.data.link).to.equal('http://www.example.com/blog/post/1');
-        expect(event.data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
+        expect(events[0].data.feed.title).to.equal('RSS Title');
+        expect(events[0].data.author).to.equal('John Doe');
+        expect(events[0].data.title).to.equal('Example entry');
+        expect(events[0].data.summary).to.equal('Here is some text containing an interesting description.');
+        expect(events[0].data.link).to.equal('http://www.example.com/blog/post/1');
+        expect(events[0].data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
     });
     it("should handle Atom feeds", async () => {
-        const { mq, feedReader, httpServer } = await constructFeedReader(() => ({
+        const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="utf-8"?>
             <feed xmlns="http://www.w3.org/2005/Atom">
@@ -207,22 +202,19 @@ describe("FeedReader", () => {
         `
         }));
 
-        after(() => httpServer.close());
+        await feedReader.pollFeed(feedUrl);
+        feedReader.stop();
+        expect(events).to.have.lengthOf(1);
 
-        const event: MessageQueueMessage<FeedEntry> = await new Promise((resolve) => {
-            mq.on('pushed', (data) => { resolve(data); feedReader.stop() });
-        });
-
-        expect(event.eventName).to.equal('feed.entry');
-        expect(event.data.feed.title).to.equal('Example Feed');
-        expect(event.data.title).to.equal('Atom-Powered Robots Run Amok');
-        expect(event.data.author).to.equal('John Doe');
-        expect(event.data.summary).to.equal('Some text.');
-        expect(event.data.link).to.equal('http://example.org/2003/12/13/atom03');
-        expect(event.data.pubdate).to.equal('Sat, 13 Dec 2003 18:30:02 +0000');
+        expect(events[0].data.feed.title).to.equal('Example Feed');
+        expect(events[0].data.title).to.equal('Atom-Powered Robots Run Amok');
+        expect(events[0].data.author).to.equal('John Doe');
+        expect(events[0].data.summary).to.equal('Some text.');
+        expect(events[0].data.link).to.equal('http://example.org/2003/12/13/atom03');
+        expect(events[0].data.pubdate).to.equal('Sat, 13 Dec 2003 18:30:02 +0000');
     });
     it("should not duplicate feed entries", async () => {
-        const { mq, feedReader, httpServer, feedUrl } = await constructFeedReader(() => ({
+        const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
             <?xml version="1.0" encoding="utf-8"?>
             <feed xmlns="http://www.w3.org/2005/Atom">
@@ -240,10 +232,6 @@ describe("FeedReader", () => {
         `
         }));
 
-        after(() => httpServer.close());
-
-        const events: MessageQueueMessage<FeedEntry>[] = [];
-        mq.on('pushed', (data) => { if (data.eventName === 'feed.entry') {events.push(data);} });
         await feedReader.pollFeed(feedUrl);
         await feedReader.pollFeed(feedUrl);
         await feedReader.pollFeed(feedUrl);
