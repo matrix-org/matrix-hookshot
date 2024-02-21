@@ -1,3 +1,33 @@
+5.2.0 (2024-02-21)
+==================
+
+Features
+--------
+
+- Add command to list feeds in JSON and YAML format to easily export all feeds from a room. ([\#876](https://github.com/matrix-org/matrix-hookshot/issues/876))
+- Mention all assignees when a new issue is created on GitHub. ([\#889](https://github.com/matrix-org/matrix-hookshot/issues/889))
+- Retry failed feed messages. ([\#891](https://github.com/matrix-org/matrix-hookshot/issues/891))
+
+
+Bugfixes
+--------
+
+- Fix widgets failing with "Request timed out". ([\#870](https://github.com/matrix-org/matrix-hookshot/issues/870))
+
+
+Improved Documentation
+----------------------
+
+- Mention new and legacy webhook paths in setup documentation. ([\#879](https://github.com/matrix-org/matrix-hookshot/issues/879))
+- Add troubleshooting page to documentation, to cover common issues. ([\#882](https://github.com/matrix-org/matrix-hookshot/issues/882))
+
+
+Internal Changes
+----------------
+
+- Failing RSS/atom feeds are now backed off before being retried. This should result in a speedup for large public deployments where failing feeds may result in a slowdown. ([\#890](https://github.com/matrix-org/matrix-hookshot/issues/890))
+
+
 5.1.2 (2024-01-02)
 ==================
 
