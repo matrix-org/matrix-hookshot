@@ -238,4 +238,58 @@ describe("FeedReader", () => {
         feedReader.stop();
         expect(events).to.have.lengthOf(1);
     });
+    it("should always hash to the same value for Atom feeds", async () => {
+        const expectedHash = ['md5:d41d8cd98f00b204e9800998ecf8427e'];
+        const { feedReader, feedUrl, storage } = await constructFeedReader(() => ({
+            headers: {}, data: `
+            <?xml version="1.0" encoding="utf-8"?>
+            <feed xmlns="http://www.w3.org/2005/Atom">
+              <entry>
+                <title>Atom-Powered Robots Run Amok</title>
+                <link href="http://example.com/test/123"/>
+                <guid isPermaLink="true">http://example.com/test/123</guid>
+              </entry>
+            </feed>
+        `
+        }));
+
+        await feedReader.pollFeed(feedUrl);
+        feedReader.stop();
+        const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
+        expect(items).to.deep.equal(expectedHash);
+    });
+    it("should always hash to the same value for RSS feeds", async () => {
+        const expectedHash = [
+            'md5:98bafde155b931e656ad7c137cd7711e', // guid
+            'md5:72eec3c0d59ff91a80f0073ee4f8511a', // link
+            'md5:7c5dd7e5988ff388ab2a402ce7feb2f0', // title
+        ];
+        const { feedReader, feedUrl, storage } = await constructFeedReader(() => ({
+            headers: {}, data: `
+            <?xml version="1.0" encoding="UTF-8" ?>
+                <rss version="2.0">
+                <channel>
+                    <title>RSS Title</title>
+                    <description>This is an example of an RSS feed</description>
+                    <item>
+                        <title>Example entry</title>
+                        <guid isPermaLink="true">http://www.example.com/blog/post/1</guid>
+                    </item>
+                    <item>
+                        <title>Example entry</title>
+                        <link>http://www.example.com/blog/post/2</link>
+                    </item>
+                    <item>
+                        <title>Example entry 3</title>
+                    </item>
+                </channel>
+            </rss>
+        `
+        }));
+
+        await feedReader.pollFeed(feedUrl);
+        feedReader.stop();
+        const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
+        expect(items).to.deep.equal(expectedHash);
+    });
 });
