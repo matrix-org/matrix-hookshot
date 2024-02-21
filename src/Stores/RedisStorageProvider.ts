@@ -228,11 +228,8 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     public async hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]> {
         let multi = this.redis.multi();
         const feedKey = `${FEED_GUIDS}${url}`;
-        // In 5.2.0 we accidemtally introduced unhashed keys into storage.
-        // This will attempt to find and fix those entries.
-        const legacyGuids = guids.map(f => f.replace(/^md5:/, ''));
 
-        for (const guid of [...guids, ...legacyGuids]) {
+        for (const guid of guids) {
             multi = multi.lpos(feedKey, guid);
         }
         const res = await multi.exec();
@@ -240,19 +237,6 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
             // Just assume we've seen none.
             return [];
         }
-        const seenGuids = guids.filter((_guid, index) => res[index][1] !== null);
-        const brokenGuids = seenGuids.filter(g => !g.startsWith('md5:'));
-        if (brokenGuids.length) {
-            log.warn(`Found some guids for ${url} which are invalid, repairing`);
-            // Repair any broken entries.
-            for (const guid of brokenGuids) {
-                this.redis.lrem(feedKey, 1, guid);
-                const prefixGuid = `md5:${guid}`;
-                this.redis.lpush(feedKey, `md5:${guid}`);
-                seenGuids.splice(seenGuids.indexOf(guid), 1, prefixGuid);
-            }
-        }
-
-        return seenGuids;
+        return guids.filter((_guid, index) => res[index][1] !== null);
     }
 }
