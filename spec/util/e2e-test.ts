@@ -203,9 +203,6 @@ export class E2ETestEnv {
             logging: {
                 level: 'info',
             },
-            queue: {
-                monolithic: true,
-            },
             // Always enable webhooks so that hookshot starts.
             generic: {
                 enabled: true,
