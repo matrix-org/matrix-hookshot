@@ -571,10 +571,11 @@ export class BridgeConfig {
         this.queue = configData.queue;
 
 
-        if (configData.queue.monolithic !== undefined) {
+        if (configData.queue?.monolithic !== undefined) {
             log.warn("The `queue.monolithic` config option is deprecated. Instead, configure the `cache` section.");
             this.cache = {
-                redisUri: 'redisUri' in configData.queue ? configData.queue.redisUri : `redis://${configData.queue.host}:${configData.queue.port ?? 6379}`
+                redisUri: 'redisUri' in configData.queue ? configData.queue.redisUri
+                    : `redis://${configData.queue.host ?? 'localhost'}:${configData.queue.port ?? 6379}`
             };
             // If monolithic, disable the redis queue.
             if (configData.queue.monolithic === true) {

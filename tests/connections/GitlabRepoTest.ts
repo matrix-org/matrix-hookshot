@@ -56,9 +56,7 @@ const GITLAB_MR_COMMENT = {
 const COMMENT_DEBOUNCE_MS = 25;
 
 function createConnection(state: Record<string, unknown> = {}, isExistingState=false): { connection: GitLabRepoConnection, intent: IntentMock } {
-	const mq = createMessageQueue({
-		monolithic: true
-	});
+	const mq = createMessageQueue();
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
 	const intent = as.getIntentForUserId('@gitlab:example.test');

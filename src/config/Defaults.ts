@@ -18,9 +18,6 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
     cache: {
         redisUri: "redis://localhost:6379"
     },
-    queue: {
-        redisUri: "redis://localhost:6379"
-    },
     logging: {
         level: "info",
         colorize: true,
