@@ -468,7 +468,7 @@ export interface BridgeConfigRoot {
     passFile: string;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
-    queue: BridgeConfigQueue;
+    queue?: BridgeConfigQueue;
     sentry?: BridgeConfigSentry;
     serviceBots?: BridgeConfigServiceBot[];
     webhook?: BridgeConfigWebhook;
