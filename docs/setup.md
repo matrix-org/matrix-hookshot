@@ -222,6 +222,20 @@ Please note that the appservice HTTP listener is configured <strong>separately</
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
 
+### Cache configuration
+
+You can optionally enable a Redis-backed cache for Hookshot. This is generally a good thing to enable if you can
+afford to, as it will generally improve startup times. Some features such as resuming RSS/Atom feeds between restarts
+is also only possible with a external cache.
+
+To enable, simply set:
+
+```yaml
+cache:
+  redisUri: "redis://redis-host:3679"
+```
+
+
 ### Services configuration
 
 You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.
