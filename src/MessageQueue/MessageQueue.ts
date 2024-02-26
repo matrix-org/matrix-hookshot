@@ -1,4 +1,4 @@
-import { BridgeConfigQueue } from "../config/sections/index";
+import { BridgeConfigQueue } from "../config/sections";
 import { LocalMQ } from "./LocalMQ";
 import { RedisMQ } from "./RedisQueue";
 import { MessageQueue } from "./Types";
