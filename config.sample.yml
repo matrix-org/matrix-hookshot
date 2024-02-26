@@ -134,12 +134,15 @@ listeners:
 #  # (Optional) Prometheus metrics support
 #  enabled: true
 
+#cache:
+#  # (Optional) Cache options for large scale deployments.
+#  # For encryption to work, this must be configured.
+#  redisUri: redis://localhost:6379
+
 #queue:
-#  # (Optional) Message queue / cache configuration options for large scale deployments.
+#  # (Optional) Message queue configuration options for large scale deployments.
 #  # For encryption to work, must be set to monolithic mode and have a host & port specified.
-#  monolithic: true
-#  port: 6379
-#  host: localhost
+#  redisUri: redis://localhost:6379
 
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
