@@ -66,7 +66,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         oauth: {
             client_id: "foo",
             client_secret: "bar",
-            redirect_uri: `${hookshotWebhooksUrl}/bridge_oauth/`,
+            redirect_uri: `${hookshotWebhooksUrl}/oauth/`,
         },
         webhook: {
             secret: "secrettoken",
@@ -98,7 +98,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         oauth: {
             client_id: "foo",
             client_secret: "bar",
-            redirect_uri: `${hookshotWebhooksUrl}/bridge_oauth/`,
+            redirect_uri: `${hookshotWebhooksUrl}/oauth/`,
         },
     },
     generic: {
