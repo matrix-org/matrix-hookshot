@@ -1,6 +1,6 @@
 import { setRequestFn } from "matrix-bot-sdk";
 import type { OptionsWithUri, RequestResponse } from "request";
-import { Agent, fetch as undiciFetch } from "undici";
+import { Agent, fetch as undiciFetch, RequestInit as UndiciRequestInit } from "undici";
 
 const globalAgent = new Agent({ allowH2: true });
 
@@ -27,7 +27,7 @@ async function doRequest(params: OptionsWithUri): Promise<{response: RequestResp
             keepalive: true,
             dispatcher: globalAgent,
             signal: tOut ? abort.signal : undefined,
-        } satisfies Partial<RequestInit>);
+        } satisfies Partial<UndiciRequestInit>);
     } catch (ex) {
         if (ex instanceof Error && ex.cause) {
             throw ex.cause;
