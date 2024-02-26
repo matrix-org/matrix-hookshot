@@ -27,7 +27,7 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
 
     const {appservice, storage} = getAppservice(config, registration);
 
-    if (config.queue.monolithic) {
+    if (!config.queue) {
         const matrixSender = new MatrixSender(config, appservice);
         matrixSender.listen();
         const userNotificationWatcher = new UserNotificationWatcher(config);

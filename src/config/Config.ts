@@ -453,26 +453,26 @@ export interface BridgeConfigSentry {
 
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
-    serviceBots?: BridgeConfigServiceBot[];
     bridge: BridgeConfigBridge;
+    cache?: BridgeConfigCache;
     experimentalEncryption?: BridgeConfigEncryption;
-    figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeedsYAML;
+    figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHubYAML;
     gitlab?: BridgeConfigGitLabYAML;
+    jira?: BridgeConfigJiraYAML;
+    listeners?: BridgeConfigListener[];
+    logging: BridgeConfigLogging;
+    metrics?: BridgeConfigMetrics;
+    passFile: string;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
-    jira?: BridgeConfigJiraYAML;
-    logging: BridgeConfigLogging;
-    passFile: string;
     queue: BridgeConfigQueue;
+    sentry?: BridgeConfigSentry;
+    serviceBots?: BridgeConfigServiceBot[];
     webhook?: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfigYAML;
-    metrics?: BridgeConfigMetrics;
-    listeners?: BridgeConfigListener[];
-    sentry?: BridgeConfigSentry;
-    cache: BridgeConfigCache;
 }
 
 export class BridgeConfig {
