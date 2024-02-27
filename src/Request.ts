@@ -61,6 +61,8 @@ async function doRequest(params: OptionsWithUri): Promise<{response: RequestResp
  * agent to achieve more performance.
  */
 export function installRequestFunction() {
-    // Keep connections alive for long enough to be reused.
-    setRequestFn(doRequest);
+    setRequestFn(
+        (params: OptionsWithUri, callback: (err: Error|null, response?: unknown, rBody?: unknown) => void) => 
+        doRequest(params).then(({response, rBody}) => callback(null, response, rBody)).catch(callback)
+    );
 }
