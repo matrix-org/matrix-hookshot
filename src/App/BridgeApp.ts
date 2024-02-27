@@ -4,7 +4,7 @@ import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
 import { Logger, getBridgeVersion } from "matrix-appservice-bridge";
-import { IAppserviceRegistration, LogService, setRequestFn } from "matrix-bot-sdk";
+import { IAppserviceRegistration, LogService } from "matrix-bot-sdk";
 import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 import * as Sentry from '@sentry/node';
