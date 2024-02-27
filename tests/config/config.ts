@@ -60,9 +60,13 @@ describe("Config/BridgeConfig", () => {
     });
     describe("will handle the cache option", () => {
         it("with redisUri", () => {
-            const config = new BridgeConfig({ ...DefaultConfigRoot, cache: {
-                redisUri: "redis://localhost:6379"
-            }});
+            const config = new BridgeConfig({
+                ...DefaultConfigRoot,
+                cache: {
+                    redisUri: "redis://localhost:6379"
+                },
+                queue: undefined,
+            });
             expect(config.cache).to.deep.equal({
                 redisUri: "redis://localhost:6379"
             });

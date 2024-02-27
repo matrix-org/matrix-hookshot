@@ -570,7 +570,6 @@ export class BridgeConfig {
         this.cache = configData.cache;
         this.queue = configData.queue;
 
-
         if (configData.queue?.monolithic !== undefined) {
             log.warn("The `queue.monolithic` config option is deprecated. Instead, configure the `cache` section.");
             this.cache = {
