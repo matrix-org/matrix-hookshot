@@ -27,7 +27,8 @@ cd matrix-hookshot
 yarn # or npm i
 ```
 
-Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development` and then running it:
+Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development`, depending if you want [better performance or more verbose logging](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production), and then running it:
+
 
 ```bash
 NODE_ENV=production yarn start
