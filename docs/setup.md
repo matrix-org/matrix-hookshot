@@ -27,7 +27,11 @@ cd matrix-hookshot
 yarn # or npm i
 ```
 
-Starting the bridge (after configuring it), is a matter of running `yarn start`.
+Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development` and then running it:
+
+```bash
+NODE_ENV=production yarn start
+```
 
 ## Installation via Docker
 
