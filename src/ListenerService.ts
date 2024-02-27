@@ -30,6 +30,7 @@ export class ListenerService {
         }
         for (const listenerConfig of config) {
             const app = expressApp();
+            app.set('x-powered-by', false);
             app.use(Handlers.requestHandler());
             this.listeners.push({
                 config: listenerConfig,
