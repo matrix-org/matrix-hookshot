@@ -166,7 +166,9 @@ Hookshot requires the homeserver to be configured with its appservice registrati
 cd matrix-hookshot
 yarn # or npm i
 </code></pre>
-<p>Starting the bridge (after configuring it), is a matter of running <code>yarn start</code>.</p>
+<p>Starting the bridge (after configuring it), is a matter of setting the <code>NODE_ENV</code> environment variable to <code>production</code> or <code>development</code>, depending if you want <a href="https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production">better performance or more verbose logging</a>, and then running it:</p>
+<pre><code class="language-bash">NODE_ENV=production yarn start
+</code></pre>
 <h2 id="installation-via-docker"><a class="header" href="#installation-via-docker">Installation via Docker</a></h2>
 <p>To get started quickly, you can use the Docker image <a href="https://hub.docker.com/r/halfshot/matrix-hookshot"><code>halfshot/matrix-hookshot</code></a>.</p>
 <pre><code class="language-bash">docker run \
