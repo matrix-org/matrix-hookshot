@@ -37,6 +37,7 @@ pub struct ReadFeedOptions {
     pub etag: Option<String>,
     pub poll_timeout_seconds: i64,
     pub user_agent: String,
+    pub maximum_feed_size_mb: i64,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -202,6 +203,13 @@ pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedR
     match req.headers(headers).send().await {
         Ok(res) => {
             let res_headers = res.headers().clone();
+            if res.content_length().unwrap_or(0) > options.maximum_feed_size_mb as u64 {
+                return Err(JsError::new(
+                    Status::Unknown,
+                    "Feed exceeded maximum size",
+                ));
+            }
+            
             match res.status() {
                 StatusCode::OK => match res.text().await {
                     Ok(body) => match js_parse_feed(body) {

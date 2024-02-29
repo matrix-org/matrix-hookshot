@@ -251,6 +251,7 @@ export interface BridgeConfigFeedsYAML {
     pollIntervalSeconds?: number;
     pollConcurrency?: number;
     pollTimeoutSeconds?: number;
+    maximumFeedSizeMB?: number;
 }
 
 export class BridgeConfigFeeds {
@@ -259,6 +260,9 @@ export class BridgeConfigFeeds {
     public pollTimeoutSeconds: number;
     public pollConcurrency: number;
 
+    @configKey("The maximum response size of a feed on first load. Oversized responses will prevent a connection from being created.", true)
+    public maximumFeedSizeMB: number;
+
     constructor(yaml: BridgeConfigFeedsYAML) {
         this.enabled = yaml.enabled;
         this.pollConcurrency = yaml.pollConcurrency ?? 4;
@@ -266,6 +270,11 @@ export class BridgeConfigFeeds {
         assert.strictEqual(typeof this.pollIntervalSeconds, "number");
         this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 30;
         assert.strictEqual(typeof this.pollTimeoutSeconds, "number");
+        this.maximumFeedSizeMB = yaml.maximumFeedSizeMB ?? 25;
+        assert.strictEqual(typeof this.maximumFeedSizeMB, "number");
+        if (this.maximumFeedSizeMB < 1) {
+            throw new ConfigError('feeds.maximumFeedSizeMB', 'Must be at least 1MB or greater');
+        }
     }
 
     @hideKey()

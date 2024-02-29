@@ -124,6 +124,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         pollIntervalSeconds: 600,
         pollTimeoutSeconds: 30,
         pollConcurrency: 4,
+        maximumFeedSizeMB: 25,
     },
     provisioning: {
         secret: "!secretToken"
