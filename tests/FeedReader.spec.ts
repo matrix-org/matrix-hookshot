@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import EventEmitter from "events";
-import { BridgeConfigFeeds } from "../src/config/Config";
+import { BridgeConfigFeeds, BridgeConfigFeedsYAML } from "../src/config/Config";
 import { ConnectionManager } from "../src/ConnectionManager";
 import { IConnection } from "../src/Connections";
 import { FeedEntry, FeedReader } from "../src/feeds/FeedReader";
@@ -39,14 +39,15 @@ class MockMessageQueue extends EventEmitter implements MessageQueue {
     }
 }
 
-async function constructFeedReader(feedResponse: () => {headers: Record<string,string>, data: string}) {
+async function constructFeedReader(feedResponse: () => {headers: Record<string,string>, data: string}, extraConfig?: Partial<BridgeConfigFeedsYAML>) {
+
     const httpServer = await new Promise<Server>(resolve => {
         const srv = createServer((_req, res) => {
-            res.writeHead(200);
             const { headers, data } = feedResponse();
             Object.entries(headers).forEach(([key,value]) => {
                 res.setHeader(key, value);
             });
+            res.writeHead(200);
             res.write(data);
             res.end();
         }).listen(0, '127.0.0.1', () => {
@@ -59,6 +60,7 @@ async function constructFeedReader(feedResponse: () => {headers: Record<string,s
         enabled: true,
         pollIntervalSeconds: 1,
         pollTimeoutSeconds: 1,
+        ...extraConfig,
     });
     const cm = new MockConnectionManager([{ feedUrl } as unknown as IConnection]) as unknown as ConnectionManager
     const mq = new MockMessageQueue();
@@ -71,7 +73,12 @@ async function constructFeedReader(feedResponse: () => {headers: Record<string,s
     const feedReader = new FeedReader(
         config, cm, mq, storage,
     );
-    after(() => httpServer.close());
+
+    after(() => {
+        httpServer.close()
+        feedReader.stop();
+    });
+
     return {config, cm, events, feedReader, feedUrl, httpServer, storage};   
 }
 
@@ -94,7 +101,6 @@ describe("FeedReader", () => {
         }));
 
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         expect(events).to.have.lengthOf(1);
 
         expect(events[0].data.feed.title).to.equal(null);
@@ -127,7 +133,6 @@ describe("FeedReader", () => {
         }));
 
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         expect(events).to.have.lengthOf(1);
 
         expect(events[0].data.feed.title).to.equal('RSS Title');
@@ -163,7 +168,6 @@ describe("FeedReader", () => {
         }));
 
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         expect(events).to.have.lengthOf(1);
 
         expect(events[0].data.feed.title).to.equal('RSS Title');
@@ -203,7 +207,6 @@ describe("FeedReader", () => {
         }));
 
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         expect(events).to.have.lengthOf(1);
 
         expect(events[0].data.feed.title).to.equal('Example Feed');
@@ -235,7 +238,6 @@ describe("FeedReader", () => {
         await feedReader.pollFeed(feedUrl);
         await feedReader.pollFeed(feedUrl);
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         expect(events).to.have.lengthOf(1);
     });
     it("should always hash to the same value for Atom feeds", async () => {
@@ -254,7 +256,6 @@ describe("FeedReader", () => {
         }));
 
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
         expect(items).to.deep.equal(expectedHash);
     });
@@ -288,8 +289,29 @@ describe("FeedReader", () => {
         }));
 
         await feedReader.pollFeed(feedUrl);
-        feedReader.stop();
         const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
         expect(items).to.deep.equal(expectedHash);
+    });
+    it.only("should fail to handle a feed which exceed the maximum size.", async () => {
+        const { feedReader, feedUrl } = await constructFeedReader(() => ({
+            headers: {
+                'Content-Length': Math.pow(1024, 2).toString(),
+            }, data: `
+            <?xml version="1.0" encoding="UTF-8" ?>
+            <rss version="2.0">
+            <channel>
+                <title>RSS Title</title>
+                <description>This is an example of an RSS feed</description>
+                <item>
+                    <title>Example entry</title>
+                    <guid isPermaLink="true">http://www.example.com/blog/post/1</guid>
+                </item>
+            </channel>
+        </rss>`
+        }), {
+            maximumFeedSizeMB: 1
+        });
+        await feedReader.pollFeed(feedUrl);
+        expect(feedReader["feedsFailingParsing"]).to.contain(feedUrl);
     });
 });
