@@ -275,6 +275,9 @@ export class BridgeConfigFeeds {
         if (this.maximumFeedSizeMB < 1) {
             throw new ConfigError('feeds.maximumFeedSizeMB', 'Must be at least 1MB or greater');
         }
+        if (!Number.isInteger(this.maximumFeedSizeMB)) {
+            throw new ConfigError('feeds.maximumFeedSizeMB', 'Must be a whole number');
+        }
     }
 
     @hideKey()
