@@ -203,13 +203,10 @@ pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedR
     match req.headers(headers).send().await {
         Ok(res) => {
             let content_length = res.content_length().unwrap_or(0);
-            if content_length > (options.maximum_feed_size_mb*1024*1024) as u64 {
-                return Err(JsError::new(
-                    Status::Unknown,
-                    "Feed exceeded maximum size",
-                ));
+            if content_length > (options.maximum_feed_size_mb * 1024 * 1024) as u64 {
+                return Err(JsError::new(Status::Unknown, "Feed exceeded maximum size"));
             }
-            
+
             let res_headers = res.headers().clone();
             match res.status() {
                 StatusCode::OK => match res.text().await {
