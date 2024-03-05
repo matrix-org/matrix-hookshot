@@ -14,6 +14,8 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
     private gitlabDiscussionThreads = new Map<string, SerializedGitlabDiscussionThreads>();
     private feedGuids = new Map<string, Array<string>>();
+    private feedQueries: {[url: string]: number} = {};
+    private feedQueriesResetTime = 0;
 
     constructor() {
         super();
@@ -29,6 +31,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
         while (set.length > MAX_FEED_ITEMS) {
             set.pop();
         } 
+        this.feedQueries[url] = (this.feedQueries[url] ?? 0) + 1
     }
 
     async hasSeenFeed(url: string): Promise<boolean> {
@@ -107,5 +110,15 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
 
     public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
         this.gitlabDiscussionThreads.set(connectionId, value);
+    }
+
+    public async resetFeedQueryCount() {
+        const scores = {...this.feedQueries};
+        this.feedQueriesResetTime = Date.now();
+        this.feedQueries = {};
+        return {
+            scores,
+            lastQueryTime: this.feedQueriesResetTime,
+        };
     }
 }
