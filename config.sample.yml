@@ -141,7 +141,7 @@ listeners:
 
 #queue:
 #  # (Optional) Message queue configuration options for large scale deployments.
-#  # For encryption to work, must be set to monolithic mode and have a host & port specified.
+#  # For encryption to work, this must not be configured.
 #  redisUri: redis://localhost:6379
 
 #widgets:
