@@ -13,7 +13,7 @@ Hookshot supports end-to-bridge encryption via [MSC3202](https://github.com/matr
 In order for Hookshot to use encryption, it must be configured as follows:
 - The `experimentalEncryption.storagePath` setting must point to a directory that Hookshot has permissions to write files into. If running with Docker, this path should be within a volume (for persistency). Hookshot uses this directory for its crypto store (i.e. long-lived state relating to its encryption keys).
     - Once a crypto store has been initialized, its files must not be modified, and Hookshot cannot be configured to use another crypto store of the same type as one it has used before. If a crypto store's files get lost or corrupted, Hookshot may fail to start up, or may be unable to decrypt command messages. To fix such issues, stop Hookshot, then reset its crypto store by running `yarn start:resetcrypto`.
-- [Redis](./workers.md) must be enabled. Note that worker mode is not yet supported with encryption, so `queue.monolithic` must be set to `true`.
+- [Redis](./workers.md) must be enabled. Note that worker mode is not yet supported with encryption, so `queue` MUST **NOT be configured**.
 
 If you ever reset your homeserver's state, ensure you also reset Hookshot's encryption state. This includes clearing the `experimentalEncryption.storagePath` directory and all worker state stored in your redis instance. Otherwise, Hookshot may fail on start up with registration errors.
 
