@@ -22,7 +22,8 @@ cache:
   redisUri: "redis://redis-host:6379"
 ```
 
-Note that if [encryption](./encryption.md) is enabled, you cannot enable this configuration. Worker mode is not yet supported with encryption.
+Note that if [encryption](./encryption.md) is enabled, you MUST enable the `cache` config but NOT the `queue` config. Workers require persistent
+storage in Redis, but cannot make use of worker-mode queues.
 
 Once that is done, you can simply start the processes by name using yarn:
 ```
