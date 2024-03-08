@@ -210,7 +210,7 @@ hookshot:
       # (Optional) Provisioning API for integration managers
       #
       # secret: "!secretToken"
-    passFile: passkey.pem
+    passFile: /data/passkey.pem
     # A passkey used to encrypt tokens stored inside the bridge.
     # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
     #
@@ -311,4 +311,7 @@ hookshot:
     sender_localpart: hookshot
     url: "http://example.com"
     rate_limited: false
+  # After generating the file, you can run:
+  # awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' <your_passkey.pem>
+  # This will replace new line characters with '\n' and print the file in a single line
   passkey: ""
