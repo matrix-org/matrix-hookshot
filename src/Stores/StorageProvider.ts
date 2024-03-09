@@ -28,4 +28,8 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     storeFeedGuids(url: string, ...guids: string[]): Promise<void>;
     hasSeenFeed(url: string): Promise<boolean>;
     hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]>;
+    resetFeedQueryCount(): Promise<{
+        scores: Record<string, number>,
+        lastQueryTime: number
+    }>;
 }

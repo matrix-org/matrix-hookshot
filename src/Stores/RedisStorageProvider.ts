@@ -28,6 +28,8 @@ const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const FEED_GUIDS = "feeds.guids.";
+const FEED_QUERY_SCORE = "feeds.queryscore";
+const FEED_QUERY_SCORE_RESET_TIME = "feeds.queryscore.resettime";
 
 const log = new Logger("RedisASProvider");
 
@@ -219,6 +221,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         const feedKey = `${FEED_GUIDS}${url}`;
         await this.redis.lpush(feedKey, ...guids);
         await this.redis.ltrim(feedKey, 0, MAX_FEED_ITEMS);
+        await this.redis.zadd(FEED_QUERY_SCORE, "INCR", 1, url);
     }
 
     public async hasSeenFeed(url: string): Promise<boolean> {
@@ -238,5 +241,22 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
             return [];
         }
         return guids.filter((_guid, index) => res[index][1] !== null);
+    }
+
+    public async resetFeedQueryCount() {
+        const scores: {[key: string]: number} = {};
+        const data = await this.redis.zrangebyscore(FEED_QUERY_SCORE, "-inf", "+inf", "WITHSCORES");
+        for (let index = 0; index < data.length; index += 2) {
+            const key = data[index];
+            const value = parseInt(data[index+1]);
+            scores[key] = value;
+        }
+        const lastQueryTime = parseInt((await this.redis.get(FEED_QUERY_SCORE_RESET_TIME)) ?? "0");
+        await this.redis.del(FEED_QUERY_SCORE);
+        await this.redis.set(FEED_QUERY_SCORE_RESET_TIME, Date.now());
+        return {
+            scores,
+            lastQueryTime,
+        };
     }
 }
