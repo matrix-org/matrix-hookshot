@@ -349,6 +349,14 @@ Note that OAuth requests also go through this listener. Previous versions of the
 Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
+<h3 id="cache-configuration"><a class="header" href="#cache-configuration">Cache configuration</a></h3>
+<p>You can optionally enable a Redis-backed cache for Hookshot. This is generally a good thing to enable if you can
+afford to, as it will generally improve startup times. Some features such as resuming RSS/Atom feeds between restarts
+is also only possible with a external cache.</p>
+<p>To enable, simply set:</p>
+<pre><code class="language-yaml">cache:
+  redisUri: &quot;redis://redis-host:3679&quot;
+</code></pre>
 <h3 id="services-configuration"><a class="header" href="#services-configuration">Services configuration</a></h3>
 <p>You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.</p>
 <ul>
@@ -537,12 +545,15 @@ listeners:
 #  # (Optional) Prometheus metrics support
 #  enabled: true
 
+#cache:
+#  # (Optional) Cache options for large scale deployments. 
+#  #    For encryption to work, this must be configured.
+#  redisUri: redis://localhost:6379
+
 #queue:
-#  # (Optional) Message queue / cache configuration options for large scale deployments.
-#  # For encryption to work, must be set to monolithic mode and have a host &amp; port specified.
-#  monolithic: true
-#  port: 6379
-#  host: localhost
+#  # (Optional) Message queue configuration options for large scale deployments.
+#  # For encryption to work, this must not be configured.
+#  redisUri: redis://localhost:6379
 
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
@@ -1940,14 +1951,15 @@ This feature is <b>experimental</b> and should only be used when you are reachin
 </section>
 <h2 id="running-in-multi-process-mode"><a class="header" href="#running-in-multi-process-mode">Running in multi-process mode</a></h2>
 <p>You must first have a working Redis instance somewhere which can talk between processes. For example, in Docker you can run:</p>
-<p><code>docker run --name github-bridge-redis -p 6379:6379 -d redis</code>.</p>
+<p><code>docker run --name redis-host -p 6379:6379 -d redis</code>.</p>
 <p>The processes should all share the same config, which should contain the correct config to enable Redis:</p>
 <pre><code class="language-yaml">queue:
-  monolithic: false
-  port: 6379
-  host: github-bridge-redis
+  redisUri: &quot;redis://redis-host:6379&quot;
+cache:
+  redisUri: &quot;redis://redis-host:6379&quot;
 </code></pre>
-<p>Note that if <a href="advanced/./encryption.html">encryption</a> is enabled, <code>queue.monolithic</code> must be set to <code>true</code>, as worker mode is not yet supported with encryption.</p>
+<p>Note that if <a href="advanced/./encryption.html">encryption</a> is enabled, you MUST enable the <code>cache</code> config but NOT the <code>queue</code> config. Workers require persistent
+storage in Redis, but cannot make use of worker-mode queues.</p>
 <p>Once that is done, you can simply start the processes by name using yarn:</p>
 <pre><code>yarn start:webhooks
 yarn start:matrixsender
@@ -1968,7 +1980,7 @@ For more details, see <a href="https://github.com/matrix-org/matrix-hookshot/iss
 <li>Once a crypto store has been initialized, its files must not be modified, and Hookshot cannot be configured to use another crypto store of the same type as one it has used before. If a crypto store's files get lost or corrupted, Hookshot may fail to start up, or may be unable to decrypt command messages. To fix such issues, stop Hookshot, then reset its crypto store by running <code>yarn start:resetcrypto</code>.</li>
 </ul>
 </li>
-<li><a href="advanced/./workers.html">Redis</a> must be enabled. Note that worker mode is not yet supported with encryption, so <code>queue.monolithic</code> must be set to <code>true</code>.</li>
+<li><a href="advanced/./workers.html">Redis</a> must be enabled. Note that worker mode is not yet supported with encryption, so <code>queue</code> MUST <strong>NOT be configured</strong>.</li>
 </ul>
 <p>If you ever reset your homeserver's state, ensure you also reset Hookshot's encryption state. This includes clearing the <code>experimentalEncryption.storagePath</code> directory and all worker state stored in your redis instance. Otherwise, Hookshot may fail on start up with registration errors.</p>
 <p>Also ensure that Hookshot's appservice registration file contains every line from <code>registration.sample.yml</code> that appears after the <code>If enabling encryption</code> comment. Note that changing the registration file may require restarting the homeserver that Hookshot is connected to.</p>

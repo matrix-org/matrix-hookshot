@@ -164,7 +164,7 @@ For more details, see <a href="https://github.com/matrix-org/matrix-hookshot/iss
 <li>Once a crypto store has been initialized, its files must not be modified, and Hookshot cannot be configured to use another crypto store of the same type as one it has used before. If a crypto store's files get lost or corrupted, Hookshot may fail to start up, or may be unable to decrypt command messages. To fix such issues, stop Hookshot, then reset its crypto store by running <code>yarn start:resetcrypto</code>.</li>
 </ul>
 </li>
-<li><a href="./workers.html">Redis</a> must be enabled. Note that worker mode is not yet supported with encryption, so <code>queue.monolithic</code> must be set to <code>true</code>.</li>
+<li><a href="./workers.html">Redis</a> must be enabled. Note that worker mode is not yet supported with encryption, so <code>queue</code> MUST <strong>NOT be configured</strong>.</li>
 </ul>
 <p>If you ever reset your homeserver's state, ensure you also reset Hookshot's encryption state. This includes clearing the <code>experimentalEncryption.storagePath</code> directory and all worker state stored in your redis instance. Otherwise, Hookshot may fail on start up with registration errors.</p>
 <p>Also ensure that Hookshot's appservice registration file contains every line from <code>registration.sample.yml</code> that appears after the <code>If enabling encryption</code> comment. Note that changing the registration file may require restarting the homeserver that Hookshot is connected to.</p>
