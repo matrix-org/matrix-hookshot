@@ -3,6 +3,9 @@ use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 use rsa::pkcs8::DecodePrivateKey;
 use base64ct::{Base64, Encoding};
 
+static MAX_TOKEN_PART_SIZE: usize = 128;
+
+
 pub struct TokenEncryption {
     pub private_key: RsaPrivateKey,
     pub public_key: RsaPublicKey,
@@ -55,7 +58,7 @@ impl JsTokenEncryption {
   pub fn encrypt(&self, input: String) -> Vec<String> {
     let mut rng = rand::thread_rng();
     let mut parts: Vec<String> = Vec::new();
-    for part in input.into_bytes().chunks(128) {
+    for part in input.into_bytes().chunks(MAX_TOKEN_PART_SIZE) {
       let encrypted = self.inner.public_key.encrypt(&mut rng, Pkcs1v15Encrypt, part).unwrap();
       let b64 = Base64::encode_string(encrypted.as_slice());
       parts.push(b64);

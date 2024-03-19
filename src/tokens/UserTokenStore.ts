@@ -51,7 +51,6 @@ function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?:
     return `${legacy ? LEGACY_ACCOUNT_DATA_GITLAB_TYPE : ACCOUNT_DATA_GITLAB_TYPE}${instanceUrl}${userId}`;
 }
 
-const MAX_TOKEN_PART_SIZE = 128;
 const OAUTH_TIMEOUT_MS = 1000 * 60 * 30;
 
 interface Emitter {
