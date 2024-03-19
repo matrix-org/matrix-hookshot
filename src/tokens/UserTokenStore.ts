@@ -16,7 +16,7 @@ import { JiraOnPremClient } from "../jira/client/OnPremClient";
 import { JiraCloudClient } from "../jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "../errors";
 import { TypedEmitter } from "tiny-typed-emitter";
-import { TokenEncryption } from "../libRs"; 
+import { hashId, TokenEncryption } from "../libRs"; 
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -31,6 +31,8 @@ export const AllowedTokenTypes = ["github", "gitlab", "jira"];
 
 interface StoredTokenData {
     encrypted: string|string[];
+    keyId: string;
+    algorithm: 'rsa';
     instance?: string;
 }
 
@@ -68,10 +70,12 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
     private userTokens: Map<string, string>;
     public readonly jiraOAuth?: JiraOAuth;
     private tokenEncryption: TokenEncryption;
-    constructor(private readonly key: Buffer, private readonly intent: Intent, private readonly config: BridgeConfig) {
+    private readonly keyId: string;
+    constructor(key: Buffer, private readonly intent: Intent, private readonly config: BridgeConfig) {
         super();
         this.tokenEncryption = new TokenEncryption(key);
         this.userTokens = new Map();
+        this.keyId = hashId(key.toString('utf-8'));
         if (config.jira?.oauth) {
             if ("client_id" in config.jira.oauth) {
                 this.jiraOAuth = new JiraCloudOAuth(config.jira.oauth);
@@ -97,12 +101,13 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         const tokenParts: string[] = this.tokenEncryption.encrypt(token);
         const data: StoredTokenData = {
             encrypted: tokenParts,
+            keyId: this.keyId,
+            algorithm: "rsa",
             instance: instanceUrl,
         };
         await this.intent.underlyingClient.setAccountData(key, data);
         this.userTokens.set(key, token);
         log.info(`Stored new ${type} token for ${userId}`);
-        log.debug(`Stored`, data);
         this.emit("onNewToken", type, userId, token, instanceUrl);
     }
 
@@ -142,6 +147,17 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
             if (!obj || "deleted" in obj) {
                 return null;
             }
+            // For legacy we just assume it's the current configured key.
+            const algorithm = obj.algorithm ?? "rsa";
+            const keyId = obj.keyId ?? this.keyId;
+
+            if (algorithm !== 'rsa') {
+                throw new Error(`Algorithm for stored data is '${algorithm}', but we only support RSA`);
+            }
+            if (keyId !== this.keyId) {
+                throw new Error(`Stored data was encrypted with a different key to the one currently configured`);
+            }
+
             const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
             const token = this.tokenEncryption.decrypt(encryptedParts);
             this.userTokens.set(key, token);
