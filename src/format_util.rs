@@ -1,7 +1,7 @@
 use crate::github::types::*;
 use crate::jira;
 use crate::jira::types::{JiraIssue, JiraIssueLight, JiraIssueMessageBody, JiraIssueSimpleItem};
-use contrast;
+use contrast::contrast;
 use md5::{Digest, Md5};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
@@ -88,7 +88,7 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
             // Determine the constrast
             let color_rgb = parse_rgb(color)?;
             let contrast_color =
-                if contrast::contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
+                if contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
                     "#000000"
                 } else {
                     "#FFFFFF"
