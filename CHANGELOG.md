@@ -1,3 +1,12 @@
+5.2.1 (2024-02-21)
+==================
+
+Bugfixes
+--------
+
+- Fix Atom feeds being repeated in rooms once after an upgrade. ([\#901](https://github.com/matrix-org/matrix-hookshot/issues/901))
+
+
 5.2.0 (2024-02-21)
 ==================
 

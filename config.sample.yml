@@ -135,8 +135,8 @@ listeners:
 #  enabled: true
 
 #cache:
-#  # (Optional) Cache options for large scale deployments.
-#  # For encryption to work, this must be configured.
+#  # (Optional) Cache options for large scale deployments. 
+#  #    For encryption to work, this must be configured.
 #  redisUri: redis://localhost:6379
 
 #queue:

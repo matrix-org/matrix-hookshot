@@ -45,6 +45,8 @@ COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
 COPY --from=builder /src/assets ./assets
 
+ENV NODE_ENV="production"
+
 VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
