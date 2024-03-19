@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   lint-node:
-   runs-on: ubuntu-latest
+  runs-on: ubuntu-22.04
    steps:
     - uses: actions/checkout@v3
     - name: Use Node.js
@@ -31,7 +31,7 @@ jobs:
     - run: yarn lint:js
 
   lint-rust:
-   runs-on: ubuntu-latest
+   runs-on: ubuntu-22.04
    steps:
     - uses: actions/checkout@v3
     - uses: actions-rs/toolchain@v1
@@ -46,7 +46,7 @@ jobs:
     - run: cargo clippy -- -Dwarnings
 
   config:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       # for cache population
       - lint-rust
@@ -68,7 +68,7 @@ jobs:
     needs:
       # for cache population
       - lint-rust
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       HOOKSHOT_BUILD_PROFILE: " "
     steps:
@@ -85,7 +85,7 @@ jobs:
   
   test:
     # Test on LTS-1
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       HOOKSHOT_BUILD_PROFILE: " "
     needs:
@@ -111,7 +111,7 @@ jobs:
       - run: yarn test:cover
 
   build-homerunner:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       homerunnersha: ${{ steps.gitsha.outputs.sha }}
     steps:
@@ -144,7 +144,7 @@ jobs:
           go build ./cmd/homerunner
 
   integration-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     needs:
       - test
