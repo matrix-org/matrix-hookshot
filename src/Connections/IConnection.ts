@@ -3,7 +3,7 @@ import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
-import { UserTokenStore } from "../UserTokenStore";
+import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";

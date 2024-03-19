@@ -486,8 +486,7 @@ export class BridgeConfig {
  This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
-    @configKey(`Message queue configuration options for large scale deployments.
- For encryption to work, this must not be configured.
+    @configKey(`Message queue configuration options for large scale deployments. For encryption to work, this must not be configured.`)
     public readonly queue?: Omit<BridgeConfigQueue, "monolithic">;
     @configKey("Logging settings. You can have a severity debug,info,warn,error")
     public readonly logging: BridgeConfigLogging;
