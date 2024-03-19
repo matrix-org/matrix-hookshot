@@ -1,22 +1,22 @@
-import { GithubInstance } from "./github/GithubInstance";
-import { GitLabClient } from "./Gitlab/Client";
+import { GithubInstance } from "../github/GithubInstance";
+import { GitLabClient } from "../Gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
-import { publicEncrypt, privateDecrypt } from "crypto";
 import { Logger } from "matrix-appservice-bridge";
-import { isJiraCloudInstance, JiraClient } from "./jira/Client";
-import { JiraStoredToken } from "./jira/Types";
-import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "./config/Config";
+import { isJiraCloudInstance, JiraClient } from "../jira/Client";
+import { JiraStoredToken } from "../jira/Types";
+import { BridgeConfig, BridgeConfigJira, BridgeConfigJiraOnPremOAuth, BridgePermissionLevel } from "../config/Config";
 import { randomUUID } from 'node:crypto';
-import { GitHubOAuthToken } from "./github/Types";
-import { ApiError, ErrCode } from "./api";
-import { JiraOAuth } from "./jira/OAuth";
-import { JiraCloudOAuth } from "./jira/oauth/CloudOAuth";
-import { JiraOnPremOAuth } from "./jira/oauth/OnPremOAuth";
-import { JiraOnPremClient } from "./jira/client/OnPremClient";
-import { JiraCloudClient } from "./jira/client/CloudClient";
-import { TokenError, TokenErrorCode } from "./errors";
+import { GitHubOAuthToken } from "../github/Types";
+import { ApiError, ErrCode } from "../api";
+import { JiraOAuth } from "../jira/OAuth";
+import { JiraCloudOAuth } from "../jira/oauth/CloudOAuth";
+import { JiraOnPremOAuth } from "../jira/oauth/OnPremOAuth";
+import { JiraOnPremClient } from "../jira/client/OnPremClient";
+import { JiraCloudClient } from "../jira/client/CloudClient";
+import { TokenError, TokenErrorCode } from "../errors";
 import { TypedEmitter } from "tiny-typed-emitter";
+import { TokenEncryption } from "../libRs"; 
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -58,12 +58,20 @@ interface Emitter {
     onNewToken: (type: TokenType, userId: string, token: string, instanceUrl?: string) => void,
 }
 export class UserTokenStore extends TypedEmitter<Emitter> {
-    private key!: Buffer;
+
+    public static async fromKeyPath(keyPath: string, intent: Intent, config: BridgeConfig) {
+        log.info(`Loading token key file ${keyPath}`);
+        const key = await fs.readFile(keyPath);
+        return new UserTokenStore(key, intent, config);
+    }
+    
     private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
     public readonly jiraOAuth?: JiraOAuth;
-    constructor(private keyPath: string, private intent: Intent, private config: BridgeConfig) {
+    private tokenEncryption: TokenEncryption;
+    constructor(private readonly key: Buffer, private readonly intent: Intent, private readonly config: BridgeConfig) {
         super();
+        this.tokenEncryption = new TokenEncryption(key);
         this.userTokens = new Map();
         if (config.jira?.oauth) {
             if ("client_id" in config.jira.oauth) {
@@ -74,11 +82,6 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 throw Error('jira oauth misconfigured');
             }
         }
-    }
-
-    public async load() {
-        log.info(`Loading token key file ${this.keyPath}`);
-        this.key = await fs.readFile(this.keyPath);
     }
 
     public stop() {
@@ -92,13 +95,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
             throw new ApiError('User does not have permission to log in to service', ErrCode.ForbiddenUser);
         }
         const key = tokenKey(type, userId, false, instanceUrl);
-        const tokenParts: string[] = [];
-        let tokenSource = token;
-        while (tokenSource && tokenSource.length > 0) {
-            const part = tokenSource.slice(0, MAX_TOKEN_PART_SIZE);
-            tokenSource = tokenSource.substring(MAX_TOKEN_PART_SIZE);
-            tokenParts.push(publicEncrypt(this.key, Buffer.from(part)).toString("base64"));
-        }
+        const tokenParts: string[] = this.tokenEncryption.encrypt(token);
         const data: StoredTokenData = {
             encrypted: tokenParts,
             instance: instanceUrl,
@@ -147,7 +144,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 return null;
             }
             const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
-            const token = encryptedParts.map((t) => privateDecrypt(this.key, Buffer.from(t, "base64")).toString("utf-8")).join("");
+            const token = this.tokenEncryption.decrypt(encryptedParts);
             this.userTokens.set(key, token);
             return token;
         } catch (ex) {
