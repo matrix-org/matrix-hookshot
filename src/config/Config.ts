@@ -10,6 +10,8 @@ import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
+import { BridgeConfigCache } from "./sections/cache";
+import { BridgeConfigQueue } from "./sections";
 
 const log = new Logger("Config");
 
@@ -407,12 +409,6 @@ interface BridgeConfigWebhook {
     bindAddress?: string;
 }
 
-export interface BridgeConfigQueue {
-    monolithic: boolean;
-    port?: number;
-    host?: string;
-}
-
 export interface BridgeConfigLogging {
     level: "debug"|"info"|"warn"|"error"|"trace";
     json?: boolean;
@@ -454,40 +450,45 @@ export interface BridgeConfigSentry {
     environment?: string;
 }
 
+
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
-    serviceBots?: BridgeConfigServiceBot[];
     bridge: BridgeConfigBridge;
+    cache?: BridgeConfigCache;
     experimentalEncryption?: BridgeConfigEncryption;
-    figma?: BridgeConfigFigma;
     feeds?: BridgeConfigFeedsYAML;
+    figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfigYAML;
     github?: BridgeConfigGitHubYAML;
     gitlab?: BridgeConfigGitLabYAML;
+    jira?: BridgeConfigJiraYAML;
+    listeners?: BridgeConfigListener[];
+    logging: BridgeConfigLogging;
+    metrics?: BridgeConfigMetrics;
+    passFile: string;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
-    jira?: BridgeConfigJiraYAML;
-    logging: BridgeConfigLogging;
-    passFile: string;
-    queue: BridgeConfigQueue;
+    queue?: BridgeConfigQueue;
+    sentry?: BridgeConfigSentry;
+    serviceBots?: BridgeConfigServiceBot[];
     webhook?: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfigYAML;
-    metrics?: BridgeConfigMetrics;
-    listeners?: BridgeConfigListener[];
-    sentry?: BridgeConfigSentry;
 }
 
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
+    @configKey(`Cache options for large scale deployments. 
+    For encryption to work, this must be configured.`, true)
+    public readonly cache?: BridgeConfigCache;
     @configKey(`Configuration for encryption support in the bridge.
  If omitted, encryption support will be disabled.
  This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
  For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
-    @configKey(`Message queue / cache configuration options for large scale deployments.
- For encryption to work, must be set to monolithic mode and have a host & port specified.`, true)
-    public readonly queue: BridgeConfigQueue;
+    @configKey(`Message queue configuration options for large scale deployments.
+ For encryption to work, this must not be configured.`, true)
+    public readonly queue?: Omit<BridgeConfigQueue, "monolithic">;
     @configKey("Logging settings. You can have a severity debug,info,warn,error")
     public readonly logging: BridgeConfigLogging;
     @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
@@ -553,9 +554,34 @@ export class BridgeConfig {
         this.bot = configData.bot;
         this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
-        this.queue = configData.queue || {
-            monolithic: true,
-        };
+
+        // TODO: Formalize env support
+        if (env?.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
+            if (!env?.CFG_QUEUE_HOST) {
+                throw new ConfigError("env:CFG_QUEUE_HOST", "CFG_QUEUE_MONOLITHIC was defined but host was not");
+            }
+            configData.queue = {
+                monolithic: false,
+                host: env?.CFG_QUEUE_HOST,
+                port: env?.CFG_QUEUE_POST ? parseInt(env?.CFG_QUEUE_POST, 10) : undefined,
+            }
+        }
+
+        this.cache = configData.cache;
+        this.queue = configData.queue;
+
+        if (configData.queue?.monolithic !== undefined) {
+            log.warn("The `queue.monolithic` config option is deprecated. Instead, configure the `cache` section.");
+            this.cache = {
+                redisUri: 'redisUri' in configData.queue ? configData.queue.redisUri
+                    : `redis://${configData.queue.host ?? 'localhost'}:${configData.queue.port ?? 6379}`
+            };
+            // If monolithic, disable the redis queue.
+            if (configData.queue.monolithic === true) {
+                this.queue = undefined;
+            }
+        }
+
         this.encryption = configData.experimentalEncryption;
 
 
@@ -587,13 +613,6 @@ export class BridgeConfig {
 
         if (!this.github && !this.gitlab && !this.jira && !this.generic && !this.figma && !this.feeds) {
             throw Error("Config is not valid: At least one of GitHub, GitLab, JIRA, Figma, feeds or generic hooks must be configured");
-        }
-
-        // TODO: Formalize env support
-        if (env?.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
-            this.queue.monolithic = false;
-            this.queue.host = env?.CFG_QUEUE_HOST;
-            this.queue.port = env?.CFG_QUEUE_POST ? parseInt(env?.CFG_QUEUE_POST, 10) : undefined;
         }
 
         if ('goNebMigrator' in configData) {
@@ -677,12 +696,12 @@ Please back up your crypto store at ${this.encryption.storagePath},
 remove "useLegacySledStore" from your configuration file, and restart Hookshot.
                 `);
             }
-            if (!this.queue.monolithic) {
-                throw new ConfigError("queue.monolithic", "Encryption is not supported in worker mode yet.");
+            if (!this.cache) {
+                throw new ConfigError("cache", "Encryption requires the Redis cache to be enabled.");
             }
 
-            if (!this.queue.port) {
-                throw new ConfigError("queue.port", "You must enable redis support for encryption to work.");
+            if (this.queue) {
+                throw new ConfigError("queue", "Encryption does not support message queues.");
             }
         }
 

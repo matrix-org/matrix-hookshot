@@ -37,9 +37,7 @@ const GITHUB_ISSUE_CREATED_PAYLOAD = {
 };
 
 function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
-	const mq = createMessageQueue({
-		monolithic: true
-	});
+	const mq = createMessageQueue();
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
 	const intent = as.getIntentForUserId('@github:example.test');

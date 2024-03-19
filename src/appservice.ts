@@ -9,9 +9,9 @@ const log = new Logger("Appservice");
 
 export function getAppservice(config: BridgeConfig, registration: IAppserviceRegistration) {
     let storage: IBridgeStorageProvider;
-    if (config.queue.host && config.queue.port) {
-        log.info(`Initialising Redis storage (on ${config.queue.host}:${config.queue.port})`);
-        storage = new RedisStorageProvider(config.queue.host, config.queue.port);
+    if (config.cache) {
+        log.info(`Initialising Redis storage`);
+        storage = new RedisStorageProvider(config.cache);
     } else {
         log.info('Initialising memory storage');
         storage = new MemoryStorageProvider();

@@ -1,6 +1,5 @@
 import { Bridge } from "../Bridge";
 import { BridgeConfig, parseRegistrationFile } from "../config/Config";
-import { Webhooks } from "../Webhooks";
 import { MatrixSender } from "../MatrixSender";
 import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
@@ -27,7 +26,7 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
 
     const {appservice, storage} = getAppservice(config, registration);
 
-    if (config.queue.monolithic) {
+    if (!config.queue) {
         const matrixSender = new MatrixSender(config, appservice);
         matrixSender.listen();
         const userNotificationWatcher = new UserNotificationWatcher(config);
