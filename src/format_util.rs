@@ -87,12 +87,11 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
             write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
             // Determine the constrast
             let color_rgb = parse_rgb(color)?;
-            let contrast_color =
-                if contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
-                    "#000000"
-                } else {
-                    "#FFFFFF"
-                };
+            let contrast_color = if contrast::<u8, f32>(color_rgb, RGB::new(0, 0, 0)) > 4.5 {
+                "#000000"
+            } else {
+                "#FFFFFF"
+            };
             write!(html, " data-mx-color=\"{}\"", contrast_color).unwrap();
         }
         if let Some(description) = label.description {
