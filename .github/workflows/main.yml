@@ -20,30 +20,30 @@ concurrency:
 
 jobs:
   lint-node:
-    runs-on: ubuntu-22.04
+   runs-on: ubuntu-22.04
    steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version-file: .node-version
-    - run: yarn --ignore-scripts
-    - run: yarn lint:js
+      - uses: actions/checkout@v3
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version-file: .node-version
+      - run: yarn --ignore-scripts
+      - run: yarn lint:js
 
   lint-rust:
    runs-on: ubuntu-22.04
    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt
-    - uses: Swatinem/rust-cache@v2
-      with: 
-        shared-key: rust-cache
-    - run: cargo fmt --all -- --check
-    - run: cargo clippy -- -Dwarnings
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            profile: minimal
+            components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with: 
+          shared-key: rust-cache
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -- -Dwarnings
 
   config:
     runs-on: ubuntu-22.04
