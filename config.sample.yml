@@ -11,12 +11,6 @@ passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
   passkey.pem
-logging:
-  # Logging settings. You can have a severity debug,info,warn,error
-  level: info
-  colorize: true
-  json: false
-  timestampFormat: HH:mm:ss:SSS
 listeners:
   # HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
@@ -135,14 +129,21 @@ listeners:
 #  enabled: true
 
 #cache:
-#  # (Optional) Cache options for large scale deployments.
-#  # For encryption to work, this must be configured.
+#  # (Optional) Cache options for large scale deployments. 
+#  #    For encryption to work, this must be configured.
 #  redisUri: redis://localhost:6379
 
 #queue:
 #  # (Optional) Message queue configuration options for large scale deployments.
 #  # For encryption to work, this must not be configured.
 #  redisUri: redis://localhost:6379
+
+#logging:
+#  # (Optional) Logging settings. You can have a severity debug,info,warn,error
+#  level: info
+#  colorize: true
+#  json: false
+#  timestampFormat: HH:mm:ss:SSS
 
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
