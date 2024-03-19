@@ -51,7 +51,7 @@ jobs:
       # for cache population
       - lint-rust
     env:
-      HOOKSHOT_BUILD_PROFILE: dev
+      HOOKSHOT_BUILD_PROFILE: " " # This is equivalent to dev
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js
@@ -70,7 +70,7 @@ jobs:
       - lint-rust
     runs-on: ubuntu-latest
     env:
-      HOOKSHOT_BUILD_PROFILE: dev
+      HOOKSHOT_BUILD_PROFILE: " "
     steps:
       - uses: actions/checkout@v3
       - name: Use Node.js
@@ -87,7 +87,7 @@ jobs:
     # Test on LTS-1
     runs-on: ubuntu-20.04
     env:
-      HOOKSHOT_BUILD_PROFILE: dev
+      HOOKSHOT_BUILD_PROFILE: " "
     needs:
       - lint-node
       - lint-rust
@@ -149,6 +149,8 @@ jobs:
     needs:
       - test
       - build-homerunner
+    env:
+      HOOKSHOT_BUILD_PROFILE: " "
     steps:
       - name: Install Complement Dependencies
         run: |
