@@ -22,7 +22,7 @@ jobs:
   lint-node:
    runs-on: ubuntu-22.04
    steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
@@ -33,7 +33,7 @@ jobs:
   lint-rust:
    runs-on: ubuntu-22.04
    steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
             toolchain: stable
@@ -53,7 +53,7 @@ jobs:
     env:
       HOOKSHOT_BUILD_PROFILE: " " # This is equivalent to dev
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
@@ -72,7 +72,7 @@ jobs:
     env:
       HOOKSHOT_BUILD_PROFILE: " "
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
@@ -95,7 +95,7 @@ jobs:
       matrix:
         node_version: [20, 21]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node_version }}
         uses: actions/setup-node@v3
         with:
@@ -116,7 +116,7 @@ jobs:
       homerunnersha: ${{ steps.gitsha.outputs.sha }}
     steps:
       - name: Checkout matrix-org/complement
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: matrix-org/complement
       - name: Get complement git sha
@@ -124,7 +124,7 @@ jobs:
         run: echo sha=`git rev-parse --short HEAD` >> "$GITHUB_OUTPUT"
       - name: Cache homerunner
         id: cached
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: homerunner
           key: ${{ runner.os }}-homerunner-${{ steps.gitsha.outputs.sha }}
@@ -156,13 +156,13 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3
       - name: Load cached homerunner bin
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: homerunner
           key: ${{ runner.os }}-homerunner-${{ needs.build-synapse.outputs.homerunnersha }}
           fail-on-cache-miss: true # Shouldn't happen, we build this in the needs step.
       - name: Checkout matrix-hookshot
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: matrix-hookshot
       # Setup node & run tests
