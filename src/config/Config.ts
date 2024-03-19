@@ -478,8 +478,8 @@ export interface BridgeConfigRoot {
 export class BridgeConfig {
     @configKey("Basic homeserver configuration")
     public readonly bridge: BridgeConfigBridge;
-    @configKey(`Cache options for large scale deployments.
- For encryption to work, this must be configured.`, true)
+    @configKey(`Cache options for large scale deployments. 
+    For encryption to work, this must be configured.`, true)
     public readonly cache?: BridgeConfigCache;
     @configKey(`Configuration for encryption support in the bridge.
  If omitted, encryption support will be disabled.
@@ -487,9 +487,9 @@ export class BridgeConfig {
  For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue configuration options for large scale deployments.
- For encryption to work, this must not be configured.
+ For encryption to work, this must not be configured.`, true)
     public readonly queue?: Omit<BridgeConfigQueue, "monolithic">;
-    @configKey("Logging settings. You can have a severity debug,info,warn,error")
+    @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
     public readonly logging: BridgeConfigLogging;
     @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
     public readonly permissions: BridgeConfigActorPermission[];
