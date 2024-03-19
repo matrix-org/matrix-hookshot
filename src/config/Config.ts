@@ -489,7 +489,7 @@ export class BridgeConfig {
     @configKey(`Message queue configuration options for large scale deployments.
  For encryption to work, this must not be configured.`, true)
     public readonly queue?: Omit<BridgeConfigQueue, "monolithic">;
-    @configKey("Logging settings. You can have a severity debug,info,warn,error", true)
+    @configKey("Logging settings. You can have a severity debug,info,warn,error")
     public readonly logging: BridgeConfigLogging;
     @configKey(`Permissions for using the bridge. See docs/setup.md#permissions for help`, true)
     public readonly permissions: BridgeConfigActorPermission[];
