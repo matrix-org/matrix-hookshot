@@ -3,8 +3,8 @@ pub mod feeds;
 pub mod format_util;
 pub mod github;
 pub mod jira;
-pub mod util;
 pub mod tokens;
+pub mod util;
 
 #[macro_use]
 extern crate napi_derive;
