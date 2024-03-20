@@ -14,7 +14,7 @@ jobs:
   lint-helm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Lint Helm
         uses: WyriHaximus/github-action-helm3@v3

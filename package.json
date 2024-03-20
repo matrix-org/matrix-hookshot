@@ -15,7 +15,7 @@
   "scripts": {
     "build:web": "vite build",
     "build:app": "tsc --project tsconfig.json",
-    "build:app:rs": "napi build --dts ../src/libRs.d.ts --release ./lib",
+    "build:app:rs": "napi build --dts ../src/libRs.d.ts $HOOKSHOT_BUILD_PROFILE ./lib",
     "build:app:fix-defs": "ts-node scripts/definitions-fixer.ts src/libRs.d.ts",
     "build:docs": "ts-node scripts/build-metrics-docs.ts > docs/metrics.md && mdbook build",
     "dev:web": "vite dev",
