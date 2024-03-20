@@ -14,9 +14,8 @@ function createAdminRoom(data: any = {admin_user: "@admin:bar"}): [AdminRoom, In
     if (!data.admin_user) {
         data.admin_user = "@admin:bar";
     }
-    const tokenStore = new UserTokenStore(Buffer.from("notapath"), intent, DefaultConfig);
-    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, DefaultConfig, {} as ConnectionManager), intent];
-}
+    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, {} as UserTokenStore, DefaultConfig, {} as ConnectionManager), intent];
+} 
 
 describe("AdminRoom", () => {
     it("will present help text", async () => {
