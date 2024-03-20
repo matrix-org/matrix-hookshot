@@ -14,12 +14,14 @@ struct TokenEncryption {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum TokenEncryptionError {
     FromUtf8(FromUtf8Error),
     PrivateKey(rsa::pkcs8::Error),
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 enum DecryptError {
     Base64(base64ct::Error),
     Decryption(rsa::Error),
@@ -28,8 +30,7 @@ enum DecryptError {
 
 impl TokenEncryption {
     pub fn new(private_key_data: Vec<u8>) -> Result<Self, TokenEncryptionError> {
-        let data =
-            String::from_utf8(private_key_data).map_err(TokenEncryptionError::FromUtf8)?;
+        let data = String::from_utf8(private_key_data).map_err(TokenEncryptionError::FromUtf8)?;
         let private_key = RsaPrivateKey::from_pkcs8_pem(data.as_str())
             .map_err(TokenEncryptionError::PrivateKey)?;
         let public_key = private_key.to_public_key();
