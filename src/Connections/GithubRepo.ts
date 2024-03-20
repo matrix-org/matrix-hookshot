@@ -13,7 +13,7 @@ import { MatrixMessageContent, MatrixEvent, MatrixReactionContent } from "../Mat
 import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../errors";
 import { ReposGetResponseData } from "../github/Types";
-import { UserTokenStore } from "../UserTokenStore";
+import { UserTokenStore } from "../tokens/UserTokenStore";
 import axios, { AxiosError } from "axios";
 import { emojify } from "node-emoji";
 import { Logger } from "matrix-appservice-bridge";

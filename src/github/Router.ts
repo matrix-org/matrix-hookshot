@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode } from "../api";
-import { UserTokenStore } from "../UserTokenStore";
+import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { GithubInstance } from "./GithubInstance";
 import { NAMELESS_ORG_PLACEHOLDER } from "./Types";

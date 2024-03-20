@@ -1,5 +1,5 @@
 import { createMessageQueue } from "../../src/MessageQueue";
-import { UserTokenStore } from "../../src/UserTokenStore";
+import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
 import { GitLabRepoConnection, GitLabRepoConnectionState } from "../../src/Connections";

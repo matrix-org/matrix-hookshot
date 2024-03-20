@@ -23,7 +23,7 @@ import { NotificationsEnableEvent, NotificationsDisableEvent, Webhooks } from ".
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./github/Types";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
-import { UserTokenStore } from "./UserTokenStore";
+import { UserTokenStore } from "./tokens/UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
 import { Provisioner } from "./provisioning/provisioner";
@@ -49,11 +49,9 @@ export class Bridge {
     private readonly queue: MessageQueue;
     private readonly commentProcessor: CommentProcessor;
     private readonly notifProcessor: NotificationProcessor;
-    private readonly tokenStore: UserTokenStore;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi?: BridgeWidgetApi;
     private feedReader?: FeedReader;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
@@ -62,6 +60,7 @@ export class Bridge {
 
     constructor(
         private config: BridgeConfig,
+        private readonly tokenStore: UserTokenStore,
         private readonly listener: ListenerService,
         private readonly as: Appservice,
         private readonly storage: IBridgeStorageProvider,
@@ -71,8 +70,6 @@ export class Bridge {
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
-        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
-        this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
 
         // Legacy routes, to be removed.
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
@@ -87,8 +84,8 @@ export class Bridge {
     }
 
     public async start() {
+        this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
         log.info('Starting up');
-        await this.tokenStore.load();
         await this.storage.connect?.();
         await this.queue.connect?.();
 
@@ -755,7 +752,7 @@ export class Bridge {
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
             }
-            this.widgetApi = new BridgeWidgetApi(
+            new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,

@@ -16,7 +16,7 @@ import { Intent } from "matrix-bot-sdk";
 import { JiraBotCommands } from "./jira/AdminCommands";
 import { NotifFilter, NotificationFilterStateContent } from "./NotificationFilters";
 import { ProjectsListResponseData } from "./github/Types";
-import { UserTokenStore } from "./UserTokenStore";
+import { UserTokenStore } from "./tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];

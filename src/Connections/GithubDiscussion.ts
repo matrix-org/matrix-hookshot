@@ -1,6 +1,6 @@
 import { Connection, IConnection, InstantiateConnectionOpts } from "./IConnection";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
-import { UserTokenStore } from "../UserTokenStore";
+import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
