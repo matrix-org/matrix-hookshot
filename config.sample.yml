@@ -112,6 +112,9 @@ listeners:
 #  pollConcurrency: 4
 #  pollIntervalSeconds: 600
 #  pollTimeoutSeconds: 30
+#  maximumFeedSizeMB:
+#    # (Optional) The maximum response size of a feed on first load. Oversized responses will prevent a connection from being created.
+#    25
 
 #provisioning:
 #  # (Optional) Provisioning API for integration managers

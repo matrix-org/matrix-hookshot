@@ -312,7 +312,7 @@ export class SetupConnection extends CommandConnection {
 
         // provisionConnection will check it again, but won't give us a nice CommandError on failure
         try {
-            await FeedConnection.validateUrl(url);
+            await FeedConnection.validateUrl(url, this.config.feeds);
         } catch (err: unknown) {
             log.debug(`Feed URL '${url}' failed validation: ${err}`);
             if (err instanceof ApiError) {

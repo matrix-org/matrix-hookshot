@@ -215,6 +215,7 @@ export class FeedReader {
                 etag,
                 lastModified,
                 userAgent: UserAgent,
+                maximumFeedSizeMb: this.config.maximumFeedSizeMB,
             });
 
             // Store any entity tags/cache times.
