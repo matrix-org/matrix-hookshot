@@ -34,7 +34,6 @@ jobs:
    runs-on: ubuntu-22.04
    steps:
       - uses: actions/checkout@v4
-      - run: rustup toolchain install stable --profile minimal --component rustfmt
       - uses: Swatinem/rust-cache@v2
         with: 
           shared-key: rust-cache
@@ -96,7 +95,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node_version }}
-      - run: rustup toolchain install stable --profile minimal
       - uses: Swatinem/rust-cache@v2
         with: 
           shared-key: rust-cache
@@ -163,7 +161,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: matrix-hookshot/.node-version
-      - run: rustup toolchain install stable --profile minimal
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: matrix-hookshot
