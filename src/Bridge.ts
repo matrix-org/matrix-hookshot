@@ -49,11 +49,9 @@ export class Bridge {
     private readonly queue: MessageQueue;
     private readonly commentProcessor: CommentProcessor;
     private readonly notifProcessor: NotificationProcessor;
-    private tokenStore?: UserTokenStore;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi?: BridgeWidgetApi;
     private feedReader?: FeedReader;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
@@ -62,6 +60,7 @@ export class Bridge {
 
     constructor(
         private config: BridgeConfig,
+        private readonly tokenStore: UserTokenStore,
         private readonly listener: ListenerService,
         private readonly as: Appservice,
         private readonly storage: IBridgeStorageProvider,
@@ -79,13 +78,12 @@ export class Bridge {
 
     public stop() {
         this.feedReader?.stop();
-        this.tokenStore?.stop();
+        this.tokenStore.stop();
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
     }
 
     public async start() {
-        const tokenStore = this.tokenStore = await UserTokenStore.fromKeyPath(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
         this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
         log.info('Starting up');
         await this.storage.connect?.();
@@ -418,7 +416,7 @@ export class Bridge {
         });
 
         this.queue.on<OAuthRequest>("github.oauth.response", async (msg) => {
-            const userId = tokenStore.getUserIdForOAuthState(msg.data.state, false);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             await this.queue.push<boolean>({
                 data: !!userId,
                 sender: "Bridge",
@@ -428,12 +426,12 @@ export class Bridge {
         });
 
         this.queue.on<GitHubOAuthTokenResponse>("github.oauth.tokens", async (msg) => {
-            const userId = tokenStore.getUserIdForOAuthState(msg.data.state);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state);
             if (!userId) {
                 log.warn("Could not find internal state for successful tokens request. This shouldn't happen!");
                 return;
             }
-            await tokenStore.storeUserToken("github", userId, JSON.stringify({
+            await this.tokenStore.storeUserToken("github", userId, JSON.stringify({
                 access_token: msg.data.access_token,
                 expires_in: msg.data.expires_in && ((parseInt(msg.data.expires_in) * 1000) + Date.now()),
                 token_type: msg.data.token_type,
@@ -503,7 +501,7 @@ export class Bridge {
                         data.repository.owner.login,
                         data.repository.name,
                         data.discussion,
-                        tokenStore,
+                        this.tokenStore,
                         this.commentProcessor,
                         this.messageClient,
                         this.config,
@@ -545,11 +543,11 @@ export class Bridge {
         }
 
         this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
-            if (!this.config.jira || !tokenStore.jiraOAuth) {
+            if (!this.config.jira || !this.tokenStore.jiraOAuth) {
                 throw Error('Cannot handle, JIRA oauth support not enabled');
             }
             let result: JiraOAuthRequestResult;
-            const userId = tokenStore.getUserIdForOAuthState(msg.data.state, false);
+            const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             if (!userId) {
                 return this.queue.push<JiraOAuthRequestResult>({
                     data: JiraOAuthRequestResult.UserNotFound,
@@ -561,11 +559,11 @@ export class Bridge {
             try {
                 let tokenInfo: JiraOAuthResult;
                 if ("code" in msg.data) {
-                    tokenInfo = await tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.code);
+                    tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.code);
                 } else {
-                    tokenInfo = await tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
+                    tokenInfo = await this.tokenStore.jiraOAuth.exchangeRequestForToken(msg.data.oauthToken, msg.data.oauthVerifier);
                 }
-                await tokenStore.storeJiraToken(userId, {
+                await this.tokenStore.storeJiraToken(userId, {
                     access_token: tokenInfo.access_token,
                     refresh_token: tokenInfo.refresh_token,
                     instance: this.config.jira.instanceName,
@@ -754,7 +752,7 @@ export class Bridge {
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
             }
-            this.widgetApi = new BridgeWidgetApi(
+            new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
@@ -905,7 +903,7 @@ export class Bridge {
     }
 
     private async onRoomMessage(roomId: string, event: MatrixEvent<MatrixMessageContent>) {
-        if (!this.connectionManager || this.tokenStore) {
+        if (!this.connectionManager) {
             // Not ready yet.
             return;
         }
@@ -975,7 +973,7 @@ export class Bridge {
                                 config: this.config,
                                 as: this.as,
                                 intent: botUser.intent,
-                                tokenStore: this.tokenStore!,
+                                tokenStore: this.tokenStore,
                                 commentProcessor: this.commentProcessor,
                                 messageClient: this.messageClient,
                                 storage: this.storage,
@@ -1213,7 +1211,7 @@ export class Bridge {
             try {
                 return await GitHubIssueConnection.onQueryRoom(res, {
                     as: this.as,
-                    tokenStore: this.tokenStore!,
+                    tokenStore: this.tokenStore,
                     messageClient: this.messageClient,
                     commentProcessor: this.commentProcessor,
                     githubInstance: this.github,
@@ -1248,7 +1246,7 @@ export class Bridge {
             try {
                 return await GitHubRepoConnection.onQueryRoom(res, {
                     as: this.as,
-                    tokenStore: this.tokenStore!,
+                    tokenStore: this.tokenStore,
                     messageClient: this.messageClient,
                     commentProcessor: this.commentProcessor,
                     githubInstance: this.github,
@@ -1283,7 +1281,7 @@ export class Bridge {
         // Make this more efficent.
         if (!oldSettings.github?.notifications?.enabled && settings.github?.notifications?.enabled) {
             log.info(`Notifications enabled for ${adminRoom.userId}`);
-            const token = await this.tokenStore!.getGitHubToken(adminRoom.userId);
+            const token = await this.tokenStore.getGitHubToken(adminRoom.userId);
             if (token) {
                 log.info(`Notifications enabled for ${adminRoom.userId} and token was found`);
                 await this.queue.push<NotificationsEnableEvent>({
@@ -1316,7 +1314,7 @@ export class Bridge {
 
         for (const [instanceName, instanceSettings] of Object.entries(settings.gitlab || {})) {
             const instanceUrl = this.config.gitlab?.instances[instanceName].url;
-            const token = await this.tokenStore!.getUserToken("gitlab", adminRoom.userId, instanceUrl);
+            const token = await this.tokenStore.getUserToken("gitlab", adminRoom.userId, instanceUrl);
             if (token && instanceSettings.notifications.enabled) {
                 log.info(`GitLab ${instanceName} notifications enabled for ${adminRoom.userId}`);
                 await this.queue.push<NotificationsEnableEvent>({
@@ -1381,7 +1379,7 @@ export class Bridge {
         }
 
         const adminRoom = new AdminRoom(
-            roomId, accountData, notifContent, intent, this.tokenStore!, this.config, this.connectionManager,
+            roomId, accountData, notifContent, intent, this.tokenStore, this.config, this.connectionManager,
         );
 
         adminRoom.on("settings.changed", this.onAdminRoomSettingsChanged.bind(this));
@@ -1409,7 +1407,7 @@ export class Bridge {
                 issueInfo.projects,
                 this.as,
                 intent,
-                this.tokenStore!,
+                this.tokenStore,
                 this.commentProcessor,
                 this.messageClient,
                 this.config,
