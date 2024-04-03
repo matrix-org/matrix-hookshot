@@ -47,6 +47,8 @@ containers:
       - name: config
         mountPath: "/data"
 {{- end }}
+      - name: data
+        mountPath: "/persistent"
     ports:
       - name: webhook
         containerPort: 9000
@@ -119,6 +121,13 @@ volumes:
       {{- if .items }}
       items: {{ toYaml .items | nindent 6 }}
       {{- end }}
+{{- end }}
+  - name: data
+{{- if or .Values.persistence.enabled .Values.persistence.existingClaim }}
+    persistentVolumeClaim:
+      claimName: {{ .Values.persistence.existingClaim | default (include "hookshot.fullname" .) }}
+{{- else }}
+    emptyDir: {}
 {{- end }}
 
 {{- range .Values.extraSecretMounts }}
