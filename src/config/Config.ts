@@ -767,6 +767,9 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         if (this.jira) {
             services.push("jira");
         }
+        if (this.challengeHound) {
+            services.push("challengehound");
+        }
         return services;
     }
 

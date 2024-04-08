@@ -72,6 +72,7 @@ export class HoundReader {
         });
 
         log.debug('Loaded activity URLs:', [...this.urls].join(', '));
+        void this.pollFeeds();
     }
 
     public stop() {
