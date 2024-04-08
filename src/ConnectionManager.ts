@@ -8,7 +8,8 @@ import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
 import { BridgeConfig, BridgePermissionLevel, GitLabInstance } from "./config/Config";
 import { CommentProcessor } from "./CommentProcessor";
-import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection, GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
+import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection,
+    GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
 import { GetConnectionTypeResponseItem } from "./provisioning/api";
 import { GitLabClient } from "./Gitlab/Client";
@@ -22,6 +23,7 @@ import BotUsersManager from "./Managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
+import { HoundConnection } from "./Connections/ChallengeHound";
 
 const log = new Logger("ConnectionManager");
 
@@ -339,6 +341,10 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionsForFeedUrl(url: string): FeedConnection[] {
         return this.connections.filter(c => c instanceof FeedConnection && c.feedUrl === url) as FeedConnection[];
+    }
+
+    public getConnectionsForHoundUrl(url: string): HoundConnection[] {
+        return this.connections.filter(c => c instanceof HoundConnection && c.url === url) as HoundConnection[];
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

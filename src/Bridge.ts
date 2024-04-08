@@ -41,6 +41,8 @@ import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
 import * as Sentry from '@sentry/node';
+import { HoundConnection, HoundPayload, IActivity } from "./Connections/ChallengeHound";
+import { HoundReader } from "./hound/reaader";
 
 const log = new Logger("Bridge");
 
@@ -53,6 +55,7 @@ export class Bridge {
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
     private feedReader?: FeedReader;
+    private houndReader?: HoundReader;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -78,6 +81,7 @@ export class Bridge {
 
     public stop() {
         this.feedReader?.stop();
+        this.houndReader?.stop();
         this.tokenStore.stop();
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
@@ -678,6 +682,12 @@ export class Bridge {
             (c, data) => c.handleFeedError(data),
         );
 
+        this.bindHandlerToQueue<HoundPayload, HoundConnection>(
+            "hound.activity",
+            (data) => connManager.getConnectionsForHoundUrl(data.url),
+            (c, data) => c.handleNewActivity(data.activity)
+        );
+
         const queue = new PQueue({
             concurrency: 2,
         });
@@ -779,6 +789,15 @@ export class Bridge {
         if (this.config.feeds?.enabled) {
             this.feedReader = new FeedReader(
                 this.config.feeds,
+                this.connectionManager,
+                this.queue,
+                this.storage,
+            );
+        }
+
+        if (this.config.challengeHound?.token) {
+            this.houndReader = new HoundReader(
+                this.config.challengeHound,
                 this.connectionManager,
                 this.queue,
                 this.storage,
