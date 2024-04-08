@@ -560,7 +560,7 @@ export class BridgeConfig {
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
         this.feeds = configData.feeds && new BridgeConfigFeeds(configData.feeds);
         this.provisioning = configData.provisioning;
-        this.passFile = configData.passFile ?? DefaultConfigRoot.passFile;
+        this.passFile = configData.passFile ?? "./passkey.pem";
         this.bot = configData.bot;
         this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
