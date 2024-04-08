@@ -23,7 +23,7 @@ import BotUsersManager from "./Managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
-import { HoundConnection } from "./Connections/ChallengeHound";
+import { HoundConnection } from "./Connections/HoundConnection";
 
 const log = new Logger("ConnectionManager");
 

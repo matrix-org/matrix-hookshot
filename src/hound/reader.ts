@@ -1,6 +1,6 @@
 import axios from "axios";
 import { ConnectionManager } from "../ConnectionManager";
-import { HoundConnection, HoundPayload, HoundActivity } from "../Connections/ChallengeHound";
+import { HoundConnection, HoundPayload, HoundActivity } from "../Connections/HoundConnection";
 import { MessageQueue } from "../MessageQueue";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigChallengeHound } from "../config/Config";
