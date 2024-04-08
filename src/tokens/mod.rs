@@ -65,14 +65,17 @@ impl JsTokenEncryption {
         let mut result = String::new();
 
         for v in parts {
-            let new_value_result = self.decrypt_value(v);
-            if let Ok(new_value) = new_value_result {
-                result += &new_value;
-            } else if let Err(err) = new_value_result {
-                return Err(Error::new(
+            if let Err(match_err) = match self.decrypt_value(v) {
+                Ok(new_value) => {
+                    result += &new_value;
+                    Ok(())
+                }
+                Err(err) => Err(Error::new(
                     napi::Status::GenericFailure,
                     format!("Could not decrypt string: {:?}", err).to_string(),
-                ));
+                )),
+            } {
+                return Err(match_err);
             }
         }
         Ok(result)
@@ -94,18 +97,24 @@ impl JsTokenEncryption {
         let mut rng = rand::thread_rng();
         let mut parts: Vec<String> = Vec::new();
         for part in input.into_bytes().chunks(MAX_TOKEN_PART_SIZE) {
-            let encrypted_value = self
-                .inner
-                .public_key
-                .encrypt(&mut rng, Pkcs1v15Encrypt, part);
-            if let Ok(encrypted) = encrypted_value {
-                let b64 = Base64::encode_string(encrypted.as_slice());
-                parts.push(b64);
-            } else if let Err(err) = encrypted_value {
-                return Err(Error::new(
-                    napi::Status::GenericFailure,
-                    format!("Could not encrypt string: {:?}", err).to_string(),
-                ));
+            if let Err(match_err) =
+                match self
+                    .inner
+                    .public_key
+                    .encrypt(&mut rng, Pkcs1v15Encrypt, part)
+                {
+                    Ok(encrypted) => {
+                        let b64 = Base64::encode_string(encrypted.as_slice());
+                        parts.push(b64);
+                        Ok(())
+                    }
+                    Err(err) => Err(Error::new(
+                        napi::Status::GenericFailure,
+                        format!("Could not encrypt string: {:?}", err).to_string(),
+                    )),
+                }
+            {
+                return Err(match_err);
             }
         }
         Ok(parts)
