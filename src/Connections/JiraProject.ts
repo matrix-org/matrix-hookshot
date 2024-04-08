@@ -9,7 +9,7 @@ import { JiraProject, JiraVersion } from "../jira/Types";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
-import { UserTokenStore } from "../UserTokenStore";
+import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";

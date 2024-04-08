@@ -6,6 +6,7 @@ import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
+import { BridgeConfigCache } from "../config/sections";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";
@@ -68,8 +69,8 @@ export class RedisStorageContextualProvider implements IStorageProvider {
 
 
 export class RedisStorageProvider extends RedisStorageContextualProvider implements IBridgeStorageProvider {
-    constructor(host: string, port: number, contextSuffix = '') {
-        super(new redis(port, host), contextSuffix);
+    constructor(cacheConfig: BridgeConfigCache, contextSuffix = '') {
+        super(new redis(cacheConfig.redisUri), contextSuffix);
         this.redis.expire(COMPLETED_TRANSACTIONS_KEY, COMPLETED_TRANSACTIONS_EXPIRE_AFTER).catch((ex) => {
             log.warn("Failed to set expiry time on as.completed_transactions", ex);
         });

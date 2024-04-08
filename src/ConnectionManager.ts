@@ -17,7 +17,7 @@ import { IBridgeStorageProvider } from "./Stores/StorageProvider";
 import { JiraProject, JiraVersion } from "./jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
-import { UserTokenStore } from "./UserTokenStore";
+import { UserTokenStore } from "./tokens/UserTokenStore";
 import BotUsersManager from "./Managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";

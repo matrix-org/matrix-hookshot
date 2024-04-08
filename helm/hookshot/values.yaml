@@ -3,7 +3,6 @@
 #
 # -- Number of replicas to deploy. Consequences of using multiple Hookshot replicas currently unknown.
 replicaCount: 1
-
 image:
   # -- Repository to pull hookshot image from
   repository: halfshot/matrix-hookshot
@@ -11,16 +10,12 @@ image:
   pullPolicy: IfNotPresent
   # -- Image tag to pull. Defaults to chart's appVersion value as set in Chart.yaml
   tag:
-
 # -- List of names of k8s secrets to be used as ImagePullSecrets for the pod
 imagePullSecrets: []
-
 # -- Name override for helm chart
 nameOverride: ""
-
 # -- Full name override for helm chart
 fullnameOverride: ""
-
 serviceAccount:
   # -- Specifies whether a service account should be created
   create: true
@@ -28,10 +23,8 @@ serviceAccount:
   annotations: {}
   # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
   name: ""
-
 # -- Extra annotations for Hookshot pod
 podAnnotations: {}
-
 # -- Pod security context settings
 podSecurityContext: {}
 # fsGroup: 2000
@@ -54,7 +47,6 @@ service:
   annotations: {}
   # -- Extra labels for service
   labels: {}
-
   webhook:
     # -- Webhook port as configured in container
     port: 9000
@@ -64,7 +56,6 @@ service:
   appservice:
     # -- Appservice port as configured in container
     port: 9002
-
 ingress:
   webhook:
     # -- Enable ingress for webhook
@@ -77,7 +68,6 @@ ingress:
     hosts: []
     # -- TLS configuration for webhook ingress
     tls: []
-
   appservice:
     # -- Enable ingress for appservice
     enabled: false
@@ -89,7 +79,6 @@ ingress:
     hosts: []
     # -- TLS configuration for appservice ingress
     tls: []
-
 # -- Pod resource requests / limits
 resources: {}
 # We usually recommend not to specify default resources and to leave this as a conscious
@@ -105,189 +94,40 @@ resources: {}
 
 autoscaling:
   enabled: false
-
 # -- Node selector parameters
 nodeSelector: {}
 # -- Tolerations for deployment
 tolerations: []
-
 # -- Affinity settings for deployment
 affinity: {}
-
 hookshot:
   # -- Name of existing ConfigMap with valid Hookshot configuration
   existingConfigMap:
-
   # -- Raw Hookshot configuration. Gets templated into a YAML file and then loaded unless an existingConfigMap is specified.
   config:
+    # This is an example configuration file
     bridge:
       # Basic homeserver configuration
-      #
       domain: example.com
       url: http://localhost:8008
       mediaUrl: https://example.com
       port: 9993
       bindAddress: 127.0.0.1
-    # github:
-      # (Optional) Configure this to enable GitHub support
-      #
-      # auth:
-        # Authentication for the GitHub App.
-        #
-      #   id: 123
-      #   privateKeyFile: github-key.pem
-      # webhook:
-        # Webhook settings for the GitHub app.
-        #
-        # secret: secrettoken
-      # oauth:
-        # (Optional) Settings for allowing users to sign in via OAuth.
-        #
-        # client_id: foo
-        # client_secret: bar
-        # redirect_uri: https://example.com/bridge_oauth/
-      # defaultOptions:
-        # (Optional) Default options for GitHub connections.
-        #
-        # showIssueRoomLink: false
-        # hotlinkIssues:
-          # prefix: "#"
-      # userIdPrefix: _github_
-      # (Optional) Prefix used when creating ghost users for GitHub accounts.
-      #
-    # gitlab:
-      # (Optional) Configure this to enable GitLab support
-      #
-      # instances:
-        # gitlab.com:
-          # url: https://gitlab.com
-      # webhook:
-        # secret: secrettoken
-        # publicUrl: https://example.com/hookshot/
-      # userIdPrefix: _gitlab_
-      # (Optional) Prefix used when creating ghost users for GitLab accounts.
-      #
-    # figma:
-      # (Optional) Configure this to enable Figma support
-      #
-      # publicUrl: https://example.com/hookshot/
-      # instances:
-        # your-instance:
-          # teamId: your-team-id
-          # accessToken: your-personal-access-token
-          # passcode: your-webhook-passcode
-    # jira:
-      # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
-      #
-      # webhook:
-        # Webhook settings for JIRA
-        #
-        # secret: secrettoken
-      # oauth:
-        # (Optional) OAuth settings for connecting users to JIRA. See documentation for more information
-        #
-        # client_id: foo
-        # client_secret: bar
-        # redirect_uri: https://example.com/bridge_oauth/
-    generic:
-      # (Optional) Support for generic webhook events.
-      #'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
-      #
-      #
-      enabled: false
-      enableHttpGet: false
-      urlPrefix: https://example.com/webhook/
-      userIdPrefix: _webhooks_
-      allowJsTransformationFunctions: false
-      waitForComplete: false
-    feeds:
-      # (Optional) Configure this to enable RSS/Atom feed support
-      #
-      enabled: false
-      pollIntervalSeconds: 600
-      pollTimeoutSeconds: 30
-    # provisioning:
-      # (Optional) Provisioning API for integration managers
-      #
-      # secret: "!secretToken"
     passFile: passkey.pem
     # A passkey used to encrypt tokens stored inside the bridge.
     # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
-    #
-    # bot:
-      # (Optional) Define profile information for the bot user
-      #
-      # displayname: Hookshot Bot
-      # avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
-    # serviceBots:
-      # (Optional) Define additional bot users for specific services
-      #
-      # - localpart: feeds
-      #   displayname: Feeds
-      #   avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
-      #   prefix: "!feeds"
-      #   service: feeds
-    metrics:
-      # (Optional) Prometheus metrics support
-      #
-      enabled: true
-    # queue:
-      # (Optional) Message queue / cache configuration options for large scale deployments.
-      # For encryption to work, must be set to monolithic mode and have a host & port specified.
-      #
-      # monolithic: true
-      # port: 6379
-      # host: localhost
     logging:
-      # (Optional) Logging settings. You can have a severity debug,info,warn,error
-      #
+      # Logging settings. You can have a severity debug,info,warn,error
       level: info
       colorize: true
       json: false
       timestampFormat: HH:mm:ss:SSS
-    # widgets:
-      # (Optional) EXPERIMENTAL support for complimentary widgets
-      #
-      # addToAdminRooms: false
-      # disallowedIpRanges:
-        # - 127.0.0.0/8
-        # - 10.0.0.0/8
-        # - 172.16.0.0/12
-        # - 192.168.0.0/16
-        # - 100.64.0.0/10
-        # - 192.0.0.0/24
-        # - 169.254.0.0/16
-        # - 192.88.99.0/24
-        # - 198.18.0.0/15
-        # - 192.0.2.0/24
-        # - 198.51.100.0/24
-        # - 203.0.113.0/24
-        # - 224.0.0.0/4
-        # - ::1/128
-        # - fe80::/10
-        # - fc00::/7
-        # - 2001:db8::/32
-        # - ff00::/8
-        # - fec0::/10
-      # roomSetupWidget:
-        # addOnInvite: false
-      # publicUrl: https://example.com/widgetapi/v1/static/
-      # branding:
-        # widgetTitle: Hookshot Configuration
-    # permissions:
-      # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
-      #
-      # - actor: example.com
-      #   services:
-      #     - service: "*"
-      #       level: admin
     listeners:
-      # (Optional) HTTP Listener configuration.
+      # HTTP Listener configuration.
       # Bind resource endpoints to ports and addresses.
       # 'port' must be specified. Each listener must listen on a unique port.
       # 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
       # 'resources' may be any of webhooks, widgets, metrics, provisioning
-      #
       - port: 9000
         bindAddress: 0.0.0.0
         resources:
@@ -302,6 +142,153 @@ hookshot:
         resources:
           - widgets
   registration:
+  #github:
+  #  # (Optional) Configure this to enable GitHub support
+  #  auth:
+  #    # Authentication for the GitHub App.
+  #    id: 123
+  #    privateKeyFile: github-key.pem
+  #  webhook:
+  #    # Webhook settings for the GitHub app.
+  #    secret: secrettoken
+  #  oauth:
+  #    # (Optional) Settings for allowing users to sign in via OAuth.
+  #    client_id: foo
+  #    client_secret: bar
+  #    redirect_uri: https://example.com/oauth/
+  #  defaultOptions:
+  #    # (Optional) Default options for GitHub connections.
+  #    showIssueRoomLink: false
+  #    hotlinkIssues:
+  #      prefix: "#"
+  #  userIdPrefix:
+  #    # (Optional) Prefix used when creating ghost users for GitHub accounts.
+  #    _github_
+
+  #gitlab:
+  #  # (Optional) Configure this to enable GitLab support
+  #  instances:
+  #    gitlab.com:
+  #      url: https://gitlab.com
+  #  webhook:
+  #    secret: secrettoken
+  #    publicUrl: https://example.com/hookshot/
+  #  userIdPrefix:
+  #    # (Optional) Prefix used when creating ghost users for GitLab accounts.
+  #    _gitlab_
+  #  commentDebounceMs:
+  #    # (Optional) Aggregate comments by waiting this many miliseconds before posting them to Matrix. Defaults to 5000 (5 seconds)
+  #    5000
+
+  #figma:
+  #  # (Optional) Configure this to enable Figma support
+  #  publicUrl: https://example.com/hookshot/
+  #  instances:
+  #    your-instance:
+  #      teamId: your-team-id
+  #      accessToken: your-personal-access-token
+  #      passcode: your-webhook-passcode
+
+  #jira:
+  #  # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
+  #  webhook:
+  #    # Webhook settings for JIRA
+  #    secret: secrettoken
+  #  oauth:
+  #    # (Optional) OAuth settings for connecting users to JIRA. See documentation for more information
+  #    client_id: foo
+  #    client_secret: bar
+  #    redirect_uri: https://example.com/oauth/
+
+  #generic:
+  #  # (Optional) Support for generic webhook events.
+  #  #'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
+
+  #  enabled: false
+  #  enableHttpGet: false
+  #  urlPrefix: https://example.com/webhook/
+  #  userIdPrefix: _webhooks_
+  #  allowJsTransformationFunctions: false
+  #  waitForComplete: false
+
+  #feeds:
+  #  # (Optional) Configure this to enable RSS/Atom feed support
+  #  enabled: false
+  #  pollConcurrency: 4
+  #  pollIntervalSeconds: 600
+  #  pollTimeoutSeconds: 30
+
+  #provisioning:
+  #  # (Optional) Provisioning API for integration managers
+  #  secret: "!secretToken"
+
+  #bot:
+  #  # (Optional) Define profile information for the bot user
+  #  displayname: Hookshot Bot
+  #  avatar: mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d
+
+  #serviceBots:
+  #  # (Optional) Define additional bot users for specific services
+  #  - localpart: feeds
+  #    displayname: Feeds
+  #    avatar: ./assets/feeds_avatar.png
+  #    prefix: "!feeds"
+  #    service: feeds
+
+  #metrics:
+  #  # (Optional) Prometheus metrics support
+  #  enabled: true
+
+  #cache:
+  #  # (Optional) Cache options for large scale deployments.
+  #  # For encryption to work, this must be configured.
+  #  redisUri: redis://localhost:6379
+
+  #queue:
+  #  # (Optional) Message queue configuration options for large scale deployments.
+  #  # For encryption to work, this must not be configured.
+  #  redisUri: redis://localhost:6379
+
+  #widgets:
+  #  # (Optional) EXPERIMENTAL support for complimentary widgets
+  #  addToAdminRooms: false
+  #  disallowedIpRanges:
+  #    - 127.0.0.0/8
+  #    - 10.0.0.0/8
+  #    - 172.16.0.0/12
+  #    - 192.168.0.0/16
+  #    - 100.64.0.0/10
+  #    - 192.0.0.0/24
+  #    - 169.254.0.0/16
+  #    - 192.88.99.0/24
+  #    - 198.18.0.0/15
+  #    - 192.0.2.0/24
+  #    - 198.51.100.0/24
+  #    - 203.0.113.0/24
+  #    - 224.0.0.0/4
+  #    - ::1/128
+  #    - fe80::/10
+  #    - fc00::/7
+  #    - 2001:db8::/32
+  #    - ff00::/8
+  #    - fec0::/10
+  #  roomSetupWidget:
+  #    addOnInvite: false
+  #  publicUrl: https://example.com/widgetapi/v1/static/
+  #  branding:
+  #    widgetTitle: Hookshot Configuration
+
+  #sentry:
+  #  # (Optional) Configure Sentry error reporting
+  #  dsn: https://examplePublicKey@o0.ingest.sentry.io/0
+  #  environment: production
+
+  #permissions:
+  #  # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
+  #  - actor: example.com
+  #    services:
+  #      - service: "*"
+  #        level: admin
     id: matrix-hookshot
     as_token: ""
     hs_token: ""

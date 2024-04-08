@@ -16,9 +16,10 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         bindAddress: "127.0.0.1",
     },
     queue: {
-        monolithic: true,
-        port: 6379,
-        host: "localhost",
+        redisUri: "redis://localhost:6379",
+    },
+    cache: {
+        redisUri: "redis://localhost:6379",
     },
     logging: {
         level: "info",
@@ -33,7 +34,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
             level: "admin"
         }],
     }],
-    passFile: "passkey.pem",
+    passFile: "./passkey.pem",
     widgets: {
         publicUrl: `${hookshotWebhooksUrl}/widgetapi/v1/static`,
         addToAdminRooms: false,

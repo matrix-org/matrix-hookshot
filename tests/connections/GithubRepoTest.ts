@@ -1,7 +1,7 @@
 import { GitHubRepoConnection, GitHubRepoConnectionState } from "../../src/Connections/GithubRepo"
 import { GithubInstance } from "../../src/github/GithubInstance";
 import { createMessageQueue } from "../../src/MessageQueue";
-import { UserTokenStore } from "../../src/UserTokenStore";
+import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { DefaultConfig } from "../../src/config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
@@ -37,9 +37,7 @@ const GITHUB_ISSUE_CREATED_PAYLOAD = {
 };
 
 function createConnection(state: Record<string, unknown> = {}, isExistingState=false) {
-	const mq = createMessageQueue({
-		monolithic: true
-	});
+	const mq = createMessageQueue();
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
 	const intent = as.getIntentForUserId('@github:example.test');

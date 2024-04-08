@@ -27,7 +27,12 @@ cd matrix-hookshot
 yarn # or npm i
 ```
 
-Starting the bridge (after configuring it), is a matter of running `yarn start`.
+Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development`, depending if you want [better performance or more verbose logging](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production), and then running it:
+
+
+```bash
+NODE_ENV=production yarn start
+```
 
 ## Installation via Docker
 
@@ -221,6 +226,20 @@ In terms of API endpoints:
 Please note that the appservice HTTP listener is configured <strong>separately</strong> from the rest of the bridge (in the `homeserver` section) due to lack of support
 in the upstream library. See <a href="https://github.com/turt2live/matrix-bot-sdk/issues/191">this issue</a> for details.
 </section>
+
+### Cache configuration
+
+You can optionally enable a Redis-backed cache for Hookshot. This is generally a good thing to enable if you can
+afford to, as it will generally improve startup times. Some features such as resuming RSS/Atom feeds between restarts
+is also only possible with a external cache.
+
+To enable, simply set:
+
+```yaml
+cache:
+  redisUri: "redis://redis-host:3679"
+```
+
 
 ### Services configuration
 

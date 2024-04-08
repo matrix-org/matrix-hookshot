@@ -3,6 +3,7 @@ pub mod feeds;
 pub mod format_util;
 pub mod github;
 pub mod jira;
+pub mod tokens;
 pub mod util;
 
 #[macro_use]

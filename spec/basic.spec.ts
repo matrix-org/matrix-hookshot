@@ -19,12 +19,12 @@ describe('Basic test setup', () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
         await user.waitForRoomJoin({sender: testEnv.botMxid, roomId });
-        await user.sendText(roomId, "!hookshot help");
-        const msg = await user.waitForRoomEvent<MessageEventContent>({
+        const msg = user.waitForRoomEvent<MessageEventContent>({
             eventType: 'm.room.message', sender: testEnv.botMxid, roomId
         });
+        await user.sendText(roomId, "!hookshot help");
         // Expect help text.
-        expect(msg.data.content.body).to.include('!hookshot help` - This help text\n');
+        expect((await msg).data.content.body).to.include('!hookshot help` - This help text\n');
     });
 
     // TODO: Move test to it's own generic connections file.

@@ -10,7 +10,7 @@ bridge:
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
-  passkey.pem
+  ./passkey.pem
 logging:
   # Logging settings. You can have a severity debug,info,warn,error
   level: info
@@ -134,12 +134,15 @@ listeners:
 #  # (Optional) Prometheus metrics support
 #  enabled: true
 
+#cache:
+#  # (Optional) Cache options for large scale deployments. 
+#  #    For encryption to work, this must be configured.
+#  redisUri: redis://localhost:6379
+
 #queue:
-#  # (Optional) Message queue / cache configuration options for large scale deployments.
-#  # For encryption to work, must be set to monolithic mode and have a host & port specified.
-#  monolithic: true
-#  port: 6379
-#  host: localhost
+#  # (Optional) Message queue configuration options for large scale deployments.
+#  # For encryption to work, this must not be configured.
+#  redisUri: redis://localhost:6379
 
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets

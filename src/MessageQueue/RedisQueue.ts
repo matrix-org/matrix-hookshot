@@ -1,7 +1,7 @@
 
 import { MessageQueue, MessageQueueMessage, DEFAULT_RES_TIMEOUT, MessageQueueMessageOut } from "./Types";
 import { Redis, default as redis } from "ioredis";
-import { BridgeConfigQueue } from "../config/Config";
+import { BridgeConfigQueue } from "../config/sections/queue";
 import { EventEmitter } from "events";
 import { Logger } from "matrix-appservice-bridge";
 import { randomUUID } from 'node:crypto';
@@ -22,9 +22,10 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
     private myUuid: string;
     constructor(config: BridgeConfigQueue) {
         super();
-        this.redisSub = new redis(config.port ?? 6379, config.host ?? "localhost");
-        this.redisPub = new redis(config.port ?? 6379, config.host ?? "localhost");
-        this.redis = new redis(config.port ?? 6379, config.host ?? "localhost");
+        const uri = 'redisUri' in config ? config.redisUri : `redis://${config.host ?? 'localhost'}:${config.port ?? 6379}`;
+        this.redisSub = new redis(uri);
+        this.redisPub = new redis(uri);
+        this.redis = new redis(uri);
         this.myUuid = randomUUID();
         this.redisSub.on("pmessage", (_: string, channel: string, message: string) => {
             const msg = JSON.parse(message) as MessageQueueMessageOut<unknown>;
