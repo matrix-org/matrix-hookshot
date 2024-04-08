@@ -14,6 +14,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private storedFiles = new QuickLRU<string, string>({ maxSize: 128 });
     private gitlabDiscussionThreads = new Map<string, SerializedGitlabDiscussionThreads>();
     private feedGuids = new Map<string, Array<string>>();
+    private houndActivityIds = new Map<string, Array<string>>();
 
     constructor() {
         super();
@@ -107,5 +108,21 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
 
     public async setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void> {
         this.gitlabDiscussionThreads.set(connectionId, value);
+    }
+
+    async storeHoundActivity(url: string, ...ids: string[]): Promise<void> {
+        let set = this.houndActivityIds.get(url);
+        if (!set) {
+            set = []
+            this.houndActivityIds.set(url, set);
+        }
+        set.unshift(...ids);
+        while (set.length > MAX_FEED_ITEMS) {
+            set.pop();
+        } 
+    }
+    async hasSeenHoundActivity(url: string, ...ids: string[]): Promise<string[]> {
+        const existing = this.houndActivityIds.get(url);
+        return existing ? ids.filter((existingGuid) => existing.includes(existingGuid)) : [];
     }
 }
