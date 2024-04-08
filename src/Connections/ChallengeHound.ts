@@ -1,10 +1,8 @@
-import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
+import { Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { BridgeConfig } from "../config/Config";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 
 const log = new Logger("HoundConnection");
@@ -86,7 +84,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
         HoundConnection.CanonicalEventType,
         HoundConnection.LegacyEventType,
     ];
-    static readonly ServiceCategory = "hound";
+    static readonly ServiceCategory = "challengehound";
 
 
     public static validateState(data: Record<string, unknown>): HoundConnectionState {
@@ -99,19 +97,19 @@ export class HoundConnection extends BaseConnection implements IConnection {
         }
     }
 
-    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, as, intent, storage}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, intent}: InstantiateConnectionOpts) {
         if (!config.challengeHound) {
             throw Error('Challenge hound is not configured');
         }
-        return new HoundConnection(roomId, event.stateKey, event.content, config, as, intent, storage);
+        return new HoundConnection(roomId, event.stateKey, event.content, intent);
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, intent, config, storage}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {intent, config}: ProvisionConnectionOpts) {
         if (!config.challengeHound) {
             throw Error('Challenge hound is not configured');
         }
         const validState = this.validateState(data);
-        const connection = new HoundConnection(roomId, validState.url, validState, config, as, intent, storage);
+        const connection = new HoundConnection(roomId, validState.url, validState, intent);
         await intent.underlyingClient.sendStateEvent(roomId, HoundConnection.CanonicalEventType, validState.url, validState);
         return {
             connection,
@@ -125,10 +123,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
         roomId: string,
         stateKey: string,
         private state: HoundConnectionState,
-        private readonly config: BridgeConfig,
-        private readonly as: Appservice,
-        private readonly intent: Intent,
-        private readonly storage: IBridgeStorageProvider) {
+        private readonly intent: Intent) {
         super(roomId, stateKey, HoundConnection.CanonicalEventType)
     }
 
