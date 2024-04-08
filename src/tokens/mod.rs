@@ -65,7 +65,7 @@ impl JsTokenEncryption {
         let mut result = String::new();
 
         for v in parts {
-            if let Err(match_err) = match self.decrypt_value(v) {
+            match self.decrypt_value(v) {
                 Ok(new_value) => {
                     result += &new_value;
                     Ok(())
@@ -74,9 +74,7 @@ impl JsTokenEncryption {
                     napi::Status::GenericFailure,
                     format!("Could not decrypt string: {:?}", err).to_string(),
                 )),
-            } {
-                return Err(match_err);
-            }
+            }?
         }
         Ok(result)
     }
@@ -97,8 +95,7 @@ impl JsTokenEncryption {
         let mut rng = rand::thread_rng();
         let mut parts: Vec<String> = Vec::new();
         for part in input.into_bytes().chunks(MAX_TOKEN_PART_SIZE) {
-            if let Err(match_err) =
-                match self
+            match self
                     .inner
                     .public_key
                     .encrypt(&mut rng, Pkcs1v15Encrypt, part)
@@ -112,10 +109,7 @@ impl JsTokenEncryption {
                         napi::Status::GenericFailure,
                         format!("Could not encrypt string: {:?}", err).to_string(),
                     )),
-                }
-            {
-                return Err(match_err);
-            }
+                }?
         }
         Ok(parts)
     }
