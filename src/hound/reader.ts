@@ -1,6 +1,6 @@
 import axios from "axios";
 import { ConnectionManager } from "../ConnectionManager";
-import { HoundConnection, HoundPayload, IActivity } from "../Connections/ChallengeHound";
+import { HoundConnection, HoundPayload, HoundActivity } from "../Connections/ChallengeHound";
 import { MessageQueue } from "../MessageQueue";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigChallengeHound } from "../config/Config";
@@ -83,7 +83,7 @@ export class HoundReader {
 
     public async poll(url: string) {
         const resAct = await this.houndClient.get(`${url}/activities?limit=10`);
-        const activites = resAct.data as IActivity[];
+        const activites = resAct.data as HoundActivity[];
         const seen = await this.storage.hasSeenHoundActivity(url, ...activites.map(a => a.id));
         for (const activity of activites) {
             if (seen.includes(activity.id)) {

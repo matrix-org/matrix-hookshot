@@ -14,11 +14,11 @@ export interface HoundConnectionState extends IConnectionState {
 }
 
 export interface HoundPayload {
-    activity: IActivity,
+    activity: HoundActivity,
     url: string,
 }
 
-export interface IActivity {
+export interface HoundActivity {
     id: string;
     distance: number; // in meters
     duration: number;
@@ -144,7 +144,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
         return this.state.priority || super.priority;
     }
 
-    public async handleNewActivity(payload: IActivity) {
+    public async handleNewActivity(payload: HoundActivity) {
         this.processedActivites.add(payload.id);
         const distance = `${(payload.distance / 1000).toFixed(2)}km`;
         const emoji = getEmojiForType(payload.activityType);

@@ -41,8 +41,8 @@ import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
 import * as Sentry from '@sentry/node';
-import { HoundConnection, HoundPayload, IActivity } from "./Connections/ChallengeHound";
-import { HoundReader } from "./hound/reaader";
+import { HoundConnection, HoundPayload } from "./Connections/ChallengeHound";
+import { HoundReader } from "./hound/reader";
 
 const log = new Logger("Bridge");
 
