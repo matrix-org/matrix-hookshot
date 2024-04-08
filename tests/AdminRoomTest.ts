@@ -4,7 +4,7 @@ import { AdminRoom } from "../src/AdminRoom";
 import { DefaultConfig } from "../src/config/Defaults";
 import { ConnectionManager } from "../src/ConnectionManager";
 import { NotifFilter } from "../src/NotificationFilters";
-import { UserTokenStore } from "../src/UserTokenStore";
+import { UserTokenStore } from "../src/tokens/UserTokenStore";
 import { IntentMock } from "./utils/IntentMock";
 
 const ROOM_ID = "!foo:bar";
@@ -14,9 +14,8 @@ function createAdminRoom(data: any = {admin_user: "@admin:bar"}): [AdminRoom, In
     if (!data.admin_user) {
         data.admin_user = "@admin:bar";
     }
-    const tokenStore = new UserTokenStore("notapath", intent, DefaultConfig);
-    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, tokenStore, DefaultConfig, {} as ConnectionManager), intent];
-}
+    return [new AdminRoom(ROOM_ID, data, NotifFilter.getDefaultContent(), intent, {} as UserTokenStore, DefaultConfig, {} as ConnectionManager), intent];
+} 
 
 describe("AdminRoom", () => {
     it("will present help text", async () => {
