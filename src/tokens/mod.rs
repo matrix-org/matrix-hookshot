@@ -96,20 +96,20 @@ impl JsTokenEncryption {
         let mut parts: Vec<String> = Vec::new();
         for part in input.into_bytes().chunks(MAX_TOKEN_PART_SIZE) {
             match self
-                    .inner
-                    .public_key
-                    .encrypt(&mut rng, Pkcs1v15Encrypt, part)
-                {
-                    Ok(encrypted) => {
-                        let b64 = Base64::encode_string(encrypted.as_slice());
-                        parts.push(b64);
-                        Ok(())
-                    }
-                    Err(err) => Err(Error::new(
-                        napi::Status::GenericFailure,
-                        format!("Could not encrypt string: {:?}", err).to_string(),
-                    )),
-                }?
+                .inner
+                .public_key
+                .encrypt(&mut rng, Pkcs1v15Encrypt, part)
+            {
+                Ok(encrypted) => {
+                    let b64 = Base64::encode_string(encrypted.as_slice());
+                    parts.push(b64);
+                    Ok(())
+                }
+                Err(err) => Err(Error::new(
+                    napi::Status::GenericFailure,
+                    format!("Could not encrypt string: {:?}", err).to_string(),
+                )),
+            }?
         }
         Ok(parts)
     }
