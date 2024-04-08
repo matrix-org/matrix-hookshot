@@ -2,18 +2,15 @@ import { Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
-import { Logger } from "matrix-appservice-bridge";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 
-const log = new Logger("HoundConnection");
-
 export interface HoundConnectionState extends IConnectionState {
-    url: string;
+    challengeId: string;
 }
 
 export interface HoundPayload {
     activity: HoundActivity,
-    url: string,
+    challengeId: string,
 }
 
 export interface HoundActivity {
@@ -88,12 +85,19 @@ export class HoundConnection extends BaseConnection implements IConnection {
 
 
     public static validateState(data: Record<string, unknown>): HoundConnectionState {
-        if (!data.url || typeof data.url !== "string") {
-            throw Error('Missing or invalid url');
+        // Previously URL was supported.
+        if (!data.challengeId && data.url && data.url === "string") {
+            const parts = new URL(data.url).pathname.split('/');
+            data.challengeId = parts[parts.length-1];
         }
-        const url = new URL(data.url);
+
+        // Test for v1 uuid.
+        if (!data.challengeId || typeof data.challengeId !== "string" || /^\w{8}(?:\-\w{4}){3}-\w{12}$/.test(data.challengeId)) {
+            throw Error('Missing or invalid id');
+        }
+
         return {
-            url: url.toString(),
+            challengeId: data.challengeId
         }
     }
 
@@ -104,20 +108,18 @@ export class HoundConnection extends BaseConnection implements IConnection {
         return new HoundConnection(roomId, event.stateKey, event.content, intent);
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {intent, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {intent, config}: ProvisionConnectionOpts) {
         if (!config.challengeHound) {
             throw Error('Challenge hound is not configured');
         }
         const validState = this.validateState(data);
-        const connection = new HoundConnection(roomId, validState.url, validState, intent);
-        await intent.underlyingClient.sendStateEvent(roomId, HoundConnection.CanonicalEventType, validState.url, validState);
+        const connection = new HoundConnection(roomId, validState.challengeId, validState, intent);
+        await intent.underlyingClient.sendStateEvent(roomId, HoundConnection.CanonicalEventType, validState.challengeId, validState);
         return {
             connection,
             stateEventContent: validState,
         }
     }
-
-    private readonly processedActivites = new Set<string>();
 
     constructor(
         roomId: string,
@@ -131,8 +133,8 @@ export class HoundConnection extends BaseConnection implements IConnection {
         return false; // We don't support state-updates...yet.
     }
 
-    public get url() {
-        return this.state.url;
+    public get challengeId() {
+        return this.state.challengeId;
     }
 
     public get priority(): number {
@@ -140,7 +142,6 @@ export class HoundConnection extends BaseConnection implements IConnection {
     }
 
     public async handleNewActivity(payload: HoundActivity) {
-        this.processedActivites.add(payload.id);
         const distance = `${(payload.distance / 1000).toFixed(2)}km`;
         const emoji = getEmojiForType(payload.activityType);
         const body = `🎉 **${payload.user.fullname}** completed a ${distance} ${emoji} ${payload.activityType} (${payload.activityName})`;
@@ -162,6 +163,6 @@ export class HoundConnection extends BaseConnection implements IConnection {
     }
 
     public toString() {
-        return `HoundConnection ${this.url}`;
+        return `HoundConnection ${this.challengeId}`;
     }
 }

@@ -16,7 +16,7 @@ const log = new Logger("HoundReader");
 
 export class HoundReader {
     private connections: HoundConnection[];
-    private urls: string[];
+    private challengeIds: string[];
     private timeout?: NodeJS.Timeout;
     private shouldRun = true;
     private readonly houndClient: axios.AxiosInstance;
@@ -32,7 +32,7 @@ export class HoundReader {
         private readonly storage: IBridgeStorageProvider,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(HoundConnection);
-        this.urls = this.connections.map(c => normalizeUrl(c.url));
+        this.challengeIds = this.connections.map(c => normalizeUrl(c.challengeId));
         this.houndClient = axios.create({
             headers: {
                 'Authorization': config.token,
@@ -43,10 +43,9 @@ export class HoundReader {
             if (!(newConnection instanceof HoundConnection)) {
                 return;
             }
-            const normalisedUrl = normalizeUrl(newConnection.url);
-            if (!this.urls.includes(normalisedUrl)) {
-                log.info(`Connection added, adding "${normalisedUrl}" to queue`);
-                this.urls.push(normalisedUrl);
+            if (!this.challengeIds.includes(newConnection.challengeId)) {
+                log.info(`Connection added, adding "${newConnection.challengeId}" to queue`);
+                this.challengeIds.push(newConnection.challengeId);
             }
         });
         connectionManager.on('connection-removed', removed => {
@@ -54,24 +53,23 @@ export class HoundReader {
                 return;
             }
             let shouldKeepUrl = false;
-            const normalisedUrl = normalizeUrl(removed.url);
             this.connections = this.connections.filter(c => {
                 // Cheeky reuse of iteration to determine if we should remove this URL.
                 if (c.connectionId !== removed.connectionId) {
-                    shouldKeepUrl = shouldKeepUrl || normalizeUrl(c.url) === normalisedUrl;
+                    shouldKeepUrl = shouldKeepUrl || c.challengeId === removed.challengeId;
                     return true;
                 }
                 return false;
             });
             if (shouldKeepUrl) {
-                log.info(`Connection removed, but not removing "${normalisedUrl}" as it is still in use`);
+                log.info(`Connection removed, but not removing "${removed.challengeId}" as it is still in use`);
                 return;
             }
-            log.info(`Connection removed, removing "${normalisedUrl}" from queue`);
-            this.urls = this.urls.filter(u => u !== removed.url)
+            log.info(`Connection removed, removing "${removed.challengeId}" from queue`);
+            this.challengeIds = this.challengeIds.filter(u => u !== removed.challengeId)
         });
 
-        log.debug('Loaded activity URLs:', [...this.urls].join(', '));
+        log.debug('Loaded challenge IDs:', [...this.challengeIds].join(', '));
         void this.pollFeeds();
     }
 
@@ -82,10 +80,10 @@ export class HoundReader {
         }
     }
 
-    public async poll(url: string) {
-        const resAct = await this.houndClient.get(`${url}/activities?limit=10`);
+    public async poll(challengeId: string) {
+        const resAct = await this.houndClient.get(`https://api.challengehound.com/challenges/${challengeId}/activities?limit=10`);
         const activites = resAct.data as HoundActivity[];
-        const seen = await this.storage.hasSeenHoundActivity(url, ...activites.map(a => a.id));
+        const seen = await this.storage.hasSeenHoundActivity(challengeId, ...activites.map(a => a.id));
         for (const activity of activites) {
             if (seen.includes(activity.id)) {
                 continue;
@@ -94,12 +92,12 @@ export class HoundReader {
                 eventName: "hound.activity", 
                 sender: "HoundReader",
                 data: {
-                    url,
+                    challengeId,
                     activity: activity,
                 }
             });
         }
-        await this.storage.storeHoundActivity(url, ...activites.map(a => a.id))
+        await this.storage.storeHoundActivity(challengeId, ...activites.map(a => a.id))
     }
 
     public async pollFeeds(): Promise<void> {
@@ -107,12 +105,12 @@ export class HoundReader {
 
         const fetchingStarted = Date.now();
 
-        const url = this.urls.pop();
+        const challengeId = this.challengeIds.pop();
         let sleepFor = this.sleepingInterval;
 
-        if (url) {
+        if (challengeId) {
             try {
-                await this.poll(url);
+                await this.poll(challengeId);
                 const elapsed = Date.now() - fetchingStarted;
                 sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
                 log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
@@ -121,7 +119,7 @@ export class HoundReader {
                     log.warn(`It took us longer to update the feeds than the configured pool interval`);
                 }
             } finally {
-                this.urls.splice(0, 0, url);
+                this.challengeIds.splice(0, 0, challengeId);
             }
         } else {
             // It is possible that we have more workers than feeds. This will cause the worker to just sleep.

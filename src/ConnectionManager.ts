@@ -343,8 +343,8 @@ export class ConnectionManager extends EventEmitter {
         return this.connections.filter(c => c instanceof FeedConnection && c.feedUrl === url) as FeedConnection[];
     }
 
-    public getConnectionsForHoundUrl(url: string): HoundConnection[] {
-        return this.connections.filter(c => c instanceof HoundConnection && c.url === url) as HoundConnection[];
+    public getConnectionsForHoundChallengeId(challengeId: string): HoundConnection[] {
+        return this.connections.filter(c => c instanceof HoundConnection && c.challengeId === challengeId) as HoundConnection[];
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

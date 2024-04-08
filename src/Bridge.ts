@@ -684,7 +684,7 @@ export class Bridge {
 
         this.bindHandlerToQueue<HoundPayload, HoundConnection>(
             "hound.activity",
-            (data) => connManager.getConnectionsForHoundUrl(data.url),
+            (data) => connManager.getConnectionsForHoundChallengeId(data.challengeId),
             (c, data) => c.handleNewActivity(data.activity)
         );
 
