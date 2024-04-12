@@ -1,4 +1,3 @@
-// We need to instantiate some functions which are not directly called, which confuses typescript.
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
 import { GenericHookConnection, GenericHookConnectionState, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
@@ -15,6 +14,7 @@ import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConne
 import { ApiError, Logger } from "matrix-appservice-bridge";
 import { Intent } from "matrix-bot-sdk";
 import YAML from 'yaml';
+import { HoundConnection } from "./HoundConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 
@@ -72,13 +72,13 @@ export class SetupConnection extends CommandConnection {
         this.includeTitlesInHelp = false;
     }
 
-    @botCommand("github repo", { help: "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this.)", requiredArgs: ["url"], includeUserId: true, category: "github"})
+    @botCommand("github repo", { help: "Create a connection for a GitHub repository. (You must be logged in with GitHub to do this.)", requiredArgs: ["url"], includeUserId: true, category: GitHubRepoConnection.ServiceCategory})
     public async onGitHubRepo(userId: string, url: string) {
         if (!this.provisionOpts.github || !this.config.github) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitHub.");
         }
 
-        await this.checkUserPermissions(userId, "github", GitHubRepoConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, GitHubRepoConnection.ServiceCategory, GitHubRepoConnection.CanonicalEventType);
         const octokit = await this.provisionOpts.tokenStore.getOctokitForUser(userId);
         if (!octokit) {
             throw new CommandError("User not logged in", "You are not logged into GitHub. Start a DM with this bot and use the command `github login`.");
@@ -93,13 +93,13 @@ export class SetupConnection extends CommandConnection {
         await this.client.sendNotice(this.roomId, `Room configured to bridge ${connection.org}/${connection.repo}`);
     }
 
-    @botCommand("gitlab project", { help: "Create a connection for a GitHub project. (You must be logged in with GitLab to do this.)", requiredArgs: ["url"], includeUserId: true, category: "gitlab"})
+    @botCommand("gitlab project", { help: "Create a connection for a GitHub project. (You must be logged in with GitLab to do this.)", requiredArgs: ["url"], includeUserId: true, category: GitLabRepoConnection.ServiceCategory})
     public async onGitLabRepo(userId: string, url: string) {
         if (!this.config.gitlab) {
             throw new CommandError("not-configured", "The bridge is not configured to support GitLab.");
         }
 
-        await this.checkUserPermissions(userId, "gitlab", GitLabRepoConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, GitLabRepoConnection.ServiceCategory, GitLabRepoConnection.CanonicalEventType);
 
         const {name, instance} = this.config.gitlab.getInstanceByProjectUrl(url) || {};
         if (!instance || !name) {
@@ -126,7 +126,7 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
-    private async getJiraProjectSafeUrl(userId: string, urlStr: string) {
+    private async getJiraProjectSafeUrl(urlStr: string) {
         const url = new URL(urlStr);
         const urlParts = /\/projects\/(\w+)\/?(\w+\/?)*$/.exec(url.pathname);
         const projectKey = urlParts?.[1] || url.searchParams.get('projectKey');
@@ -136,22 +136,22 @@ export class SetupConnection extends CommandConnection {
         return `https://${url.host}/projects/${projectKey}`;
     }
 
-    @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: "jira"})
+    @botCommand("jira project", { help: "Create a connection for a JIRA project. (You must be logged in with JIRA to do this.)", requiredArgs: ["url"], includeUserId: true, category: JiraProjectConnection.ServiceCategory})
     public async onJiraProject(userId: string, urlStr: string) {
         if (!this.config.jira) {
             throw new CommandError("not-configured", "The bridge is not configured to support Jira.");
         }
 
-        await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, JiraProjectConnection.ServiceCategory, JiraProjectConnection.CanonicalEventType);
         await this.checkJiraLogin(userId, urlStr);
-        const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
+        const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
 
         const res = await JiraProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
         this.pushConnections(res.connection);
         await this.client.sendNotice(this.roomId, `Room configured to bridge Jira project ${res.connection.projectKey}.`);
     }
 
-    @botCommand("jira list project", { help: "Show JIRA projects currently connected to.", category: "jira"})
+    @botCommand("jira list project", { help: "Show JIRA projects currently connected to.", category: JiraProjectConnection.ServiceCategory})
     public async onJiraListProject() {
         const projects: JiraProjectConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
@@ -177,11 +177,11 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
-    @botCommand("jira remove project", { help: "Remove a connection for a JIRA project.", requiredArgs: ["url"], includeUserId: true, category: "jira"})
+    @botCommand("jira remove project", { help: "Remove a connection for a JIRA project.", requiredArgs: ["url"], includeUserId: true, category: JiraProjectConnection.ServiceCategory})
     public async onJiraRemoveProject(userId: string, urlStr: string) {
-        await this.checkUserPermissions(userId, "jira", JiraProjectConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, JiraProjectConnection.ServiceCategory, JiraProjectConnection.CanonicalEventType);
         await this.checkJiraLogin(userId, urlStr);
-        const safeUrl = await this.getJiraProjectSafeUrl(userId, urlStr);
+        const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
 
         const eventTypes = [
             JiraProjectConnection.CanonicalEventType,
@@ -207,7 +207,7 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
     }
 
-    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: "generic"})
+    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
     public async onWebhook(userId: string, name: string) {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
@@ -234,7 +234,7 @@ export class SetupConnection extends CommandConnection {
 
 
 
-    @botCommand("webhook list", { help: "Show webhooks currently configured.", category: "generic"})
+    @botCommand("webhook list", { help: "Show webhooks currently configured.", category: GenericHookConnection.ServiceCategory})
     public async onWebhookList() {
         const webhooks: GenericHookConnectionState[] = await this.client.getRoomState(this.roomId).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
@@ -263,9 +263,9 @@ export class SetupConnection extends CommandConnection {
         }
     }
 
-    @botCommand("webhook remove", { help: "Remove a webhook from the room.", requiredArgs: ["name"], includeUserId: true, category: "generic"})
+    @botCommand("webhook remove", { help: "Remove a webhook from the room.", requiredArgs: ["name"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
     public async onWebhookRemove(userId: string, name: string) {
-        await this.checkUserPermissions(userId, "generic", GenericHookConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, GenericHookConnection.ServiceCategory, GenericHookConnection.CanonicalEventType);
 
         const event = await this.client.getRoomStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, name).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
@@ -284,13 +284,13 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Removed webhook \`${name}\``));
     }
 
-    @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: "figma"})
+    @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: FigmaFileConnection.ServiceCategory})
     public async onFigma(userId: string, url: string) {
         if (!this.config.figma) {
             throw new CommandError("not-configured", "The bridge is not configured to support Figma.");
         }
 
-        await this.checkUserPermissions(userId, "figma", FigmaFileConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, FigmaFileConnection.ServiceCategory, FigmaFileConnection.CanonicalEventType);
 
         const res = /https:\/\/www\.figma\.com\/file\/(\w+).+/.exec(url);
         if (!res) {
@@ -302,13 +302,13 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge Figma file.`));
     }
 
-    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], optionalArgs: ["label"], includeUserId: true, category: "feeds"})
+    @botCommand("feed", { help: "Bridge an RSS/Atom feed to the room.", requiredArgs: ["url"], optionalArgs: ["label"], includeUserId: true, category: FeedConnection.ServiceCategory})
     public async onFeed(userId: string, url: string, label?: string) {
         if (!this.config.feeds?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support feeds.");
         }
 
-        await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId,FeedConnection.ServiceCategory, FeedConnection.CanonicalEventType);
 
         // provisionConnection will check it again, but won't give us a nice CommandError on failure
         try {
@@ -327,7 +327,7 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge \`${url}\``));
     }
 
-    @botCommand("feed list", { help: "Show feeds currently subscribed to. Supported formats `json` and `yaml`.", optionalArgs: ["format"], category: "feeds"})
+    @botCommand("feed list", { help: "Show feeds currently subscribed to. Supported formats `json` and `yaml`.", optionalArgs: ["format"], category: FeedConnection.ServiceCategory})
     public async onFeedList(format?: string) {
         const useJsonFormat = format?.toLowerCase() === 'json';
         const useYamlFormat = format?.toLowerCase() === 'yaml';
@@ -373,7 +373,7 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("feed remove", { help: "Unsubscribe from an RSS/Atom feed.", requiredArgs: ["url"], includeUserId: true, category: "feeds"})
     public async onFeedRemove(userId: string, url: string) {
-        await this.checkUserPermissions(userId, "feed", FeedConnection.CanonicalEventType);
+        await this.checkUserPermissions(userId, FeedConnection.ServiceCategory, FeedConnection.CanonicalEventType);
 
         const event = await this.client.getRoomStateEvent(this.roomId, FeedConnection.CanonicalEventType, url).catch((err: any) => {
             if (err.body.errcode === 'M_NOT_FOUND') {
