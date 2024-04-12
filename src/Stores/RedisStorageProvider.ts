@@ -29,6 +29,7 @@ const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const FEED_GUIDS = "feeds.guids.";
+const HOUND_IDS = "feeds.guids.";
 
 const log = new Logger("RedisASProvider");
 
@@ -229,6 +230,27 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     public async hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]> {
         let multi = this.redis.multi();
         const feedKey = `${FEED_GUIDS}${url}`;
+
+        for (const guid of guids) {
+            multi = multi.lpos(feedKey, guid);
+        }
+        const res = await multi.exec();
+        if (res === null) {
+            // Just assume we've seen none.
+            return [];
+        }
+        return guids.filter((_guid, index) => res[index][1] !== null);
+    }
+
+    public async storeHoundActivity(url: string, ...guids: string[]): Promise<void> {
+        const feedKey = `${HOUND_IDS}${url}`;
+        await this.redis.lpush(feedKey, ...guids);
+        await this.redis.ltrim(feedKey, 0, MAX_FEED_ITEMS);
+    }
+
+    public async hasSeenHoundActivity(url: string, ...guids: string[]): Promise<string[]> {
+        let multi = this.redis.multi();
+        const feedKey = `${HOUND_IDS}${url}`;
 
         for (const guid of guids) {
             multi = multi.lpos(feedKey, guid);

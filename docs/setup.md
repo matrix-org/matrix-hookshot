@@ -120,6 +120,7 @@ Each permission set can have a service. The `service` field can be:
 - `feed`
 - `figma`
 - `webhooks`
+- `challengehound`
 - `*`, for any service.
 
 The `level` can be:

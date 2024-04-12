@@ -12,6 +12,7 @@ import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigCache } from "./sections/cache";
 import { BridgeConfigQueue } from "./sections";
+import { DefaultConfigRoot } from "./Defaults";
 
 const log = new Logger("Config");
 
@@ -450,6 +451,10 @@ export interface BridgeConfigSentry {
     environment?: string;
 }
 
+export interface BridgeConfigChallengeHound {
+    token?: string;
+}
+
 
 export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
@@ -473,6 +478,7 @@ export interface BridgeConfigRoot {
     serviceBots?: BridgeConfigServiceBot[];
     webhook?: BridgeConfigWebhook;
     widgets?: BridgeWidgetConfigYAML;
+    challengeHound?: BridgeConfigChallengeHound;
 }
 
 export class BridgeConfig {
@@ -510,6 +516,8 @@ export class BridgeConfig {
     public readonly figma?: BridgeConfigFigma;
     @configKey("Configure this to enable RSS/Atom feed support", true)
     public readonly feeds?: BridgeConfigFeeds;
+    @configKey("Configure Challenge Hound support", true)
+    public readonly challengeHound?: BridgeConfigChallengeHound;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("Define additional bot users for specific services", true)
@@ -534,6 +542,8 @@ export class BridgeConfig {
     @hideKey()
     private readonly bridgePermissions: BridgePermissions;
 
+
+
     constructor(configData: BridgeConfigRoot, env?: {[key: string]: string|undefined}) {
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
@@ -554,6 +564,7 @@ export class BridgeConfig {
         this.bot = configData.bot;
         this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
+        this.challengeHound = configData.challengeHound;
 
         // TODO: Formalize env support
         if (env?.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
@@ -755,6 +766,9 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         }
         if (this.jira) {
             services.push("jira");
+        }
+        if (this.challengeHound) {
+            services.push("challengehound");
         }
         return services;
     }
