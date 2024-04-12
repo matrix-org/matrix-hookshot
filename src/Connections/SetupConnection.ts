@@ -389,6 +389,36 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from \`${url}\``));
     }
 
+    @botCommand("challenghound add", { help: "Bridge a ChallengeHound challenge to the room.", requiredArgs: ["url"], includeUserId: true, category: "challengehound"})
+    public async onChallengeHoundAdd(userId: string, url: string) {
+        if (!this.config.challengeHound) {
+            throw new CommandError("not-configured", "The bridge is not configured to support challengeHound.");
+        }
+
+        await this.checkUserPermissions(userId, HoundConnection.ServiceCategory, HoundConnection.CanonicalEventType);
+        const {connection, challengeName} = await HoundConnection.provisionConnection(this.roomId, userId, { url }, this.provisionOpts);
+        this.pushConnections(connection);
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge ${challengeName}. Good luck!`));
+    }
+
+    @botCommand("challenghound remove", { help: "Unbridge a ChallengeHound challenge.", requiredArgs: ["urlOrId"], includeUserId: true, category: HoundConnection.ServiceCategory})
+    public async onChallengeHoundRemove(userId: string, urlOrId: string) {
+        await this.checkUserPermissions(userId, HoundConnection.ServiceCategory, HoundConnection.CanonicalEventType);
+        const id = urlOrId.startsWith('http') ? HoundConnection.getIdFromURL(urlOrId) : urlOrId;
+        const event = await this.client.getRoomStateEvent(this.roomId, HoundConnection.CanonicalEventType, id).catch((err: any) => {
+            if (err.body.errcode === 'M_NOT_FOUND') {
+                return null; // not an error to us
+            }
+            throw err;
+        });
+        if (!event || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid feed URL", `Challenge "${id}" is not currently bridged to this room`);
+        }
+
+        await this.client.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, id, {});
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from challenge`));
+    }
+
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
     public async onSetupWidget() {
         if (this.config.widgets?.roomSetupWidget === undefined) {
