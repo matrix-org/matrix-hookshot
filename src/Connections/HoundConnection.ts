@@ -92,7 +92,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
         }
 
         // Test for v1 uuid.
-        if (!data.challengeId || typeof data.challengeId !== "string" || /^\w{8}(?:\-\w{4}){3}-\w{12}$/.test(data.challengeId)) {
+        if (!data.challengeId || typeof data.challengeId !== "string" || /^\w{8}(?:-\w{4}){3}-\w{12}$/.test(data.challengeId)) {
             throw Error('Missing or invalid id');
         }
 
