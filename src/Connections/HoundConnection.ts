@@ -3,6 +3,7 @@ import markdownit from "markdown-it";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { CommandError } from "../errors";
 
 export interface HoundConnectionState extends IConnectionState {
     challengeId: string;
@@ -83,12 +84,15 @@ export class HoundConnection extends BaseConnection implements IConnection {
     ];
     static readonly ServiceCategory = "challengehound";
 
+    public static getIdFromURL(url: string): string {
+        const parts = new URL(url).pathname.split('/');
+        return parts[parts.length-1];
+    }
 
     public static validateState(data: Record<string, unknown>): HoundConnectionState {
-        // Previously URL was supported.
+        // Convert URL to ID.
         if (!data.challengeId && data.url && data.url === "string") {
-            const parts = new URL(data.url).pathname.split('/');
-            data.challengeId = parts[parts.length-1];
+            data.challengeId = this.getIdFromURL(data.url);
         }
 
         // Test for v1 uuid.
@@ -101,11 +105,11 @@ export class HoundConnection extends BaseConnection implements IConnection {
         }
     }
 
-    public static createConnectionForState(roomId: string, event: StateEvent<any>, {config, intent}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {config, intent}: InstantiateConnectionOpts) {
         if (!config.challengeHound) {
             throw Error('Challenge hound is not configured');
         }
-        return new HoundConnection(roomId, event.stateKey, event.content, intent);
+        return new HoundConnection(roomId, event.stateKey, this.validateState(event.content), intent);
     }
 
     static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {intent, config}: ProvisionConnectionOpts) {
@@ -113,12 +117,19 @@ export class HoundConnection extends BaseConnection implements IConnection {
             throw Error('Challenge hound is not configured');
         }
         const validState = this.validateState(data);
+        // Check the event actually exists.
+        const statusDataRequest = await fetch(`https://api.challengehound.com/challenges/${validState.challengeId}/status`);
+        if (!statusDataRequest.ok) {
+            throw new CommandError(`Fetch failed, status ${statusDataRequest.status}`, "Challenge could not be found. Is it active?");
+        }
+        const { challengeName } = await statusDataRequest.json() as {challengeName: string};
         const connection = new HoundConnection(roomId, validState.challengeId, validState, intent);
         await intent.underlyingClient.sendStateEvent(roomId, HoundConnection.CanonicalEventType, validState.challengeId, validState);
         return {
             connection,
             stateEventContent: validState,
-        }
+            challengeName,
+        };
     }
 
     constructor(
