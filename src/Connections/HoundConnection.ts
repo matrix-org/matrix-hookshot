@@ -55,6 +55,8 @@ function getEmojiForType(type: string) {
         case "cycle":
         case "cycling":
             return "🚴";
+        case "mountainbikeride":
+            return "⛰️🚴";
         case "virtualride":
             return "👨‍💻🚴";
         case "walk":
@@ -67,6 +69,8 @@ function getEmojiForType(type: string) {
             return "👨‍💻🚶";
         case "alpineski":
             return "⛷️";
+        case "swim":
+            return "🏊";
         default:
             return "🕴️";
     }
