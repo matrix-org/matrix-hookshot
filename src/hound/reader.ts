@@ -6,12 +6,6 @@ import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigChallengeHound } from "../config/Config";
 import { Logger } from "matrix-appservice-bridge";
 
-function normalizeUrl(input: string): string {
-    const url = new URL(input);
-    url.hash = '';
-    return url.toString();
-}
-
 const log = new Logger("HoundReader");
 
 export class HoundReader {
@@ -22,7 +16,7 @@ export class HoundReader {
     private readonly houndClient: axios.AxiosInstance;
 
     get sleepingInterval() {
-        return 60000;
+        return 60000 / (this.challengeIds.length || 1); 
     }
 
     constructor(
@@ -32,7 +26,7 @@ export class HoundReader {
         private readonly storage: IBridgeStorageProvider,
     ) {
         this.connections = this.connectionManager.getAllConnectionsOfType(HoundConnection);
-        this.challengeIds = this.connections.map(c => normalizeUrl(c.challengeId));
+        this.challengeIds = this.connections.map(c => c.challengeId);
         this.houndClient = axios.create({
             headers: {
                 'Authorization': config.token,
@@ -70,7 +64,7 @@ export class HoundReader {
         });
 
         log.debug('Loaded challenge IDs:', [...this.challengeIds].join(', '));
-        void this.pollFeeds();
+        void this.pollChallenges();
     }
 
     public stop() {
@@ -100,7 +94,7 @@ export class HoundReader {
         await this.storage.storeHoundActivity(challengeId, ...activites.map(a => a.id))
     }
 
-    public async pollFeeds(): Promise<void> {
+    public async pollChallenges(): Promise<void> {
         log.debug(`Checking for updates`);
 
         const fetchingStarted = Date.now();
@@ -113,16 +107,15 @@ export class HoundReader {
                 await this.poll(challengeId);
                 const elapsed = Date.now() - fetchingStarted;
                 sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
-                log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
+                log.debug(`Activity fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
 
                 if (elapsed > this.sleepingInterval) {
-                    log.warn(`It took us longer to update the feeds than the configured pool interval`);
+                    log.warn(`It took us longer to update the activities than the expected interval`);
                 }
             } finally {
                 this.challengeIds.splice(0, 0, challengeId);
             }
         } else {
-            // It is possible that we have more workers than feeds. This will cause the worker to just sleep.
             log.debug(`No activites available to poll`);
         }
 
@@ -130,7 +123,7 @@ export class HoundReader {
             if (!this.shouldRun) {
                 return;
             }
-            void this.pollFeeds();
+            void this.pollChallenges();
         }, sleepFor);
     }
 }
