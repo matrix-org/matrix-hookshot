@@ -4,6 +4,7 @@ import { expect } from "chai";
 
 describe("TokenEncryption", () => {
     let keyPromise: Promise<Buffer>;
+    let keyPromisePKCS1: Promise<Buffer>;
     async function createTokenEncryption() {
         return new TokenEncryption(await keyPromise);
     }
@@ -24,6 +25,21 @@ describe("TokenEncryption", () => {
         } satisfies RSAKeyPairOptions<"pem", "pem">, (err, _, privateKey) => {
             if (err) { reject(err) } else { resolve(Buffer.from(privateKey)) }
         }));
+        keyPromisePKCS1 = new Promise<Buffer>((resolve, reject) => generateKeyPair("rsa", {
+            // Deliberately shorter length to speed up test
+            modulusLength: 2048,
+            privateKeyEncoding: {
+                type: "pkcs1",
+                format: "pem",
+            },
+            publicKeyEncoding: {
+                format: "pem",
+                type: "pkcs1",
+            }
+        } satisfies RSAKeyPairOptions<"pem", "pem">, (err, _, privateKey) => {
+            if (err) { reject(err) } else { resolve(Buffer.from(privateKey)) }
+        }));
+
     }, );
     it('should be able to encrypt a string into a single part', async() => {
         const tokenEncryption = await createTokenEncryption();
@@ -44,5 +60,10 @@ describe("TokenEncryption", () => {
         expect(value).to.have.lengthOf(2);
         const result = tokenEncryption.decrypt(value);
         expect(result).to.equal(plaintext);
+    });
+    it('should support pkcs1 format keys', async() => {
+        const tokenEncryption = new TokenEncryption(await keyPromisePKCS1);
+        const result = tokenEncryption.encrypt('hello world');
+        expect(result).to.have.lengthOf(1);
     });
 });
