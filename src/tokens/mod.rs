@@ -4,6 +4,7 @@ use base64ct::{Base64, Encoding};
 use napi::bindgen_prelude::Buffer;
 use napi::Error;
 use rsa::pkcs8::DecodePrivateKey;
+use rsa::pkcs1::DecodeRsaPrivateKey;
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 
 static MAX_TOKEN_PART_SIZE: usize = 128;
@@ -17,7 +18,9 @@ struct TokenEncryption {
 #[allow(dead_code)]
 enum TokenEncryptionError {
     FromUtf8(FromUtf8Error),
-    PrivateKey(rsa::pkcs8::Error),
+    UnknownFormat,
+    PrivateKey8(rsa::pkcs8::Error),
+    PrivateKey1(rsa::pkcs1::Error),
 }
 
 #[derive(Debug)]
@@ -31,8 +34,16 @@ enum DecryptError {
 impl TokenEncryption {
     pub fn new(private_key_data: Vec<u8>) -> Result<Self, TokenEncryptionError> {
         let data = String::from_utf8(private_key_data).map_err(TokenEncryptionError::FromUtf8)?;
-        let private_key = RsaPrivateKey::from_pkcs8_pem(data.as_str())
-            .map_err(TokenEncryptionError::PrivateKey)?;
+        let private_key: RsaPrivateKey;
+        if data.starts_with("-----BEGIN PRIVATE KEY-----") {
+            private_key = RsaPrivateKey::from_pkcs8_pem(data.as_str())
+            .map_err(TokenEncryptionError::PrivateKey8)?;
+        } else if data.starts_with("-----BEGIN RSA PRIVATE KEY-----") {
+            private_key = RsaPrivateKey::from_pkcs1_pem(data.as_str())
+            .map_err(TokenEncryptionError::PrivateKey1)?;
+        } else {
+            return Err(TokenEncryptionError::UnknownFormat);
+        }
         let public_key = private_key.to_public_key();
         Ok(TokenEncryption {
             private_key,
