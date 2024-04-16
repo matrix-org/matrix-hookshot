@@ -5,6 +5,7 @@ import { MessageQueue } from "../MessageQueue";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { BridgeConfigChallengeHound } from "../config/Config";
 import { Logger } from "matrix-appservice-bridge";
+import { hashId } from "../libRs";
 
 const log = new Logger("HoundReader");
 
@@ -74,12 +75,16 @@ export class HoundReader {
         }
     }
 
+    private static hashActivity(activity: HoundActivity) {
+        return hashId(activity.activityId + activity.name + activity.distanceKilometers + activity.durationSeconds + activity.elevationMeters);
+    }
+
     public async poll(challengeId: string) {
-        const resAct = await this.houndClient.get(`https://api.challengehound.com/challenges/${challengeId}/activities?limit=10`);
-        const activites = resAct.data as HoundActivity[];
-        const seen = await this.storage.hasSeenHoundActivity(challengeId, ...activites.map(a => a.id));
+        const resAct = await this.houndClient.get(`https://api.challengehound.com/v1/activities?challengeId=${challengeId}&size=10`);
+        const activites = (resAct.data["results"] as HoundActivity[]).map(a => ({...a, hash: HoundReader.hashActivity(a)}));
+        const seen = await this.storage.hasSeenHoundActivity(challengeId, ...activites.map(a => a.hash));
         for (const activity of activites) {
-            if (seen.includes(activity.id)) {
+            if (seen.includes(activity.hash)) {
                 continue;
             }
             this.queue.push<HoundPayload>({
@@ -91,7 +96,7 @@ export class HoundReader {
                 }
             });
         }
-        await this.storage.storeHoundActivity(challengeId, ...activites.map(a => a.id))
+        await this.storage.storeHoundActivity(challengeId, ...activites.map(a => a.hash))
     }
 
     public async pollChallenges(): Promise<void> {
@@ -112,6 +117,8 @@ export class HoundReader {
                 if (elapsed > this.sleepingInterval) {
                     log.warn(`It took us longer to update the activities than the expected interval`);
                 }
+            } catch (ex) {
+                log.warn("Failed to poll for challenge", ex);
             } finally {
                 this.challengeIds.splice(0, 0, challengeId);
             }

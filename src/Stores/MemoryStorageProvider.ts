@@ -15,6 +15,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private gitlabDiscussionThreads = new Map<string, SerializedGitlabDiscussionThreads>();
     private feedGuids = new Map<string, Array<string>>();
     private houndActivityIds = new Map<string, Array<string>>();
+    private houndActivityIdToEvent = new Map<string, string>();
 
     constructor() {
         super();
@@ -110,19 +111,27 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
         this.gitlabDiscussionThreads.set(connectionId, value);
     }
 
-    async storeHoundActivity(url: string, ...ids: string[]): Promise<void> {
-        let set = this.houndActivityIds.get(url);
+    async storeHoundActivity(challengeId: string, ...activityIds: string[]): Promise<void> {
+        let set = this.houndActivityIds.get(challengeId);
         if (!set) {
             set = []
-            this.houndActivityIds.set(url, set);
+            this.houndActivityIds.set(challengeId, set);
         }
-        set.unshift(...ids);
+        set.unshift(...activityIds);
         while (set.length > MAX_FEED_ITEMS) {
             set.pop();
         } 
     }
-    async hasSeenHoundActivity(url: string, ...ids: string[]): Promise<string[]> {
-        const existing = this.houndActivityIds.get(url);
-        return existing ? ids.filter((existingGuid) => existing.includes(existingGuid)) : [];
+    async hasSeenHoundActivity(challengeId: string, ...activityIds: string[]): Promise<string[]> {
+        const existing = this.houndActivityIds.get(challengeId);
+        return existing ? activityIds.filter((existingGuid) => existing.includes(existingGuid)) : [];
+    }
+
+    public async storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void> {
+        this.houndActivityIdToEvent.set(`${challengeId}.${activityId}`, eventId);
+    }
+
+    public async getHoundActivity(challengeId: string, activityId: string): Promise<string|null> {
+        return this.houndActivityIdToEvent.get(`${challengeId}.${activityId}`) ?? null;
     }
 }

@@ -9,6 +9,8 @@ import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 // seen from this feed, up to a max of 10,000.
 // Adopted from https://github.com/matrix-org/go-neb/blob/babb74fa729882d7265ff507b09080e732d060ae/services/rssbot/rssbot.go#L304
 export const MAX_FEED_ITEMS = 10_000;
+export const MAX_HOUND_ITEMS = 100;
+
 
 export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
     connect?(): Promise<void>;
@@ -28,6 +30,9 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     storeFeedGuids(url: string, ...guids: string[]): Promise<void>;
     hasSeenFeed(url: string): Promise<boolean>;
     hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]>;
-    storeHoundActivity(id: string, ...guids: string[]): Promise<void>;
-    hasSeenHoundActivity(id: string, ...guids: string[]): Promise<string[]>;
+
+    storeHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<void>;
+    hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]>;
+    storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void>;
+    getHoundActivity(challengeId: string, activityId: string): Promise<string|null>;
 }
