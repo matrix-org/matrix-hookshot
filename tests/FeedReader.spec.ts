@@ -39,12 +39,12 @@ class MockMessageQueue extends EventEmitter implements MessageQueue {
     }
 }
 
-async function constructFeedReader(feedResponse: () => {headers: Record<string,string>, data: string}, extraConfig?: Partial<BridgeConfigFeedsYAML>) {
+async function constructFeedReader(feedResponse: () => {headers?: Record<string,string>, data: string}, extraConfig?: Partial<BridgeConfigFeedsYAML>) {
 
     const httpServer = await new Promise<Server>(resolve => {
         const srv = createServer((_req, res) => {
             const { headers, data } = feedResponse();
-            Object.entries(headers).forEach(([key,value]) => {
+            Object.entries(headers ?? {}).forEach(([key,value]) => {
                 res.setHeader(key, value);
             });
             res.writeHead(200);
@@ -300,21 +300,44 @@ describe("FeedReader", () => {
     });
 
     it("should fail to handle a feed which exceed the maximum size.", async () => {
+        // Create some data of the right length
+        const data = `
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <rss version="2.0">
+        <channel>
+            <title>RSS Title</title>
+            <description>This is an example of an RSS feed</description>
+            ${Array.from({length: 8000}).map((_, i) => `<item>
+                <title>Example entry</title>
+                <guid isPermaLink="true">http://www.example.com/blog/post/${i}</guid>
+            </item>`).join('')}
+        </channel>
+    </rss>`;
         const { feedReader, feedUrl } = await constructFeedReader(() => ({
-            headers: {
-                'Content-Length': Math.pow(1024, 2).toString(),
-            }, data: `
-            <?xml version="1.0" encoding="UTF-8" ?>
-            <rss version="2.0">
-            <channel>
-                <title>RSS Title</title>
-                <description>This is an example of an RSS feed</description>
-                <item>
-                    <title>Example entry</title>
-                    <guid isPermaLink="true">http://www.example.com/blog/post/1</guid>
-                </item>
-            </channel>
-        </rss>`
+            data, headers: { 'Content-Length': data.length.toString()}
+        }), {
+            maximumFeedSizeMB: 1
+        });
+        await feedReader.pollFeed(feedUrl);
+        expect(feedReader["feedsFailingParsing"]).to.contain(feedUrl);
+    });
+
+    it("should fail to handle a feed which exceed the maximum size which does NOT send a Content-Length.", async () => {
+        // Create some data of the right length
+        const data = `
+        <?xml version="1.0" encoding="UTF-8" ?>
+        <rss version="2.0">
+        <channel>
+            <title>RSS Title</title>
+            <description>This is an example of an RSS feed</description>
+            ${Array.from({length: 8000}).map((_, i) => `<item>
+                <title>Example entry</title>
+                <guid isPermaLink="true">http://www.example.com/blog/post/${i}</guid>
+            </item>`).join('')}
+        </channel>
+    </rss>`;
+        const { feedReader, feedUrl } = await constructFeedReader(() => ({
+            data
         }), {
             maximumFeedSizeMB: 1
         });
