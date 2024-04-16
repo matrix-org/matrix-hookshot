@@ -76,12 +76,12 @@ export class HoundReader {
     }
 
     private static hashActivity(activity: HoundActivity) {
-        return hashId(activity.id + activity.activityName + activity.distance + activity.duration + activity.elevation);
+        return hashId(activity.activityId + activity.name + activity.distanceKilometers + activity.durationSeconds + activity.elevationMeters);
     }
 
     public async poll(challengeId: string) {
-        const resAct = await this.houndClient.get(`https://api.challengehound.com/challenges/${challengeId}/activities?limit=10`);
-        const activites = (resAct.data as HoundActivity[]).map(a => ({...a, hash: HoundReader.hashActivity(a)}));
+        const resAct = await this.houndClient.get(`https://api.challengehound.com/v1/activities?challengeId=${challengeId}&size=10`);
+        const activites = (resAct.data["results"] as HoundActivity[]).map(a => ({...a, hash: HoundReader.hashActivity(a)}));
         const seen = await this.storage.hasSeenHoundActivity(challengeId, ...activites.map(a => a.hash));
         for (const activity of activites) {
             if (seen.includes(activity.hash)) {
@@ -117,6 +117,8 @@ export class HoundReader {
                 if (elapsed > this.sleepingInterval) {
                     log.warn(`It took us longer to update the activities than the expected interval`);
                 }
+            } catch (ex) {
+                log.warn("Failed to poll for challenge", ex);
             } finally {
                 this.challengeIds.splice(0, 0, challengeId);
             }

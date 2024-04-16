@@ -15,20 +15,44 @@ export interface HoundPayload {
     challengeId: string,
 }
 
+/**
+ * @url https://documenter.getpostman.com/view/22349866/UzXLzJUV#0913e0b9-9cb5-440e-9d8d-bf6430285ee9
+ */
 export interface HoundActivity {
-    id: string;
-    distance: number; // in meters
-    duration: number;
-    elevation: number;
-    createdAt: string;
-    activityType: string;
-    activityName: string;
-    user: {
-        id: string;
-        fullname: string;
-        fname: string;
-        lname: string;
-    }
+    userId: string,
+    activityId: string,
+    participant: string,
+    /**
+     * @example "07/26/2022"
+     */
+    date: string,
+    /**
+     * @example "2022-07-26T13:49:22Z"
+     */
+    datetime: string,
+    name: string,
+    type: string,
+    /**
+     * @example strava
+     */
+    app: string,
+    durationSeconds: number,
+    /**
+     * @example "1.39"
+     */
+    distanceKilometers: string,
+    /**
+     * @example "0.86"
+     */
+    distanceMiles: string,
+    /**
+     * @example "0.86"
+     */
+    elevationMeters: string,
+    /**
+     * @example "0.86"
+     */
+    elevationFeet: string,
 }
 
 export interface IChallenge {
@@ -159,28 +183,29 @@ export class HoundConnection extends BaseConnection implements IConnection {
         return this.state.priority || super.priority;
     }
 
-    public async handleNewActivity(payload: HoundActivity) {
-        log.info(`New activity recorded ${payload.id}`);
-        const existingActivityEventId = await this.storage.getHoundActivity(this.challengeId, payload.id);
-        const distance = `${(payload.distance / 1000).toFixed(2)}km`;
-        const emoji = getEmojiForType(payload.activityType);
-        const body = `🎉 **${payload.user.fullname}** completed a ${distance} ${emoji} ${payload.activityType} (${payload.activityName})`;
+    public async handleNewActivity(activity: HoundActivity) {
+        log.info(`New activity recorded ${activity.activityId}`);
+        const existingActivityEventId = await this.storage.getHoundActivity(this.challengeId, activity.activityId);
+        const distance = parseFloat(activity.distanceKilometers);
+        const distanceUnits = `${(distance).toFixed(2)}km`;
+        const emoji = getEmojiForType(activity.type);
+        const body = `🎉 **${activity.name}** completed a ${distanceUnits} ${emoji} ${activity.type} (${activity.name})`;
         let content: any = {
             body,
             format: "org.matrix.custom.html",
             formatted_body: md.renderInline(body),
         };
         content["msgtype"] = "m.notice";
-        content["uk.half-shot.matrix-challenger.activity.id"] = payload.id;
-        content["uk.half-shot.matrix-challenger.activity.distance"] = Math.round(payload.distance);
-        content["uk.half-shot.matrix-challenger.activity.elevation"] = Math.round(payload.elevation);
-        content["uk.half-shot.matrix-challenger.activity.duration"] = Math.round(payload.duration);
+        content["uk.half-shot.matrix-challenger.activity.id"] = activity.activityId;
+        content["uk.half-shot.matrix-challenger.activity.distance"] = distance;
+        content["uk.half-shot.matrix-challenger.activity.elevation"] = Math.round(parseFloat(activity.elevationMeters));
+        content["uk.half-shot.matrix-challenger.activity.duration"] = Math.round(activity.durationSeconds);
         content["uk.half-shot.matrix-challenger.activity.user"] = {
-            "name": payload.user.fullname,
-            id: payload.user.id,
+            "name": activity.name,
+            id: activity.userId,
         };
         if (existingActivityEventId) {
-            log.debug(`Updating existing activity ${payload.id} ${existingActivityEventId}`);
+            log.debug(`Updating existing activity ${activity.activityId} ${existingActivityEventId}`);
             content = {
                 body: `* content["body"]`,
                 msgtype: "m.notice",
@@ -192,7 +217,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
             };
         }
         const eventId = await this.intent.underlyingClient.sendMessage(this.roomId, content);
-        await this.storage.storeHoundActivityEvent(this.challengeId, payload.id, eventId);
+        await this.storage.storeHoundActivityEvent(this.challengeId, activity.activityId, eventId);
     }
 
     public toString() {
