@@ -3,8 +3,8 @@ use std::string::FromUtf8Error;
 use base64ct::{Base64, Encoding};
 use napi::bindgen_prelude::Buffer;
 use napi::Error;
-use rsa::pkcs8::DecodePrivateKey;
 use rsa::pkcs1::DecodeRsaPrivateKey;
+use rsa::pkcs8::DecodePrivateKey;
 use rsa::{Pkcs1v15Encrypt, RsaPrivateKey, RsaPublicKey};
 
 static MAX_TOKEN_PART_SIZE: usize = 128;
@@ -37,10 +37,10 @@ impl TokenEncryption {
         let private_key: RsaPrivateKey;
         if data.starts_with("-----BEGIN PRIVATE KEY-----") {
             private_key = RsaPrivateKey::from_pkcs8_pem(data.as_str())
-            .map_err(TokenEncryptionError::PrivateKey8)?;
+                .map_err(TokenEncryptionError::PrivateKey8)?;
         } else if data.starts_with("-----BEGIN RSA PRIVATE KEY-----") {
             private_key = RsaPrivateKey::from_pkcs1_pem(data.as_str())
-            .map_err(TokenEncryptionError::PrivateKey1)?;
+                .map_err(TokenEncryptionError::PrivateKey1)?;
         } else {
             return Err(TokenEncryptionError::UnknownFormat);
         }
