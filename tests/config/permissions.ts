@@ -118,17 +118,35 @@ describe("Config/BridgePermissions", () => {
                 )
             ).to.be.false;
         });
-        const checkActorValues = ["@foo:bar", "bar", "*"];
-        checkActorValues.forEach(actor => {
-            it(`will return true for a service defintion of '${actor}' that has a sufficent level`, () => {
-                const bridgePermissions = genBridgePermissions("@foo:bar", "fake-service", "commands");
-                expect(
-                    bridgePermissions.checkActionAny(
-                        "@foo:bar",
-                        "commands"
-                    )
-                ).to.be.true;
-            });
+
+        it(`will check that a userId actor has a sufficent level`, () => {
+            const bridgePermissions = genBridgePermissions("@foo:bar", "fake-service", "commands");
+            expect(
+                bridgePermissions.checkActionAny(
+                    "@foo:bar",
+                    "commands"
+                )
+            ).to.be.true;
+        });
+
+        it(`will check that a homeserver actor has a sufficent level`, () => {
+            const bridgePermissions = genBridgePermissions("bar", "fake-service", "commands");
+            expect(
+                bridgePermissions.checkActionAny(
+                    "@foo:bar",
+                    "commands"
+                )
+            ).to.be.true;
+        });
+
+        it(`will check that a wildcard actor has a sufficent level`, () => {
+            const bridgePermissions = genBridgePermissions("*", "fake-service", "commands");
+            expect(
+                bridgePermissions.checkActionAny(
+                    "@foo:bar",
+                    "commands"
+                )
+            ).to.be.true;
         });
     })
 })

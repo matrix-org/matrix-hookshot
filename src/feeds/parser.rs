@@ -229,10 +229,12 @@ pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedR
                                         .map(|v| v.to_string()),
                                 }),
                                 Err(err) => Err(err),
+                            },
+                            false => {
+                                Err(JsError::new(Status::Unknown, "Feed exceeded maximum size"))
                             }
-                            false => Err(JsError::new(Status::Unknown, "Feed exceeded maximum size"))
                         }
-                    },
+                    }
                     Err(err) => Err(JsError::new(Status::Unknown, err)),
                 },
                 StatusCode::NOT_MODIFIED => Ok(FeedResult {
