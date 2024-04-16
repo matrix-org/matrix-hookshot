@@ -4,6 +4,8 @@ import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { CommandError } from "../errors";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { hashId } from "../libRs";
 
 export interface HoundConnectionState extends IConnectionState {
     challengeId: string;
@@ -109,14 +111,14 @@ export class HoundConnection extends BaseConnection implements IConnection {
         }
     }
 
-    public static createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {config, intent}: InstantiateConnectionOpts) {
+    public static createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {config, intent, storage}: InstantiateConnectionOpts) {
         if (!config.challengeHound) {
             throw Error('Challenge hound is not configured');
         }
-        return new HoundConnection(roomId, event.stateKey, this.validateState(event.content), intent);
+        return new HoundConnection(roomId, event.stateKey, this.validateState(event.content), intent, storage);
     }
 
-    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {intent, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, _userId: string, data: Record<string, unknown> = {}, {intent, config, storage}: ProvisionConnectionOpts) {
         if (!config.challengeHound) {
             throw Error('Challenge hound is not configured');
         }
@@ -127,7 +129,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
             throw new CommandError(`Fetch failed, status ${statusDataRequest.status}`, "Challenge could not be found. Is it active?");
         }
         const { challengeName } = await statusDataRequest.json() as {challengeName: string};
-        const connection = new HoundConnection(roomId, validState.challengeId, validState, intent);
+        const connection = new HoundConnection(roomId, validState.challengeId, validState, intent, storage);
         await intent.underlyingClient.sendStateEvent(roomId, HoundConnection.CanonicalEventType, validState.challengeId, validState);
         return {
             connection,
@@ -140,7 +142,8 @@ export class HoundConnection extends BaseConnection implements IConnection {
         roomId: string,
         stateKey: string,
         private state: HoundConnectionState,
-        private readonly intent: Intent) {
+        private readonly intent: Intent,
+        private readonly storage: IBridgeStorageProvider) {
         super(roomId, stateKey, HoundConnection.CanonicalEventType)
     }
 
@@ -157,10 +160,11 @@ export class HoundConnection extends BaseConnection implements IConnection {
     }
 
     public async handleNewActivity(payload: HoundActivity) {
+        const existingActivityEventId = await this.storage.getHoundActivity(this.challengeId, payload.id);
         const distance = `${(payload.distance / 1000).toFixed(2)}km`;
         const emoji = getEmojiForType(payload.activityType);
         const body = `🎉 **${payload.user.fullname}** completed a ${distance} ${emoji} ${payload.activityType} (${payload.activityName})`;
-        const content: any = {
+        let content: any = {
             body,
             format: "org.matrix.custom.html",
             formatted_body: md.renderInline(body),
@@ -174,7 +178,18 @@ export class HoundConnection extends BaseConnection implements IConnection {
             "name": payload.user.fullname,
             id: payload.user.id,
         };
-        await this.intent.underlyingClient.sendMessage(this.roomId, content);
+        if (existingActivityEventId) {
+            content = {
+                body: `* content["body"]`,
+                "m.new_content": content,
+                "m.relates_to": {
+                    "event_id": existingActivityEventId,
+                    "rel_type": "m.replace"
+                },
+            };
+        }
+        const eventId = await this.intent.underlyingClient.sendMessage(this.roomId, content);
+        await this.storage.storeHoundActivityEvent(this.challengeId, payload.id, eventId);
     }
 
     public toString() {
