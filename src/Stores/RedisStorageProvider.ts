@@ -266,7 +266,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void> {
-        const key = `${HOUND_EVENTS}.${challengeId}.${activityId}`;
+        const key = `${HOUND_EVENTS}${challengeId}.${activityId}`;
         await this.redis.set(key, eventId);
         this.redis.expire(key, HOUND_EVENT_CACHE).catch((ex) => {
             log.warn(`Failed to set expiry time on ${key}`, ex);
@@ -274,6 +274,6 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async getHoundActivity(challengeId: string, activityId: string): Promise<string|null> {
-        return this.redis.get(`${HOUND_EVENTS}.${challengeId}.${activityId}`);
+        return this.redis.get(`${HOUND_EVENTS}${challengeId}.${activityId}`);
     }
 }

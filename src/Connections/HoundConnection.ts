@@ -189,7 +189,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
         const distance = parseFloat(activity.distanceKilometers);
         const distanceUnits = `${(distance).toFixed(2)}km`;
         const emoji = getEmojiForType(activity.type);
-        const body = `🎉 **${activity.name}** completed a ${distanceUnits} ${emoji} ${activity.type} (${activity.name})`;
+        const body = `🎉 **${activity.participant}** completed a ${distanceUnits} ${emoji} ${activity.type} (${activity.name})`;
         let content: any = {
             body,
             format: "org.matrix.custom.html",
@@ -197,17 +197,17 @@ export class HoundConnection extends BaseConnection implements IConnection {
         };
         content["msgtype"] = "m.notice";
         content["uk.half-shot.matrix-challenger.activity.id"] = activity.activityId;
-        content["uk.half-shot.matrix-challenger.activity.distance"] = distance;
+        content["uk.half-shot.matrix-challenger.activity.distance"] = Math.round(distance * 1000);
         content["uk.half-shot.matrix-challenger.activity.elevation"] = Math.round(parseFloat(activity.elevationMeters));
         content["uk.half-shot.matrix-challenger.activity.duration"] = Math.round(activity.durationSeconds);
         content["uk.half-shot.matrix-challenger.activity.user"] = {
-            "name": activity.name,
+            "name": activity.participant,
             id: activity.userId,
         };
         if (existingActivityEventId) {
             log.debug(`Updating existing activity ${activity.activityId} ${existingActivityEventId}`);
             content = {
-                body: `* content["body"]`,
+                body: `* ${content.body}`,
                 msgtype: "m.notice",
                 "m.new_content": content,
                 "m.relates_to": {
