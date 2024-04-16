@@ -106,6 +106,7 @@ describe("FeedReader", () => {
         expect(events[0].data.feed.title).to.equal(null);
         expect(events[0].data.title).to.equal(null);
     });
+
     it("should handle RSS 2.0 feeds", async () => {
         const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
@@ -142,6 +143,7 @@ describe("FeedReader", () => {
         expect(events[0].data.link).to.equal('http://www.example.com/blog/post/1');
         expect(events[0].data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
     });
+
     it("should handle RSS feeds with a permalink url", async () => {
         const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
@@ -177,6 +179,7 @@ describe("FeedReader", () => {
         expect(events[0].data.link).to.equal('http://www.example.com/blog/post/1');
         expect(events[0].data.pubdate).to.equal('Sun, 6 Sep 2009 16:20:00 +0000');
     });
+
     it("should handle Atom feeds", async () => {
         const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
@@ -216,6 +219,7 @@ describe("FeedReader", () => {
         expect(events[0].data.link).to.equal('http://example.org/2003/12/13/atom03');
         expect(events[0].data.pubdate).to.equal('Sat, 13 Dec 2003 18:30:02 +0000');
     });
+
     it("should not duplicate feed entries", async () => {
         const { events, feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {}, data: `
@@ -240,6 +244,7 @@ describe("FeedReader", () => {
         await feedReader.pollFeed(feedUrl);
         expect(events).to.have.lengthOf(1);
     });
+
     it("should always hash to the same value for Atom feeds", async () => {
         const expectedHash = ['md5:d41d8cd98f00b204e9800998ecf8427e'];
         const { feedReader, feedUrl, storage } = await constructFeedReader(() => ({
@@ -259,6 +264,7 @@ describe("FeedReader", () => {
         const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
         expect(items).to.deep.equal(expectedHash);
     });
+
     it("should always hash to the same value for RSS feeds", async () => {
         const expectedHash = [
             'md5:98bafde155b931e656ad7c137cd7711e', // guid
@@ -292,7 +298,8 @@ describe("FeedReader", () => {
         const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
         expect(items).to.deep.equal(expectedHash);
     });
-    it.only("should fail to handle a feed which exceed the maximum size.", async () => {
+
+    it("should fail to handle a feed which exceed the maximum size.", async () => {
         const { feedReader, feedUrl } = await constructFeedReader(() => ({
             headers: {
                 'Content-Length': Math.pow(1024, 2).toString(),
