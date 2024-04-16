@@ -88,11 +88,11 @@ export class GenericWebhooksRouter {
                 contentSecurityPolicy: {
                     useDefaults: true,
                     directives: {
-                        default: 'self',
+                        defaultSrc: "'self'",
                         sandbox: ''
                     }
                 },
-                frameguard: { action: 'deny'},
+                xFrameOptions: { action: 'deny'},
                 crossOriginResourcePolicy: { policy: 'same-site'} ,
             }),
             GenericWebhooksRouter.xmlHandler,
