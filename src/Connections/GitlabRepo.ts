@@ -1,4 +1,4 @@
-import { UserTokenStore } from "../tokens/UserTokenStore";
+import { UserTokenStore } from "../UserTokenStore";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";

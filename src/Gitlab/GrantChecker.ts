@@ -3,7 +3,7 @@ import { Appservice } from "matrix-bot-sdk";
 import { BridgeConfigGitLab } from "../config/Config";
 import { GitLabRepoConnection } from "../Connections";
 import { GrantChecker } from "../grants/GrantCheck";
-import { UserTokenStore } from "../tokens/UserTokenStore";
+import { UserTokenStore } from "../UserTokenStore";
 
 const log = new Logger('GitLabGrantChecker');
 

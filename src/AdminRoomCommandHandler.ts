@@ -1,7 +1,7 @@
 import EventEmitter from "events";
 import { Intent } from "matrix-bot-sdk";
 import { BridgeConfig } from "./config/Config";
-import { UserTokenStore } from "./tokens/UserTokenStore";
+import { UserTokenStore } from "./UserTokenStore";
 
 
 export enum Category {

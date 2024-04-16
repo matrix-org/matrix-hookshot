@@ -9,7 +9,6 @@ import { getAppservice } from "../appservice";
 import BotUsersManager from "../Managers/BotUsersManager";
 import * as Sentry from '@sentry/node';
 import { GenericHookConnection } from "../Connections";
-import { UserTokenStore } from "../tokens/UserTokenStore";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
@@ -51,8 +50,7 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
 
     const botUsersManager = new BotUsersManager(config, appservice);
 
-    const tokenStore = await UserTokenStore.fromKeyPath(config.passFile , appservice.botIntent, config);
-    const bridgeApp = new Bridge(config, tokenStore, listener, appservice, storage, botUsersManager);
+    const bridgeApp = new Bridge(config, listener, appservice, storage, botUsersManager);
 
     process.once("SIGTERM", () => {
         log.error("Got SIGTERM");

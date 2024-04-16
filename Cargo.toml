@@ -22,7 +22,6 @@ atom_syndication = "0.12"
 ruma = { version = "0.9", features = ["events", "html"] }
 reqwest = "0.11"
 rand = "0.8.5"
-rsa = "0.9.6"
-base64ct = { version = "1.6.0", features = ["alloc"] }
+
 [build-dependencies]
 napi-build = "2"

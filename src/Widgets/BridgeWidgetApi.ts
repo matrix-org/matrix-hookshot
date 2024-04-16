@@ -11,7 +11,7 @@ import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from '../github/GithubInstance';
-import { AllowedTokenTypes, TokenType, UserTokenStore } from '../tokens/UserTokenStore';
+import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
 
 const log = new Logger("BridgeWidgetApi");
 

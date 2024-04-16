@@ -1,7 +1,7 @@
 import { Appservice } from "matrix-bot-sdk";
 import { JiraProjectConnection } from "../Connections";
 import { GrantChecker } from "../grants/GrantCheck";
-import { UserTokenStore } from "../tokens/UserTokenStore";
+import { UserTokenStore } from "../UserTokenStore";
 
 interface JiraGrantConnectionId{
     url: string;
