@@ -29,7 +29,7 @@ const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const FEED_GUIDS = "feeds.guids.";
-const HOUND_IDS = "feeds.guids.";
+const HOUND_GUIDS = "hound.guids.";
 
 const log = new Logger("RedisASProvider");
 
