@@ -1,0 +1,1 @@
+Ensure generic webhooks have appropriate Content-Security-Policy headers.
