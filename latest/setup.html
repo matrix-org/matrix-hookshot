@@ -233,17 +233,29 @@ By default, any user on the bridge's own homeserver has full permission to use i
 <li><code>challengehound</code></li>
 <li><code>*</code>, for any service.</li>
 </ul>
+<p>The <code>level</code> determines what permissions a user has access to on the named service(s). They are
+additive, one level grants all previous levels in addition to previous levels.</p>
 <p>The <code>level</code> can be:</p>
 <ul>
 <li><code>commands</code> Can run commands within connected rooms, but NOT log in to the bridge.</li>
-<li><code>login</code> All the above, and can also log in to the bridge.</li>
-<li><code>notifications</code> All the above, and can also bridge their notifications.</li>
+<li><code>login</code> All the above, and can also log in to supported networks (such as GitHub, GitLab). This is the minimum level required to invite the bridge to rooms.</li>
+<li><code>notifications</code> All the above, and can also bridge their own notifications. Only supported on GitHub.</li>
 <li><code>manageConnections</code> All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).</li>
 <li><code>admin</code> All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.</li>
 </ul>
-<p>When permissions are checked, if a user matches any of the permissions set and one
-of those grants the right level for a service, they are allowed access. If none of the
-definitions match, they are denied.</p>
+<p>If any of the permissions matches positively for a user, they are granted access. For example:</p>
+<pre><code class="language-yaml">permissions:
+  - actor: example.com
+    services:
+      - service: GitHub
+        level: manageConnections
+  - actor: &quot;@badapple:example.com&quot;
+    services:
+      - service: GitHub
+        level: login
+</code></pre>
+<p>would grant <code>@badapple:example.com</code> the right to <code>manageConnections</code> for GitHub, even though they
+were explicitly named for a lower permission.</p>
 <h4 id="example"><a class="header" href="#example">Example</a></h4>
 <p>A typical setup might be.</p>
 <pre><code class="language-yaml">permissions:
