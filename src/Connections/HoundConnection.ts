@@ -5,8 +5,7 @@ import { IConnection, IConnectionState } from ".";
 import { Connection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { CommandError } from "../errors";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { hashId } from "../libRs";
-
+import { Logger } from "matrix-appservice-bridge";
 export interface HoundConnectionState extends IConnectionState {
     challengeId: string;
 }
@@ -78,6 +77,7 @@ function getEmojiForType(type: string) {
     }
 }
 
+const log = new Logger("HoundConnection");
 const md = markdownit();
 @Connection
 export class HoundConnection extends BaseConnection implements IConnection {
@@ -97,12 +97,12 @@ export class HoundConnection extends BaseConnection implements IConnection {
 
     public static validateState(data: Record<string, unknown>): HoundConnectionState {
         // Convert URL to ID.
-        if (!data.challengeId && data.url && data.url === "string") {
+        if (!data.challengeId && data.url && typeof data.url === "string") {
             data.challengeId = this.getIdFromURL(data.url);
         }
 
         // Test for v1 uuid.
-        if (!data.challengeId || typeof data.challengeId !== "string" || /^\w{8}(?:-\w{4}){3}-\w{12}$/.test(data.challengeId)) {
+        if (!data.challengeId || typeof data.challengeId !== "string" || !/^\w{8}(?:-\w{4}){3}-\w{12}$/.test(data.challengeId)) {
             throw Error('Missing or invalid id');
         }
 
@@ -160,6 +160,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
     }
 
     public async handleNewActivity(payload: HoundActivity) {
+        log.info(`New activity recorded ${payload.id}`);
         const existingActivityEventId = await this.storage.getHoundActivity(this.challengeId, payload.id);
         const distance = `${(payload.distance / 1000).toFixed(2)}km`;
         const emoji = getEmojiForType(payload.activityType);
@@ -179,8 +180,10 @@ export class HoundConnection extends BaseConnection implements IConnection {
             id: payload.user.id,
         };
         if (existingActivityEventId) {
+            log.debug(`Updating existing activity ${payload.id} ${existingActivityEventId}`);
             content = {
                 body: `* content["body"]`,
+                msgtype: "m.notice",
                 "m.new_content": content,
                 "m.relates_to": {
                     "event_id": existingActivityEventId,
