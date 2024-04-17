@@ -16,7 +16,7 @@ import { JiraOnPremClient } from "../jira/client/OnPremClient";
 import { JiraCloudClient } from "../jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "../errors";
 import { TypedEmitter } from "tiny-typed-emitter";
-import { hashId, TokenEncryption } from "../libRs"; 
+import { hashId, TokenEncryption, stringToAlgo } from "../libRs"; 
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -32,7 +32,7 @@ export const AllowedTokenTypes = ["github", "gitlab", "jira"];
 interface StoredTokenData {
     encrypted: string|string[];
     keyId: string;
-    algorithm: 'rsa';
+    algorithm: 'rsa'|'rsa-pkcs1v15';
     instance?: string;
 }
 
@@ -102,7 +102,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         const data: StoredTokenData = {
             encrypted: tokenParts,
             keyId: this.keyId,
-            algorithm: "rsa",
+            algorithm: "rsa-pkcs1v15",
             instance: instanceUrl,
         };
         await this.intent.underlyingClient.setAccountData(key, data);
@@ -148,18 +148,15 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 return null;
             }
             // For legacy we just assume it's the current configured key.
-            const algorithm = obj.algorithm ?? "rsa";
+            const algorithm = stringToAlgo(obj.algorithm ?? "rsa");
             const keyId = obj.keyId ?? this.keyId;
 
-            if (algorithm !== 'rsa') {
-                throw new Error(`Algorithm for stored data is '${algorithm}', but we only support RSA`);
-            }
             if (keyId !== this.keyId) {
                 throw new Error(`Stored data was encrypted with a different key to the one currently configured`);
             }
 
             const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
-            const token = this.tokenEncryption.decrypt(encryptedParts);
+            const token = this.tokenEncryption.decrypt(encryptedParts, algorithm);
             this.userTokens.set(key, token);
             return token;
         } catch (ex) {
