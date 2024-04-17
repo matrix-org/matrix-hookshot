@@ -1,3 +1,42 @@
+5.3.0 (2024-04-17)
+==================
+
+Features
+--------
+
+- Add support for Challenge Hound. ([\#924](https://github.com/matrix-org/matrix-hookshot/issues/924))
+
+
+Bugfixes
+--------
+
+- Ensure generic webhooks have appropriate Content-Security-Policy headers. ([\#926](https://github.com/matrix-org/matrix-hookshot/issues/926))
+- Fix a few bugs introduced in challenge hound support. ([\#927](https://github.com/matrix-org/matrix-hookshot/issues/927))
+- Track which key was used to encrypt secrets in storage, and encrypt/decrypt secrets in Rust. ([\#929](https://github.com/matrix-org/matrix-hookshot/issues/929), [\#930](https://github.com/matrix-org/matrix-hookshot/issues/930)) 
+
+
+Improved Documentation
+----------------------
+
+- Fixes the OpenID Connect call back URI in the config defaults and docs. ([\#899](https://github.com/matrix-org/matrix-hookshot/issues/899))
+- Clarify permissions system documentation. ([\#925](https://github.com/matrix-org/matrix-hookshot/issues/925))
+
+
+Deprecations and Removals
+-------------------------
+
+- The cache/queue configuration has been changed in this release. The `queue.monolithic` option has been deprecated, in place of a dedicated `cache`
+  config section. Check the ["Cache configuration" section](https://matrix-org.github.io/matrix-hookshot/latest/setup.html#cache-configuration) for
+  more information on how to configure Hookshot caches. ([\#902](https://github.com/matrix-org/matrix-hookshot/issues/902))
+
+
+Internal Changes
+----------------
+
+- Switch expressjs to production mode for improved performance. ([\#904](https://github.com/matrix-org/matrix-hookshot/issues/904))
+- Track which key was used to encrypt secrets in storage, and encrypt/decrypt secrets in Rust. ([\#915](https://github.com/matrix-org/matrix-hookshot/issues/915))
+
+
 5.2.1 (2024-02-21)
 ==================
 

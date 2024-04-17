@@ -1,3 +1,0 @@
-The cache/queue configuration has been changed in this release. The `queue.monolithic` option has been deprecated, in place of a dedicated `cache`
-config section. Check the ["Cache configuration" section](https://matrix-org.github.io/matrix-hookshot/latest/setup.html#cache-configuration) for
-more information on how to configure Hookshot caches.

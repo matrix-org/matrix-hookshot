@@ -1,2 +1,0 @@
-Track which key was used to encrypt secrets in storage, and encrypt/decrypt secrets in Rust.
-
