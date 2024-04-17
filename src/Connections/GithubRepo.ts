@@ -4,7 +4,7 @@ import { CommentProcessor } from "../CommentProcessor";
 import { FormatUtil, LooseMinimalGitHubRepo } from "../FormatUtil";
 import { Octokit } from "@octokit/rest";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 import { IssuesOpenedEvent, IssuesReopenedEvent, IssuesEditedEvent, PullRequestOpenedEvent, IssuesClosedEvent, PullRequestClosedEvent,
     PullRequestReadyForReviewEvent, PullRequestReviewSubmittedEvent, ReleasePublishedEvent, ReleaseCreatedEvent,
     IssuesLabeledEvent, IssuesUnlabeledEvent, WorkflowRunCompletedEvent, IssueCommentCreatedEvent, PushEvent

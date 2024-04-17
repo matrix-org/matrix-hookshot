@@ -8,7 +8,7 @@ import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
 import { IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
-import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../Widgets/api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api"
 import { AccessLevel, SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
