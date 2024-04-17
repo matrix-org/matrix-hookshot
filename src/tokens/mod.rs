@@ -35,7 +35,7 @@ enum DecryptError {
 #[napi]
 pub enum Algo {
     RSAOAEP,
-    RSAPKCS1v15
+    RSAPKCS1v15,
 }
 
 #[napi]
@@ -46,7 +46,7 @@ pub fn string_to_algo(algo_str: String) -> Result<Algo, Error> {
         _ => Err(Error::new(
             napi::Status::GenericFailure,
             "Unknown algorithm",
-        ))
+        )),
     }
 }
 
@@ -114,17 +114,16 @@ impl JsTokenEncryption {
         let decrypted_value = match algo {
             Algo::RSAOAEP => {
                 let padding = Oaep::new::<Sha1>();
-                self
+                self.inner
+                    .private_key
+                    .decrypt(padding, &raw_value)
+                    .map_err(DecryptError::Decryption)
+            }
+            Algo::RSAPKCS1v15 => self
                 .inner
                 .private_key
-                .decrypt(padding, &raw_value)
-                .map_err(DecryptError::Decryption)
-            },
-            Algo::RSAPKCS1v15 => self
-            .inner
-            .private_key
-            .decrypt(Pkcs1v15Encrypt, &raw_value)
-            .map_err(DecryptError::Decryption)
+                .decrypt(Pkcs1v15Encrypt, &raw_value)
+                .map_err(DecryptError::Decryption),
         }?;
         let utf8_value = String::from_utf8(decrypted_value).map_err(DecryptError::FromUtf8)?;
         Ok(utf8_value)
@@ -135,7 +134,11 @@ impl JsTokenEncryption {
         let mut rng = rand::thread_rng();
         let mut parts: Vec<String> = Vec::new();
         for part in input.into_bytes().chunks(MAX_TOKEN_PART_SIZE) {
-            match self.inner.public_key.encrypt(&mut rng, Pkcs1v15Encrypt, part) {
+            match self
+                .inner
+                .public_key
+                .encrypt(&mut rng, Pkcs1v15Encrypt, part)
+            {
                 Ok(encrypted) => {
                     let b64 = Base64::encode_string(encrypted.as_slice());
                     parts.push(b64);
