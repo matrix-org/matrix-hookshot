@@ -25,7 +25,7 @@ and remove it with the same command
 
 ```
 challengehound remove https://www.challengehound.com/challenge/abc-def
-```.
+```
 
 Hookshot will periodically refetch activities from the challenge and send a notice when a new
 one is completed. Note that Hookshot uses your configured cache to store seen activities. If
