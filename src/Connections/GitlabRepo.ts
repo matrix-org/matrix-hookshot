@@ -604,22 +604,18 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
         this.validateMREvent(event);
         // Check if the MR changed to / from a draft
-        if (!event.changes.title) {
+        if (!event.changes.draft) {
             return;
         }
         const orgRepoName = event.project.path_with_namespace;
         let content: string;
-        const wasDraft = event.changes.title.before.startsWith('Draft: ');
-        const isDraft = event.changes.title.after.startsWith('Draft: ');
-        if (wasDraft && !isDraft) {
+        const isDraft = event.changes.draft.current;
+        if (!isDraft) {
             // Ready for review
             content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `;
-        } else if (!wasDraft && isDraft) {
+        } else {
             // Back to draft.
             content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
-        } else {
-            // Nothing changed, drop it.
-            return;
         }
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
