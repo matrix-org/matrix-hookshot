@@ -63,6 +63,7 @@ export type GitLabRepoResponseItem = GetConnectionsResponseItem<GitLabRepoConnec
 
 type AllowedEventsNames =
     "merge_request.open" |
+    "merge_request.reopen" |
     "merge_request.close" |
     "merge_request.merge" |
     "merge_request.review" |
@@ -80,6 +81,7 @@ type AllowedEventsNames =
 
 const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.open",
+    "merge_request.reopen",
     "merge_request.close",
     "merge_request.merge",
     "merge_request.review",
@@ -557,6 +559,22 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
         const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onMergeRequestReopened(event: IGitLabWebhookMREvent) {
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.reopen') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onMergeRequestReopened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateMREvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = `**${event.user.username}** reopened MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,

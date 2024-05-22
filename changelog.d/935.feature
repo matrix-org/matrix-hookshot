@@ -1,0 +1,1 @@
+Add support for reopened GitLab MR.

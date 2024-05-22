@@ -97,6 +97,7 @@ describe("GitLabRepoConnection", () => {
 				path: "bar/baz",
 				enableHooks: [
 					"merge_request.open",
+					"merge_request.reopen",
 					"merge_request.close",
 					"merge_request.merge",
 					"merge_request.review",
