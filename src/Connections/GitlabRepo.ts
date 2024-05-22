@@ -555,10 +555,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.open') || !this.matchesLabelFilter(event)) {
             return;
         }
-        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        log.info(`onMergeRequestOpened ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** opened a new MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = `**${event.user.username}** opened a new MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -571,10 +571,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.reopen') || !this.matchesLabelFilter(event)) {
             return;
         }
-        log.info(`onMergeRequestReopened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        log.info(`onMergeRequestReopened ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** reopened MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = `**${event.user.username}** reopened MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -587,10 +587,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.close') || !this.matchesLabelFilter(event)) {
             return;
         }
-        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        log.info(`onMergeRequestClosed ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** closed MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = `**${event.user.username}** closed MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -603,10 +603,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.merge') || !this.matchesLabelFilter(event)) {
             return;
         }
-        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        log.info(`onMergeRequestMerged ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** merged MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = `**${event.user.username}** merged MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -619,7 +619,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.ready_for_review')) {
             return;
         }
-        log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        log.info(`onMergeRequestUpdate ${this.roomId} ${this.instance}/${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         // Check if the MR changed to / from a draft
         if (!event.changes.draft) {
@@ -630,10 +630,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         const isDraft = event.changes.draft.current;
         if (!isDraft) {
             // Ready for review
-            content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `;
+            content = `**${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `;
         } else {
             // Back to draft.
-            content = `**${event.user.username}** marked MR [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
+            content = `**${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
         }
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -782,7 +782,7 @@ ${data.description}`;
             action = '🔴 unapproved';
         }
 
-        const target = relation ? '' : ` MR [${orgRepoName}#${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
+        const target = relation ? '' : ` MR [${orgRepoName}!${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
         let content = `**${result.author}** ${action}${target} ${comments}`;
 
         if (result.commentNotes) {
@@ -859,7 +859,7 @@ ${data.description}`;
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review', `merge_request.${event.object_attributes.action}`) || !this.matchesLabelFilter(event)) {
             return;
         }
-        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         this.debounceMergeRequestReview(
             event.user,
@@ -879,7 +879,7 @@ ${data.description}`;
             return;
         }
 
-        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} ${event.object_attributes.iid}`);
+        log.info(`onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         this.debounceMergeRequestReview(
             event.user,
@@ -897,7 +897,7 @@ ${data.description}`;
         if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
             return;
         }
-        log.info(`onCommentCreated ${this.roomId} ${this.toString()} ${event.merge_request?.iid} ${event.object_attributes.id}`);
+        log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
         if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
             // Not a MR comment
             return;
