@@ -97,6 +97,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="merge_request" onChange={toggleEnabledHook}>Merge requests</EventHookCheckbox>
                 <ul>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.open" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.reopen" onChange={toggleEnabledHook}>Reopened</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.merge" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.review" onChange={toggleEnabledHook}>Completed review</EventHookCheckbox>

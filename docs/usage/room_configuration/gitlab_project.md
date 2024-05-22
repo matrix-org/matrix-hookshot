@@ -46,6 +46,7 @@ the events marked as default below will be enabled. Otherwise, this is ignored.
   - merge_request.close *
   - merge_request.merge *
   - merge_request.open *
+  - merge_request.reopen *
   - merge_request.review.comments *
   - merge_request.review *
   - merge_request.review.individual
