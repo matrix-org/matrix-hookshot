@@ -296,6 +296,7 @@ export interface BridgeGenericWebhooksConfigYAML {
     allowJsTransformationFunctions?: boolean;
     waitForComplete?: boolean;
     enableHttpGet?: boolean;
+    outbound?: boolean;
 }
 
 export class BridgeConfigGenericWebhooks {
