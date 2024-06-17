@@ -7,6 +7,7 @@ import { MatrixEvent } from "../MatrixEvent";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { FileMessageEventContent, Intent, StateEvent } from "matrix-bot-sdk";
 import { randomUUID } from "crypto";
+import UserAgent from "../UserAgent";
 
 export interface OutboundHookConnectionState {
     name: string,
@@ -212,6 +213,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
                 responseType: 'stream',
                 validateStatus: (status) => status >= 200 && status <= 299,
                 headers: {
+                    'User-Agent': UserAgent,
                     'X-Matrix-Hookshot-RoomId': this.roomId,
                     'X-Matrix-Hookshot-EventId': ev.event_id,
                     'X-Matrix-Hookshot-Token': this.outboundToken,
