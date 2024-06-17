@@ -1,6 +1,6 @@
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GenericHookConnectionState, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
+import { GenericHookConnection, GenericHookConnectionState, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState, OutboundHookConnection } from ".";
 import { CommandError } from "../errors";
 import { BridgePermissionLevel } from "../config/Config";
 import markdown from "markdown-it";
@@ -17,6 +17,8 @@ import YAML from 'yaml';
 import { HoundConnection } from "./HoundConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
+
+const OUTBOUND_DOCS_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html";
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
@@ -283,6 +285,35 @@ export class SetupConnection extends CommandConnection {
 
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Removed webhook \`${name}\``));
     }
+
+
+
+    @botCommand("outbound-hook", { help: "Create an outbound webhook.", requiredArgs: ["name", "url"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
+    public async onOutboundHook(userId: string, name: string, url: string) {
+        if (!this.config.generic?.enabled) {
+            throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
+        }
+
+        // TODO: Change service category?
+        await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
+
+        const { connection }= await OutboundHookConnection.provisionConnection(this.roomId, userId, {name, url}, this.provisionOpts);
+        this.pushConnections(connection);
+
+        const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
+        const safeRoomId = encodeURIComponent(this.roomId);
+
+        await adminRoom.sendNotice(
+            md.renderInline(
+            `You have bridged the webhook "${name}" in https://matrix.to/#/${safeRoomId} .\n` +
+            // Line break before and no full stop after URL is intentional.
+            // This makes copying and pasting the URL much easier.
+            `Please use the secret token \`${connection.outboundToken}\` when validating the request.\n` +
+            `See the [documentation](${OUTBOUND_DOCS_LINK}) for more information`,
+        ));
+        return this.client.sendNotice(this.roomId, `Room configured to bridge outbound webhooks. See admin room for the secret token.`);
+    }
+
 
     @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: FigmaFileConnection.ServiceCategory})
     public async onFigma(userId: string, url: string) {

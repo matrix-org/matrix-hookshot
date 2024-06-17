@@ -11,7 +11,6 @@ import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../config/Config";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from 'node:crypto';
-import axios from "axios";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -27,13 +26,6 @@ export interface GenericHookConnectionState extends IConnectionState {
      * Should the webhook only respond on completion.
      */
     waitForComplete: boolean|undefined;
-    /**
-     * Enable outbound webhooks
-     */
-    outbound?: {
-        url: string;
-        method?: "PUT"|"POST",
-    };
 }
 
 export interface GenericHookSecrets {
@@ -133,7 +125,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     static validateState(state: Record<string, unknown>): GenericHookConnectionState {
         const {name, transformationFunction, waitForComplete} = state;
-        const outbound = state.outbound as GenericHookConnectionState["outbound"];
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
         }
@@ -150,31 +141,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             }
             if (typeof transformationFunction !== "string") {
                 throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
-            }
-        }
-        if (outbound) {
-            if (typeof outbound.url !== "string") {
-                throw new ApiError('Outbound URL must be a string', ErrCode.BadValue);
-            }
-            try {
-                const url = new URL(outbound.url);
-                // TODO: Allow this to be configurable?
-                if (url.protocol !== "http" && url.protocol !== "https") {
-                    throw new ApiError('Outbound URL protocol must be http or https', ErrCode.BadValue);
-                }
-                // TODO: Block some origins
-                if (url.origin !== "localhost") {
-                    throw new ApiError('Outbound URL origin is denied', ErrCode.BadValue);
-                }
-            } catch (ex) {
-                if (ex instanceof ApiError) {
-                    throw ex;
-                }
-                throw new ApiError('Outbound URL is invalid', ErrCode.BadValue);
-            }
-
-            if (!["PUT", "POST", undefined].includes(outbound.method)) {
-                throw new ApiError('Outbound Method must be one of PUT,POST', ErrCode.BadValue);
             }
         }
         return {
@@ -501,23 +467,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             successful,
             response: webhookResponse,
         };
-    }
-
-    public async onEvent(ev: MatrixEvent<unknown>): Promise<void> {
-        if (!this.state.outbound) {
-            return;
-        }
-        const req = await axios.request({
-            url: this.state.outbound.url,
-            data: JSON.stringify(ev),
-            method: this.state.outbound.method ?? 'PUT',
-        });
-        if (req.status >= 200 && req.status <= 299) {
-            log.debug(`${this.toString()} Sent outbound webhook for ${ev.event_id}`);
-            return;
-        }
-        log.error(`${this.toString()} Failed to send outbound webhook (status: ${req.status})`);
-        log.debug("Response from server", req.data);
     }
 
     public static getProvisionerDetails(botUserId: string) {
