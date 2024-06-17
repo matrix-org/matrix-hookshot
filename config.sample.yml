@@ -7,6 +7,7 @@ bridge:
   mediaUrl: https://example.com
   port: 9993
   bindAddress: 127.0.0.1
+
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate

@@ -303,7 +303,8 @@ export class SetupConnection extends CommandConnection {
         const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
         const safeRoomId = encodeURIComponent(this.roomId);
 
-        await adminRoom.sendNotice(
+        await this.client.sendHtmlNotice(
+            adminRoom.roomId,
             md.renderInline(
             `You have bridged the webhook "${name}" in https://matrix.to/#/${safeRoomId} .\n` +
             // Line break before and no full stop after URL is intentional.

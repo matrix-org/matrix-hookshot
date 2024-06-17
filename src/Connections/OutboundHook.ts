@@ -192,6 +192,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
             if (mediaResult) {
                 multipartBlob.set('event', new Blob([JSON.stringify(mediaResult?.event)], {
                     type: 'application/json',
+                    encoding: 'utf8',
                 }), "event_data.json");
                 multipartBlob.set('media', mediaResult.blob);
             }
@@ -202,6 +203,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         if (!multipartBlob.has('event')) {
             multipartBlob.set('event', new Blob([JSON.stringify(ev)], {
                 type: 'application/json',
+                encoding: 'utf8',
             }), "event_data.json");
         }
 
@@ -210,7 +212,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
                 url: this.state.url,
                 data: multipartBlob,
                 method: this.state.method,
-                responseType: 'stream',
+                responseType: 'text',
                 validateStatus: (status) => status >= 200 && status <= 299,
                 headers: {
                     'User-Agent': UserAgent,
@@ -221,7 +223,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
             });
             log.info(`Sent webhook for ${ev.event_id}`);
             
-            req.data.end();
+            // req.data.end();
         } catch (ex) {
             if (!isAxiosError(ex)) {
                 log.error(`Failed to send outbound webhook`, ex);
