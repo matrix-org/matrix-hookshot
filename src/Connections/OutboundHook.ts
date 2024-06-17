@@ -140,40 +140,68 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         return OutboundHookConnection.EventTypes.includes(eventType) && this.stateKey === stateKey;
     }
 
-    private async extractMedia(ev: MatrixEvent<unknown>): Promise<Blob|null> {
+    /**
+     * Check for any embedded media in the event, and if present then extract it as a blob. This
+     * function also returns event content with the encryption details stripped from the event contents.
+     * @param ev The Matrix event to inspect for embedded media.
+     * @returns A blob and event object if media is found, otherwise null.
+     * @throws If media was expected (due to the msgtype) but not provided, or if the media could not
+     *         be found or decrypted.
+     */
+    private async extractMedia(ev: MatrixEvent<unknown>): Promise<{blob: Blob, event: MatrixEvent<unknown>}|null> {
         // Check for non-extendable event types first.
         const content = ev.content as FileMessageEventContent;
+
         if (!["m.image", "m.audio", "m.file", "m.video"].includes(content.msgtype)) {
             return null;
         }
-        // No URL in media message so we can't handle it.
-        if (!content.url) {
-            return null;
+
+        const client = this.intent.underlyingClient;
+        let data: { data: Buffer, contentType?: string};
+        if (client.crypto && content.file) {
+            data = {
+                data: await client.crypto.decryptMedia(content.file),
+                contentType: content.info?.mimetype
+            };
+            const strippedContent = {...ev, content: {
+                ...content,
+                file: null,
+            }};
+            return {
+                blob: new Blob([await client.crypto.decryptMedia(content.file)], { type: content.info?.mimetype }),
+                event: strippedContent
+            }
+        } else if (content.url) {
+            data = await this.intent.underlyingClient.downloadContent(content.url);
+            return {
+                blob: new Blob([data.data], { type: data.contentType }),
+                event: ev,
+            };
         }
-        const trueUrl = this.intent.underlyingClient.mxcToHttp(content.url);
-        const req = await fetch(trueUrl);
-        if (req.status !== 200) {
-            log.warn(`Failed to fetch media ${content.url} ${req.status} ${req.statusText}`);
-            throw Error(`Failed to request media from server`);
-        }
-        return req.blob();
+
+        throw Error('Missing file or url key on event, not handling media');
     }
 
 
     public async onEvent(ev: MatrixEvent<unknown>): Promise<void> {
         // The event content first.
         const multipartBlob = new FormData();
-        const jsonBlob = new Blob([JSON.stringify(ev)], {
-            type: 'application/json',
-        });
-        multipartBlob.set('event', jsonBlob, "event_data.json");
         try {
-            const media = await this.extractMedia(ev);
-            if (media) {
-                multipartBlob.set('media', media);
+            const mediaResult = await this.extractMedia(ev);
+            if (mediaResult) {
+                multipartBlob.set('event', new Blob([JSON.stringify(mediaResult?.event)], {
+                    type: 'application/json',
+                }), "event_data.json");
+                multipartBlob.set('media', mediaResult.blob);
             }
         } catch (ex) {
             log.warn(`Failed to get media for ${ev.event_id} in ${this.roomId}`, ex);
+        }
+
+        if (!multipartBlob.has('event')) {
+            multipartBlob.set('event', new Blob([JSON.stringify(ev)], {
+                type: 'application/json',
+            }), "event_data.json");
         }
 
         try {
@@ -184,6 +212,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
                 responseType: 'stream',
                 validateStatus: (status) => status >= 200 && status <= 299,
                 headers: {
+                    'X-Matrix-Hookshot-RoomId': this.roomId,
                     'X-Matrix-Hookshot-EventId': ev.event_id,
                     'X-Matrix-Hookshot-Token': this.outboundToken,
                 },
