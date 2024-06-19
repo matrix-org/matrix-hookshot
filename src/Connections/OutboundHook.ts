@@ -1,32 +1,37 @@
 import axios, { isAxiosError } from "axios";
-import { BridgeConfigGenericWebhooks } from "../config/Config";
 import { BaseConnection } from "./BaseConnection";
-import { Connection, IConnection, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
+import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ApiError, ErrCode, Logger } from "matrix-appservice-bridge";
 import { MatrixEvent } from "../MatrixEvent";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { FileMessageEventContent, Intent, StateEvent } from "matrix-bot-sdk";
 import { randomUUID } from "crypto";
 import UserAgent from "../UserAgent";
+import { hashId } from "../libRs";
+import { GetConnectionsResponseItem } from "../provisioning/api";
 
-export interface OutboundHookConnectionState {
+export interface OutboundHookConnectionState extends IConnectionState {
     name: string,
     url: string;
     method?: "PUT"|"POST";
 }
 
-interface AccountData {
+export interface OutboundHookSecrets {
     token: string;
 }
 
+export type OutboundHookResponseItem = GetConnectionsResponseItem<OutboundHookConnectionState, OutboundHookSecrets>;
+
+
 const log = new Logger("OutboundHookConnection");
+
 /**
- * Handles rooms connected to a generic webhook.
+ * Handles rooms connected to an outbound generic service.
  */
 @Connection
 export class OutboundHookConnection extends BaseConnection implements IConnection {
     static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.outbound-hook";
-    static readonly ServiceCategory = "generic";
+    static readonly ServiceCategory = "genericOutbound";
 
     static readonly EventTypes = [
         OutboundHookConnection.CanonicalEventType,
@@ -48,14 +53,9 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
 
         try {
             const validatedUrl = new URL(url);
-            // TODO: Allow this to be configurable?
             if (validatedUrl.protocol !== "http:" && validatedUrl.protocol !== "https:") {
                 throw new ApiError('Outbound URL protocol must be http or https', ErrCode.BadValue);
             }
-            // TODO: Block some origins
-            // if (validatedUrl.origin !== "localhost") {
-            //     throw new ApiError('Outbound URL origin is denied', ErrCode.BadValue);
-            // }
         } catch (ex) {
             if (ex instanceof ApiError) {
                 throw ex;
@@ -79,22 +79,18 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         }
         // Generic hooks store the hookId in the account data
         const state = this.validateState(event.content);
-        const acctData = await intent.underlyingClient.getRoomAccountData<AccountData>(
-            this.getAccountDataKey(event.stateKey),
-            roomId,
-        );
+        const token =  await tokenStore.getGenericToken("outboundHookToken", hashId(`${roomId}:${event.stateKey}`));
 
-        if (!acctData.token) {
-            throw new Error('No token provided in account data for outbound connection');
+        if (!token) {
+            throw new Error(`Missing stored token for connection`);
         }
 
         return new OutboundHookConnection(
             roomId,
             state,
-            acctData.token,
+            token,
             event.stateKey,
             intent,
-            config.generic,
             tokenStore,
         );
     }
@@ -110,11 +106,13 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         }
 
         const validState = OutboundHookConnection.validateState(data);
-        intent.underlyingClient.setRoomAccountData(OutboundHookConnection.getAccountDataKey(validState.name), roomId, {
-            token
-        });
-        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
-        const connection = new OutboundHookConnection(roomId, validState, token, validState.name, intent, config.generic, tokenStore);
+
+        const stateKey = data.name;
+        const tokenKey = hashId(`${roomId}:${stateKey}`);
+        await tokenStore.storeGenericToken("outboundHookToken", tokenKey, token);
+
+        await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateKey, validState);
+        const connection = new OutboundHookConnection(roomId, validState, token, stateKey, intent, tokenStore);
         return {
             connection,
             stateEventContent: validState,
@@ -130,7 +128,6 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         public readonly outboundToken: string,
         stateKey: string,
         private readonly intent: Intent,
-        private readonly config: BridgeConfigGenericWebhooks,
         // TODO: Use this for hook token storage.
         private readonly storage: UserTokenStore,
     ) {
@@ -208,7 +205,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         }
 
         try {
-            const req = await axios.request({
+            await axios.request({
                 url: this.state.url,
                 data: multipartBlob,
                 method: this.state.method,
@@ -222,8 +219,6 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
                 },
             });
             log.info(`Sent webhook for ${ev.event_id}`);
-            
-            // req.data.end();
         } catch (ex) {
             if (!isAxiosError(ex)) {
                 log.error(`Failed to send outbound webhook`, ex);
@@ -236,6 +231,50 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
             }
             log.debug("Response from server", ex.response?.data);
         }
+    }
+
+    public static getProvisionerDetails(botUserId: string) {
+        return {
+            service: "genericOutbound",
+            eventType: OutboundHookConnection.CanonicalEventType,
+            type: "Webhook",
+            botUserId: botUserId,
+        }
+    }
+
+    public getProvisionerDetails(showSecrets = false): OutboundHookResponseItem {
+        return {
+            ...OutboundHookConnection.getProvisionerDetails(this.intent.userId),
+            id: this.connectionId,
+            config: {
+                url: this.state.url,
+                method: this.state.method,
+                name: this.state.name,
+            },
+            ...(showSecrets ? { secrets: {
+                token: this.outboundToken,
+            } satisfies OutboundHookSecrets} : undefined)
+        }
+    }
+
+    public async onRemove() {
+        log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        // Do a sanity check that the event exists.
+        await this.intent.underlyingClient.getRoomStateEvent(this.roomId, OutboundHookConnection.CanonicalEventType, this.stateKey);
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, OutboundHookConnection.CanonicalEventType, this.stateKey, { disabled: true });
+        // TODO: Remove token
+
+    }
+
+    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+        config = { ...this.state, ...config };
+        const validatedConfig = OutboundHookConnection.validateState(config);
+        await this.intent.underlyingClient.sendStateEvent(this.roomId, OutboundHookConnection.CanonicalEventType, this.stateKey,
+            {
+                ...validatedConfig,
+            }
+        );
+        this.state = validatedConfig;
     }
 
     public toString() {

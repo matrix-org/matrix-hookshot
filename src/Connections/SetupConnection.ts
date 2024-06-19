@@ -290,11 +290,10 @@ export class SetupConnection extends CommandConnection {
 
     @botCommand("outbound-hook", { help: "Create an outbound webhook.", requiredArgs: ["name", "url"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
     public async onOutboundHook(userId: string, name: string, url: string) {
-        if (!this.config.generic?.enabled) {
+        if (!this.config.generic?.outbound) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
         }
 
-        // TODO: Change service category?
         await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
 
         const { connection }= await OutboundHookConnection.provisionConnection(this.roomId, userId, {name, url}, this.provisionOpts);

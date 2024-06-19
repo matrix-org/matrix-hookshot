@@ -26,8 +26,8 @@ const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
 
 const log = new Logger("UserTokenStore");
-export type TokenType = "github"|"gitlab"|"jira";
-export const AllowedTokenTypes = ["github", "gitlab", "jira"];
+export type TokenType = "github"|"gitlab"|"jira"|"generic";
+export const AllowedTokenTypes = ["github", "gitlab", "jira", "generic"];
 
 interface StoredTokenData {
     encrypted: string|string[];
@@ -163,6 +163,37 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
             log.error(`Failed to get ${type} token for user ${userId}`, ex);
         }
         return null;
+    }
+
+    public async storeGenericToken(namespace: string, key: string, token: string) {
+        const finalTokenKey = `generic:${namespace}:${key}`
+        const tokenParts: string[] = this.tokenEncryption.encrypt(token);
+        const data: StoredTokenData = {
+            encrypted: tokenParts,
+            keyId: this.keyId,
+            algorithm: "rsa-pkcs1v15",
+        };
+        await this.intent.underlyingClient.setAccountData(finalTokenKey, data);
+        log.debug(`Stored token ${namespace}`);
+    }
+
+    public async getGenericToken(namespace: string, key: string): Promise<string|null> {
+        const finalTokenKey = `generic:${namespace}:${key}`
+        let obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(finalTokenKey);
+        if (!obj || "deleted" in obj) {
+            return null;
+        }
+        // For legacy we just assume it's the current configured key.
+        const algorithm = stringToAlgo(obj.algorithm ?? "rsa");
+        const keyId = obj.keyId ?? this.keyId;
+
+        if (keyId !== this.keyId) {
+            throw new Error(`Stored data was encrypted with a different key to the one currently configured`);
+        }
+
+        const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
+        const token = this.tokenEncryption.decrypt(encryptedParts, algorithm);
+        return token;
     }
 
     public static parseGitHubToken(token: string): GitHubOAuthToken {

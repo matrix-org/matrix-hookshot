@@ -9,10 +9,9 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
-import { Logger } from "matrix-appservice-bridge";
+import { DefaultDisallowedIpRanges, Logger } from "matrix-appservice-bridge";
 import { BridgeConfigCache } from "./sections/cache";
 import { BridgeConfigQueue } from "./sections";
-import { DefaultConfigRoot } from "./Defaults";
 
 const log = new Logger("Config");
 
@@ -297,10 +296,12 @@ export interface BridgeGenericWebhooksConfigYAML {
     waitForComplete?: boolean;
     enableHttpGet?: boolean;
     outbound?: boolean;
+    disallowedIpRanges?: string[];
 }
 
 export class BridgeConfigGenericWebhooks {
     public readonly enabled: boolean;
+    public readonly outbound: boolean;
 
     @hideKey()
     public readonly parsedUrlPrefix: URL;
@@ -312,6 +313,7 @@ export class BridgeConfigGenericWebhooks {
     public readonly enableHttpGet: boolean;
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
         this.enabled = yaml.enabled || false;
+        this.outbound = yaml.outbound || false;
         this.enableHttpGet = yaml.enableHttpGet || false;
         try {
             this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
@@ -758,6 +760,9 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         }
         if (this.generic && this.generic.enabled) {
             services.push("generic");
+            if (this.generic.outbound) {
+                services.push("genericOutbound");
+            }
         }
         if (this.github) {
             services.push("github");
@@ -789,6 +794,7 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
             case "gitlab":
                 config = this.gitlab?.publicConfig;
                 break;
+            case "genericOutbound":
             case "jira":
                 config = {};
                 break;
