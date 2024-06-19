@@ -1,7 +1,7 @@
 # Webhooks
 
-Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
-by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.
+Hookshot supports two kinds of webhooks, inbound (previously known as Generic Webhooks) and outbound.
+
 
 ## Configuration
 
@@ -10,12 +10,18 @@ You will need to add the following configuration to the config file.
 ```yaml
 generic:
   enabled: true
+  outbound: true # For outbound webhook support
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   waitForComplete: false
   enableHttpGet: false
   # userIdPrefix: webhook_
 ```
+
+## Inbound Webhooks
+
+Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
+by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.
 
 <section class="notice">
 Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work,
@@ -50,7 +56,7 @@ namespaces:
       exclusive: true
 ```
 
-## Adding a webhook
+### Adding a webhook
 
 To add a webhook to your room:
   - Invite the bot user to the room.
@@ -58,7 +64,7 @@ To add a webhook to your room:
   - Say `!hookshot webhook example` where `example` is a name for your hook.
   - The bot will respond with the webhook URL to be sent to services.
 
-## Webhook Handling
+### Webhook Handling
 
 Hookshot handles `POST` and `PUT` HTTP requests by default.
 
@@ -76,7 +82,7 @@ If the body *also* contains a `username` key, then the message will be prepended
 If the body does NOT contain a `text` field, the full payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
 
 
-### Payload formats
+#### Payload formats
 
 If the request is a `POST`/`PUT`, the body of the request will be decoded and stored inside the event. Currently, Hookshot supports:
 
@@ -88,7 +94,7 @@ If the request is a `POST`/`PUT`, the body of the request will be decoded and st
 Decoding is done in the order given above. E.g. `text/xml` would be parsed as XML. Any formats not described above are not
 decoded.
 
-### GET requests
+#### GET requests
 
 In previous versions of hookshot, it would also handle the `GET` HTTP method. This was disabled due to concerns that it was too easy for the webhook to be
 inadvertently triggered by URL preview features in clients and servers. If you still need this functionality, you can enable it in the config.
@@ -102,7 +108,7 @@ to a string representation of that value. This change is <strong>not applied</st
 variable, so it will contain proper float values.
 </section>
 
-### Wait for complete
+#### Wait for complete
 
 It is possible to choose whether a webhook response should be instant, or after hookshot has handled the message. The reason
 for this is that some services expect a quick response time (like Slack) whereas others will wait for the request to complete. You
@@ -111,7 +117,7 @@ can specify this either globally in your config, or on the widget with `waitForC
 If you make use of the `webhookResponse` feature, you will need to enable `waitForComplete` as otherwise hookshot will
 immeditately respond with it's default response values.
 
-## JavaScript Transformations
+### JavaScript Transformations
 
 <section class="notice">
 Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
@@ -130,7 +136,7 @@ Please seek out documentation from your client on how to achieve this.
 
 The script string should be set within the state event under the `transformationFunction` key.
 
-### Script API
+#### Script API
 
 Transformation scripts have a versioned API. You can check the version of the API that the hookshot instance supports
 at runtime by checking the `HookshotApiVersion` variable. If the variable is undefined, it should be considered `v1`.
@@ -141,7 +147,7 @@ Scripts are executed synchronously and expect the `result` variable to be set.
 If the script contains errors or is otherwise unable to work, the bridge will send an error to the room. You can check the logs of the bridge
 for a more precise error.
 
-### V2 API
+#### V2 API
 
 The `v2` api expects an object to be returned from the `result` variable.
 
@@ -176,7 +182,7 @@ if (data.counter === undefined) {
 ```
 
 
-### V1 API
+#### V1 API
 
 The v1 API expects `result` to be a string. The string will be automatically interpreted as Markdown and transformed into HTML. All webhook messages
 will be prefixed with `Received webhook:`. If `result` is falsey (undefined, false or null) then the message will be `No content`.
@@ -192,3 +198,36 @@ if (data.counter > data.maxValue) {
     result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
 }
 ```
+
+## Outbound webhooks
+
+You can also configure Hookshot to send outgoing requests to other services when a message appears
+on Matrix. To do so, you need to configure hookshot to enable outgoing messages with:
+
+```yaml
+generic:
+  outbound: true
+```
+
+### Request format
+
+Requests can be sent to any service that accepts HTTP requests. You may configure Hookshot to either use the HTTP `PUT` (default)
+or `POST` methods.
+
+Each request will contain 3 headers which you may use to authenticate and direct traffic:
+
+  - 'X-Matrix-Hookshot-EventId' contains the event's ID.
+  - 'X-Matrix-Hookshot-RoomId' contains the room ID where the message was sent.
+  - 'X-Matrix-Hookshot-Token' is the unique authentication token provided when you created the webhook. Use this
+    to verify that the message came from Hookshot.
+
+The payloads are formatted as `multipart/form-data`.
+
+The first file contains the event JSON data, proviced as the `event` file. This is a raw representation of the Matrix event data. If the
+event was encrypted, this will be the **decrypted** body.
+
+If any media is linked to in the event, then a second file will be present named `media` which will contain the media referenced in
+the event.
+
+All events that occur in the room will be sent to the outbound URL, so be careful to ensure your remote service can filter the
+traffic appropriately (e.g. check the `type` in the event JSON)
