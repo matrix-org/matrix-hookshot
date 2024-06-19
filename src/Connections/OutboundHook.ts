@@ -166,13 +166,13 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
                 file: null,
             }};
             return {
-                blob: new Blob([await client.crypto.decryptMedia(content.file)], { type: content.info?.mimetype }),
+                blob: new File([await client.crypto.decryptMedia(content.file)], content.body, { type: data.contentType }),
                 event: strippedContent
             }
         } else if (content.url) {
             data = await this.intent.underlyingClient.downloadContent(content.url);
             return {
-                blob: new Blob([data.data], { type: data.contentType }),
+                blob: new File([data.data], content.body, { type: data.contentType }),
                 event: ev,
             };
         }
