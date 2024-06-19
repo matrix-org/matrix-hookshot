@@ -467,7 +467,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             successful,
             response: webhookResponse,
         };
-
     }
 
     public static getProvisionerDetails(botUserId: string) {
@@ -492,7 +491,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             ...(showSecrets ? { secrets: {
                 url: new URL(this.hookId, this.config.parsedUrlPrefix),
                 hookId: this.hookId,
-            } as GenericHookSecrets} : undefined)
+            } satisfies GenericHookSecrets} : undefined)
         }
     }
 

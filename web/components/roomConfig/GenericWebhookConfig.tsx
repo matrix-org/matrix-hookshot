@@ -103,7 +103,7 @@ interface ServiceConfig {
 }
 
 const RoomConfigText = {
-    header: 'Generic Webhooks',
+    header: 'Inbound (Generic) Webhooks',
     createNew: 'Create new webhook',
     listCanEdit: 'Your webhooks',
     listCantEdit: 'Configured webhooks',

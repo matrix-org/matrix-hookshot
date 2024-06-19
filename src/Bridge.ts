@@ -1164,10 +1164,14 @@ export class Bridge {
             }
             if (!existingConnections.length) {
                 // Is anyone interested in this state?
-                const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
-                if (connection) {
-                    log.info(`New connected added to ${roomId}: ${connection.toString()}`);
-                    this.connectionManager.push(connection);
+                try {
+                    const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
+                    if (connection) {
+                        log.info(`New connected added to ${roomId}: ${connection.toString()}`);
+                        this.connectionManager.push(connection);
+                    }
+                } catch (ex) {
+                    log.error(`Failed to handle connection for state ${event.type} in ${roomId}`, ex);
                 }
             }
 
