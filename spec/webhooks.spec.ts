@@ -82,7 +82,6 @@ describe('OutboundHooks', () => {
         const webhooksPort = 9500 + E2ETestEnv.workerId;
         testEnv = await E2ETestEnv.createTestEnv({
             matrixLocalparts: ['user'],
-            enableEncryption: false,
             config: {
                 generic: {
                     enabled: true,
