@@ -785,14 +785,18 @@ ${data.description}`;
         const target = relation ? '' : ` MR [${orgRepoName}!${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
         let content = `**${result.author}** ${action}${target} ${comments}`;
 
+        let formatted = '';
         if (result.commentNotes) {
             content += "\n\n> " + result.commentNotes.join("\n\n> ");
+            formatted = md.render(content);
+        } else {
+            formatted = md.renderInline(content);
         }
 
         const eventPromise = this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
-            formatted_body: md.renderInline(content),
+            formatted_body: formatted,
             format: "org.matrix.custom.html",
             ...relation,
         }).catch(ex  => {
