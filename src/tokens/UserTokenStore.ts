@@ -179,7 +179,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
 
     public async getGenericToken(namespace: string, key: string): Promise<string|null> {
         const finalTokenKey = `generic:${namespace}:${key}`
-        let obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(finalTokenKey);
+        const obj = await this.intent.underlyingClient.getSafeAccountData<StoredTokenData|DeletedTokenData>(finalTokenKey);
         if (!obj || "deleted" in obj) {
             return null;
         }

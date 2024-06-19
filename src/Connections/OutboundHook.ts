@@ -3,7 +3,6 @@ import { BaseConnection } from "./BaseConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ApiError, ErrCode, Logger } from "matrix-appservice-bridge";
 import { MatrixEvent } from "../MatrixEvent";
-import { UserTokenStore } from "../tokens/UserTokenStore";
 import { FileMessageEventContent, Intent, StateEvent } from "matrix-bot-sdk";
 import { randomUUID } from "crypto";
 import UserAgent from "../UserAgent";
@@ -91,7 +90,6 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
             token,
             event.stateKey,
             intent,
-            tokenStore,
         );
     }
 
@@ -99,7 +97,11 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         if (!config.generic) {
             throw Error('Generic Webhooks are not configured');
         }
-        const token = randomUUID();
+        if (!config.generic.outbound) {
+            throw Error('Outbound support for Generic Webhooks is not configured');
+        }
+
+        const token = `hs-ob-${randomUUID()}`;
 
         if (typeof data.name !== "string"  || data.name.length < 3 || data.name.length > 64) {
             throw new ApiError("A webhook name must be between 3-64 characters.", ErrCode.BadValue);
@@ -112,7 +114,7 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         await tokenStore.storeGenericToken("outboundHookToken", tokenKey, token);
 
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, stateKey, validState);
-        const connection = new OutboundHookConnection(roomId, validState, token, stateKey, intent, tokenStore);
+        const connection = new OutboundHookConnection(roomId, validState, token, stateKey, intent);
         return {
             connection,
             stateEventContent: validState,
@@ -128,8 +130,6 @@ export class OutboundHookConnection extends BaseConnection implements IConnectio
         public readonly outboundToken: string,
         stateKey: string,
         private readonly intent: Intent,
-        // TODO: Use this for hook token storage.
-        private readonly storage: UserTokenStore,
     ) {
         super(roomId, stateKey, OutboundHookConnection.CanonicalEventType);
     }

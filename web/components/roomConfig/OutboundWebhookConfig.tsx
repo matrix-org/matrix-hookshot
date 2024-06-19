@@ -6,7 +6,7 @@ import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, OutboundHookResponseItem, OutboundHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, OutboundHookResponseItem, OutboundHookConnectionState>> = ({existingConnection, onSave, onRemove, isUpdating}) => {
     const [outboundUrl, setOutboundUrl] = useState<string>(existingConnection?.config.url ?? '');
 
     const nameRef = createRef<HTMLInputElement>();
