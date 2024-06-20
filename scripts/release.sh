@@ -53,7 +53,7 @@ fi
 
 echo "Committing version"
 towncrier build --version $VERSION
-git commit CHANGELOG.md changelog.d/ package.json -m $TAG
+git commit CHANGELOG.md changelog.d/ package.json Cargo.toml Cargo.lock -m $TAG
 
 echo "Proceeding to generate tags"
 git tag -F draft-release.txt -s $TAG
