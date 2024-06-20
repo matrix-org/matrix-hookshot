@@ -40,6 +40,17 @@ if [ $(git tag -l "$TAG") ]; then
     exit 5
 fi
 
+GIT_STATUS=$(git status --porcelain)
+if [[ -n $GIT_STATUS ]]; then
+    echo "Uncommitted changes:"
+    echo $GIT_STATUS
+    read -p "Continue anyways? [y/N] " prompt
+    if [[ $prompt != "y" && $prompt != "Y" && $prompt != "yes" && $prompt != "Yes" ]]
+    then
+        exit 0
+    fi
+fi
+
 echo "Drafting a new release"
 towncrier build --draft --version $VERSION> draft-release.txt
 cat draft-release.txt
