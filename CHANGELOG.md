@@ -1,3 +1,23 @@
+5.4.0 (2024-06-20)
+==================
+
+Features
+--------
+
+- Add support for reopened GitLab MR. ([\#935](https://github.com/matrix-org/matrix-hookshot/issues/935))
+- Add support for new connection type "Outgoing Webhooks". This feature allows you to send outgoing HTTP requests to other services
+  when a message appears in a Matrix room. See [the documentation](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html)
+  for help with this feature. ([\#945](https://github.com/matrix-org/matrix-hookshot/issues/945))
+
+
+Bugfixes
+--------
+
+- Fix GitLab's ready for review hook. ([\#936](https://github.com/matrix-org/matrix-hookshot/issues/936))
+- Fix rendering of comments of GitLab merge requests. ([\#937](https://github.com/matrix-org/matrix-hookshot/issues/937))
+- Fix the symbol used to prefix GitLab merge requests. ([\#938](https://github.com/matrix-org/matrix-hookshot/issues/938))
+
+
 5.3.0 (2024-04-17)
 ==================
 
