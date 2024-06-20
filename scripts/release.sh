@@ -44,7 +44,7 @@ echo "Drafting a new release"
 towncrier build --draft --version $VERSION> draft-release.txt
 cat draft-release.txt
 
-read -p "Happy with the changelog? <y/N> " prompt
+read -p "Happy with the changelog? [y/N] " prompt
 if [[ $prompt != "y" && $prompt != "Y" && $prompt != "yes" && $prompt != "Yes" ]]
 then
   rm draft-release.txt
