@@ -296,7 +296,6 @@ export interface BridgeGenericWebhooksConfigYAML {
     waitForComplete?: boolean;
     enableHttpGet?: boolean;
     outbound?: boolean;
-    disallowedIpRanges?: string[];
 }
 
 export class BridgeConfigGenericWebhooks {
