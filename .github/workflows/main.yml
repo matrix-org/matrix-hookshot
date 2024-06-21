@@ -20,66 +20,63 @@ concurrency:
 
 jobs:
   lint-node:
-   runs-on: ubuntu-latest
+   runs-on: ubuntu-22.04
    steps:
-    - uses: actions/checkout@v3
-    - name: Use Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version-file: .node-version
-    - run: yarn --ignore-scripts
-    - run: yarn lint:js
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: yarn --ignore-scripts
+      - run: yarn lint:js
 
   lint-rust:
-   runs-on: ubuntu-latest
+   runs-on: ubuntu-22.04
    steps:
-    - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
-      with:
-          toolchain: stable
-          profile: minimal
-          components: rustfmt
-    - run: cargo fmt --all -- --check
-    - run: cargo clippy -- -Dwarnings
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with: 
+          shared-key: rust-cache
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -- -Dwarnings
 
   config:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    needs:
+      # for cache population
+      - lint-rust
+    env:
+      HOOKSHOT_BUILD_PROFILE: " " # This is equivalent to dev
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
+      - uses: Swatinem/rust-cache@v2
+        with: 
+          shared-key: rust-cache
       - run: yarn # Need to build scripts to get rust bindings
       - run: yarn --silent ts-node src/config/Defaults.ts --config | diff config.sample.yml - 
-
-  metrics-docs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Use Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version-file: .node-version
-      - run: yarn # Need to build scripts to get rust bindings
       - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
   
   test:
     # Test on LTS-1
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
+    env:
+      HOOKSHOT_BUILD_PROFILE: " "
+    needs:
+      - lint-node
+      - lint-rust
     strategy:
       matrix:
         node_version: [20, 21]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Use Node.js ${{ matrix.node_version }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node_version }}
-      - uses: actions-rs/toolchain@v1
-        with:
-            toolchain: stable
-            profile: minimal
       - uses: Swatinem/rust-cache@v2
         with: 
           shared-key: rust-cache
@@ -87,12 +84,12 @@ jobs:
       - run: yarn test:cover
 
   build-homerunner:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       homerunnersha: ${{ steps.gitsha.outputs.sha }}
     steps:
       - name: Checkout matrix-org/complement
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: matrix-org/complement
       - name: Get complement git sha
@@ -100,7 +97,7 @@ jobs:
         run: echo sha=`git rev-parse --short HEAD` >> "$GITHUB_OUTPUT"
       - name: Cache homerunner
         id: cached
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: homerunner
           key: ${{ runner.os }}-homerunner-${{ steps.gitsha.outputs.sha }}
@@ -120,28 +117,30 @@ jobs:
           go build ./cmd/homerunner
 
   integration-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     needs:
       - test
       - build-homerunner
+    env:
+      HOOKSHOT_BUILD_PROFILE: " "
     steps:
       - name: Install Complement Dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3
       - name: Load cached homerunner bin
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: homerunner
           key: ${{ runner.os }}-homerunner-${{ needs.build-synapse.outputs.homerunnersha }}
           fail-on-cache-miss: true # Shouldn't happen, we build this in the needs step.
       - name: Checkout matrix-hookshot
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: matrix-hookshot
       # Setup node & run tests
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: matrix-hookshot/.node-version
       - uses: Swatinem/rust-cache@v2

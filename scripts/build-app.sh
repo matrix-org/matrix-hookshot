@@ -3,6 +3,8 @@
 # exit when any command fails
 set -e
 
+export HOOKSHOT_BUILD_PROFILE="${HOOKSHOT_BUILD_PROFILE:---release}"
+
 echo "Building Rust layer"
 yarn run build:app:rs
 echo "Running rust-typescript definitions fix"

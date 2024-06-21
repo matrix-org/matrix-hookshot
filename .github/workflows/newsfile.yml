@@ -9,7 +9,7 @@ jobs:
   changelog:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with: # Needed for comparison
           fetch-depth: 0
       - uses: actions/setup-python@v1
