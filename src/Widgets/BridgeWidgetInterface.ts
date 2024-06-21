@@ -1,4 +1,4 @@
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { GetConnectionsResponseItem } from "./api";
 
 export interface BridgeRoomStateGitHub {
     enabled: boolean;

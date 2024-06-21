@@ -1,6 +1,6 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
-import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../Widgets/api";
 import { Appservice, Intent, IRichReplyMetadata, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
 import { UserTokenStore } from "../tokens/UserTokenStore";

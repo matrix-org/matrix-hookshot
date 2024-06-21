@@ -13,7 +13,7 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 import { BridgeConfigJira } from "../config/Config";
 import { HookshotJiraApi } from "../jira/Client";
 import { GrantChecker } from "../grants/GrantCheck";

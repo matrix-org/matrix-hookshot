@@ -7,7 +7,7 @@ import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 import { BridgeConfigGenericWebhooks } from "../config/Config";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from 'node:crypto';

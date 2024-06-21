@@ -8,7 +8,7 @@ import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
-import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
+import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "./api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from '../github/GithubInstance';
 import { AllowedTokenTypes, TokenType, UserTokenStore } from '../tokens/UserTokenStore';

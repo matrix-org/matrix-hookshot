@@ -26,7 +26,6 @@ import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher"
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
-import { Provisioner } from "./provisioning/provisioner";
 import { JiraProvisionerRouter } from "./jira/Router";
 import { GitHubProvisionerRouter } from "./github/Router";
 import { OAuthRequest } from "./WebhookTypes";
@@ -56,7 +55,6 @@ export class Bridge {
     private adminRooms: Map<string, AdminRoom> = new Map();
     private feedReader?: FeedReader;
     private houndReader?: HoundReader;
-    private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
     private ready = false;
@@ -134,34 +132,6 @@ export class Bridge {
             this.botUsersManager,
             this.github,
         );
-
-        if (this.config.provisioning) {
-            const routers = [];
-            if (this.config.jira) {
-                routers.push({
-                    route: "/v1/jira",
-                    router: new JiraProvisionerRouter(this.config.jira, this.tokenStore).getRouter(),
-                });
-                this.connectionManager.registerProvisioningConnection(JiraProjectConnection);
-            }
-            if (this.config.github && this.github) {
-                routers.push({
-                    route: "/v1/github",
-                    router: new GitHubProvisionerRouter(this.config.github, this.tokenStore, this.github).getRouter(),
-                });
-                this.connectionManager.registerProvisioningConnection(GitHubRepoConnection);
-            }
-            if (this.config.generic) {
-                this.connectionManager.registerProvisioningConnection(GenericHookConnection);
-            }
-            this.provisioningApi = new Provisioner(
-                this.config.provisioning,
-                this.connectionManager,
-                this.botUsersManager,
-                this.as,
-                routers,
-            );
-        }
 
         this.as.on("query.room", async (roomAlias, cb) => {
             try {
@@ -780,9 +750,6 @@ export class Bridge {
                 this.github,
             );
 
-        }
-        if (this.provisioningApi) {
-            this.listener.bindResource('provisioning', this.provisioningApi.expressRouter);
         }
         if (this.config.metrics?.enabled) {
             this.listener.bindResource('metrics', Metrics.expressRouter);
