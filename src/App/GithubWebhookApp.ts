@@ -5,9 +5,11 @@ import { UserNotificationWatcher } from "../Notifications/UserNotificationWatche
 import Metrics from "../Metrics";
 import { ListenerService } from "../ListenerService";
 import { LogService } from "matrix-bot-sdk";
+import { installRequestFunction } from "../Request";
 
 
 const log = new Logger("App");
+installRequestFunction();
 
 async function start() {
     const configFile = process.argv[2] || "./config.yml";
