@@ -1,3 +1,12 @@
+5.4.1 (2024-06-21)
+==================
+
+Internal Changes
+----------------
+
+- Pin the minor version of Node for Docker builds to avoid a startup crash on arm64. ([\#949](https://github.com/matrix-org/matrix-hookshot/issues/949))
+
+
 5.4.0 (2024-06-20)
 ==================
 
