@@ -6,6 +6,7 @@ module.exports = {
     ],
     extends: [
         'eslint:recommended',
+        'plugin:mocha/recommended',
         'plugin:@typescript-eslint/recommended',
     ],
     // eslint-config-preact needs a Jest version to be happy, even if Jest isn't used.
@@ -18,7 +19,10 @@ module.exports = {
         "@typescript-eslint/no-explicit-any": "warn",
         "@typescript-eslint/no-unused-vars": "warn",
         "camelcase": ["error", { "properties": "never", "ignoreDestructuring": true }],
-        "no-console": "error"
+        "no-console": "error",
+        "mocha/no-exclusive-tests": "error",
+        // We do this everywhere.
+        "mocha/no-mocha-arrows": "off",
     },
     env: {
         node: true,

@@ -48,11 +48,13 @@ describe("FormatUtilTest", () => {
             "evilcorp/lab: A simple description",
         );
     });
+
     it("should correctly formats a issue room name", () => {
         expect(FormatUtil.formatIssueRoomName(SIMPLE_ISSUE, SIMPLE_REPO)).to.equal(
             "evilcorp/lab#123: A simple title",
         );
     });
+
     it("should correctly generate a partial body for a Github repo", () => {
         expect(FormatUtil.getPartialBodyForGithubRepo(SIMPLE_REPO)).to.deep.equal({
             "external_url": "https://github.com/evilcorp/lab",
@@ -63,6 +65,7 @@ describe("FormatUtilTest", () => {
             },
         });
     });
+
     it("should correctly generate a partial body for a Github issue", () => {
         expect(FormatUtil.getPartialBodyForGithubIssue(SIMPLE_REPO, SIMPLE_ISSUE)).to.deep.equal({
             "external_url": "https://github.com/evilcorp/lab/issues/123",
@@ -79,29 +82,34 @@ describe("FormatUtilTest", () => {
             },
         });
     });
+
     it("should correctly formats a room topic", () => {
         expect(FormatUtil.formatRoomTopic(SIMPLE_ISSUE)).to.equal(
             "Status: open | https://github.com/evilcorp/lab/issues/123",
         );
     });
+
     it("should correctly format one simple label", () => {
         expect(FormatUtil.formatLabels([{name: "foo"}])).to.deep.equal({
             plain: "foo",
             html: "<span>foo</span>"
         });
     });
+
     it("should correctly format many simple labels", () => {
         expect(FormatUtil.formatLabels([{name: "foo"},{name: "bar"}])).to.deep.equal({
             plain: "foo, bar",
             html: "<span>foo</span> <span>bar</span>"
         });
     });
+
     it("should correctly format one detailed label", () => {
         expect(FormatUtil.formatLabels([{name: "foo", color: 'FFFFFF', description: 'My label'}])).to.deep.equal({
             plain: "foo",
             html: "<span data-mx-bg-color=\"#FFFFFF\" data-mx-color=\"#000000\" title=\"My label\">foo</span>"
         });
     });
+
     it("should correctly format many detailed labels", () => {
         expect(FormatUtil.formatLabels([
             {name: "foo", color: 'FFFFFF', description: 'My label'},
@@ -112,6 +120,7 @@ describe("FormatUtilTest", () => {
             + "<span data-mx-bg-color=\"#AACCEE\" data-mx-color=\"#000000\" title=\"My other label\">bar</span>"
         },);
     });
+
     it("should correctly format a JIRA issue", () => {
         expect(FormatUtil.getPartialBodyForJiraIssue(SIMPLE_JIRA_ISSUE)).to.deep.equal({
                 "external_url": "http://example-api.url.com/browse/TEST-001",
@@ -127,6 +136,7 @@ describe("FormatUtilTest", () => {
                 },
         });
     });
+
     it("should hash an ID", () => {
         expect(FormatUtil.hashId("foobar")).to.equal('3858f62230ac3c915f300c664312c63f');
     });

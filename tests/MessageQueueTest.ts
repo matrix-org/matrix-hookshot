@@ -23,6 +23,7 @@ describe("MessageQueueTest", () => {
                 data: 51,
             });
         });
+
         it("should be able to push an event, and respond to it", async () => {
             mq.subscribe("fakeevent2");
             mq.subscribe("response.fakeevent2");
