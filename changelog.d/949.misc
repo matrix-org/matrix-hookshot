@@ -1,0 +1,1 @@
+Pin the minor version of Node for Docker builds to avoid a startup crash on arm64.
