@@ -186,7 +186,7 @@ export interface IGitLabWebhookReleaseEvent {
 export interface IGitLabNote {
     id: number;
     note: string;
-    noteable_type: 'MergeRequest';
+    noteable_type: 'MergeRequest'|'Issue';
     author_id: number;
     noteable_id: number;
     description: string;

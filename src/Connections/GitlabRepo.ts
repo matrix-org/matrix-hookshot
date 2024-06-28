@@ -5,7 +5,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
-import { IGitLabLabel, IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitlabIssue, IGitLabLabel, IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
@@ -84,7 +84,8 @@ type AllowedEventsNames =
     "issue.open" |
     "issue.reopen" |
     "issue.close" |
-    "issue.update";
+    "issue.update" |
+    "issue.comment";
 
 const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.open",
@@ -106,6 +107,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "issue.reopen",
     "issue.close",
     "issue.update",
+    "issue.comment",
 ];
 
 const DefaultHooks = AllowedEvents;
@@ -1012,22 +1014,77 @@ ${data.description}`;
         );
     }
 
-    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
-            return;
-        }
-        log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
-        if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
-            // Not a MR comment
-            return;
+    private async renderIssueComment(event: IGitLabWebhookNoteEvent) {
+        const orgRepoName = event.project.path_with_namespace;
+        const discussionId = event.object_attributes.discussion_id;
+
+        let relation;
+        const threadEventId = discussionId ? await this.discussionThreads.get(discussionId)?.catch(() => { /* already logged */ }) : undefined;
+        if (threadEventId) {
+            relation = {
+                "m.relates_to": {
+                    "event_id": threadEventId,
+                    "rel_type": "m.thread"
+                },
+            };
         }
 
-        this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
-            commentCount: 1,
-            commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
-            discussionId: event.object_attributes.discussion_id,
-            skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
+        let action = relation ? 'replied' : `commented on issue [${orgRepoName}#${event.issue?.iid}](${event.issue?.url}): "${event.issue?.title}"`;
+        let content = emojify(`🗣 **${event.user.username}** ${action}`);
+
+        let formatted = '';
+        if (this.state.includeCommentBody) {
+            content += "\n\n> " + emojify(event.object_attributes.note);
+            formatted = md.render(content);
+        } else {
+            formatted = md.renderInline(content);
+        }
+
+        const eventPromise = this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: formatted,
+            format: "org.matrix.custom.html",
+            ...relation,
+        }).catch(ex  => {
+            log.error('Failed to send issue comment message', ex);
+            return undefined;
         });
+
+        if (discussionId) {
+            if (!this.discussionThreads.has(discussionId)) {
+                this.discussionThreads.set(discussionId, eventPromise);
+            }
+        }
+        void this.persistDiscussionThreads().catch(ex => {
+            log.error(`Failed to persistently store Gitlab discussion threads for connection ${this.connectionId}:`, ex);
+        });
+    }
+
+    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        if (event.merge_request && event.object_attributes.noteable_type === "MergeRequest") {
+            if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
+                return;
+            }
+            log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
+            
+            this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
+                commentCount: 1,
+                commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+                discussionId: event.object_attributes.discussion_id,
+                skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
+            });
+        } else if (event.issue && event.object_attributes.noteable_type === "Issue") {
+            if (this.hookFilter.shouldSkip('issue', 'issue.comment')) {
+                return;
+            }
+            log.info(`onCommentCreated ${this.roomId} ${this.toString()} #${event.issue?.iid} ${event.object_attributes.id}`);
+            
+            this.renderIssueComment(event);
+        } else {
+            // Not a MR or issue comment.
+            return;
+        }
     }
 
     public toString() {

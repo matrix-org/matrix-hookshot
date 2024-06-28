@@ -110,6 +110,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.reopen" onChange={toggleEnabledHook}>Reopened</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.update" onChange={toggleEnabledHook}>Updated</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.comment" onChange={toggleEnabledHook}>Comment</EventHookCheckbox>
                 </ul>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="push" onChange={toggleEnabledHook}>Pushes</EventHookCheckbox>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="tag_push" onChange={toggleEnabledHook}>Tag pushes</EventHookCheckbox>
