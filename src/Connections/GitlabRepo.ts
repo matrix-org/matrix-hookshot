@@ -85,7 +85,7 @@ type AllowedEventsNames =
     "issue.reopen" |
     "issue.close" |
     "issue.update" |
-    "issue.comment";
+    "issue.comments";
 
 const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.open",
@@ -107,7 +107,7 @@ const AllowedEvents: AllowedEventsNames[] = [
     "issue.reopen",
     "issue.close",
     "issue.update",
-    "issue.comment",
+    "issue.comments",
 ];
 
 const DefaultHooks = AllowedEvents;
@@ -1075,7 +1075,7 @@ ${data.description}`;
                 skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
             });
         } else if (event.issue && event.object_attributes.noteable_type === "Issue") {
-            if (this.hookFilter.shouldSkip('issue', 'issue.comment')) {
+            if (this.hookFilter.shouldSkip('issue', 'issue.comments')) {
                 return;
             }
             log.info(`onCommentCreated ${this.roomId} ${this.toString()} #${event.issue?.iid} ${event.object_attributes.id}`);

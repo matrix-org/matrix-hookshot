@@ -55,6 +55,7 @@ the events marked as default below will be enabled. Otherwise, this is ignored.
   - issue.open *
   - issue.reopen *
   - issue.update *
+  - issue.comments *
 - push *
 - release *
   - release.created *
