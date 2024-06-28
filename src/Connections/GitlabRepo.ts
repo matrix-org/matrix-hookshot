@@ -5,7 +5,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
-import { IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitLabLabel, IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
@@ -19,6 +19,8 @@ import { GitLabClient } from "../Gitlab/Client";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../Gitlab/GrantChecker";
+import { FormatUtil } from "../FormatUtil";
+import { emojify } from "node-emoji";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -77,7 +79,12 @@ type AllowedEventsNames =
     "wiki" |
     `wiki.${string}` |
     "release" |
-    "release.created";
+    "release.created" |
+    "issue" |
+    "issue.open" |
+    "issue.reopen" |
+    "issue.close" |
+    "issue.update";
 
 const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.open",
@@ -94,6 +101,11 @@ const AllowedEvents: AllowedEventsNames[] = [
     "wiki",
     "release",
     "release.created",
+    "issue",
+    "issue.open",
+    "issue.reopen",
+    "issue.close",
+    "issue.update",
 ];
 
 const DefaultHooks = AllowedEvents;
@@ -741,6 +753,109 @@ ${data.description}`;
             msgtype: "m.notice",
             body: content,
             formatted_body: md.render(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    private validateIssueEvent(event: IGitLabWebhookIssueStateEvent) {
+        if (!event.object_attributes) {
+            throw Error('No issue content!');
+        }
+        if (!event.project) {
+            throw Error('No repository content!');
+        }
+    }
+
+    public async onIssueOpened(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.open') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onIssueOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateIssueEvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        let content = emojify(`📥 **${event.user.username}** created new issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        content += (event.assignees?.length ? ` assigned to ${event.assignees.map(a => a.username).join(', ')}` : '');
+        const labels = FormatUtil.formatLabels(event.labels?.map(l => ({ name: l.title, description: l.description || undefined, color: l.color || undefined })));
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onIssueReopened(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.reopen') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onIssueReopened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateIssueEvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = emojify(`🔷 **${event.user.username}** reopened issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onIssueClosed(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.close') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onIssueClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateIssueEvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = emojify(`⬛ **${event.user.username}** closed issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onIssueUpdated(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.update') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        this.validateIssueEvent(event);
+        log.info(`onIssueUpdated ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        const orgRepoName = event.project.path_with_namespace;
+
+        let action = '';
+        let icon = '';
+        let labels = { plain: '', html: '' };
+        if (event.changes.title || event.changes.description) {
+            action = 'edited';
+            icon = '✏';
+        } else if (event.changes.labels) {
+            let added: IGitLabLabel[] = [];
+            for (const label of event.changes.labels.current) {
+                if (!event.changes.labels.previous.includes(label)) {
+                    added.push(label);
+                }
+            }
+
+            if (added.length == 0) {
+                // We only support added labels.
+                return;
+            }
+
+            action = 'labeled';
+            icon = '🗃';
+            labels = FormatUtil.formatLabels(added.map(l => ({ name: l.title, description: l.description || undefined, color: l.color || undefined })));
+        } else {
+            // We don't support this change.
+            return;
+        }
+
+        const content = emojify(`${icon} **${event.user.username}** ${action} issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
         });
     }
