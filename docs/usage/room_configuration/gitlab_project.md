@@ -50,6 +50,12 @@ the events marked as default below will be enabled. Otherwise, this is ignored.
   - merge_request.review.comments *
   - merge_request.review *
   - merge_request.review.individual
+- issue *
+  - issue.close *
+  - issue.open *
+  - issue.reopen *
+  - issue.update *
+  - issue.comments *
 - push *
 - release *
   - release.created *

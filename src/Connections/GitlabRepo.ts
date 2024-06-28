@@ -5,7 +5,7 @@ import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
-import { IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
+import { IGitlabIssue, IGitLabLabel, IGitlabMergeRequest, IGitlabProject, IGitlabUser, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookNoteEvent, IGitLabWebhookPushEvent, IGitLabWebhookReleaseEvent, IGitLabWebhookTagPushEvent, IGitLabWebhookWikiPageEvent } from "../Gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../provisioning/api";
@@ -19,6 +19,8 @@ import { GitLabClient } from "../Gitlab/Client";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../Gitlab/GrantChecker";
+import { FormatUtil } from "../FormatUtil";
+import { emojify } from "node-emoji";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -77,7 +79,13 @@ type AllowedEventsNames =
     "wiki" |
     `wiki.${string}` |
     "release" |
-    "release.created";
+    "release.created" |
+    "issue" |
+    "issue.open" |
+    "issue.reopen" |
+    "issue.close" |
+    "issue.update" |
+    "issue.comments";
 
 const AllowedEvents: AllowedEventsNames[] = [
     "merge_request.open",
@@ -94,6 +102,12 @@ const AllowedEvents: AllowedEventsNames[] = [
     "wiki",
     "release",
     "release.created",
+    "issue",
+    "issue.open",
+    "issue.reopen",
+    "issue.close",
+    "issue.update",
+    "issue.comments",
 ];
 
 const DefaultHooks = AllowedEvents;
@@ -745,6 +759,109 @@ ${data.description}`;
         });
     }
 
+    private validateIssueEvent(event: IGitLabWebhookIssueStateEvent) {
+        if (!event.object_attributes) {
+            throw Error('No issue content!');
+        }
+        if (!event.project) {
+            throw Error('No repository content!');
+        }
+    }
+
+    public async onIssueOpened(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.open') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onIssueOpened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateIssueEvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        let content = emojify(`📥 **${event.user.username}** created new issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        content += (event.assignees?.length ? ` assigned to ${event.assignees.map(a => a.username).join(', ')}` : '');
+        const labels = FormatUtil.formatLabels(event.labels?.map(l => ({ name: l.title, description: l.description || undefined, color: l.color || undefined })));
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onIssueReopened(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.reopen') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onIssueReopened ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateIssueEvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = emojify(`🔷 **${event.user.username}** reopened issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onIssueClosed(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.close') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        log.info(`onIssueClosed ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        this.validateIssueEvent(event);
+        const orgRepoName = event.project.path_with_namespace;
+        const content = emojify(`⬛ **${event.user.username}** closed issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: md.renderInline(content),
+            format: "org.matrix.custom.html",
+        });
+    }
+
+    public async onIssueUpdated(event: IGitLabWebhookIssueStateEvent) {
+        if (this.hookFilter.shouldSkip('issue', 'issue.update') || !this.matchesLabelFilter(event)) {
+            return;
+        }
+        this.validateIssueEvent(event);
+        log.info(`onIssueUpdated ${this.roomId} ${this.path} #${event.object_attributes.iid}`);
+        const orgRepoName = event.project.path_with_namespace;
+
+        let action = '';
+        let icon = '';
+        let labels = { plain: '', html: '' };
+        if (event.changes.title || event.changes.description) {
+            action = 'edited';
+            icon = '✏';
+        } else if (event.changes.labels) {
+            let added: IGitLabLabel[] = [];
+            for (const label of event.changes.labels.current) {
+                if (!event.changes.labels.previous.includes(label)) {
+                    added.push(label);
+                }
+            }
+
+            if (added.length == 0) {
+                // We only support added labels.
+                return;
+            }
+
+            action = 'labeled';
+            icon = '🗃';
+            labels = FormatUtil.formatLabels(added.map(l => ({ name: l.title, description: l.description || undefined, color: l.color || undefined })));
+        } else {
+            // We don't support this change.
+            return;
+        }
+
+        const content = emojify(`${icon} **${event.user.username}** ${action} issue [${orgRepoName}#${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
+            format: "org.matrix.custom.html",
+        });
+    }
+
     private async renderDebouncedMergeRequest(uniqueId: string, mergeRequest: IGitlabMergeRequest, project: IGitlabProject) {
         const result = this.debounceMRComments.get(uniqueId);
         if (!result) {
@@ -897,22 +1014,77 @@ ${data.description}`;
         );
     }
 
-    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
-            return;
-        }
-        log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
-        if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
-            // Not a MR comment
-            return;
+    private async renderIssueComment(event: IGitLabWebhookNoteEvent) {
+        const orgRepoName = event.project.path_with_namespace;
+        const discussionId = event.object_attributes.discussion_id;
+
+        let relation;
+        const threadEventId = discussionId ? await this.discussionThreads.get(discussionId)?.catch(() => { /* already logged */ }) : undefined;
+        if (threadEventId) {
+            relation = {
+                "m.relates_to": {
+                    "event_id": threadEventId,
+                    "rel_type": "m.thread"
+                },
+            };
         }
 
-        this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
-            commentCount: 1,
-            commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
-            discussionId: event.object_attributes.discussion_id,
-            skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
+        let action = relation ? 'replied' : `commented on issue [${orgRepoName}#${event.issue?.iid}](${event.issue?.url}): "${event.issue?.title}"`;
+        let content = emojify(`🗣 **${event.user.username}** ${action}`);
+
+        let formatted = '';
+        if (this.state.includeCommentBody) {
+            content += "\n\n> " + emojify(event.object_attributes.note);
+            formatted = md.render(content);
+        } else {
+            formatted = md.renderInline(content);
+        }
+
+        const eventPromise = this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content,
+            formatted_body: formatted,
+            format: "org.matrix.custom.html",
+            ...relation,
+        }).catch(ex  => {
+            log.error('Failed to send issue comment message', ex);
+            return undefined;
         });
+
+        if (discussionId) {
+            if (!this.discussionThreads.has(discussionId)) {
+                this.discussionThreads.set(discussionId, eventPromise);
+            }
+        }
+        void this.persistDiscussionThreads().catch(ex => {
+            log.error(`Failed to persistently store Gitlab discussion threads for connection ${this.connectionId}:`, ex);
+        });
+    }
+
+    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
+        if (event.merge_request && event.object_attributes.noteable_type === "MergeRequest") {
+            if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
+                return;
+            }
+            log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
+            
+            this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
+                commentCount: 1,
+                commentNotes: this.state.includeCommentBody ? [event.object_attributes.note] : undefined,
+                discussionId: event.object_attributes.discussion_id,
+                skip: this.hookFilter.shouldSkip('merge_request.review.comments'),
+            });
+        } else if (event.issue && event.object_attributes.noteable_type === "Issue") {
+            if (this.hookFilter.shouldSkip('issue', 'issue.comments')) {
+                return;
+            }
+            log.info(`onCommentCreated ${this.roomId} ${this.toString()} #${event.issue?.iid} ${event.object_attributes.id}`);
+            
+            this.renderIssueComment(event);
+        } else {
+            // Not a MR or issue comment.
+            return;
+        }
     }
 
     public toString() {
