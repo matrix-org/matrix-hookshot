@@ -1226,6 +1226,28 @@ export class Bridge {
                 log.warn(`Connection ${connection.toString()} failed to handle onEvent:`, ex);
             }
         }
+
+        // Check if the event is a room upgrade
+        if (event.type === "m.room.tombstone" && event.content?.replacement_room) {
+            await this.handleRoomUpgrade(roomId, event.content.replacement_room);
+        }
+    }
+
+    private async handleRoomUpgrade(oldRoomId: string, newRoomId: string) {
+        log.info(`Handling room upgrade from ${oldRoomId} to ${newRoomId}`);
+
+        // Fetch all state events from the old room
+        const oldRoomState = await this.as.botClient.getRoomState(oldRoomId);
+
+        // Filter out only the 'hookshot.*' events
+        const hookshotEvents = oldRoomState.filter((event) => event.type.startsWith("hookshot."));
+
+        // Copy the 'hookshot.*' events to the new room
+        for (const event of hookshotEvents) {
+            await this.as.botClient.sendStateEvent(newRoomId, event.type, event.state_key, event.content);
+        }
+
+        log.info(`Successfully copied ${hookshotEvents.length} 'hookshot.*' events from ${oldRoomId} to ${newRoomId}`);
     }
 
     private async onQueryRoom(roomAlias: string) {
