@@ -23,14 +23,7 @@ pub struct MatrixMessageFormatResult {
     pub plain: String,
 }
 
-fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
-    let color = if input_color.starts_with('#') {
-        let mut chars = input_color.chars();
-        chars.next();
-        String::from_iter(chars)
-    } else {
-        input_color
-    };
+fn parse_rgb(color: &str) -> Result<rgb::RGB8> {
     let chunk_size = match color.len() {
         6 => 2,
         3 => 1,
@@ -70,6 +63,11 @@ fn parse_rgb(input_color: String) -> Result<rgb::RGB8> {
     Ok(rgb)
 }
 
+/// Strip the `#` character at the start of the string, if present.
+fn strip_hash(s: &str) -> &str {
+    s.strip_prefix('#').unwrap_or(s)
+}
+
 #[napi]
 pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormatResult> {
     let mut plain = String::new();
@@ -84,6 +82,7 @@ pub fn format_labels(array: Vec<IssueLabelDetail>) -> Result<MatrixMessageFormat
         // HTML
         html.push_str("<span");
         if let Some(color) = label.color {
+            let color = strip_hash(&color);
             write!(html, " data-mx-bg-color=\"#{}\"", color).unwrap();
             // Determine the constrast
             let color_rgb = parse_rgb(color)?;
