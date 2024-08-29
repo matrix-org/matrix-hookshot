@@ -39,6 +39,7 @@ describe("GrantChecker", () => {
         let check: GrantChecker<string>;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let intent: any;
+
         beforeEach(() => {
             intent = IntentMock.create('@foo:bar');
             check = new TestGrantChecker(intent, GRANT_SERVICE);
@@ -95,9 +96,11 @@ describe("GrantChecker", () => {
             );
         });
     });
+
     describe('config fallback', () => {
         let check: GrantChecker<string>;
         let as: AppserviceMock;
+
         beforeEach(() => {
             const mockAs = AppserviceMock.create();
             as = mockAs;

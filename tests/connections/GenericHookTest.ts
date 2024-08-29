@@ -65,10 +65,12 @@ describe("GenericHookConnection", () => {
     before(async () => {
         await GenericHookConnection.initialiseQuickJS();
     })
+
     it("will handle simple hook events", async () => {
         const [connection, mq] = createGenericHook();
         await testSimpleWebhook(connection, mq, "data");
     });
+
     it("will handle a hook event containing text", async () => {
         const webhookData = {text: "simple-message"};
         const [connection, mq] = createGenericHook();
@@ -87,6 +89,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing markdown", async () => {
         const webhookData = {text: "**bold-message** _italic-message_"};
         const [connection, mq] = createGenericHook();
@@ -105,6 +108,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing markdown with newlines", async () => {
         const webhookData = {text: "# Oh wow\n\n`some-code`"};
         const [connection, mq] = createGenericHook();
@@ -123,6 +127,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing html", async () => {
         const webhookData = {text: "simple-message", html: "<b>simple-message</b>"};
         const [connection, mq] = createGenericHook();
@@ -141,6 +146,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing a username", async () => {
         const webhookData = {username: "Bobs-integration", type: 42};
         const [connection, mq] = createGenericHook();
@@ -159,6 +165,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event with a v1 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V1TFFunction}, {
@@ -182,6 +189,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event with a v2 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
@@ -205,6 +213,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event with a top-level return", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunctionWithReturn}, {
@@ -228,6 +237,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will fail to handle a webhook with an invalid script", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: "bibble bobble"}, {
@@ -251,6 +261,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a message containing floats", async () => {
         const [connection, mq] = createGenericHook();
         let messagePromise = handleMessage(mq);
