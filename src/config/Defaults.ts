@@ -34,7 +34,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
             level: "admin"
         }],
     }],
-    passFile: "passkey.pem",
+    passFile: "./passkey.pem",
     widgets: {
         publicUrl: `${hookshotWebhooksUrl}/widgetapi/v1/static`,
         addToAdminRooms: false,

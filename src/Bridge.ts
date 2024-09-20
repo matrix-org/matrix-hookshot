@@ -23,7 +23,7 @@ import { NotificationsEnableEvent, NotificationsDisableEvent, Webhooks } from ".
 import { GitHubOAuthToken, GitHubOAuthTokenResponse, ProjectsGetResponseData } from "./github/Types";
 import { retry } from "./PromiseUtil";
 import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
-import { UserTokenStore } from "./UserTokenStore";
+import { UserTokenStore } from "./tokens/UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
 import { Provisioner } from "./provisioning/provisioner";
@@ -41,6 +41,8 @@ import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import PQueue from "p-queue";
 import * as Sentry from '@sentry/node';
+import { HoundConnection, HoundPayload } from "./Connections/HoundConnection";
+import { HoundReader } from "./hound/reader";
 
 const log = new Logger("Bridge");
 
@@ -49,12 +51,11 @@ export class Bridge {
     private readonly queue: MessageQueue;
     private readonly commentProcessor: CommentProcessor;
     private readonly notifProcessor: NotificationProcessor;
-    private readonly tokenStore: UserTokenStore;
     private connectionManager?: ConnectionManager;
     private github?: GithubInstance;
     private adminRooms: Map<string, AdminRoom> = new Map();
-    private widgetApi?: BridgeWidgetApi;
     private feedReader?: FeedReader;
+    private houndReader?: HoundReader;
     private provisioningApi?: Provisioner;
     private replyProcessor = new RichRepliesPreprocessor(true);
 
@@ -62,6 +63,7 @@ export class Bridge {
 
     constructor(
         private config: BridgeConfig,
+        private readonly tokenStore: UserTokenStore,
         private readonly listener: ListenerService,
         private readonly as: Appservice,
         private readonly storage: IBridgeStorageProvider,
@@ -71,8 +73,6 @@ export class Bridge {
         this.messageClient = new MessageSenderClient(this.queue);
         this.commentProcessor = new CommentProcessor(this.as, this.config.bridge.mediaUrl || this.config.bridge.url);
         this.notifProcessor = new NotificationProcessor(this.storage, this.messageClient);
-        this.tokenStore = new UserTokenStore(this.config.passFile || "./passkey.pem", this.as.botIntent, this.config);
-        this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
 
         // Legacy routes, to be removed.
         this.as.expressAppInstance.get("/live", (_, res) => res.send({ok: true}));
@@ -81,14 +81,15 @@ export class Bridge {
 
     public stop() {
         this.feedReader?.stop();
+        this.houndReader?.stop();
         this.tokenStore.stop();
         this.as.stop();
         if (this.queue.stop) this.queue.stop();
     }
 
     public async start() {
+        this.tokenStore.on("onNewToken", this.onTokenUpdated.bind(this));
         log.info('Starting up');
-        await this.tokenStore.load();
         await this.storage.connect?.();
         await this.queue.connect?.();
 
@@ -341,6 +342,12 @@ export class Bridge {
             "gitlab.merge_request.open",
             (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
             (c, data) => c.onMergeRequestOpened(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
+            "gitlab.merge_request.reopen",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onMergeRequestReopened(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookMREvent, GitLabRepoConnection>(
@@ -681,6 +688,12 @@ export class Bridge {
             (c, data) => c.handleFeedError(data),
         );
 
+        this.bindHandlerToQueue<HoundPayload, HoundConnection>(
+            "hound.activity",
+            (data) => connManager.getConnectionsForHoundChallengeId(data.challengeId),
+            (c, data) => c.handleNewActivity(data.activity)
+        );
+
         const queue = new PQueue({
             concurrency: 2,
         });
@@ -755,7 +768,7 @@ export class Bridge {
             if (apps.length > 1) {
                 throw Error('You may only bind `widgets` to one listener.');
             }
-            this.widgetApi = new BridgeWidgetApi(
+            new BridgeWidgetApi(
                 this.adminRooms,
                 this.config,
                 this.storage,
@@ -782,6 +795,15 @@ export class Bridge {
         if (this.config.feeds?.enabled) {
             this.feedReader = new FeedReader(
                 this.config.feeds,
+                this.connectionManager,
+                this.queue,
+                this.storage,
+            );
+        }
+
+        if (this.config.challengeHound?.token) {
+            this.houndReader = new HoundReader(
+                this.config.challengeHound,
                 this.connectionManager,
                 this.queue,
                 this.storage,
@@ -1142,10 +1164,14 @@ export class Bridge {
             }
             if (!existingConnections.length) {
                 // Is anyone interested in this state?
-                const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
-                if (connection) {
-                    log.info(`New connected added to ${roomId}: ${connection.toString()}`);
-                    this.connectionManager.push(connection);
+                try {
+                    const connection = await this.connectionManager.createConnectionForState(roomId, new StateEvent(event), true);
+                    if (connection) {
+                        log.info(`New connected added to ${roomId}: ${connection.toString()}`);
+                        this.connectionManager.push(connection);
+                    }
+                } catch (ex) {
+                    log.error(`Failed to handle connection for state ${event.type} in ${roomId}`, ex);
                 }
             }
 

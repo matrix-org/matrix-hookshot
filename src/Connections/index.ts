@@ -11,3 +11,4 @@ export * from "./IConnection";
 export * from "./JiraProject";
 export * from "./FigmaFileConnection";
 export * from "./FeedConnection";
+export * from "./OutboundHook";

@@ -23,12 +23,15 @@ const STORED_FILES_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
+const HOUND_EVENT_CACHE = 90 * 24 * 60 * 60; // 30 days
 
 
 const WIDGET_TOKENS = "widgets.tokens.";
 const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 
 const FEED_GUIDS = "feeds.guids.";
+const HOUND_GUIDS = "hound.guids.";
+const HOUND_EVENTS = "hound.events.";
 
 const log = new Logger("RedisASProvider");
 
@@ -239,5 +242,38 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
             return [];
         }
         return guids.filter((_guid, index) => res[index][1] !== null);
+    }
+
+    public async storeHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<void> {
+        const key = `${HOUND_GUIDS}${challengeId}`;
+        await this.redis.lpush(key, ...activityHashes);
+        await this.redis.ltrim(key, 0, MAX_FEED_ITEMS);
+    }
+
+    public async hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]> {
+        let multi = this.redis.multi();
+        const key = `${HOUND_GUIDS}${challengeId}`;
+
+        for (const guid of activityHashes) {
+            multi = multi.lpos(key, guid);
+        }
+        const res = await multi.exec();
+        if (res === null) {
+            // Just assume we've seen none.
+            return [];
+        }
+        return activityHashes.filter((_guid, index) => res[index][1] !== null);
+    }
+
+    public async storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void> {
+        const key = `${HOUND_EVENTS}${challengeId}.${activityId}`;
+        await this.redis.set(key, eventId);
+        this.redis.expire(key, HOUND_EVENT_CACHE).catch((ex) => {
+            log.warn(`Failed to set expiry time on ${key}`, ex);
+        });
+    }
+
+    public async getHoundActivity(challengeId: string, activityId: string): Promise<string|null> {
+        return this.redis.get(`${HOUND_EVENTS}${challengeId}.${activityId}`);
     }
 }

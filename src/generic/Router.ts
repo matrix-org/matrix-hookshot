@@ -4,6 +4,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
 import * as xml from "xml2js";
+import helmet, { crossOriginOpenerPolicy } from "helmet";
 
 const WEBHOOK_RESPONSE_TIMEOUT = 5000;
 
@@ -83,6 +84,17 @@ export class GenericWebhooksRouter {
         const router = Router();
         router.all(
             '/:hookId',
+            helmet({
+                contentSecurityPolicy: {
+                    useDefaults: true,
+                    directives: {
+                        defaultSrc: "'self'",
+                        sandbox: ''
+                    }
+                },
+                xFrameOptions: { action: 'deny'},
+                crossOriginResourcePolicy: { policy: 'same-site'} ,
+            }),
             GenericWebhooksRouter.xmlHandler,
             express.urlencoded({ extended: false }),
             express.json(),

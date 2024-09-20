@@ -120,19 +120,37 @@ Each permission set can have a service. The `service` field can be:
 - `feed`
 - `figma`
 - `webhooks`
+- `challengehound`
 - `*`, for any service.
+
+The `level` determines what permissions a user has access to on the named service(s). They are
+additive, one level grants all previous levels in addition to previous levels.
 
 The `level` can be:
 
 - `commands` Can run commands within connected rooms, but NOT log in to the bridge.
-- `login` All the above, and can also log in to the bridge.
-- `notifications` All the above, and can also bridge their notifications.
+- `login` All the above, and can also log in to supported networks (such as GitHub, GitLab). This is the minimum level required to invite the bridge to rooms.
+- `notifications` All the above, and can also bridge their own notifications. Only supported on GitHub.
 - `manageConnections` All the above, and can create and delete connections (either via the provisioner, setup commands, or state events).
 - `admin` All permissions. This allows you to perform administrative tasks like deleting connections from all rooms.
 
-When permissions are checked, if a user matches any of the permissions set and one
-of those grants the right level for a service, they are allowed access. If none of the
-definitions match, they are denied.
+If any of the permissions matches positively for a user, they are granted access. For example:
+
+```yaml
+permissions:
+  - actor: example.com
+    services:
+      - service: GitHub
+        level: manageConnections
+  - actor: "@badapple:example.com"
+    services:
+      - service: GitHub
+        level: login
+```
+
+would grant `@badapple:example.com` the right to `manageConnections` for GitHub, even though they
+were explicitly named for a lower permission.
+
 
 #### Example
 

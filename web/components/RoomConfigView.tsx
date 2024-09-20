@@ -4,6 +4,7 @@ import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
 import { FeedsConfig } from "./roomConfig/FeedsConfig";
 import { GenericWebhookConfig } from "./roomConfig/GenericWebhookConfig";
+import { OutboundWebhookConfig } from "./roomConfig/OutboundWebhookConfig";
 import { GithubRepoConfig } from "./roomConfig/GithubRepoConfig";
 import { GitlabRepoConfig } from "./roomConfig/GitlabRepoConfig";
 import { JiraProjectConfig } from "./roomConfig/JiraProjectConfig";
@@ -25,6 +26,7 @@ interface IProps {
 enum ConnectionType {
     Feeds   = "feeds",
     Generic = "generic",
+    GenericOutbound = "genericOutbound",
     Github  = "github",
     Gitlab  = "gitlab",
     Jira    = "jira",
@@ -65,11 +67,18 @@ const connections: Record<ConnectionType, IConnectionProps> = {
         component: JiraProjectConfig,
     },
     [ConnectionType.Generic]: {
-        displayName: 'Generic Webhook',
+        displayName: 'Inbound (Generic) Webhook',
         description: "Create a webhook which can be used to connect any service to Matrix",
         icon: WebhookIcon,
         darkIcon: true,
         component: GenericWebhookConfig,
+    },
+    [ConnectionType.GenericOutbound]: {
+        displayName: 'Outbound Webhook',
+        description: "Create a webhook which can be used to connect any service to Matrix",
+        icon: WebhookIcon,
+        darkIcon: true,
+        component: OutboundWebhookConfig,
     },
 };
 

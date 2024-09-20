@@ -1,7 +1,7 @@
 import { BridgeConfigJira } from "../config/Config";
 import { MessageQueue } from "../MessageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
-import { UserTokenStore } from "../UserTokenStore";
+import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";

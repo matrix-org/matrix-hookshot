@@ -11,7 +11,7 @@ import BotUsersManager, {BotUser} from "../Managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../provisioning/api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from '../github/GithubInstance';
-import { AllowedTokenTypes, TokenType, UserTokenStore } from '../UserTokenStore';
+import { AllowedTokenTypes, TokenType, UserTokenStore } from '../tokens/UserTokenStore';
 
 const log = new Logger("BridgeWidgetApi");
 
@@ -100,7 +100,8 @@ export class BridgeWidgetApi extends ProvisioningApi {
             general: true,
             github: !!this.config.github,
             gitlab: !!this.config.gitlab,
-            generic: !!this.config.generic,
+            generic: !!this.config.generic?.enabled,
+            genericOutbound: !!this.config.generic?.outbound,
             jira: !!this.config.jira,
             figma: !!this.config.figma,
             feeds: !!this.config.feeds?.enabled,

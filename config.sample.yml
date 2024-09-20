@@ -10,7 +10,7 @@ bridge:
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
-  passkey.pem
+  ./passkey.pem
 logging:
   # Logging settings. You can have a severity debug,info,warn,error
   level: info
@@ -100,6 +100,7 @@ listeners:
 #  #'allowJsTransformationFunctions' will allow users to write short transformation snippets in code, and thus is unsafe in untrusted environments
 
 #  enabled: false
+#  outbound: false
 #  enableHttpGet: false
 #  urlPrefix: https://example.com/webhook/
 #  userIdPrefix: _webhooks_

@@ -1,6 +1,6 @@
 [package]
 name = "matrix-hookshot"
-version = "5.2.1"
+version = "5.3.0"
 edition = "2021"
 
 [lib]
@@ -22,6 +22,8 @@ atom_syndication = "0.12"
 ruma = { version = "0.9", features = ["events", "html"] }
 reqwest = "0.11"
 rand = "0.8.5"
-
+rsa = { version = "0.9.6", features = ["sha2"] }
+base64ct = { version = "1.6.0", features = ["alloc"] }
+sha1 = "0.10.6"
 [build-dependencies]
 napi-build = "2"
