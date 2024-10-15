@@ -64,8 +64,14 @@ ingress:
     className: ""
     # -- Annotations for webhook ingress
     annotations: {}
+
     # -- Host configuration for webhook ingress
-    hosts: []
+    hosts:
+      - host: webhook.hookshot.chart-example.local
+        paths:
+        - path: "/"
+          pathType: ImplementationSpecific
+
     # -- TLS configuration for webhook ingress
     tls: []
   appservice:
@@ -76,7 +82,12 @@ ingress:
     # -- Annotations for appservice ingress
     annotations: {}
     # -- Host configuration for appservice ingress
-    hosts: []
+    hosts:
+      - host: webhook.hookshot.chart-example.local
+        paths:
+        - path: "/"
+          pathType: ImplementationSpecific
+
     # -- TLS configuration for appservice ingress
     tls: []
 # -- Pod resource requests / limits
