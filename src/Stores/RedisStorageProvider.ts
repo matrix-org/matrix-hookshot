@@ -245,6 +245,9 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async storeHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<void> {
+        if (activityHashes.length === 0) {
+            return;
+        }
         const key = `${HOUND_GUIDS}${challengeId}`;
         await this.redis.lpush(key, ...activityHashes);
         await this.redis.ltrim(key, 0, MAX_FEED_ITEMS);
