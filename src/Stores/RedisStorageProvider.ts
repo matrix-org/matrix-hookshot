@@ -250,6 +250,11 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
         await this.redis.ltrim(key, 0, MAX_FEED_ITEMS);
     }
 
+    public async hasSeenHoundChallenge(challengeId: string): Promise<boolean> {
+        const key = `${HOUND_GUIDS}${challengeId}`;
+        return (await this.redis.exists(key)) === 1;
+    }
+
     public async hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]> {
         let multi = this.redis.multi();
         const key = `${HOUND_GUIDS}${challengeId}`;
