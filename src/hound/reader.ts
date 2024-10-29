@@ -83,20 +83,26 @@ export class HoundReader {
         const resAct = await this.houndClient.get(`https://api.challengehound.com/v1/activities?challengeId=${challengeId}&size=10`);
         const activites = (resAct.data["results"] as HoundActivity[]).map(a => ({...a, hash: HoundReader.hashActivity(a)}));
         const seen = await this.storage.hasSeenHoundActivity(challengeId, ...activites.map(a => a.hash));
-        for (const activity of activites) {
-            if (seen.includes(activity.hash)) {
-                continue;
-            }
-            this.queue.push<HoundPayload>({
-                eventName: "hound.activity", 
-                sender: "HoundReader",
-                data: {
-                    challengeId,
-                    activity: activity,
+
+        // Don't emit anything if our cache is empty, as we'll probably create duplicates.
+        const hasSeenChallenge = await this.storage.hasSeenHoundChallenge(challengeId);
+        if (hasSeenChallenge) {
+            for (const activity of activites) {
+                if (seen.includes(activity.hash)) {
+                    continue;
                 }
-            });
+                this.queue.push<HoundPayload>({
+                    eventName: "hound.activity", 
+                    sender: "HoundReader",
+                    data: {
+                        challengeId,
+                        activity: activity,
+                    }
+                });
+            }
         }
-        await this.storage.storeHoundActivity(challengeId, ...activites.map(a => a.hash))
+        // Ensure we don't add duplicates to the storage.
+        await this.storage.storeHoundActivity(challengeId, ...activites.filter(s => !seen.includes(s.hash)).map(a => a.hash))
     }
 
     public async pollChallenges(): Promise<void> {

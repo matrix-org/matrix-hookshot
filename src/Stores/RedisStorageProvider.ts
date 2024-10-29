@@ -23,7 +23,7 @@ const STORED_FILES_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
-const HOUND_EVENT_CACHE = 90 * 24 * 60 * 60; // 30 days
+const HOUND_EVENT_CACHE = 90 * 24 * 60 * 60; // 90 days
 
 
 const WIDGET_TOKENS = "widgets.tokens.";
@@ -245,9 +245,17 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async storeHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<void> {
+        if (activityHashes.length === 0) {
+            return;
+        }
         const key = `${HOUND_GUIDS}${challengeId}`;
         await this.redis.lpush(key, ...activityHashes);
         await this.redis.ltrim(key, 0, MAX_FEED_ITEMS);
+    }
+
+    public async hasSeenHoundChallenge(challengeId: string): Promise<boolean> {
+        const key = `${HOUND_GUIDS}${challengeId}`;
+        return (await this.redis.exists(key)) === 1;
     }
 
     public async hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]> {

@@ -113,13 +113,10 @@ impl BridgePermissions {
                 continue;
             }
             for actor_service in actor_permission.services.iter() {
-                match &actor_service.service {
-                    Some(actor_service_service) => {
-                        if actor_service_service != &service && actor_service_service != "*" {
-                            continue;
-                        }
+                if let Some(actor_service_service) = &actor_service.service {
+                    if actor_service_service != &service && actor_service_service != "*" {
+                        continue;
                     }
-                    None => {}
                 }
                 if permission_level_to_int(actor_service.level.clone())? >= permission_int {
                     return Ok(true);

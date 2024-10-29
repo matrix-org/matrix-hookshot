@@ -122,9 +122,14 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
             set.pop();
         } 
     }
+
     async hasSeenHoundActivity(challengeId: string, ...activityIds: string[]): Promise<string[]> {
         const existing = this.houndActivityIds.get(challengeId);
         return existing ? activityIds.filter((existingGuid) => existing.includes(existingGuid)) : [];
+    }
+
+    public async hasSeenHoundChallenge(challengeId: string): Promise<boolean> {
+        return this.houndActivityIds.has(challengeId);
     }
 
     public async storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void> {

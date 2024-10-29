@@ -174,9 +174,9 @@ pub fn hash_id(id: String) -> Result<String> {
 
 #[napi(js_name = "sanitizeHtml")]
 pub fn hookshot_sanitize_html(html: String) -> String {
-    return sanitize_html(
+    sanitize_html(
         html.as_str(),
         HtmlSanitizerMode::Compat,
         RemoveReplyFallback::No,
-    );
+    )
 }

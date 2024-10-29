@@ -1,0 +1,1 @@
+Fix Challenge Hound activities being duplicated if the cache layer (e.g Redis) goes away.
