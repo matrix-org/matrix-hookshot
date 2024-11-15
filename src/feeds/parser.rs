@@ -37,6 +37,7 @@ pub struct ReadFeedOptions {
     pub etag: Option<String>,
     pub poll_timeout_seconds: i64,
     pub user_agent: String,
+    pub maximum_feed_size_mb: i64,
 }
 
 #[derive(Serialize, Debug, Deserialize)]
@@ -199,25 +200,41 @@ pub async fn js_read_feed(url: String, options: ReadFeedOptions) -> Result<FeedR
         headers.append("If-None-Match", HeaderValue::from_str(&etag).unwrap());
     }
 
+    let max_content_size = (options.maximum_feed_size_mb * 1024 * 1024) as u64;
+
     match req.headers(headers).send().await {
         Ok(res) => {
+            // Pre-emptive check
+            let content_length = res.content_length().unwrap_or(0);
+            if content_length > max_content_size {
+                return Err(JsError::new(Status::Unknown, "Feed exceeded maximum size"));
+            }
+
             let res_headers = res.headers().clone();
             match res.status() {
                 StatusCode::OK => match res.text().await {
-                    Ok(body) => match js_parse_feed(body) {
-                        Ok(feed) => Ok(FeedResult {
-                            feed: Some(feed),
-                            etag: res_headers
-                                .get("ETag")
-                                .map(|v| v.to_str().unwrap())
-                                .map(|v| v.to_string()),
-                            last_modified: res_headers
-                                .get("Last-Modified")
-                                .map(|v| v.to_str().unwrap())
-                                .map(|v| v.to_string()),
-                        }),
-                        Err(err) => Err(err),
-                    },
+                    Ok(body) => {
+                        // Check if we only got the length after loading the response.
+                        match body.len() as u64 <= max_content_size {
+                            true => match js_parse_feed(body) {
+                                Ok(feed) => Ok(FeedResult {
+                                    feed: Some(feed),
+                                    etag: res_headers
+                                        .get("ETag")
+                                        .map(|v| v.to_str().unwrap())
+                                        .map(|v| v.to_string()),
+                                    last_modified: res_headers
+                                        .get("Last-Modified")
+                                        .map(|v| v.to_str().unwrap())
+                                        .map(|v| v.to_string()),
+                                }),
+                                Err(err) => Err(err),
+                            },
+                            false => {
+                                Err(JsError::new(Status::Unknown, "Feed exceeded maximum size"))
+                            }
+                        }
+                    }
                     Err(err) => Err(JsError::new(Status::Unknown, err)),
                 },
                 StatusCode::NOT_MODIFIED => Ok(FeedResult {

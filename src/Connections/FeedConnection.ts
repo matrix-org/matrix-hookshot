@@ -10,6 +10,7 @@ import { GetConnectionsResponseItem } from "../provisioning/api";
 import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
+import { BridgeConfigFeeds } from "../config/Config";
 const log = new Logger("FeedConnection");
 const md = new markdown({
     html: true,
@@ -64,7 +65,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         return new FeedConnection(roomId, event.stateKey, event.content, intent);
     }
 
-    static async validateUrl(url: string): Promise<void> {
+    static async validateUrl(url: string, config: BridgeConfigFeeds): Promise<void> {
         try {
             new URL(url);
         } catch (ex) {
@@ -75,6 +76,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
             await readFeed(url, {
                 userAgent: UserAgent,
                 pollTimeoutSeconds: VALIDATION_FETCH_TIMEOUT_S,
+                maximumFeedSizeMb: config.maximumFeedSizeMB,
             });
         } catch (ex) {
             throw new ApiError(`Could not read feed from URL: ${ex.message}`, ErrCode.BadValue);
@@ -113,7 +115,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         }
 
         const state = this.validateState(data);
-        await FeedConnection.validateUrl(state.url);
+        await FeedConnection.validateUrl(state.url, config.feeds);
         const connection = new FeedConnection(roomId, state.url, state, intent);
         await intent.underlyingClient.sendStateEvent(roomId, FeedConnection.CanonicalEventType, state.url, state);
 

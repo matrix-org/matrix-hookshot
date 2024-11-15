@@ -3841,12 +3841,13 @@ eslint-plugin-jest@^25.2.4:
   dependencies:
     "@typescript-eslint/experimental-utils" "^5.0.0"
 
-eslint-plugin-mocha@^10.1.0:
-  version "10.2.0"
-  resolved "https://registry.yarnpkg.com/eslint-plugin-mocha/-/eslint-plugin-mocha-10.2.0.tgz#15b05ce5be4b332bb0d76826ec1c5ebf67102ad6"
-  integrity sha512-ZhdxzSZnd1P9LqDPF0DBcFLpRIGdh1zkF2JHnQklKQOvrQtT73kdP5K9V2mzvbLR+cCAO9OI48NXK/Ax9/ciCQ==
+eslint-plugin-mocha@^10.4.2:
+  version "10.4.2"
+  resolved "https://registry.yarnpkg.com/eslint-plugin-mocha/-/eslint-plugin-mocha-10.4.2.tgz#dfaed06d362506c5e4d561c534314e25b3b0f1f7"
+  integrity sha512-cur4dVYnSEWTBwdqIBQFxa/9siAhesu0TX+lbJ4ClE9j0eNMNe6BSx3vkFFNz6tGoveyMyELFXa30f3fvuAVDg==
   dependencies:
     eslint-utils "^3.0.0"
+    globals "^13.24.0"
     rambda "^7.4.0"
 
 eslint-plugin-react-hooks@^4.3.0:
@@ -4483,7 +4484,7 @@ globals@^11.1.0:
   resolved "https://registry.yarnpkg.com/globals/-/globals-11.12.0.tgz#ab8795338868a0babd8525758018c2a7eb95c42e"
   integrity sha512-WOBp/EEGUiIsJSp7wcv/y6MO+lV9UoncWqxuFfm8eBwzWNgyfBd6Gz+IeKQ9jCmyhoH99g15M3T+QaVHFjizVA==
 
-globals@^13.19.0:
+globals@^13.19.0, globals@^13.24.0:
   version "13.24.0"
   resolved "https://registry.yarnpkg.com/globals/-/globals-13.24.0.tgz#8432a19d78ce0c1e833949c36adb345400bb1171"
   integrity sha512-AhO5QUcj8llrbG09iWhPU2B204J1xnPeL8kQmVorSsy+Sjj1sk8gIyh6cUocGmH4L0UuhAJy+hJMRA4mgA4mFQ==

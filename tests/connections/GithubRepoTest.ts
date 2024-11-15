@@ -84,6 +84,7 @@ describe("GitHubRepoConnection", () => {
 				}
 			} as GitHubRepoConnectionState as unknown as Record<string, unknown>);
 		});
+
 		it("will convert ignoredHooks for existing state", () => {
 			const state = GitHubRepoConnection.validateState({
 				org: "foo",
@@ -94,6 +95,7 @@ describe("GitHubRepoConnection", () => {
 			} as GitHubRepoConnectionState as unknown as Record<string, unknown>, true);
 			expect(state.enableHooks).to.not.contain('issue');
 		});
+
 		it("will disallow invalid state", () => {
 			try {
 				GitHubRepoConnection.validateState({
@@ -106,6 +108,7 @@ describe("GitHubRepoConnection", () => {
 				}
 			}
 		});
+
 		it("will disallow enabledHooks to contains invalid enums if this is new state", () => {
 			try {
 				GitHubRepoConnection.validateState({
@@ -119,6 +122,7 @@ describe("GitHubRepoConnection", () => {
 				}
 			}
 		});
+
 		it("will allow enabledHooks to contains invalid enums if this is old state", () => {
 			GitHubRepoConnection.validateState({
 				org: "foo",
@@ -127,6 +131,7 @@ describe("GitHubRepoConnection", () => {
 			}, true);
 		});
 	});
+
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
 			const { connection, intent } = createConnection();
@@ -136,6 +141,7 @@ describe("GitHubRepoConnection", () => {
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
 		});
+
 		it("will handle assignees on issue creation", async () => {
 			const { connection, intent } = createConnection();
 			await connection.onIssueCreated({
@@ -151,6 +157,7 @@ describe("GitHubRepoConnection", () => {
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.html_url, 0);
 			intent.expectEventBodyContains(GITHUB_ISSUE_CREATED_PAYLOAD.issue.title, 0);
 		});
+
 		it("will filter out issues not matching includingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
@@ -168,6 +175,7 @@ describe("GitHubRepoConnection", () => {
 			await connection.onIssueCreated(GITHUB_ISSUE_CREATED_PAYLOAD as never);
 			intent.expectNoEvent();
 		});
+
 		it("will filter out issues matching excludingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
@@ -183,6 +191,7 @@ describe("GitHubRepoConnection", () => {
 			} as never);
 			intent.expectNoEvent();
 		});
+
 		it("will include issues matching includingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				includingIssues: ["include-me"]

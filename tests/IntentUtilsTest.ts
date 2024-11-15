@@ -40,7 +40,7 @@ describe("IntentUtils", () => {
             expect(hasInvited).to.be.true;
         });
 
-        it("invites the user to the room and joins", () => {
+        it("should fail if the bot was not invited to the room", () => {
             const targetIntent = IntentMock.create(SENDER_USER_ID);
             const matrixClient = MatrixClientMock.create();
     
