@@ -2,8 +2,9 @@ import { FunctionComponent, createRef } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks"
 import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
+import { add, format } from "date-fns";
 import { BridgeConfig } from "../../BridgeAPI";
-import { GenericHookConnectionState, GenericHookResponseItem } from "../../../src/Connections/GenericHook";
+import type { GenericHookConnectionState, GenericHookResponseItem, GenericHookServiceConfig } from "../../../src/Connections/GenericHook";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
@@ -28,14 +29,18 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
 const CODE_MIRROR_EXTENSIONS = [javascript({})];
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<GenericHookServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
     const [transFnEnabled, setTransFnEnabled] = useState(serviceConfig.allowJsTransformationFunctions && !!existingConnection?.config.transformationFunction);
     const [waitForComplete, setWaitForComplete] = useState(existingConnection?.config.waitForComplete ?? false);
 
-    const nameRef = createRef<HTMLInputElement>();
+    const minExpiryTime = format(add(new Date(), { hours: 1 }), "yyyy-MM-dd'T'HH:mm");
+    const maxExpiryTime = serviceConfig.maxExpiryTime ? format(Date.now() + serviceConfig.maxExpiryTime, "yyyy-MM-dd'T'HH:mm") : undefined;
 
-    const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
+    const nameRef = createRef<HTMLInputElement>();
+    const expiryRef = createRef<HTMLInputElement>();
+
+    const canEdit = !existingConnection || existingConnection?.canEdit || false;
     const handleSave = useCallback((evt: Event) => {
         evt.preventDefault();
         if (!canEdit) {
@@ -43,6 +48,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
+            expirationDate: !!expiryRef?.current?.value ? expiryRef?.current?.value : undefined,
             waitForComplete,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
@@ -69,7 +75,23 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
         </InputField>
 
         <InputField visible={!!existingConnection} label="URL" noPadding={true}>
-            <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets?.url || ""} />
+            <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets?.url?.toString() || ""} />
+        </InputField>
+
+        <InputField label="Expiration date (optional)" noPadding={true}>
+            <input
+                type="datetime-local"
+                disabled={!canEdit}
+                ref={expiryRef}
+                value={existingConnection?.config.expirationDate ?? ""}
+                min={minExpiryTime}
+                max={maxExpiryTime} />
+            <Button intent="remove" onClick={(ev) => {
+                ev.preventDefault();
+                if (expiryRef.current?.value) {
+                    expiryRef.current.value = "";
+                }
+                }} disabled={!!expiryRef.current?.value}>Clear</Button>
         </InputField>
 
         <InputField visible={serviceConfig.allowJsTransformationFunctions} label="Enable Transformation JavaScript" noPadding={true}>
@@ -81,15 +103,14 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
             <input disabled={!canEdit || serviceConfig.waitForComplete} type="checkbox" checked={waitForComplete || serviceConfig.waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
         </InputField>
 
-        <InputField visible={transFnEnabled} noPadding={true}>
-            <CodeMirror
-                value={transFn}
-                theme={codeMirrorTheme}
-                extensions={CODE_MIRROR_EXTENSIONS}
-                onChange={setTransFn}
-            />
-            <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
-        </InputField>
+        {transFnEnabled && <><CodeMirror
+            value={transFn}
+            theme={codeMirrorTheme}
+            extensions={CODE_MIRROR_EXTENSIONS}
+            onChange={setTransFn}
+        />
+        <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
+        </>}
         <ButtonSet>
             { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
             { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove webhook</Button>}
@@ -97,10 +118,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Se
     </form>;
 };
 
-interface ServiceConfig {
-    allowJsTransformationFunctions: boolean,
-    waitForComplete: boolean,
-}
 
 const RoomConfigText = {
     header: 'Inbound (Generic) Webhooks',
@@ -112,7 +129,7 @@ const RoomConfigText = {
 const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
 
 export const GenericWebhookConfig: BridgeConfig = ({ roomId, showHeader }) => {
-    return <RoomConfig<ServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
+    return <RoomConfig<GenericHookServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
         headerImg={WebhookIcon}
         darkHeaderImg={true}
         showHeader={showHeader}
