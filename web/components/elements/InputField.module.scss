@@ -35,7 +35,7 @@
         margin: auto;
     }
 
-    input[type="text"],input[type="search"] {
+    input[type="text"],input[type="search"],input[type="datetime-local"] {
         border: 1px solid var(--cpd-color-border-interactive-primary);
         box-sizing: border-box;
         border-radius: 8px;
@@ -55,5 +55,14 @@
         padding: 8px 12px;
         color:  var(--cpd-color-text-primary);
         background: var(--cpd-color-bg-subtle-primary); 
+    }
+}
+
+.container {
+    display: flex;
+    gap: 4px;
+
+    button {
+        min-width: 0;    
     }
 }
