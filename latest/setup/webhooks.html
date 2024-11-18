@@ -161,6 +161,8 @@
   allowJsTransformationFunctions: false
   waitForComplete: false
   enableHttpGet: false
+  # maxExpiryTime: 30d
+  # sendExpiryNotice: false
   # userIdPrefix: webhook_
 </code></pre>
 <h2 id="inbound-webhooks"><a class="header" href="#inbound-webhooks">Inbound Webhooks</a></h2>
@@ -180,6 +182,13 @@ respond with a 200 as soon as the webhook has entered processing (<code>false</c
 has been sent (<code>true</code>). By default this is <code>false</code>.</p>
 <p><code>enableHttpGet</code> means that webhooks can be triggered by <code>GET</code> requests, in addition to <code>POST</code> and <code>PUT</code>. This was previously on by default,
 but is now disabled due to concerns mentioned below.</p>
+<p><code>maxExpiryTime</code> sets an upper limit on how long a webhook can be valid for before the bridge expires it. By default this is unlimited. This
+takes a duration represented by a string. E.g. &quot;30d&quot; is 30 days. See <a href="https://github.com/jkroso/parse-duration?tab=readme-ov-file#available-unit-types-are">this page</a>
+for available units. Additionally: </p>
+<ul>
+<li><code>sendExpiryNotice</code> configures whether a message is sent into a room when the connection is close to expiring.</li>
+<li><code>requireExpiryTime</code> forbids creating a webhook without a expiry time. This does not apply to existing webhooks.</li>
+</ul>
 <p>You may set a <code>userIdPrefix</code> to create a specific user for each new webhook connection in a room. For example, a connection with a name
 like <code>example</code> for a prefix of <code>webhook_</code> will create a user called <code>@webhook_example:example.com</code>. If you enable this option,
 you need to configure the user to be part of your registration file e.g.:</p>
@@ -233,6 +242,10 @@ for this is that some services expect a quick response time (like Slack) whereas
 can specify this either globally in your config, or on the widget with <code>waitForComplete</code>.</p>
 <p>If you make use of the <code>webhookResponse</code> feature, you will need to enable <code>waitForComplete</code> as otherwise hookshot will
 immeditately respond with it's default response values.</p>
+<h4 id="expiring-webhooks"><a class="header" href="#expiring-webhooks">Expiring webhooks</a></h4>
+<p>Webhooks can be configured to expire, such that beyond a certain date they will fail any incoming requests. Currently this expiry time
+is mutable, so anybody able to configure connections will be able to change the expiry date. Hookshot will send a notice to the room
+at large when the webhook has less than 3 days until it's due to expire (if <code>sendExpiryNotice</code> is set).</p>
 <h3 id="javascript-transformations"><a class="header" href="#javascript-transformations">JavaScript Transformations</a></h3>
 <section class="notice">
 Although every effort has been made to securely sandbox scripts, running untrusted code from users is always risky. Ensure safe permissions
