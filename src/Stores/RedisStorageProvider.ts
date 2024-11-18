@@ -33,6 +33,8 @@ const FEED_GUIDS = "feeds.guids.";
 const HOUND_GUIDS = "hound.guids.";
 const HOUND_EVENTS = "hound.events.";
 
+const GENERIC_HOOK_HAS_WARNED = "generichook.haswarned";
+
 const log = new Logger("RedisASProvider");
 
 export class RedisStorageContextualProvider implements IStorageProvider {
@@ -283,5 +285,13 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
 
     public async getHoundActivity(challengeId: string, activityId: string): Promise<string|null> {
         return this.redis.get(`${HOUND_EVENTS}${challengeId}.${activityId}`);
+    }
+
+    public async getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean> {
+        return await this.redis.sismember(GENERIC_HOOK_HAS_WARNED, hookId) === 1;
+    }
+
+    public async setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void> {
+        await this.redis[hasWarned ? "sadd" : "srem"](GENERIC_HOOK_HAS_WARNED, hookId);
     }
 }

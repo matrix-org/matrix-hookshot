@@ -102,10 +102,13 @@ listeners:
 #  enabled: false
 #  outbound: false
 #  enableHttpGet: false
+#  sendExpiryNotice: false
+#  requireExpiryTime: false
 #  urlPrefix: https://example.com/webhook/
 #  userIdPrefix: _webhooks_
 #  allowJsTransformationFunctions: false
 #  waitForComplete: false
+#  maxExpiryTime: 30d
 
 #feeds:
 #  # (Optional) Configure this to enable RSS/Atom feed support

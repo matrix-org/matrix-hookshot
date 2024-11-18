@@ -34,7 +34,7 @@ export class MatrixSender {
             try {
                 await this.sendMatrixMessage(msg.messageId || randomUUID(), msg.data);
             } catch (ex) {
-                log.error(`Failed to send message (${msg.data.roomId}, ${msg.data.sender}, ${msg.data.type})`);
+                log.error(`Failed to send message (${msg.data.roomId}, ${msg.data.sender}, ${msg.data.type})`, ex);
             }
         });
     }

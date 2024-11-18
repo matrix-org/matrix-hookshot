@@ -88,7 +88,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!newConnectionState} label="Command Prefix" noPadding={true}>
             <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
         </InputField>
-        <InputField visible={!!existingConnection || !!newConnectionState} label="Include comment bodies" noPadding={true} innerChild={true}>
+        <InputField visible={!!existingConnection || !!newConnectionState} label="Include comment bodies" noPadding={true}>
             <input ref={includeBodyRef} disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
         </InputField>
         <InputField visible={!!existingConnection || !!newConnectionState} label="Events" noPadding={true}>

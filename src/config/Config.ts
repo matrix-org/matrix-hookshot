@@ -9,11 +9,13 @@ import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import { ConfigError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
-import { DefaultDisallowedIpRanges, Logger } from "matrix-appservice-bridge";
+import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigCache } from "./sections/cache";
-import { BridgeConfigQueue } from "./sections";
+import { BridgeConfigGenericWebhooks, BridgeConfigQueue, BridgeGenericWebhooksConfigYAML } from "./sections";
+import { GenericHookServiceConfig } from "../Connections";
 
 const log = new Logger("Config");
+
 
 function makePrefixedUrl(urlString: string): URL {
     return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
@@ -287,56 +289,6 @@ export interface BridgeConfigFigma {
         passcode: string;
     }};
 }
-
-export interface BridgeGenericWebhooksConfigYAML {
-    enabled: boolean;
-    urlPrefix: string;
-    userIdPrefix?: string;
-    allowJsTransformationFunctions?: boolean;
-    waitForComplete?: boolean;
-    enableHttpGet?: boolean;
-    outbound?: boolean;
-    disallowedIpRanges?: string[];
-}
-
-export class BridgeConfigGenericWebhooks {
-    public readonly enabled: boolean;
-    public readonly outbound: boolean;
-
-    @hideKey()
-    public readonly parsedUrlPrefix: URL;
-    public readonly urlPrefix: () => string;
-
-    public readonly userIdPrefix?: string;
-    public readonly allowJsTransformationFunctions?: boolean;
-    public readonly waitForComplete?: boolean;
-    public readonly enableHttpGet: boolean;
-    constructor(yaml: BridgeGenericWebhooksConfigYAML) {
-        this.enabled = yaml.enabled || false;
-        this.outbound = yaml.outbound || false;
-        this.enableHttpGet = yaml.enableHttpGet || false;
-        try {
-            this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
-            this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
-        } catch (err) {
-            throw new ConfigError("generic.urlPrefix", "is not defined or not a valid URL");
-        }
-        this.userIdPrefix = yaml.userIdPrefix;
-        this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
-        this.waitForComplete = yaml.waitForComplete;
-    }
-
-    @hideKey()
-    public get publicConfig() {
-        return {
-            userIdPrefix: this.userIdPrefix,
-            allowJsTransformationFunctions: this.allowJsTransformationFunctions,
-            waitForComplete: this.waitForComplete,
-        }
-    }
-
-}
-
 
 interface BridgeWidgetConfigYAML {
     publicUrl: string;
@@ -779,8 +731,8 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         return services;
     }
 
-    public getPublicConfigForService(serviceName: string): Record<string, unknown> {
-        let config: undefined|Record<string, unknown>;
+    public getPublicConfigForService(serviceName: string): Record<string, unknown>|GenericHookServiceConfig {
+        let config: undefined|Record<string, unknown>|GenericHookServiceConfig;
         switch (serviceName) {
             case "feeds":
                 config = this.feeds?.publicConfig;

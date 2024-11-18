@@ -108,7 +108,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         });
     }
 
-    private async getServiceConfig(req: ProvisioningRequest, res: Response<Record<string, unknown>>) {
+    private async getServiceConfig(req: ProvisioningRequest, res: Response<object>) {
         // GitHub is a special case because it depends on live config.
         if (req.params.service === 'github') {
             res.send(this.config.github?.publicConfig(this.github));

@@ -36,4 +36,7 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
     hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]>;
     storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void>;
     getHoundActivity(challengeId: string, activityId: string): Promise<string|null>;
+
+    getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean>;
+    setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void>;
 }

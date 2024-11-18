@@ -16,6 +16,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private feedGuids = new Map<string, Array<string>>();
     private houndActivityIds = new Map<string, Array<string>>();
     private houndActivityIdToEvent = new Map<string, string>();
+    private hasGenericHookWarnedExpiry = new Set<string>();
 
     constructor() {
         super();
@@ -138,5 +139,13 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
 
     public async getHoundActivity(challengeId: string, activityId: string): Promise<string|null> {
         return this.houndActivityIdToEvent.get(`${challengeId}.${activityId}`) ?? null;
+    }
+
+    public async getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean> {
+        return this.hasGenericHookWarnedExpiry.has(hookId);
+    }
+
+    public async setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void> {
+        this.hasGenericHookWarnedExpiry[hasWarned ? "add" : "delete"](hookId);
     }
 }

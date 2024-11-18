@@ -8,9 +8,13 @@ import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { GetConnectionsResponseItem } from "../provisioning/api";
-import { BridgeConfigGenericWebhooks } from "../config/Config";
+import { BridgeConfigGenericWebhooks } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from 'node:crypto';
+import { GenericWebhookEventResult } from "../generic/types";
+import { StatusCodes } from "http-status-codes";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { formatDuration, isMatch, millisecondsToHours } from "date-fns";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -21,11 +25,17 @@ export interface GenericHookConnectionState extends IConnectionState {
      * The name given in the provisioning UI and displaynames.
      */
     name: string;
-    transformationFunction: string|undefined;
+    transformationFunction?: string;
     /**
      * Should the webhook only respond on completion.
      */
-    waitForComplete: boolean|undefined;
+    waitForComplete?: boolean|undefined;
+
+    /**
+     * If the webhook has an expriation date, then the date at which the webhook is no longer value
+     * (in UTC) time.
+     */
+    expirationDate?: string;
 }
 
 export interface GenericHookSecrets {
@@ -37,6 +47,10 @@ export interface GenericHookSecrets {
      * The hookId of the webhook.
      */
     hookId: string;
+    /**
+     * How long remains until the webhook expires.
+     */
+    timeRemainingMs?: number
 }
 
 export type GenericHookResponseItem = GetConnectionsResponseItem<GenericHookConnectionState, GenericHookSecrets>;
@@ -64,12 +78,26 @@ interface WebhookTransformationResult {
     webhookResponse?: WebhookResponse;
 }
 
+export interface GenericHookServiceConfig {
+    userIdPrefix?: string;
+    allowJsTransformationFunctions?: boolean,
+    waitForComplete?: boolean,
+    maxExpiryTime?: number,
+    requireExpiryTime: boolean,
+}
+
 const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
 const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 10;
 const SANITIZE_MAX_BREADTH = 50;
+
+const WARN_AT_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000;
+const MIN_EXPIRY_MS = 60 * 60 * 1000;
+const CHECK_EXPIRY_MS = 15 * 60 * 1000;
+
+const EXPIRY_NOTICE_MESSAGE = "The webhook **%NAME** will be expiring in %TIME."
 
 /**
  * Handles rooms connected to a generic webhook.
@@ -123,8 +151,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return obj;
     }
 
-    static validateState(state: Record<string, unknown>): GenericHookConnectionState {
-        const {name, transformationFunction, waitForComplete} = state;
+    static validateState(state: Partial<Record<keyof GenericHookConnectionState, unknown>>): GenericHookConnectionState {
+        const {name, transformationFunction, waitForComplete, expirationDate: expirationDateStr} = state;
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
         }
@@ -143,14 +171,26 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 throw new ApiError('Transformation functions must be a string', ErrCode.BadValue);
             }
         }
+        let expirationDate: string|undefined;
+        if (expirationDateStr != undefined) {
+            if (typeof expirationDateStr !== "string" || !expirationDateStr) {
+                throw new ApiError("'expirationDate' must be a non-empty string", ErrCode.BadValue);
+            }
+            if (!isMatch(expirationDateStr, "yyyy-MM-dd'T'HH:mm:ss.SSSXX")) {
+                throw new ApiError("'expirationDate' must be a valid date", ErrCode.BadValue);
+            }
+            expirationDate = expirationDateStr;
+        }
+
         return {
             name,
             transformationFunction: transformationFunction || undefined,
             waitForComplete,
+            expirationDate,
         };
     }
 
-    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, config, messageClient}: InstantiateConnectionOpts) {
+    static async createConnectionForState(roomId: string, event: StateEvent<Record<string, unknown>>, {as, intent, config, messageClient, storage}: InstantiateConnectionOpts) {
         if (!config.generic) {
             throw Error('Generic webhooks are not configured');
         }
@@ -162,6 +202,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!hookId) {
             hookId = randomUUID();
             log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
+            // If this is a new hook...
+            if (config.generic.requireExpiryTime && !state.expirationDate) {
+                throw new Error('Expiration date must be set');
+            }
             await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, event.stateKey);
         }
 
@@ -174,18 +218,41 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             config.generic,
             as,
             intent,
+            storage,
         );
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, intent, config, messageClient}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Partial<Record<keyof GenericHookConnectionState, unknown>> = {}, {as, intent, config, messageClient, storage}: ProvisionConnectionOpts) {
         if (!config.generic) {
             throw Error('Generic Webhooks are not configured');
         }
         const hookId = randomUUID();
         const validState = GenericHookConnection.validateState(data);
+        if (validState.expirationDate) {
+            const durationRemaining = new Date(validState.expirationDate).getTime() - Date.now();
+            if (config.generic.maxExpiryTimeMs) {
+                if (durationRemaining > config.generic.maxExpiryTimeMs) {
+                    throw new ApiError('Expiration date cannot exceed the configured max expiry time', ErrCode.BadValue);
+                }
+            }
+            if (durationRemaining < MIN_EXPIRY_MS) {
+                // If the webhook is actually created with a shorter expiry time than
+                // our warning period, then just mark it as warned.
+                throw new ApiError('Expiration date must at least be a hour in the future', ErrCode.BadValue);
+            }
+            if (durationRemaining < WARN_AT_EXPIRY_MS) {
+                // If the webhook is actually created with a shorter expiry time than
+                // our warning period, then just mark it as warned.
+                await storage.setHasGenericHookWarnedExpiry(hookId, true);
+            }
+        } else if (config.generic.requireExpiryTime) {
+            throw new ApiError('Expiration date must be set', ErrCode.BadValue);
+        }
+
+
         await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
-        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config.generic, as, intent);
+        const connection = new GenericHookConnection(roomId, validState, hookId, validState.name, messageClient, config.generic, as, intent, storage);
         return {
             connection,
             stateEventContent: validState,
@@ -218,6 +285,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
 
     private transformationFunction?: string;
     private cachedDisplayname?: string;
+    private warnOnExpiryInterval?: NodeJS.Timeout;
+
     /**
      * @param state Should be a pre-validated state object returned by {@link validateState}
      */
@@ -230,11 +299,19 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         private readonly config: BridgeConfigGenericWebhooks,
         private readonly as: Appservice,
         private readonly intent: Intent,
+        private readonly storage: IBridgeStorageProvider,
     ) {
         super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
         if (state.transformationFunction && GenericHookConnection.quickModule) {
             this.transformationFunction = state.transformationFunction;
         }
+        this.handleExpiryTimeUpdate(false).catch(ex => {
+            log.warn("Failed to configure expiry time warning for hook", ex);
+        });
+    }
+
+    public get expiresAt(): Date|undefined {
+        return this.state.expirationDate ? new Date(this.state.expirationDate) : undefined;
     }
 
     /**
@@ -313,7 +390,49 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         } else {
             this.transformationFunction = undefined;
         }
+
+        const prevDate = this.state.expirationDate;
         this.state = validatedConfig;
+        if (prevDate !== validatedConfig.expirationDate) {
+            await this.handleExpiryTimeUpdate(true);
+        }
+    }
+
+    /**
+     * Called when the expiry time has been updated for the connection. If the connection
+     * no longer has an expiry time. This voids the interval.
+     * @returns 
+     */
+    private async handleExpiryTimeUpdate(shouldWrite: boolean) {
+        if (!this.config.sendExpiryNotice) {
+            return;
+        }
+        if (this.warnOnExpiryInterval) {
+            clearInterval(this.warnOnExpiryInterval);
+            this.warnOnExpiryInterval = undefined;
+        }
+        if (!this.state.expirationDate) {
+            return;
+        }
+
+        const durationRemaining = new Date(this.state.expirationDate).getTime() - Date.now();
+        if (durationRemaining < WARN_AT_EXPIRY_MS) {
+            // If the webhook is actually created with a shorter expiry time than
+            // our warning period, then just mark it as warned.
+            if (shouldWrite) {
+                await this.storage.setHasGenericHookWarnedExpiry(this.hookId, true);
+            }
+        } else {
+            const fuzzCheckTimeMs = Math.round((Math.random() * CHECK_EXPIRY_MS));
+            this.warnOnExpiryInterval = setInterval(() => {
+                this.checkAndWarnExpiry().catch(ex => {
+                    log.warn("Failed to check expiry time for hook", ex);
+                })
+            }, CHECK_EXPIRY_MS + fuzzCheckTimeMs);
+            if (shouldWrite) {
+                await this.storage.setHasGenericHookWarnedExpiry(this.hookId, false);
+            }
+        }
     }
 
     public transformHookData(data: unknown): {plain: string, html?: string} {
@@ -424,8 +543,18 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @param data Structured data. This may either be a string, or an object.
      * @returns `true` if the webhook completed, or `false` if it failed to complete
      */
-    public async onGenericHook(data: unknown): Promise<{successful: boolean, response?: WebhookResponse}> {
+    public async onGenericHook(data: unknown): Promise<GenericWebhookEventResult> {
         log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
+
+        if (this.expiresAt && new Date() >= this.expiresAt) {
+            log.warn("Ignoring incoming webhook. This hook has expired");
+            return {
+                successful: false,
+                statusCode: StatusCodes.NOT_FOUND,
+                error: 'This hook has expired',
+            };
+        }
+
         let content: {plain: string, html?: string, msgtype?: string}|undefined;
         let webhookResponse: WebhookResponse|undefined;
         let successful = true;
@@ -487,16 +616,19 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 transformationFunction: this.state.transformationFunction,
                 waitForComplete: this.waitForComplete,
                 name: this.state.name,
+                expirationDate: this.state.expirationDate,
             },
             ...(showSecrets ? { secrets: {
                 url: new URL(this.hookId, this.config.parsedUrlPrefix),
                 hookId: this.hookId,
+                timeRemainingMs: this.expiresAt ? this.expiresAt.getTime() - Date.now() : undefined,
             } satisfies GenericHookSecrets} : undefined)
         }
     }
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
+        clearInterval(this.warnOnExpiryInterval);
         // Do a sanity check that the event exists.
         try {
             await this.intent.underlyingClient.getRoomStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey);
@@ -508,8 +640,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         await GenericHookConnection.ensureRoomAccountData(this.roomId, this.intent, this.hookId, this.stateKey, true);
     }
 
-    public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
+    public async provisionerUpdateConfig(_userId: string, config: Record<keyof GenericHookConnectionState, unknown>) {
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
+        config.expirationDate = config.expirationDate ?? undefined;
         config = { ...this.state, ...config };
         const validatedConfig = GenericHookConnection.validateState(config);
         await this.intent.underlyingClient.sendStateEvent(this.roomId, GenericHookConnection.CanonicalEventType, this.stateKey,
@@ -521,6 +654,35 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         this.state = validatedConfig;
     }
 
+    private async checkAndWarnExpiry() {
+        const remainingMs = this.expiresAt ? this.expiresAt.getTime() - Date.now() : undefined;
+        if (!remainingMs) {
+            return;
+        }
+        if (remainingMs < CHECK_EXPIRY_MS) {
+            // Nearly expired
+            return;
+        }
+        if (remainingMs > WARN_AT_EXPIRY_MS) {
+            return;
+        }
+        if (await this.storage.getHasGenericHookWarnedExpiry(this.hookId)) {
+            return;
+        }
+        // Warn
+        const markdownStr = EXPIRY_NOTICE_MESSAGE.replace('%NAME', this.state.name).replace('%TIME', formatDuration({
+            hours: millisecondsToHours(remainingMs)
+        }));
+        await this.messageClient.sendMatrixMessage(this.roomId, {
+            msgtype: "m.notice",
+            body: markdownStr,
+            // render can output redundant trailing newlines, so trim it.
+            formatted_body: md.render(markdownStr).trim(),
+            format: "org.matrix.custom.html",
+        }, 'm.room.message', this.getUserId());
+        await this.storage.setHasGenericHookWarnedExpiry(this.hookId, true);
+    }
+ 
     public toString() {
         return `GenericHookConnection ${this.hookId}`;
     }
