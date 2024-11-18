@@ -14,6 +14,7 @@ import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConne
 import { ApiError, Logger } from "matrix-appservice-bridge";
 import { Intent } from "matrix-bot-sdk";
 import YAML from 'yaml';
+import parseDuration from 'parse-duration';
 import { HoundConnection } from "./HoundConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
@@ -209,10 +210,19 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
     }
 
-    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
-    public async onWebhook(userId: string, name: string) {
+    @botCommand("webhook", { help: "Create an inbound webhook. The liveDuration must be specified as a duration string (e.g. 30d).", requiredArgs: ["name"], includeUserId: true, optionalArgs: ['liveDuration'], category: GenericHookConnection.ServiceCategory})
+    public async onWebhook(userId: string, name: string, liveDuration?: string) {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
+        }
+
+        let expirationDate: string|undefined = undefined;
+        if (liveDuration) {
+            const expirationDuration = parseDuration(liveDuration);
+            if (!expirationDuration) {
+                throw new CommandError("Bad webhook duration", "A webhook name must be between 3-64 characters.");
+            }
+            expirationDate = new Date(expirationDuration + Date.now()).toISOString();
         }
 
         await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
@@ -220,7 +230,7 @@ export class SetupConnection extends CommandConnection {
         if (!name || name.length < 3 || name.length > 64) {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
-        const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name, expirationDate}, this.provisionOpts);
         this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
