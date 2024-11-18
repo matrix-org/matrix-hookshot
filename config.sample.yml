@@ -103,6 +103,7 @@ listeners:
 #  outbound: false
 #  enableHttpGet: false
 #  sendExpiryNotice: false
+#  requireExpiryTime: false
 #  urlPrefix: https://example.com/webhook/
 #  userIdPrefix: _webhooks_
 #  allowJsTransformationFunctions: false
