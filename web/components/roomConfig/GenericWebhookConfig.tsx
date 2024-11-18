@@ -76,6 +76,14 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
     const hasExpired = existingConnection?.secrets?.timeRemainingMs ? existingConnection?.secrets?.timeRemainingMs <= 0 : false;
     const willExpireSoon = !hasExpired && existingConnection?.secrets?.timeRemainingMs ? existingConnection?.secrets?.timeRemainingMs <= EXPIRY_WARN_AT_MS : false;
 
+    useEffect(() => {
+        if (!expiryRef.current || !existingConnection?.config.expirationDate) {
+            return;
+        } 
+        console.log('Setting date', new Date(existingConnection.config.expirationDate));
+        expiryRef.current.valueAsDate = new Date(existingConnection.config.expirationDate);
+    }, [existingConnection, expiryRef]);
+
     return <form onSubmit={handleSave}>
         {hasExpired && <Alert type="critical" title="This Webhook has expired">
             This Webhook has expired and will no longer handle any incoming requests. Please set a new expiry date or <strong>remove</strong> the Webhook.
@@ -97,7 +105,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
                 required={serviceConfig.requireExpiryTime}
                 disabled={!canEdit}
                 ref={expiryRef}
-                value={existingConnection?.config.expirationDate ?? ""}
                 min={minExpiryTime}
                 max={maxExpiryTime} />
             <Button intent="remove" onClick={(ev) => {
