@@ -14,6 +14,7 @@ import GitHubIcon from "../icons/github.png";
 import GitLabIcon from "../icons/gitlab.png";
 import JiraIcon from "../icons/jira.png";
 import WebhookIcon from "../icons/webhook.png";
+import { ChevronLeftIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
 
 
 interface IProps {
@@ -118,7 +119,7 @@ export default function RoomConfigView(props: IProps) {
         {!serviceScope && activeConnectionType &&
             <header>
                 <span className={style.backButton} onClick={() => setActiveConnectionType(null)}>
-                    <span className="chevron" /> Browse integrations
+                    <ChevronLeftIcon /> Browse integrations
                 </span>
             </header>
         }

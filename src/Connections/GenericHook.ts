@@ -47,6 +47,10 @@ export interface GenericHookSecrets {
      * The hookId of the webhook.
      */
     hookId: string;
+    /**
+     * How long remains until the webhook expires.
+     */
+    timeRemainingMs?: number
 }
 
 export type GenericHookResponseItem = GetConnectionsResponseItem<GenericHookConnectionState, GenericHookSecrets>;
@@ -222,8 +226,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         const validState = GenericHookConnection.validateState(data);
         if (validState.expirationDate) {
             const durationRemaining = new Date(validState.expirationDate).getTime() - Date.now();
-            if (config.generic.maxExpiryTime) {
-                if (durationRemaining > config.generic.maxExpiryTime) {
+            if (config.generic.maxExpiryTimeMs) {
+                if (durationRemaining > config.generic.maxExpiryTimeMs) {
                     throw new ApiError('Expiration date cannot exceed the configured max expiry time', ErrCode.BadValue);
                 }
             }
@@ -603,6 +607,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             ...(showSecrets ? { secrets: {
                 url: new URL(this.hookId, this.config.parsedUrlPrefix),
                 hookId: this.hookId,
+                timeRemainingMs: this.expiresAt ? this.expiresAt.getTime() - Date.now() : undefined,
             } satisfies GenericHookSecrets} : undefined)
         }
     }

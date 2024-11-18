@@ -8,6 +8,8 @@ import type { GenericHookConnectionState, GenericHookResponseItem, GenericHookSe
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
+import { Alert, ToggleInput } from "@vector-im/compound-web";
+import { InfoIcon, WarningIcon } from "@vector-im/compound-design-tokens/assets/web/icons"
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
@@ -28,6 +30,8 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
 
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
 const CODE_MIRROR_EXTENSIONS = [javascript({})];
+
+const EXPIRY_WARN_AT_MS = 3 * 24 * 60 * 60 * 1000;
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<GenericHookServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
@@ -69,9 +73,19 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         return () => mm.removeEventListener('change', fn);
     }, [transFnEnabled]);
 
+
+    const hasExpired = existingConnection?.secrets?.timeRemainingMs ? existingConnection?.secrets?.timeRemainingMs <= 0 : false;
+    const willExpireSoon = !hasExpired && existingConnection?.secrets?.timeRemainingMs ? existingConnection?.secrets?.timeRemainingMs <= EXPIRY_WARN_AT_MS : false;
+
     return <form onSubmit={handleSave}>
+        {hasExpired && <Alert type="critical" title="This Webhook has expired">
+            This Webhook has expired and will no longer handle any incoming requests. Please set a new expiry date or <strong>remove</strong> the Webhook.
+        </Alert>}
+        {willExpireSoon && <Alert type="info" title="This Webhook is expiring soon">
+            This Webhook will expired soon will no longer handle any incoming requests. To extend the Webhook lifetime, set a new expiry date below.
+        </Alert>}
         <InputField visible={!existingConnection} label="Friendly name" noPadding={true}>
-            <input ref={nameRef} disabled={!canEdit} placeholder="My webhook" type="text" value={existingConnection?.config.name} />
+            <input ref={nameRef} disabled={!canEdit} placeholder="My Webhook" type="text" value={existingConnection?.config.name} />
         </InputField>
 
         <InputField visible={!!existingConnection} label="URL" noPadding={true}>
@@ -95,12 +109,12 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         </InputField>
 
         <InputField visible={serviceConfig.allowJsTransformationFunctions} label="Enable Transformation JavaScript" noPadding={true}>
-            <input disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={useCallback(() => setTransFnEnabled(v => !v), [])} />
+            <ToggleInput disabled={!canEdit} type="checkbox" checked={transFnEnabled} onChange={useCallback(() => setTransFnEnabled(v => !v), [])} />
         </InputField>
 
 
         <InputField visible={serviceConfig.allowJsTransformationFunctions && transFnEnabled} label="Respond after function completes" noPadding={true}>
-            <input disabled={!canEdit || serviceConfig.waitForComplete} type="checkbox" checked={waitForComplete || serviceConfig.waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
+            <ToggleInput disabled={!canEdit || serviceConfig.waitForComplete} type="checkbox" checked={waitForComplete || serviceConfig.waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
         </InputField>
 
         {transFnEnabled && <><CodeMirror
@@ -112,8 +126,8 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
         </>}
         <ButtonSet>
-            { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add webhook" }</Button>}
-            { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove webhook</Button>}
+            { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add Webhook" }</Button>}
+            { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove Webhook</Button>}
         </ButtonSet>
     </form>;
 };
@@ -121,12 +135,23 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
 
 const RoomConfigText = {
     header: 'Inbound (Generic) Webhooks',
-    createNew: 'Create new webhook',
-    listCanEdit: 'Your webhooks',
-    listCantEdit: 'Configured webhooks',
+    createNew: 'Create new Webhook',
+    listCanEdit: 'Your Webhooks',
+    listCantEdit: 'Configured Webhooks',
 };
 
-const RoomConfigListItemFunc = (c: GenericHookResponseItem) => c.config.name;
+const RoomConfigListItemFunc = (c: GenericHookResponseItem) => {
+    const hasExpired = c.secrets?.timeRemainingMs ? c.secrets.timeRemainingMs <= 0 : false;
+    const willExpireSoon = !hasExpired && c.secrets?.timeRemainingMs ? c.secrets?.timeRemainingMs <= EXPIRY_WARN_AT_MS : false;
+    
+    return <>
+        <span style={{verticalAlign: "middle"}}>{c.config.name}</span>
+        <span style={{marginLeft: "8px", verticalAlign: "middle"}}>
+            {hasExpired && <WarningIcon />}
+            {willExpireSoon && <InfoIcon />}
+        </span>
+    </>
+};
 
 export const GenericWebhookConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<GenericHookServiceConfig, GenericHookResponseItem, GenericHookConnectionState>
