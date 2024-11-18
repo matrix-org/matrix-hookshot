@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { expect } from "chai";
 import { MatrixError } from "matrix-bot-sdk";
-import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/Config";
+import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/sections";
 import { GenericHookConnection, GenericHookConnectionState } from "../../src/Connections/GenericHook";
 import { MessageSenderClient, IMatrixSendMessage } from "../../src/MatrixSender";
 import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
 import { AppserviceMock } from "../utils/AppserviceMock";
+import { MemoryStorageProvider } from "../../src/Stores/MemoryStorageProvider";
 
 const ROOM_ID = "!foo:bar";
 
@@ -37,6 +38,7 @@ function createGenericHook(
 ) {
     const mq = new LocalMQ();
     mq.subscribe('*');
+    const storage = new MemoryStorageProvider();
     const messageClient = new MessageSenderClient(mq);
     const as = AppserviceMock.create();
     const intent = as.getIntentForUserId('@webhooks:example.test');
@@ -45,7 +47,7 @@ function createGenericHook(
         transformationFunction: undefined,
         waitForComplete: undefined,
         ...state,
-    }, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent);
+    }, "foobar", "foobar", messageClient, new BridgeConfigGenericWebhooks(config), as, intent, storage);
     return [connection, mq, as, intent];
 }
 
