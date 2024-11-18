@@ -393,6 +393,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
      * @returns 
      */
     private async handleExpiryTimeUpdate(shouldWrite: boolean) {
+        if (!this.config.sendExpiryNotice) {
+            return;
+        }
         if (this.warnOnExpiryInterval) {
             clearInterval(this.warnOnExpiryInterval);
             this.warnOnExpiryInterval = undefined;

@@ -109,6 +109,8 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         urlPrefix: `${hookshotWebhooksUrl}/webhook/`,
         userIdPrefix: "_webhooks_",
         waitForComplete: false,
+        maxExpiryTime: "30d",
+        sendExpiryNotice: false,
     },
     figma: {
         publicUrl: `${hookshotWebhooksUrl}/hookshot/`,

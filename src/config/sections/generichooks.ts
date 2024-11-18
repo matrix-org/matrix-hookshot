@@ -1,3 +1,4 @@
+import { GenericHookServiceConfig } from "../../Connections";
 import { ConfigError } from "../../errors";
 import { hideKey } from "../Decorators";
 import parseDuration from "parse-duration";
@@ -16,6 +17,7 @@ export interface BridgeGenericWebhooksConfigYAML {
     outbound?: boolean;
     disallowedIpRanges?: string[];
     maxExpiryTime?: string;
+    sendExpiryNotice?: boolean;
 }
 
 export class BridgeConfigGenericWebhooks {
@@ -30,12 +32,19 @@ export class BridgeConfigGenericWebhooks {
     public readonly allowJsTransformationFunctions?: boolean;
     public readonly waitForComplete?: boolean;
     public readonly enableHttpGet: boolean;
-    public readonly maxExpiryTime?: number;
+
+    @hideKey()
+    public readonly maxExpiryTimeMs?: number;
+    public readonly sendExpiryNotice: boolean;
+
+    // Public facing value for config generator
+    public readonly maxExpiryTime?: string;
 
     constructor(yaml: BridgeGenericWebhooksConfigYAML) {
         this.enabled = yaml.enabled || false;
         this.outbound = yaml.outbound || false;
         this.enableHttpGet = yaml.enableHttpGet || false;
+        this.sendExpiryNotice = yaml.sendExpiryNotice || false;
         try {
             this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
             this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
@@ -45,16 +54,17 @@ export class BridgeConfigGenericWebhooks {
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
-        this.maxExpiryTime = yaml.maxExpiryTime ? parseDuration(yaml.maxExpiryTime) : undefined;
+        this.maxExpiryTimeMs = yaml.maxExpiryTime ? parseDuration(yaml.maxExpiryTime) : undefined;
+        this.maxExpiryTime = yaml.maxExpiryTime;
     }
 
     @hideKey()
-    public get publicConfig() {
+    public get publicConfig(): GenericHookServiceConfig {
         return {
             userIdPrefix: this.userIdPrefix,
             allowJsTransformationFunctions: this.allowJsTransformationFunctions,
             waitForComplete: this.waitForComplete,
-            maxExpiryTime: this.maxExpiryTime,
+            maxExpiryTime: this.maxExpiryTimeMs,
         }
     }
 
