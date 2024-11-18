@@ -395,13 +395,34 @@ describe("GenericHookConnection", () => {
         } catch (ex) {
             expect(ex.message).to.contain('Expiration date cannot exceed the configured max expiry time');
         }
-    })
+    });
+    it('should fail to create a hook without an expiry time when required by config', async () => {
+        const as = AppserviceMock.create();
+        try {
+            await GenericHookConnection.provisionConnection(ROOM_ID, "@some:user", {
+                name: "foo",
+            }, {
+                as: as,
+                intent: as.botIntent,
+                config: { generic: new BridgeConfigGenericWebhooks({
+                    ...ConfigDefaults,
+                    maxExpiryTime: '1d',
+                    requireExpiryTime: true,
+                }) } as unknown as BridgeConfig,
+                messageClient: new MessageSenderClient(new LocalMQ()),
+                storage: new MemoryStorageProvider(), 
+            } as unknown as ProvisionConnectionOpts);
+            assert.fail('Expected function to throw');
+        } catch (ex) {
+            expect(ex.message).to.contain('Expiration date must be set');
+        }
+    });
     it('should create a hook and handle a request within the expiry time', async () => {
         const [connection, mq] = createGenericHook({
              expirationDate: add(new Date(), { seconds: 30 }).toISOString(),
         });
         await testSimpleWebhook(connection, mq, "test");
-    })
+    });
     it('should reject requests to an expired hook', async () => {
         const [connection] = createGenericHook({
             expirationDate: new Date().toISOString(),
@@ -411,5 +432,5 @@ describe("GenericHookConnection", () => {
             statusCode: 404,
             successful: false,
         });
-    })
+    });
 })

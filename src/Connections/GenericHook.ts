@@ -83,6 +83,7 @@ export interface GenericHookServiceConfig {
     allowJsTransformationFunctions?: boolean,
     waitForComplete?: boolean,
     maxExpiryTime?: number,
+    requireExpiryTime: boolean,
 }
 
 const log = new Logger("GenericHookConnection");
@@ -201,6 +202,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!hookId) {
             hookId = randomUUID();
             log.warn(`hookId for ${roomId} not set in accountData, setting to ${hookId}`);
+            // If this is a new hook...
+            if (config.generic.requireExpiryTime && !state.expirationDate) {
+                throw new Error('Expiration date must be set');
+            }
             await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, event.stateKey);
         }
 
@@ -240,6 +245,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 // our warning period, then just mark it as warned.
                 await storage.setHasGenericHookWarnedExpiry(hookId, true);
             }
+        } else if (config.generic.requireExpiryTime) {
+            throw new ApiError('Expiration date must be set', ErrCode.BadValue);
         }
 
 

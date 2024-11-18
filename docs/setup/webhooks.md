@@ -47,7 +47,10 @@ but is now disabled due to concerns mentioned below.
 
 `maxExpiryTime` sets an upper limit on how long a webhook can be valid for before the bridge expires it. By default this is unlimited. This
 takes a duration represented by a string. E.g. "30d" is 30 days. See [this page](https://github.com/jkroso/parse-duration?tab=readme-ov-file#available-unit-types-are)
-for available units. `sendExpiryNotice` configures whether a message is sent into a room when the connection is close to expiring.
+for available units. Additionally: 
+
+  - `sendExpiryNotice` configures whether a message is sent into a room when the connection is close to expiring.
+  - `requireExpiryTime` forbids creating a webhook without a expiry time. This does not apply to existing webhooks.
 
 You may set a `userIdPrefix` to create a specific user for each new webhook connection in a room. For example, a connection with a name
 like `example` for a prefix of `webhook_` will create a user called `@webhook_example:example.com`. If you enable this option,

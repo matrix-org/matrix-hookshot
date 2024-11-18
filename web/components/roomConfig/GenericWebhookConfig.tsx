@@ -65,7 +65,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         }
         const mm = window.matchMedia('(prefers-color-scheme: dark)');
         const fn = (event: MediaQueryListEvent) => {
-            console.log('media change!');
             setCodeMirrorTheme(event.matches ? "dark" : "light");
         };
         mm.addEventListener('change', fn);
@@ -92,9 +91,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
             <input disabled={true} placeholder="URL hidden" type="text" value={existingConnection?.secrets?.url?.toString() || ""} />
         </InputField>
 
-        <InputField label="Expiration date (optional)" noPadding={true}>
+        <InputField label="Expiration date" noPadding={true}>
             <input
                 type="datetime-local"
+                required={serviceConfig.requireExpiryTime}
                 disabled={!canEdit}
                 ref={expiryRef}
                 value={existingConnection?.config.expirationDate ?? ""}
