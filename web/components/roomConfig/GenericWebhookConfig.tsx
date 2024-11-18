@@ -173,3 +173,5 @@ export const GenericWebhookConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default GenericWebhookConfig;

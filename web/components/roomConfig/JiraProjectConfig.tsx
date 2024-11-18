@@ -110,7 +110,7 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: JiraProjectResponseItem) => c.config.url;
 
-export const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
+const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, JiraProjectResponseItem, JiraProjectConnectionState>
         headerImg={JiraIcon}
         showHeader={showHeader}
@@ -122,3 +122,5 @@ export const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default JiraProjectConfig;
