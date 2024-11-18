@@ -52,11 +52,11 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
-            expirationDate: !!expiryRef?.current?.value ? expiryRef?.current?.value : undefined,
+            expirationDate: expiryRef?.current?.value ? expiryRef?.current?.value : undefined,
             waitForComplete,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
-    }, [canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
+    }, [expiryRef, canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
 
     const [codeMirrorTheme, setCodeMirrorTheme] = useState<"light"|"dark">("light");
     useEffect(() => {

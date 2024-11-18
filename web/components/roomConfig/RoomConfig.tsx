@@ -1,4 +1,4 @@
-import { ComponentChild, FunctionComponent, VNode } from "preact";
+import { ComponentChild, FunctionComponent } from "preact";
 import { useCallback, useContext, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPIError } from "../../BridgeAPI";
 import { ListItem, Card } from "../elements";
