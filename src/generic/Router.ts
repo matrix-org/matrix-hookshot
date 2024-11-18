@@ -4,7 +4,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
 import * as xml from "xml2js";
-import helmet, { crossOriginOpenerPolicy } from "helmet";
+import helmet from "helmet";
 import { StatusCodes } from "http-status-codes";
 
 const WEBHOOK_RESPONSE_TIMEOUT = 5000;

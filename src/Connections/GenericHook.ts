@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { GenericWebhookEventResult } from "../generic/types";
 import { StatusCodes } from "http-status-codes";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
-import { formatDuration, millisecondsToHours } from "date-fns";
+import { formatDuration, isMatch, millisecondsToHours } from "date-fns";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -93,6 +93,7 @@ const SANITIZE_MAX_DEPTH = 10;
 const SANITIZE_MAX_BREADTH = 50;
 
 const WARN_AT_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000;
+const MIN_EXPIRY_MS = 60 * 60 * 1000;
 const CHECK_EXPIRY_MS = 15 * 60 * 1000;
 
 const EXPIRY_NOTICE_MESSAGE = "The webhook **%NAME** will be expiring in %TIME."
@@ -149,7 +150,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return obj;
     }
 
-    static validateState(state: Record<keyof GenericHookConnectionState, unknown>): GenericHookConnectionState {
+    static validateState(state: Partial<Record<keyof GenericHookConnectionState, unknown>>): GenericHookConnectionState {
         const {name, transformationFunction, waitForComplete, expirationDate: expirationDateStr} = state;
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
@@ -171,15 +172,13 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         let expirationDate: string|undefined;
         if (expirationDateStr != undefined) {
-            if (typeof expirationDateStr !== "string") {
-                throw new ApiError("'expirationDate' must be a string", ErrCode.BadValue);
+            if (typeof expirationDateStr !== "string" || !expirationDateStr) {
+                throw new ApiError("'expirationDate' must be a non-empty string", ErrCode.BadValue);
             }
-            try {
-                new Date(expirationDateStr);
-                expirationDate = expirationDateStr;
-            } catch (ex) {
+            if (!isMatch(expirationDateStr, "yyyy-MM-dd'T'HH:mm:ss.SSSXX")) {
                 throw new ApiError("'expirationDate' must be a valid date", ErrCode.BadValue);
             }
+            expirationDate = expirationDateStr;
         }
 
         return {
@@ -218,7 +217,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         );
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown> = {}, {as, intent, config, messageClient, storage}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Partial<Record<keyof GenericHookConnectionState, unknown>> = {}, {as, intent, config, messageClient, storage}: ProvisionConnectionOpts) {
         if (!config.generic) {
             throw Error('Generic Webhooks are not configured');
         }
@@ -230,6 +229,11 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 if (durationRemaining > config.generic.maxExpiryTimeMs) {
                     throw new ApiError('Expiration date cannot exceed the configured max expiry time', ErrCode.BadValue);
                 }
+            }
+            if (durationRemaining < MIN_EXPIRY_MS) {
+                // If the webhook is actually created with a shorter expiry time than
+                // our warning period, then just mark it as warned.
+                throw new ApiError('Expiration date must at least be a hour in the future', ErrCode.BadValue);
             }
             if (durationRemaining < WARN_AT_EXPIRY_MS) {
                 // If the webhook is actually created with a shorter expiry time than

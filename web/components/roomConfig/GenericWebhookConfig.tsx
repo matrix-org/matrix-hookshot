@@ -52,7 +52,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         }
         onSave({
             name: nameRef?.current?.value || existingConnection?.config.name || "Generic Webhook",
-            expirationDate: expiryRef?.current?.value ? expiryRef?.current?.value : undefined,
+            expirationDate: expiryRef?.current?.value ? new Date(expiryRef?.current?.value).toISOString() : undefined,
             waitForComplete,
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
