@@ -9,7 +9,10 @@ import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
 import { Alert, ToggleInput } from "@vector-im/compound-web";
 import { InfoIcon, WarningIcon } from "@vector-im/compound-design-tokens/assets/web/icons"
-import { lazy } from "preact/compat";
+import { lazy, Suspense } from "preact/compat";
+import { LoadingSpinner } from "../elements/LoadingSpinner";
+import { Extension } from "@uiw/react-codemirror";
+
 
 const CodeMirror = lazy(() => import("@uiw/react-codemirror"));
 
@@ -31,9 +34,45 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
   }`;
 
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
-const CODE_MIRROR_EXTENSIONS = [javascript({ jsx: false, typescript: false})];
 
 const EXPIRY_WARN_AT_MS = 3 * 24 * 60 * 60 * 1000;
+
+const CodeEditor: FunctionComponent<{value: string, onChange: (value: string) => void}> = ({value, onChange}) => {
+    const [codeMirrorTheme, setCodeMirrorTheme] = useState<"light"|"dark">("light");
+    const [extensions, setExtensions] = useState<Extension[]>();
+    useEffect(() => {
+        const mm = window.matchMedia('(prefers-color-scheme: dark)');
+        const fn = (event: MediaQueryListEvent) => {
+            setCodeMirrorTheme(event.matches ? "dark" : "light");
+        };
+        mm.addEventListener('change', fn);
+        setCodeMirrorTheme(mm.matches ? "dark" : "light");
+        return () => mm.removeEventListener('change', fn);
+    }, []);
+
+    useEffect(() => {
+        async function loader() {
+            const { javascript } = await import("@codemirror/lang-javascript");
+            setExtensions([javascript({ jsx: false, typescript: false})]);
+            console.log('Extensions loaded');
+        }
+        void loader();
+    }, []);
+
+    if (!extensions) {
+        return <LoadingSpinner />;
+    }
+
+    return <Suspense fallback={<LoadingSpinner />}>
+        <CodeMirror
+            value={value}
+            theme={codeMirrorTheme}
+            extensions={extensions}
+            onChange={onChange}
+        />
+        <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
+    </Suspense>;
+};
 
 const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<GenericHookServiceConfig, GenericHookResponseItem, GenericHookConnectionState>> = ({serviceConfig, existingConnection, onSave, onRemove, isUpdating}) => {
     const [transFn, setTransFn] = useState<string>(existingConnection?.config.transformationFunction as string || EXAMPLE_SCRIPT);
@@ -59,21 +98,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
             ...(transFnEnabled ? { transformationFunction: transFn } : undefined),
         });
     }, [expiryRef, canEdit, onSave, nameRef, transFn, existingConnection, transFnEnabled, waitForComplete]);
-
-    const [codeMirrorTheme, setCodeMirrorTheme] = useState<"light"|"dark">("light");
-    useEffect(() => {
-        if (!transFnEnabled) {
-            return;
-        }
-        const mm = window.matchMedia('(prefers-color-scheme: dark)');
-        const fn = (event: MediaQueryListEvent) => {
-            setCodeMirrorTheme(event.matches ? "dark" : "light");
-        };
-        mm.addEventListener('change', fn);
-        setCodeMirrorTheme(mm.matches ? "dark" : "light");
-        return () => mm.removeEventListener('change', fn);
-    }, [transFnEnabled]);
-
 
     const hasExpired = existingConnection?.secrets?.timeRemainingMs ? existingConnection?.secrets?.timeRemainingMs <= 0 : false;
     const willExpireSoon = !hasExpired && existingConnection?.secrets?.timeRemainingMs ? existingConnection?.secrets?.timeRemainingMs <= EXPIRY_WARN_AT_MS : false;
@@ -125,15 +149,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         <InputField visible={serviceConfig.allowJsTransformationFunctions && transFnEnabled} label="Respond after function completes" noPadding={true}>
             <ToggleInput disabled={!canEdit || serviceConfig.waitForComplete} type="checkbox" checked={waitForComplete || serviceConfig.waitForComplete} onChange={useCallback(() => setWaitForComplete(v => !v), [])} />
         </InputField>
-
-        {transFnEnabled && <><CodeMirror
-            value={transFn}
-            theme={codeMirrorTheme}
-            extensions={CODE_MIRROR_EXTENSIONS}
-            onChange={setTransFn}
-        />
-        <p> See the <a target="_blank" rel="noopener noreferrer" href={DOCUMENTATION_LINK}>documentation</a> for help writing transformation functions </p>
-        </>}
+        {transFnEnabled && <CodeEditor value={transFn} onChange={setTransFn} />}
         <ButtonSet>
             { canEdit && <Button disabled={isUpdating} type="submit">{ existingConnection ? "Save" : "Add Webhook" }</Button>}
             { canEdit && existingConnection && <Button disabled={isUpdating} intent="remove" onClick={onRemove}>Remove Webhook</Button>}
