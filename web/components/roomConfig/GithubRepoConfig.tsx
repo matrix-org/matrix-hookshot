@@ -177,7 +177,7 @@ const roomConfigText: IRoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitHubRepoResponseItem) => getRepoFullName(c.config);
 
-export const GithubRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
+const GithubRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, GitHubRepoResponseItem, GitHubRepoConnectionState>
         headerImg={GitHubIcon}
         darkHeaderImg={true}
@@ -191,3 +191,5 @@ export const GithubRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default GithubRepoConfig;

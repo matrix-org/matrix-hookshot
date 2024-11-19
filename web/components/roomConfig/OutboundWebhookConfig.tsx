@@ -70,7 +70,7 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: OutboundHookResponseItem) => c.config.name;
 
-export const OutboundWebhookConfig: BridgeConfig = ({ roomId, showHeader }) => {
+const OutboundWebhookConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<ServiceConfig, OutboundHookResponseItem, OutboundHookConnectionState>
         headerImg={WebhookIcon}
         darkHeaderImg={true}
@@ -83,3 +83,5 @@ export const OutboundWebhookConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default OutboundWebhookConfig;

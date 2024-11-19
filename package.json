@@ -84,6 +84,7 @@
   },
   "devDependencies": {
     "@codemirror/lang-javascript": "^6.0.2",
+    "@fontsource/inter": "^5.1.0",
     "@napi-rs/cli": "^2.13.2",
     "@preact/preset-vite": "^2.2.0",
     "@rollup/plugin-alias": "^5.1.0",
