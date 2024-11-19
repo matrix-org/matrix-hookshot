@@ -8,6 +8,8 @@ on:
 jobs:
   changelog:
     runs-on: ubuntu-latest
+    # No newsfile required for dependabot
+    if: ${{ github.actor != 'dependabot[bot]' }}
     steps:
       - uses: actions/checkout@v3
         with: # Needed for comparison
