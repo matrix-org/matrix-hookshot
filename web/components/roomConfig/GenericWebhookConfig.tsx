@@ -1,6 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks"
-import { javascript } from '@codemirror/lang-javascript';
 import { add, format } from "date-fns";
 import { BridgeConfig } from "../../BridgeAPI";
 import type { GenericHookConnectionState, GenericHookResponseItem, GenericHookServiceConfig } from "../../../src/Connections/GenericHook";

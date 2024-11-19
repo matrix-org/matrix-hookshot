@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "preact/compat"
-import { useEffect, useState } from "preact/hooks"
+import { useState } from "preact/hooks"
 import { BridgeConfig, EmbedType } from "../BridgeAPI";
 import style from "./RoomConfigView.module.scss";
 import { ConnectionCard } from "./ConnectionCard";
