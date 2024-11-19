@@ -125,6 +125,11 @@ jobs:
     needs:
       - test
       - build-homerunner
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
     steps:
       - name: Install Complement Dependencies
         run: |
@@ -154,6 +159,7 @@ jobs:
           HOMERUNNER_SPAWN_HS_TIMEOUT_SECS: 100
           HOMERUNNER_IMAGE: ghcr.io/element-hq/synapse/complement-synapse:latest
           NODE_OPTIONS: --dns-result-order ipv4first
+          REDIS_DATABASE_URI: "redis://localhost:6379"
         run: |
           docker pull $HOMERUNNER_IMAGE
           cd matrix-hookshot

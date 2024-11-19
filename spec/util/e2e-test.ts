@@ -9,11 +9,13 @@ import Redis from "ioredis";
 
 const WAIT_EVENT_TIMEOUT = 10000;
 export const E2ESetupTestTimeout = 60000;
+const REDIS_DATABASE_URI = process.env.HOOKSHOT_E2E_REDIS_DB_URI ?? "redis://localhost:6379";
 
 interface Opts {
     matrixLocalparts?: string[];
     config?: Partial<BridgeConfigRoot>,
     enableE2EE?: boolean,
+    useRedis?: boolean,
 }
 
 export class E2ETestMatrixClient extends MatrixClient {
@@ -196,9 +198,14 @@ export class E2ETestEnv {
             providedConfig.github.auth.privateKeyFile = keyPath;
         }
 
-        // Clear away the existing DB.
-        const redisUri = `redis://localhost/99`
-        await new Redis(redisUri).flushdb();
+        opts.useRedis = opts.enableE2EE || opts.useRedis;
+
+        let cacheConfig: BridgeConfigRoot["cache"]|undefined;
+        if (opts.useRedis) {
+            cacheConfig = {
+                redisUri: `${REDIS_DATABASE_URI}/${Math.ceil(Math.random() * 99)}`,
+            }
+        }
 
         const config = new BridgeConfig({
             bridge: {
@@ -227,9 +234,7 @@ export class E2ETestEnv {
                     useLegacySledStore: false,
                 }
             } : undefined),
-            cache: {
-                redisUri,
-            },
+            cache: cacheConfig,
             ...providedConfig,
         });
         const registration: IAppserviceRegistration = {
@@ -271,6 +276,12 @@ export class E2ETestEnv {
         await this.app.bridgeApp.stop();
         await this.app.listener.stop();
         await this.app.storage.disconnect?.();
+
+        // Clear the redis DB.
+        if (this.config.cache?.redisUri) {
+            await new Redis(this.config.cache.redisUri).flushdb();
+        }
+
         this.homeserver.users.forEach(u => u.client.stop());
         await destroyHS(this.homeserver.id);
         await rm(this.dir, { recursive: true });
