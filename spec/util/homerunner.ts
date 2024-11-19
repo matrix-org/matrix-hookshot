@@ -1,7 +1,8 @@
-import { MatrixClient } from "matrix-bot-sdk";
+import { MatrixClient, MemoryStorageProvider, RustSdkCryptoStorageProvider, RustSdkCryptoStoreType } from "matrix-bot-sdk";
 import { createHash, createHmac, randomUUID } from "crypto";
 import { Homerunner } from "homerunner-client";
 import { E2ETestMatrixClient } from "./e2e-test";
+import path from "node:path";
 
 const HOMERUNNER_IMAGE = process.env.HOMERUNNER_IMAGE || 'ghcr.io/element-hq/synapse/complement-synapse:latest';
 export const DEFAULT_REGISTRATION_SHARED_SECRET = (
@@ -41,7 +42,7 @@ async function waitForHomerunner() {
     }
 }
 
-export async function createHS(localparts: string[] = [], workerId: number): Promise<ComplementHomeServer> {
+export async function createHS(localparts: string[] = [], workerId: number, cryptoRootPath?: string): Promise<ComplementHomeServer> {
     await waitForHomerunner();
 
     const appPort = 49600 + workerId;
@@ -70,16 +71,20 @@ export async function createHS(localparts: string[] = [], workerId: number): Pro
     // Skip AS user.
     const users = Object.entries(homeserver.AccessTokens)
         .filter(([_uId, accessToken]) => accessToken !== asToken)
-        .map(([userId, accessToken]) => ({
-            userId: userId,
-            accessToken,
-            deviceId: homeserver.DeviceIDs[userId],
-            client: new E2ETestMatrixClient(homeserver.BaseURL, accessToken),
-        })
+        .map(([userId, accessToken]) => {
+            const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, userId), RustSdkCryptoStoreType.Sqlite) : undefined;
+            return {
+                userId: userId,
+                accessToken,
+                deviceId: homeserver.DeviceIDs[userId],
+                client: new E2ETestMatrixClient(homeserver.BaseURL, accessToken, new MemoryStorageProvider(), cryptoStore),
+            }
+        }
     );
 
+
     // Start syncing proactively.
-    await Promise.all(users.map(u => u.client.start()));
+    await Promise.all(users.map(u => void u.client.start()));
     return {
         users,
         id: blueprint,

@@ -5,6 +5,7 @@ import { BridgeConfig, BridgeConfigRoot } from "../../src/config/Config";
 import { start } from "../../src/App/BridgeApp";
 import { RSAKeyPairOptions, generateKeyPair } from "node:crypto";
 import path from "node:path";
+import Redis from "ioredis";
 
 const WAIT_EVENT_TIMEOUT = 10000;
 export const E2ESetupTestTimeout = 60000;
@@ -12,6 +13,7 @@ export const E2ESetupTestTimeout = 60000;
 interface Opts {
     matrixLocalparts?: string[];
     config?: Partial<BridgeConfigRoot>,
+    enableE2EE?: boolean,
 }
 
 export class E2ETestMatrixClient extends MatrixClient {
@@ -173,10 +175,11 @@ export class E2ETestEnv {
             if (err) { reject(err) } else { resolve(privateKey) }
         }));
 
+        const dir = await mkdtemp('hookshot-int-test');
+
         // Configure homeserver and bots
-        const [homeserver, dir, privateKey] = await Promise.all([
-            createHS([...matrixLocalparts || []], workerID),
-            mkdtemp('hookshot-int-test'),
+        const [homeserver, privateKey] = await Promise.all([
+            createHS([...matrixLocalparts || []], workerID,  opts.enableE2EE ? path.join(dir, 'client-crypto') : undefined),
             keyPromise,
         ]);
         const keyPath = path.join(dir, 'key.pem');
@@ -193,6 +196,10 @@ export class E2ETestEnv {
             providedConfig.github.auth.privateKeyFile = keyPath;
         }
 
+        // Clear away the existing DB.
+        const redisUri = `redis://localhost/99`
+        await new Redis(redisUri).flushdb();
+
         const config = new BridgeConfig({
             bridge: {
                 domain: homeserver.domain,
@@ -201,7 +208,7 @@ export class E2ETestEnv {
                 bindAddress: '0.0.0.0',
             },
             logging: {
-                level: 'info',
+                level: 'debug',
             },
             // Always enable webhooks so that hookshot starts.
             generic: {
@@ -214,6 +221,15 @@ export class E2ETestEnv {
                 resources: ['webhooks'],
             }],
             passFile: keyPath,
+            ...(opts.enableE2EE ? {
+                experimentalEncryption: {
+                    storagePath: path.join(dir, 'crypto-store'),
+                    useLegacySledStore: false,
+                }
+            } : undefined),
+            cache: {
+                redisUri,
+            },
             ...providedConfig,
         });
         const registration: IAppserviceRegistration = {
