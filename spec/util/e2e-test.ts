@@ -203,7 +203,7 @@ export class E2ETestEnv {
         let cacheConfig: BridgeConfigRoot["cache"]|undefined;
         if (opts.useRedis) {
             cacheConfig = {
-                redisUri: `${REDIS_DATABASE_URI}/${Math.ceil(Math.random() * 99)}`,
+                redisUri: `${REDIS_DATABASE_URI}/${workerID}`,
             }
         }
 
@@ -248,7 +248,8 @@ export class E2ETestEnv {
                 }],
                 rooms: [],
                 aliases: [],
-            }
+            },
+            "de.sorunome.msc2409.push_ephemeral": true
         };
         const app = await start(config, registration);
         app.listener.finaliseListeners();

@@ -104,7 +104,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async addRegisteredUser(userId: string) {
-        this.redis.sadd(REGISTERED_USERS_KEY, [userId]);
+        await this.redis.sadd(REGISTERED_USERS_KEY, [userId]);
     }
 
     public async isUserRegistered(userId: string): Promise<boolean> {
@@ -112,7 +112,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async setTransactionCompleted(transactionId: string) {
-        this.redis.sadd(COMPLETED_TRANSACTIONS_KEY, [transactionId]);
+        await this.redis.sadd(COMPLETED_TRANSACTIONS_KEY, [transactionId]);
     }
 
     public async isTransactionCompleted(transactionId: string): Promise<boolean> {

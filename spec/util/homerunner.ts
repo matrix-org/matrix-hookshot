@@ -62,29 +62,35 @@ export async function createHS(localparts: string[] = [], workerId: number, cryp
                     SenderLocalpart: 'hookshot',
                     RateLimited: false,
                     ...{ASToken: asToken,
-                    HSToken: hsToken},
+                    HSToken: hsToken,
+                    SendEphemeral: true,
+                    EnableEncryption: true},
                 }]
             }],
         }
     });
     const [homeserverName, homeserver] = Object.entries(blueprintResponse.homeservers)[0];
     // Skip AS user.
-    const users = Object.entries(homeserver.AccessTokens)
+    const users = await Promise.all(Object.entries(homeserver.AccessTokens)
         .filter(([_uId, accessToken]) => accessToken !== asToken)
-        .map(([userId, accessToken]) => {
+        .map(async ([userId, accessToken]) => {
             const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, userId), RustSdkCryptoStoreType.Sqlite) : undefined;
+            const client = new E2ETestMatrixClient(homeserver.BaseURL, accessToken, new MemoryStorageProvider(), cryptoStore);
+            if (cryptoStore) {
+                await client.crypto.prepare();
+            }
+            // Start syncing proactively.
+            await client.start();
             return {
                 userId: userId,
                 accessToken,
                 deviceId: homeserver.DeviceIDs[userId],
-                client: new E2ETestMatrixClient(homeserver.BaseURL, accessToken, new MemoryStorageProvider(), cryptoStore),
+                client,
             }
         }
-    );
+    ));
 
 
-    // Start syncing proactively.
-    await Promise.all(users.map(u => void u.client.start()));
     return {
         users,
         id: blueprint,
