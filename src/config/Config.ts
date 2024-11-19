@@ -378,7 +378,10 @@ interface BridgeConfigBot {
 }
 interface BridgeConfigEncryption {
     storagePath: string;
-    useLegacySledStore: boolean;
+    /**
+     * @deprecated This is no longer supported.
+     */
+    useLegacySledStore?: boolean;
 }
 
 export interface BridgeConfigServiceBot {
@@ -548,6 +551,7 @@ export class BridgeConfig {
             }
         }
 
+        
         this.encryption = configData.experimentalEncryption;
 
 
