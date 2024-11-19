@@ -1,6 +1,5 @@
 import { FunctionComponent, createRef } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks"
-import CodeMirror from '@uiw/react-codemirror';
 import { javascript } from '@codemirror/lang-javascript';
 import { add, format } from "date-fns";
 import { BridgeConfig } from "../../BridgeAPI";
@@ -10,6 +9,9 @@ import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
 import { Alert, ToggleInput } from "@vector-im/compound-web";
 import { InfoIcon, WarningIcon } from "@vector-im/compound-design-tokens/assets/web/icons"
+import { lazy } from "preact/compat";
+
+const CodeMirror = lazy(() => import("@uiw/react-codemirror"));
 
 const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
     result = {
@@ -29,7 +31,7 @@ const EXAMPLE_SCRIPT = `if (data.counter === undefined) {
   }`;
 
 const DOCUMENTATION_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#script-api";
-const CODE_MIRROR_EXTENSIONS = [javascript({})];
+const CODE_MIRROR_EXTENSIONS = [javascript({ jsx: false, typescript: false})];
 
 const EXPIRY_WARN_AT_MS = 3 * 24 * 60 * 60 * 1000;
 
