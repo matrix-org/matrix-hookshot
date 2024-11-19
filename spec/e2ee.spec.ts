@@ -61,6 +61,6 @@ describe('End-2-End Encryption support', () => {
         });
 
         // And await the notice.
-        console.log(await webhookNotice);
-    }, 90000);
+        await webhookNotice;
+    });
 });
