@@ -248,9 +248,8 @@ export class E2ETestEnv {
             }],
             passFile: keyPath,
             ...(opts.enableE2EE ? {
-                experimentalEncryption: {
+                encryption: {
                     storagePath: path.join(dir, 'crypto-store'),
-                    useLegacySledStore: false,
                 }
             } : undefined),
             cache: cacheConfig,
