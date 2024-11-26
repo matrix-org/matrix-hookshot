@@ -23,7 +23,7 @@ This connection supports a few options which can be defined in the room state:
 
 | Option | Description | Allowed values | Default |
 |--------|-------------|----------------|---------|
-|commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gh`|
+|commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!gl`|
 |enableHooks [^1]|Enable notifications for some event types|Array of: [Supported event types](#supported-event-types) |If not defined, defaults are mentioned below|
 |excludingLabels|Never notify on issues matching these label names|Array of: String matching a label name|*empty*|
 |ignoreHooks [^1]|**deprecated** Choose to exclude notifications for some event types|Array of: [Supported event types](#supported-event-types) |*empty*|
