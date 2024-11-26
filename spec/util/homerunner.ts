@@ -1,9 +1,10 @@
-import { MatrixClient } from "matrix-bot-sdk";
+import { MatrixClient, MemoryStorageProvider, RustSdkCryptoStorageProvider, RustSdkCryptoStoreType } from "matrix-bot-sdk";
 import { createHash, createHmac, randomUUID } from "crypto";
 import { Homerunner } from "homerunner-client";
 import { E2ETestMatrixClient } from "./e2e-test";
+import path from "node:path";
 
-const HOMERUNNER_IMAGE = process.env.HOMERUNNER_IMAGE || 'ghcr.io/element-hq/synapse/complement-synapse:latest';
+const HOMERUNNER_IMAGE = process.env.HOMERUNNER_IMAGE || 'ghcr.io/element-hq/synapse/complement-synapse:nightly';
 export const DEFAULT_REGISTRATION_SHARED_SECRET = (
     process.env.REGISTRATION_SHARED_SECRET || 'complement'
 );
@@ -41,7 +42,7 @@ async function waitForHomerunner() {
     }
 }
 
-export async function createHS(localparts: string[] = [], workerId: number): Promise<ComplementHomeServer> {
+export async function createHS(localparts: string[] = [], workerId: number, cryptoRootPath?: string): Promise<ComplementHomeServer> {
     await waitForHomerunner();
 
     const appPort = 49600 + workerId;
@@ -61,25 +62,35 @@ export async function createHS(localparts: string[] = [], workerId: number): Pro
                     SenderLocalpart: 'hookshot',
                     RateLimited: false,
                     ...{ASToken: asToken,
-                    HSToken: hsToken},
+                    HSToken: hsToken,
+                    SendEphemeral: true,
+                    EnableEncryption: true},
                 }]
             }],
         }
     });
     const [homeserverName, homeserver] = Object.entries(blueprintResponse.homeservers)[0];
     // Skip AS user.
-    const users = Object.entries(homeserver.AccessTokens)
+    const users = await Promise.all(Object.entries(homeserver.AccessTokens)
         .filter(([_uId, accessToken]) => accessToken !== asToken)
-        .map(([userId, accessToken]) => ({
-            userId: userId,
-            accessToken,
-            deviceId: homeserver.DeviceIDs[userId],
-            client: new E2ETestMatrixClient(homeserver.BaseURL, accessToken),
-        })
-    );
+        .map(async ([userId, accessToken]) => {
+            const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, userId), RustSdkCryptoStoreType.Sqlite) : undefined;
+            const client = new E2ETestMatrixClient(homeserver.BaseURL, accessToken, new MemoryStorageProvider(), cryptoStore);
+            if (cryptoStore) {
+                await client.crypto.prepare();
+            }
+            // Start syncing proactively.
+            await client.start();
+            return {
+                userId: userId,
+                accessToken,
+                deviceId: homeserver.DeviceIDs[userId],
+                client,
+            }
+        }
+    ));
 
-    // Start syncing proactively.
-    await Promise.all(users.map(u => u.client.start()));
+
     return {
         users,
         id: blueprint,
@@ -119,7 +130,7 @@ export async function registerUser(
         .update(password).update("\x00")
         .update(user.admin ? 'admin' : 'notadmin')
         .digest('hex');
-    return await fetch(registerUrl, { method: "POST", body: JSON.stringify(
+    const req = await fetch(registerUrl, { method: "POST", body: JSON.stringify(
         {
             nonce,
             username: user.username,
@@ -127,8 +138,10 @@ export async function registerUser(
             admin: user.admin,
             mac: hmac,
         }
-    )}).then(res => res.json()).then(res => ({
-        mxid: (res as {user_id: string}).user_id,
-        client: new MatrixClient(homeserverUrl, (res as {access_token: string}).access_token),
-    })).catch(err => { console.log(err.response.body); throw new Error(`Failed to register user: ${err}`); });
+    )});
+    const res = await req.json() as {user_id: string, access_token: string};
+    return {
+        mxid: res.user_id,
+        client: new MatrixClient(homeserverUrl, res.access_token),
+    };
 }

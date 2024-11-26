@@ -13,6 +13,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigCache } from "./sections/cache";
 import { BridgeConfigGenericWebhooks, BridgeConfigQueue, BridgeGenericWebhooksConfigYAML } from "./sections";
 import { GenericHookServiceConfig } from "../Connections";
+import { BridgeConfigEncryption } from "./sections/encryption";
 
 const log = new Logger("Config");
 
@@ -356,8 +357,6 @@ interface BridgeConfigBridge {
     mediaUrl?: string;
     port: number;
     bindAddress: string;
-    // Removed
-    pantalaimon?: never;
 }
 
 interface BridgeConfigWebhook {
@@ -376,10 +375,7 @@ interface BridgeConfigBot {
     displayname?: string;
     avatar?: string;
 }
-interface BridgeConfigEncryption {
-    storagePath: string;
-    useLegacySledStore: boolean;
-}
+
 
 export interface BridgeConfigServiceBot {
     localpart: string;
@@ -415,7 +411,11 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     cache?: BridgeConfigCache;
-    experimentalEncryption?: BridgeConfigEncryption;
+    /**
+     * @deprecated Old, unsupported encryption propety. 
+     */
+    experimentalEncryption?: never;
+    encryption?: BridgeConfigEncryption;
     feeds?: BridgeConfigFeedsYAML;
     figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfigYAML;
@@ -443,9 +443,7 @@ export class BridgeConfig {
     For encryption to work, this must be configured.`, true)
     public readonly cache?: BridgeConfigCache;
     @configKey(`Configuration for encryption support in the bridge.
- If omitted, encryption support will be disabled.
- This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
- For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
+ If omitted, encryption support will be disabled.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue configuration options for large scale deployments.
  For encryption to work, this must not be configured.`, true)
@@ -500,6 +498,9 @@ export class BridgeConfig {
 
 
     constructor(configData: BridgeConfigRoot, env?: {[key: string]: string|undefined}) {
+        this.logging = configData.logging || {
+            level: "info",
+        }
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
         this.github = configData.github && new BridgeConfigGitHub(configData.github);
@@ -548,13 +549,11 @@ export class BridgeConfig {
             }
         }
 
-        this.encryption = configData.experimentalEncryption;
-
-
-        this.logging = configData.logging || {
-            level: "info",
+        if (configData.experimentalEncryption) {
+            throw new ConfigError("experimentalEncryption", `This key is now called 'encryption'. Please adjust your config file.`)
         }
 
+        this.encryption = configData.encryption && new BridgeConfigEncryption(configData.encryption, this.cache, this.queue);
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
         this.sentry = configData.sentry;
 
@@ -638,37 +637,6 @@ export class BridgeConfig {
 
         if (this.widgets && this.widgets.openIdOverrides) {
             log.warn("The `widgets.openIdOverrides` config value SHOULD NOT be used in a production environment.")
-        }
-
-        if (this.bridge.pantalaimon) {
-            throw new ConfigError("bridge.pantalaimon", "Pantalaimon support has been removed. Encrypted bridges should now use the `experimentalEncryption` config option");
-        }
-
-        if (this.encryption) {
-            log.warn(`
-You have enabled encryption support in the bridge. This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
-For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
-            `);
-
-            if (!this.encryption.storagePath) {
-                throw new ConfigError("experimentalEncryption.storagePath", "The crypto storage path must not be empty.");
-            }
-
-            if (this.encryption.useLegacySledStore) {
-                throw new ConfigError(
-                    "experimentalEncryption.useLegacySledStore", `
-The Sled crypto store format is no longer supported.
-Please back up your crypto store at ${this.encryption.storagePath},
-remove "useLegacySledStore" from your configuration file, and restart Hookshot.
-                `);
-            }
-            if (!this.cache) {
-                throw new ConfigError("cache", "Encryption requires the Redis cache to be enabled.");
-            }
-
-            if (this.queue) {
-                throw new ConfigError("queue", "Encryption does not support message queues.");
-            }
         }
 
         if (this.figma?.overrideUserId) {

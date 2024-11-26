@@ -1027,18 +1027,18 @@
   dependencies:
     "@lezer/common" "^1.0.0"
 
-"@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.11":
-  version "0.1.0-beta.11"
-  resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.1.0-beta.11.tgz#537cd7a7bbce1d9745b812a5a7ffa9a5944e146c"
-  integrity sha512-z5adcQo4o0UAry4zs6JHGxbTDlYTUMKUfpOpigmso65ETBDumbeTSQCWRw8UeUV7aCAyVoHARqDTol9SrauEFA==
-  dependencies:
-    https-proxy-agent "^5.0.1"
-    node-downloader-helper "^2.1.5"
-
 "@matrix-org/matrix-sdk-crypto-nodejs@0.1.0-beta.6":
   version "0.1.0-beta.6"
   resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.1.0-beta.6.tgz#0ecae51103ee3c107af0d6d0738f33eb7cc9857e"
   integrity sha512-JXyrHuCVMydUGgSetWsfqbbvHj3aUMOX5TUghlMtLFromyEu7wIsNgYt7PjJ+k3WdF4GVABRy4P6GNjaEMy2uA==
+  dependencies:
+    https-proxy-agent "^5.0.1"
+    node-downloader-helper "^2.1.5"
+
+"@matrix-org/matrix-sdk-crypto-nodejs@0.2.0-beta.1":
+  version "0.2.0-beta.1"
+  resolved "https://registry.yarnpkg.com/@matrix-org/matrix-sdk-crypto-nodejs/-/matrix-sdk-crypto-nodejs-0.2.0-beta.1.tgz#b696707ccfa944cfed3c96cf7e54799b0f1e3329"
+  integrity sha512-CgbOKORfD6dvYgQTPhfN73H1RbQknrFkMnRRwCIJMt15iL2AF1gEowgbrlGhkbG6gNng4CgPnKs1iHKCRrhvmA==
   dependencies:
     https-proxy-agent "^5.0.1"
     node-downloader-helper "^2.1.5"
@@ -1933,7 +1933,7 @@
     "@types/range-parser" "*"
     "@types/send" "*"
 
-"@types/express@^4.17.13", "@types/express@^4.17.14", "@types/express@^4.17.20":
+"@types/express@^4.17.13", "@types/express@^4.17.14", "@types/express@^4.17.21":
   version "4.17.21"
   resolved "https://registry.yarnpkg.com/@types/express/-/express-4.17.21.tgz#c26d4a151e60efe0084b23dc3369ebc631ed192d"
   integrity sha512-ejlPM315qwLpaQlQDTjPdsUFSc6ZsP4AN6AlWnogPjQ7CVi7PYF3YVz+CY3jE2pwYf7E/7HlDAN0rV2GxTG0HQ==
@@ -5949,13 +5949,13 @@ matrix-appservice@^2.0.0:
     request-promise "^4.2.6"
     sanitize-html "^2.8.0"
 
-"matrix-bot-sdk@npm:@vector-im/matrix-bot-sdk@^0.7.0-specific-device-2":
-  version "0.7.0-specific-device-2"
-  resolved "https://registry.yarnpkg.com/@vector-im/matrix-bot-sdk/-/matrix-bot-sdk-0.7.0-specific-device-2.tgz#3682e14708979a6f24cc19f3103e3292ed08bbea"
-  integrity sha512-97h2tIlcK6/3wEuLN3x6/LM9TITVISnnbjUo/9nVbqkDvSQ2TNFURxfAqjUfFmgQwo0o3KnhvaS6dZITrBvj6A==
+"matrix-bot-sdk@npm:@vector-im/matrix-bot-sdk@v0.7.1-element.6":
+  version "0.7.1-element.6"
+  resolved "https://registry.yarnpkg.com/@vector-im/matrix-bot-sdk/-/matrix-bot-sdk-0.7.1-element.6.tgz#d1f8a86d3bd60084d92d150f42a48b25199871e1"
+  integrity sha512-0KfyTpQV5eyY4vPUZW89t7EZf1YF0UyFkyYqpsxL/6S7XIlbTMC4onod7vx/QpKC0lSREmwIiXx2JSjExP6CIw==
   dependencies:
-    "@matrix-org/matrix-sdk-crypto-nodejs" "0.1.0-beta.11"
-    "@types/express" "^4.17.20"
+    "@matrix-org/matrix-sdk-crypto-nodejs" "0.2.0-beta.1"
+    "@types/express" "^4.17.21"
     another-json "^0.2.0"
     async-lock "^1.4.0"
     chalk "4"

@@ -92,7 +92,7 @@ jobs:
       homerunnersha: ${{ steps.gitsha.outputs.sha }}
     steps:
       - name: Checkout matrix-org/complement
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: matrix-org/complement
       - name: Get complement git sha
@@ -100,7 +100,7 @@ jobs:
         run: echo sha=`git rev-parse --short HEAD` >> "$GITHUB_OUTPUT"
       - name: Cache homerunner
         id: cached
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: homerunner
           key: ${{ runner.os }}-homerunner-${{ steps.gitsha.outputs.sha }}
@@ -125,23 +125,28 @@ jobs:
     needs:
       - test
       - build-homerunner
+    services:
+      redis:
+        image: redis
+        ports:
+          - 6379:6379
     steps:
       - name: Install Complement Dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3
       - name: Load cached homerunner bin
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: homerunner
           key: ${{ runner.os }}-homerunner-${{ needs.build-synapse.outputs.homerunnersha }}
           fail-on-cache-miss: true # Shouldn't happen, we build this in the needs step.
       - name: Checkout matrix-hookshot
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           path: matrix-hookshot
       # Setup node & run tests
       - name: Use Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version-file: matrix-hookshot/.node-version
       - uses: Swatinem/rust-cache@v2
@@ -152,8 +157,9 @@ jobs:
         timeout-minutes: 10
         env:
           HOMERUNNER_SPAWN_HS_TIMEOUT_SECS: 100
-          HOMERUNNER_IMAGE: ghcr.io/element-hq/synapse/complement-synapse:latest
+          HOMERUNNER_IMAGE: ghcr.io/element-hq/synapse/complement-synapse:nightly
           NODE_OPTIONS: --dns-result-order ipv4first
+          REDIS_DATABASE_URI: "redis://localhost:6379"
         run: |
           docker pull $HOMERUNNER_IMAGE
           cd matrix-hookshot
