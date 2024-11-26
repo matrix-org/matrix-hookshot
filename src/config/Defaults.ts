@@ -15,9 +15,6 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         port: 9993,
         bindAddress: "127.0.0.1",
     },
-    queue: {
-        redisUri: "redis://localhost:6379",
-    },
     cache: {
         redisUri: "redis://localhost:6379",
     },
@@ -154,6 +151,9 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
     sentry: {
         dsn: "https://examplePublicKey@o0.ingest.sentry.io/0",
         environment: "production"
+    },
+    encryption: {
+        storagePath: "./cryptostore"
     }
 };
 
