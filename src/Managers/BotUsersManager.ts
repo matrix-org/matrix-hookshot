@@ -172,7 +172,7 @@ export default class BotUsersManager {
         if (profile.avatar_url) {
             try {
                 const res = await axios.get(
-                    botUser.intent.underlyingClient.mxcToHttp(profile.avatar_url),
+                    await botUser.intent.underlyingClient.mxcToHttp(profile.avatar_url),
                     { responseType: "arraybuffer" },
                 );
                 const currentAvatarImage = {

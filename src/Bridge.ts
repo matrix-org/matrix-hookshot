@@ -39,7 +39,6 @@ import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult }
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
-import PQueue from "p-queue";
 import * as Sentry from '@sentry/node';
 import { HoundConnection, HoundPayload } from "./Connections/HoundConnection";
 import { HoundReader } from "./hound/reader";
@@ -692,7 +691,7 @@ export class Bridge {
             (c, data) => c.handleNewActivity(data.activity)
         );
 
-        const queue = new PQueue({
+        const queue = new (await import("p-queue")).default({
             concurrency: 2,
         });
         // Set up already joined rooms
