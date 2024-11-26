@@ -171,13 +171,10 @@ export default class BotUsersManager {
         // Determine if an avatar update is needed
         if (profile.avatar_url) {
             try {
-                const res = await axios.get(
-                    botUser.intent.underlyingClient.mxcToHttp(profile.avatar_url),
-                    { responseType: "arraybuffer" },
-                );
+                const res = await botUser.intent.underlyingClient.downloadContent(profile.avatar_url);
                 const currentAvatarImage = {
-                    image: Buffer.from(res.data),
-                    contentType: res.headers["content-type"],
+                    image: res.data,
+                    contentType: res.contentType,
                 };
                 if (
                     currentAvatarImage.image.equals(avatarImage.image)
