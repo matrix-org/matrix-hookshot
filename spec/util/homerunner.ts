@@ -4,7 +4,7 @@ import { Homerunner } from "homerunner-client";
 import { E2ETestMatrixClient } from "./e2e-test";
 import path from "node:path";
 
-const HOMERUNNER_IMAGE = process.env.HOMERUNNER_IMAGE || 'ghcr.io/element-hq/synapse/complement-synapse:latest';
+const HOMERUNNER_IMAGE = process.env.HOMERUNNER_IMAGE || 'ghcr.io/element-hq/synapse/complement-synapse:nightly';
 export const DEFAULT_REGISTRATION_SHARED_SECRET = (
     process.env.REGISTRATION_SHARED_SECRET || 'complement'
 );
