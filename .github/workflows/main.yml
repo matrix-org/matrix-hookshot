@@ -34,10 +34,9 @@ jobs:
    runs-on: ubuntu-latest
    steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
+    - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
           toolchain: stable
-          profile: minimal
           components: rustfmt
     - run: cargo fmt --all -- --check
     - run: cargo clippy -- -Dwarnings
@@ -76,10 +75,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node_version }}
-      - uses: actions-rs/toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
             toolchain: stable
-            profile: minimal
       - uses: Swatinem/rust-cache@v2
         with: 
           shared-key: ubuntu-2204-rust-cache
