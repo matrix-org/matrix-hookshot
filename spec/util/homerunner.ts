@@ -130,7 +130,7 @@ export async function registerUser(
         .update(password).update("\x00")
         .update(user.admin ? 'admin' : 'notadmin')
         .digest('hex');
-    return await fetch(registerUrl, { method: "POST", body: JSON.stringify(
+    const req = await fetch(registerUrl, { method: "POST", body: JSON.stringify(
         {
             nonce,
             username: user.username,
@@ -138,8 +138,10 @@ export async function registerUser(
             admin: user.admin,
             mac: hmac,
         }
-    )}).then(res => res.json()).then(res => ({
-        mxid: (res as {user_id: string}).user_id,
-        client: new MatrixClient(homeserverUrl, (res as {access_token: string}).access_token),
-    })).catch(err => { console.log(err.response.body); throw new Error(`Failed to register user: ${err}`); });
+    )});
+    const res = await req.json() as {user_id: string, access_token: string};
+    return {
+        mxid: res.user_id,
+        client: new MatrixClient(homeserverUrl, res.access_token),
+    };
 }
