@@ -2,14 +2,19 @@ import mocha from "eslint-plugin-mocha";
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import react from "eslint-plugin-react";
-
+import chai from "eslint-plugin-chai-expect";
 
 export default [
+    {
+        ignores: ["lib/**/*", "contrib/**/*"],
+    },
     ...tseslint.config(
-        eslint.configs.recommended,
-        tseslint.configs.recommended,
         {
             files:  ["src/**/*.ts", "scripts/*.ts"],
+            extends: [
+                eslint.configs.recommended,
+                ...tseslint.configs.recommended,
+            ],
             rules: {
                 "@typescript-eslint/explicit-module-boundary-types": "off",
                 "@typescript-eslint/no-explicit-any": "warn",
@@ -23,16 +28,21 @@ export default [
         },
     ),
     ...tseslint.config(
-        eslint.configs.recommended,
-        tseslint.configs.recommended,
-        mocha.configs.flat.recommended,
         {
-            files:  ["test/**/*.ts"],
+            files:  ["tests/**/*.ts", "tests/**/*.spec.ts"],
+            extends: [
+                eslint.configs.recommended,
+                ...tseslint.configs.recommended,
+                mocha.configs.flat.recommended,
+                chai.configs["recommended-flat"],
+            ],
             rules: {
                 "@typescript-eslint/explicit-module-boundary-types": "off",
                 "@typescript-eslint/no-explicit-any": "warn",
                 "@typescript-eslint/no-unused-vars": "warn",
-                camelcase: ["always", {
+                // Chai assertions don't call functions
+                "@typescript-eslint/no-unused-expressions": "off",
+                camelcase: ["error", {
                     properties: "never",
                     ignoreDestructuring: true,
                 }],
@@ -43,11 +53,20 @@ export default [
         },
     ),
     ...tseslint.config(
-        eslint.configs.recommended,
-        tseslint.configs.recommended,
-        react.configs.flat.recommended,
         {
+            settings: {
+                react: {
+                    pragma: "Preact",
+                    version: "17",
+                }
+            },
             files:  ["web/**/*.ts", "web/**/*.tsx"],
+            extends: [
+                eslint.configs.recommended,
+                ...tseslint.configs.recommended,
+                react.configs.flat.recommended,
+                react.configs.flat['jsx-runtime'],
+            ],
             rules: {
                 "no-console": "off",
                 "no-unused-vars": "off",
@@ -57,9 +76,6 @@ export default [
                 "@typescript-eslint/no-useless-constructor": "error",
                 "react/react-in-jsx-scope": "off",
                 "react/prop-types": "off",
-            },
-            settings: {
-                pragma: "Preact",
             },
         },
     ),

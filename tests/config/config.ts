@@ -12,6 +12,7 @@ describe("Config/BridgeConfig", () => {
             expect(config.queue).to.be.undefined;
             expect(config.cache?.redisUri).to.equal("redis://localhost:6379");
         });
+
         it("with a host parameter", () => {
             const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
                 monolithic: true,
@@ -20,6 +21,7 @@ describe("Config/BridgeConfig", () => {
             expect(config.queue).to.be.undefined;
             expect(config.cache?.redisUri).to.equal("redis://bark:6379");
         });
+
         it("with a port parameter", () => {
             const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
                 monolithic: true,
@@ -28,6 +30,7 @@ describe("Config/BridgeConfig", () => {
             expect(config.queue).to.be.undefined;
             expect(config.cache?.redisUri).to.equal("redis://localhost:6379");
         });
+
         it("with a host and port parameter", () => {
             const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
                 monolithic: true,
@@ -37,6 +40,7 @@ describe("Config/BridgeConfig", () => {
             expect(config.queue).to.be.undefined;
             expect(config.cache?.redisUri).to.equal("redis://bark:6379");
         });
+
         it("with monolithic disabled", () => {
             const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
                 monolithic: false
@@ -47,6 +51,7 @@ describe("Config/BridgeConfig", () => {
             expect(config.cache?.redisUri).to.equal("redis://localhost:6379");
         });
     });
+
     describe("will handle the queue option", () => {
         it("with redisUri", () => {
             const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
@@ -58,6 +63,7 @@ describe("Config/BridgeConfig", () => {
             expect(config.cache).to.be.undefined;
         });
     });
+
     describe("will handle the cache option", () => {
         it("with redisUri", () => {
             const config = new BridgeConfig({

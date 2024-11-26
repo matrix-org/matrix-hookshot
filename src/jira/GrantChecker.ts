@@ -26,7 +26,7 @@ export class JiraGrantChecker extends GrantChecker<JiraGrantConnectionId> {
         try {
             await JiraProjectConnection.assertUserHasAccessToProject(this.tokenStore, sender, connectionId.url);
             return true;
-        } catch (ex) {
+        } catch {
             return false;
         }
     }

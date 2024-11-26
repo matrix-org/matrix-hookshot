@@ -13,7 +13,7 @@ export const EventHookCheckbox: FunctionComponent<{
         <label>
             <input
             type="checkbox"
-            x-event-name={hookEventName}
+            data-event-name={hookEventName}
             checked={checked}
             onChange={onChange} />
             { children }

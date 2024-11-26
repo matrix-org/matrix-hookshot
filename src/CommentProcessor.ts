@@ -16,7 +16,7 @@ const log = new Logger("CommentProcessor");
 const mime = import('mime');
 
 interface IMatrixCommentEvent extends MatrixMessageContent {
-    // eslint-disable-next-line camelcase
+     
     external_url: string;
     "uk.half-shot.matrix-hookshot.github.comment": {
         id: number;

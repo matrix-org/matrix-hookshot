@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { BridgeConfig, BridgeConfigRoot } from "./Config";
 import { getConfigKeyMetadata, keyIsHidden } from "./Decorators";
 import { Node, YAMLSeq, default as YAML } from "yaml";
@@ -246,7 +248,7 @@ async function renderRegistrationFile(configPath?: string) {
             rooms: [],
         },
     };
-    // eslint-disable-next-line no-console
+     
     console.log(YAML.stringify(obj));
 }
 
@@ -254,11 +256,11 @@ async function renderRegistrationFile(configPath?: string) {
 // Can be called directly
 if (require.main === module) {
     if (process.argv[2] === '--config') {
-        // eslint-disable-next-line no-console
+         
         console.log(renderDefaultConfig());
     } else if (process.argv[2] === '--registration') {
         renderRegistrationFile(process.argv[3]).catch(ex => {
-            // eslint-disable-next-line no-console
+             
             console.error(ex);
             process.exit(1);
         });

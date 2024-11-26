@@ -1,4 +1,4 @@
-/* eslint-disable camelcase */
+ 
 
 export interface IGitLabWebhookEvent {
     object_kind: string;

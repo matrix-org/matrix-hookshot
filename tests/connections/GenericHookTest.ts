@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import { assert, expect } from "chai";
 import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/sections";
@@ -75,10 +75,12 @@ describe("GenericHookConnection", () => {
     before(async () => {
         await GenericHookConnection.initialiseQuickJS();
     })
+
     it("will handle simple hook events", async () => {
         const [connection, mq] = createGenericHook();
         await testSimpleWebhook(connection, mq, "data");
     });
+
     it("will handle a hook event containing text", async () => {
         const webhookData = {text: "simple-message"};
         const [connection, mq] = createGenericHook();
@@ -97,6 +99,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing markdown", async () => {
         const webhookData = {text: "**bold-message** _italic-message_"};
         const [connection, mq] = createGenericHook();
@@ -115,6 +118,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing markdown with newlines", async () => {
         const webhookData = {text: "# Oh wow\n\n`some-code`"};
         const [connection, mq] = createGenericHook();
@@ -133,6 +137,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing html", async () => {
         const webhookData = {text: "simple-message", html: "<b>simple-message</b>"};
         const [connection, mq] = createGenericHook();
@@ -151,6 +156,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event containing a username", async () => {
         const webhookData = {username: "Bobs-integration", type: 42};
         const [connection, mq] = createGenericHook();
@@ -169,6 +175,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event with a v1 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V1TFFunction}, {
@@ -190,6 +197,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event with a v2 transformation function", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunction}, {
@@ -211,6 +219,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a hook event with a top-level return", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: V2TFFunctionWithReturn}, {
@@ -232,6 +241,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will fail to handle a webhook with an invalid script", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};
         const [connection, mq] = createGenericHook({name: 'test', transformationFunction: "bibble bobble"}, {
@@ -253,6 +263,7 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
     it("will handle a message containing floats", async () => {
         const [connection, mq] = createGenericHook();
         let messagePromise = handleMessage(mq);
@@ -357,6 +368,7 @@ describe("GenericHookConnection", () => {
             })).to.throw("'expirationDate' must be a valid date");
         }
     });
+
     it('should fail to create a hook with a too short expiry time', async () => {
         const as = AppserviceMock.create();
         try {
@@ -375,6 +387,7 @@ describe("GenericHookConnection", () => {
             expect(ex.message).to.contain('Expiration date must at least be a hour in the future');
         }
     });
+
     it('should fail to create a hook with a too long expiry time', async () => {
         const as = AppserviceMock.create();
         try {
@@ -396,6 +409,7 @@ describe("GenericHookConnection", () => {
             expect(ex.message).to.contain('Expiration date cannot exceed the configured max expiry time');
         }
     });
+
     it('should fail to create a hook without an expiry time when required by config', async () => {
         const as = AppserviceMock.create();
         try {
@@ -417,12 +431,14 @@ describe("GenericHookConnection", () => {
             expect(ex.message).to.contain('Expiration date must be set');
         }
     });
+
     it('should create a hook and handle a request within the expiry time', async () => {
         const [connection, mq] = createGenericHook({
              expirationDate: add(new Date(), { seconds: 30 }).toISOString(),
         });
         await testSimpleWebhook(connection, mq, "test");
     });
+
     it('should reject requests to an expired hook', async () => {
         const [connection] = createGenericHook({
             expirationDate: new Date().toISOString(),

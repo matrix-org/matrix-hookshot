@@ -9,13 +9,15 @@ describe("Jira", () => {
                 key: "TEST-111",
             })).to.equal("https://my-test-jira/browse/TEST-111");
         });
+
         it("processes a jira issue into a URL with a port", () => {
             expect(generateJiraWebLinkFromIssue({
                 self: "https://my-test-jira:9995/",
                 key: "TEST-111",
             })).to.equal("https://my-test-jira:9995/browse/TEST-111");
         });
-        it("processes a jira issue into a URL with a port", () => {
+
+        it("processes a jira issue into a URL with a port and a version", () => {
             expect(generateJiraWebLinkFromVersion({
                 self: "https://my-test-jira:9995/",
                 description: "foo",

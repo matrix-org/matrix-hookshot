@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import YAML from "yaml";
 import { promises as fs } from "fs";
 import { IAppserviceRegistration, LogLevel, MatrixClient } from "matrix-bot-sdk";
@@ -48,11 +50,11 @@ interface BridgeConfigGitHubYAML {
         secret: string;
     };
     oauth?: {
-        // eslint-disable-next-line camelcase
+         
         client_id: string;
-        // eslint-disable-next-line camelcase
+         
         client_secret: string;
-        // eslint-disable-next-line camelcase
+         
         redirect_uri: string;
     };
     defaultOptions?: GitHubRepoConnectionOptions;
@@ -71,11 +73,11 @@ export class BridgeConfigGitHub {
     };
     @configKey("Settings for allowing users to sign in via OAuth.", true)
     readonly oauth?: {
-        // eslint-disable-next-line camelcase
+         
         client_id: string;
-        // eslint-disable-next-line camelcase
+         
         client_secret: string;
-        // eslint-disable-next-line camelcase
+         
         redirect_uri: string;
     };
     @configKey("Default options for GitHub connections.", true)
@@ -108,18 +110,18 @@ export class BridgeConfigGitHub {
 }
 
 export interface BridgeConfigJiraCloudOAuth {
-    // eslint-disable-next-line camelcase
+     
     client_id: string;
-    // eslint-disable-next-line camelcase
+     
     client_secret: string;
-    // eslint-disable-next-line camelcase
+     
     redirect_uri: string;
 }
 
 export interface BridgeConfigJiraOnPremOAuth {
     consumerKey: string;
     privateKey: string;
-    // eslint-disable-next-line camelcase
+     
     redirect_uri: string;
 }
 
@@ -776,11 +778,11 @@ export async function parseRegistrationFile(filename: string) {
 if (require.main === module) {
     Logger.configure({console: "info"});
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
-        // eslint-disable-next-line no-console
+         
         console.log('Config successfully validated.');
         process.exit(0);
     }).catch(ex => {
-        // eslint-disable-next-line no-console
+         
         console.error('Error in config:', ex);
         process.exit(1);
     });
