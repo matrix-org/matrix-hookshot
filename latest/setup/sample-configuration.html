@@ -156,6 +156,12 @@ can be tweaked to change the behaviour of your bridge. A bridge of the server is
 required to apply any changes made to this file.</p>
 <pre><code class="language-yaml"># This is an example configuration file
 
+logging:
+  # Logging settings. You can have a severity debug,info,warn,error
+  level: info
+  colorize: true
+  json: false
+  timestampFormat: HH:mm:ss:SSS
 bridge:
   # Basic homeserver configuration
   domain: example.com
@@ -167,12 +173,6 @@ passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
   ./passkey.pem
-logging:
-  # Logging settings. You can have a severity debug,info,warn,error
-  level: info
-  colorize: true
-  json: false
-  timestampFormat: HH:mm:ss:SSS
 listeners:
   # HTTP Listener configuration.
   # Bind resource endpoints to ports and addresses.
@@ -299,10 +299,12 @@ listeners:
 #  #    For encryption to work, this must be configured.
 #  redisUri: redis://localhost:6379
 
-#queue:
-#  # (Optional) Message queue configuration options for large scale deployments.
-#  # For encryption to work, this must not be configured.
-#  redisUri: redis://localhost:6379
+#encryption:
+#  # (Optional) Configuration for encryption support in the bridge.
+#  # If omitted, encryption support will be disabled.
+#  storagePath:
+#    # Path to the directory used to store encryption files. These files must be persist between restarts of the service.
+#    ./cryptostore
 
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
