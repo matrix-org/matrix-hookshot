@@ -10,7 +10,7 @@
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build:web": "vite build",
@@ -88,7 +88,7 @@
     "@napi-rs/cli": "^2.13.2",
     "@preact/preset-vite": "^2.2.0",
     "@rollup/plugin-alias": "^5.1.0",
-    "@tsconfig/node18": "^18.2.2",
+    "@tsconfig/node22": "^22",
     "@types/ajv": "^1.0.0",
     "@types/busboy": "^1.5.4",
     "@types/chai": "^4.2.22",
@@ -100,7 +100,7 @@
     "@types/micromatch": "^4.0.1",
     "@types/mime": "^3.0.4",
     "@types/mocha": "^10.0.6",
-    "@types/node": "20.10.6",
+    "@types/node": "^22",
     "@types/xml2js": "^0.4.11",
     "@typescript-eslint/eslint-plugin": "^6.17.0",
     "@typescript-eslint/parser": "^6.17.0",
