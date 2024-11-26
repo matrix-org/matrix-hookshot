@@ -158,7 +158,7 @@ export class CommentProcessor {
 
                 body = body.replace(rawUrl, url);
             } catch (ex) {
-                log.warn("Failed to upload file");
+                log.warn("Failed to upload file", ex);
             }
         }
         return body;

@@ -8,7 +8,7 @@ import { ApiError, ErrCode, Logger } from "matrix-appservice-bridge";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
-import { EmitterWebhookEvent, EmitterWebhookEventName, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
@@ -18,6 +18,7 @@ import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
 import { GithubInstance } from "./github/GithubInstance";
 import QuickLRU from "@alloc/quick-lru";
+import type { WebhookEventName } from "@octokit/webhooks-types";
 
 const log = new Logger("Webhooks");
 
@@ -178,7 +179,7 @@ export class Webhooks extends EventEmitter {
                 }
                 this.ghWebhooks.verifyAndReceive({
                     id: githubGuid as string,
-                    name: req.headers["x-github-event"] as EmitterWebhookEventName,
+                    name: req.headers["x-github-event"] as WebhookEventName,
                     payload: githubData.payload,
                     signature: githubData.signature,
                 }).catch((err) => {

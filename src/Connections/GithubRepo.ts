@@ -1463,7 +1463,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                     },
                     name: r.name,
                     description: r.description,
-                    avatar: r.owner?.avatar_url || r.organization?.avatar_url,
+                    avatar: r.owner.avatar_url,
                 })) as GitHubRepoConnectionRepoTarget[];
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${filters.orgName} / ${userId}`, ex);
