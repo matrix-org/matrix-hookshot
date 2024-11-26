@@ -39,7 +39,7 @@ export class MatrixClientMock {
         throw new MatrixError({
             errcode: 'M_NOT_FOUND',
             error: 'Test error: No account data',
-        }, 404);
+        }, 404, { });
     }
 
     async setRoomAccountData(key: string, roomId: string, value: string): Promise<void> {
