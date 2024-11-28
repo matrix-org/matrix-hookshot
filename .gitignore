@@ -21,3 +21,10 @@ book
 # Coverage
 coverage
 .nyc_output
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
