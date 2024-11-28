@@ -5,11 +5,6 @@ in
 {
   packages = [ pkgs.git pkgs.gcc pkgs.pkg-config pkgs.openssl ];
 
-  enterShell = ''
-    hello
-    git --version
-  '';
-
   # https://devenv.sh/tests/
   enterTest = ''
     echo "Running tests"
