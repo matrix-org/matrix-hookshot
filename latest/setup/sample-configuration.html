@@ -156,12 +156,6 @@ can be tweaked to change the behaviour of your bridge. A bridge of the server is
 required to apply any changes made to this file.</p>
 <pre><code class="language-yaml"># This is an example configuration file
 
-logging:
-  # Logging settings. You can have a severity debug,info,warn,error
-  level: info
-  colorize: true
-  json: false
-  timestampFormat: HH:mm:ss:SSS
 bridge:
   # Basic homeserver configuration
   domain: example.com
@@ -169,6 +163,12 @@ bridge:
   mediaUrl: https://example.com
   port: 9993
   bindAddress: 127.0.0.1
+logging:
+  # Logging settings. You can have a severity debug,info,warn,error
+  level: info
+  colorize: true
+  json: false
+  timestampFormat: HH:mm:ss:SSS
 passFile:
   # A passkey used to encrypt tokens stored inside the bridge.
   # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
@@ -192,6 +192,25 @@ listeners:
     bindAddress: 0.0.0.0
     resources:
       - widgets
+
+#cache:
+#  # (Optional) Cache options for large scale deployments. 
+#  #    For encryption to work, this must be configured.
+#  redisUri: redis://localhost:6379
+
+#encryption:
+#  # (Optional) Configuration for encryption support in the bridge.
+#  # If omitted, encryption support will be disabled.
+#  storagePath:
+#    # Path to the directory used to store encryption files. These files must be persist between restarts of the service.
+#    ./cryptostore
+
+#permissions:
+#  # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
+#  - actor: example.com
+#    services:
+#      - service: &quot;*&quot;
+#        level: admin
 
 #github:
 #  # (Optional) Configure this to enable GitHub support
@@ -231,15 +250,6 @@ listeners:
 #    # (Optional) Aggregate comments by waiting this many miliseconds before posting them to Matrix. Defaults to 5000 (5 seconds)
 #    5000
 
-#figma:
-#  # (Optional) Configure this to enable Figma support
-#  publicUrl: https://example.com/hookshot/
-#  instances:
-#    your-instance:
-#      teamId: your-team-id
-#      accessToken: your-personal-access-token
-#      passcode: your-webhook-passcode
-
 #jira:
 #  # (Optional) Configure this to enable Jira support. Only specify `url` if you are using a On Premise install (i.e. not atlassian.com)
 #  webhook:
@@ -257,25 +267,30 @@ listeners:
 
 #  enabled: false
 #  outbound: false
-#  enableHttpGet: false
-#  sendExpiryNotice: false
-#  requireExpiryTime: false
 #  urlPrefix: https://example.com/webhook/
 #  userIdPrefix: _webhooks_
 #  allowJsTransformationFunctions: false
 #  waitForComplete: false
+#  enableHttpGet: false
+#  sendExpiryNotice: false
+#  requireExpiryTime: false
 #  maxExpiryTime: 30d
+
+#figma:
+#  # (Optional) Configure this to enable Figma support
+#  publicUrl: https://example.com/hookshot/
+#  instances:
+#    your-instance:
+#      teamId: your-team-id
+#      accessToken: your-personal-access-token
+#      passcode: your-webhook-passcode
 
 #feeds:
 #  # (Optional) Configure this to enable RSS/Atom feed support
 #  enabled: false
-#  pollConcurrency: 4
 #  pollIntervalSeconds: 600
 #  pollTimeoutSeconds: 30
-
-#provisioning:
-#  # (Optional) Provisioning API for integration managers
-#  secret: &quot;!secretToken&quot;
+#  pollConcurrency: 4
 
 #bot:
 #  # (Optional) Define profile information for the bot user
@@ -290,25 +305,12 @@ listeners:
 #    prefix: &quot;!feeds&quot;
 #    service: feeds
 
-#metrics:
-#  # (Optional) Prometheus metrics support
-#  enabled: true
-
-#cache:
-#  # (Optional) Cache options for large scale deployments. 
-#  #    For encryption to work, this must be configured.
-#  redisUri: redis://localhost:6379
-
-#encryption:
-#  # (Optional) Configuration for encryption support in the bridge.
-#  # If omitted, encryption support will be disabled.
-#  storagePath:
-#    # Path to the directory used to store encryption files. These files must be persist between restarts of the service.
-#    ./cryptostore
-
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
 #  addToAdminRooms: false
+#  publicUrl: https://example.com/widgetapi/v1/static/
+#  roomSetupWidget:
+#    addOnInvite: false
 #  disallowedIpRanges:
 #    - 127.0.0.0/8
 #    - 10.0.0.0/8
@@ -329,23 +331,21 @@ listeners:
 #    - 2001:db8::/32
 #    - ff00::/8
 #    - fec0::/10
-#  roomSetupWidget:
-#    addOnInvite: false
-#  publicUrl: https://example.com/widgetapi/v1/static/
 #  branding:
 #    widgetTitle: Hookshot Configuration
+
+#provisioning:
+#  # (Optional) Provisioning API for integration managers
+#  secret: &quot;!secretToken&quot;
+
+#metrics:
+#  # (Optional) Prometheus metrics support
+#  enabled: true
 
 #sentry:
 #  # (Optional) Configure Sentry error reporting
 #  dsn: https://examplePublicKey@o0.ingest.sentry.io/0
 #  environment: production
-
-#permissions:
-#  # (Optional) Permissions for using the bridge. See docs/setup.md#permissions for help
-#  - actor: example.com
-#    services:
-#      - service: &quot;*&quot;
-#        level: admin
 
 
 
