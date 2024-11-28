@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
 import "reflect-metadata";
 import { AdminAccountData, AdminRoomCommandHandler, Category } from "./AdminRoomCommandHandler";
 import { botCommand, compileBotCommands, handleCommand, BotCommands, HelpFunction } from "./BotCommands";

@@ -6,13 +6,16 @@ const ENABLED_SET = ['enabled-hook', 'enabled-but-ignored'];
 
 describe("HookFilter", () => {
     let filter: HookFilter<string>;
+
     beforeEach(() => {
         filter = new HookFilter(ENABLED_SET);
     });
+
     describe('shouldSkip', () => {
         it('should allow a hook named in enabled set', () => {
             expect(filter.shouldSkip('enabled-hook')).to.be.false;
         });
+
         it('should not allow a hook not named in enabled set', () => {
             expect(filter.shouldSkip('not-enabled-hook')).to.be.true;
         });

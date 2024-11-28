@@ -7,7 +7,6 @@ import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
 
 export interface GitHubProjectConnectionState {
-    // eslint-disable-next-line camelcase
     project_id: number;
     state: "open"|"closed";
 }

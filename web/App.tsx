@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { Component } from 'preact';
 import WA, { MatrixCapabilities } from 'matrix-widget-api';
 import { BridgeAPI, BridgeAPIError, EmbedType, embedTypeParameter } from './BridgeAPI';
@@ -84,8 +83,6 @@ export default class App extends Component<void, IState> {
         const roomState = widgetKind === "admin" ? await bridgeApi.state() : undefined;
         const supportedServices = await bridgeApi.getEnabledConfigSections();
         await widgetReady;
-        // Calling setState is ok because we've awaited a network request.
-        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
             userId,
             roomState,
@@ -106,8 +103,6 @@ export default class App extends Component<void, IState> {
                 error = "Could not contact your homeserver. Your instance may be misconfigured.";
             }
         }
-        // Calling setState is ok because we've awaited a network request.
-        // eslint-disable-next-line react/no-did-mount-set-state
         this.setState({
             error,
             busy: false,

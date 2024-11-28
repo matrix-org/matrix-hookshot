@@ -61,10 +61,10 @@ export async function createHS(localparts: string[] = [], workerId: number, cryp
                     URL: `http://${COMPLEMENT_HOSTNAME_RUNNING_COMPLEMENT}:${appPort}`,
                     SenderLocalpart: 'hookshot',
                     RateLimited: false,
-                    ...{ASToken: asToken,
+                    ASToken: asToken,
                     HSToken: hsToken,
                     SendEphemeral: true,
-                    EnableEncryption: true},
+                    EnableEncryption: true,
                 }]
             }],
         }

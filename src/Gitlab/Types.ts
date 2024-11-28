@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 export interface GitLabAuthor {
     id: number;
     name: string;

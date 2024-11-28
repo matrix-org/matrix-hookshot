@@ -51,7 +51,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 
 
     const toggleEnabledHook = useCallback((evt: any) => {
-        const key = (evt.target as HTMLElement).getAttribute('x-event-name');
+        const key = (evt.target as HTMLElement).getAttribute('data-event-name');
         if (key) {
             setEnabledHooks(enabledHooks => (
                 enabledHooks.includes(key) ? enabledHooks.filter(k => k !== key) : [...enabledHooks, key]

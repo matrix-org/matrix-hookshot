@@ -1,4 +1,4 @@
-import { FunctionComponent, h } from "preact";
+import { FunctionComponent } from "preact";
 import style from "./ButtonSet.module.scss";
 
 export const ButtonSet: FunctionComponent = (props) => {

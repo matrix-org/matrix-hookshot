@@ -16,7 +16,6 @@ const log = new Logger("CommentProcessor");
 const mime = import('mime');
 
 interface IMatrixCommentEvent extends MatrixMessageContent {
-    // eslint-disable-next-line camelcase
     external_url: string;
     "uk.half-shot.matrix-hookshot.github.comment": {
         id: number;
@@ -158,7 +157,7 @@ export class CommentProcessor {
 
                 body = body.replace(rawUrl, url);
             } catch (ex) {
-                log.warn("Failed to upload file");
+                log.warn("Failed to upload file", ex);
             }
         }
         return body;

@@ -17,7 +17,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     const api = useContext(BridgeContext).bridgeApi;
 
     const toggleEvent = useCallback((evt: Event) => {
-        const key = (evt.target as HTMLElement).getAttribute('x-event-name');
+        const key = (evt.target as HTMLElement).getAttribute('data-event-name');
         if (key) {
             setAllowedEvents(allowedEvents => (
                 allowedEvents.includes(key) ? allowedEvents.filter(k => k !== key) : [...allowedEvents, key]

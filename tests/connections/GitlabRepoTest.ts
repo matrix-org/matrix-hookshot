@@ -115,6 +115,7 @@ describe("GitLabRepoConnection", () => {
 				excludingLabels: ["but-not-me"],
 			} as GitLabRepoConnectionState as unknown as Record<string, unknown>);
 		});
+
 		it("will convert ignoredHooks for existing state", () => {
 			const state = GitLabRepoConnection.validateState({
 				instance: "foo",
@@ -126,6 +127,7 @@ describe("GitLabRepoConnection", () => {
 			} as GitLabRepoConnectionState as unknown as Record<string, unknown>, true);
 			expect(state.enableHooks).to.not.contain('merge_request');
 		});
+
 		it("will disallow invalid state", () => {
 			try {
 				GitLabRepoConnection.validateState({
@@ -138,6 +140,7 @@ describe("GitLabRepoConnection", () => {
 				}
 			}
 		});
+
 		it("will disallow enabledHooks to contains invalid enums if this is new state", () => {
 			try {
 				GitLabRepoConnection.validateState({
@@ -151,6 +154,7 @@ describe("GitLabRepoConnection", () => {
 				}
 			}
 		});
+
 		it("will allow enabledHooks to contains invalid enums if this is old state", () => {
 			GitLabRepoConnection.validateState({
 				instance: "bar",
@@ -159,6 +163,7 @@ describe("GitLabRepoConnection", () => {
 			}, true);
 		});
 	});
+
 	describe("onCommentCreated", () => {
 		it("will handle an MR comment", async () => {
 			const { connection, intent } = createConnection();
@@ -169,6 +174,7 @@ describe("GitLabRepoConnection", () => {
 				'event body indicates MR comment'
 			);
 		});
+
 		it("will debounce MR comments", async () => {
 			const { connection, intent } = createConnection();
 			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
@@ -188,6 +194,7 @@ describe("GitLabRepoConnection", () => {
 				0,
 			);
 		});
+
 		it("will add new comments in a Matrix thread", async () => {
 			const { connection, intent } = createConnection();
 			await connection.onCommentCreated(GITLAB_MR_COMMENT as never);
@@ -201,6 +208,7 @@ describe("GitLabRepoConnection", () => {
 				1,
 			);
 		});
+
 		it("will correctly map new comments to aggregated discussions", async () => {
 			const { connection, intent } = createConnection();
 			await connection.onCommentCreated({
@@ -251,6 +259,7 @@ describe("GitLabRepoConnection", () => {
 			);
 		});
 	});
+
 	describe("onIssueCreated", () => {
 		it("will handle a simple issue", async () => {
 			const { connection, intent } = createConnection();
@@ -260,6 +269,7 @@ describe("GitLabRepoConnection", () => {
 			intent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url, 0);
 			intent.expectEventBodyContains(GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.title, 0);
 		});
+
 		it("will filter out issues not matching includingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
@@ -274,6 +284,7 @@ describe("GitLabRepoConnection", () => {
 			await connection.onMergeRequestOpened(GITLAB_ISSUE_CREATED_PAYLOAD as never);
 			intent.expectNoEvent();
 		});
+
 		it("will filter out issues matching excludingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
@@ -286,6 +297,7 @@ describe("GitLabRepoConnection", () => {
 			} as never);
 			intent.expectNoEvent();
 		});
+
 		it("will include issues matching includingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				includingIssues: ["include-me"]

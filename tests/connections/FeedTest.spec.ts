@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { FeedConnection, FeedConnectionState } from "../../src/Connections";
 import { FeedEntry } from "../../src/feeds/FeedReader";
@@ -47,6 +46,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.content.external_url).to.equal(FEED_ENTRY_DEFAULTS.link);
         expect(matrixEvt.content.body).to.equal("New post in Test feed: [Foo](foo/bar)");
     });
+
     it("will handle simple feed message without a title and link ", async () => {
         const [connection, intent] = createFeed();
         await connection.handleFeedEntry({
@@ -60,6 +60,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.content.external_url).to.be.undefined;
         expect(matrixEvt.content.body).to.equal("New post in Test feed");
     });
+
     it("will handle simple feed message with a missing title ", async () => {
         const [connection, intent] = createFeed();
         await connection.handleFeedEntry({
@@ -71,6 +72,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.roomId).to.equal(ROOM_ID);
         expect(matrixEvt.content.body).to.equal("New post in Test feed: [foo/bar](foo/bar)");
     });
+
     it("will handle simple feed message with a missing link ", async () => {
         const [connection, intent] = createFeed();
         await connection.handleFeedEntry({
@@ -82,6 +84,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.roomId).to.equal(ROOM_ID);
         expect(matrixEvt.content.body).to.equal("New post in Test feed: Foo");
     });
+
     it("will handle simple feed message with all the template options possible ", async () => {
         const [connection, intent] = createFeed({
             template: `$FEEDNAME $FEEDURL $FEEDTITLE $TITLE $LINK $AUTHOR $DATE $SUMMARY`
@@ -94,6 +97,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.roomId).to.equal(ROOM_ID);
         expect(matrixEvt.content.body).to.equal("Test feed https://example.com/feed.xml Test feed Foo [Foo](foo/bar) Me! today! fibble fobble");
     });
+
     it("will handle html in the feed summary ", async () => {
         const [connection, intent] = createFeed({
             template: `$FEEDNAME $SUMMARY`
@@ -107,6 +111,7 @@ describe("FeedConnection", () => {
         expect(matrixEvt.roomId).to.equal(ROOM_ID);
         expect(matrixEvt.content.body).to.equal('Test feed <p> Some HTML with  which should be ignored  and an <img src="mxc://fibble/fobble"> </p>');
     });
+
     it("will handle partial html in the feed summary ", async () => {
         const [connection, intent] = createFeed({
             template: `$FEEDNAME $SUMMARY`

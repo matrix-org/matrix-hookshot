@@ -36,23 +36,23 @@ export default function AdminSettings(props: IProps) {
         [setCurrentTab]
     );
     if (busy) {
-        return <div class={style.root}>
+        return <div className={style.root}>
             <LoadingSpinner />
         </div>;
     }
-    return <div class={style.root}>
-        <h1 class={style.header}> Hookshot Bridge settings</h1>
-        <div class={style.contents}>
-            <aside class={style.sidebar}>
+    return <div className={style.root}>
+        <h1 className={style.header}> Hookshot Bridge settings</h1>
+        <div className={style.contents}>
+            <aside className={style.sidebar}>
                 <ul>
-                    {activeSections.general && <a sectionKey={AdminSettingsTab.General} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.General ? style.active : null}>General</li></a>}
-                    {activeSections.github && <a sectionKey={AdminSettingsTab.GitHub} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.GitHub ? style.active : null}> GitHub</li></a>}
-                    {activeSections.gitlab && <a sectionKey={AdminSettingsTab.GitLab} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.GitLab ? style.active : null}> GitLab</li></a>}
-                    {activeSections.jira && <a sectionKey={AdminSettingsTab.Jira} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.Jira ? style.active : null}> Jira</li></a>}
-                    {activeSections.figma && <a sectionKey={AdminSettingsTab.Figma} onClick={onSectionClick}><li class={currentTab === AdminSettingsTab.Figma ? style.active : null}> Figma</li></a>}
+                    {activeSections.general && <a onClick={onSectionClick}><li className={currentTab === AdminSettingsTab.General ? style.active : null}>General</li></a>}
+                    {activeSections.github && <a onClick={onSectionClick}><li className={currentTab === AdminSettingsTab.GitHub ? style.active : null}> GitHub</li></a>}
+                    {activeSections.gitlab && <a onClick={onSectionClick}><li className={currentTab === AdminSettingsTab.GitLab ? style.active : null}> GitLab</li></a>}
+                    {activeSections.jira && <a onClick={onSectionClick}><li className={currentTab === AdminSettingsTab.Jira ? style.active : null}> Jira</li></a>}
+                    {activeSections.figma && <a onClick={onSectionClick}><li className={currentTab === AdminSettingsTab.Figma ? style.active : null}> Figma</li></a>}
                 </ul>
             </aside>
-            <div class={style.content}>
+            <div className={style.content}>
                 {currentTab === AdminSettingsTab.General && <GeneralConfig />}
                 {currentTab === AdminSettingsTab.GitHub && <GitHubState config={props.roomState.github} />}
             </div>

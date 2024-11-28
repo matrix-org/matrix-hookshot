@@ -549,7 +549,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
 
     public debounceOnIssueLabeled = new Map<number, {labels: Set<string>, timeout: NodeJS.Timeout}>();
 
-    private readonly grantChecker = new GitHubGrantChecker(this.as, this.tokenStore);
+    private readonly grantChecker;
 
     constructor(
         roomId: string,
@@ -576,6 +576,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         this.hookFilter = new HookFilter(
             state.enableHooks,
         )
+        this.grantChecker  = new GitHubGrantChecker(this.as, this.tokenStore);
     }
 
     public get hotlinkIssues() {
@@ -1463,7 +1464,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                     },
                     name: r.name,
                     description: r.description,
-                    avatar: r.owner?.avatar_url || r.organization?.avatar_url,
+                    avatar: r.owner.avatar_url,
                 })) as GitHubRepoConnectionRepoTarget[];
         } catch (ex) {
             log.warn(`Failed to fetch accessible repos for ${filters.orgName} / ${userId}`, ex);
