@@ -13,6 +13,9 @@ public/
 # Generated during build
 /src/libRs.d.ts
 
+# Generated during test run
+/spec-lib
+
 book
 *.cer
 *.pem

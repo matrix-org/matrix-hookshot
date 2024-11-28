@@ -3,8 +3,8 @@
   "compilerOptions": {
     "incremental": true,
     "declaration": false,
-    "outDir": "./lib",
-    "rootDir": "./src",
+    "outDir": "./spec-lib",
+    "rootDir": "./",
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
@@ -26,7 +26,7 @@
     "useUnknownInCatchVariables": false
   },
   "include": [
-      "src/**/*"
+      "spec/**/*"
   ],
   "exclude": [
       "tests/**/*",
