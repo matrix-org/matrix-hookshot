@@ -1,4 +1,3 @@
- 
 import { assert, expect } from "chai";
 import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
 import { BridgeConfigGenericWebhooks, BridgeGenericWebhooksConfigYAML } from "../../src/config/sections";

@@ -20,7 +20,6 @@ export interface GitHubIssueConnectionState {
     repo: string;
     state: string;
     issues: string[];
-     
     comments_processed: number;
 }
 

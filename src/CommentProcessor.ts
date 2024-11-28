@@ -16,7 +16,6 @@ const log = new Logger("CommentProcessor");
 const mime = import('mime');
 
 interface IMatrixCommentEvent extends MatrixMessageContent {
-     
     external_url: string;
     "uk.half-shot.matrix-hookshot.github.comment": {
         id: number;

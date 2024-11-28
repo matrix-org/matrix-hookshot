@@ -32,7 +32,7 @@
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
     "start:resetcrypto": "node --require source-map-support/register lib/App/ResetCryptoStore.js",
     "test": "mocha -r ts-node/register tests/init.ts 'tests/*.ts'  'tests/**/*.ts'",
-    "test:e2e": "tsc --p tsconfig.spec.json && yarn node --experimental-vm-modules $(yarn bin jest)",
+    "test:e2e": "tsc --p tsconfig.spec.json && cp ./lib/libRs.js ./lib/matrix-hookshot-rs.node ./spec-lib/src  && yarn node --experimental-vm-modules $(yarn bin jest)",
     "test:cover": "nyc --reporter=lcov --reporter=text yarn test",
     "lint": "yarn run lint:js && yarn run lint:rs",
     "lint:js": "eslint",

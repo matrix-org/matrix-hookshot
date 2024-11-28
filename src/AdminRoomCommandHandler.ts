@@ -13,7 +13,6 @@ export enum Category {
 
 
 export interface AdminAccountData {
-     
     admin_user: string;
     github?: {
         notifications?: {

@@ -19,7 +19,6 @@ export type CreateInstallationAccessTokenDataType = Endpoints["POST /app/install
 
 export const NAMELESS_ORG_PLACEHOLDER = "No name";
 
- 
 export interface GitHubUserNotification {
     id: string;
     reason: "assign"|"author"|"comment"|"invitation"|"manual"|"mention"|"review_requested"|

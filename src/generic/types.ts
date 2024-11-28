@@ -5,9 +5,7 @@ export interface GenericWebhookEvent {
     hookId: string;
 }
 
-
 export type GenericWebhookEventResult = GenericWebhookEventResultSuccess | GenericWebhookEventResultFailure;
-
 
 export interface GenericWebhookEventResultSuccess {
     successful: true|null;

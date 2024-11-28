@@ -55,7 +55,6 @@ function createConnection(state: Record<string, unknown> = {}, isExistingState=f
 		"state_key",
 		githubInstance,
 		// Default config always contains GitHub
-		 
 		DefaultConfig.github!
 	);
 	return {connection, intent: intent as IntentMock};

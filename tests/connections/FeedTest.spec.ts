@@ -1,4 +1,3 @@
- 
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { FeedConnection, FeedConnectionState } from "../../src/Connections";
 import { FeedEntry } from "../../src/feeds/FeedReader";

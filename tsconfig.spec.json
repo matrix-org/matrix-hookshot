@@ -1,29 +1,11 @@
 {
-  "extends": "@tsconfig/node22/tsconfig.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "incremental": true,
+    "incremental": false,
     "declaration": false,
     "outDir": "./spec-lib",
     "rootDir": "./",
-    "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "strictBindCallApply": true,
-    "strictPropertyInitialization": true,
-    "noImplicitThis": true,
-    "alwaysStrict": true,
-    /* Additional Checks */
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true,
-    "inlineSourceMap": true,
-    "inlineSources": true,
-    "allowJs": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    // TODO: Type errors
-    "useUnknownInCatchVariables": false
+    "allowJs": true
   },
   "include": [
       "spec/**/*"

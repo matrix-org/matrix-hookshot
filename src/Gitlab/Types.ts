@@ -1,4 +1,3 @@
- 
 export interface GitLabAuthor {
     id: number;
     name: string;

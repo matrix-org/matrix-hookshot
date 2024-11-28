@@ -51,11 +51,8 @@ interface BridgeConfigGitHubYAML {
         secret: string;
     };
     oauth?: {
-         
         client_id: string;
-         
         client_secret: string;
-         
         redirect_uri: string;
     };
     defaultOptions?: GitHubRepoConnectionOptions;
@@ -74,11 +71,8 @@ export class BridgeConfigGitHub {
     };
     @configKey("Settings for allowing users to sign in via OAuth.", true)
     readonly oauth?: {
-         
         client_id: string;
-         
         client_secret: string;
-         
         redirect_uri: string;
     };
     @configKey("Default options for GitHub connections.", true)
@@ -111,18 +105,14 @@ export class BridgeConfigGitHub {
 }
 
 export interface BridgeConfigJiraCloudOAuth {
-     
     client_id: string;
-     
     client_secret: string;
-     
     redirect_uri: string;
 }
 
 export interface BridgeConfigJiraOnPremOAuth {
     consumerKey: string;
     privateKey: string;
-     
     redirect_uri: string;
 }
 
@@ -186,11 +176,6 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
 
 export interface GitLabInstance {
     url: string;
-    // oauth: {
-    //     client_id: string;
-    //     client_secret: string;
-    //     redirect_uri: string;
-    // };
 }
 
 export interface BridgeConfigGitLabYAML {
@@ -746,11 +731,9 @@ export async function parseRegistrationFile(filename: string) {
 if (require.main === module) {
     Logger.configure({console: "info"});
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
-         
         console.log('Config successfully validated.');
         process.exit(0);
     }).catch(ex => {
-         
         console.error('Error in config:', ex);
         process.exit(1);
     });

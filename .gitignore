@@ -15,6 +15,7 @@ public/
 
 # Generated during test run
 /spec-lib
+/hookshot-int-*
 
 book
 *.cer

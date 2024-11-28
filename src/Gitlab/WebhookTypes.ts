@@ -1,5 +1,3 @@
- 
-
 export interface IGitLabWebhookEvent {
     object_kind: string;
 }

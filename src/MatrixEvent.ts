@@ -1,4 +1,3 @@
- 
 export interface MatrixEvent<T extends MatrixEventContent|unknown> {
     content: T;
     event_id: string;
@@ -8,7 +7,6 @@ export interface MatrixEvent<T extends MatrixEventContent|unknown> {
     type: string;
 }
 
- 
 type MatrixEventContent = object;
 
 export interface MatrixMemberContent extends MatrixEventContent {

@@ -248,19 +248,16 @@ async function renderRegistrationFile(configPath?: string) {
             rooms: [],
         },
     };
-     
+
     console.log(YAML.stringify(obj));
 }
-
 
 // Can be called directly
 if (require.main === module) {
     if (process.argv[2] === '--config') {
-         
         console.log(renderDefaultConfig());
     } else if (process.argv[2] === '--registration') {
         renderRegistrationFile(process.argv[3]).catch(ex => {
-             
             console.error(ex);
             process.exit(1);
         });

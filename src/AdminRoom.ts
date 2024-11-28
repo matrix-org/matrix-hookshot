@@ -1,4 +1,3 @@
- 
 import "reflect-metadata";
 import { AdminAccountData, AdminRoomCommandHandler, Category } from "./AdminRoomCommandHandler";
 import { botCommand, compileBotCommands, handleCommand, BotCommands, HelpFunction } from "./BotCommands";

@@ -6,7 +6,7 @@ import chai from "eslint-plugin-chai-expect";
 
 export default [
     {
-        ignores: ["lib/**/*", "contrib/**/*"],
+        ignores: ["lib/**/*", "spec-lib/**/*", "contrib/**/*"],
     },
     ...tseslint.config(
         {
