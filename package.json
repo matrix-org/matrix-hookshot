@@ -68,7 +68,6 @@
     "micromatch": "^4.0.8",
     "mime": "^4.0.4",
     "node-emoji": "^2.1.3",
-    "p-queue": "^8.0.1",
     "parse-duration": "^1.1.0",
     "preact-render-to-string": "^6.3.1",
     "prom-client": "^15.1.0",
