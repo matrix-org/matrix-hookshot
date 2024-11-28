@@ -694,7 +694,7 @@ export class Bridge {
         const allRooms = this.botUsersManager.joinedRooms;
 
         const processRooms = async () => {
-            for (let roomId = allRooms.pop(); !!roomId; roomId = allRooms.pop()) {
+            for (let roomId = allRooms.pop(); roomId !== undefined; roomId = allRooms.pop()) {
                 log.debug("Fetching state for " + roomId);
 
                 try {
