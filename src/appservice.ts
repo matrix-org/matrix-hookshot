@@ -45,7 +45,7 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
         },
         storage: storage,
         intentOptions: {
-            encryption: !!config.encryption,
+            encryption: !!cryptoStorage,
         },
         cryptoStorage: cryptoStorage,
     });

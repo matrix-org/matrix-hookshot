@@ -5,13 +5,24 @@ import { BridgeConfig, BridgeConfigRoot } from "../../src/config/Config";
 import { start } from "../../src/App/BridgeApp";
 import { RSAKeyPairOptions, generateKeyPair } from "node:crypto";
 import path from "node:path";
+import Redis from "ioredis";
 
-const WAIT_EVENT_TIMEOUT = 10000;
+const WAIT_EVENT_TIMEOUT = 20000;
 export const E2ESetupTestTimeout = 60000;
+const REDIS_DATABASE_URI = process.env.HOOKSHOT_E2E_REDIS_DB_URI ?? "redis://localhost:6379";
 
 interface Opts {
     matrixLocalparts?: string[];
     config?: Partial<BridgeConfigRoot>,
+    enableE2EE?: boolean,
+    useRedis?: boolean,
+}
+
+interface WaitForEventResponse<T extends object = Record<string, unknown>> {
+    roomId: string,
+    data: {
+        sender: string, type: string, state_key?: string, content: T, event_id: string,
+    }
 }
 
 export class E2ETestMatrixClient extends MatrixClient {
@@ -55,13 +66,10 @@ export class E2ETestMatrixClient extends MatrixClient {
         }, `Timed out waiting for powerlevel from in ${roomId}`)
     }
 
-    public async waitForRoomEvent<T extends object = Record<string, unknown>>(
-        opts: {eventType: string, sender: string, roomId?: string, stateKey?: string, body?: string}
-    ): Promise<{roomId: string, data: {
-        sender: string, type: string, state_key?: string, content: T, event_id: string,
-    }}> {
-        const {eventType, sender, roomId, stateKey} = opts;
-        return this.waitForEvent('room.event', (eventRoomId: string, eventData: {
+    private async innerWaitForRoomEvent<T extends object = Record<string, unknown>>(
+        {eventType, sender, roomId, stateKey, eventId, body}: {eventType: string, sender: string, roomId?: string, stateKey?: string, body?: string, eventId?: string}, expectEncrypted: boolean,
+    ): Promise<WaitForEventResponse<T>> {
+        return this.waitForEvent(expectEncrypted ? 'room.decrypted_event' : 'room.event', (eventRoomId: string, eventData: {
             sender: string, type: string, state_key?: string, content: T, event_id: string,
         }) => {
             if (eventData.sender !== sender) {
@@ -73,19 +81,34 @@ export class E2ETestMatrixClient extends MatrixClient {
             if (roomId && eventRoomId !== roomId) {
                 return undefined;
             }
+            if (eventId && eventData.event_id !== eventId) {
+                return undefined;
+            }
             if (stateKey !== undefined && eventData.state_key !== stateKey) {
                 return undefined;
             }
-            const body = 'body' in eventData.content && eventData.content.body;
-            if (opts.body && body !== opts.body) {
+            const evtBody = 'body' in eventData.content && eventData.content.body;
+            if (body && body !== evtBody) {
                 return undefined;
             }
             console.info(
                 // eslint-disable-next-line max-len
-                `${eventRoomId} ${eventData.event_id} ${eventData.type} ${eventData.sender} ${eventData.state_key ?? body ?? ''}`
+                `${eventRoomId} ${eventData.event_id} ${eventData.type} ${eventData.sender} ${eventData.state_key ?? evtBody ?? ''}`
             );
             return {roomId: eventRoomId, data: eventData};
         }, `Timed out waiting for ${eventType} from ${sender} in ${roomId || "any room"}`)
+    }
+
+    public async waitForRoomEvent<T extends object = Record<string, unknown>>(
+        opts: Parameters<E2ETestMatrixClient["innerWaitForRoomEvent"]>[0]
+    ): Promise<WaitForEventResponse<T>> {
+        return this.innerWaitForRoomEvent(opts, false);
+    }
+
+    public async waitForEncryptedEvent<T extends object = Record<string, unknown>>(
+        opts: Parameters<E2ETestMatrixClient["innerWaitForRoomEvent"]>[0]
+    ): Promise<WaitForEventResponse<T>> {
+        return this.innerWaitForRoomEvent(opts, true);
     }
 
     public async waitForRoomJoin(
@@ -173,10 +196,11 @@ export class E2ETestEnv {
             if (err) { reject(err) } else { resolve(privateKey) }
         }));
 
+        const dir = await mkdtemp('hookshot-int-test');
+
         // Configure homeserver and bots
-        const [homeserver, dir, privateKey] = await Promise.all([
-            createHS([...matrixLocalparts || []], workerID),
-            mkdtemp('hookshot-int-test'),
+        const [homeserver, privateKey] = await Promise.all([
+            createHS([...matrixLocalparts || []], workerID,  opts.enableE2EE ? path.join(dir, 'client-crypto') : undefined),
             keyPromise,
         ]);
         const keyPath = path.join(dir, 'key.pem');
@@ -193,6 +217,15 @@ export class E2ETestEnv {
             providedConfig.github.auth.privateKeyFile = keyPath;
         }
 
+        opts.useRedis = opts.enableE2EE || opts.useRedis;
+
+        let cacheConfig: BridgeConfigRoot["cache"]|undefined;
+        if (opts.useRedis) {
+            cacheConfig = {
+                redisUri: `${REDIS_DATABASE_URI}/${workerID}`,
+            }
+        }
+
         const config = new BridgeConfig({
             bridge: {
                 domain: homeserver.domain,
@@ -201,7 +234,7 @@ export class E2ETestEnv {
                 bindAddress: '0.0.0.0',
             },
             logging: {
-                level: 'info',
+                level: 'debug',
             },
             // Always enable webhooks so that hookshot starts.
             generic: {
@@ -214,6 +247,12 @@ export class E2ETestEnv {
                 resources: ['webhooks'],
             }],
             passFile: keyPath,
+            ...(opts.enableE2EE ? {
+                encryption: {
+                    storagePath: path.join(dir, 'crypto-store'),
+                }
+            } : undefined),
+            cache: cacheConfig,
             ...providedConfig,
         });
         const registration: IAppserviceRegistration = {
@@ -227,7 +266,8 @@ export class E2ETestEnv {
                 }],
                 rooms: [],
                 aliases: [],
-            }
+            },
+            "de.sorunome.msc2409.push_ephemeral": true
         };
         const app = await start(config, registration);
         app.listener.finaliseListeners();
@@ -255,6 +295,12 @@ export class E2ETestEnv {
         await this.app.bridgeApp.stop();
         await this.app.listener.stop();
         await this.app.storage.disconnect?.();
+
+        // Clear the redis DB.
+        if (this.config.cache?.redisUri) {
+            await new Redis(this.config.cache.redisUri).flushdb();
+        }
+
         this.homeserver.users.forEach(u => u.client.stop());
         await destroyHS(this.homeserver.id);
         await rm(this.dir, { recursive: true });

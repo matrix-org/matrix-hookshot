@@ -42,9 +42,13 @@ describe("Config/BridgeConfig", () => {
         });
 
         it("with monolithic disabled", () => {
-            const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
-                monolithic: false
-            }});
+            const config = new BridgeConfig({
+                ...DefaultConfigRoot,
+                encryption: undefined,
+                queue: {
+                    monolithic: false
+                }
+            });
             expect(config.queue).to.deep.equal({
                 monolithic: false,
             });
@@ -54,9 +58,13 @@ describe("Config/BridgeConfig", () => {
 
     describe("will handle the queue option", () => {
         it("with redisUri", () => {
-            const config = new BridgeConfig({ ...DefaultConfigRoot, queue: {
-                redisUri: "redis://localhost:6379"
-            }, cache: undefined});
+            const config = new BridgeConfig({ ...DefaultConfigRoot,
+                encryption: undefined,
+                queue: {
+                    redisUri: "redis://localhost:6379"
+                },
+                cache: undefined
+            });
             expect(config.queue).to.deep.equal({
                 redisUri: "redis://localhost:6379"
             });
