@@ -321,11 +321,7 @@ describe("GenericHookConnection", () => {
                 return roomId;
             }
             expect(roomId).to.equal(ROOM_ID);
-<<<<<<< HEAD
-            throw new MatrixError({ errcode: "M_FORBIDDEN", error: "Test forced error"}, 401, {})
-=======
             throw new MatrixError({ errcode: "M_FORBIDDEN", error: "Test forced error"}, 401, { })
->>>>>>> origin/main
         };
 
         // This should invite the puppet user.
@@ -348,11 +344,7 @@ describe("GenericHookConnection", () => {
 
         // This should fail the first time, then pass once we've tried to invite the user
         intent.ensureJoined = () => {
-<<<<<<< HEAD
-            throw new MatrixError({ errcode: "FORCED_FAILURE", error: "Test forced error"}, 500, {})
-=======
             throw new MatrixError({ errcode: "FORCED_FAILURE", error: "Test forced error"}, 500, { })
->>>>>>> origin/main
         };
         try {
             // regression test covering https://github.com/matrix-org/matrix-hookshot/issues/625

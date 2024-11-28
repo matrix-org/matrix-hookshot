@@ -25,11 +25,7 @@ describe("IntentUtils", () => {
                     return;
                 }
                 expect(roomId).to.equal(ROOM_ID);
-<<<<<<< HEAD
                 throw new MatrixError({ errcode: "M_FORBIDDEN", error: "Test forced error"}, 401, {})
-=======
-                throw new MatrixError({ errcode: "M_FORBIDDEN", error: "Test forced error"}, 401, { })
->>>>>>> origin/main
             };
 
             // This should invite the puppet user.
