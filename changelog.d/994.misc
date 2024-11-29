@@ -1,1 +1,0 @@
-Push Docker images to ghcr.io, and and build an image on each commit.

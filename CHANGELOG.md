@@ -1,3 +1,29 @@
+# 6.0.0 (2024-11-29)
+
+### Features
+
+- Add support for setting an expiry time on a webhook. See the documentation on [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html) for more information. ([\#984](https://github.com/matrix-org/matrix-hookshot/issues/984))
+- Support for E2E Encrypted rooms is now considered stable and can be enabled in production. Please see the [documentation](https://matrix-org.github.io/matrix-hookshot/latest/advanced/encryption.html)
+  on the requirements for enabling support. ([\#989](https://github.com/matrix-org/matrix-hookshot/issues/989))
+
+### Bugfixes
+
+- Fix Challenge Hound activities being duplicated if the cache layer (e.g Redis) goes away. ([\#982](https://github.com/matrix-org/matrix-hookshot/issues/982))
+
+### Deprecations and Removals
+
+- Drop support for Node 20 and start supporting Node 22, 23. ([\#990](https://github.com/matrix-org/matrix-hookshot/issues/990))
+
+### Internal Changes
+
+- Reduce bundle size of widget. ([\#985](https://github.com/matrix-org/matrix-hookshot/issues/985))
+- Don't invoke newsfile CI check for dependabot. ([\#987](https://github.com/matrix-org/matrix-hookshot/issues/987))
+- Add devenv development files. ([\#993](https://github.com/matrix-org/matrix-hookshot/issues/993))
+- Push Docker images to ghcr.io, and and build an image on each commit. ([\#994](https://github.com/matrix-org/matrix-hookshot/issues/994))
+- Retry e2e tests in CI due to container creation flakiness. ([\#995](https://github.com/matrix-org/matrix-hookshot/issues/995))
+- Update matrix-bot-sdk to pull in new matrix-rust-sdk. ([\#996](https://github.com/matrix-org/matrix-hookshot/issues/996))
+
+
 5.4.1 (2024-06-21)
 ==================
 
