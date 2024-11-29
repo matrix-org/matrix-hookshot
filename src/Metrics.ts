@@ -27,6 +27,7 @@ export class Metrics {
     public readonly feedsCount;
     public readonly feedFetchMs;
     public readonly feedsFailing;
+    public readonly feedsFailingRecent;
 
 
     constructor(private registry: Registry = register) {
@@ -52,6 +53,7 @@ export class Metrics {
         this.feedsCount = new Gauge({ name: "hookshot_feeds_count", help: "Number of RSS feeds that hookshot is subscribed to", labelNames: [], registers: [this.registry]});
         this.feedFetchMs = new Gauge({ name: "hookshot_feeds_fetch_ms", help: "Time taken for hookshot to fetch all feeds", labelNames: [], registers: [this.registry]});
         this.feedsFailing = new Gauge({ name: "hookshot_feeds_failing", help: "Number of RSS feeds that hookshot is failing to read", labelNames: ["reason"], registers: [this.registry]});
+        this.feedsFailingRecent = new Gauge({ name: "hookshot_feeds_failing_recent", help: "Number of RSS feeds that hookshot is failing to read that have begun to fail recently", labelNames: ["reason"], registers: [this.registry]});
 
         collectDefaultMetrics({
             register: this.registry,
