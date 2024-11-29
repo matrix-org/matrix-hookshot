@@ -1,3 +1,7 @@
+# 6.0.1 (2024-11-29)
+
+This release fixes an issue where arm64 Docker images were not being built on release.
+
 # 6.0.0 (2024-11-29)
 
 ### Features
