@@ -25,7 +25,7 @@ env:
   PLATFORMS: linux/amd64
   PLATFORMS_PUSH: linux/amd64,linux/arm64
   # Only push if this is main, otherwise we just want to build
-  BUILD_FOR_ALL_PLATFORMS: ${{ github.ref == 'refs/heads/main' }}
+  BUILD_FOR_ALL_PLATFORMS: ${{ github.ref == 'refs/heads/main' || github.event_name == 'release' }}
 
 jobs:
   docker-latest:
