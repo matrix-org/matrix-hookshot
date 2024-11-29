@@ -36,6 +36,28 @@ Helper for configmap name
 {{- end }}
 
 {{/*
+Helper for secret name for registration
+*/}}
+{{- define "hookshot.registrationSecretName" -}}
+{{- if .Values.hookshot.existingSecret.registration }}
+{{- printf "%s" .Values.hookshot.existingSecret.registration -}}
+{{- else }}
+{{- printf "%s-registration-secret" (include "hookshot.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
+Helper for secret name for passkey.pem
+*/}}
+{{- define "hookshot.passkeySecretName" -}}
+{{- if .Values.hookshot.existingSecret.passkey }}
+{{- printf "%s" .Values.hookshot.existingSecret.passkey -}}
+{{- else }}
+{{- printf "%s-passkey-secret" (include "hookshot.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+{{- end }}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "hookshot.chart" -}}
