@@ -128,7 +128,6 @@ export class FeedReader {
                 this.feedQueue.push(normalisedUrl);
                 feeds.add(normalisedUrl);
                 Metrics.feedsCount.inc();
-                Metrics.feedsCountDeprecated.inc();
             }
         });
         connectionManager.on('connection-removed', removed => {
@@ -156,7 +155,6 @@ export class FeedReader {
             this.feedsFailingHttp.delete(normalisedUrl);
             this.feedsFailingParsing.delete(normalisedUrl);
             Metrics.feedsCount.dec();
-            Metrics.feedsCountDeprecated.dec();
         });
 
         log.debug('Loaded feed URLs:', [...feeds].join(', '));
@@ -187,7 +185,6 @@ export class FeedReader {
         }
         this.feedQueue.populate([...observedFeedUrls]);
         Metrics.feedsCount.set(observedFeedUrls.size);
-        Metrics.feedsCountDeprecated.set(observedFeedUrls.size);
         return observedFeedUrls;
     }
 
@@ -306,8 +303,6 @@ export class FeedReader {
         // Update on each iteration
         Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
         Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
-        Metrics.feedsFailingDeprecated.set({ reason: "http" }, this.feedsFailingHttp.size );
-        Metrics.feedsFailingDeprecated.set({ reason: "parsing" }, this.feedsFailingParsing.size);
 
         log.debug(`Checking for updates in ${this.feedQueue.length()} RSS/Atom feeds (worker: ${workerId})`);
 
@@ -322,7 +317,6 @@ export class FeedReader {
             }
             const elapsed = Date.now() - fetchingStarted;
             Metrics.feedFetchMs.set(elapsed);
-            Metrics.feedsFetchMsDeprecated.set(elapsed);
             sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
             log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
     
