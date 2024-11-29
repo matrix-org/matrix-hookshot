@@ -7,7 +7,7 @@ on:
       - "/devenv*"
   pull_request:
     branches: [ main ]
-    paths-ignore:
+    paths:
       - "/devenv*"
 
 jobs:
