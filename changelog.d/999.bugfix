@@ -1,1 +1,1 @@
-Fix bug where generic hooks doesn't work when the server name has the port in it
+Fix bug where generic hooks doesn't work when the server name includes a colon
