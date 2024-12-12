@@ -1,1 +1,1 @@
-Fix bug where generic hooks doesn't work when the server name includes a colon
+Fix bugs in handling server names that includes colons
