@@ -100,12 +100,10 @@ impl BridgePermissions {
         service: String,
         permission: String,
     ) -> napi::Result<bool> {
-        let parts: Vec<&str> = mxid.split(':').collect();
         let permission_int = permission_level_to_int(permission)?;
-        let domain = if parts.len() > 1 {
-            parts[1].to_string()
-        } else {
-            parts[0].to_string()
+        let domain: String = match mxid.split_once(':') {
+            Some((.., d)) => d.to_string(),
+            None => return Ok(false),
         };
         for actor_permission in self.config.iter() {
             // Room_id
@@ -128,12 +126,10 @@ impl BridgePermissions {
 
     #[napi]
     pub fn check_action_any(&self, mxid: String, permission: String) -> napi::Result<bool> {
-        let parts: Vec<&str> = mxid.split(':').collect();
         let permission_int = permission_level_to_int(permission)?;
-        let domain = if parts.len() > 1 {
-            parts[1].to_string()
-        } else {
-            parts[0].to_string()
+        let domain: String = match mxid.split_once(':') {
+            Some((.., d)) => d.to_string(),
+            None => return Ok(false),
         };
         for actor_permission in self.config.iter() {
             if !self.match_actor(actor_permission, &domain, &mxid) {
