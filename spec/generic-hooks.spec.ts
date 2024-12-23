@@ -118,7 +118,6 @@ describe('Inbound (Generic) Webhooks', () => {
     });
 
     it('should allow disabling hook data in matrix events.', async () => {
-        jest.useFakeTimers();
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
         const okMsg = user.waitForRoomEvent({ eventType: "m.room.message", sender: testEnv.botMxid, roomId });
