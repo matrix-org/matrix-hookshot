@@ -49,7 +49,7 @@ export class BridgeConfigGenericWebhooks {
         this.enableHttpGet = yaml.enableHttpGet || false;
         this.sendExpiryNotice = yaml.sendExpiryNotice || false;
         this.requireExpiryTime = yaml.requireExpiryTime || false;
-        this.includeHookBody = yaml.includeHookBody || false;
+        this.includeHookBody = yaml.includeHookBody || true;
         try {
             this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
             this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
