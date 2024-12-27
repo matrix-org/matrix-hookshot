@@ -191,7 +191,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             name,
             transformationFunction: transformationFunction || undefined,
             waitForComplete,
-            includeHookBody: includeHookBody ?? true,
+            includeHookBody,
             expirationDate,
         };
     }
