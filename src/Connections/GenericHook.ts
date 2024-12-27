@@ -585,7 +585,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
     
             // Matrix cannot handle float data, so make sure we parse out any floats.
-            const safeData = (this.config.includeHookBody && this.state.includeHookBody) ? GenericHookConnection.sanitiseObjectForMatrixJSON(data) : undefined;
+            const safeData = (this.state.includeHookBody ?? this.config.includeHookBody) ? GenericHookConnection.sanitiseObjectForMatrixJSON(data) : undefined;
     
             await this.messageClient.sendMatrixMessage(this.roomId, {
                 msgtype: content.msgtype || "m.notice",
