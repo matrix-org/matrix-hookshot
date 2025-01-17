@@ -63,8 +63,12 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+            suffix=-${{ matrix.arch }},onlatest=true
           images: |
-            ghcr.io/matrix-org/matrix-hookshot:${{ matrix.arch }}
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
+            ghcr.io/matrix-org/matrix-hookshot
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v6
@@ -84,9 +88,23 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+          images: |
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
+            ghcr.io/matrix-org/matrix-hookshot
       - name: Create and push manifest
         run: |
-            docker manifest create ghcr.io/matrix-org/matrix-hookshot ghcr.io/matrix-org/matrix-hookshot:amd64 ghcr.io/matrix-org/matrix-hookshot:arm64
-            docker manifest push ghcr.io/matrix-org/matrix-hookshot
-            docker manifest create ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot ghcr.io/matrix-org/matrix-hookshot:amd64 ghcr.io/matrix-org/matrix-hookshot:arm64
-            docker manifest push ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
+          for tag in ${{ steps.meta.outputs.tags }}; do
+            docker manifest create $tag $tag-amd64 $tag-arm64
+            docker manifest push $tag
+          done
