@@ -27,7 +27,7 @@ jobs:
   docker-clean-metadata:
     runs-on: ubuntu-latest
     outputs:
-      tags: ${{ steps.meta.outputs.tags }}
+      json: ${{ steps.meta.outputs.json }}
     steps:
       - name: Extract metadata (tags, labels) for Docker
         id: meta
@@ -97,7 +97,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-
   docker-manifest:
     needs: 
       - docker-build
@@ -106,7 +105,7 @@ jobs:
 
     strategy:
       matrix:
-        image: ${{ needs.docker-clean-metadata.outputs.tags }}
+        image: ${{ fromJson(needs.docker-clean-metadata.outputs.json).tags }}
 
     steps:
       - name: Log in to Docker Hub
