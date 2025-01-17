@@ -1,0 +1,1 @@
+Switch to using GitHub Actions native arm runners for Docker builds, which will reduce build times.
