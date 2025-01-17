@@ -24,6 +24,26 @@ env:
   DOCKER_NAMESPACE: halfshot
 
 jobs:
+  docker-clean-metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+          images: |
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
+            ghcr.io/matrix-org/matrix-hookshot
+
   docker-build:
     permissions:
       contents: read
@@ -79,37 +99,30 @@ jobs:
 
 
   docker-manifest:
-    needs: docker-build
+    needs: 
+      - docker-build
+      - docker-clean-metadata
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image: ${{ needs.docker-clean-metadata.outputs.tags }}
+
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
       - name: Log in to the GitHub Container registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          tags: |
-            type=semver,pattern={{version}}
-            type=ref,event=branch
-            type=ref,event=pr
-            type=raw,value=latest,enable={{is_default_branch}}
-          flavor: |
-            latest=auto
-          images: |
-            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
-            ghcr.io/matrix-org/matrix-hookshot
+
       - name: Create and push manifest
         run: |
-          for tag in ${{ steps.meta.outputs.tags }}; do
-            docker manifest create $tag $tag-amd64 $tag-arm64
-            docker manifest push $tag
-          done
+          docker manifest create ${{ matrix.image }} ${{ matrix.image }}-amd64 ${{ matrix.image }}-arm64
+          docker manifest push ${{ matrix.image }}
