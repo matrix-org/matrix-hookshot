@@ -334,7 +334,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         if (!this.config.userIdPrefix) {
             return this.intent.userId;
         }
-        const [, domain] = this.intent.userId.split(':');
+        const domain = this.intent.userId.substring(this.intent.userId.indexOf(':')+1);
         const name = this.state.name &&
              this.state.name.replace(/[A-Z]/g, (s) => s.toLowerCase()).replace(/([^a-z0-9\-.=_]+)/g, '');
         return `@${this.config.userIdPrefix}${name || 'bot'}:${domain}`;
