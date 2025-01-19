@@ -72,7 +72,7 @@ Copy `registration.sample.yml` into `registration.yml` and fill in:
 At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
-on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
+on how to add appservices. [Synapse documents the process here](https://element-hq.github.io/synapse/latest/application_services.html).
 
 ### Homeserver Configuration
 
@@ -235,7 +235,7 @@ This will pass all requests at `/widgetapi` to Hookshot.
 In terms of API endpoints:
 
 - The `webhooks` resource handles resources under `/`, so it should be on its own listener.
-  Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work, administators are advised to use `/webhook`. 
+  Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work, administators are advised to use `/webhook`.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
