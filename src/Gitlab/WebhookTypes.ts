@@ -24,7 +24,14 @@ export interface IGitlabProject {
 
 export interface IGitlabIssue {
     iid: number;
+    title: string;
     description: string;
+    url: string;
+    state: 'opened'|'closed';
+}
+
+export interface IGitLabIssueObjectAttributes extends IGitlabIssue {
+    action: 'open'|'close'|'reopen'|'update';
 }
 
 export interface IGitlabMergeRequest {
@@ -177,7 +184,7 @@ export interface IGitLabWebhookReleaseEvent {
 export interface IGitLabNote {
     id: number;
     note: string;
-    noteable_type: 'MergeRequest';
+    noteable_type: 'MergeRequest'|'Issue';
     author_id: number;
     noteable_id: number;
     description: string;
@@ -194,19 +201,26 @@ export interface IGitLabWebhookNoteEvent {
     merge_request?: IGitlabMergeRequest;
 }
 export interface IGitLabWebhookIssueStateEvent {
+    object_kind: "issue";
     user: IGitlabUser;
     event_type: string;
     project: IGitlabProject;
-    repository: {
-        name: string;
-        url: string;
-        description: string;
-        homepage: string;
-    };
-    object_attributes: {
-        id: number;
-        iid: number;
-        action: string;
-        description: string;
+    repository: IGitlabRepository;
+    object_attributes: IGitLabIssueObjectAttributes;
+    labels: IGitLabLabel[];
+    assignees?: IGitlabUser[];
+    changes: {
+        title?: {
+            previous: string;
+            current: string;
+        };
+        description?: {
+            previous: string;
+            current: string;
+        };
+        labels?: {
+            previous: IGitLabLabel[];
+            current: IGitLabLabel[];
+        };
     }
 }
