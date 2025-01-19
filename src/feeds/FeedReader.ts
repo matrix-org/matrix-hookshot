@@ -17,6 +17,12 @@ const BACKOFF_TIME_MAX_MS = 24 * 60 * 60 * 1000;
 const BACKOFF_POW = 1.05;
 const BACKOFF_TIME_MS = 5 * 1000;
 
+/**
+ * If a feed fails this many times or more, we consider it effectively dead
+ * and  while we might retry it, it won't be counted on the metrics.
+ */
+const FEEDS_FAILING_METRIC_MAX_DORMANT = 25;
+
 export class FeedError extends Error {
     constructor(
         public url: string,
@@ -88,9 +94,9 @@ export class FeedReader {
     // A set of last modified times for each url.
     private cacheTimes: Map<string, { etag?: string, lastModified?: string}> = new Map();
 
-    // Reason failures to url map.
-    private feedsFailingHttp = new Set();
-    private feedsFailingParsing = new Set();
+    // Reason failures to url map. // url -> fail count.
+    private feedsFailingHttp = new Map<string, number>();
+    private feedsFailingParsing = new Map<string, number>();
 
     static readonly seenEntriesEventType = "uk.half-shot.matrix-hookshot.feed.reader.seenEntries";
 
@@ -128,7 +134,6 @@ export class FeedReader {
                 this.feedQueue.push(normalisedUrl);
                 feeds.add(normalisedUrl);
                 Metrics.feedsCount.inc();
-                Metrics.feedsCountDeprecated.inc();
             }
         });
         connectionManager.on('connection-removed', removed => {
@@ -156,7 +161,6 @@ export class FeedReader {
             this.feedsFailingHttp.delete(normalisedUrl);
             this.feedsFailingParsing.delete(normalisedUrl);
             Metrics.feedsCount.dec();
-            Metrics.feedsCountDeprecated.dec();
         });
 
         log.debug('Loaded feed URLs:', [...feeds].join(', '));
@@ -187,7 +191,6 @@ export class FeedReader {
         }
         this.feedQueue.populate([...observedFeedUrls]);
         Metrics.feedsCount.set(observedFeedUrls.size);
-        Metrics.feedsCountDeprecated.set(observedFeedUrls.size);
         return observedFeedUrls;
     }
 
@@ -285,9 +288,9 @@ export class FeedReader {
         } catch (err: unknown) {
             // TODO: Proper Rust Type error.
             if ((err as Error).message.includes('Failed to fetch feed due to HTTP')) {
-                this.feedsFailingHttp.add(url);
+                this.feedsFailingHttp.set(url, (this.feedsFailingHttp.get(url) ?? 0) + 1);
             } else {
-                this.feedsFailingParsing.add(url);
+                this.feedsFailingParsing.set(url, (this.feedsFailingParsing.get(url) ?? 0) + 1);
             }
             const backoffDuration = this.feedQueue.backoff(url);
             const error = err instanceof Error ? err : new Error(`Unknown error ${err}`);
@@ -304,10 +307,10 @@ export class FeedReader {
     public async pollFeeds(workerId: number): Promise<void> {
 
         // Update on each iteration
-        Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size );
+        Metrics.feedsFailing.set({ reason: "http" }, this.feedsFailingHttp.size);
         Metrics.feedsFailing.set({ reason: "parsing" }, this.feedsFailingParsing.size);
-        Metrics.feedsFailingDeprecated.set({ reason: "http" }, this.feedsFailingHttp.size );
-        Metrics.feedsFailingDeprecated.set({ reason: "parsing" }, this.feedsFailingParsing.size);
+        Metrics.feedsFailingRecent.set({ reason: "http" }, [...this.feedsFailingHttp.values()].filter(v => v < FEEDS_FAILING_METRIC_MAX_DORMANT).length);
+        Metrics.feedsFailingRecent.set({ reason: "parsing" }, [...this.feedsFailingParsing.values()].filter(v => v < FEEDS_FAILING_METRIC_MAX_DORMANT).length);
 
         log.debug(`Checking for updates in ${this.feedQueue.length()} RSS/Atom feeds (worker: ${workerId})`);
 
@@ -322,7 +325,6 @@ export class FeedReader {
             }
             const elapsed = Date.now() - fetchingStarted;
             Metrics.feedFetchMs.set(elapsed);
-            Metrics.feedsFetchMsDeprecated.set(elapsed);
             sleepFor = Math.max(this.sleepingInterval - elapsed, 0);
             log.debug(`Feed fetching took ${elapsed / 1000}s, sleeping for ${sleepFor / 1000}s`);
     
