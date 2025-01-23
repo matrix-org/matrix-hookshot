@@ -38,6 +38,7 @@ export interface IGitlabMergeRequest {
 
 export interface IGitLabMergeRequestObjectAttributes extends IGitlabMergeRequest {
     action: "open"|"close"|"reopen"|"approved"|"unapproved"|"merge";
+    draft: boolean;
 }
 
 export interface IGitLabLabel {
