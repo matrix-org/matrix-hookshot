@@ -150,7 +150,15 @@ export class GithubInstance {
         do {
             const installations = await this.internalOctokit.apps.listInstallations({ per_page: 100, page: page++ });
             for (const install of installations.data) {
-                await this.addInstallation(install);
+                if (install.suspended_at) {
+                    log.warn(`GitHub app install ${install.id} was suspended. GitHub connections using this install may not work correctly`);
+                    continue;
+                }
+                try {
+                    await this.addInstallation(install);
+                } catch (ex) {
+                    log.info(`Failed to handle GitHub installation ${install.id}`, ex);
+                }
             }
             installPageSize = installations.data.length;
         } while(installPageSize === 100)
