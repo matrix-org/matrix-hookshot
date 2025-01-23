@@ -6,6 +6,10 @@
 
 - Switch to using GitHub Actions native arm runners for Docker builds, which will reduce build times. ([\#1008](https://github.com/matrix-org/matrix-hookshot/issues/1008))
 
+### Security
+
+Fixes for [CVE-2025-23197](https://www.cve.org/CVERecord?id=CVE-2025-23197) / [GHSA-cr4q-jf47-3645](https://github.com/matrix-org/matrix-hookshot/security/advisories/GHSA-cr4q-jf47-3645).
+
 
 # 6.0.1 (2024-11-29)
 
