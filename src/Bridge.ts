@@ -415,6 +415,30 @@ export class Bridge {
             (c, data) => c.onWikiPageEvent(data),
         );
 
+        this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabRepoConnection>(
+            "gitlab.issue.open",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onIssueOpened(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabRepoConnection>(
+            "gitlab.issue.reopen",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onIssueReopened(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabRepoConnection>(
+            "gitlab.issue.close",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onIssueClosed(data),
+        );
+
+        this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabRepoConnection>(
+            "gitlab.issue.update",
+            (data) => connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
+            (c, data) => c.onIssueUpdated(data),
+        );
+
         this.queue.on<UserNotificationsEvent>("notifications.user.events", async (msg) => {
             const adminRoom = this.adminRooms.get(msg.data.roomId);
             if (!adminRoom) {

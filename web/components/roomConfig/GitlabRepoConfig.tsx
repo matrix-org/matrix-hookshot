@@ -104,6 +104,14 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.review.individual" onChange={toggleEnabledHook}>Single review</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.ready_for_review" onChange={toggleEnabledHook}>Ready for review</EventHookCheckbox>
                 </ul>
+                <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="issue" onChange={toggleEnabledHook}>Issues</EventHookCheckbox>
+                <ul>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.open" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.reopen" onChange={toggleEnabledHook}>Reopened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.update" onChange={toggleEnabledHook}>Updated</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="issue" hookEventName="issue.comments" onChange={toggleEnabledHook}>Comments</EventHookCheckbox>
+                </ul>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="push" onChange={toggleEnabledHook}>Pushes</EventHookCheckbox>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="tag_push" onChange={toggleEnabledHook}>Tag pushes</EventHookCheckbox>
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="wiki" onChange={toggleEnabledHook}>Wiki page updates</EventHookCheckbox>
