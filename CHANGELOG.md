@@ -1,3 +1,12 @@
+# 6.0.2 (2025-01-23)
+
+**Security release**: It is strongly recommended that you upgrade to this release, as it contains security fixes.
+
+### Internal Changes
+
+- Switch to using GitHub Actions native arm runners for Docker builds, which will reduce build times. ([\#1008](https://github.com/matrix-org/matrix-hookshot/issues/1008))
+
+
 # 6.0.1 (2024-11-29)
 
 This release fixes an issue where arm64 Docker images were not being built on release.

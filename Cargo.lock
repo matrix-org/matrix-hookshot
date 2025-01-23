@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-hookshot"
-version = "6.0.1"
+version = "6.0.2"
 dependencies = [
  "atom_syndication",
  "base64ct",
