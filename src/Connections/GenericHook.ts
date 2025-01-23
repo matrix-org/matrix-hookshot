@@ -36,6 +36,8 @@ export interface GenericHookConnectionState extends IConnectionState {
      * (in UTC) time.
      */
     expirationDate?: string;
+
+    includeHookBody?: boolean;
 }
 
 export interface GenericHookSecrets {
@@ -152,7 +154,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     }
 
     static validateState(state: Partial<Record<keyof GenericHookConnectionState, unknown>>): GenericHookConnectionState {
-        const {name, transformationFunction, waitForComplete, expirationDate: expirationDateStr} = state;
+        const {name, transformationFunction, waitForComplete, expirationDate: expirationDateStr, includeHookBody} = state;
         if (!name) {
             throw new ApiError('Missing name', ErrCode.BadValue);
         }
@@ -161,6 +163,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         if (waitForComplete !== undefined && typeof waitForComplete !== "boolean") {
             throw new ApiError("'waitForComplete' must be a boolean", ErrCode.BadValue);
+        }
+        if (includeHookBody !== undefined && typeof includeHookBody !== "boolean") {
+            throw new ApiError("'includeHookBody' must be a boolean", ErrCode.BadValue);
         }
         // Use !=, not !==, to check for both undefined and null
         if (transformationFunction != undefined) {
@@ -186,6 +191,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             name,
             transformationFunction: transformationFunction || undefined,
             waitForComplete,
+            includeHookBody,
             expirationDate,
         };
     }
@@ -248,7 +254,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         } else if (config.generic.requireExpiryTime) {
             throw new ApiError('Expiration date must be set', ErrCode.BadValue);
         }
-
 
         await GenericHookConnection.ensureRoomAccountData(roomId, intent, hookId, validState.name);
         await intent.underlyingClient.sendStateEvent(roomId, this.CanonicalEventType, validState.name, validState);
@@ -580,7 +585,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             await ensureUserIsInRoom(senderIntent, this.intent.underlyingClient, this.roomId);
     
             // Matrix cannot handle float data, so make sure we parse out any floats.
-            const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
+            const safeData = (this.state.includeHookBody ?? this.config.includeHookBody) ? GenericHookConnection.sanitiseObjectForMatrixJSON(data) : undefined;
     
             await this.messageClient.sendMatrixMessage(this.roomId, {
                 msgtype: content.msgtype || "m.notice",
@@ -617,6 +622,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 waitForComplete: this.waitForComplete,
                 name: this.state.name,
                 expirationDate: this.state.expirationDate,
+                includeHookBody: this.config.includeHookBody && this.state.includeHookBody,
             },
             ...(showSecrets ? { secrets: {
                 url: new URL(this.hookId, this.config.parsedUrlPrefix),

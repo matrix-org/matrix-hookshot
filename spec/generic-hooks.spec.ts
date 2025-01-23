@@ -116,4 +116,31 @@ describe('Inbound (Generic) Webhooks', () => {
             error: "This hook has expired",
         });
     });
+
+    it('should allow disabling hook data in matrix events.', async () => {
+        const user = testEnv.getUser('user');
+        const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
+        const okMsg = user.waitForRoomEvent({ eventType: "m.room.message", sender: testEnv.botMxid, roomId });
+        const url = await createInboundConnection(user, testEnv.botMxid, roomId, '2h');
+        expect((await okMsg).data.content.body).toEqual('Room configured to bridge webhooks. See admin room for secret url.');
+        const stateEvent = (await user.getRoomState(roomId)).find(v => v.type === GenericHookConnection.CanonicalEventType)
+        await user.sendStateEvent(roomId, stateEvent.type, stateEvent.state_key, {
+            ...stateEvent.content,
+            includeHookBody: false,
+        });
+
+        const expectedMsg = user.waitForRoomEvent({ eventType: "m.room.message", sender: testEnv.botMxid, roomId });
+        const req = await fetch(url, {
+            method: "PUT",
+            body: "Hello world"
+        });
+        expect(req.status).toEqual(200);
+        expect(await req.json()).toEqual({ ok: true });
+        expect((await expectedMsg).data.content).toEqual({
+            msgtype: 'm.notice',
+            body: 'Received webhook data: Hello world',
+            formatted_body: '<p>Received webhook data: Hello world</p>',
+            format: 'org.matrix.custom.html',
+        });
+    });
 });
