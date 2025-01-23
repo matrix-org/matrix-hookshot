@@ -1,3 +1,7 @@
+# 5.4.2 (2025-01-23)
+
+**Security release**: It is strongly recommended that you upgrade to this release, as it contains security fixes.
+
 5.4.1 (2024-06-21)
 ==================
 
