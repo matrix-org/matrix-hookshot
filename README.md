@@ -1,4 +1,4 @@
-Matrix Hookshot
+![logo](logo.png) Matrix Hookshot
 ===============
 
 [![#hookshot:half-shot.uk](https://img.shields.io/matrix/hookshot:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
