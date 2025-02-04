@@ -16,7 +16,7 @@ import { JiraOnPremClient } from "../jira/client/OnPremClient";
 import { JiraCloudClient } from "../jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "../errors";
 import { TypedEmitter } from "tiny-typed-emitter";
-import { hashId, TokenEncryption, stringToAlgo } from "../libRs"; 
+import { hashId, TokenEncryption, stringToAlgo, Algo } from "../libRs"; 
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -60,20 +60,27 @@ interface Emitter {
 }
 export class UserTokenStore extends TypedEmitter<Emitter> {
 
-    public static async fromKeyPath(keyPath: string, intent: Intent, config: BridgeConfig) {
-        log.info(`Loading token key file ${keyPath}`);
-        const key = await fs.readFile(keyPath);
-        return new UserTokenStore(key, intent, config);
+    public static async fromKeyPath(intent: Intent, config: BridgeConfig) {
+        log.info(`Loading token key file ${config.passFile}`);
+        const key = await fs.readFile(config.passFile);
+        let oldKey;
+        if (config.legacyPassFile) {
+            log.info(`Loading LEGACY (read-only) token key file ${config.legacyPassFile}`);
+            oldKey = await fs.readFile(config.legacyPassFile);
+        }
+        return new UserTokenStore(key, intent, config, oldKey);
     }
     
     private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
     public readonly jiraOAuth?: JiraOAuth;
-    private tokenEncryption: TokenEncryption;
+    private readonly tokenEncryption: TokenEncryption;
+    private readonly legacyTokenEncryption?: TokenEncryption;
     private readonly keyId: string;
-    constructor(key: Buffer, private readonly intent: Intent, private readonly config: BridgeConfig) {
+    constructor(key: Buffer, private readonly intent: Intent, private readonly config: BridgeConfig, legacyKey?: Buffer) {
         super();
         this.tokenEncryption = new TokenEncryption(key);
+        this.legacyTokenEncryption = legacyKey && new TokenEncryption(legacyKey);
         this.userTokens = new Map();
         this.keyId = hashId(key.toString('utf-8'));
         if (config.jira?.oauth) {
@@ -130,6 +137,17 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         return this.storeUserToken("jira", userId, JSON.stringify(token));
     }
 
+    private tryDecryptKey(encryptedParts: string[], algorithm: Algo) {
+        try {
+            return this.tokenEncryption.decrypt(encryptedParts, algorithm);
+        } catch (ex) {
+            if (this.legacyTokenEncryption) {
+                return this.legacyTokenEncryption.decrypt(encryptedParts, algorithm);
+            }
+            throw ex;
+        }
+    }
+
     public async getUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<string|null> {
         if (!AllowedTokenTypes.includes(type)) {
             throw Error('Unknown token type');
@@ -156,7 +174,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
             }
 
             const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
-            const token = this.tokenEncryption.decrypt(encryptedParts, algorithm);
+            const token = this.tryDecryptKey(encryptedParts, algorithm);
             this.userTokens.set(key, token);
             return token;
         } catch (ex) {
@@ -192,7 +210,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         }
 
         const encryptedParts = typeof obj.encrypted === "string" ? [obj.encrypted] : obj.encrypted;
-        const token = this.tokenEncryption.decrypt(encryptedParts, algorithm);
+        const token = this.tryDecryptKey(encryptedParts, algorithm);
         return token;
     }
 
