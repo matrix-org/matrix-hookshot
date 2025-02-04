@@ -413,7 +413,7 @@ export interface BridgeConfigRoot {
     logging: BridgeConfigLogging;
     metrics?: BridgeConfigMetrics;
     passFile: string;
-    legacyPassFile: string;
+    legacyPassFile?: string;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
     queue?: BridgeConfigQueue;
@@ -444,7 +444,7 @@ export class BridgeConfig {
  Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate`)
     public readonly passFile: string;
     @configKey(`A passkey that can be used to decrypt old values, and will not be used to encrypt new values.`, true)
-    public readonly legacyPassFile: string;
+    public readonly legacyPassFile?: string;
     @configKey("Configure this to enable GitHub support", true)
     public readonly github?: BridgeConfigGitHub;
     @configKey("Configure this to enable GitLab support", true)
