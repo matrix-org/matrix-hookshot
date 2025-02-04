@@ -1,7 +1,5 @@
 import { ConfigError } from "../../errors";
 import { configKey } from "../Decorators";
-import { BridgeConfigCache } from "./cache";
-import { BridgeConfigQueue } from "./queue";
 
 interface BridgeConfigEncryptionYAML {
     storagePath: string;
