@@ -17,6 +17,7 @@ apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: {{ $fullName }}-appservice
+  namespace: {{ template "hookshot.namespace" . }}
   labels:
     {{- include "hookshot.labels" . | nindent 4 }}
   {{- with .Values.ingress.appservice.annotations }}
