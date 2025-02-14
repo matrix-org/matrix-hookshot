@@ -36,6 +36,7 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | hookshot_feeds_count | Number of RSS feeds that hookshot is subscribed to |  |
 | hookshot_feeds_fetch_ms | Time taken for hookshot to fetch all feeds |  |
 | hookshot_feeds_failing | Number of RSS feeds that hookshot is failing to read | reason |
+| hookshot_feeds_failing_recent | Number of RSS feeds that hookshot is failing to read that have begun to fail recently | reason |
 ## matrix
 | Metric | Help | Labels |
 |--------|------|--------|
@@ -43,12 +44,6 @@ Below is the generated list of Prometheus metrics for Hookshot.
 | matrix_api_calls_failed | Number of Matrix client API calls which failed | method |
 | matrix_appservice_events | Number of events sent over the AS API |  |
 | matrix_appservice_decryption_failed | Number of events sent over the AS API that failed to decrypt |  |
-## feed
-| Metric | Help | Labels |
-|--------|------|--------|
-| feed_count | (Deprecated) Number of RSS feeds that hookshot is subscribed to |  |
-| feed_fetch_ms | (Deprecated) Time taken for hookshot to fetch all feeds |  |
-| feed_failing | (Deprecated) Number of RSS feeds that hookshot is failing to read | reason |
 ## process
 | Metric | Help | Labels |
 |--------|------|--------|
