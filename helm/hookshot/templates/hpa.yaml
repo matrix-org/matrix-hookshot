@@ -4,6 +4,7 @@ apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
   name: {{ include "hookshot.fullname" . }}
+  namespace: {{ template "hookshot.namespace" . }}
   labels:
     {{- include "hookshot.labels" . | nindent 4 }}
 spec:
