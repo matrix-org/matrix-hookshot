@@ -33,7 +33,7 @@ export interface IGitlabMergeRequest {
     iid: number;
     author_id: number;
     state: 'opened'|'closed'|'merged';
-
+    labels: IGitLabLabel[];
 }
 
 export interface IGitLabMergeRequestObjectAttributes extends IGitlabMergeRequest {

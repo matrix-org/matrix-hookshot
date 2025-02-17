@@ -897,15 +897,15 @@ ${data.description}`;
         );
     }
 
-    public async onCommentCreated(event: IGitLabWebhookNoteEvent) {
-        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review')) {
-            return;
-        }
-        log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
+    public async onMergeRequestCommentCreated(event: IGitLabWebhookNoteEvent) {
         if (!event.merge_request || event.object_attributes.noteable_type !== "MergeRequest") {
             // Not a MR comment
             return;
         }
+        if (this.hookFilter.shouldSkip('merge_request', 'merge_request.review') || !this.matchesLabelFilter(event.merge_request)) {
+            return;
+        }
+        log.info(`onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`);
 
         this.debounceMergeRequestReview(event.user, event.merge_request, event.project, {
             commentCount: 1,

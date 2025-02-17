@@ -463,7 +463,7 @@ export class Bridge {
                     ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []),
                     ...connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
                 ]},
-            (c, data) => c.onCommentCreated(data),
+            (c, data) => c.onMergeRequestCommentCreated(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabIssueConnection>(
