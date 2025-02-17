@@ -2,6 +2,16 @@ apiVersion: v1
 entries:
   hookshot:
   - apiVersion: v2
+    appVersion: 6.0.2
+    created: "2025-02-17T08:42:52.685677614Z"
+    description: Deploy a Matrix Hookshot instance to Kubernetes
+    digest: 03970bb605e8c23b67ff215b19403e21b8ad1f61e0144301d2873a83a4a91987
+    name: hookshot
+    type: application
+    urls:
+    - https://github.com/matrix-org/matrix-hookshot/releases/download/helm-hookshot-0.1.16/hookshot-0.1.16.tgz
+    version: 0.1.16
+  - apiVersion: v2
     appVersion: 4.5.1
     created: "2023-10-11T13:38:15.175521893Z"
     description: Deploy a Matrix Hookshot instance to Kubernetes
@@ -31,4 +41,4 @@ entries:
     urls:
     - https://github.com/matrix-org/matrix-hookshot/releases/download/helm-hookshot-0.1.13/hookshot-0.1.13.tgz
     version: 0.1.13
-generated: "2023-10-11T13:38:15.175533993Z"
+generated: "2025-02-17T08:42:52.685697682Z"
