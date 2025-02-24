@@ -360,8 +360,10 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             this.cachedDisplayname = undefined;
         }
         if (this.cachedDisplayname !== expectedDisplayname) {
-            await intent.underlyingClient.setDisplayName(`${this.state.name} (Webhook)`);
-            this.cachedDisplayname = expectedDisplayname;
+            if ((await intent.underlyingClient.getCapabilities())["m.set_displayname"]?.enabled !== false) {
+                await intent.underlyingClient.setDisplayName(`${this.state.name} (Webhook)`);
+                this.cachedDisplayname = expectedDisplayname;
+            }
         }
     }
 

@@ -112,11 +112,15 @@ export default class BotUsersManager {
 
         // Update display name if necessary
         if (botUser.displayname && profile.displayname !== botUser.displayname) {
-            try {
-                await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
-                log.info(`Updated displayname for "${botUser.userId}" to ${botUser.displayname}`);
-            } catch (e) {
-                log.error(`Failed to set displayname for ${botUser.userId}:`, e);
+            if ((await botUser.intent.underlyingClient.getCapabilities())["m.set_displayname"]?.enabled !== false) {
+                try {
+                    await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
+                    log.info(`Updated displayname for "${botUser.userId}" to ${botUser.displayname}`);
+                } catch (e) {
+                    log.error(`Failed to set displayname for ${botUser.userId}:`, e);
+                }
+            } else {
+                log.debug(`NOT setting new displayname for ${botUser.userId}, blocked by homeserver capabilities.`);
             }
         }
 

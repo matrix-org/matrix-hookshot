@@ -50,8 +50,11 @@ export async function getIntentForUser(user: {avatarUrl?: string, login: string}
 
     if (profile.displayname !== displayName) {
         log.debug(`Updating ${intent.userId}'s displayname`);
-        log.info(`${intent.userId}'s profile is out of date`);
-        await intent.underlyingClient.setDisplayName(displayName);
+        if ((await intent.underlyingClient.getCapabilities())["m.set_displayname"]?.enabled !== false) {
+            await intent.underlyingClient.setDisplayName(displayName);
+        } else {
+            log.debug(`NOT setting new displayname for ${intent.userId}, blocked by homeserver capabilities.`);
+        }
     }
 
     if (!profile.avatar_url && user.avatarUrl) {
