@@ -70,7 +70,7 @@ const GITLAB_MR_COMMENT: IGitLabWebhookNoteEvent = {
 
 const COMMENT_DEBOUNCE_MS = 25;
 
-function createConnection(state: Record<string, unknown> = {}, isExistingState=false): { connection: GitLabRepoConnection, intent: IntentMock } {
+function createConnection(state: Partial<GitLabRepoConnectionState> = {}, isExistingState=false): { connection: GitLabRepoConnection, intent: IntentMock } {
 	const mq = createMessageQueue();
 	mq.subscribe('*');
 	const as = AppserviceMock.create();
@@ -190,7 +190,7 @@ describe("GitLabRepoConnection", () => {
 			);
 		});
 
-		it.only("will filter out issues not matching includingLabels.", async () => {
+		it("will filter out issues not matching includingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				includingLabels: ["include-me"]
 			});
@@ -200,16 +200,22 @@ describe("GitLabRepoConnection", () => {
 			intent.expectNoEvent();
 		});
 
-		it("will filter out issues matching excludingLabels.", async () => {
+		it.only("will filter out issues matching excludingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
 			});
-			await connection.onMergeRequestOpened({
-				...GITLAB_ISSUE_CREATED_PAYLOAD,
-				labels: [{
-					title: "exclude-me",
-				}],
-			} as never);
+			// ..or issues with no labels
+			await connection.onMergeRequestCommentCreated({
+				...GITLAB_MR_COMMENT,
+				merge_request: {
+					...GITLAB_MR,
+					labels: [{
+						id: 0,
+						title: 'exclude-me'
+					} as any]
+				}
+			});
+			await waitForDebouncing();
 			intent.expectNoEvent();
 		});
 
@@ -340,7 +346,7 @@ describe("GitLabRepoConnection", () => {
 
 		it("will include issues matching includingLabels.", async () => {
 			const { connection, intent } = createConnection({
-				includingIssues: ["include-me"]
+				includingLabels: ["include-me"]
 			});
 			await connection.onMergeRequestOpened({
 				...GITLAB_ISSUE_CREATED_PAYLOAD,
