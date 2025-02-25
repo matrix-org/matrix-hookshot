@@ -1,7 +1,7 @@
 import { GenericHookServiceConfig } from "../../Connections";
 import { ConfigError } from "../../errors";
 import { hideKey } from "../Decorators";
-import parseDuration from "parse-duration";
+const parseDurationImport = import("parse-duration");
 
 function makePrefixedUrl(urlString: string): URL {
     return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
@@ -35,7 +35,7 @@ export class BridgeConfigGenericWebhooks {
     public readonly enableHttpGet: boolean;
 
     @hideKey()
-    public readonly maxExpiryTimeMs?: number;
+    public readonly maxExpiryTimeMs?: Promise<number|undefined>;
     public readonly sendExpiryNotice: boolean;
     public readonly requireExpiryTime: boolean;
     // Public facing value for config generator
@@ -56,19 +56,19 @@ export class BridgeConfigGenericWebhooks {
         this.userIdPrefix = yaml.userIdPrefix;
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
-        this.maxExpiryTimeMs = yaml.maxExpiryTime ? parseDuration(yaml.maxExpiryTime) : undefined;
         this.maxExpiryTime = yaml.maxExpiryTime;
+        this.maxExpiryTimeMs = yaml.maxExpiryTime ? parseDurationImport.then(v => v.default(yaml.maxExpiryTime!) ?? undefined) : undefined;
     }
 
     @hideKey()
-    public get publicConfig(): GenericHookServiceConfig {
-        return {
+    public get publicConfig(): Promise<GenericHookServiceConfig> {
+        return (async () => ({
             userIdPrefix: this.userIdPrefix,
             allowJsTransformationFunctions: this.allowJsTransformationFunctions,
             waitForComplete: this.waitForComplete,
-            maxExpiryTime: this.maxExpiryTimeMs,
+            maxExpiryTime: await this.maxExpiryTimeMs,
             requireExpiryTime: this.requireExpiryTime,
-        }
+        }))();
     }
 
 }

@@ -686,14 +686,14 @@ export class BridgeConfig {
         return services;
     }
 
-    public getPublicConfigForService(serviceName: string): Record<string, unknown>|GenericHookServiceConfig {
+    public async getPublicConfigForService(serviceName: string): Promise<Record<string, unknown>|GenericHookServiceConfig> {
         let config: undefined|Record<string, unknown>|GenericHookServiceConfig;
         switch (serviceName) {
             case "feeds":
                 config = this.feeds?.publicConfig;
                 break;
             case "generic":
-                config = this.generic?.publicConfig;
+                config = await this.generic?.publicConfig;
                 break;
             case "github":
                 config = this.github?.publicConfig();

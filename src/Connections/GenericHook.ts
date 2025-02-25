@@ -228,10 +228,11 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         const hookId = randomUUID();
         const validState = GenericHookConnection.validateState(data);
+        const expiryTime = await config.generic.maxExpiryTimeMs;
         if (validState.expirationDate) {
             const durationRemaining = new Date(validState.expirationDate).getTime() - Date.now();
-            if (config.generic.maxExpiryTimeMs) {
-                if (durationRemaining > config.generic.maxExpiryTimeMs) {
+            if (expiryTime) {
+                if (durationRemaining > expiryTime) {
                     throw new ApiError('Expiration date cannot exceed the configured max expiry time', ErrCode.BadValue);
                 }
             }

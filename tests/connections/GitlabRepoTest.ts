@@ -200,7 +200,7 @@ describe("GitLabRepoConnection", () => {
 			intent.expectNoEvent();
 		});
 
-		it.only("will filter out issues matching excludingLabels.", async () => {
+		it("will filter out issues matching excludingLabels.", async () => {
 			const { connection, intent } = createConnection({
 				excludingLabels: ["exclude-me"]
 			});

@@ -14,10 +14,10 @@ import { IConnection, IConnectionState, ProvisionConnectionOpts } from "./IConne
 import { ApiError, Logger } from "matrix-appservice-bridge";
 import { Intent } from "matrix-bot-sdk";
 import YAML from 'yaml';
-import parseDuration from 'parse-duration';
 import { HoundConnection } from "./HoundConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
+const parseDurationImport = import('parse-duration');
 
 const OUTBOUND_DOCS_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html";
 
@@ -218,9 +218,9 @@ export class SetupConnection extends CommandConnection {
 
         let expirationDate: string|undefined = undefined;
         if (liveDuration) {
-            const expirationDuration = parseDuration(liveDuration);
+            const expirationDuration = await (await parseDurationImport).default(liveDuration);
             if (!expirationDuration) {
-                throw new CommandError("Bad webhook duration", "A webhook name must be between 3-64 characters.");
+                throw new CommandError("Bad webhook duration", "Duration could not be parsed");
             }
             expirationDate = new Date(expirationDuration + Date.now()).toISOString();
         }
