@@ -349,6 +349,9 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             return;
         }
         await intent.ensureRegistered();
+        if ((await intent.underlyingClient.getCapabilities())["m.set_displayname"]?.enabled === false) {
+            return;
+        }
         const expectedDisplayname = `${this.state.name} (Webhook)`;
 
         try {
