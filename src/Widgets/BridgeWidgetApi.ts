@@ -113,7 +113,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         if (req.params.service === 'github') {
             res.send(this.config.github?.publicConfig(this.github));
         } else {
-            res.send(this.config.getPublicConfigForService(req.params.service));
+            res.send(await this.config.getPublicConfigForService(req.params.service));
         }
     }
 
