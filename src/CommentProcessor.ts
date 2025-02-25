@@ -77,7 +77,7 @@ export class CommentProcessor {
     }
 
     public async getEventBodyForGitLabNote(comment: IGitLabWebhookNoteEvent): Promise<MatrixMessageContent> {
-        let body = comment.object_attributes.description;
+        let body = comment.object_attributes.note;
         body = this.replaceMentions(body);
         body = await this.replaceImages(body, true);
         body = emoji.emojify(body);
