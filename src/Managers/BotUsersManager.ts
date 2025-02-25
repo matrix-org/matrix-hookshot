@@ -97,6 +97,9 @@ export default class BotUsersManager {
      * @returns Promise resolving when the user profile has been ensured.
      */
     private async ensureProfile(botUser: BotUser): Promise<void> {
+        const capabilites = await botUser.intent.underlyingClient.getCapabilities();
+        const canSetDisplayname = capabilites["m.set_displayname"]?.enabled !== false;
+        const canSetAvatarUrl = capabilites["m.set_avatar_url"]?.enabled !== false;
         log.debug(`Ensuring profile for ${botUser.userId} is updated`);
 
         let profile: {
@@ -111,13 +114,17 @@ export default class BotUsersManager {
         }
 
         // Update display name if necessary
-        if (botUser.displayname && profile.displayname !== botUser.displayname) {
+        if (canSetDisplayname && botUser.displayname && profile.displayname !== botUser.displayname) {
             try {
                 await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
                 log.info(`Updated displayname for "${botUser.userId}" to ${botUser.displayname}`);
             } catch (e) {
                 log.error(`Failed to set displayname for ${botUser.userId}:`, e);
             }
+        }
+
+        if (!canSetAvatarUrl) {
+            return;
         }
 
         if (!botUser.avatar) {
