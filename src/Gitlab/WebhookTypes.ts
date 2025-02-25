@@ -180,11 +180,12 @@ export interface IGitLabNote {
     noteable_type: 'MergeRequest';
     author_id: number;
     noteable_id: number;
-    description: string;
     discussion_id?: string;
+    url: string;
 }
 
 export interface IGitLabWebhookNoteEvent {
+    object_kind: 'note',
     user: IGitlabUser;
     event_type: string;
     project: IGitlabProject;
