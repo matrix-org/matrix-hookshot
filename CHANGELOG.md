@@ -1,3 +1,20 @@
+# 6.0.3 (2025-02-25)
+
+### Bugfixes
+
+- Fixed Helm chart templates missing `namespace:` in resource metadata, causing some resources to appear in different namespaces under certain circumstances, specifically deployment scenarios using ArgoCD-deployed Helmfile with a release namespace set for Hookshot differently than the ArgoCD Application's namespace. Most other Helm deployment methods should continue to work as expected with your existing configuration, as the inferred namespace would have resulted in proper resource placement without this change. ([\#1013](https://github.com/matrix-org/matrix-hookshot/issues/1013))
+- Fix hookshot failing to handle incoming webhooks when it is unable to change a user's displayname. ([\#1019](https://github.com/matrix-org/matrix-hookshot/issues/1019))
+- GitLab merge request comments are now correctly filtered based on label include / exclude configuration. ([\#1756](https://github.com/matrix-org/matrix-hookshot/issues/1756))
+
+### Improved Documentation
+
+- Explain how to edit room state for GitLab projects from within Element. ([\#1016](https://github.com/matrix-org/matrix-hookshot/issues/1016))
+
+### Internal Changes
+
+- Update dependencies with security advisories. ([\#1024](https://github.com/matrix-org/matrix-hookshot/issues/1024))
+
+
 # 6.0.2 (2025-01-23)
 
 **Security release**: It is strongly recommended that you upgrade to this release, as it contains security fixes.

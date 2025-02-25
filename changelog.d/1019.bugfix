@@ -1,1 +1,0 @@
-Fix hookshot failing to handle incoming webhooks when it is unable to change a user's displayname.
