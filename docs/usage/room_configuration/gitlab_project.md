@@ -19,7 +19,7 @@ To set up a connection to a GitLab project in a new room:
 
 ## Configuration
 
-This connection supports a few options which can be defined in the room state:
+This connection supports a few options which can be defined in the room state[^2]:
 
 | Option | Description | Allowed values | Default |
 |--------|-------------|----------------|---------|
@@ -33,6 +33,8 @@ This connection supports a few options which can be defined in the room state:
 
 
 [^1]: `ignoreHooks` is no longer accepted for new state events. Use `enableHooks` to explicitly state all events you want to see.
+
+[^2]: To change room state with Element Web/Desktop: open devtools by typing `/devtools` + enter in the chat box, and click on "Explore room state". Next, choose `uk.half-shot.matrix-hookshot.gitlab.repository`. You'll then be able to see and edit (if you have the required permissions) the settings by setting properties on the JSON object directly.
 
 
 ### Supported event types
