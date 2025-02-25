@@ -463,7 +463,7 @@ export class Bridge {
                     ...( iid ? connManager.getConnectionsForGitLabIssueWebhook(data.repository.homepage, iid) : []),
                     ...connManager.getConnectionsForGitLabRepo(data.project.path_with_namespace),
                 ]},
-            (c, data) => c.onCommentCreated(data),
+            (c, data) => c instanceof GitLabRepoConnection ? c.onMergeRequestCommentCreated(data) : c.onCommentCreated(data),
         );
 
         this.bindHandlerToQueue<IGitLabWebhookIssueStateEvent, GitLabIssueConnection>(
@@ -733,13 +733,13 @@ export class Bridge {
                         notifContent = await botUser.intent.underlyingClient.getRoomStateEvent(
                             roomId, NotifFilter.StateType, "",
                         );
-                    } catch (ex) {
+                    } catch {
                         try {
                             notifContent = await botUser.intent.underlyingClient.getRoomStateEvent(
                                 roomId, NotifFilter.LegacyStateType, "",
                             );
                         }
-                        catch (ex) {
+                        catch {
                             // No state yet
                         }
                     }
@@ -942,13 +942,13 @@ export class Bridge {
         }
         log.info(`Got message roomId=${roomId} type=${event.type} from=${event.sender}`);
         log.debug("Content:", JSON.stringify(event));
-        let processedReply: any;
+        let processedReply;
         let processedReplyMetadata: IRichReplyMetadata|undefined = undefined;
         try {
             processedReply = await this.replyProcessor.processEvent(event, this.as.botClient, EventKind.RoomEvent);
             processedReplyMetadata = processedReply?.mx_richreply;
         } catch (ex) {
-            log.warn(`Event ${event.event_id} could not be processed by the reply processor, possibly a faulty event`);
+            log.warn(`Event ${event.event_id} could not be processed by the reply processor, possibly a faulty event`, ex);
         }
         const adminRoom = this.adminRooms.get(roomId);
         const checkPermission = (service: string, level: BridgePermissionLevel) => this.config.checkPermission(event.sender, service, level);
