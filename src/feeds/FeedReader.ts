@@ -182,7 +182,7 @@ export class FeedReader {
             try {
                 observedFeedUrls.add(normalizeUrl(conn.feedUrl));
             } catch (err: unknown) {
-                log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`);
+                log.error(`Invalid feedUrl for connection ${conn.connectionId}: ${conn.feedUrl}. It will not be tracked`, err);
             }
         }
         this.feedQueue.populate([...observedFeedUrls]);
