@@ -1489,18 +1489,21 @@ the events marked as default below will be enabled. Otherwise, this is ignored.<
 <li>Otherwise, you'll need to manually configure the project with a webhook that points to your public address for the webhooks listener, sets the &quot;Secret token&quot; to the one you put in your Hookshot configuration (<code>gitlab.webhook.secret</code>), and enables all Triggers that need to be bridged (as Hookshot can only bridge events for enabled Triggers). This can be configured on the GitLab webpage for the project under Settings &gt; Webhook Settings. If you do not have access to this page, you must ask someone who does (i.e. someone with at least <code>Maintainer</code> permissions on the project) to add the webhook for you.</li>
 </ol>
 <h2 id="configuration-7"><a class="header" href="#configuration-7">Configuration</a></h2>
-<p>This connection supports a few options which can be defined in the room state:</p>
+<p>This connection supports a few options which can be defined in the room state<sup class="footnote-reference"><a href="#2">1</a></sup>:</p>
 <table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
 <tr><td>commandPrefix</td><td>Choose the prefix to use when sending commands to the bot</td><td>A string, ideally starts with &quot;!&quot;</td><td><code>!gh</code></td></tr>
-<tr><td>enableHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td>Enable notifications for some event types</td><td>Array of: <a href="usage/room_configuration/gitlab_project.html#supported-event-types">Supported event types</a></td><td>If not defined, defaults are mentioned below</td></tr>
+<tr><td>enableHooks <sup class="footnote-reference"><a href="#1">2</a></sup></td><td>Enable notifications for some event types</td><td>Array of: <a href="usage/room_configuration/gitlab_project.html#supported-event-types">Supported event types</a></td><td>If not defined, defaults are mentioned below</td></tr>
 <tr><td>excludingLabels</td><td>Never notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
-<tr><td>ignoreHooks <sup class="footnote-reference"><a href="#1">1</a></sup></td><td><strong>deprecated</strong> Choose to exclude notifications for some event types</td><td>Array of: <a href="usage/room_configuration/gitlab_project.html#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
+<tr><td>ignoreHooks <sup class="footnote-reference"><a href="#1">2</a></sup></td><td><strong>deprecated</strong> Choose to exclude notifications for some event types</td><td>Array of: <a href="usage/room_configuration/gitlab_project.html#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
 <tr><td>includeCommentBody</td><td>Include the body of a comment when notifying on merge requests</td><td>Boolean</td><td>false</td></tr>
 <tr><td>includingLabels</td><td>Only notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
 <tr><td>pushTagsRegex</td><td>Only mention pushed tags which match this regex</td><td>Regex string</td><td><em>empty</em></td></tr>
 </tbody></table>
-<div class="footnote-definition" id="1"><sup class="footnote-definition-label">1</sup>
+<div class="footnote-definition" id="1"><sup class="footnote-definition-label">2</sup>
 <p><code>ignoreHooks</code> is no longer accepted for new state events. Use <code>enableHooks</code> to explicitly state all events you want to see.</p>
+</div>
+<div class="footnote-definition" id="2"><sup class="footnote-definition-label">1</sup>
+<p>To change room state with Element Web/Desktop: open devtools by typing <code>/devtools</code> + enter in the chat box, and click on &quot;Explore room state&quot;. Next, choose <code>uk.half-shot.matrix-hookshot.gitlab.repository</code>. You'll then be able to see and edit (if you have the required permissions) the settings by setting properties on the JSON object directly.</p>
 </div>
 <h3 id="supported-event-types-1"><a class="header" href="#supported-event-types-1">Supported event types</a></h3>
 <p>This connection supports sending messages when the following actions happen on the repository.</p>
