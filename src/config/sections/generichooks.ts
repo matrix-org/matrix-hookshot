@@ -57,7 +57,7 @@ export class BridgeConfigGenericWebhooks {
         this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
         this.waitForComplete = yaml.waitForComplete;
         this.maxExpiryTime = yaml.maxExpiryTime;
-        this.maxExpiryTimeMs = yaml.maxExpiryTime ? parseDurationImport.then(v => v.default(yaml.maxExpiryTime!)) : undefined;
+        this.maxExpiryTimeMs = yaml.maxExpiryTime ? parseDurationImport.then(v => v.default(yaml.maxExpiryTime!) ?? undefined) : undefined;
     }
 
     @hideKey()
