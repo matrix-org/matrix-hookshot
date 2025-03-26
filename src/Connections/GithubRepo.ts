@@ -64,7 +64,12 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
         matchingBranch?: string;
         includingWorkflows?: string[];
         excludingWorkflows?: string[];
-    }
+    };
+    push?: {
+        template?: "md_bullets" | "html_dropdown";
+        maxCommits?: number;
+        showCommitBody?: boolean;
+    };
 }
 
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
@@ -272,6 +277,15 @@ const ConnectionStateSchema = {
                 items: {type: "string"},
             },
         },
+    },
+    push: {
+        type: "object",
+        nullable: true,
+        properties: {
+            template: { type: "string", nullable: true, enum: ["md_bullets", "html_dropdown"] },
+            maxCommits: { type: "number", nullable: true },
+            showCommitBody: { type: "boolean", nullable: true }
+        }
     }
   },
   required: [
@@ -1332,8 +1346,33 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         if (this.hookFilter.shouldSkip('push')) {
             return;
         }
-    
-        const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? '' : 's'}](${event.compare}) to \`${event.ref}\` for ${event.repository.full_name}`;
+
+        const PUSH_MAX_COMMITS = 5;
+        const branchName = event.ref.replace("refs/heads/", "");
+        const commitsUrl = event.compare;
+        const branchUrl = `${event.repository.html_url}/tree/${branchName}`;
+
+        const { body, formatted_body } = FormatUtil.formatPushEventContent({
+            contributors: Object.values(event.commits.reduce((acc: Record<string, string>, commit) => {
+                acc[commit.author.name] = commit.author.name;
+                return acc;
+            }, {} as Record<string, string>)),
+            commits: event.commits.map(commit => ({
+                id: commit.id,
+                url: commit.url,
+                message: commit.message,
+                author: { name: commit.author.name },
+            })),
+            branchName,
+            branchUrl,
+            commitsUrl,
+            repoName: event.repository.full_name,
+            maxCommits: this.state.push?.maxCommits ?? PUSH_MAX_COMMITS,
+            shouldName: true,
+            template: this.state.push?.template ?? "html_dropdown",
+            showCommitBody: this.state.push?.showCommitBody,
+        });
+
         const eventContent: IPushEventContent = {
             ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
             external_url: event.compare,
@@ -1344,8 +1383,8 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
                 base_ref: event.base_ref,
             },
             msgtype: "m.notice",
-            body: content,
-            formatted_body: md.render(content),
+            body,
+            formatted_body,
             format: "org.matrix.custom.html",
         };
         await this.intent.sendEvent(this.roomId, eventContent);
