@@ -1,7 +1,7 @@
 import { MatrixClient, MemoryStorageProvider, RustSdkCryptoStorageProvider, RustSdkCryptoStoreType } from "matrix-bot-sdk";
 import { createHash, createHmac, randomUUID } from "crypto";
 import { Homerunner } from "homerunner-client";
-import { E2ETestMatrixClient } from "./e2e-test";
+import { E2ETestMatrixClient, E2ETestMatrixClientOpts } from "./e2e-test";
 import path from "node:path";
 
 const HOMERUNNER_IMAGE = process.env.HOMERUNNER_IMAGE || 'ghcr.io/element-hq/synapse/complement-synapse:nightly';
@@ -42,11 +42,12 @@ async function waitForHomerunner() {
     }
 }
 
-export async function createHS(localparts: string[] = [], workerId: number, cryptoRootPath?: string): Promise<ComplementHomeServer> {
+export async function createHS(localparts: string[] = [], clientOpts: E2ETestMatrixClientOpts, workerId: number, cryptoRootPath?: string): Promise<ComplementHomeServer> {
     await waitForHomerunner();
 
     const appPort = 49600 + workerId;
     const blueprint = `hookshot_integration_test_${Date.now()}`;
+
     const asToken = randomUUID();
     const hsToken = randomUUID();
     const blueprintResponse = await homerunner.create({
@@ -75,7 +76,7 @@ export async function createHS(localparts: string[] = [], workerId: number, cryp
         .filter(([_uId, accessToken]) => accessToken !== asToken)
         .map(async ([userId, accessToken]) => {
             const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, userId), RustSdkCryptoStoreType.Sqlite) : undefined;
-            const client = new E2ETestMatrixClient(homeserver.BaseURL, accessToken, new MemoryStorageProvider(), cryptoStore);
+            const client = new E2ETestMatrixClient(clientOpts, homeserver.BaseURL, accessToken, new MemoryStorageProvider(), cryptoStore);
             if (cryptoStore) {
                 await client.crypto.prepare();
             }
