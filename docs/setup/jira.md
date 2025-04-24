@@ -22,7 +22,6 @@ be reasonably secure and should also be stored in the `config.yml` file.
 
 For both, ensure that you enable all the events that you wish to be bridged.
 
-
 ## Configuration
 
 You can now set some configuration in the bridge `config.yml`:
