@@ -14,7 +14,7 @@ describe('Permissions test', () => {
                     members: ['allowed_user'],
                     permissions: [{
                         level: "manageConnections",
-                        service: "generic"
+                        service: "webhooks"
                     }]
                 },
                 e2eClientOpts: {
