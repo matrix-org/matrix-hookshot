@@ -1,7 +1,7 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
 import { describe, it, beforeEach, afterEach } from "@jest/globals";
 import { createHmac, randomUUID } from "crypto";
-import { GitHubRepoConnection, JiraProjectConnectionState } from "../src/Connections";
+import { JiraProjectConnection, JiraProjectConnectionState } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
 import { Server } from "http";
 import { JiraGrantChecker } from "../src/jira/GrantChecker";
@@ -104,7 +104,7 @@ describe('JIRA', () => {
         });
 
         // "Create" a JIRA connection.
-        await testEnv.app.appservice.botClient.sendStateEvent(testRoomId, GitHubRepoConnection.CanonicalEventType, "my-test", {
+        await testEnv.app.appservice.botClient.sendStateEvent(testRoomId, JiraProjectConnection.CanonicalEventType, jiraURL, {
             url: jiraURL,
         } satisfies JiraProjectConnectionState);
 
