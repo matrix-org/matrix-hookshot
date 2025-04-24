@@ -2,16 +2,25 @@
 
 ## Adding a webhook to a JIRA Instance
 
-This should be done for the JIRA instance you wish to bridge. The setup steps are the same for both On-Prem and Cloud.
+This should be done for the JIRA instance you wish to bridge. The setup steps vary for Cloud and Enterprise (on-premise).
+
+### Cloud 
+
+See https://support.atlassian.com/jira-cloud-administration/docs/manage-webhooks/ for documentation on how to setup webhooks.
+
+Hookshot **requires** that you use a secret. Please copy the generated secret value to you config (seen below).
+
+
+### Enterprise
 
 You need to go to the `WebHooks` configuration page under Settings > System.
 Note that this may require administrative access to the JIRA instance.
 
-Next, add a webhook that points to `/` on the public webhooks address for hookshot. You should also include a
+Next, add a webhook that points to `/` on the public webhooks address for hookshot. You must also include a
 secret value by appending `?secret=your-webhook-secret`. The secret value can be anything, but should
 be reasonably secure and should also be stored in the `config.yml` file.
 
-Ensure that you enable all the events that you wish to be bridged.
+For both, ensure that you enable all the events that you wish to be bridged.
 
 
 ## Configuration
@@ -21,7 +30,7 @@ You can now set some configuration in the bridge `config.yml`:
 ```yaml
 jira:
   webhook:
-    secret: some-secret
+    secret: your-webhook-secret
   oauth:
     ... # See below
 ```
