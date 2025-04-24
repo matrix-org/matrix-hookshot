@@ -28,7 +28,7 @@ const JIRA_PAYLOAD = {
         "timespent": null,
         "timeoriginalestimate": null,
         "project": {
-            "self": "https://example.org/my/test/project",
+            "self": "https://example.org/my/test/project/TP",
             "key": "TP",
             "id": "12345"
         },
