@@ -472,7 +472,7 @@ export class SetupConnection extends CommandConnection {
 
     private async checkUserPermissions(userId: string, service: string, stateEventType: string): Promise<void> {
         if (!this.config.checkPermission(userId, service, BridgePermissionLevel.manageConnections)) {
-            throw new CommandError(`You are not permitted to provision connections for ${service}.`);
+            throw new CommandError(`${userId} does not have permission to manageConnections for ${service}`, `You are not permitted to provision connections for ${service}.`);
         }
         if (!await this.client.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");

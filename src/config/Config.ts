@@ -184,7 +184,7 @@ export interface BridgeConfigGitLabYAML {
         secret: string;
     },
     instances: {[name: string]: GitLabInstance};
-    userIdPrefix: string;
+    userIdPrefix?: string;
     commentDebounceMs?: number;
 }
 
@@ -322,7 +322,7 @@ export class BridgeWidgetConfig {
         try {
             this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
             this.publicUrl = () => { return this.parsedPublicUrl.href; }
-        } catch (err) {
+        } catch {
             throw new ConfigError("widgets.publicUrl", "is not defined or not a valid URL");
         }
         this.branding = yaml.branding || {
@@ -635,7 +635,10 @@ export class BridgeConfig {
         const permissionRooms = this.bridgePermissions.getInterestedRooms();
         log.info(`Prefilling room membership for permissions for ${permissionRooms.length} rooms`);
         for(const roomEntry of permissionRooms) {
-            const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
+            const roomId = await client.resolveRoom(roomEntry);
+            // Attempt to join the room
+            await client.joinRoom(roomEntry);
+            const membership = await client.getJoinedRoomMembers(roomId);
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
             log.debug(`Found ${membership.length} users for ${roomEntry}`);
         }
