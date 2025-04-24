@@ -1,2 +1,1 @@
-Fix GitHub username comparison to be case-insensitive.
-Installations and repository listings will work correctly even if your organization or username contains uppercase letters.  
+GitHub repository listings / room configuation will now work correctly if your organization or username contains uppercase characters.  
