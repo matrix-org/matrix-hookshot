@@ -206,9 +206,14 @@ export class Webhooks extends EventEmitter {
                 });
             } else {
                 log.debug("Unknown event:", req.body);
+                throw new ApiError("Unable to handle webhook payload. Service may not be configured.", ErrCode.Unroutable);
             }
         } catch (ex) {
+            if (ex instanceof ApiError) {
+                throw ex;
+            }
             log.error("Failed to emit message", ex);
+            throw new ApiError("Unknown error handling webhook.", ErrCode.Unknown);
         }
     }
 
@@ -303,16 +308,14 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private verifyRequest(req: WebhooksExpressRequest, res: Response, buffer: Buffer, encoding: BufferEncoding) {
+    private verifyRequest(req: WebhooksExpressRequest, _res: Response, buffer: Buffer, encoding: BufferEncoding): void {
         if (this.config.gitlab && req.headers['x-gitlab-token']) {
             if (req.headers['x-gitlab-token'] !== this.config.gitlab.webhook.secret) {
-                throw new ApiError("Could not handle GitLab request. Token did not match.", ErrCode.BadValue, 400);
+                throw new ApiError("Could not handle GitLab request. Token did not match.", ErrCode.BadValue);
             }
-            log.debug('Verified GitLab request');
-            return true;
         } else if (this.ghWebhooks && req.headers["x-hub-signature-256"]) {
             if (typeof req.headers["x-hub-signature-256"] !== "string") {
-                throw new ApiError("Could not handle GitHub request. Unexpected multiple headers for x-hub-signature-256", ErrCode.BadValue, 400);
+                throw new ApiError("Could not handle GitHub request. Unexpected multiple headers for x-hub-signature-256", ErrCode.BadValue);
             }
             try {
                 const jsonStr = buffer.toString(encoding);
@@ -322,12 +325,11 @@ export class Webhooks extends EventEmitter {
                 };
             } catch (ex) {
                 log.warn("GitHub signature could not be decoded", ex);
-                throw new ApiError("Could not handle GitHub request. Signature could not be decoded", ErrCode.BadValue, 400);
+                throw new ApiError("Could not handle GitHub request. Signature could not be decoded", ErrCode.BadValue);
             }
-            return true;
         } else if (this.jira && JiraWebhooksRouter.IsJIRARequest(req)) {
-            return this.jira?.verifyWebhookRequest(req);
+            this.jira.verifyWebhookRequest(req, buffer);
         }
-        throw new ApiError("Request could not be routed. Either the service is not configured, or the request is missing a secret.", ErrCode.BadValue, 400);
+        throw new ApiError("Request could not be routed. Either the service is not configured, or the request is missing a secret.", ErrCode.BadValue);
     }
 }
