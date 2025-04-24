@@ -1,5 +1,4 @@
 import { promises as fs } from "fs";
-import axios from "axios";
 import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 

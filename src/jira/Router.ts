@@ -6,6 +6,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
+import { createHmac } from "node:crypto";
 
 const log = new Logger("JiraRouter");
 
@@ -31,7 +32,46 @@ export class JiraWebhooksRouter {
         return false;
     }
 
-    constructor(private readonly queue: MessageQueue) {
+    constructor(private readonly queue: MessageQueue, private readonly secret?: string) {
+
+    }
+
+    /**
+     * Verifies a JIRA webhook request for a valid secret or signature.
+     * @throws If the request is invalid
+     * @param req The express request.
+     */
+    public verifyWebhookRequest(req: Request): void {
+        const querySecret = req.query.secret;
+        const hubSecret = req.headers['X-Hub-Signature']?.slice('sha256='.length);
+        if (querySecret && !this.secret) {
+            log.warn(`Received JIRA request with a query secret but no secret is configured`);
+            throw new ApiError("Invalid secret", ErrCode.BadToken, 403);
+        }
+        if (!querySecret && this.secret) {
+            log.warn(`Received JIRA request without a query secret but a secret was expected`);
+            throw new ApiError("Invalid secret", ErrCode.BadToken, 403);
+        }
+        if (querySecret !== this.secret) {
+            log.warn(`JIRA secret did not match`);
+            throw new ApiError("Invalid secret", ErrCode.BadToken, 403);
+        }
+
+        if (hubSecret && this.secret) {
+            const calculatedSecret = createHmac('sha256', this.secret).update(req.body).digest('hex');
+            if (hubSecret !== calculatedSecret) {
+                log.warn(`Received JIRA request with a signature but no secret is configured`);
+                throw new ApiError("Signature did not match", ErrCode.BadToken, 403);
+            }
+        }
+        else if (hubSecret && !this.secret) {
+            log.warn(`Received JIRA request with a signature but no secret is configured`);
+            throw new ApiError("Invalid secret", ErrCode.BadToken, 403);
+        }
+        else if (!hubSecret && this.secret) {
+            log.warn(`Received JIRA request without a signature but a secret was expected`);
+            throw new ApiError("Invalid secret", ErrCode.BadToken, 403);
+        }
     }
 
     private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQueryCloud|OAuthQueryOnPrem>, res: Response<string|{error: string}>) {
