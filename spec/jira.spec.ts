@@ -16,7 +16,7 @@ const JIRA_PAYLOAD = {
     },
     "issue": {
       "id": "10007",
-      "self": "https://test-env",
+      "self": "https://example.org/TP-8",
       "key": "TP-8",
       "fields": {
         "statuscategorychangedate": "2025-04-24T15:53:47.084+0100",
@@ -135,9 +135,6 @@ describe('JIRA', () => {
         
         // And await the notice.
         const { body } = (await webhookNotice).data.content;
-        console.log(body);
-        expect(body).toContain('**alice** opened a new PR');
-        expect(body).toContain('https://github.com/my-org/my-repo/pulls/1');
-        expect(body).toContain('My test pull request');
+        expect(body).toContain('Test User created a new JIRA issue [TP-8](https://example.org/TP-8): "Test issue"');
     });
 });
