@@ -30,6 +30,7 @@ const JIRA_PAYLOAD = {
         "project": {
             "self": "https://example.org/my/test/project",
             "key": "TP",
+            "id": "12345"
         },
         "description": null,
         "summary": "Test issue",
