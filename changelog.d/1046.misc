@@ -1,0 +1,1 @@
+Don't login to docker when running CI against dependabot PRs
