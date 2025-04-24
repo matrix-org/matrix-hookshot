@@ -50,7 +50,7 @@ export class BridgeConfigGenericWebhooks {
         try {
             this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
             this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
-        } catch (err) {
+        } catch {
             throw new ConfigError("generic.urlPrefix", "is not defined or not a valid URL");
         }
         this.userIdPrefix = yaml.userIdPrefix;

@@ -1,5 +1,5 @@
 import { E2ESetupTestTimeout, E2ETestEnv, E2ETestMatrixClient } from "./util/e2e-test";
-import { describe, it, beforeEach, afterEach } from "@jest/globals";
+import { describe, it } from "@jest/globals";
 import { OutboundHookConnection } from "../src/Connections";
 import { TextualMessageEventContent } from "matrix-bot-sdk";
 import { IncomingHttpHeaders, createServer } from "http";
