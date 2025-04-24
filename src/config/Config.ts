@@ -184,7 +184,7 @@ export interface BridgeConfigGitLabYAML {
         secret: string;
     },
     instances: {[name: string]: GitLabInstance};
-    userIdPrefix: string;
+    userIdPrefix?: string;
     commentDebounceMs?: number;
 }
 
@@ -322,7 +322,7 @@ export class BridgeWidgetConfig {
         try {
             this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
             this.publicUrl = () => { return this.parsedPublicUrl.href; }
-        } catch (err) {
+        } catch {
             throw new ConfigError("widgets.publicUrl", "is not defined or not a valid URL");
         }
         this.branding = yaml.branding || {
