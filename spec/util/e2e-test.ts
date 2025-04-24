@@ -215,7 +215,6 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     static async createTestEnv<ML extends string>(opts: Opts<ML>): Promise<E2ETestEnv<ML>> {
-        console.log("createTestEnv", new Error().stack)
         const workerID = this.workerId;
         const { matrixLocalparts, config: providedConfig  } = opts;
         const keyPromise = new Promise<string>((resolve, reject) => generateKeyPair("rsa", {
