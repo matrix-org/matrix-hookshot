@@ -69,9 +69,9 @@ export class Webhooks extends EventEmitter {
             Metrics.webhooksHttpRequest.inc({path: req.path, method: req.method});
             next();
         });
-        if (this.config.github?.webhook.secret) {
+        if (config.github?.webhook.secret) {
             this.ghWebhooks = new OctokitWebhooks({
-                secret: config.github?.webhook.secret as string,
+                secret: config.github.webhook.secret,
             });
             this.ghWebhooks.onAny(e => this.onGitHubPayload(e));
         }
@@ -313,6 +313,7 @@ export class Webhooks extends EventEmitter {
             if (req.headers['x-gitlab-token'] !== this.config.gitlab.webhook.secret) {
                 throw new ApiError("Could not handle GitLab request. Token did not match.", ErrCode.BadValue);
             }
+            return;
         } else if (this.ghWebhooks && req.headers["x-hub-signature-256"]) {
             if (typeof req.headers["x-hub-signature-256"] !== "string") {
                 throw new ApiError("Could not handle GitHub request. Unexpected multiple headers for x-hub-signature-256", ErrCode.BadValue);
@@ -327,9 +328,10 @@ export class Webhooks extends EventEmitter {
                 log.warn("GitHub signature could not be decoded", ex);
                 throw new ApiError("Could not handle GitHub request. Signature could not be decoded", ErrCode.BadValue);
             }
+            return;
         } else if (this.jira && JiraWebhooksRouter.IsJIRARequest(req)) {
             this.jira.verifyWebhookRequest(req, buffer);
+            return;
         }
-        throw new ApiError("Request could not be routed. Either the service is not configured, or the request is missing a secret.", ErrCode.BadValue);
     }
 }

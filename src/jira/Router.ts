@@ -53,6 +53,7 @@ export class JiraWebhooksRouter {
                 log.warn(`JIRA secret did not match`);
                 throw new ApiError("Invalid secret", ErrCode.BadToken);
             }
+            return;
         }
         else if (hubSecret) {
             if (!this.secret) {
@@ -66,6 +67,7 @@ export class JiraWebhooksRouter {
                 log.warn(`Received JIRA request with a signature but no secret is configured`);
                 throw new ApiError("Signature did not match", ErrCode.BadToken);
             }
+            return;
         }
         log.warn(`Received JIRA request without a signature or query parameter but a secret was expected`);
         throw new ApiError("Invalid secret", ErrCode.BadToken);
