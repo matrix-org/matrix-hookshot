@@ -3,7 +3,6 @@ import { describe, it, beforeEach, afterEach } from "@jest/globals";
 import { createHmac, randomUUID } from "crypto";
 import { JiraProjectConnection, JiraProjectConnectionState } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
-import { Server } from "http";
 import { JiraGrantChecker } from "../src/jira/GrantChecker";
 
 const JIRA_PAYLOAD = {
@@ -30,14 +29,23 @@ const JIRA_PAYLOAD = {
         "project": {
             "self": "https://example.org/my/test/project/TP",
             "key": "TP",
-            "id": "12345"
+            "id": "12345",
+            name: "Test Project",
+            projectTypeKey: "project-type-key",
+            simplified: false,
+            avatarUrls: {}
         },
         "description": null,
         "summary": "Test issue",
         "lastViewed": null,
         "creator": {
-          "accountId": "1234567890",
-          "displayName": "Test User",
+            "accountId": "1234567890",
+            "displayName": "Test User",
+            "self": "https://example.org/user/1234567890",
+            avatarUrls: {},
+            active: true,
+            timeZone: "UTC",
+            accountType: "atlassian",
         },
         "subtasks": [],
         "created": "2025-04-24T15:53:46.821+0100",
@@ -61,14 +69,15 @@ const JIRA_PAYLOAD = {
         "status": {
           "name": "To Do",
           "id": "10000",
-        }
+        },
+        "priority": { }
       }
     },
   };  
 
+
 describe('JIRA', () => {
     let testEnv: E2ETestEnv;
-    let githubServer: Server;
     const webhooksPort = 9500 + E2ETestEnv.workerId;
 
     beforeEach(async () => {
