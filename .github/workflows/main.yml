@@ -92,13 +92,12 @@ jobs:
       - test
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js ${{ matrix.node_version }}
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node_version }}
+          node-version-file: .node-version
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-            toolchain: stable
+          toolchain: stable
       - uses: Swatinem/rust-cache@v2
         with: 
           shared-key: ubuntu-2204-rust-cache
