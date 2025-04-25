@@ -18,6 +18,7 @@ describe('Basic test setup', () => {
     it('should be able to invite the bot to a room', async () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
+        console.log("Room created", roomId);
         await user.waitForRoomJoin({sender: testEnv.botMxid, roomId });
         const msg = user.waitForRoomEvent<MessageEventContent>({
             eventType: 'm.room.message', sender: testEnv.botMxid, roomId

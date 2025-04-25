@@ -1,4 +1,4 @@
-import { ComplementHomeServer, createHS, destroyHS } from "./homerunner";
+import { TestHomeServer, createHS, destroyHS } from "./homerunner";
 import { Appservice, IAppserviceRegistration, MatrixClient, Membership, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { BridgeConfig, BridgeConfigRoot } from "../../src/config/Config";
@@ -143,6 +143,7 @@ export class E2ETestMatrixClient extends MatrixClient {
             state_key: string,
             content: MembershipEventContent,
         }) => {
+            console.log("MEMBERSHIP", eventData);
             if (eventData.state_key !== sender) {
                 return;
             }
@@ -153,7 +154,7 @@ export class E2ETestMatrixClient extends MatrixClient {
                 return;
             }
             return {roomId: eventRoomId, data: eventData};
-        }, `Timed out waiting for join to ${roomId || "any room"} from ${sender}`)
+        }, `Timed out waiting for ${membership} to ${roomId || "any room"} from ${sender}`)
     }
 
     public async waitForRoomJoin(
@@ -260,7 +261,7 @@ export class E2ETestEnv<ML extends string = string> {
         let cacheConfig: BridgeConfigRoot["cache"]|undefined;
         if (opts.useRedis) {
             cacheConfig = {
-                redisUri: `${REDIS_DATABASE_URI}/${workerID}`,
+                redisUri: `${homeserver.containers.redis.getConnectionUrl()}/${workerID}`,
             }
         }
 
@@ -290,7 +291,6 @@ export class E2ETestEnv<ML extends string = string> {
                 services: [{level: "manageConnections"}]
             }];
         }
-
         const config = new BridgeConfig({
             bridge: {
                 domain: homeserver.domain,
@@ -328,7 +328,7 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     private constructor(
-        public readonly homeserver: ComplementHomeServer,
+        public readonly homeserver: TestHomeServer,
         public app: Awaited<ReturnType<typeof start>>,
         public readonly opts: Opts<ML>,
         private readonly config: BridgeConfig,
@@ -354,7 +354,7 @@ export class E2ETestEnv<ML extends string = string> {
         }
 
         this.homeserver.users.forEach(u => u.client.stop());
-        await destroyHS(this.homeserver.id);
+        await destroyHS(this.homeserver);
         await rm(this.dir, { recursive: true });
     }
 
