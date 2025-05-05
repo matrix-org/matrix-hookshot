@@ -1078,7 +1078,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         const labels = FormatUtil.formatLabels(event.pull_request.labels?.map(l => ({ name: l.name, description: l.description || undefined, color: l.color || undefined })));
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content + (labels.plain.length > 0 ? ` with labels ${labels}`: "") + diffContent,
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: "") + diffContent,
             formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: "") + diffContentHtml,
             format: "org.matrix.custom.html",
             ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.pull_request),
