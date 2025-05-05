@@ -19,6 +19,8 @@ import { GitLabClient } from "../Gitlab/Client";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../Gitlab/GrantChecker";
+import { FormatUtil } from "../FormatUtil";
+import { emojify } from "node-emoji";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
     instance: string;
@@ -558,11 +560,15 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         log.info(`onMergeRequestOpened ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** opened a new MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const isDraft = event.object_attributes.draft;
+        const verb = isDraft ? 'drafted' : 'opened';
+        const icon = isDraft ? '⚪' : '🔵'; 
+        const content = emojify(`${icon} **${event.user.username}** ${verb} a new MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
+        const labels = FormatUtil.formatLabels(event.labels?.map(l => ({ name: l.title, description: l.description || undefined, color: l.color || undefined })));
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
-            body: content,
-            formatted_body: md.renderInline(content),
+            body: content + (labels.plain.length > 0 ? ` with labels ${labels.plain}`: ""),
+            formatted_body: md.renderInline(content) + (labels.html.length > 0 ? ` with labels ${labels.html}`: ""),
             format: "org.matrix.custom.html",
         });
     }
@@ -574,7 +580,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         log.info(`onMergeRequestReopened ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** reopened MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = emojify(`**${event.user.username}** reopened MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -590,7 +596,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         log.info(`onMergeRequestClosed ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** closed MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = emojify(`⚫ **${event.user.username}** closed MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -606,7 +612,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         log.info(`onMergeRequestMerged ${this.roomId} ${this.path} !${event.object_attributes.iid}`);
         this.validateMREvent(event);
         const orgRepoName = event.project.path_with_namespace;
-        const content = `**${event.user.username}** merged MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
+        const content = emojify(`✳️ **${event.user.username}** merged MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -630,10 +636,10 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         const isDraft = event.changes.draft.current;
         if (!isDraft) {
             // Ready for review
-            content = `**${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `;
+            content = emojify(`🔬 **${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as ready for review "${event.object_attributes.title}" `);
         } else {
             // Back to draft.
-            content = `**${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
+            content = emojify(`**${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `);
         }
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
@@ -653,7 +659,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             return;
         }
         const url = `${event.project.homepage}/-/tree/${tagname}`;
-        const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
+        const content = emojify(`**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -693,6 +699,8 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
             }
         }
 
+        content = emojify(content);
+
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -719,7 +727,7 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
 
         const message = attributes.message && ` "${attributes.message}"`;
 
-        const content = `**${data.user.username}** ${statement} "[${attributes.title}](${attributes.url})" for ${data.project.path_with_namespace} ${message}`;
+        const content = emojify(`**${data.user.username}** ${statement} "[${attributes.title}](${attributes.url})" for ${data.project.path_with_namespace} ${message}`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -734,9 +742,9 @@ export class GitLabRepoConnection extends CommandConnection<GitLabRepoConnection
         }
         log.info(`onReleaseCreated ${this.roomId} ${this.toString()} ${data.tag}`);
         const orgRepoName = data.project.path_with_namespace;
-        const content = `**${data.commit.author.name}** 🪄 released [${data.name}](${data.url}) for ${orgRepoName}
+        const content = emojify(`📣 **${data.commit.author.name}** released [${data.name}](${data.url}) for ${orgRepoName}
 
-${data.description}`;
+${data.description}`);
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
@@ -776,18 +784,21 @@ ${data.description}`;
         }
 
         let action = relation ? 'replied' : 'commented on'; // this is the only place we need this, approve/unapprove don't appear in discussions
+        let icon = '🗨️';
         if (result.approved === true) {
-            action = '✅ approved'
+            icon = '✅';
+            action = 'approved';
         } else if (result.approved === false) {
-            action = '🔴 unapproved';
+            icon = '🔴';
+            action = 'unapproved';
         }
 
         const target = relation ? '' : ` MR [${orgRepoName}!${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
-        let content = `**${result.author}** ${action}${target} ${comments}`;
+        let content = emojify(`${icon} **${result.author}** ${action}${target} ${comments}`);
 
         let formatted = '';
         if (result.commentNotes) {
-            content += "\n\n> " + result.commentNotes.join("\n\n> ");
+            content += "\n\n> " + emojify(result.commentNotes.join("\n\n> "));
             formatted = md.render(content);
         } else {
             formatted = md.renderInline(content);
