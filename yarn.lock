@@ -2112,12 +2112,12 @@
   dependencies:
     "@sinonjs/commons" "^3.0.0"
 
-"@testcontainers/redis@^10.24.2":
-  version "10.24.2"
-  resolved "https://registry.yarnpkg.com/@testcontainers/redis/-/redis-10.24.2.tgz#879a852882cb56d545485f7961ec5e1b124bfb59"
-  integrity sha512-m4/FZW5ltZPaK9pQTKNipjpBk73Vdj7Ql3sFr26A9dOr0wJyM3Wnc9jeHTNRal7RDnY5rvumXAIUWbBlvKMJEw==
+"@testcontainers/redis@^10.25.0":
+  version "10.25.0"
+  resolved "https://registry.yarnpkg.com/@testcontainers/redis/-/redis-10.25.0.tgz#33a8c96d71c33e9595680183c824ad290c24b7d4"
+  integrity sha512-ALNrrnYnB59kV5c/EjiUkzn0roCtcnOu2KfHHF8xBi3vq3dYSqzADL8rL2BExeoFhyaEtlUT9P4ZecRB60O+/Q==
   dependencies:
-    testcontainers "^10.24.2"
+    testcontainers "^10.25.0"
 
 "@trysound/sax@0.2.0":
   version "0.2.0"
@@ -8816,10 +8816,10 @@ test-exclude@^6.0.0:
     glob "^7.1.4"
     minimatch "^3.0.4"
 
-testcontainers@^10.24.2:
-  version "10.24.2"
-  resolved "https://registry.yarnpkg.com/testcontainers/-/testcontainers-10.24.2.tgz#1312331dc3997ce5d29e9b59b7f5be037b18c524"
-  integrity sha512-Don3EXEQuSw14+nFG9pj48fL9ck/jXDfR9Rb0K3acOyn/gg97+gsnfZaLzpdejl9GcPJVKxACNRe3SYVC2uWqg==
+testcontainers@^10.25.0:
+  version "10.25.0"
+  resolved "https://registry.yarnpkg.com/testcontainers/-/testcontainers-10.25.0.tgz#03eef06b696c0b71a23891c6a966fe57b9229bd7"
+  integrity sha512-X3x6cjorEMgei1vVx3M7dnTMzWoWOTi4krpUf3C2iOvOcwsaMUHbca9J4yzpN65ieiWhcK2dA5dxpZyUonwC2Q==
   dependencies:
     "@balena/dockerignore" "^1.0.2"
     "@types/dockerode" "^3.3.35"

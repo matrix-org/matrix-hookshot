@@ -2,11 +2,20 @@ import { E2ESetupTestTimeout, E2ETestEnv, E2ETestMatrixClient } from "./util/e2e
 import { describe, it } from "@jest/globals";
 import { OutboundHookConnection } from "../src/Connections";
 import { TextualMessageEventContent } from "matrix-bot-sdk";
-import { IncomingHttpHeaders, createServer } from "http";
+import { IncomingHttpHeaders, Server, createServer } from "http";
 import busboy, { FileInfo } from "busboy";
 import { TEST_FILE } from "./util/fixtures";
+import { AddressInfo } from "net";
 
-async function createOutboundConnection(user: E2ETestMatrixClient, botMxid: string, roomId: string) {
+async function createHttpServer(): Promise<Server> {
+    const server = createServer();
+    console.log("Creating server");
+    await new Promise<void>((req) => server.listen(0, () => req()));
+    console.log("done");
+    return server;
+}
+
+async function createOutboundConnection(user: E2ETestMatrixClient, botMxid: string, roomId: string, server: Server) {
     const join = user.waitForRoomJoin({ sender: botMxid, roomId });
     const connectionEvent = user.waitForRoomEvent({
         eventType: OutboundHookConnection.CanonicalEventType,
@@ -22,7 +31,9 @@ async function createOutboundConnection(user: E2ETestMatrixClient, botMxid: stri
     // Get the DM room so we can get the token.
     const dmRoomId = await user.dms.getOrCreateDm(botMxid);
 
-    await user.sendText(roomId, '!hookshot outbound-hook test http://localhost:8111/test-path');
+    const port = (server.address() as AddressInfo).port;
+
+    await user.sendText(roomId, `!hookshot outbound-hook test http://localhost:${port}/test-path`);
     // Test the contents of this.
     await connectionEvent;
 
@@ -33,13 +44,9 @@ async function createOutboundConnection(user: E2ETestMatrixClient, botMxid: stri
     return token;
 }
 
-/**
- * 
- * @returns 
- */
-function awaitOutboundWebhook() {
+function awaitOutboundWebhook(server: Server): Promise<{headers: IncomingHttpHeaders, files: {name: string, file: Buffer, info: FileInfo}[]}> {
     return new Promise<{headers: IncomingHttpHeaders, files: {name: string, file: Buffer, info: FileInfo}[]}>((resolve, reject) => {
-        const server = createServer((req, res) => {
+        server.on("request", (req, res) => {
             const bb = busboy({headers: req.headers});
             const files: {name: string, file: Buffer, info: FileInfo}[] = [];
             bb.on('file', (name, stream, info) => {
@@ -60,23 +67,20 @@ function awaitOutboundWebhook() {
                     files,
                 });
                 clearTimeout(timer);
-                server.close();
             });
 
             req.pipe(bb);
         });
-        server.listen(8111);
         let timer: NodeJS.Timeout;
         timer = setTimeout(() => {
             reject(new Error("Request did not arrive"));
-            server.close();
         }, 10000);
-
     });
 }
 
 describe('OutboundHooks', () => {
     let testEnv: E2ETestEnv;
+    let server: Server;
 
     beforeAll(async () => {
         const webhooksPort = 9500 + E2ETestEnv.workerId;
@@ -99,15 +103,25 @@ describe('OutboundHooks', () => {
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
-    afterAll(() => {
-        return testEnv?.tearDown();
+    afterEach(() => {
+        try {
+            console.log('Closing server');
+            server.close();
+        } catch {
+            // Ignore, we tried.
+        }
+    })
+
+    afterAll(async () => {
+        await testEnv?.tearDown();
     });
 
     it('should be able to create a new webhook and push an event.', async () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
-        const token = await createOutboundConnection(user, testEnv.botMxid, roomId);
-        const gotWebhookRequest = awaitOutboundWebhook();
+        server = await createHttpServer();
+        const gotWebhookRequest = awaitOutboundWebhook(server);
+        const token = await createOutboundConnection(user, testEnv.botMxid, roomId, server);
 
         const eventId = await user.sendText(roomId, 'hello!');
         const { headers, files } = await gotWebhookRequest;
@@ -135,8 +149,9 @@ describe('OutboundHooks', () => {
     it('should be able to create a new webhook and push a media attachment.', async () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
-        await createOutboundConnection(user, testEnv.botMxid, roomId);
-        const gotWebhookRequest = awaitOutboundWebhook();
+        server = await createHttpServer();
+        const gotWebhookRequest = awaitOutboundWebhook(server);
+        const token = await createOutboundConnection(user, testEnv.botMxid, roomId, server);
 
         const mxcUrl = await user.uploadContent(TEST_FILE, 'image/svg+xml', "matrix.svg");
         await user.sendMessage(roomId, {

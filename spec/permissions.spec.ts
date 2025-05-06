@@ -4,45 +4,37 @@ import { expect } from "chai";
 import { MessageEventContent } from "matrix-bot-sdk";
 
 describe('Permissions test', () => {
-    let testEnv: E2ETestEnv<'denied_user'|'allowed_user'>;
+    let testEnv!: E2ETestEnv<'denied_user'|'allowed_user'>;
 
     beforeEach(async () => {
-        try {
-            testEnv = await E2ETestEnv.createTestEnv({
-                matrixLocalparts: ['denied_user', 'allowed_user'],
-                permissionsRoom: {
-                    members: ['allowed_user'],
-                    permissions: [{
-                        level: "manageConnections",
-                        service: "webhooks"
-                    }]
+        testEnv = await E2ETestEnv.createTestEnv({
+            matrixLocalparts: ['denied_user', 'allowed_user'],
+            permissionsRoom: {
+                members: ['allowed_user'],
+                permissions: [{
+                    level: "manageConnections",
+                    service: "webhooks"
+                }]
+            },
+            e2eClientOpts: {
+                autoAcceptInvite: true,
+            },
+            config: {
+                gitlab: {
+                    instances: {"test": {
+                        url: "https://example.org/foo/bar"
+                    }},
+                    webhook: {
+                        secret: "foo!"
+                    }
                 },
-                e2eClientOpts: {
-                    autoAcceptInvite: true,
+                generic: {
+                    enabled: true,
+                    urlPrefix: `http://localhost`
                 },
-                config: {
-                    gitlab: {
-                        instances: {"test": {
-                            url: "https://example.org/foo/bar"
-                        }},
-                        webhook: {
-                            secret: "foo!"
-                        }
-                    },
-                    generic: {
-                        enabled: true,
-                        urlPrefix: `http://localhost`
-                    },
-                }
-            });
-            console.log("setup");
-            await testEnv.setUp();
-            console.log("setuped");
-        } catch (ex) {
-            console.log("silent throw", ex);
-            throw ex;
-        }
-
+            }
+        });
+        await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
     afterEach(() => {
@@ -54,7 +46,6 @@ describe('Permissions test', () => {
         const allowedUser = testEnv.getUser('allowed_user');
 
         // Invite allowed user to permissions room
-
         const roomId = await deniedUser.createRoom({ name: 'Test room', invite: [await allowedUser.getUserId()]});
 
         await deniedUser.inviteUser(testEnv.botMxid, roomId);
@@ -67,7 +58,7 @@ describe('Permissions test', () => {
         await deniedUser.waitForRoomJoin({sender: testEnv.botMxid, roomId });
     }, E2ESetupTestTimeout);
 
-    it('should only allow users with permission to use a service', async () => {
+    it('should disallow users without permission to use a service', async () => {
         const user = testEnv.getUser('allowed_user');
         const roomId = await user.createRoom({ name: 'Test room', invite: [testEnv.botMxid]});
         await user.waitForRoomJoin({sender: testEnv.botMxid, roomId });

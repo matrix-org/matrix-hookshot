@@ -1,4 +1,4 @@
-import { Appservice, type IAppserviceRegistration } from "matrix-bot-sdk";
+import { type IAppserviceRegistration } from "matrix-bot-sdk";
 import {
     GenericContainer,
     Wait,
@@ -52,6 +52,7 @@ export class SynapseContainer extends GenericContainer {
         super(opts.image ?? DEFAULT_SYNAPSE_IMAGE);
         this.withNetworkAliases(serverName)
             .withExposedPorts(8008)
+            .withTmpFs({ "/media_store": "rw,noexec,nosuid,size=65536k" })
             .withWaitStrategy(Wait.forHttp("/_matrix/client/versions", 8008))
             .withEnvironment({ SERVER_NAME: serverName });
 
@@ -108,7 +109,7 @@ export class SynapseContainer extends GenericContainer {
             app_service_config_files: Array.from(this.appserviceFiles),
 
             // Disable the media repo, as it requires mounting a volume
-            enable_media_repo: false,
+            enable_media_repo: true,
 
             // unblacklist RFC1918 addresses
             federation_ip_range_blacklist: [],
@@ -146,6 +147,13 @@ export class SynapseContainer extends GenericContainer {
                 per_user: rc,
             },
             federation_rr_transactions_per_room_per_second: 9999,
+            experimental_features: {
+                msc2409_to_device_messages_enabled: true,
+                msc3202_device_masquerading: true,
+                msc3202_transaction_extensions: true,
+                msc3983_appservice_otk_claims: true,
+                msc3984_appservice_key_query: true,
+            }
         };
 
         if (this.federationCaFiles.size > 0) {
@@ -202,7 +210,7 @@ export class StartedSynapseContainer extends AbstractStartedContainer {
 export async function createContainers(name: string, hookshotPort: number): Promise<TestContainerNetwork> {
     // Before doing anything, make sure we have the port forwarder running
     // Even though the port list to expose is empty, this has the side effect of starting the port forwarder
-    await TestContainers.exposeHostPorts(hookshotPort);
+    await TestContainers.exposeHostPorts();
     
     // Start a docker network which will hold all the containers
     const network = await new Network().start();
@@ -219,51 +227,18 @@ export async function createContainers(name: string, hookshotPort: number): Prom
             users: [{ regex: "@hookshot_.*:hookshot", exclusive: false }],
             aliases: [],
         },
-    } satisfies IAppserviceRegistration;
+        'de.sorunome.msc2409.push_ephemeral': true,
+        'push_ephemeral': true,
+        'org.matrix.msc3202': true,
+    };
 
     const container = await new SynapseContainer(name, { crypto })
         .withNetwork(network)
         .withAppServiceRegistration(registration)
         .start();
 
-    const appService = new Appservice({
-        bindAddress: "0.0.0.0",
-        port: hookshotPort,
-        homeserverName: container.serverName,
-        homeserverUrl: container.baseUrl,
-        registration,
-    });
-
-    // Setup the appservice ping endpoint
-    appService.expressAppInstance.post(
-        "/_matrix/app/v1/ping",
-        (_req, res) => res.status(200).send({}),
-    );
-
-    // Patch the "begin" function to expose host ports, and ping the appservice
-    // The reason we don't do this unconditionally, is that if we never start the appservice,
-    // the HS will try to contact it, which will throw an exception on the local process if port was exposed,
-    // which mocha will catch and report as a test failure.
-    const originalBegin = appService.begin.bind(appService);
-    appService.begin = async () => {
-        await originalBegin();
-
-        // It looks like having the port forwarder setup before
-        // we actually start the appservice sometimes causes issues
-        await TestContainers.exposeHostPorts(hookshotPort);
-
-        // Ask the HS to ping the appservice
-        await appService.botClient.doRequest(
-            "POST",
-            `/_matrix/client/v1/appservice/${registration.id}/ping`,
-            null,
-            {},
-        );
-    };
-
-    // This silences the "too many listeners" warning when reusing the appservice
-    appService.setMaxListeners(Infinity);
     const redis = await new RedisContainer().withNetwork(network).start();
+
 
     return {
         registration,

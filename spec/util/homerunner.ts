@@ -14,8 +14,13 @@ export interface TestHomeServer {
     containers: TestContainerNetwork,
 }
 
+// Due to a bug with testcontainers, we can't reuse a port twice without *issues*.
+// This is slightly hacky as it should ensure we never use the same port twice.
+let incrementalPort = 1;
+
 export async function createHS(localparts: string[] = [], clientOpts: E2ETestMatrixClientOpts, workerId: number, cryptoRootPath?: string): Promise<TestHomeServer> {
-    const appPort = 49600 + workerId;
+    // The worker ID is provided to ensure that across different worker processes we still have a unique port.
+    const appPort = 49600 + (workerId*100) + incrementalPort++;
     const containers = await createContainers("hookshot", appPort);
 
     // Create users
@@ -25,7 +30,6 @@ export async function createHS(localparts: string[] = [], clientOpts: E2ETestMat
     const users = await Promise.all(
         rawUsers.map(async ({mxid, client}) => {
             const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, mxid), RustSdkCryptoStoreType.Sqlite) : undefined;
-            console.log("Client started", containers.synapse.baseUrl, mxid);
             const e2eClient = new E2ETestMatrixClient(clientOpts, containers.synapse.baseUrl, client.accessToken, new MemoryStorageProvider(), cryptoStore);
             if (cryptoStore) {
                 await e2eClient.crypto.prepare();
@@ -93,7 +97,6 @@ export async function registerUser(
         }
     )});
     const res = await req.json() as {user_id: string, access_token: string};
-    console.log("User created", homeserverUrl, user);
     return {
         mxid: res.user_id,
         client: new MatrixClient(homeserverUrl, res.access_token),
