@@ -51,7 +51,11 @@ export enum ErrCode {
      */
     ConflictingConnection =  "HS_CONFLICTING_CONNECTION",
 
-    MethodNotAllowed = "HS_METHOD_NOT_ALLOWED"
+    MethodNotAllowed = "HS_METHOD_NOT_ALLOWED",
+    /**
+     * The webhook could not be routed. 
+     */
+    Unroutable = "HS_UNROUTABLE",
 }
 
 const ErrCodeToStatusCode: Record<ErrCode, StatusCodes> = {
@@ -67,6 +71,7 @@ const ErrCodeToStatusCode: Record<ErrCode, StatusCodes> = {
     HS_ADDITIONAL_ACTION_REQUIRED: StatusCodes.BAD_REQUEST,
     HS_CONFLICTING_CONNECTION: StatusCodes.CONFLICT,
     HS_METHOD_NOT_ALLOWED: StatusCodes.METHOD_NOT_ALLOWED,
+    HS_UNROUTABLE: StatusCodes.BAD_REQUEST,
 }
 
 export class ApiError extends Error implements IApiError {

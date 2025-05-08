@@ -78,12 +78,12 @@ export class Bridge {
         this.as.expressAppInstance.get("/ready", (_, res) => res.status(this.ready ? 200 : 500).send({ready: this.ready}));
     }
 
-    public stop() {
+    public async stop() {
         this.feedReader?.stop();
         this.houndReader?.stop();
         this.tokenStore.stop();
         this.as.stop();
-        if (this.queue.stop) this.queue.stop();
+        await this.queue.stop?.();
     }
 
     public async start() {
@@ -1151,6 +1151,11 @@ export class Bridge {
                         await this.connectionManager.purgeConnection(connection.roomId, connection.connectionId, false);
                     } else {
                         await connection.onStateUpdate?.(event);
+                    }
+                    try {
+                        await this.as.botClient.sendReadReceipt(connection.roomId, event.event_id);
+                    } catch {
+                        // Nonessentail
                     }
                 } catch (ex) {
                     log.warn(`Connection ${connection.toString()} for ${roomId} failed to handle state update:`, ex);

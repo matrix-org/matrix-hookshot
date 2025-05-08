@@ -6,6 +6,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
 import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
+import { createHmac } from "node:crypto";
 
 const log = new Logger("JiraRouter");
 
@@ -31,7 +32,45 @@ export class JiraWebhooksRouter {
         return false;
     }
 
-    constructor(private readonly queue: MessageQueue) {
+    constructor(private readonly queue: MessageQueue, private readonly secret: string) {
+
+    }
+
+    /**
+     * Verifies a JIRA webhook request for a valid secret or signature.
+     * @throws If the request is invalid
+     * @param req The express request.
+     */
+    public verifyWebhookRequest(req: Request, buffer: Buffer): void {
+        const querySecret = req.query.secret;
+        const hubSecret = req.headers['x-hub-signature']?.slice('sha256='.length);
+        if (querySecret) {
+            if (querySecret && !this.secret) {
+                log.warn(`Received JIRA request with a query secret but no secret is configured`);
+                throw new ApiError("Invalid secret", ErrCode.BadToken);
+            }
+            if (querySecret !== this.secret) {
+                log.warn(`JIRA secret did not match`);
+                throw new ApiError("Invalid secret", ErrCode.BadToken);
+            }
+            return;
+        }
+        else if (hubSecret) {
+            if (!this.secret) {
+                log.warn(`Received JIRA request with a signature but no secret is configured`);
+                throw new ApiError("Invalid secret", ErrCode.BadToken);
+            }
+            const calculatedSecret = createHmac('sha256', this.secret).update(
+                buffer
+            ).digest('hex');
+            if (hubSecret !== calculatedSecret) {
+                log.warn(`Received JIRA request with a signature but no secret is configured`);
+                throw new ApiError("Signature did not match", ErrCode.BadToken);
+            }
+            return;
+        }
+        log.warn(`Received JIRA request without a signature or query parameter but a secret was expected`);
+        throw new ApiError("Invalid secret", ErrCode.BadToken);
     }
 
     private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQueryCloud|OAuthQueryOnPrem>, res: Response<string|{error: string}>) {
@@ -39,10 +78,10 @@ export class JiraWebhooksRouter {
         if ("oauth_token" in req.query) {
             // On-prem
             if (typeof req.query.state !== "string") {
-                return res.status(400).send({error: "Missing 'state' parameter"});
+                throw new ApiError("Missing 'state' parameter", ErrCode.BadValue);
             }
             if (typeof req.query.oauth_token !== "string") {
-                return res.status(400).send({error: "Missing 'code' parameter"});
+                throw new ApiError("Missing 'code' parameter", ErrCode.BadValue);
             }
             const { state, oauth_token, oauth_verifier } = req.query;
             try {
@@ -60,15 +99,15 @@ export class JiraWebhooksRouter {
             }
             catch (ex) {
                 log.error("Failed to handle oauth request:", ex);
-                return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+                throw new ApiError("Encountered an error handing oauth request", ErrCode.Unknown);
             }
         } else if ("code" in req.query) {
             // Cloud
             if (typeof req.query.state !== "string") {
-                return res.status(400).send({error: "Missing 'state' parameter"});
+                throw new ApiError("Missing 'state' parameter", ErrCode.BadValue);
             }
             if (typeof req.query.code !== "string") {
-                return res.status(400).send({error: "Missing 'code' parameter"});
+                throw new ApiError("Missing 'code' parameter", ErrCode.BadValue);
             }
             const { state, code } = req.query;
             log.info(`Got new JIRA oauth request (${state.substring(0, 8)})`);
@@ -83,10 +122,10 @@ export class JiraWebhooksRouter {
                 });
             } catch (ex) {
                 log.error("Failed to handle oauth request:", ex);
-                return res.status(500).send(`<p>Encountered an error handing oauth request</p>`);
+                throw new ApiError("Encountered an error handing oauth request", ErrCode.Unknown);
             }
         } else {
-            return res.status(400).send({error: "Missing 'oauth_token'/'code' parameter"});
+            throw new ApiError("Missing 'oauth_token'/'code' parameter", ErrCode.BadValue);
         }
 
         switch (result) {
