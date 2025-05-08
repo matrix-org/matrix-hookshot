@@ -12,5 +12,6 @@ export default defineConfig({
       enabled: true,
     },
     retry: process.env.CI ? 3 : 1,
+    include: ['spec/*.spec.ts'],
   },
 })

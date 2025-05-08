@@ -32,7 +32,7 @@
     "start:matrixsender": "node --require source-map-support/register lib/App/MatrixSenderApp.js",
     "start:resetcrypto": "node --require source-map-support/register lib/App/ResetCryptoStore.js",
     "test": "NODE_OPTIONS=--no-experimental-strip-types mocha -r ts-node/register tests/init.ts 'tests/*.ts'  'tests/**/*.ts'",
-    "test:e2e": "vitest spec/**/*",
+    "test:e2e": "vitest",
     "test:cover": "NODE_OPTIONS=--no-experimental-strip-types nyc --reporter=lcov --reporter=text yarn test",
     "lint": "yarn run lint:js && yarn run lint:rs",
     "lint:js": "eslint",
