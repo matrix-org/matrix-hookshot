@@ -804,18 +804,22 @@ if the request made it through, however.
 <p>You can now follow the guide on <a href="setup/../usage/auth.html#gitlab">authenticating with GitLab</a>, and then <a href="setup/../usage/room_configuration/gitlab_project.html#setting-up">bridging a room</a></p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="jira"><a class="header" href="#jira">JIRA</a></h1>
 <h2 id="adding-a-webhook-to-a-jira-instance"><a class="header" href="#adding-a-webhook-to-a-jira-instance">Adding a webhook to a JIRA Instance</a></h2>
-<p>This should be done for the JIRA instance you wish to bridge. The setup steps are the same for both On-Prem and Cloud.</p>
+<p>This should be done for the JIRA instance you wish to bridge. The setup steps vary for Cloud and Enterprise (on-premise).</p>
+<h3 id="cloud"><a class="header" href="#cloud">Cloud</a></h3>
+<p>See https://support.atlassian.com/jira-cloud-administration/docs/manage-webhooks/ for documentation on how to setup webhooks.</p>
+<p>Hookshot <strong>requires</strong> that you use a secret. Please copy the generated secret value to you config (seen below).</p>
+<h3 id="enterprise"><a class="header" href="#enterprise">Enterprise</a></h3>
 <p>You need to go to the <code>WebHooks</code> configuration page under Settings &gt; System.
 Note that this may require administrative access to the JIRA instance.</p>
-<p>Next, add a webhook that points to <code>/</code> on the public webhooks address for hookshot. You should also include a
+<p>Next, add a webhook that points to <code>/</code> on the public webhooks address for hookshot. You must also include a
 secret value by appending <code>?secret=your-webhook-secret</code>. The secret value can be anything, but should
 be reasonably secure and should also be stored in the <code>config.yml</code> file.</p>
-<p>Ensure that you enable all the events that you wish to be bridged.</p>
+<p>For both, ensure that you enable all the events that you wish to be bridged.</p>
 <h2 id="configuration-4"><a class="header" href="#configuration-4">Configuration</a></h2>
 <p>You can now set some configuration in the bridge <code>config.yml</code>:</p>
 <pre><code class="language-yaml">jira:
   webhook:
-    secret: some-secret
+    secret: your-webhook-secret
   oauth:
     ... # See below
 </code></pre>
