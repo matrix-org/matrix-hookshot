@@ -4,6 +4,7 @@ name: "Docker"
 
 on:
   push:
+    branches: [ main ]
     paths-ignore:
       - changelog.d/**'
   pull_request:
