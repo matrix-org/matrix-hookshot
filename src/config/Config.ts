@@ -695,7 +695,6 @@ export class BridgeConfig {
         if (this.openProject) {
             services.push("openproject");
         }
-        console.log(services);
         return services;
     }
 
