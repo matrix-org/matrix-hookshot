@@ -78,8 +78,8 @@ export interface OpenProjectWebhookPayloadWorkPackage {
         createdAt: StringDate,
         updatedAt: StringDate,
         _embedded: {
-            attachments: [Object],
-            relations: [Object],
+            // attachments: [Object],
+            // relations: [Object],
             type: OpenProjectType,
             priority: OpenProjectPriority,
             project: OpenProjectProject,

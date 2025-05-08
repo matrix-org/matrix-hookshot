@@ -6,8 +6,6 @@ import { OpenProjectWebhookPayload, OpenProjectWebhookPayloadWorkPackage } from 
 import { ApiError, ErrCode } from "../api";
 import { createHmac } from "node:crypto";
 
-const log = new Logger("OpenProjectRouter");
-
 export class OpenProjectWebhooksRouter {
 
     public static IsRequest(req: Request): boolean {
@@ -44,7 +42,6 @@ export class OpenProjectWebhooksRouter {
 
     private onWebhook(req: Request<unknown, unknown, OpenProjectWebhookPayload, unknown>, res: Response<string|{error: string}>) {
         const payload = req.body;
-        console.log(req.headers, (payload as OpenProjectWebhookPayloadWorkPackage).work_package._embedded);
         res.status(200).send();
         this.queue.push({
             eventName: `openproject.${payload.action}`,

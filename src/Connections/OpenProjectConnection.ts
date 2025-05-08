@@ -173,7 +173,6 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
             throw Error('No creator field');
         }
         const url = "foobar"; //generateJiraWebLinkFromIssue(data.issue);
-        console.log(data.work_package._links);
         const content = `${creator.name} created a new work package [${data.work_package.id}](${url}): "${data.work_package.subject}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
