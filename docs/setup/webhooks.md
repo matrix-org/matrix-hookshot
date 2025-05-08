@@ -1,16 +1,17 @@
 # Webhooks
 
-Hookshot supports two kinds of webhooks, inbound (previously known as Generic Webhooks) and outbound.
+Hookshot supports two types of webhooks: inbound (previously known as Generic Webhooks) and outbound. This guide will help you configure, use, and test webhooks effectively.
 
+---
 
 ## Configuration
 
-You will need to add the following configuration to the config file.
+To enable webhooks, you need to update the configuration file. Below is an example configuration:
 
 ```yaml
 generic:
   enabled: true
-  outbound: true # For outbound webhook support
+  outbound: true # Enables outbound webhook support
   urlPrefix: https://example.com/mywebhookspath/
   allowJsTransformationFunctions: false
   waitForComplete: false
@@ -20,78 +21,72 @@ generic:
   # userIdPrefix: webhook_
 ```
 
+### Key Configuration Options
+
+| Option                          | Description                                                                                     | Default Value |
+|---------------------------------|-------------------------------------------------------------------------------------------------|---------------|
+| `enabled`                       | Enables or disables webhooks.                                                                  | `false`       |
+| `outbound`                      | Enables outbound webhook support.                                                              | `false`       |
+| `urlPrefix`                     | The public-facing URL prefix for your webhook handler.                                         | N/A           |
+| `allowJsTransformationFunctions`| Allows JavaScript transformation functions for payloads.                                       | `false`       |
+| `waitForComplete`               | Waits for webhook processing to complete before sending a response.                            | `false`       |
+| `enableHttpGet`                 | Enables triggering webhooks via `GET` requests.                                                | `false`       |
+| `maxExpiryTime`                 | Sets the maximum duration a webhook can remain valid.                                          | Unlimited     |
+| `sendExpiryNotice`              | Sends a notice when a webhook is close to expiring.                                            | `false`       |
+| `userIdPrefix`                  | Prefix for creating specific users for webhook connections.                                    | N/A           |
+
+---
+
 ## Inbound Webhooks
 
-Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works
-by having services hit a unique URL that then transforms a HTTP payload into a Matrix message.
+Inbound webhooks allow external services to send messages into Matrix rooms without needing to understand the Matrix protocol. This is achieved by sending HTTP payloads to a unique URL, which the bridge transforms into Matrix messages.
 
-<section class="notice">
-Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work,
-administators are advised to use `/webhook`.
-</section>
+### Listener Path
 
-The webhooks listener listens on the path `/webhook`.
+The webhook listener listens on the `/webhook` path. For example, if your `urlPrefix` is `https://example.com/mywebhookspath/`, an example webhook URL would look like:
 
-The bridge listens for incoming webhooks requests on the host and port provided in the [`listeners` config](../setup.md#listeners-configuration).
-
-`urlPrefix` describes the public facing URL of your webhook handler. For instance, if your load balancer redirected
-webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/webhook`), an example webhook URL would look like:
-`https://example.com/mywebhookspath/abcdef`.
-
-`waitForComplete` causes the bridge to wait until the webhook is processed before sending a response. Some services prefer you always
-respond with a 200 as soon as the webhook has entered processing (`false`) while others prefer to know if the resulting Matrix message
-has been sent (`true`). By default this is `false`.
-
-`enableHttpGet` means that webhooks can be triggered by `GET` requests, in addition to `POST` and `PUT`. This was previously on by default,
-but is now disabled due to concerns mentioned below.
-
-`maxExpiryTime` sets an upper limit on how long a webhook can be valid for before the bridge expires it. By default this is unlimited. This
-takes a duration represented by a string. E.g. "30d" is 30 days. See [this page](https://github.com/jkroso/parse-duration?tab=readme-ov-file#available-unit-types-are)
-for available units. Additionally: 
-
-  - `sendExpiryNotice` configures whether a message is sent into a room when the connection is close to expiring.
-  - `requireExpiryTime` forbids creating a webhook without a expiry time. This does not apply to existing webhooks.
-
-You may set a `userIdPrefix` to create a specific user for each new webhook connection in a room. For example, a connection with a name
-like `example` for a prefix of `webhook_` will create a user called `@webhook_example:example.com`. If you enable this option,
-you need to configure the user to be part of your registration file e.g.:
-
-```yaml
-# registration.yaml
-...
-namespaces:
-  users:
-    - regex: "@webhook_.+:example.com" # Where example.com is your domain name.
-      exclusive: true
+```
+https://example.com/mywebhookspath/abcdef
 ```
 
-### Adding a webhook
+### Configuration Details
+
+- **`waitForComplete`**: If set to `true`, the bridge waits until the webhook is processed before responding. Use this if the service sending the webhook requires confirmation of message delivery.
+- **`enableHttpGet`**: Allows triggering webhooks via `GET` requests. This is disabled by default due to security concerns.
+
+---
+
+## Adding a Webhook
 
 To add a webhook to your room:
-  - Invite the bot user to the room.
-  - Make sure the bot able to send state events (usually the Moderator power level in clients)
-  - Say `!hookshot webhook example` where `example` is a name for your hook.
-  - The bot will respond with the webhook URL to be sent to services.
 
-### Webhook Handling
+1. Invite the bot user to the room.
+2. Ensure the bot has permission to send state events (usually the Moderator power level).
+3. Use the command `!hookshot webhook example`, where `example` is the name of your webhook.
+4. The bot will respond with a unique webhook URL. Use this URL in the external service to send events.
 
-Hookshot handles `POST` and `PUT` HTTP requests by default.
+---
 
-Hookshot handles HTTP requests with a method of `GET`, `POST` or `PUT`.
+## Webhook Handling
 
-If the request is a `GET` request, the query parameters are assumed to be the body. Otherwise, the body of the request should be a supported payload.
+Hookshot supports `POST`, `PUT`, and optionally `GET` HTTP methods for webhooks. Here’s how the payload is processed:
 
-If the body contains a `text` key, then that key will be used as a message body in Matrix (aka `body`). This text will be automatically converted from Markdown to HTML (unless
-a `html` key is provided.).
+1. **`text` Key**: If the payload contains a `text` key, it is used as the message body in Matrix. The text is automatically converted from Markdown to HTML unless an `html` key is provided.
+2. **`html` Key**: If the payload contains an `html` key, it is used as the formatted message body in Matrix. A fallback `text` key is still required.
+3. **`username` Key**: If the payload contains a `username` key, the username is prepended to both the `text` and `html` message bodies.
+4. **No `text` Key**: If the payload does not contain a `text` key, the entire payload is sent to the room. You can adapt this using a JavaScript transformation function.
 
-If the body contains a `html` key, then that key will be used as the HTML message body in Matrix (aka `formatted_body`). A `text` key fallback MUST still be provided.
+---
 
-If the body *also* contains a `username` key, then the message will be prepended by the given username. This will be prepended to both `text` and `html`.
+## Testing Webhooks
 
-If the body does NOT contain a `text` field, the full payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
+Testing your webhook setup is crucial to ensure it works as expected. Here are some tools you can use:
+
+- **[Beeceptor](https://beeceptor.com/)**: Create a mock endpoint to inspect incoming webhook requests.
+- **[Pipedream](https://pipedream.com/requestbin)**: Set up a request bin to capture and debug webhook payloads.
 
 
-#### Payload formats
+## Payload formats
 
 If the request is a `POST`/`PUT`, the body of the request will be decoded and stored inside the event. Currently, Hookshot supports:
 
@@ -225,7 +220,7 @@ generic:
   outbound: true
 ```
 
-### Request format
+## Request format
 
 Requests can be sent to any service that accepts HTTP requests. You may configure Hookshot to either use the HTTP `PUT` (default)
 or `POST` methods.
