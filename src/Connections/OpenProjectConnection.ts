@@ -214,7 +214,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
-        config = { ...config, ...this.state };
+        config = { ...this.state, ...config };
         const validatedConfig = validateOpenProjectConnectionState(config);
         await this.intent.underlyingClient.sendStateEvent(this.roomId, OpenProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
