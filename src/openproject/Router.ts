@@ -1,8 +1,7 @@
 import { Request, Response, Router, json } from "express";
-import { Logger } from "matrix-appservice-bridge";
 import { BridgeOpenProjectConfig } from "../config/sections/openproject";
 import { MessageQueue } from "../MessageQueue";
-import { OpenProjectWebhookPayload, OpenProjectWebhookPayloadWorkPackage } from "./types";
+import { OpenProjectWebhookPayload } from "./types";
 import { ApiError, ErrCode } from "../api";
 import { createHmac } from "node:crypto";
 
@@ -22,7 +21,7 @@ export class OpenProjectWebhooksRouter {
     }
 
     /**
-     * Verifies a JIRA webhook request for a valid secret or signature.
+     * Verifies a webhook request for a valid signature.
      * @throws If the request is invalid
      * @param req The express request.
      */
@@ -42,7 +41,8 @@ export class OpenProjectWebhooksRouter {
 
     private onWebhook(req: Request<unknown, unknown, OpenProjectWebhookPayload, unknown>, res: Response<string|{error: string}>) {
         const payload = req.body;
-        res.status(200).send();
+        res.status(200).send('OK');
+        console.log('Routing', `openproject.${payload.action}`)
         this.queue.push({
             eventName: `openproject.${payload.action}`,
             data: payload,

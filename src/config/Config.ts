@@ -715,6 +715,7 @@ export class BridgeConfig {
                 break;
             case "genericOutbound":
             case "jira":
+            case "openproject":
                 config = {};
                 break;
             default:

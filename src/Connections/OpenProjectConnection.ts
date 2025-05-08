@@ -1,17 +1,15 @@
 import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, ProvisionConnectionOpts } from "./IConnection";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { JiraIssueEvent } from "../jira/WebhookTypes";
-import { FormatUtil } from "../FormatUtil";
 import markdownit from "markdown-it";
-import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
+import { BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
-import { CommandError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/types";
+import { BridgeOpenProjectConfig } from "../config/sections/openproject";
 
 type EventsNames =
     "work_package:created" |
@@ -80,7 +78,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         const validData = validateOpenProjectConnectionState(data);
         log.info(`Attempting to provisionConnection for ${roomId} ${validData.id} on behalf of ${userId}`);
         const project = await this.assertUserHasAccessToProject(tokenStore,  userId, validData.id);
-        const connection = new OpenProjectConnection(roomId, as, intent, validData, validData.id.toString(), tokenStore);
+        const connection = new OpenProjectConnection(roomId, as, intent, config.openProject, validData, validData.id.toString(), tokenStore);
         await intent.underlyingClient.sendStateEvent(roomId, OpenProjectConnection.CanonicalEventType, connection.stateKey, validData);
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
         return {connection};
@@ -91,7 +89,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
             throw Error('OpenProject is not configured');
         }
         const connectionConfig = validateOpenProjectConnectionState(state.content);
-        return new OpenProjectConnection(roomId, as, intent, connectionConfig, state.stateKey, tokenStore);
+        return new OpenProjectConnection(roomId, as, intent, config.openProject, connectionConfig, state.stateKey, tokenStore);
     }
 
     public get projectId() {
@@ -126,9 +124,10 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         roomId: string,
         private readonly as: Appservice,
         private readonly intent: Intent,
+        private readonly config: BridgeOpenProjectConfig,
         state: OpenProjectConnectionState,
         stateKey: string,
-        private readonly tokenStore: UserTokenStore
+        private readonly tokenStore: UserTokenStore,
     ) {
         super(
             roomId,
@@ -172,7 +171,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         if (!creator) {
             throw Error('No creator field');
         }
-        const url = "foobar"; //generateJiraWebLinkFromIssue(data.issue);
+        const url = new URL(this.config.baseURL.href + `projects/${data.work_package._embedded.project.identifier}/work_packages/${data.work_package.id}`, this.config.baseURL).toString();
         const content = `${creator.name} created a new work package [${data.work_package.id}](${url}): "${data.work_package.subject}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",

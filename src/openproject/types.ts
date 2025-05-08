@@ -42,7 +42,7 @@ export interface OpenProjectPriority {
 
 export interface OpenProjectProject {
     id: number,
-    identifer: string,
+    identifier: string,
     name: string,
     active: boolean,
     public: boolean,
@@ -56,7 +56,7 @@ export interface OpenProjectProject {
 }
 
 export interface OpenProjectWebhookPayloadWorkPackage {
-    action: 'work_package:created',
+    action: 'work_package:created'|'work_package:updated',
     work_package: {
         _type: 'WorkPackage',
         id: number,

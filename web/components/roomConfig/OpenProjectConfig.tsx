@@ -1,20 +1,17 @@
 import { FunctionComponent, createRef } from "preact";
-import { useState, useCallback, useMemo, useContext } from "preact/hooks";
+import { useState, useCallback } from "preact/hooks";
 import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
-import type { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraProjectConnectionInstanceTarget } from "../../../src/Connections/JiraProject";
+import type { OpenProjectConnectionState, OpenProjectResponseItem } from "../../../src/Connections/OpenProjectConnection";
 import { InputField, ButtonSet, Button } from "../elements";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
-import JiraIcon from "../../icons/jira.png";
-import ConnectionSearch from "../elements/ConnectionSearch";
-import { DropItem } from "../elements/DropdownSearch";
-import { BridgeContext } from "../../context";
+import Icon from "../../icons/openproject.png";
+import { BridgeContext } from "../../context";;
 
-const EventType = "uk.half-shot.matrix-hookshot.jira.project";
+const EventType = "org.matrix.matrix-hookshot.openproject.project";
 
-const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, JiraProjectResponseItem, JiraProjectConnectionState>> = ({existingConnection, onSave, onRemove, isUpdating }) => {
-    const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['issue_created']);
-    const api = useContext(BridgeContext).bridgeApi;
+const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<never, OpenProjectResponseItem, OpenProjectConnectionState>> = ({existingConnection, onSave, onRemove, isUpdating }) => {
+    const [allowedEvents, setAllowedEvents] = useState<string[]>(existingConnection?.config.events || ['work_package:created']);
 
     const toggleEvent = useCallback((evt: Event) => {
         const key = (evt.target as HTMLElement).getAttribute('data-event-name');
@@ -24,7 +21,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
             ));
         }
     }, []);
-    const [newConnectionState, setNewConnectionState] = useState<JiraProjectConnectionState|null>(null);
+    const [newConnectionState, setNewConnectionState] = useState<OpenProjectConnectionState|null>(null);
 
     const canEdit = !existingConnection || (existingConnection?.canEdit ?? false);
     const commandPrefixRef = createRef<HTMLInputElement>();
@@ -43,40 +40,10 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         }
     }, [canEdit, existingConnection, newConnectionState, allowedEvents, commandPrefixRef, onSave]);
 
-    const getInstances = useMemo(() => async () => {
-        const targets = await api.getConnectionTargets<JiraProjectConnectionInstanceTarget>(EventType, { });
-        return targets;
-    }, [api]);
-
-    const getProjects = useMemo(() => async (instanceName: string, search?: string, abortController?: AbortController) => {
-        const targets = await api.getConnectionTargets<JiraProjectConnectionProjectTarget>(EventType, {
-            instanceName,
-            ...(search && { search })
-        }, abortController);
-        return targets.map(project => ({
-            title: project.key,
-            description: project.name,
-            value: project.state.url,
-        } as DropItem));
-    }, [api]);
-
-    const setInstance = useCallback((instance: string, url: string) => {
-        setNewConnectionState({
-            url,
-        })
-    },[setNewConnectionState]);
-    const clearInstance = useCallback(() => setNewConnectionState(null), [setNewConnectionState]);
 
     return <form onSubmit={handleSave}>
-        {!existingConnection && <ConnectionSearch
-            serviceName="JIRA"
-            getInstances={getInstances}
-            getProjects={getProjects}
-            onPicked={setInstance}
-            onClear={clearInstance}
-        />}
         <InputField visible={!!existingConnection || !!newConnectionState} label="Command Prefix" noPadding={true}>
-            <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!jira" />
+            <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!openproject" />
         </InputField>
         <InputField visible={!!existingConnection || !!newConnectionState} label="Events" noPadding={true}>
             <p>Choose which event should send a notification to the room</p>
@@ -102,20 +69,20 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
 };
 
 const RoomConfigText = {
-    header: 'JIRA Projects',
-    createNew: 'Add new JIRA Project',
+    header: 'Open Project',
+    createNew: 'Add new project',
     listCanEdit: 'Your connected projects',
     listCantEdit: 'Connected projects',
 };
 
-const RoomConfigListItemFunc = (c: JiraProjectResponseItem) => c.config.url;
+const RoomConfigListItemFunc = (c: OpenProjectResponseItem) => c.config.id;
 
 const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
-    return <RoomConfig<never, JiraProjectResponseItem, JiraProjectConnectionState>
-        headerImg={JiraIcon}
+    return <RoomConfig<never, OpenProjectResponseItem, OpenProjectConnectionState>
+        headerImg={Icon}
         showHeader={showHeader}
         roomId={roomId}
-        type="jira"
+        type="openproject"
         text={RoomConfigText}
         listItemName={RoomConfigListItemFunc}
         connectionEventType={EventType}
