@@ -417,7 +417,7 @@ export class GitHubRepoConnection extends CommandConnection<GitHubRepoConnection
         
         let installationId = 0;
 
-        if (ownSelf.data.login === validData.org) {
+        if (ownSelf.data.login.toLowerCase() === validData.org) {
             installationId = (await github.appOctokit.apps.getUserInstallation({ username: ownSelf.data.login })).data.id;
         } else {
             // Github will error if the authed user tries to list repos of a disallowed installation, even
