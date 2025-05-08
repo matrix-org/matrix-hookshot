@@ -1,8 +1,9 @@
 import { E2ESetupTestTimeout, E2ETestEnv, E2ETestMatrixClient } from "./util/e2e-test";
-import { describe, it } from "@jest/globals";
+import { describe, test, beforeAll, afterAll, expect, vitest } from "vitest";
 import { GenericHookConnection } from "../src/Connections";
 import { TextualMessageEventContent } from "matrix-bot-sdk";
 import { add } from "date-fns/add";
+
 
 async function createInboundConnection(user: E2ETestMatrixClient, botMxid: string, roomId: string, duration?: string) {
     const join = user.waitForRoomJoin({ sender: botMxid, roomId });
@@ -60,7 +61,7 @@ describe('Inbound (Generic) Webhooks', () => {
         return testEnv?.tearDown();
     });
 
-    it('should be able to create a new webhook and handle an incoming request.', async () => {
+    test('should be able to create a new webhook and handle an incoming request.', async () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
         const okMsg = user.waitForRoomEvent({ eventType: "m.room.message", sender: testEnv.botMxid, roomId });
@@ -83,8 +84,8 @@ describe('Inbound (Generic) Webhooks', () => {
         });
     });
 
-    it('should be able to create a new expiring webhook and handle valid requests.', async () => {
-        jest.useFakeTimers();
+    test('should be able to create a new expiring webhook and handle valid requests.', async () => {
+        vitest.useFakeTimers();
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
         const okMsg = user.waitForRoomEvent({ eventType: "m.room.message", sender: testEnv.botMxid, roomId });
@@ -105,7 +106,7 @@ describe('Inbound (Generic) Webhooks', () => {
             format: 'org.matrix.custom.html',
             'uk.half-shot.hookshot.webhook_data': 'Hello world'
         });
-        jest.setSystemTime(add(new Date(), { hours: 3 }));
+        vitest.setSystemTime(add(new Date(), { hours: 3 }));
         const expiredReq = await fetch(url, {
             method: "PUT",
             body: "Hello world"

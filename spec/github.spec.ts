@@ -1,5 +1,6 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, it, beforeEach, afterEach } from "@jest/globals";
+import { describe, test, beforeAll, afterAll, expect } from "vitest";
+
 import { createHmac, randomUUID } from "crypto";
 import { GitHubRepoConnection, GitHubRepoConnectionState } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
@@ -12,7 +13,7 @@ describe('GitHub', () => {
     const webhooksPort = 9500 + E2ETestEnv.workerId;
     const githubPort = 9700 + E2ETestEnv.workerId;
 
-    beforeEach(async () => {
+    beforeAll(async () => {
         // Fake out enough of a GitHub API to get past startup. Later
         // tests might make more use of this.
         githubServer = createServer((req, res) => {
@@ -53,12 +54,12 @@ describe('GitHub', () => {
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
-    afterEach(() => {
+    afterAll(() => {
         githubServer?.close();
         return testEnv?.tearDown();
     });
 
-    it('should be able to handle a GitHub event', async () => {
+    test('should be able to handle a GitHub event', async () => {
         const user = testEnv.getUser('user');
         const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
