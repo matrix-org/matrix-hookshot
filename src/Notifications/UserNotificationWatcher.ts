@@ -48,7 +48,6 @@ export class UserNotificationWatcher {
         [...this.userIntervals.values()].forEach((v) => {
             v.stop();
         });
-        this.queue.stop?.();
     }
 
     public removeUser(userId: string, type: "github"|"gitlab", instanceUrl?: string) {

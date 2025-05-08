@@ -1,4 +1,4 @@
-import { ComplementHomeServer, createHS, destroyHS } from "./homerunner";
+import { TestHomeServer, createHS, destroyHS } from "./homerunner";
 import { Appservice, IAppserviceRegistration, MatrixClient, Membership, MembershipEventContent, PowerLevelsEventContent } from "matrix-bot-sdk";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { BridgeConfig, BridgeConfigRoot } from "../../src/config/Config";
@@ -7,6 +7,7 @@ import { RSAKeyPairOptions, generateKeyPair } from "node:crypto";
 import path from "node:path";
 import Redis from "ioredis";
 import { BridgeConfigActorPermission, BridgeConfigServicePermission } from "../../src/libRs";
+import { TestContainers } from "testcontainers";
 
 const WAIT_EVENT_TIMEOUT = 20000;
 export const E2ESetupTestTimeout = 60000;
@@ -153,7 +154,7 @@ export class E2ETestMatrixClient extends MatrixClient {
                 return;
             }
             return {roomId: eventRoomId, data: eventData};
-        }, `Timed out waiting for join to ${roomId || "any room"} from ${sender}`)
+        }, `Timed out waiting for ${membership} to ${roomId || "any room"} from ${sender}`)
     }
 
     public async waitForRoomJoin(
@@ -211,7 +212,7 @@ export class E2ETestMatrixClient extends MatrixClient {
 export class E2ETestEnv<ML extends string = string> {
 
     static get workerId() {
-        return parseInt(process.env.JEST_WORKER_ID ?? '0');
+        return (process as any).__tinypool_state__.workerId;
     }
 
     static async createTestEnv<ML extends string>(opts: Opts<ML>): Promise<E2ETestEnv<ML>> {
@@ -260,7 +261,7 @@ export class E2ETestEnv<ML extends string = string> {
         let cacheConfig: BridgeConfigRoot["cache"]|undefined;
         if (opts.useRedis) {
             cacheConfig = {
-                redisUri: `${REDIS_DATABASE_URI}/${workerID}`,
+                redisUri: `${homeserver.containers.redis.getConnectionUrl()}/${workerID}`,
             }
         }
 
@@ -281,8 +282,8 @@ export class E2ETestEnv<ML extends string = string> {
 
         let permissions: BridgeConfigActorPermission[] = [];
         if (opts.permissionsRoom) {
-            const as = new Appservice({ registration, port: 0, bindAddress: "", homeserverName: homeserver.domain, homeserverUrl: homeserver.url });
-            const permsRoom = await as.botClient.createRoom({name: "Permissions room", invite: opts.permissionsRoom.members.map(localpart => `@${localpart}:${homeserver.domain}`)});
+            const botClient = new MatrixClient(homeserver.url, homeserver.asToken);
+            const permsRoom = await botClient.createRoom({name: "Permissions room", invite: opts.permissionsRoom.members.map(localpart => `@${localpart}:${homeserver.domain}`)});
             permissions.push({ actor: permsRoom, services: opts.permissionsRoom.permissions});
         } else {
             permissions = [{
@@ -290,7 +291,6 @@ export class E2ETestEnv<ML extends string = string> {
                 services: [{level: "manageConnections"}]
             }];
         }
-
         const config = new BridgeConfig({
             bridge: {
                 domain: homeserver.domain,
@@ -328,12 +328,42 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     private constructor(
-        public readonly homeserver: ComplementHomeServer,
+        public readonly homeserver: TestHomeServer,
         public app: Awaited<ReturnType<typeof start>>,
         public readonly opts: Opts<ML>,
         private readonly config: BridgeConfig,
         private readonly dir: string,
-    ) { }
+    ) {
+        const appService = app.appservice;
+        // Setup the appservice ping endpoint
+        appService.expressAppInstance.post(
+            "/_matrix/app/v1/ping",
+            (_req, res) => res.status(200).send({}),
+        );
+
+        // Patch the "begin" function to expose host ports, and ping the appservice
+        // The reason we don't do this unconditionally, is that if we never start the appservice,
+        // the HS will try to contact it, which will throw an exception on the local process if port was exposed,
+        // which mocha will catch and report as a test failure.
+        const originalBegin = appService.begin.bind(appService);
+        appService.begin = async () => {
+            await originalBegin();
+
+            // It looks like having the port forwarder setup before
+            // we actually start the appservice sometimes causes issues
+            await TestContainers.exposeHostPorts(config.bridge.port);
+
+            // Ask the HS to ping the appservice.
+            // TODO: Because of crypto reasons, the appservice bot client might not be a "true" appservice session
+            // but instead a crypto session. For this reason we need to do a raw request.
+            new MatrixClient(homeserver.url, homeserver.asToken).doRequest(
+                "POST",
+                `/_matrix/client/v1/appservice/hookshot/ping`,
+                null,
+                {},
+            );
+        };
+    }
 
     public get botMxid() {
         return `@hookshot:${this.homeserver.domain}`;
@@ -344,17 +374,11 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     public async tearDown(): Promise<void> {
+        await destroyHS(this.homeserver);
         await this.app.bridgeApp.stop();
         await this.app.listener.stop();
         await this.app.storage.disconnect?.();
-
-        // Clear the redis DB.
-        if (this.config.cache?.redisUri) {
-            await new Redis(this.config.cache.redisUri).flushdb();
-        }
-
         this.homeserver.users.forEach(u => u.client.stop());
-        await destroyHS(this.homeserver.id);
         await rm(this.dir, { recursive: true });
     }
 

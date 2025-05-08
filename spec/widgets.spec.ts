@@ -1,11 +1,11 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, it, beforeEach, afterEach } from "@jest/globals";
+import { describe, test, beforeAll, afterAll, expect } from "vitest";
 import { getBridgeApi } from "./util/bridge-api";
 
 describe('Widgets', () => {
     let testEnv: E2ETestEnv;
 
-    beforeEach(async () => {
+    beforeAll(async () => {
         const webhooksPort = 9500 + E2ETestEnv.workerId;
         testEnv = await E2ETestEnv.createTestEnv({matrixLocalparts: ['user'], config: {
             widgets: {
@@ -22,11 +22,11 @@ describe('Widgets', () => {
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
-    afterEach(() => {
+    afterAll(() => {
         return testEnv?.tearDown();
     });
 
-    it('should be able to authenticate with the widget API', async () => {
+    test('should be able to authenticate with the widget API', async () => {
         const user = testEnv.getUser('user');
         const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         expect(await bridgeApi.verify()).toEqual({
