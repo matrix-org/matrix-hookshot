@@ -24,6 +24,7 @@ import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
+import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 
 const log = new Logger("ConnectionManager");
 
@@ -345,6 +346,10 @@ export class ConnectionManager extends EventEmitter {
 
     public getConnectionsForHoundChallengeId(challengeId: string): HoundConnection[] {
         return this.connections.filter(c => c instanceof HoundConnection && c.challengeId === challengeId) as HoundConnection[];
+    }
+
+    public getConnectionsForOpenProject(projectId: number): OpenProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof OpenProjectConnection && c.interestedInProject(projectId))) as OpenProjectConnection[];
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

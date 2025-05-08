@@ -20,6 +20,7 @@ import { GithubInstance } from "./github/GithubInstance";
 import QuickLRU from "@alloc/quick-lru";
 import type { WebhookEventName } from "@octokit/webhooks-types";
 import { ApiError, ErrCode } from "./api";
+import { OpenProjectWebhooksRouter } from "./openproject/Router";
 
 const log = new Logger("Webhooks");
 
@@ -90,6 +91,10 @@ export class Webhooks extends EventEmitter {
             this.expressRouter.use('/webhook', new GenericWebhooksRouter(this.queue, false, this.config.generic.enableHttpGet).getRouter());
             // TODO: Remove old deprecated endpoint
             this.expressRouter.use(new GenericWebhooksRouter(this.queue, true, this.config.generic.enableHttpGet).getRouter());
+        }
+        if (this.config.openProject) {
+            this.expressRouter.use('/openproject', new OpenProjectWebhooksRouter(this.config.openProject, this.queue).getRouter());
+
         }
         this.expressRouter.use(express.json({
             verify: this.verifyRequest.bind(this),

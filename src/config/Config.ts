@@ -16,6 +16,7 @@ import { BridgeConfigCache } from "./sections/cache";
 import { BridgeConfigGenericWebhooks, BridgeConfigQueue, BridgeGenericWebhooksConfigYAML } from "./sections";
 import { GenericHookServiceConfig } from "../Connections";
 import { BridgeConfigEncryption } from "./sections/encryption";
+import { BridgeOpenProjectConfig, BridgeOpenProjectConfigYAML } from "./sections/openproject";
 
 const log = new Logger("Config");
 
@@ -415,6 +416,7 @@ export interface BridgeConfigRoot {
     passFile: string;
     permissions?: BridgeConfigActorPermission[];
     provisioning?: BridgeConfigProvisioning;
+    openProject?: BridgeOpenProjectConfigYAML;
     queue?: BridgeConfigQueue;
     sentry?: BridgeConfigSentry;
     serviceBots?: BridgeConfigServiceBot[];
@@ -458,6 +460,8 @@ export class BridgeConfig {
     public readonly feeds?: BridgeConfigFeeds;
     @configKey("Configure Challenge Hound support", true)
     public readonly challengeHound?: BridgeConfigChallengeHound;
+    @configKey("Configure OpenProject support", true)
+    public readonly openProject?: BridgeOpenProjectConfig;
     @configKey("Define profile information for the bot user", true)
     public readonly bot?: BridgeConfigBot;
     @configKey("Define additional bot users for specific services", true)
@@ -508,6 +512,8 @@ export class BridgeConfig {
         this.serviceBots = configData.serviceBots;
         this.metrics = configData.metrics;
         this.challengeHound = configData.challengeHound;
+
+        this.openProject = configData.openProject && new BridgeOpenProjectConfig(configData.openProject);
 
         // TODO: Formalize env support
         if (env?.CFG_QUEUE_MONOLITHIC && ["false", "off", "no"].includes(env.CFG_QUEUE_MONOLITHIC)) {
@@ -686,6 +692,10 @@ export class BridgeConfig {
         if (this.challengeHound) {
             services.push("challengehound");
         }
+        if (this.openProject) {
+            services.push("openproject");
+        }
+        console.log(services);
         return services;
     }
 

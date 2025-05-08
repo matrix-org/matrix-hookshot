@@ -15,6 +15,7 @@ import { ApiError, Logger } from "matrix-appservice-bridge";
 import { Intent } from "matrix-bot-sdk";
 import YAML from 'yaml';
 import { HoundConnection } from "./HoundConnection";
+import { OpenProjectConnection } from "./OpenProjectConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 const parseDurationImport = import('parse-duration');
@@ -458,6 +459,19 @@ export class SetupConnection extends CommandConnection {
 
         await this.client.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, id, {});
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from challenge`));
+    }
+
+
+    @botCommand("openproject add", { help: "Bridge a OpenProject project to the room.", requiredArgs: ["id"], includeUserId: true, category: "openproject"})
+    public async onOpenProjectAdd(userId: string, id: string) {
+        if (!this.config.openProject) {
+            throw new CommandError("not-configured", "The bridge is not configured to support open project.");
+        }
+
+        await this.checkUserPermissions(userId, OpenProjectConnection.ServiceCategory, HoundConnection.CanonicalEventType);
+        const {connection} = await OpenProjectConnection.provisionConnection(this.roomId, userId, { id: parseInt(id) }, this.provisionOpts);
+        this.pushConnections(connection);
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge this project`));
     }
 
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})
