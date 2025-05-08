@@ -342,7 +342,7 @@ describe("OpenProject", () => {
     return testEnv?.tearDown();
   });
 
-  test("should be able to handle a JIRA event", { timeout: 10000 }, async () => {
+  test("should be able to handle a JIRA event", async () => {
     const user = testEnv.getUser("user");
     const bridgeApi = await getBridgeApi(
       testEnv.opts.config?.widgets?.publicUrl!,
