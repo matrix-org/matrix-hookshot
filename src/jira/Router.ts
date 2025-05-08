@@ -64,7 +64,7 @@ export class JiraWebhooksRouter {
                 buffer
             ).digest('hex');
             if (hubSecret !== calculatedSecret) {
-                log.warn(`Received JIRA request with a signature but no secret is configured`);
+                log.warn(`JIRA secret did not match`);
                 throw new ApiError("Signature did not match", ErrCode.BadToken);
             }
             return;
