@@ -6,6 +6,7 @@ import { GitHubRepoConnection, GitHubRepoConnectionState } from "../src/Connecti
 import { MessageEventContent } from "matrix-bot-sdk";
 import { getBridgeApi } from "./util/bridge-api";
 import { Server, createServer } from "http";
+import { waitFor } from "./util/helpers";
 
 describe('GitHub', () => {
     let testEnv: E2ETestEnv;
@@ -72,17 +73,7 @@ describe('GitHub', () => {
         } satisfies GitHubRepoConnectionState);
 
         // Wait for connection to be accepted.
-        await new Promise<void>(r => {
-            let interval: NodeJS.Timeout;
-            interval = setInterval(() => {
-                bridgeApi.getConnectionsForRoom(testRoomId).then(conns => {
-                    if (conns.length > 0) {
-                        clearInterval(interval);
-                        r();
-                    }
-                })
-            }, 500);
-        });
+        await waitFor(async () => (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1);
 
         const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
             eventType: 'm.room.message', sender: testEnv.botMxid, roomId: testRoomId

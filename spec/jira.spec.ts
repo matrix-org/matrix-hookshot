@@ -1,9 +1,11 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, it, beforeEach, afterEach } from "@jest/globals";
+import { describe, expect, beforeAll, afterAll, test } from "vitest"
 import { createHmac, randomUUID } from "crypto";
 import { JiraProjectConnection, JiraProjectConnectionState } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
 import { JiraGrantChecker } from "../src/jira/GrantChecker";
+import { getBridgeApi } from "./util/bridge-api";
+import { waitFor } from "./util/helpers";
 
 const JIRA_PAYLOAD = {
     "timestamp": 1745506426948,
@@ -80,29 +82,37 @@ describe('JIRA', () => {
     let testEnv: E2ETestEnv;
     const webhooksPort = 9500 + E2ETestEnv.workerId;
 
-    beforeEach(async () => {
-        testEnv = await E2ETestEnv.createTestEnv({matrixLocalparts: ['user'], config: {
-            jira: {
-                webhook: {
-                    secret: randomUUID(),
+    beforeAll(async () => {
+        testEnv = await E2ETestEnv.createTestEnv({
+            matrixLocalparts: ['user'],
+            config: {
+                jira: {
+                    webhook: {
+                        secret: randomUUID(),
+                    },
                 },
-            },
-            listeners: [{
-                port: webhooksPort,
-                bindAddress: '0.0.0.0',
-                // Bind to the SAME listener to ensure we don't have conflicts.
-                resources: ['webhooks', 'widgets'],
-            }],
-        }});
+                widgets: {
+                    publicUrl: `http://localhost:${webhooksPort}`
+                },
+                listeners: [{
+                    port: webhooksPort,
+                    bindAddress: '0.0.0.0',
+                    // Bind to the SAME listener to ensure we don't have conflicts.
+                    resources: ['webhooks', 'widgets'],
+                }],
+            }
+        });
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
-    afterEach(() => {
+    afterAll(() => {
+        console.log('tear down');
         return testEnv?.tearDown();
     });
 
-    it('should be able to handle a JIRA event', async () => {
+    test('should be able to handle a JIRA event', async () => {
         const user = testEnv.getUser('user');
+        const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
         await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
         const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
@@ -118,6 +128,7 @@ describe('JIRA', () => {
             url: jiraURL,
         } satisfies JiraProjectConnectionState);
 
+        await waitFor(async () => (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1);
 
         const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
             eventType: 'm.room.message', sender: testEnv.botMxid, roomId: testRoomId
@@ -144,6 +155,7 @@ describe('JIRA', () => {
         
         // And await the notice.
         const { body } = (await webhookNotice).data.content;
-        expect(body).toContain('Test User created a new JIRA issue [TP-8](https://example.org/TP-8): "Test issue"');
-    });
+        expect(body).toContain('Test User created a new JIRA issue [TP-8](https://example.org/browse/TP-8): "Test issue"');
+        console.log("Test over");
+    }, { timeout: 20000 });
 });
