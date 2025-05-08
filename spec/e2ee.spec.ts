@@ -1,6 +1,6 @@
 import { MessageEventContent } from "matrix-bot-sdk";
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, it, beforeEach, afterEach } from "@jest/globals";
+import { describe, test, beforeEach, afterEach } from "vitest";
 
 const CryptoRoomState = [{
     content: {
@@ -22,7 +22,7 @@ describe('End-2-End Encryption support', () => {
         return testEnv?.tearDown();
     });
 
-    it('should be able to send the help command', async () => {
+    test('should be able to send the help command', async () => {
         const user = testEnv.getUser('user');
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid], initial_state: CryptoRoomState});
         await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
@@ -32,7 +32,7 @@ describe('End-2-End Encryption support', () => {
             eventType: 'm.room.message', sender: testEnv.botMxid, roomId: testRoomId,
         });
     });
-    it('should send notices in an encrypted format', async () => {
+    test('should send notices in an encrypted format', async () => {
         const user = testEnv.getUser('user');
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid], initial_state: CryptoRoomState});
         await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);

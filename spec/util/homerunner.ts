@@ -3,6 +3,7 @@ import { createHash, createHmac } from "crypto";
 import { E2ETestMatrixClient, E2ETestMatrixClientOpts } from "./e2e-test";
 import path from "node:path";
 import { createContainers, TestContainerNetwork } from "./containers";
+import { TestContainers } from "testcontainers";
 
 export interface TestHomeServer {
     url: string,
@@ -29,7 +30,7 @@ export async function createHS(localparts: string[] = [], clientOpts: E2ETestMat
     // Skip AS user.
     const users = await Promise.all(
         rawUsers.map(async ({mxid, client}) => {
-            const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, mxid), RustSdkCryptoStoreType.Sqlite) : undefined;
+            const cryptoStore = cryptoRootPath ? new RustSdkCryptoStorageProvider(path.join(cryptoRootPath, mxid), 0) : undefined;
             const e2eClient = new E2ETestMatrixClient(clientOpts, containers.synapse.baseUrl, client.accessToken, new MemoryStorageProvider(), cryptoStore);
             if (cryptoStore) {
                 await e2eClient.crypto.prepare();

@@ -212,7 +212,7 @@ export class E2ETestMatrixClient extends MatrixClient {
 export class E2ETestEnv<ML extends string = string> {
 
     static get workerId() {
-        return parseInt(process.env.JEST_WORKER_ID ?? '0');
+        return (process as any).__tinypool_state__.workerId;
     }
 
     static async createTestEnv<ML extends string>(opts: Opts<ML>): Promise<E2ETestEnv<ML>> {
@@ -323,6 +323,8 @@ export class E2ETestEnv<ML extends string = string> {
         });
         const app = await start(config, registration);
         app.listener.finaliseListeners();
+
+        console.log(config.bridge, config.cache, config.queue);
         
         return new E2ETestEnv(homeserver, app, opts, config, dir);
     }
@@ -374,17 +376,11 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     public async tearDown(): Promise<void> {
+        await destroyHS(this.homeserver);
         await this.app.bridgeApp.stop();
         await this.app.listener.stop();
         await this.app.storage.disconnect?.();
-
-        // Clear the redis DB.
-        if (this.config.cache?.redisUri) {
-            await new Redis(this.config.cache.redisUri).flushdb();
-        }
-
         this.homeserver.users.forEach(u => u.client.stop());
-        await destroyHS(this.homeserver);
         await rm(this.dir, { recursive: true });
     }
 

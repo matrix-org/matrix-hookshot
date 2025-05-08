@@ -1,5 +1,5 @@
 import { E2ESetupTestTimeout, E2ETestEnv, E2ETestMatrixClient } from "./util/e2e-test";
-import { describe, it } from "@jest/globals";
+import { describe, test, beforeAll, afterAll, afterEach, beforeEach, expect } from "vitest";
 import { OutboundHookConnection } from "../src/Connections";
 import { TextualMessageEventContent } from "matrix-bot-sdk";
 import { IncomingHttpHeaders, Server, createServer } from "http";
@@ -9,9 +9,7 @@ import { AddressInfo } from "net";
 
 async function createHttpServer(): Promise<Server> {
     const server = createServer();
-    console.log("Creating server");
     await new Promise<void>((req) => server.listen(0, () => req()));
-    console.log("done");
     return server;
 }
 
@@ -105,7 +103,6 @@ describe('OutboundHooks', () => {
 
     afterEach(() => {
         try {
-            console.log('Closing server');
             server.close();
         } catch {
             // Ignore, we tried.
@@ -116,7 +113,7 @@ describe('OutboundHooks', () => {
         await testEnv?.tearDown();
     });
 
-    it('should be able to create a new webhook and push an event.', async () => {
+    test('should be able to create a new webhook and push an event.', async () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
         server = await createHttpServer();
@@ -146,7 +143,7 @@ describe('OutboundHooks', () => {
         expect(media).toBeUndefined();
     });
 
-    it('should be able to create a new webhook and push a media attachment.', async () => {
+    test('should be able to create a new webhook and push a media attachment.', async () => {
         const user = testEnv.getUser('user');
         const roomId = await user.createRoom({ name: 'My Test Webhooks room'});
         server = await createHttpServer();
