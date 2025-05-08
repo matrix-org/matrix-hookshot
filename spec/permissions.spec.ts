@@ -6,7 +6,7 @@ import { MessageEventContent } from "matrix-bot-sdk";
 describe('Permissions test', () => {
     let testEnv!: E2ETestEnv<'denied_user'|'allowed_user'>;
 
-    beforeEach(async () => {
+    beforeAll(async () => {
         testEnv = await E2ETestEnv.createTestEnv({
             matrixLocalparts: ['denied_user', 'allowed_user'],
             permissionsRoom: {
@@ -37,7 +37,7 @@ describe('Permissions test', () => {
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
-    afterEach(() => {
+    afterAll(() => {
         return testEnv?.tearDown();
     });
 
