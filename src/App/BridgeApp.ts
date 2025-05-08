@@ -54,13 +54,6 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
     const tokenStore = await UserTokenStore.fromKeyPath(config.passFile , appservice.botIntent, config);
     const bridgeApp = new Bridge(config, tokenStore, listener, appservice, storage, botUsersManager);
 
-    process.once("SIGTERM", () => {
-        log.error("Got SIGTERM");
-        listener.stop();
-        bridgeApp.stop();
-        // Don't care to await this, as the process is about to end
-        storage.disconnect?.();
-    });
     return {
         appservice,
         bridgeApp,
@@ -74,7 +67,14 @@ async function startFromFile() {
     const registrationFile = process.argv[3] || "./registration.yml";
     const config = await BridgeConfig.parseConfig(configFile, process.env);
     const registration = await parseRegistrationFile(registrationFile);
-    const { bridgeApp, listener } = await start(config, registration);
+    const { bridgeApp, listener, storage } = await start(config, registration);
+    process.once("SIGTERM", () => {
+        log.error("Got SIGTERM");
+        listener.stop();
+        bridgeApp.stop();
+        // Don't care to await this, as the process is about to end
+        storage.disconnect?.();
+    });
     await bridgeApp.start();
     listener.finaliseListeners();
 }

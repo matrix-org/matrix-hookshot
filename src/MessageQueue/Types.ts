@@ -16,7 +16,7 @@ export interface MessageQueue {
     push: <T>(data: MessageQueueMessage<T>, single?: boolean) => Promise<void>;
     pushWait: <T, X>(data: MessageQueueMessage<T>, timeout?: number, single?: boolean) => Promise<X>;
     on: <T>(eventName: string, cb: (data: MessageQueueMessageOut<T>) => void) => void;
-    stop?(): void;
+    stop?(): Promise<void>;
     connect?(): Promise<void>;
 }
 
