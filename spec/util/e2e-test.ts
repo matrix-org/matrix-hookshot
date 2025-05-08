@@ -323,8 +323,6 @@ export class E2ETestEnv<ML extends string = string> {
         });
         const app = await start(config, registration);
         app.listener.finaliseListeners();
-
-        console.log(config.bridge, config.cache, config.queue);
         
         return new E2ETestEnv(homeserver, app, opts, config, dir);
     }
