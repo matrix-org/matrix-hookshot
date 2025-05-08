@@ -106,7 +106,6 @@ describe('JIRA', () => {
     }, E2ESetupTestTimeout);
 
     afterAll(() => {
-        console.log('tear down');
         return testEnv?.tearDown();
     });
 
@@ -156,6 +155,5 @@ describe('JIRA', () => {
         // And await the notice.
         const { body } = (await webhookNotice).data.content;
         expect(body).toContain('Test User created a new JIRA issue [TP-8](https://example.org/browse/TP-8): "Test issue"');
-        console.log("Test over");
-    }, { timeout: 20000 });
+    });
 });
