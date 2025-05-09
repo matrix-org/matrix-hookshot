@@ -42,7 +42,6 @@ export class OpenProjectWebhooksRouter {
     private onWebhook(req: Request<unknown, unknown, OpenProjectWebhookPayload, unknown>, res: Response<string|{error: string}>) {
         const payload = req.body;
         res.status(200).send('OK');
-        console.log('Routing', `openproject.${payload.action}`)
         this.queue.push({
             eventName: `openproject.${payload.action}`,
             data: payload,

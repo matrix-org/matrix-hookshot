@@ -7,6 +7,7 @@ import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
 import { BridgeConfigCache } from "../config/sections";
+import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";
@@ -34,6 +35,8 @@ const HOUND_GUIDS = "hound.guids.";
 const HOUND_EVENTS = "hound.events.";
 
 const GENERIC_HOOK_HAS_WARNED = "generichook.haswarned";
+
+const OPENPROJECT_WORKPACKAGE_KEY = "openproject.workpackagecache.";
 
 const log = new Logger("RedisASProvider");
 
@@ -293,5 +296,14 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
 
     public async setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void> {
         await this.redis[hasWarned ? "sadd" : "srem"](GENERIC_HOOK_HAS_WARNED, hookId);
+    }
+
+    public async getOpenProjectWorkPackageState(projectId: number, id: number): Promise<OpenProjectWorkPackageCacheState|null> {
+        const jsonStr = await this.redis.get(`${OPENPROJECT_WORKPACKAGE_KEY}:${projectId}.${id}`);
+        return jsonStr && JSON.parse(jsonStr);
+    }
+    public async setOpenProjectWorkPackageState(state: OpenProjectWorkPackageCacheState, id: number) {
+        const key = `${OPENPROJECT_WORKPACKAGE_KEY}:${state.project}.${id}`;
+        await this.redis.set(key, JSON.stringify(state));
     }
 }

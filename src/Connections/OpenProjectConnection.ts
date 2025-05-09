@@ -10,19 +10,36 @@ import { ApiError, ErrCode } from "../api";
 import { GetConnectionsResponseItem } from "../provisioning/api";
 import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/types";
 import { BridgeOpenProjectConfig } from "../config/sections/openproject";
+import { formatWorkPackageDiff, formatWorkPackageForMatrix } from "../openproject/format";
+import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { workPackageToCacheState } from "../openproject/state";
 
-type EventsNames =
+export type OpenProjectEventsNames =
     "work_package:created" |
-    "work_package:updated";
+    "work_package:updated" |
+    "work_package:assignee_changed" |
+    "work_package:description_changed" | 
+    "work_package:duedate_changed" |
+    "work_package:workpercent_changed" |
+    "work_package:priority_changed" |
+    "work_package:responsible_changed" |
+    "work_package:subject_changed";
 
-const JiraAllowedEvents: EventsNames[] = [
+const JiraAllowedEvents: OpenProjectEventsNames[] = [
     "work_package:created",
     "work_package:updated",
+    "work_package:assignee_changed",
+    "work_package:description_changed", 
+    "work_package:duedate_changed",
+    "work_package:workpercent_changed",
+    "work_package:priority_changed",
+    "work_package:responsible_changed",
+    "work_package:subject_changed",
 ];
 
 export interface OpenProjectConnectionState extends IConnectionState {
-    id: number;
-    events: EventsNames[],
+    url: string;
+    events: OpenProjectEventsNames[],
 }
 
 
@@ -30,9 +47,12 @@ export type OpenProjectResponseItem = GetConnectionsResponseItem<OpenProjectConn
 
 
 function validateOpenProjectConnectionState(state: unknown): OpenProjectConnectionState {
-    const {id, commandPrefix, priority} = state as Partial<OpenProjectConnectionState>;
-    if (id === undefined || typeof id !== "number") {
-        throw new ApiError("Expected 'id' to be a number", ErrCode.BadValue);
+    const {url, commandPrefix, priority} = state as Partial<OpenProjectConnectionState>;
+    if (url === undefined || typeof url !== "string") {
+        throw new ApiError("Expected 'url' to be a string", ErrCode.BadValue);
+    }
+    if (!URL.canParse(url)) {
+        throw new ApiError("Expected 'url' to be a URL", ErrCode.BadValue);
     }
     if (commandPrefix) {
         if (typeof commandPrefix !== "string") {
@@ -47,7 +67,7 @@ function validateOpenProjectConnectionState(state: unknown): OpenProjectConnecti
     if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
         throw new ApiError(`'events' can only contain ${JiraAllowedEvents.join(", ")}`, ErrCode.BadValue);
     }
-    return {id, commandPrefix, events, priority};
+    return {url, commandPrefix, events, priority};
 }
 
 const log = new Logger("OpenProjectConnection");
@@ -67,38 +87,29 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async assertUserHasAccessToProject(tokenStore: UserTokenStore, userId: string, projectId: number) {
+    static async assertUserHasAccessToProject(tokenStore: UserTokenStore, userId: string, url: string) {
         // TODO.
     }
 
-    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, config}: ProvisionConnectionOpts) {
+    static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, config, storage}: ProvisionConnectionOpts) {
         if (!config.openProject) {
             throw new ApiError('OpenProject integration is not configured', ErrCode.DisabledFeature);
         }
         const validData = validateOpenProjectConnectionState(data);
-        log.info(`Attempting to provisionConnection for ${roomId} ${validData.id} on behalf of ${userId}`);
-        const project = await this.assertUserHasAccessToProject(tokenStore,  userId, validData.id);
-        const connection = new OpenProjectConnection(roomId, as, intent, config.openProject, validData, validData.id.toString(), tokenStore);
+        log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
+        const project = await this.assertUserHasAccessToProject(tokenStore,  userId, validData.url);
+        const connection = new OpenProjectConnection(roomId, as, intent, config.openProject, validData, validData.url, tokenStore, storage);
         await intent.underlyingClient.sendStateEvent(roomId, OpenProjectConnection.CanonicalEventType, connection.stateKey, validData);
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
         return {connection};
     }
 
-    static createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {config, as, intent, tokenStore}: InstantiateConnectionOpts) {
+    static createConnectionForState(roomId: string, state: StateEvent<Record<string, unknown>>, {config, as, intent, tokenStore, storage}: InstantiateConnectionOpts) {
         if (!config.openProject) {
             throw Error('OpenProject is not configured');
         }
         const connectionConfig = validateOpenProjectConnectionState(state.content);
-        return new OpenProjectConnection(roomId, as, intent, config.openProject, connectionConfig, state.stateKey, tokenStore);
-    }
-
-    public get projectId() {
-        return this.state.id;
-    }
-
-    public static getProjectKeyForUrl(projectUrl: URL) {
-        const parts = projectUrl?.pathname.split('/');
-        return parts ? parts[parts.length - 1]?.toUpperCase() : undefined;
+        return new OpenProjectConnection(roomId, as, intent, config.openProject, connectionConfig, state.stateKey, tokenStore, storage);
     }
 
     public get priority(): number {
@@ -109,7 +120,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         return `OpenProjectConnection ${this.projectId}`;
     }
 
-    public isInterestedInHookEvent(eventName: EventsNames, interestedByDefault = false) {
+    public isInterestedInHookEvent(eventName: OpenProjectEventsNames, interestedByDefault = false) {
         return !this.state.events ? interestedByDefault : this.state.events.includes(eventName);
     }
 
@@ -120,6 +131,9 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         return false;
     }
 
+    public readonly url: URL;
+    public readonly projectId: number;
+
     constructor(
         roomId: string,
         private readonly as: Appservice,
@@ -128,6 +142,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         state: OpenProjectConnectionState,
         stateKey: string,
         private readonly tokenStore: UserTokenStore,
+        private readonly storage: IBridgeStorageProvider,
     ) {
         super(
             roomId,
@@ -141,6 +156,11 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
             "!openproject",
             "openproject"
         );
+        this.url = new URL(state.url);
+        this.projectId = parseInt(/\/projects\/(\d+)\/?/.exec(this.url.pathname)?.[1] ?? "");
+        if (isNaN(this.projectId)) {
+            throw Error('URL for project doesnt contain a project ID');
+        }
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -159,27 +179,69 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
     }
 
     public async onWorkPackageCreated(data: OpenProjectWebhookPayloadWorkPackage) {
-        // NOTE This is the only event type that shouldn't be skipped if the state object is missing,
-        //      for backwards compatibility with issue creation having been the only supported Jira event type,
-        //      and a missing state object having been treated as wanting all events.
-        if (!this.isInterestedInHookEvent('work_package:created', true)) {
+        if (!this.isInterestedInHookEvent('work_package:created')) {
             return;
         }
-        log.info(`onWorkPackaeCreated ${this.roomId} ${this.projectId} ${data.work_package.id}`);
+        log.info(`onWorkPackageCreated ${this.roomId} ${this.projectId} ${data.work_package.id}`);
 
         const creator = data.work_package._embedded.author;
         if (!creator) {
             throw Error('No creator field');
         }
-        const url = new URL(this.config.baseURL.href + `projects/${data.work_package._embedded.project.identifier}/work_packages/${data.work_package.id}`, this.config.baseURL).toString();
-        const content = `${creator.name} created a new work package [${data.work_package.id}](${url}): "${data.work_package.subject}"`;
+        const extraData = formatWorkPackageForMatrix(data.work_package, this.config.baseURL);
+        const content = `${creator.name} created a new work package [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
         await this.intent.sendEvent(this.roomId, {
             msgtype: "m.notice",
             body: content,
             formatted_body: md.renderInline(content),
             format: "org.matrix.custom.html",
-            //...FormatUtil.getPartialBodyForJiraIssue(data.issue)
+            ...formatWorkPackageForMatrix(data.work_package, this.config.baseURL),
         });
+        await this.storage.setOpenProjectWorkPackageState(workPackageToCacheState(data.work_package), data.work_package.id);
+    }
+
+    public async onWorkPackageUpdated(data: OpenProjectWebhookPayloadWorkPackage) {
+        log.info(`onWorkPackageUpdated ${this.roomId} ${this.projectId} ${data.work_package.id}`);
+
+        const creator = data.work_package._embedded.author;
+        if (!creator) {
+            throw Error('No creator field');
+        }
+        const extraData = formatWorkPackageForMatrix(data.work_package, this.config.baseURL);
+        const oldChanges = await this.storage.getOpenProjectWorkPackageState(data.work_package._embedded.project.id, data.work_package.id);
+
+        // Detect what changed.
+        let changeStatement = "updated work package";
+        let postfix;
+        let hookEvent: OpenProjectEventsNames = "work_package:updated";
+        if (oldChanges) {
+            const diffSet = formatWorkPackageDiff(oldChanges, data.work_package);
+            if (diffSet) {
+                hookEvent = diffSet.eventKind;
+                postfix = diffSet.postfix;
+                if (diffSet.changes.length === 1) {
+                    changeStatement = diffSet.changes[0];
+                } else {
+                    postfix = `  - ${diffSet.changes.join('\n  - ')}`;
+                }
+            } else {
+                // Changes were not understood, skip.
+                return;
+            }
+        }
+        if (!this.isInterestedInHookEvent(hookEvent ?? "work_package:updated")) {
+            return;
+        }
+        const content = `**${creator.name}** ${changeStatement} for [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
+
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: content + (postfix ? postfix : ""),
+            formatted_body: md.renderInline(content) + (postfix ? md.render(postfix) : ""),
+            format: "org.matrix.custom.html",
+            ...formatWorkPackageForMatrix(data.work_package, this.config.baseURL),
+        });
+        await this.storage.setOpenProjectWorkPackageState(workPackageToCacheState(data.work_package), data.work_package.id);
     }
 
     public static getProvisionerDetails(botUserId: string) {

@@ -55,45 +55,47 @@ export interface OpenProjectProject {
     },
 }
 
-export interface OpenProjectWebhookPayloadWorkPackage {
-    action: 'work_package:created'|'work_package:updated',
-    work_package: {
-        _type: 'WorkPackage',
-        id: number,
-        lockVersion: number,
-        subject: string,
-        description: { format: 'markdown', raw: '', html: '' },
-        scheduleManually: boolean,
-        startDate: null,
-        dueDate: null,
-        derivedStartDate: null,
-        derivedDueDate: null,
-        estimatedTime: null,
-        derivedEstimatedTime: null,
-        derivedRemainingTime: null,
-        duration: null,
-        ignoreNonWorkingDays: boolean,
-        percentageDone: null,
-        derivedPercentageDone: null,
-        createdAt: StringDate,
-        updatedAt: StringDate,
-        _embedded: {
-            // attachments: [Object],
-            // relations: [Object],
-            type: OpenProjectType,
-            priority: OpenProjectPriority,
-            project: OpenProjectProject,
-            status: OpenProjectStatus,
-            author: OpenProjectUser,
-            responsible?: OpenProjectUser,
-            assignee?: OpenProjectUser,
-            // customActions: []
-        },
-        _links: {
-            self: object,
-        }
+export interface OpenProjectWorkPackage {
+    _type: 'WorkPackage',
+    id: number,
+    lockVersion: number,
+    subject: string,
+    description: { format: 'markdown', raw: '', html: '' },
+    scheduleManually: boolean,
+    startDate: null,
+    dueDate: string|null,
+    derivedStartDate: null,
+    derivedDueDate: null,
+    estimatedTime: null,
+    derivedEstimatedTime: null,
+    derivedRemainingTime: null,
+    duration: null,
+    ignoreNonWorkingDays: boolean,
+    percentageDone: number|null,
+    derivedPercentageDone: null,
+    createdAt: StringDate,
+    updatedAt: StringDate,
+    _embedded: {
+        // attachments: [Object],
+        // relations: [Object],
+        type: OpenProjectType,
+        priority: OpenProjectPriority,
+        project: OpenProjectProject,
+        status: OpenProjectStatus,
+        author: OpenProjectUser,
+        responsible?: OpenProjectUser,
+        assignee?: OpenProjectUser,
+        // customActions: []
+    },
+    _links: {
+        self: object,
     }
 
+}
+
+export interface OpenProjectWebhookPayloadWorkPackage {
+    action: 'work_package:created'|'work_package:updated',
+    work_package: OpenProjectWorkPackage
 }
 
 export type OpenProjectWebhookPayload = OpenProjectWebhookPayloadWorkPackage;
