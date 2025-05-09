@@ -132,12 +132,16 @@ export class WebhookTransformer {
             throw Error("Result returned from transformation didn't provide a string value for msgtype");
         }
         if (transformationResult.mentions) {
-            // Validate.
             if (transformationResult.mentions.room !== undefined && typeof transformationResult.mentions.room !== "boolean") {
                 throw Error("Result returned from transformation provided an invalid mentions.room");
             }
             if (transformationResult.mentions.user_ids !== undefined && !Array.isArray(transformationResult.mentions.user_ids)) {
                 throw Error("Result returned from transformation provided an invalid mentions.user_ids");
+            }
+            // Sanitise
+            transformationResult.mentions = {
+                room: transformationResult.mentions.room,
+                user_ids: transformationResult.mentions.user_ids,
             }
         }
 

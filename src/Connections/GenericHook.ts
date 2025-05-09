@@ -491,7 +491,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 body: content.plain,
                 // render can output redundant trailing newlines, so trim it.
                 formatted_body: content.html || md.render(content.plain).trim(),
-                "m.mentions": content.mentions,
+                ...(content.mentions ? {"m.mentions": content.mentions} : undefined),
                 format: "org.matrix.custom.html",
                 "uk.half-shot.hookshot.webhook_data": safeData,
             }, 'm.room.message', sender);
