@@ -105,6 +105,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
             jira: !!this.config.jira,
             figma: !!this.config.figma,
             feeds: !!this.config.feeds?.enabled,
+            openproject: !!this.config.openProject,
         });
     }
 

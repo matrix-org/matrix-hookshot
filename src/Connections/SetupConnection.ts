@@ -15,6 +15,7 @@ import { ApiError, Logger } from "matrix-appservice-bridge";
 import { Intent } from "matrix-bot-sdk";
 import YAML from 'yaml';
 import { HoundConnection } from "./HoundConnection";
+import { OpenProjectConnection } from "./OpenProjectConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 const parseDurationImport = import('parse-duration');
@@ -458,6 +459,62 @@ export class SetupConnection extends CommandConnection {
 
         await this.client.sendStateEvent(this.roomId, FeedConnection.CanonicalEventType, id, {});
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Unsubscribed from challenge`));
+    }
+
+    private getOpenProjectSafeUrl(urlStr: string): string {
+        // http://localhost:8080/projects/1/
+        // This config is already validated.
+        if (!this.config.openProject?.baseURL.origin) {
+            throw Error('No BaseURL for OpenProject');
+        }
+        const expectedOrigin = this.config.openProject.baseURL.origin;
+        const url = new URL(urlStr);
+        const urlParts = /\/projects\/(\d+)\/?/.exec(url.pathname);
+        const projectId = urlParts?.[1];
+        if (!projectId) {
+            throw new CommandError("Invalid OpenProject", "The project url you entered was not valid. It should be in the format of `https://op-instance/projects/PROJECTID/...`");
+        }
+        if (url.origin !== expectedOrigin) {
+            throw new CommandError("Invalid OpenProject", `The project url you entered was not valid. It should be part of ${expectedOrigin}`);
+
+        }
+        return `http://${url.host}/projects/${projectId}`;
+    }
+
+    @botCommand("openproject add", { help: "Bridge a OpenProject project to the room.", requiredArgs: ["url"], includeUserId: true, category: "openproject"})
+    public async onOpenProjectAdd(userId: string, url: string) {
+        if (!this.config.openProject) {
+            throw new CommandError("not-configured", "The bridge is not configured to support open project.");
+        }
+        const safeUrl = this.getOpenProjectSafeUrl(url);
+
+        await this.checkUserPermissions(userId, OpenProjectConnection.ServiceCategory, HoundConnection.CanonicalEventType);
+        const {connection} = await OpenProjectConnection.provisionConnection(this.roomId, userId, { url: safeUrl }, this.provisionOpts);
+        this.pushConnections(connection);
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room configured to bridge this project`));
+    }
+
+    @botCommand("openproject remove", { help: "Remove an OpenProject project connection from this room.", requiredArgs: ["url"], includeUserId: true, category: OpenProjectConnection.ServiceCategory})
+    public async onOpenProjectRemove(userId: string, urlStr: string) {
+        await this.checkUserPermissions(userId, OpenProjectConnection.ServiceCategory, OpenProjectConnection.CanonicalEventType);
+
+        const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
+
+        let event;
+        try {
+            event = await this.client.getRoomStateEvent(this.roomId, OpenProjectConnection.CanonicalEventType, safeUrl);
+        } catch (err: any) {
+            if (err.body.errcode !== 'M_NOT_FOUND') {
+                throw err;
+            }
+        }
+
+        if (!event || Object.keys(event).length === 0) {
+            throw new CommandError("Invalid OpenProject project URL", `OpenProject "${urlStr}" is not currently bridged to this room`);
+        }
+
+        await this.client.sendStateEvent(this.roomId, OpenProjectConnection.CanonicalEventType, safeUrl, {});
+        return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to project \`${safeUrl}\`.`));
     }
 
     @botCommand("setup-widget", {category: "widget", help: "Open the setup widget in the room"})

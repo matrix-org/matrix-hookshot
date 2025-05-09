@@ -2,6 +2,7 @@ import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
 import { IssuesGetResponseData } from "../github/Types";
 import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
+import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 
 // Some RSS feeds can return a very small number of items then bounce
 // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
@@ -39,4 +40,8 @@ export interface IBridgeStorageProvider extends IAppserviceStorageProvider, ISto
 
     getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean>;
     setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void>;
+
+    getOpenProjectWorkPackageState(projectId: number, workPackageId: number): Promise<OpenProjectWorkPackageCacheState|null>;
+    setOpenProjectWorkPackageState(state: OpenProjectWorkPackageCacheState, id: number): Promise<void>;
+
 }

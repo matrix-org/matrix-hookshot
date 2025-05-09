@@ -8,6 +8,7 @@ import GitHubIcon from "../icons/github.png";
 import GitLabIcon from "../icons/gitlab.png";
 import JiraIcon from "../icons/jira.png";
 import WebhookIcon from "../icons/webhook.png";
+import OpenProjectIcon from "../icons/openproject.png";
 import { ChevronLeftIcon } from "@vector-im/compound-design-tokens/assets/web/icons";
 
 
@@ -25,6 +26,7 @@ enum ConnectionType {
     Github  = "github",
     Gitlab  = "gitlab",
     Jira    = "jira",
+    OpenProject = "openproject"
 }
 
 interface IConnectionProps {
@@ -74,6 +76,13 @@ const connections: Record<ConnectionType, IConnectionProps> = {
         icon: WebhookIcon,
         darkIcon: true,
         component: lazy(() => import("./roomConfig/OutboundWebhookConfig")),
+    },
+    [ConnectionType.OpenProject]: {
+        displayName: 'OpenProject',
+        description: "Connect the room to OpenProject",
+        icon: OpenProjectIcon,
+        darkIcon: true,
+        component: lazy(() => import("./roomConfig/OpenProjectConfig")),
     },
 };
 

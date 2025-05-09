@@ -42,6 +42,8 @@ import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReade
 import * as Sentry from '@sentry/node';
 import { HoundConnection, HoundPayload } from "./Connections/HoundConnection";
 import { HoundReader } from "./hound/reader";
+import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/types";
+import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 
 const log = new Logger("Bridge");
 
@@ -689,6 +691,17 @@ export class Bridge {
             "hound.activity",
             (data) => connManager.getConnectionsForHoundChallengeId(data.challengeId),
             (c, data) => c.handleNewActivity(data.activity)
+        );
+
+        this.bindHandlerToQueue<OpenProjectWebhookPayloadWorkPackage, OpenProjectConnection>(
+            "openproject.work_package:created",
+            (data) => connManager.getConnectionsForOpenProject(data.work_package._embedded.project.id),
+            (c, data) => c.onWorkPackageCreated(data)
+        );
+        this.bindHandlerToQueue<OpenProjectWebhookPayloadWorkPackage, OpenProjectConnection>(
+            "openproject.work_package:updated",
+            (data) => connManager.getConnectionsForOpenProject(data.work_package._embedded.project.id),
+            (c, data) => c.onWorkPackageUpdated(data)
         );
 
         const allRooms = this.botUsersManager.joinedRooms;

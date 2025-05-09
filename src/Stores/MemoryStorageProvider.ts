@@ -4,6 +4,7 @@ import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
 import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
+import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 
 export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider {
     private issues: Map<string, IssuesGetResponseData> = new Map();
@@ -17,6 +18,7 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     private houndActivityIds = new Map<string, Array<string>>();
     private houndActivityIdToEvent = new Map<string, string>();
     private hasGenericHookWarnedExpiry = new Set<string>();
+    private readonly openProjectWorkPackageState = new Map<string, OpenProjectWorkPackageCacheState>();
 
     constructor() {
         super();
@@ -148,4 +150,13 @@ export class MemoryStorageProvider extends MSP implements IBridgeStorageProvider
     public async setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void> {
         this.hasGenericHookWarnedExpiry[hasWarned ? "add" : "delete"](hookId);
     }
+
+    public async getOpenProjectWorkPackageState(projectId: number, workPackageId: number): Promise<OpenProjectWorkPackageCacheState | null> {
+        return this.openProjectWorkPackageState.get(`${projectId}:${workPackageId}`) ?? null;
+    }
+
+    public async setOpenProjectWorkPackageState(state: OpenProjectWorkPackageCacheState, id: number){
+        this.openProjectWorkPackageState.set(`${state.project}:${id}`, state);
+    }
+
 }

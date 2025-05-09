@@ -2,7 +2,7 @@ import { FunctionComponent, createRef } from "preact";
 import { useState, useCallback, useMemo, useContext } from "preact/hooks";
 import { BridgeConfig } from "../../BridgeAPI";
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
-import { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraProjectConnectionInstanceTarget } from "../../../src/Connections/JiraProject";
+import type { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectConnectionProjectTarget, JiraProjectConnectionInstanceTarget } from "../../../src/Connections/JiraProject";
 import { InputField, ButtonSet, Button } from "../elements";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import JiraIcon from "../../icons/jira.png";
