@@ -9,6 +9,7 @@ import { MemoryStorageProvider } from "../../src/Stores/MemoryStorageProvider";
 import { BridgeConfig } from "../../src/config/Config";
 import { ProvisionConnectionOpts } from "../../src/Connections";
 import { add } from "date-fns";
+import { WebhookTransformer } from "../../src/generic/transformer";
 
 const ROOM_ID = "!foo:bar";
 
@@ -72,7 +73,7 @@ function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
 
 describe("GenericHookConnection", () => {
     before(async () => {
-        await GenericHookConnection.initialiseQuickJS();
+        await WebhookTransformer.initialiseQuickJS();
     })
 
     it("will handle simple hook events", async () => {
@@ -218,6 +219,34 @@ describe("GenericHookConnection", () => {
             type: 'm.room.message',
         });
     });
+
+    it("will handle a hook event with mentions", async () => {
+        const webhookData = {};
+        const [connection, mq] = createGenericHook({name: 'test', transformationFunction: 
+            `result = {plain: "Test test", mentions: { room: true, user_ids: ["@foo:bar"], ignored_data: true}, version: 'v2'}`}, {
+                allowJsTransformationFunctions: true,
+            }
+        );
+        const messagePromise = handleMessage(mq);
+        await connection.onGenericHook(webhookData);
+        expect(await messagePromise).to.deep.equal({
+            roomId: ROOM_ID,
+            sender: connection.getUserId(),
+            content: {
+                body: "Test test",
+                formatted_body: "<p>Test test</p>",
+                format: "org.matrix.custom.html",
+                msgtype: "m.notice",
+                "m.mentions": {
+                    room: true,
+                    user_ids: ["@foo:bar"],
+                },
+                "uk.half-shot.hookshot.webhook_data": {},
+            },
+            type: 'm.room.message',
+        });
+    });
+
 
     it("will handle a hook event with a top-level return", async () => {
         const webhookData = {question: 'What is the meaning of life?', answer: 42};

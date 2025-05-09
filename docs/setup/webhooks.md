@@ -174,6 +174,10 @@ The `v2` api expects an object to be returned from the `result` variable.
   "plain": "Some text", // The plaintext value to be used for the Matrix message.
   "html": "<b>Some</b> text", // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
   "msgtype": "some.type", // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
+  "mentions": { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions 
+    "room": true,
+    "user_ids": ["@foo:bar"]
+  },
   "webhookResponse": { // Optional response to send to the webhook requestor. All fields are optional. Defaults listed.
     "body": "{ \"ok\": true }",
     "contentType": "application/json",
