@@ -51,7 +51,7 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
 
     const botUsersManager = new BotUsersManager(config, appservice);
 
-    const tokenStore = await UserTokenStore.fromKeyPath(config.passFile , appservice.botIntent, config);
+    const tokenStore = await UserTokenStore.fromKeyPath(appservice.botIntent, config);
     const bridgeApp = new Bridge(config, tokenStore, listener, appservice, storage, botUsersManager);
 
     return {
