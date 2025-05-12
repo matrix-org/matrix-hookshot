@@ -449,6 +449,10 @@ export class ConnectionManager extends EventEmitter {
             const configObject = this.validateConnectionTarget(userId, this.config.jira, "JIRA", "jira");
             return await JiraProjectConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
         }
+        case OpenProjectConnection.CanonicalEventType: {
+            const configObject = this.validateConnectionTarget(userId, this.config.openProject, "OpenProject", "openproject");
+            return await OpenProjectConnection.getConnectionTargets(userId, this.tokenStore, filters);
+        }
         default:
             throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);
         }

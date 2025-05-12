@@ -17,6 +17,7 @@ import { BridgeConfigGenericWebhooks, BridgeConfigQueue, BridgeGenericWebhooksCo
 import { GenericHookServiceConfig } from "../Connections";
 import { BridgeConfigEncryption } from "./sections/encryption";
 import { BridgeOpenProjectConfig, BridgeOpenProjectConfigYAML } from "./sections/openproject";
+import { OpenProjectServiceConfig } from "../Connections/OpenProjectConnection";
 
 const log = new Logger("Config");
 
@@ -698,8 +699,8 @@ export class BridgeConfig {
         return services;
     }
 
-    public async getPublicConfigForService(serviceName: string): Promise<Record<string, unknown>|GenericHookServiceConfig> {
-        let config: undefined|Record<string, unknown>|GenericHookServiceConfig;
+    public async getPublicConfigForService(serviceName: string): Promise<Record<string, unknown>|GenericHookServiceConfig|OpenProjectServiceConfig> {
+        let config: undefined|Record<string, unknown>|GenericHookServiceConfig|OpenProjectServiceConfig;
         switch (serviceName) {
             case "feeds":
                 config = this.feeds?.publicConfig;
@@ -716,7 +717,7 @@ export class BridgeConfig {
             case "genericOutbound":
             case "jira":
             case "openproject":
-                config = {};
+                config = this.openProject?.publicConfig;
                 break;
             default:
                 throw new ApiError("Not a known service, or service doesn't expose a config", ErrCode.NotFound);

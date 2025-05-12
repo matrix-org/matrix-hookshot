@@ -1,6 +1,7 @@
 import { FunctionComponent } from "preact";
 import { useCallback, useEffect, useState } from "preact/hooks";
-import style from "./DropdownSearch.module.scss";
+import styles from "./DropdownSearch.module.scss";
+import { InputField } from "./InputField";
 
 interface Props<T> {
     searchFn: (searchTerm: string, additionalProps: T, abortController: AbortController) => Promise<DropItem[]>;
@@ -21,11 +22,11 @@ const DEBOUNCE_TIMEOUT_MS = 750;
 
 export const DropdownItem: FunctionComponent<DropItem&{onPicked?: (value: string) => void}> = ({ imageSrc, title, value, description, onPicked }) => {
     // Need placeholder image.
-    return <li className={`card ${style.dropdownItem} ${imageSrc ? style.hasImg : ''}`} role="button" onClick={() => onPicked?.(value)}>
-            { imageSrc && <img className={style.itemImage} src={imageSrc} /> }
+    return <li className={`card ${styles.dropdownItem} ${imageSrc ? styles.hasImg : ''}`} role="button" onClick={() => onPicked?.(value)}>
+            { imageSrc && <img className={styles.itemImage} src={imageSrc} /> }
             <div>
-                <p className={style.title}>{title} <span className={style.value}>{value}</span></p>
-                <p className={style.description}>{description}</p>
+                <p className={styles.title}>{title} <span className={styles.value}>{value}</span></p>
+                <p className={styles.description}>{description}</p>
             </div>
     </li>;
 };
@@ -90,8 +91,10 @@ export const DropdownSearch = function<T>({searchFn, searchProps, onChange, onEr
     }, [onChange]);
     
     return <>
-        {selectedItem && <DropdownItem {...selectedItem} onPicked={onItemCleared} />}
-        {!selectedItem && <input type="search" placeholder={placeholder} onChange={onSearchInputChange} value={searchTerm} />}
+        <InputField label="Project" noPadding={true}>
+            {selectedItem && <DropdownItem {...selectedItem} onPicked={onItemCleared} />}
+            {!selectedItem && <input type="search" placeholder={placeholder} onChange={onSearchInputChange} value={searchTerm} />}
+        </InputField>
         {loading && <p> Searching... </p>}
         {!loading && !selectedItem && searchTerm && results?.length === 0 && <p> No results found. </p>}
         <ul>

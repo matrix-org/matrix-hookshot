@@ -16,4 +16,12 @@ export class OpenProjectBotCommands extends AdminRoomCommandHandler {
         const url = await this.tokenStore.openProjectOAuth.getAuthUrl(state);
         await this.sendNotice(`Open ${url} to link your account to the bridge.`);
     }
+
+    @botCommand("openproject logout", {help: "Log out of OpenProject", category: Category.OpenProject, permissionLevel: BridgePermissionLevel.login})
+    public async logoutCommand() {
+        if (await this.tokenStore.clearUserToken('openproject', this.userId)) {
+            return this.sendNotice(`You have been logged out of OpenProject.`);
+        }
+        return this.sendNotice(`You are not logged into OpenProject.`);
+    }
 }

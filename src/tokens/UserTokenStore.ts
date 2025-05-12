@@ -19,6 +19,7 @@ import { TypedEmitter } from "tiny-typed-emitter";
 import { hashId, TokenEncryption, stringToAlgo } from "../libRs"; 
 import { OpenProjectOAuth } from "../openproject/oauth";
 import { OpenProjectStoredToken } from "../openproject/types";
+import { OpenProjectAPIClient } from "../openproject/client";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
@@ -30,7 +31,7 @@ const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.passw
 
 const log = new Logger("UserTokenStore");
 export type TokenType = "github"|"gitlab"|"jira"|"openproject"|"generic";
-export const AllowedTokenTypes = ["github", "gitlab", "jira", "generic"];
+export const AllowedTokenTypes = ["github", "gitlab", "jira", "openproject", "generic"];
 
 interface StoredTokenData {
     encrypted: string|string[];
@@ -267,6 +268,14 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         return res ? GithubInstance.createUserOctokit(res, this.config.github.baseUrl) : null;
     }
 
+    public async getOpenProjectForUser(userId: string) {
+        if (!this.config.openProject || !this.openProjectOAuth) {
+            throw Error('OpenProject is not configured');
+        }
+        const res = await this.getUserToken('openproject', userId);
+        return res ? new OpenProjectAPIClient(this.config.openProject.baseURL, res, this.openProjectOAuth, (newToken) => this.storeOpenProjectToken(userId, newToken)) : null;
+    }
+
     public async getGitLabForUser(userId: string, instanceUrl: string) {
         const senderToken = await this.getUserToken("gitlab", userId, instanceUrl);
         if (!senderToken) {
@@ -309,7 +318,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 (this.jiraOAuth as JiraOnPremOAuth).privateKey,
                 this.config.jira.oauth as BridgeConfigJiraOnPremOAuth,
                 this.config.jira.url,
-            );
+            ); 
         }
         throw Error('Could not determine type of client');
     }

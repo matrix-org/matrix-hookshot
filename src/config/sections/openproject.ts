@@ -1,4 +1,6 @@
 import assert from "assert";
+import { hideKey } from "../Decorators";
+import { OpenProjectServiceConfig } from "../../Connections/OpenProjectConnection";
 
 export interface BridgeOpenProjectOAuthConfig{
         clientId: string;
@@ -31,6 +33,13 @@ export class BridgeOpenProjectConfig {
             assert(config.oauth.clientSecret);
             assert(config.oauth.redirectUri);
             this.oauth = config.oauth;
+        }
+    }
+
+    @hideKey()
+    public get publicConfig(): OpenProjectServiceConfig {
+        return {
+            baseUrl: this.baseURL.origin + this.baseURL.pathname
         }
     }
 }

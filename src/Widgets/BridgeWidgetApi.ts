@@ -12,6 +12,7 @@ import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "../prov
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from '../github/GithubInstance';
 import { AllowedTokenTypes, TokenType, UserTokenStore } from '../tokens/UserTokenStore';
+import { OpenProjectWidgetAPI } from "../openproject/widgetApi";
 
 const log = new Logger("BridgeWidgetApi");
 
@@ -297,6 +298,8 @@ export class BridgeWidgetApi extends ProvisioningApi {
                     authUrl
                 });
             }
+        } else if (service === 'openproject') {
+            return await OpenProjectWidgetAPI.getAuth(req, res, this.tokenStore);
         } else {
             throw new ApiError('Service not found', ErrCode.NotFound);
         }

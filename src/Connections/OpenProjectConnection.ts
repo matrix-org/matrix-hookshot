@@ -45,6 +45,20 @@ export interface OpenProjectConnectionState extends IConnectionState {
 
 export type OpenProjectResponseItem = GetConnectionsResponseItem<OpenProjectConnectionState>;
 
+export interface OpenProjectConnectionRepoTarget {
+    name: string;
+    description: string;
+    id: number;
+}
+
+export interface OpenProjectConnectionFilters {
+    search?: string;
+}
+
+
+export interface OpenProjectServiceConfig {
+    baseUrl: string;
+}
 
 function validateOpenProjectConnectionState(state: unknown): OpenProjectConnectionState {
     const {url, commandPrefix, priority} = state as Partial<OpenProjectConnectionState>;
@@ -112,6 +126,20 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         return new OpenProjectConnection(roomId, as, intent, config.openProject, connectionConfig, state.stateKey, tokenStore, storage);
     }
 
+    public static async getConnectionTargets(userId: string, tokenStore: UserTokenStore, filters: OpenProjectConnectionFilters = {}): Promise<OpenProjectConnectionRepoTarget[]> {
+        // Search for all repos under the user's control.
+        const client = await tokenStore.getOpenProjectForUser(userId);
+        if (!client) {
+            throw new ApiError("User is not authenticated with OpenProject", ErrCode.ForbiddenUser);
+        }
+
+        const projects = await client.searchProjects(filters.search);
+        return (await projects)._embedded.elements.map((p) => ({
+            id: p.id,
+            name: p.name,
+            description: p.description.raw,
+        }));
+    }
     public get priority(): number {
         return this.state.priority || super.priority;
     }

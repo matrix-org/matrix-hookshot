@@ -27,6 +27,21 @@ export class OpenProjectOAuth {
         return url.toString();
     }
 
+    public async exchangeRefreshToken(refreshToken: string): Promise<TokenResponse> {
+        const url = new URL("/oauth/token", this.baseUrl);
+        const params = new URLSearchParams();
+        params.set('client_id', this.oauthConfig.clientId);
+        params.set('client_secret', this.oauthConfig.clientSecret);
+        params.set('refresh_token', refreshToken);
+        params.set('grant_type', "refresh_token");
+        const res = await fetch(url, { method: 'POST', body: params.toString(), headers: {'Content-Type': 'application/x-www-form-urlencoded'}});
+        const data = await res.json() as TokenResponse;
+        if (res.status !== 200) {
+            throw Error(`Unexpected status ${res.status}`);
+        }
+        return data;
+    }
+
     public async exchangeRequestForToken(code: string): Promise<TokenResponse> {
         const url = new URL("/oauth/token", this.baseUrl);
         const params = new URLSearchParams();
@@ -44,11 +59,12 @@ export class OpenProjectOAuth {
     }
 
     public async handleOAuth({state, code}: OAuthRequest): Promise<OAuthRequestResult> {
-        const userId = this.tokenStore.getUserIdForOAuthState(state, false);
+        const userId = this.tokenStore.getUserIdForOAuthState(state);
         if (!userId) {
             return OAuthRequestResult.UserNotFound;
         }
         try {
+            const now = Date.now();
             const tokenInfo = await this.exchangeRequestForToken(code);
             if (!tokenInfo.scope.includes("api_v3")) {
                 // Logout?
@@ -57,7 +73,7 @@ export class OpenProjectOAuth {
             await this.tokenStore.storeOpenProjectToken(userId, {
                 access_token: tokenInfo.access_token,
                 refresh_token: tokenInfo.refresh_token,
-                expires_in: tokenInfo.expires_in,
+                expires_in: now + (tokenInfo.expires_in * 1000),
             });
 
             return OAuthRequestResult.Success;

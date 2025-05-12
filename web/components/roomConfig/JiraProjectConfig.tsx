@@ -6,7 +6,7 @@ import type { JiraProjectConnectionState, JiraProjectResponseItem, JiraProjectCo
 import { InputField, ButtonSet, Button } from "../elements";
 import { EventHookCheckbox } from '../elements/EventHookCheckbox';
 import JiraIcon from "../../icons/jira.png";
-import ConnectionSearch from "../elements/ConnectionSearch";
+import { ConnectionSearch } from "../elements/ConnectionSearch";
 import { DropItem } from "../elements/DropdownSearch";
 import { BridgeContext } from "../../context";
 

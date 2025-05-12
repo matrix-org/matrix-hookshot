@@ -105,7 +105,6 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<Ge
         if (!expiryRef.current || !existingConnection?.config.expirationDate) {
             return;
         } 
-        console.log('Setting date', new Date(existingConnection.config.expirationDate));
         expiryRef.current.valueAsDate = new Date(existingConnection.config.expirationDate);
     }, [existingConnection, expiryRef]);
 
