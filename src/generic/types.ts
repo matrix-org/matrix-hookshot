@@ -1,4 +1,4 @@
-import { WebhookResponse } from "../Connections";
+import { ExecuteResultWebhookResponse } from "../generic/transformer";
 
 export interface GenericWebhookEvent {
     hookData: unknown;
@@ -9,7 +9,7 @@ export type GenericWebhookEventResult = GenericWebhookEventResultSuccess | Gener
 
 export interface GenericWebhookEventResultSuccess {
     successful: true|null;
-    response?: WebhookResponse,
+    response?: ExecuteResultWebhookResponse,
     notFound?: boolean;
 }
 export interface GenericWebhookEventResultFailure {
