@@ -136,8 +136,6 @@ export class JiraWebhooksRouter {
                 return res.send(`<p> Your account has been bridged </p>`);
             case OAuthRequestResult.UserNotFound:
                 return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
-            case OAuthRequestResult.UserNotFound:
-                return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
             default:
                 return res.status(404).send(`<p>Unknown failure</p>`);
         }

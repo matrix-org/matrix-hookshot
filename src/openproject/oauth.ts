@@ -44,14 +44,11 @@ export class OpenProjectOAuth {
     }
 
     public async handleOAuth({state, code}: OAuthRequest): Promise<OAuthRequestResult> {
-        console.log('Handling');
         const userId = this.tokenStore.getUserIdForOAuthState(state, false);
         if (!userId) {
-            console.log('No user')
             return OAuthRequestResult.UserNotFound;
         }
         try {
-            console.log('Exchanging');
             const tokenInfo = await this.exchangeRequestForToken(code);
             if (!tokenInfo.scope.includes("api_v3")) {
                 // Logout?
