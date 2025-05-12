@@ -342,7 +342,7 @@ describe("OpenProject", () => {
     return testEnv?.tearDown();
   });
 
-  test("should be able to handle a JIRA event", async () => {
+  test("should be able to handle a OpenProject event", async () => {
     const user = testEnv.getUser("user");
     const bridgeApi = await getBridgeApi(
       testEnv.opts.config?.widgets?.publicUrl!,
@@ -359,12 +359,13 @@ describe("OpenProject", () => {
     await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId: testRoomId });
 
     // "Create" a JIRA connection.
+    const url = `http://mytestproject.com/projects/${openProjectId}`;
     await testEnv.app.appservice.botClient.sendStateEvent(
       testRoomId,
       OpenProjectConnection.CanonicalEventType,
-      openProjectId.toString(),
+      url,
       {
-        id: openProjectId,
+        url,
         events: ["work_package:created", "work_package:updated"],
       } satisfies OpenProjectConnectionState,
     );
@@ -373,7 +374,6 @@ describe("OpenProject", () => {
       async () =>
         (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
     );
-    console.log('Connection ready');
 
     const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
       eventType: "m.room.message",
@@ -404,11 +404,8 @@ describe("OpenProject", () => {
     expect(req.status).toBe(200);
     expect(await req.text()).toBe("OK");
 
-    console.log(new Date().toTimeString(), "webhook OK");
-
     // And await the notice.
     const { body } = (await webhookNotice).data.content;
-    console.log(body);
     expect(body).toContain(
       'OpenProject Admin created a new work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133"',
     );

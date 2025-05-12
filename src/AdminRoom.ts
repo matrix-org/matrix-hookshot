@@ -18,6 +18,7 @@ import { ProjectsListResponseData } from "./github/Types";
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
+import { OpenProjectBotCommands } from "./openproject/adminCommands";
 type ProjectsListForRepoResponseData = Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData = Endpoints["GET /users/{username}/projects"]["response"];
 
@@ -134,7 +135,8 @@ export class AdminRoom extends AdminRoomCommandHandler {
             this.config.github ? Category.Github : "",
             this.config.gitlab ? Category.Gitlab : "",
             this.config.jira ? Category.Jira : "",
-            this.canAdminConnections('github') ? Category.ConnectionManagement : '',
+            this.config.openProject ? Category.OpenProject : "",
+            (this.config.github && this.canAdminConnections('github')) ? Category.ConnectionManagement : '',
         ];
         return this.botIntent.sendEvent(this.roomId, AdminRoom.helpMessage(undefined, enabledCategories));
     }
@@ -434,7 +436,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice("A token is stored for your GitLab account.");
     }
 
-    @botCommand("filters list", "List your saved filters")
+    @botCommand("filters list", { help: "List your saved filters", category: Category.Github, permissionLevel: BridgePermissionLevel.login })
     public async getFilters() {
         if (this.notifFilter.empty) {
             return this.sendNotice("You do not currently have any filters.");
@@ -450,7 +452,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice(`Your filters:\n ${filterText}\nEnabled for automatic room invites: ${enabledForInvites}\nEnabled for notifications: ${enabledForNotifications}`);
     }
 
-    @botCommand("filters set", "Create (or update) a filter. You can use 'orgs:', 'users:' or 'repos:' as filter parameters.", ["name", "...parameters"])
+    @botCommand("filters set", { help: "Create (or update) a filter. You can use 'orgs:', 'users:' or 'repos:' as filter parameters.", requiredArgs: ["name", "...parameters"], category: Category.Github, permissionLevel: BridgePermissionLevel.login }) 
     public async setFilter(name: string, ...parameters: string[]) {
         const orgs = parameters.filter(param => param.toLowerCase().startsWith("orgs:")).map(param => param.toLowerCase().substring("orgs:".length).split(",")).flat();
         const users = parameters.filter(param => param.toLowerCase().startsWith("users:")).map(param => param.toLowerCase().substring("users:".length).split(",")).flat();
@@ -467,7 +469,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         return this.sendNotice(`Stored new filter "${name}". You can now apply the filter by saying 'filters notifications toggle $name'.`);
     }
 
-    @botCommand("filters notifications toggle", "Apply a filter as a whitelist to your notifications", ["name"])
+    @botCommand("filters notifications toggle", { help: "Apply a filter as a whitelist to your notifications", requiredArgs: ["name"], category: Category.Github, permissionLevel: BridgePermissionLevel.login })
     public async setFiltersNotificationsToggle(name: string) {
         if (!this.notifFilter.filters[name]) {
             return this.sendNotice(`Filter "${name}" doesn't exist.`);
@@ -550,6 +552,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const res = compileBotCommands(AdminRoom.prototype as any, GitHubBotCommands.prototype as any, JiraBotCommands.prototype as any);
+const res = compileBotCommands(AdminRoom.prototype as any, GitHubBotCommands.prototype as any, JiraBotCommands.prototype as any, OpenProjectBotCommands.prototype as any);
 AdminRoom.helpMessage = res.helpMessage;
 AdminRoom.botCommands = res.botCommands;

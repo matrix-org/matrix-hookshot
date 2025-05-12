@@ -99,3 +99,10 @@ export interface OpenProjectWebhookPayloadWorkPackage {
 }
 
 export type OpenProjectWebhookPayload = OpenProjectWebhookPayloadWorkPackage;
+
+
+export interface OpenProjectStoredToken {
+    expires_in: number;
+    access_token: string;
+    refresh_token: string;
+}

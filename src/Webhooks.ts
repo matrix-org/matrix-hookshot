@@ -11,7 +11,6 @@ import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREve
 import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./jira/Router";
-import { OAuthRequest } from "./WebhookTypes";
 import { GitHubOAuthTokenResponse } from "./github/Types";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/router";
@@ -21,6 +20,7 @@ import QuickLRU from "@alloc/quick-lru";
 import type { WebhookEventName } from "@octokit/webhooks-types";
 import { ApiError, ErrCode } from "./api";
 import { OpenProjectWebhooksRouter } from "./openproject/Router";
+import { OAuthRequest } from "./tokens/oauth";
 
 const log = new Logger("Webhooks");
 
@@ -263,6 +263,7 @@ export class Webhooks extends EventEmitter {
                     sender: "GithubWebhooks",
                     data: {
                         state,
+                        code: req.query.code,
                     },
                 });
                 if (!exists) {

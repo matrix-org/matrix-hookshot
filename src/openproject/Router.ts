@@ -4,7 +4,10 @@ import { MessageQueue } from "../MessageQueue";
 import { OpenProjectWebhookPayload } from "./types";
 import { ApiError, ErrCode } from "../api";
 import { createHmac } from "node:crypto";
+import { Logger } from "matrix-appservice-bridge";
+import { OAuthRequest, OAuthRequestResult } from "../tokens/oauth";
 
+const log = new Logger("OpenProjectWebhooksRouter");
 export class OpenProjectWebhooksRouter {
 
     public static IsRequest(req: Request): boolean {
@@ -49,10 +52,45 @@ export class OpenProjectWebhooksRouter {
         })
     }
 
+    private async onOAuth(req: Request<unknown, unknown, unknown, {code: string, state: string}>, res: Response<string|{error: string}>) {
+        let result: OAuthRequestResult;
+        if (typeof req.query.state !== "string") {
+            throw new ApiError("Missing 'state' parameter", ErrCode.BadValue);
+        }
+        if (typeof req.query.code !== "string") {
+            throw new ApiError("Missing 'code' parameter", ErrCode.BadValue);
+        }
+        const { state, code } = req.query;
+        log.info(`Got new OpenProject oauth request (${state.substring(0, 8)})`);
+        try {
+            result = await this.queue.pushWait<OAuthRequest, OAuthRequestResult>({
+                eventName: "openproject.oauth.response",
+                sender: "GithubWebhooks",
+                data: {
+                    state,
+                    code,
+                },
+            });
+        } catch (ex) {
+            log.error("Failed to handle oauth request:", ex);
+            throw new ApiError("Encountered an error handing oauth request", ErrCode.Unknown);
+        }
+
+        switch (result) {
+            case OAuthRequestResult.Success:
+                return res.send(`<p> Your account has been bridged </p>`);
+            case OAuthRequestResult.UserNotFound:
+                return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
+            default:
+                return res.status(404).send(`<p>Unknown failure</p>`);
+        }
+    }
+
     public getRouter() {
         const router = Router();
         router.use(json({ verify: this.verifyWebhookRequest.bind(this)}));
         router.post("/webhook", this.onWebhook.bind(this));
+        router.get("/oauth", this.onOAuth.bind(this));
         return router;
     }
 }
