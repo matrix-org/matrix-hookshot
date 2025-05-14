@@ -20,7 +20,6 @@ export interface GitHubIssueConnectionState {
     repo: string;
     state: string;
     issues: string[];
-    // eslint-disable-next-line camelcase
     comments_processed: number;
 }
 

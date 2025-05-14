@@ -1,6 +1,7 @@
 
 import { expect } from "chai";
 import { MatrixError } from "matrix-bot-sdk";
+import { MatrixCapabilities } from "matrix-bot-sdk/lib/models/Capabilities";
 export class MatrixClientMock {
 
     static create(){
@@ -14,6 +15,17 @@ export class MatrixClientMock {
 
     async setDisplayName() {
         return;
+    }
+
+    async getCapabilities(): Promise<MatrixCapabilities> {
+        return {
+            "m.set_displayname": {
+                enabled: true
+            },
+            "m.set_avatar_url": {
+                enabled: true
+            },
+        }
     }
 
     async getJoinedRoomMembers(roomId: string): Promise<string[]> {
@@ -39,7 +51,7 @@ export class MatrixClientMock {
         throw new MatrixError({
             errcode: 'M_NOT_FOUND',
             error: 'Test error: No account data',
-        }, 404);
+        }, 404, { });
     }
 
     async setRoomAccountData(key: string, roomId: string, value: string): Promise<void> {

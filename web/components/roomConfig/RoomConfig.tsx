@@ -1,4 +1,4 @@
-import { FunctionComponent } from "preact";
+import { ComponentChild, FunctionComponent } from "preact";
 import { useCallback, useContext, useEffect, useReducer, useState } from "preact/hooks"
 import { BridgeAPIError } from "../../BridgeAPI";
 import { ListItem, Card } from "../elements";
@@ -39,7 +39,7 @@ interface IRoomConfigProps<SConfig, ConnectionType extends GetConnectionsRespons
     headerImg: string;
     text: IRoomConfigText;
     connectionEventType: string;
-    listItemName: (c: ConnectionType) => string,
+    listItemName: (c: ConnectionType) => ComponentChild,
     connectionConfigComponent: FunctionComponent<ConnectionConfigurationProps<SConfig, ConnectionType, ConnectionState>>;
 }
 

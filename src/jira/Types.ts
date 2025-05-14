@@ -18,7 +18,7 @@ export interface JiraProject {
     key: string;
     name: string;
     projectTypeKey: string;
-    avatarUrls: Record<string, string>;
+    avatarUrls?: Record<string, string>;
     simplified?: boolean;
     issueTypes?: JiraIssueType[];
 }
@@ -31,9 +31,12 @@ export interface JiraAccount {
     accountId: string;
     avatarUrls: Record<string, string>;
     displayName: string;
-    active: true;
+    active: boolean;
     timeZone: string;
-    accountType: "atlassian";
+    /**
+     * e.g. "atlassian"
+     */
+    accountType: string;
 }
 
 export interface JiraComment {

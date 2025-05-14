@@ -1,0 +1,131 @@
+# Based on https://github.com/matrix-org/dendrite/blob/master/.github/workflows/docker-hub.yml
+
+name: "Docker"
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - changelog.d/**'
+  release:
+    types: [published]
+
+  merge_group:
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOCKER_NAMESPACE: halfshot
+
+jobs:
+  docker-clean-metadata:
+    runs-on: ubuntu-latest
+    outputs:
+      json: ${{ steps.meta.outputs.json }}
+    steps:
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+          images: |
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
+            ghcr.io/matrix-org/matrix-hookshot
+
+  docker-build:
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        if: github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Log in to the GitHub Container registry
+        if: github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=auto
+            suffix=-${{ matrix.arch }},onlatest=true
+          images: |
+            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
+            ghcr.io/matrix-org/matrix-hookshot
+
+      - name: Build and push Docker images
+        uses: docker/build-push-action@v6
+        with:
+          push: ${{ github.actor != 'dependabot[bot]' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  docker-manifest:
+    if: github.actor != 'dependabot[bot]'
+    needs: 
+      - docker-build
+      - docker-clean-metadata
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        image: ${{ fromJson(needs.docker-clean-metadata.outputs.json).tags }}
+
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Log in to the GitHub Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push manifest
+        run: |
+          docker manifest create ${{ matrix.image }} ${{ matrix.image }}-amd64 ${{ matrix.image }}-arm64
+          docker manifest push ${{ matrix.image }}

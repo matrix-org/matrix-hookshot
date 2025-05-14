@@ -92,8 +92,7 @@ const roomConfigText: IRoomConfigText = {
 
 const RoomConfigListItemFunc = (c: FeedResponseItem) => c.config.label || c.config.url;
 
-export const FeedsConfig: BridgeConfig = ({ roomId, showHeader }) => {
-
+const FeedsConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<ServiceConfig, FeedResponseItem, FeedConnectionState>
         headerImg={FeedsIcon}
         showHeader={showHeader}
@@ -105,3 +104,5 @@ export const FeedsConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default FeedsConfig;

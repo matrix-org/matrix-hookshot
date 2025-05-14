@@ -23,7 +23,7 @@ const STORED_FILES_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const COMPLETED_TRANSACTIONS_EXPIRE_AFTER = 24 * 60 * 60; // 24 hours
 const ISSUES_EXPIRE_AFTER = 7 * 24 * 60 * 60; // 7 days
 const ISSUES_LAST_COMMENT_EXPIRE_AFTER = 14 * 24 * 60 * 60; // 7 days
-const HOUND_EVENT_CACHE = 90 * 24 * 60 * 60; // 30 days
+const HOUND_EVENT_CACHE = 90 * 24 * 60 * 60; // 90 days
 
 
 const WIDGET_TOKENS = "widgets.tokens.";
@@ -32,6 +32,8 @@ const WIDGET_USER_TOKENS = "widgets.user-tokens.";
 const FEED_GUIDS = "feeds.guids.";
 const HOUND_GUIDS = "hound.guids.";
 const HOUND_EVENTS = "hound.events.";
+
+const GENERIC_HOOK_HAS_WARNED = "generichook.haswarned";
 
 const log = new Logger("RedisASProvider");
 
@@ -102,7 +104,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async addRegisteredUser(userId: string) {
-        this.redis.sadd(REGISTERED_USERS_KEY, [userId]);
+        await this.redis.sadd(REGISTERED_USERS_KEY, [userId]);
     }
 
     public async isUserRegistered(userId: string): Promise<boolean> {
@@ -110,7 +112,7 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async setTransactionCompleted(transactionId: string) {
-        this.redis.sadd(COMPLETED_TRANSACTIONS_KEY, [transactionId]);
+        await this.redis.sadd(COMPLETED_TRANSACTIONS_KEY, [transactionId]);
     }
 
     public async isTransactionCompleted(transactionId: string): Promise<boolean> {
@@ -245,9 +247,17 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
     }
 
     public async storeHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<void> {
+        if (activityHashes.length === 0) {
+            return;
+        }
         const key = `${HOUND_GUIDS}${challengeId}`;
         await this.redis.lpush(key, ...activityHashes);
         await this.redis.ltrim(key, 0, MAX_FEED_ITEMS);
+    }
+
+    public async hasSeenHoundChallenge(challengeId: string): Promise<boolean> {
+        const key = `${HOUND_GUIDS}${challengeId}`;
+        return (await this.redis.exists(key)) === 1;
     }
 
     public async hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]> {
@@ -275,5 +285,13 @@ export class RedisStorageProvider extends RedisStorageContextualProvider impleme
 
     public async getHoundActivity(challengeId: string, activityId: string): Promise<string|null> {
         return this.redis.get(`${HOUND_EVENTS}${challengeId}.${activityId}`);
+    }
+
+    public async getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean> {
+        return await this.redis.sismember(GENERIC_HOOK_HAS_WARNED, hookId) === 1;
+    }
+
+    public async setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void> {
+        await this.redis[hasWarned ? "sadd" : "srem"](GENERIC_HOOK_HAS_WARNED, hookId);
     }
 }

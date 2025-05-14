@@ -1,6 +1,6 @@
 import { BotCommands, botCommand, compileBotCommands, HelpFunction } from "../BotCommands";
 import { CommandConnection } from "./CommandConnection";
-import { GenericHookConnection, GenericHookConnectionState, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState } from ".";
+import { GenericHookConnection, GenericHookConnectionState, GitHubRepoConnection, JiraProjectConnection, JiraProjectConnectionState, OutboundHookConnection } from ".";
 import { CommandError } from "../errors";
 import { BridgePermissionLevel } from "../config/Config";
 import markdown from "markdown-it";
@@ -17,6 +17,9 @@ import YAML from 'yaml';
 import { HoundConnection } from "./HoundConnection";
 const md = new markdown();
 const log = new Logger("SetupConnection");
+const parseDurationImport = import('parse-duration');
+
+const OUTBOUND_DOCS_LINK = "https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html";
 
 /**
  * Handles setting up a room with connections. This connection is "virtual" in that it has
@@ -207,10 +210,19 @@ export class SetupConnection extends CommandConnection {
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`));
     }
 
-    @botCommand("webhook", { help: "Create an inbound webhook.", requiredArgs: ["name"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
-    public async onWebhook(userId: string, name: string) {
+    @botCommand("webhook", { help: "Create an inbound webhook. The liveDuration must be specified as a duration string (e.g. 30d).", requiredArgs: ["name"], includeUserId: true, optionalArgs: ['liveDuration'], category: GenericHookConnection.ServiceCategory})
+    public async onWebhook(userId: string, name: string, liveDuration?: string) {
         if (!this.config.generic?.enabled) {
             throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
+        }
+
+        let expirationDate: string|undefined = undefined;
+        if (liveDuration) {
+            const expirationDuration = await (await parseDurationImport).default(liveDuration);
+            if (!expirationDuration) {
+                throw new CommandError("Bad webhook duration", "Duration could not be parsed");
+            }
+            expirationDate = new Date(expirationDuration + Date.now()).toISOString();
         }
 
         await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
@@ -218,7 +230,7 @@ export class SetupConnection extends CommandConnection {
         if (!name || name.length < 3 || name.length > 64) {
             throw new CommandError("Bad webhook name", "A webhook name must be between 3-64 characters.");
         }
-        const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name}, this.provisionOpts);
+        const c = await GenericHookConnection.provisionConnection(this.roomId, userId, {name, expirationDate}, this.provisionOpts);
         this.pushConnections(c.connection);
         const url = new URL(c.connection.hookId, this.config.generic.parsedUrlPrefix);
         const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
@@ -283,6 +295,35 @@ export class SetupConnection extends CommandConnection {
 
         return this.client.sendHtmlNotice(this.roomId, md.renderInline(`Removed webhook \`${name}\``));
     }
+
+
+
+    @botCommand("outbound-hook", { help: "Create an outbound webhook.", requiredArgs: ["name", "url"], includeUserId: true, category: GenericHookConnection.ServiceCategory})
+    public async onOutboundHook(userId: string, name: string, url: string) {
+        if (!this.config.generic?.outbound) {
+            throw new CommandError("not-configured", "The bridge is not configured to support webhooks.");
+        }
+
+        await this.checkUserPermissions(userId, "webhooks", GitHubRepoConnection.CanonicalEventType);
+
+        const { connection }= await OutboundHookConnection.provisionConnection(this.roomId, userId, {name, url}, this.provisionOpts);
+        this.pushConnections(connection);
+
+        const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
+        const safeRoomId = encodeURIComponent(this.roomId);
+
+        await this.client.sendHtmlNotice(
+            adminRoom.roomId,
+            md.renderInline(
+            `You have bridged the webhook "${name}" in https://matrix.to/#/${safeRoomId} .\n` +
+            // Line break before and no full stop after URL is intentional.
+            // This makes copying and pasting the URL much easier.
+            `Please use the secret token \`${connection.outboundToken}\` when validating the request.\n` +
+            `See the [documentation](${OUTBOUND_DOCS_LINK}) for more information`,
+        ));
+        return this.client.sendNotice(this.roomId, `Room configured to bridge outbound webhooks. See admin room for the secret token.`);
+    }
+
 
     @botCommand("figma file", { help: "Bridge a Figma file to the room.", requiredArgs: ["url"], includeUserId: true, category: FigmaFileConnection.ServiceCategory})
     public async onFigma(userId: string, url: string) {
@@ -431,7 +472,7 @@ export class SetupConnection extends CommandConnection {
 
     private async checkUserPermissions(userId: string, service: string, stateEventType: string): Promise<void> {
         if (!this.config.checkPermission(userId, service, BridgePermissionLevel.manageConnections)) {
-            throw new CommandError(`You are not permitted to provision connections for ${service}.`);
+            throw new CommandError(`${userId} does not have permission to manageConnections for ${service}`, `You are not permitted to provision connections for ${service}.`);
         }
         if (!await this.client.userHasPowerLevelFor(userId, this.roomId, "", true)) {
             throw new CommandError("not-configured", "You must be able to set state in a room ('Change settings') in order to set up new integrations.");

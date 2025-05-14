@@ -25,7 +25,7 @@ describe("IntentUtils", () => {
                     return;
                 }
                 expect(roomId).to.equal(ROOM_ID);
-                throw new MatrixError({ errcode: "M_FORBIDDEN", error: "Test forced error"}, 401)
+                throw new MatrixError({ errcode: "M_FORBIDDEN", error: "Test forced error"}, 401, {})
             };
 
             // This should invite the puppet user.
@@ -40,13 +40,13 @@ describe("IntentUtils", () => {
             expect(hasInvited).to.be.true;
         });
 
-        it("invites the user to the room and joins", () => {
+        it("invites the user to the room and handles the failure", () => {
             const targetIntent = IntentMock.create(SENDER_USER_ID);
             const matrixClient = MatrixClientMock.create();
     
             // This should fail the first time, then pass once we've tried to invite the user
             targetIntent.ensureJoined = () => {
-                throw new MatrixError({ errcode: "FORCED_FAILURE", error: "Test forced error"}, 500)
+                throw new MatrixError({ errcode: "FORCED_FAILURE", error: "Test forced error"}, 500, { })
             };
             try {
                 ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);

@@ -16,7 +16,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     const api = useContext(BridgeContext).bridgeApi;
 
     const toggleEnabledHook = useCallback((evt: any) => {
-        const key = (evt.target as HTMLElement).getAttribute('x-event-name');
+        const key = (evt.target as HTMLElement).getAttribute('data-event-name');
         if (key) {
             setEnabledHooks(enabledHooks => (
                 enabledHooks.includes(key) ? enabledHooks.filter(k => k !== key) : [...enabledHooks, key]
@@ -88,7 +88,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
         <InputField visible={!!existingConnection || !!newConnectionState} label="Command Prefix" noPadding={true}>
             <input ref={commandPrefixRef} type="text" value={existingConnection?.config.commandPrefix} placeholder="!gl" />
         </InputField>
-        <InputField visible={!!existingConnection || !!newConnectionState} label="Include comment bodies" noPadding={true} innerChild={true}>
+        <InputField visible={!!existingConnection || !!newConnectionState} label="Include comment bodies" noPadding={true}>
             <input ref={includeBodyRef} disabled={!canEdit} type="checkbox" checked={!!existingConnection?.config.includeCommentBody} />
         </InputField>
         <InputField visible={!!existingConnection || !!newConnectionState} label="Events" noPadding={true}>
@@ -97,6 +97,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
                 <EventHookCheckbox enabledHooks={enabledHooks} hookEventName="merge_request" onChange={toggleEnabledHook}>Merge requests</EventHookCheckbox>
                 <ul>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.open" onChange={toggleEnabledHook}>Opened</EventHookCheckbox>
+                    <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.reopen" onChange={toggleEnabledHook}>Reopened</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.close" onChange={toggleEnabledHook}>Closed</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.merge" onChange={toggleEnabledHook}>Merged</EventHookCheckbox>
                     <EventHookCheckbox enabledHooks={enabledHooks} parentEvent="merge_request" hookEventName="merge_request.review" onChange={toggleEnabledHook}>Completed review</EventHookCheckbox>
@@ -125,7 +126,7 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: GitLabRepoResponseItem) => c.config.path;
 
-export const GitlabRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
+const GitlabRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, GitLabRepoResponseItem, GitLabRepoConnectionState>
         headerImg={GitLabIcon}
         showHeader={showHeader}
@@ -137,3 +138,5 @@ export const GitlabRepoConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default GitlabRepoConfig;

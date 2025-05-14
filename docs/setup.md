@@ -13,7 +13,7 @@ Hookshot requires the homeserver to be configured with its appservice registrati
 
 ## Local installation
 
-This bridge requires at least Node 16 and Rust installed.
+This bridge requires at least Node 22 and Rust installed.
 
 To install Node.JS, [nvm](https://github.com/nvm-sh/nvm) is a good option.
 

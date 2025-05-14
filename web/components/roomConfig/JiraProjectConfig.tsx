@@ -17,7 +17,7 @@ const ConnectionConfiguration: FunctionComponent<ConnectionConfigurationProps<ne
     const api = useContext(BridgeContext).bridgeApi;
 
     const toggleEvent = useCallback((evt: Event) => {
-        const key = (evt.target as HTMLElement).getAttribute('x-event-name');
+        const key = (evt.target as HTMLElement).getAttribute('data-event-name');
         if (key) {
             setAllowedEvents(allowedEvents => (
                 allowedEvents.includes(key) ? allowedEvents.filter(k => k !== key) : [...allowedEvents, key]
@@ -110,7 +110,7 @@ const RoomConfigText = {
 
 const RoomConfigListItemFunc = (c: JiraProjectResponseItem) => c.config.url;
 
-export const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
+const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
     return <RoomConfig<never, JiraProjectResponseItem, JiraProjectConnectionState>
         headerImg={JiraIcon}
         showHeader={showHeader}
@@ -122,3 +122,5 @@ export const JiraProjectConfig: BridgeConfig = ({ roomId, showHeader }) => {
         connectionConfigComponent={ConnectionConfiguration}
     />;
 };
+
+export default JiraProjectConfig;

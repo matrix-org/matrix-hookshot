@@ -1,10 +1,12 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, it, beforeEach, afterEach } from "@jest/globals";
+import { describe, test, beforeAll, afterAll, expect } from "vitest";
+
 import { createHmac, randomUUID } from "crypto";
 import { GitHubRepoConnection, GitHubRepoConnectionState } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
 import { getBridgeApi } from "./util/bridge-api";
 import { Server, createServer } from "http";
+import { waitFor } from "./util/helpers";
 
 describe('GitHub', () => {
     let testEnv: E2ETestEnv;
@@ -12,7 +14,7 @@ describe('GitHub', () => {
     const webhooksPort = 9500 + E2ETestEnv.workerId;
     const githubPort = 9700 + E2ETestEnv.workerId;
 
-    beforeEach(async () => {
+    beforeAll(async () => {
         // Fake out enough of a GitHub API to get past startup. Later
         // tests might make more use of this.
         githubServer = createServer((req, res) => {
@@ -53,12 +55,12 @@ describe('GitHub', () => {
         await testEnv.setUp();
     }, E2ESetupTestTimeout);
 
-    afterEach(() => {
+    afterAll(() => {
         githubServer?.close();
         return testEnv?.tearDown();
     });
 
-    it('should be able to handle a GitHub event', async () => {
+    test('should be able to handle a GitHub event', async () => {
         const user = testEnv.getUser('user');
         const bridgeApi = await getBridgeApi(testEnv.opts.config?.widgets?.publicUrl!, user);
         const testRoomId = await user.createRoom({ name: 'Test room', invite:[testEnv.botMxid] });
@@ -71,17 +73,7 @@ describe('GitHub', () => {
         } satisfies GitHubRepoConnectionState);
 
         // Wait for connection to be accepted.
-        await new Promise<void>(r => {
-            let interval: NodeJS.Timeout;
-            interval = setInterval(() => {
-                bridgeApi.getConnectionsForRoom(testRoomId).then(conns => {
-                    if (conns.length > 0) {
-                        clearInterval(interval);
-                        r();
-                    }
-                })
-            }, 500);
-        });
+        await waitFor(async () => (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1);
 
         const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
             eventType: 'm.room.message', sender: testEnv.botMxid, roomId: testRoomId

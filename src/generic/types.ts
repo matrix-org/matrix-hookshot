@@ -1,12 +1,20 @@
-import { WebhookResponse } from "../Connections";
+import { ExecuteResultWebhookResponse } from "../generic/transformer";
 
 export interface GenericWebhookEvent {
     hookData: unknown;
     hookId: string;
 }
 
-export interface GenericWebhookEventResult {
-    successful?: boolean|null;
-    response?: WebhookResponse,
+export type GenericWebhookEventResult = GenericWebhookEventResultSuccess | GenericWebhookEventResultFailure;
+
+export interface GenericWebhookEventResultSuccess {
+    successful: true|null;
+    response?: ExecuteResultWebhookResponse,
+    notFound?: boolean;
+}
+export interface GenericWebhookEventResultFailure {
+    successful: false;
+    statusCode?: number;
+    error?: string;
     notFound?: boolean;
 }

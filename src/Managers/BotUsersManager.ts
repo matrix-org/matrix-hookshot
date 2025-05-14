@@ -1,5 +1,4 @@
 import { promises as fs } from "fs";
-import axios from "axios";
 import { Appservice, Intent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
@@ -97,6 +96,9 @@ export default class BotUsersManager {
      * @returns Promise resolving when the user profile has been ensured.
      */
     private async ensureProfile(botUser: BotUser): Promise<void> {
+        const capabilites = await botUser.intent.underlyingClient.getCapabilities();
+        const canSetDisplayname = capabilites["m.set_displayname"]?.enabled !== false;
+        const canSetAvatarUrl = capabilites["m.set_avatar_url"]?.enabled !== false;
         log.debug(`Ensuring profile for ${botUser.userId} is updated`);
 
         let profile: {
@@ -111,13 +113,17 @@ export default class BotUsersManager {
         }
 
         // Update display name if necessary
-        if (botUser.displayname && profile.displayname !== botUser.displayname) {
+        if (canSetDisplayname && botUser.displayname && profile.displayname !== botUser.displayname) {
             try {
                 await botUser.intent.underlyingClient.setDisplayName(botUser.displayname);
                 log.info(`Updated displayname for "${botUser.userId}" to ${botUser.displayname}`);
             } catch (e) {
                 log.error(`Failed to set displayname for ${botUser.userId}:`, e);
             }
+        }
+
+        if (!canSetAvatarUrl) {
+            return;
         }
 
         if (!botUser.avatar) {
@@ -171,13 +177,10 @@ export default class BotUsersManager {
         // Determine if an avatar update is needed
         if (profile.avatar_url) {
             try {
-                const res = await axios.get(
-                    botUser.intent.underlyingClient.mxcToHttp(profile.avatar_url),
-                    { responseType: "arraybuffer" },
-                );
+                const res = await botUser.intent.underlyingClient.downloadContent(profile.avatar_url);
                 const currentAvatarImage = {
-                    image: Buffer.from(res.data),
-                    contentType: res.headers["content-type"],
+                    image: res.data,
+                    contentType: res.contentType,
                 };
                 if (
                     currentAvatarImage.image.equals(avatarImage.image)

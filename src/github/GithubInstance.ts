@@ -46,14 +46,14 @@ interface OAuthUrlParameters {
 export class GithubInstance {
     private internalOctokit!: Octokit;
     private readonly installationsCache = new Map<number, Installation>();
-    private internalAppSlug?: string;
+    private internalAppUrl?: string;
 
     constructor (private readonly appId: number|string, private readonly privateKey: string, private readonly baseUrl: URL) {
         this.appId = parseInt(appId as string, 10);
     }
 
-    public get appSlug() {
-        return this.internalAppSlug;
+    public get appUrl() {
+        return this.internalAppUrl;
     }
 
     public get appOctokit() {
@@ -143,14 +143,25 @@ export class GithubInstance {
         });
 
         const appDetails = await this.internalOctokit.apps.getAuthenticated();
-        this.internalAppSlug = appDetails.data.slug;
+        if (!appDetails.data) {
+            throw Error("No information returned about GitHub App. Is your GitHub App configured correctly?");
+        }
+        this.internalAppUrl = appDetails.data.html_url;
 
         let installPageSize = 100;
         let page = 1;
         do {
             const installations = await this.internalOctokit.apps.listInstallations({ per_page: 100, page: page++ });
             for (const install of installations.data) {
-                await this.addInstallation(install);
+                if (install.suspended_at) {
+                    log.warn(`GitHub app install ${install.id} was suspended. GitHub connections using this install may not work correctly`);
+                    continue;
+                }
+                try {
+                    await this.addInstallation(install);
+                } catch (ex) {
+                    log.info(`Failed to handle GitHub installation ${install.id}`, ex);
+                }
             }
             installPageSize = installations.data.length;
         } while(installPageSize === 100)
@@ -186,12 +197,10 @@ export class GithubInstance {
     }
 
     public get newInstallationUrl() {
-        if (this.baseUrl.hostname === GITHUB_CLOUD_URL.hostname) {
-            // Cloud
-            return new URL(`/apps/${this.appSlug}/installations/new`, GITHUB_CLOUD_PUBLIC_URL);
+        if (!this.appUrl) {
+            throw Error('No configured app url, cannot get installation url');
         }
-        // Enterprise (yes, i know right)
-        return new URL(`/github-apps/${this.appSlug}/installations/new`, this.baseUrl);
+        return new URL(this.appUrl);
     }
 
     public static generateOAuthUrl(baseUrl: URL, action: "authorize"|"access_token", params: OAuthUrlParameters) {

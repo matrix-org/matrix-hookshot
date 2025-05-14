@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import YAML from "yaml";
 import { promises as fs } from "fs";
 import { IAppserviceRegistration, LogLevel, MatrixClient } from "matrix-bot-sdk";
@@ -11,10 +13,12 @@ import { ApiError, ErrCode } from "../api";
 import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigCache } from "./sections/cache";
-import { BridgeConfigQueue } from "./sections";
-import { DefaultConfigRoot } from "./Defaults";
+import { BridgeConfigGenericWebhooks, BridgeConfigQueue, BridgeGenericWebhooksConfigYAML } from "./sections";
+import { GenericHookServiceConfig } from "../Connections";
+import { BridgeConfigEncryption } from "./sections/encryption";
 
 const log = new Logger("Config");
+
 
 function makePrefixedUrl(urlString: string): URL {
     return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
@@ -47,11 +51,8 @@ interface BridgeConfigGitHubYAML {
         secret: string;
     };
     oauth?: {
-        // eslint-disable-next-line camelcase
         client_id: string;
-        // eslint-disable-next-line camelcase
         client_secret: string;
-        // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
     defaultOptions?: GitHubRepoConnectionOptions;
@@ -70,11 +71,8 @@ export class BridgeConfigGitHub {
     };
     @configKey("Settings for allowing users to sign in via OAuth.", true)
     readonly oauth?: {
-        // eslint-disable-next-line camelcase
         client_id: string;
-        // eslint-disable-next-line camelcase
         client_secret: string;
-        // eslint-disable-next-line camelcase
         redirect_uri: string;
     };
     @configKey("Default options for GitHub connections.", true)
@@ -107,18 +105,14 @@ export class BridgeConfigGitHub {
 }
 
 export interface BridgeConfigJiraCloudOAuth {
-    // eslint-disable-next-line camelcase
     client_id: string;
-    // eslint-disable-next-line camelcase
     client_secret: string;
-    // eslint-disable-next-line camelcase
     redirect_uri: string;
 }
 
 export interface BridgeConfigJiraOnPremOAuth {
     consumerKey: string;
     privateKey: string;
-    // eslint-disable-next-line camelcase
     redirect_uri: string;
 }
 
@@ -182,11 +176,6 @@ export class BridgeConfigJira implements BridgeConfigJiraYAML {
 
 export interface GitLabInstance {
     url: string;
-    // oauth: {
-    //     client_id: string;
-    //     client_secret: string;
-    //     redirect_uri: string;
-    // };
 }
 
 export interface BridgeConfigGitLabYAML {
@@ -195,7 +184,7 @@ export interface BridgeConfigGitLabYAML {
         secret: string;
     },
     instances: {[name: string]: GitLabInstance};
-    userIdPrefix: string;
+    userIdPrefix?: string;
     commentDebounceMs?: number;
 }
 
@@ -289,52 +278,6 @@ export interface BridgeConfigFigma {
     }};
 }
 
-export interface BridgeGenericWebhooksConfigYAML {
-    enabled: boolean;
-    urlPrefix: string;
-    userIdPrefix?: string;
-    allowJsTransformationFunctions?: boolean;
-    waitForComplete?: boolean;
-    enableHttpGet?: boolean;
-}
-
-export class BridgeConfigGenericWebhooks {
-    public readonly enabled: boolean;
-
-    @hideKey()
-    public readonly parsedUrlPrefix: URL;
-    public readonly urlPrefix: () => string;
-
-    public readonly userIdPrefix?: string;
-    public readonly allowJsTransformationFunctions?: boolean;
-    public readonly waitForComplete?: boolean;
-    public readonly enableHttpGet: boolean;
-    constructor(yaml: BridgeGenericWebhooksConfigYAML) {
-        this.enabled = yaml.enabled || false;
-        this.enableHttpGet = yaml.enableHttpGet || false;
-        try {
-            this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
-            this.urlPrefix = () => { return this.parsedUrlPrefix.href; }
-        } catch (err) {
-            throw new ConfigError("generic.urlPrefix", "is not defined or not a valid URL");
-        }
-        this.userIdPrefix = yaml.userIdPrefix;
-        this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
-        this.waitForComplete = yaml.waitForComplete;
-    }
-
-    @hideKey()
-    public get publicConfig() {
-        return {
-            userIdPrefix: this.userIdPrefix,
-            allowJsTransformationFunctions: this.allowJsTransformationFunctions,
-            waitForComplete: this.waitForComplete,
-        }
-    }
-
-}
-
-
 interface BridgeWidgetConfigYAML {
     publicUrl: string;
     /**
@@ -379,7 +322,7 @@ export class BridgeWidgetConfig {
         try {
             this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl)
             this.publicUrl = () => { return this.parsedPublicUrl.href; }
-        } catch (err) {
+        } catch {
             throw new ConfigError("widgets.publicUrl", "is not defined or not a valid URL");
         }
         this.branding = yaml.branding || {
@@ -401,8 +344,6 @@ interface BridgeConfigBridge {
     mediaUrl?: string;
     port: number;
     bindAddress: string;
-    // Removed
-    pantalaimon?: never;
 }
 
 interface BridgeConfigWebhook {
@@ -421,10 +362,7 @@ interface BridgeConfigBot {
     displayname?: string;
     avatar?: string;
 }
-interface BridgeConfigEncryption {
-    storagePath: string;
-    useLegacySledStore: boolean;
-}
+
 
 export interface BridgeConfigServiceBot {
     localpart: string;
@@ -454,7 +392,11 @@ export interface BridgeConfigRoot {
     bot?: BridgeConfigBot;
     bridge: BridgeConfigBridge;
     cache?: BridgeConfigCache;
-    experimentalEncryption?: BridgeConfigEncryption;
+    /**
+     * @deprecated Old, unsupported encryption propety. 
+     */
+    experimentalEncryption?: never;
+    encryption?: BridgeConfigEncryption;
     feeds?: BridgeConfigFeedsYAML;
     figma?: BridgeConfigFigma;
     generic?: BridgeGenericWebhooksConfigYAML;
@@ -481,9 +423,7 @@ export class BridgeConfig {
     For encryption to work, this must be configured.`, true)
     public readonly cache?: BridgeConfigCache;
     @configKey(`Configuration for encryption support in the bridge.
- If omitted, encryption support will be disabled.
- This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
- For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.`, true)
+ If omitted, encryption support will be disabled.`, true)
     public readonly encryption?: BridgeConfigEncryption;
     @configKey(`Message queue configuration options for large scale deployments.
  For encryption to work, this must not be configured.`, true)
@@ -536,6 +476,9 @@ export class BridgeConfig {
 
 
     constructor(configData: BridgeConfigRoot, env?: {[key: string]: string|undefined}) {
+        this.logging = configData.logging || {
+            level: "info",
+        }
         this.bridge = configData.bridge;
         assert.ok(this.bridge);
         this.github = configData.github && new BridgeConfigGitHub(configData.github);
@@ -583,13 +526,11 @@ export class BridgeConfig {
             }
         }
 
-        this.encryption = configData.experimentalEncryption;
-
-
-        this.logging = configData.logging || {
-            level: "info",
+        if (configData.experimentalEncryption) {
+            throw new ConfigError("experimentalEncryption", `This key is now called 'encryption'. Please adjust your config file.`)
         }
 
+        this.encryption = configData.encryption && new BridgeConfigEncryption(configData.encryption, this.cache, this.queue);
         this.widgets = configData.widgets && new BridgeWidgetConfig(configData.widgets);
         this.sentry = configData.sentry;
 
@@ -670,37 +611,6 @@ export class BridgeConfig {
             log.warn("The `widgets.openIdOverrides` config value SHOULD NOT be used in a production environment.")
         }
 
-        if (this.bridge.pantalaimon) {
-            throw new ConfigError("bridge.pantalaimon", "Pantalaimon support has been removed. Encrypted bridges should now use the `experimentalEncryption` config option");
-        }
-
-        if (this.encryption) {
-            log.warn(`
-You have enabled encryption support in the bridge. This feature is HIGHLY EXPERIMENTAL AND SUBJECT TO CHANGE.
-For more details, see https://github.com/matrix-org/matrix-hookshot/issues/594.
-            `);
-
-            if (!this.encryption.storagePath) {
-                throw new ConfigError("experimentalEncryption.storagePath", "The crypto storage path must not be empty.");
-            }
-
-            if (this.encryption.useLegacySledStore) {
-                throw new ConfigError(
-                    "experimentalEncryption.useLegacySledStore", `
-The Sled crypto store format is no longer supported.
-Please back up your crypto store at ${this.encryption.storagePath},
-remove "useLegacySledStore" from your configuration file, and restart Hookshot.
-                `);
-            }
-            if (!this.cache) {
-                throw new ConfigError("cache", "Encryption requires the Redis cache to be enabled.");
-            }
-
-            if (this.queue) {
-                throw new ConfigError("queue", "Encryption does not support message queues.");
-            }
-        }
-
         if (this.figma?.overrideUserId) {
             log.warn("The `figma.overrideUserId` config value is deprecated. A service bot should be configured instead.");
         }
@@ -710,7 +620,10 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         const permissionRooms = this.bridgePermissions.getInterestedRooms();
         log.info(`Prefilling room membership for permissions for ${permissionRooms.length} rooms`);
         for(const roomEntry of permissionRooms) {
-            const membership = await client.getJoinedRoomMembers(await client.resolveRoom(roomEntry));
+            const roomId = await client.resolveRoom(roomEntry);
+            // Attempt to join the room
+            await client.joinRoom(roomEntry);
+            const membership = await client.getJoinedRoomMembers(roomId);
             membership.forEach(userId => this.bridgePermissions.addMemberToCache(roomEntry, userId));
             log.debug(`Found ${membership.length} users for ${roomEntry}`);
         }
@@ -742,6 +655,9 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         }
         if (this.generic && this.generic.enabled) {
             services.push("generic");
+            if (this.generic.outbound) {
+                services.push("genericOutbound");
+            }
         }
         if (this.github) {
             services.push("github");
@@ -758,14 +674,14 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
         return services;
     }
 
-    public getPublicConfigForService(serviceName: string): Record<string, unknown> {
-        let config: undefined|Record<string, unknown>;
+    public async getPublicConfigForService(serviceName: string): Promise<Record<string, unknown>|GenericHookServiceConfig> {
+        let config: undefined|Record<string, unknown>|GenericHookServiceConfig;
         switch (serviceName) {
             case "feeds":
                 config = this.feeds?.publicConfig;
                 break;
             case "generic":
-                config = this.generic?.publicConfig;
+                config = await this.generic?.publicConfig;
                 break;
             case "github":
                 config = this.github?.publicConfig();
@@ -773,6 +689,7 @@ remove "useLegacySledStore" from your configuration file, and restart Hookshot.
             case "gitlab":
                 config = this.gitlab?.publicConfig;
                 break;
+            case "genericOutbound":
             case "jira":
                 config = {};
                 break;
@@ -802,11 +719,9 @@ export async function parseRegistrationFile(filename: string) {
 if (require.main === module) {
     Logger.configure({console: "info"});
     BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env).then(() => {
-        // eslint-disable-next-line no-console
         console.log('Config successfully validated.');
         process.exit(0);
     }).catch(ex => {
-        // eslint-disable-next-line no-console
         console.error('Error in config:', ex);
         process.exit(1);
     });

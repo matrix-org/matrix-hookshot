@@ -1,5 +1,3 @@
-/* eslint-disable camelcase */
-
 export interface IGitLabWebhookEvent {
     object_kind: string;
 }
@@ -35,7 +33,7 @@ export interface IGitlabMergeRequest {
     iid: number;
     author_id: number;
     state: 'opened'|'closed'|'merged';
-
+    labels: IGitLabLabel[];
 }
 
 export interface IGitLabMergeRequestObjectAttributes extends IGitlabMergeRequest {
@@ -64,9 +62,9 @@ export interface IGitLabWebhookMREvent {
     object_attributes: IGitLabMergeRequestObjectAttributes;
     labels: IGitLabLabel[];
     changes: {
-        [key: string]: {
-            before: string;
-            after: string;
+        draft?: {
+            previous: boolean;
+            current: boolean;
         }
     }
 }
@@ -182,11 +180,12 @@ export interface IGitLabNote {
     noteable_type: 'MergeRequest';
     author_id: number;
     noteable_id: number;
-    description: string;
     discussion_id?: string;
+    url: string;
 }
 
 export interface IGitLabWebhookNoteEvent {
+    object_kind: 'note',
     user: IGitlabUser;
     event_type: string;
     project: IGitlabProject;

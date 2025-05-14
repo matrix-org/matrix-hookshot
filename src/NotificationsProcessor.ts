@@ -10,7 +10,6 @@ import { GitHubUserNotification } from "./github/Types";
 import { components } from "@octokit/openapi-types/types";
 import { NotifFilter } from "./NotificationFilters";
 
-
 const log = new Logger("NotificationProcessor");
 const md = new markdown();
 
@@ -21,18 +20,15 @@ export interface IssueDiff {
     merged: boolean;
     mergedBy: null|{
         login: string;
-        // eslint-disable-next-line camelcase
         html_url: string;
     };
     user: {
         login: string;
-        // eslint-disable-next-line camelcase
         html_url: string;
     };
 }
 
 export interface CachedReviewData {
-    // eslint-disable-next-line camelcase
     requested_reviewers: PullsListRequestedReviewersResponseData;
     reviews: PullsListReviewsResponseData;
 }
@@ -40,8 +36,6 @@ export interface CachedReviewData {
 type PROrIssue = IssuesGetResponseData|PullGetResponseData;
 
 export class NotificationProcessor {
-
-    // eslint-disable-next-line camelcase
     private static formatUser(user: {login: string, html_url: string}) {
         return `**[${user.login}](${user.html_url})**`;
     }

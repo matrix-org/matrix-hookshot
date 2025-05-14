@@ -1,22 +1,22 @@
 import { FunctionComponent } from "preact";
-import style from "./InputField.module.scss";
-
+import styles from "./InputField.module.scss";
+import clsx from 'clsx';
 interface Props {
     className?: string;
     visible?: boolean;
-    label?: string;
+    label: string;
     noPadding: boolean;
-    innerChild?: boolean;
 }
 
-export const InputField: FunctionComponent<Props> = ({ className, children, visible = true, label, noPadding, innerChild = false }) => {
-    const inputClassName = [
-        className,
-        style.inputField,
-        noPadding && style.nopad
-    ].filter(a => !!a).join(' ');
-    return visible ? <div className={inputClassName}>
-        {label && <label>{innerChild && children}{label}</label>}
-        {(!label || !innerChild) && children}
-    </div> : <></>
+export const InputField: FunctionComponent<Props> = ({ className, children, visible = true, label, noPadding }) => {
+    if (!visible) {
+        return null;
+    }
+
+    return <div className={clsx(className, styles.inputField, noPadding && styles.nopad)}>
+        <label>{label}</label>
+        <div className={styles.container}>
+            {children}
+        </div>
+    </div>;
 };

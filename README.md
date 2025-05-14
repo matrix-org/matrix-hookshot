@@ -1,4 +1,4 @@
-Matrix Hookshot
+![logo](logo.png) Matrix Hookshot
 ===============
 
 [![#hookshot:half-shot.uk](https://img.shields.io/matrix/hookshot:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
@@ -16,6 +16,7 @@ A Matrix bot for connecting to external services like GitHub, GitLab, JIRA, and 
 
 We richly support the following integrations:
 
+- [Challenge Hound](https://matrix-org.github.io/matrix-hookshot/latest/setup/challengehound.html)
 - [Figma](https://matrix-org.github.io/matrix-hookshot/latest/setup/figma.html)
 - [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html)
 - [GitHub](https://matrix-org.github.io/matrix-hookshot/latest/setup/github.html)

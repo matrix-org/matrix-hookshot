@@ -76,7 +76,6 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
             throw Error("Could not find repo");
         }
 
-        // eslint-disable-next-line camelcase
         let avatarState: {type: "m.room.avatar", state_key: "", content: { url: string}}|undefined;
         try {
             if (avatarUrl) {

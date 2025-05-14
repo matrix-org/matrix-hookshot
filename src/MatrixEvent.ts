@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 export interface MatrixEvent<T extends MatrixEventContent|unknown> {
     content: T;
     event_id: string;
@@ -8,10 +7,7 @@ export interface MatrixEvent<T extends MatrixEventContent|unknown> {
     type: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface MatrixEventContent {
-
-}
+type MatrixEventContent = object;
 
 export interface MatrixMemberContent extends MatrixEventContent {
     avatar_url: string|null;

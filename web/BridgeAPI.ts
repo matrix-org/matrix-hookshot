@@ -46,7 +46,6 @@ export class BridgeAPI {
 
         const creds = await widgetApi.requestOpenIDConnectToken();
         const { matrix_server_name, access_token } = creds;
-        // eslint-disable-next-line camelcase
         if (!matrix_server_name || !access_token) {
             throw Error('Server OpenID response missing values');
         }
@@ -55,9 +54,7 @@ export class BridgeAPI {
             cache: 'no-cache',
             method: 'POST',
             body: JSON.stringify({
-                // eslint-disable-next-line camelcase
                 matrixServer: matrix_server_name,
-                // eslint-disable-next-line camelcase
                 openIdToken: access_token,
             } as ExchangeOpenAPIRequestBody),
             headers: {

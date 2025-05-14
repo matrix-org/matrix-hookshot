@@ -4,11 +4,11 @@ import { BridgeConfig } from "./config/Config";
 import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./MessageQueue";
-import { ApiError, ErrCode, Logger } from "matrix-appservice-bridge";
+import { Logger } from "matrix-appservice-bridge";
 import qs from "querystring";
 import axios from "axios";
 import { IGitLabWebhookEvent, IGitLabWebhookIssueStateEvent, IGitLabWebhookMREvent, IGitLabWebhookReleaseEvent } from "./Gitlab/WebhookTypes";
-import { EmitterWebhookEvent, EmitterWebhookEventName, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
+import { EmitterWebhookEvent, Webhooks as OctokitWebhooks } from "@octokit/webhooks"
 import { IJiraWebhookEvent } from "./jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./jira/Router";
 import { OAuthRequest } from "./WebhookTypes";
@@ -18,6 +18,8 @@ import { FigmaWebhooksRouter } from "./figma/router";
 import { GenericWebhooksRouter } from "./generic/Router";
 import { GithubInstance } from "./github/GithubInstance";
 import QuickLRU from "@alloc/quick-lru";
+import type { WebhookEventName } from "@octokit/webhooks-types";
+import { ApiError, ErrCode } from "./api";
 
 const log = new Logger("Webhooks");
 
@@ -60,15 +62,16 @@ export class Webhooks extends EventEmitter {
     private readonly queue: MessageQueue;
     private readonly ghWebhooks?: OctokitWebhooks;
     private readonly handledGuids = new QuickLRU<string, void>({ maxAge: 5000, maxSize: 100 });
+    private readonly jira?: JiraWebhooksRouter;
     constructor(private config: BridgeConfig) {
         super();
         this.expressRouter.use((req, _res, next) => {
             Metrics.webhooksHttpRequest.inc({path: req.path, method: req.method});
             next();
         });
-        if (this.config.github?.webhook.secret) {
+        if (config.github?.webhook.secret) {
             this.ghWebhooks = new OctokitWebhooks({
-                secret: config.github?.webhook.secret as string,
+                secret: config.github.webhook.secret,
             });
             this.ghWebhooks.onAny(e => this.onGitHubPayload(e));
         }
@@ -77,7 +80,8 @@ export class Webhooks extends EventEmitter {
         this.expressRouter.get("/oauth", this.onGitHubGetOauth.bind(this));
         this.queue = createMessageQueue(config.queue);
         if (this.config.jira) {
-            this.expressRouter.use("/jira", new JiraWebhooksRouter(this.queue).getRouter());
+            this.jira = new JiraWebhooksRouter(this.queue, this.config.jira.webhook.secret);
+            this.expressRouter.use("/jira", this.jira.getRouter());
         }
         if (this.config.figma) {
             this.expressRouter.use('/figma', new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter());
@@ -178,7 +182,7 @@ export class Webhooks extends EventEmitter {
                 }
                 this.ghWebhooks.verifyAndReceive({
                     id: githubGuid as string,
-                    name: req.headers["x-github-event"] as EmitterWebhookEventName,
+                    name: req.headers["x-github-event"] as WebhookEventName,
                     payload: githubData.payload,
                     signature: githubData.signature,
                 }).catch((err) => {
@@ -202,9 +206,14 @@ export class Webhooks extends EventEmitter {
                 });
             } else {
                 log.debug("Unknown event:", req.body);
+                throw new ApiError("Unable to handle webhook payload. Service may not be configured.", ErrCode.Unroutable);
             }
         } catch (ex) {
+            if (ex instanceof ApiError) {
+                throw ex;
+            }
             log.error("Failed to emit message", ex);
+            throw new ApiError("Unknown error handling webhook.", ErrCode.Unknown);
         }
     }
 
@@ -299,54 +308,30 @@ export class Webhooks extends EventEmitter {
         }
     }
 
-    private verifyRequest(req: WebhooksExpressRequest, res: Response, buffer: Buffer, encoding: BufferEncoding) {
-        if (req.headers['x-gitlab-token']) {
-            // GitLab
-            if (!this.config.gitlab) {
-                log.error("Got a GitLab webhook, but the bridge is not set up for it.");
-                res.sendStatus(400);
-                throw Error('Not expecting a gitlab request!');
+    private verifyRequest(req: WebhooksExpressRequest, _res: Response, buffer: Buffer, encoding: BufferEncoding): void {
+        if (this.config.gitlab && req.headers['x-gitlab-token']) {
+            if (req.headers['x-gitlab-token'] !== this.config.gitlab.webhook.secret) {
+                throw new ApiError("Could not handle GitLab request. Token did not match.", ErrCode.BadValue);
             }
-            if (req.headers['x-gitlab-token'] === this.config.gitlab.webhook.secret) {
-                log.debug('Verified GitLab request');
-                return true;
-            } else {
-                log.error(`${req.url} had an invalid signature`);
-                res.sendStatus(403);
-                throw Error("Invalid signature.");
-            }
-        } else if (req.headers["x-hub-signature-256"] && this.ghWebhooks) {
-            // GitHub
+            return;
+        } else if (this.ghWebhooks && req.headers["x-hub-signature-256"]) {
             if (typeof req.headers["x-hub-signature-256"] !== "string") {
-                throw new ApiError("Unexpected multiple headers for x-hub-signature-256", ErrCode.BadValue, 400);
+                throw new ApiError("Could not handle GitHub request. Unexpected multiple headers for x-hub-signature-256", ErrCode.BadValue);
             }
-            let jsonStr;
             try {
-                jsonStr = buffer.toString(encoding)
+                const jsonStr = buffer.toString(encoding);
+                req.github = {
+                    payload: jsonStr,
+                    signature: req.headers["x-hub-signature-256"]
+                };
             } catch (ex) {
-                throw new ApiError("Could not decode buffer", ErrCode.BadValue, 400);
+                log.warn("GitHub signature could not be decoded", ex);
+                throw new ApiError("Could not handle GitHub request. Signature could not be decoded", ErrCode.BadValue);
             }
-            req.github = {
-                payload: jsonStr,
-                signature: req.headers["x-hub-signature-256"]
-            };
-            return true;
-        } else if (JiraWebhooksRouter.IsJIRARequest(req)) {
-            // JIRA
-            if (!this.config.jira) {
-                log.error("Got a JIRA webhook, but the bridge is not set up for it.");
-                res.sendStatus(400);
-                throw Error('Not expecting a jira request!');
-            }
-            if (req.query.secret !== this.config.jira.webhook.secret) {
-                log.error(`${req.url} had an invalid signature`);
-                res.sendStatus(403);
-                throw Error("Invalid signature.");
-            }
-            return true;
+            return;
+        } else if (this.jira && JiraWebhooksRouter.IsJIRARequest(req)) {
+            this.jira.verifyWebhookRequest(req, buffer);
+            return;
         }
-        log.error(`No signature on URL. Rejecting`);
-        res.sendStatus(400);
-        throw Error("Invalid signature.");
     }
 }

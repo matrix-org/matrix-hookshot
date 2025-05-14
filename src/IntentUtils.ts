@@ -38,23 +38,29 @@ export async function ensureUserIsInRoom(targetIntent: Intent, botClient: Matrix
 export async function getIntentForUser(user: {avatarUrl?: string, login: string}, as: Appservice, prefix?: string) {
     const domain = as.botUserId.split(":")[1];
     const intent = as.getIntentForUserId(`@${prefix ?? ''}${user.login}:${domain}`);
-    const displayName = `${user.login}`;
+    const displayName = user.login;
+    const capabilites = await intent.underlyingClient.getCapabilities();
+
+
     // Verify up-to-date profile
     let profile;
     await intent.ensureRegistered();
+    if (capabilites["m.set_displayname"]?.enabled === false && capabilites["m.set_avatar_url"]?.enabled === false) {
+        // No ability to change profile.
+        return intent;
+    }
     try {
         profile = await intent.underlyingClient.getUserProfile(intent.userId);
     } catch (ex) {
         profile = {};
     }
 
-    if (profile.displayname !== displayName) {
+    if (capabilites["m.set_displayname"]?.enabled !== false && profile.displayname !== displayName) {
         log.debug(`Updating ${intent.userId}'s displayname`);
-        log.info(`${intent.userId}'s profile is out of date`);
         await intent.underlyingClient.setDisplayName(displayName);
     }
 
-    if (!profile.avatar_url && user.avatarUrl) {
+    if (capabilites["m.set_avatar_url"]?.enabled !== false && !profile.avatar_url && user.avatarUrl) {
         log.debug(`Updating ${intent.userId}'s avatar`);
         const buffer = await axios.get(user.avatarUrl, {
             responseType: "arraybuffer",

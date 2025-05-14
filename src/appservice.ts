@@ -22,7 +22,7 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
         log.info('Initialising crypto storage')
         cryptoStorage = new RustSdkAppserviceCryptoStorageProvider(
             config.encryption.storagePath,
-            RustSdkCryptoStoreType.Sqlite,
+            0,
         );
     }
 
@@ -45,7 +45,7 @@ export function getAppservice(config: BridgeConfig, registration: IAppserviceReg
         },
         storage: storage,
         intentOptions: {
-            encryption: !!config.encryption,
+            encryption: !!cryptoStorage,
         },
         cryptoStorage: cryptoStorage,
     });

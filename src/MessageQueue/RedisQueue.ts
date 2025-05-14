@@ -110,10 +110,11 @@ export class RedisMQ extends EventEmitter implements MessageQueue {
         return p;
     }
 
-    public stop() {
-        this.redisPub.disconnect();
-        this.redisSub.disconnect();
-        this.redis.disconnect();
+    public async stop() {
+        await Promise.all([
+            this.redisPub.quit(),
+            this.redisSub.quit(),
+            this.redis.quit()]);
     }
 
     private async getRecipientForEvent(eventName: string): Promise<string|null> {

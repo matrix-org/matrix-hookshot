@@ -91,7 +91,7 @@ export class ListenerService {
         const promises = [];
         log.info(`Stopping all listeners`);
         for (const listener of this.listeners) {
-            if (listener.server) {
+            if (listener.server && listener.server.listening) {
                 promises.push(new Promise<void>((res, rej) => listener.server?.close((e) => e ? rej(e) : res())));
             }
         }

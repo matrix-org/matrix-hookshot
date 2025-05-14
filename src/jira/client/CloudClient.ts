@@ -14,11 +14,6 @@ const ACCESSIBLE_RESOURCE_CACHE_TTL_MS = 60000;
 
 
 export class HookshotCloudJiraApi extends HookshotJiraApi {
-    constructor(options: JiraApi.JiraApiOptions, res: JiraAPIAccessibleResource) {
-        super(options, res);
-    }
-
-
     async getIssue(issueIdOrKey: string): Promise<JiraIssue> {
         return this.apiRequest<JiraIssue>(`/rest/api/3/issue/${issueIdOrKey}`);
     }
@@ -90,7 +85,7 @@ export class JiraCloudClient implements JiraClient {
             if (existingPromise) {
                 return await existingPromise;
             }
-        } catch (ex) {
+        } catch {
             // Existing failed promise, break out and try again.
             JiraCloudClient.resourceCache.delete(this.bearer);
         }

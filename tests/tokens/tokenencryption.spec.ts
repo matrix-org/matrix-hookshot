@@ -53,17 +53,20 @@ describe("TokenEncryption", () => {
         }));
 
     }, );
+
     it('should be able to encrypt a string into a single part', async() => {
         const tokenEncryption = await createTokenEncryption();
         const result = tokenEncryption.encrypt('hello world');
         expect(result).to.have.lengthOf(1);
     });
+
     it('should be able to decrypt from a single part into a string', async() => {
         const tokenEncryption = await createTokenEncryption();
         const value = tokenEncryption.encrypt('hello world');
         const result = tokenEncryption.decrypt(value, Algo.RSAPKCS1v15);
         expect(result).to.equal('hello world');
     });
+
     it('should be able to decrypt from many parts into string', async() => {
         const plaintext = 'This is a very long string that needs to be encoded into multiple parts in order for us to store it properly. This ' +
         ' should end up as multiple encrypted values in base64.';
@@ -73,11 +76,13 @@ describe("TokenEncryption", () => {
         const result = tokenEncryption.decrypt(value, Algo.RSAPKCS1v15);
         expect(result).to.equal(plaintext);
     });
+
     it('should support pkcs1 format keys', async() => {
         const tokenEncryption = new TokenEncryption(await keyPromisePKCS1);
         const result = tokenEncryption.encrypt('hello world');
         expect(result).to.have.lengthOf(1);
     });
+
     it('should be to decrypt a string from the old crypto implementation', async() => {
         const legacyString = await legacyEncryptFunction('hello world');
         const tokenEncryption = await createTokenEncryption();

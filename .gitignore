@@ -13,6 +13,10 @@ public/
 # Generated during build
 /src/libRs.d.ts
 
+# Generated during test run
+/spec-lib
+/hookshot-int-*
+
 book
 *.cer
 *.pem
@@ -21,3 +25,10 @@ book
 # Coverage
 coverage
 .nyc_output
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv

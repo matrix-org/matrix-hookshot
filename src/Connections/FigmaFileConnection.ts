@@ -65,7 +65,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         }
     }
 
-    private readonly grantChecker: GrantChecker<{fileId: string, instanceName: string}> = new ConfigGrantChecker("figma", this.as, this.config);
+    private readonly grantChecker: GrantChecker<{fileId: string, instanceName: string}>;
 
     constructor(
         roomId: string,
@@ -76,6 +76,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
         private readonly intent: Intent,
         private readonly storage: IBridgeStorageProvider) {
         super(roomId, stateKey, FigmaFileConnection.CanonicalEventType)
+        this.grantChecker = new ConfigGrantChecker("figma", this.as, this.config);
     }
 
     public isInterestedInStateEvent() {
