@@ -12,36 +12,98 @@ import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 export const MAX_FEED_ITEMS = 10_000;
 export const MAX_HOUND_ITEMS = 100;
 
+export interface IBridgeStorageProvider
+  extends IAppserviceStorageProvider,
+    IStorageProvider,
+    ProvisioningStore {
+  connect?(): Promise<void>;
+  disconnect?(): Promise<void>;
+  setGithubIssue(
+    repo: string,
+    issueNumber: string,
+    data: IssuesGetResponseData,
+    scope?: string,
+  ): Promise<void>;
+  getGithubIssue(
+    repo: string,
+    issueNumber: string,
+    scope?: string,
+  ): Promise<IssuesGetResponseData | null>;
+  setLastNotifCommentUrl(
+    repo: string,
+    issueNumber: string,
+    url: string,
+    scope?: string,
+  ): Promise<void>;
+  getLastNotifCommentUrl(
+    repo: string,
+    issueNumber: string,
+    scope?: string,
+  ): Promise<string | null>;
+  setPRReviewData(
+    repo: string,
+    issueNumber: string,
+    data: unknown,
+    scope?: string,
+  ): Promise<void>;
+  getPRReviewData(
+    repo: string,
+    issueNumber: string,
+    scope?: string,
+  ): Promise<any | null>;
+  setFigmaCommentEventId(
+    roomId: string,
+    figmaCommentId: string,
+    eventId: string,
+  ): Promise<void>;
+  getFigmaCommentEventId(
+    roomId: string,
+    figmaCommentId: string,
+  ): Promise<string | null>;
+  getStoredTempFile(key: string): Promise<string | null>;
+  setStoredTempFile(key: string, value: string): Promise<void>;
+  getGitlabDiscussionThreads(
+    connectionId: string,
+  ): Promise<SerializedGitlabDiscussionThreads>;
+  setGitlabDiscussionThreads(
+    connectionId: string,
+    value: SerializedGitlabDiscussionThreads,
+  ): Promise<void>;
+  storeFeedGuids(url: string, ...guids: string[]): Promise<void>;
+  hasSeenFeed(url: string): Promise<boolean>;
+  hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]>;
 
-export interface IBridgeStorageProvider extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
-    connect?(): Promise<void>;
-    disconnect?(): Promise<void>;
-    setGithubIssue(repo: string, issueNumber: string, data: IssuesGetResponseData, scope?: string): Promise<void>;
-    getGithubIssue(repo: string, issueNumber: string, scope?: string): Promise<IssuesGetResponseData|null>;
-    setLastNotifCommentUrl(repo: string, issueNumber: string, url: string, scope?: string): Promise<void>;
-    getLastNotifCommentUrl(repo: string, issueNumber: string, scope?: string): Promise<string|null>;
-    setPRReviewData(repo: string, issueNumber: string, data: unknown, scope?: string): Promise<void>;
-    getPRReviewData(repo: string, issueNumber: string, scope?: string): Promise<any|null>;
-    setFigmaCommentEventId(roomId: string, figmaCommentId: string, eventId: string): Promise<void>;
-    getFigmaCommentEventId(roomId: string, figmaCommentId: string): Promise<string|null>;
-    getStoredTempFile(key: string): Promise<string|null>;
-    setStoredTempFile(key: string, value: string): Promise<void>;
-    getGitlabDiscussionThreads(connectionId: string): Promise<SerializedGitlabDiscussionThreads>;
-    setGitlabDiscussionThreads(connectionId: string, value: SerializedGitlabDiscussionThreads): Promise<void>;
-    storeFeedGuids(url: string, ...guids: string[]): Promise<void>;
-    hasSeenFeed(url: string): Promise<boolean>;
-    hasSeenFeedGuids(url: string, ...guids: string[]): Promise<string[]>;
+  storeHoundActivity(
+    challengeId: string,
+    ...activityHashes: string[]
+  ): Promise<void>;
+  hasSeenHoundChallenge(challengeId: string): Promise<boolean>;
+  hasSeenHoundActivity(
+    challengeId: string,
+    ...activityHashes: string[]
+  ): Promise<string[]>;
+  storeHoundActivityEvent(
+    challengeId: string,
+    activityId: string,
+    eventId: string,
+  ): Promise<void>;
+  getHoundActivity(
+    challengeId: string,
+    activityId: string,
+  ): Promise<string | null>;
 
-    storeHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<void>;
-    hasSeenHoundChallenge(challengeId: string): Promise<boolean>;
-    hasSeenHoundActivity(challengeId: string, ...activityHashes: string[]): Promise<string[]>;
-    storeHoundActivityEvent(challengeId: string, activityId: string, eventId: string): Promise<void>;
-    getHoundActivity(challengeId: string, activityId: string): Promise<string|null>;
+  getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean>;
+  setHasGenericHookWarnedExpiry(
+    hookId: string,
+    hasWarned: boolean,
+  ): Promise<void>;
 
-    getHasGenericHookWarnedExpiry(hookId: string): Promise<boolean>;
-    setHasGenericHookWarnedExpiry(hookId: string, hasWarned: boolean): Promise<void>;
-
-    getOpenProjectWorkPackageState(projectId: number, workPackageId: number): Promise<OpenProjectWorkPackageCacheState|null>;
-    setOpenProjectWorkPackageState(state: OpenProjectWorkPackageCacheState, id: number): Promise<void>;
-
+  getOpenProjectWorkPackageState(
+    projectId: number,
+    workPackageId: number,
+  ): Promise<OpenProjectWorkPackageCacheState | null>;
+  setOpenProjectWorkPackageState(
+    state: OpenProjectWorkPackageCacheState,
+    id: number,
+  ): Promise<void>;
 }

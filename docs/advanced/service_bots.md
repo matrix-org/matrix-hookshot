@@ -8,15 +8,17 @@ These bots can coexist in a room, each handling a different service.
 
 Service bots can be given a different localpart, display name, avatar, and command prefix.  
 They will only handle connections for the specified service, which can be one of:
-* `feeds` - [Feeds](../setup/feeds.md)
-* `figma` - [Figma](../setup/figma.md)
-* `generic` - [Webhooks](../setup/webhooks.md)
-* `github` - [GitHub](../setup/github.md)
-* `gitlab` - [GitLab](../setup/gitlab.md)
-* `jira` - [Jira](../setup/jira.md)
-* `openproject` - [OpenProject](../setup/openproject.md)
+
+- `feeds` - [Feeds](../setup/feeds.md)
+- `figma` - [Figma](../setup/figma.md)
+- `generic` - [Webhooks](../setup/webhooks.md)
+- `github` - [GitHub](../setup/github.md)
+- `gitlab` - [GitLab](../setup/gitlab.md)
+- `jira` - [Jira](../setup/jira.md)
+- `openproject` - [OpenProject](../setup/openproject.md)
 
 For example with this configuration:
+
 ```yaml
 serviceBots:
   - localpart: feeds
@@ -31,7 +33,8 @@ There will be a bot user `@feeds:example.com` which responds to commands prefixe
 For the homeserver to allow hookshot control over users, they need to be added to the list of user namespaces in the `registration.yml` file provided to the homeserver.
 
 In the example above, you would need to add these lines:
+
 ```yaml
-    - regex: "@feeds:example.com" # Where example.com is your homeserver's domain
-      exclusive: true
+- regex: "@feeds:example.com" # Where example.com is your homeserver's domain
+  exclusive: true
 ```

@@ -26,7 +26,6 @@ You should generate a webhook `secret` (e.g. `pwgen -n 64 -s 1`) and then use th
 The `publicUrl` must be the URL where GitLab webhook events are received (i.e. the path to `/`
 for your `webhooks` listener).
 
-
 <section class="warning">
 The GitLab hooks "test" button allows you to check that your webhooks are configured properly. The
 merge request, issue and release notifications lack a <code>action</code> field in the body of the
@@ -37,4 +36,3 @@ if the request made it through, however.
 ## Adding a repository
 
 You can now follow the guide on [authenticating with GitLab](../usage/auth.md#gitlab), and then [bridging a room](../usage/room_configuration/gitlab_project.md#setting-up)
-

@@ -1,5 +1,5 @@
 export enum HookshotWidgetKind {
-    Settings = "admin",
-    BridgeInvites = "invite",
-    RoomConfiguration = "roomConfig",
+  Settings = "admin",
+  BridgeInvites = "invite",
+  RoomConfiguration = "roomConfig",
 }

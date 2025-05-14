@@ -1,12 +1,10 @@
-Dynamic Rooms
-=============
+# Dynamic Rooms
 
 <section class="notice">
 Anyone who has access to your homeserver can query these aliases (even over federation), and aliases
  do not support checking if a user is authorised to view the content before creation. If you are bridging non-public
  content, it is advisable to disable this feature.
 </section>
-
 
 Some bridges support dynamically creating rooms that point to resources based on an alias given by a user.
 

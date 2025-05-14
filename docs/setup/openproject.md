@@ -3,7 +3,6 @@
 Setting up Hookshot for OpenProject requires setting up webhooks, and configuring
 an OAuth2 application so that users may login.
 
-
 ### OpenProject
 
 Set up OpenProject to send Webhook requests to hookshot, following [the documentation](https://www.openproject.org/docs/system-admin-guide/api-and-webhooks/#webhooks). Please note the following:
@@ -14,7 +13,6 @@ Set up OpenProject to send Webhook requests to hookshot, following [the document
 4. You may enable as many projects as you like, but Hookshot must be configured to route the projects via
    it's connections principle.
 
-
 You must also setup an OAuth application, following [the documentation](https://www.openproject.org/docs/system-admin-guide/authentication/oauth-applications/). Please note the following:
 
 1. The Redirect URL will be the address of your [`webhooks` listener](https://matrix-org.github.io/matrix-hookshot/latest/setup.html#listeners-configuration), with the path of `/openproject/oauth`.
@@ -24,20 +22,19 @@ You must also setup an OAuth application, following [the documentation](https://
 
 Please keep a record of the Client ID and Client Secret to be used in the next step.
 
-
 ### Hookshot
 
 You can now set some configuration in the bridge `config.yml`:
 
 ```yaml
- # (Optional) Configure OpenProject support
- baseUrl: https://your-open-project.com
- webhook:
-   secret: secrettoken
- oauth:
-   clientId: foo
-   clientSecret: bar
-   redirectUri: https://example.com/oauth/
+# (Optional) Configure OpenProject support
+baseUrl: https://your-open-project.com
+webhook:
+  secret: secrettoken
+oauth:
+  clientId: foo
+  clientSecret: bar
+  redirectUri: https://example.com/oauth/
 ```
 
 ## Next steps
