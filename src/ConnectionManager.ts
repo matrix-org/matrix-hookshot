@@ -11,7 +11,7 @@ import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionDeclaration, ConnectionDeclarations, GenericHookConnection, GitHubDiscussionConnection, GitHubDiscussionSpace, GitHubIssueConnection,
     GitHubProjectConnection, GitHubRepoConnection, GitHubUserSpace, GitLabIssueConnection, GitLabRepoConnection, IConnection, IConnectionState, JiraProjectConnection } from "./Connections";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
-import { GetConnectionTypeResponseItem } from "./provisioning/api";
+import { GetConnectionTypeResponseItem } from "./Widgets/api";
 import { GitLabClient } from "./Gitlab/Client";
 import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./Stores/StorageProvider";

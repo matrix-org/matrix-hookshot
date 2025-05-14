@@ -13,7 +13,7 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommandError, NotLoggedInError } from "../errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
-import { GetConnectionsResponseItem } from "../provisioning/api";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 import { BridgeConfigJira } from "../config/Config";
 import { HookshotJiraApi } from "../jira/Client";
 import { GrantChecker } from "../grants/GrantCheck";
@@ -529,7 +529,7 @@ export class JiraProjectConnection extends CommandConnection<JiraProjectConnecti
 
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
-        config = { ...config, ...this.state };
+        config = { ...this.state, ...config };
         const validatedConfig = validateJiraConnectionState(config);
         if (!validatedConfig.id) {
             await this.updateProjectId(validatedConfig, userId);

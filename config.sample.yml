@@ -22,7 +22,7 @@ listeners:
   # Bind resource endpoints to ports and addresses.
   # 'port' must be specified. Each listener must listen on a unique port.
   # 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning
+  # 'resources' may be any of webhooks, widgets, metrics
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
@@ -31,7 +31,6 @@ listeners:
     bindAddress: 127.0.0.1
     resources:
       - metrics
-      - provisioning
   - port: 9002
     bindAddress: 0.0.0.0
     resources:
@@ -187,10 +186,6 @@ listeners:
 #    - fec0::/10
 #  branding:
 #    widgetTitle: Hookshot Configuration
-
-#provisioning:
-#  # (Optional) Provisioning API for integration managers
-#  secret: "!secretToken"
 
 #metrics:
 #  # (Optional) Prometheus metrics support

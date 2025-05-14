@@ -2,12 +2,10 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
-import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from 'node:crypto';
@@ -15,6 +13,8 @@ import { GenericWebhookEventResult } from "../generic/types";
 import { StatusCodes } from "http-status-codes";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { formatDuration, isMatch, millisecondsToHours } from "date-fns";
+import { ExecuteResultContent, ExecuteResultWebhookResponse, WebhookTransformer } from "../generic/transformer";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**
@@ -63,21 +63,6 @@ export interface GenericHookAccountData {
     [hookId: string]: string;
 }
 
-export interface WebhookResponse {
-    body: string;
-    contentType?: string;
-    statusCode?: number;
-}
-
-interface WebhookTransformationResult {
-    version: string;
-    plain?: string;
-    html?: string;
-    msgtype?: string;
-    empty?: boolean;
-    webhookResponse?: WebhookResponse;
-}
-
 export interface GenericHookServiceConfig {
     userIdPrefix?: string;
     allowJsTransformationFunctions?: boolean,
@@ -89,7 +74,6 @@ export interface GenericHookServiceConfig {
 const log = new Logger("GenericHookConnection");
 const md = new markdownit();
 
-const TRANSFORMATION_TIMEOUT_MS = 500;
 const SANITIZE_MAX_DEPTH = 10;
 const SANITIZE_MAX_BREADTH = 50;
 
@@ -104,12 +88,6 @@ const EXPIRY_NOTICE_MESSAGE = "The webhook **%NAME** will be expiring in %TIME."
  */
 @Connection
 export class GenericHookConnection extends BaseConnection implements IConnection {
-    private static quickModule?: QuickJSWASMModule;
-
-    public static async initialiseQuickJS() {
-        GenericHookConnection.quickModule = await newQuickJSWASMModule();
-    }
-
     /**
      * Ensures a JSON payload is compatible with Matrix JSON requirements, such
      * as disallowing floating point values.
@@ -164,7 +142,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         }
         // Use !=, not !==, to check for both undefined and null
         if (transformationFunction != undefined) {
-            if (!this.quickModule) {
+            if (!WebhookTransformer.canTransform) {
                 throw new ApiError('Transformation functions are not allowed', ErrCode.DisabledFeature);
             }
             if (typeof transformationFunction !== "string") {
@@ -284,7 +262,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         GenericHookConnection.LegacyCanonicalEventType,
     ];
 
-    private transformationFunction?: string;
+    private webhookTransformer?: WebhookTransformer;
     private cachedDisplayname?: string;
     private warnOnExpiryInterval?: NodeJS.Timeout;
 
@@ -303,8 +281,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         private readonly storage: IBridgeStorageProvider,
     ) {
         super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
-        if (state.transformationFunction && GenericHookConnection.quickModule) {
-            this.transformationFunction = state.transformationFunction;
+        if (state.transformationFunction && WebhookTransformer.canTransform) {
+            this.webhookTransformer = new WebhookTransformer(state.transformationFunction);
         }
         this.handleExpiryTimeUpdate(false).catch(ex => {
             log.warn("Failed to configure expiry time warning for hook", ex);
@@ -372,27 +350,20 @@ export class GenericHookConnection extends BaseConnection implements IConnection
     public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
         const validatedConfig = GenericHookConnection.validateState(stateEv.content as Record<string, unknown>);
         if (validatedConfig.transformationFunction) {
-            const ctx = GenericHookConnection.quickModule!.newContext();
-            const codeEvalResult = ctx.evalCode(`function f(data) {${validatedConfig.transformationFunction}}`, undefined, { compileOnly: true });
-            if (codeEvalResult.error) {
-                const errorString = JSON.stringify(ctx.dump(codeEvalResult.error), null, 2);
-                codeEvalResult.error.dispose();
-                ctx.dispose();
-
+            const error = WebhookTransformer.validateScript(validatedConfig.transformationFunction);
+            if (error) {
                 const errorPrefix = "Could not compile transformation function:";
                 await this.intent.sendEvent(this.roomId, {
                     msgtype: "m.text",
-                    body: errorPrefix + "\n\n```json\n\n" + errorString + "\n\n```",
-                    formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${errorString}</code></pre></p>`,
+                    body: errorPrefix + "\n\n```json\n\n" + error + "\n\n```",
+                    formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${error}</code></pre></p>`,
                     format: "org.matrix.custom.html",
                 });
             } else {
-                codeEvalResult.value.dispose();
-                ctx.dispose();
-                this.transformationFunction = validatedConfig.transformationFunction;
+                this.webhookTransformer = new WebhookTransformer(validatedConfig.transformationFunction); ;
             }
         } else {
-            this.transformationFunction = undefined;
+            this.webhookTransformer = undefined;
         }
 
         const prevDate = this.state.expirationDate;
@@ -469,78 +440,6 @@ export class GenericHookConnection extends BaseConnection implements IConnection
         return msg;
     }
 
-    public executeTransformationFunction(data: unknown): {content?: {plain: string, html?: string, msgtype?: string}, webhookResponse?: WebhookResponse} {
-        if (!this.transformationFunction) {
-            throw Error('Transformation function not defined');
-        }
-        let result;
-        const ctx = GenericHookConnection.quickModule!.newContext();
-        ctx.runtime.setInterruptHandler(shouldInterruptAfterDeadline(Date.now() + TRANSFORMATION_TIMEOUT_MS));
-        try {
-            ctx.setProp(ctx.global, 'HookshotApiVersion', ctx.newString('v2'));
-            const ctxResult = ctx.evalCode(`const data = ${JSON.stringify(data)};\n(() => { ${this.state.transformationFunction} })();`);
-
-            if (ctxResult.error) {
-                const e = Error(`Transformation failed to run: ${JSON.stringify(ctx.dump(ctxResult.error))}`);
-                ctxResult.error.dispose();
-                throw e;
-            } else {
-                const value = ctx.getProp(ctx.global, 'result');
-                result = ctx.dump(value);
-                value.dispose();
-                ctxResult.value.dispose();
-            }
-        } finally {
-            ctx.global.dispose();
-            ctx.dispose();
-        }
-
-        // Legacy v1 api
-        if (typeof result === "string") {
-            return {content: {plain: `Received webhook: ${result}`}};
-        } else if (typeof result !== "object") {
-            return {content: {plain: `No content`}};
-        }
-        const transformationResult = result as WebhookTransformationResult;
-        if (transformationResult.version !== "v2") {
-            throw Error("Result returned from transformation didn't specify version = v2");
-        }
-
-        let content;
-        if (!transformationResult.empty) {
-            if (typeof transformationResult.plain !== "string") {
-                throw Error("Result returned from transformation didn't provide a string value for plain");
-            }
-            if (transformationResult.html !== undefined && typeof transformationResult.html !== "string") {
-                throw Error("Result returned from transformation didn't provide a string value for html");
-            }
-            if (transformationResult.msgtype !== undefined && typeof transformationResult.msgtype !== "string") {
-                throw Error("Result returned from transformation didn't provide a string value for msgtype");
-            }
-            content = {
-                plain: transformationResult.plain,
-                html: transformationResult.html,
-                msgtype: transformationResult.msgtype,
-            };
-        }
-
-        if (transformationResult.webhookResponse) {
-            if (typeof transformationResult.webhookResponse.body !== "string") {
-                throw Error("Result returned from transformation didn't provide a string value for webhookResponse.body");
-            }
-            if (transformationResult.webhookResponse.statusCode !== undefined && typeof transformationResult.webhookResponse.statusCode !== "number" && Number.isInteger(transformationResult.webhookResponse.statusCode)) {
-                throw Error("Result returned from transformation didn't provide a number value for webhookResponse.statusCode");
-            }
-            if (transformationResult.webhookResponse.contentType !== undefined && typeof transformationResult.webhookResponse.contentType !== "string") {
-                throw Error("Result returned from transformation didn't provide a contentType value for msgtype");
-            }
-        }
-
-        return {
-            content,
-            webhookResponse: transformationResult.webhookResponse,
-        }
-    }
 
     /**
      * Processes an incoming generic hook
@@ -559,14 +458,12 @@ export class GenericHookConnection extends BaseConnection implements IConnection
             };
         }
 
-        let content: {plain: string, html?: string, msgtype?: string}|undefined;
-        let webhookResponse: WebhookResponse|undefined;
+        let content: ExecuteResultContent|undefined;
+        let webhookResponse: ExecuteResultWebhookResponse|undefined;
         let successful = true;
-        if (!this.transformationFunction) {
-            content = this.transformHookData(data);
-        } else {
+        if (this.webhookTransformer) {
             try {
-                const result = this.executeTransformationFunction(data);
+                const result = this.webhookTransformer.execute(data);
                 content = result.content;
                 webhookResponse = result.webhookResponse;
             } catch (ex) {
@@ -574,6 +471,8 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 content = {plain: `Webhook received but failed to process via transformation function`};
                 successful = false;
             }
+        } else {
+            content = this.transformHookData(data);
         }
 
         if (content) {
@@ -591,6 +490,7 @@ export class GenericHookConnection extends BaseConnection implements IConnection
                 body: content.plain,
                 // render can output redundant trailing newlines, so trim it.
                 formatted_body: content.html || md.render(content.plain).trim(),
+                ...(content.mentions ? {"m.mentions": content.mentions} : undefined),
                 format: "org.matrix.custom.html",
                 "uk.half-shot.hookshot.webhook_data": safeData,
             }, 'm.room.message', sender);

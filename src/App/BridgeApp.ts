@@ -10,6 +10,7 @@ import BotUsersManager from "../Managers/BotUsersManager";
 import * as Sentry from '@sentry/node';
 import { GenericHookConnection } from "../Connections";
 import { UserTokenStore } from "../tokens/UserTokenStore";
+import { WebhookTransformer } from "../generic/transformer";
 
 Logger.configure({console: "info"});
 const log = new Logger("App");
@@ -46,7 +47,7 @@ export async function start(config: BridgeConfig, registration: IAppserviceRegis
     }
 
     if (config.generic?.allowJsTransformationFunctions) {
-        await GenericHookConnection.initialiseQuickJS();
+        await WebhookTransformer.initialiseQuickJS();
     }
 
     const botUsersManager = new BotUsersManager(config, appservice);
