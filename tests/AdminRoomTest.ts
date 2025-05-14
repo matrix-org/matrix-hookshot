@@ -24,7 +24,7 @@ describe("AdminRoom", () => {
         expect(intent.sentEvents).to.have.lengthOf(1);
         expect(intent.sentEvents[0]).to.deep.equal({
             roomId: ROOM_ID,
-            content: AdminRoom.helpMessage(undefined, ["Github", "Gitlab", "Jira"]),
+            content: AdminRoom.helpMessage(undefined, ["Github", "Gitlab", "Jira", "OpenProject"]),
         });
     });
 })
