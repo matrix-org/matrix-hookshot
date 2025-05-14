@@ -5,7 +5,13 @@ import {
   InstantiateConnectionOpts,
   ProvisionConnectionOpts,
 } from "./IConnection";
-import { Appservice, Intent, MatrixEvent, MessageEventContent, StateEvent } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixEvent,
+  MessageEventContent,
+  StateEvent,
+} from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import markdownit from "markdown-it";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
@@ -18,6 +24,7 @@ import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
+  OpenProjectWorkPackageMatrixEvent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
@@ -440,19 +447,37 @@ export class OpenProjectConnection
     );
   }
 
-  @botCommand("create workpackage", { help: "Create a new work package", requiredArgs: ["subject"], optionalArgs: ["description"], includeUserId: true, includeReply: true})
-  public async commandCreateWorkPackage(userId: string, reply: MatrixEvent<unknown>|undefined, subject: string, cmdDescription?: string){
-    let finalDescription: string|undefined;
+  @botCommand("create", {
+    help: "Create a new work package",
+    requiredArgs: ["type", "subject"],
+    optionalArgs: ["description"],
+    includeUserId: true,
+    includeReply: true,
+  })
+  public async commandCreateWorkPackage(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    type: string,
+    subject: string,
+    cmdDescription?: string,
+  ) {
+    let finalDescription: string | undefined;
     if (reply) {
-      if (reply.type !== 'm.room.message') {
-        throw new CommandError('Reply was not a m.room.message', 'You can only use textual events as work package descriptions.');
+      if (reply.type !== "m.room.message") {
+        throw new CommandError(
+          "Reply was not a m.room.message",
+          "You can only use textual events as work package descriptions.",
+        );
       }
       const replyContent = reply.content as MessageEventContent;
       if (!replyContent.body?.trim()) {
-        throw new CommandError('Source message had no body', 'This event has no content and cannot be used.');
+        throw new CommandError(
+          "Source message had no body",
+          "This event has no content and cannot be used.",
+        );
       }
       if (cmdDescription) {
-        finalDescription = `${cmdDescription}\n\n${replyContent.body}`
+        finalDescription = `${cmdDescription}\n\n${replyContent.body}`;
       } else {
         finalDescription = replyContent.body;
       }
@@ -463,12 +488,121 @@ export class OpenProjectConnection
     if (!client) {
       throw new NotLoggedInError();
     }
-    const wp = await client.createWorkPackage(this.projectId, subject, finalDescription);
-    if (this.state.events.includes('work_package:created')) {
-      // If we're listening for creation events, skip this.
+    const allTypes = await client.getTypesInProject(this.projectId);
+    const foundType = allTypes.find(
+      (t) => t.name.toLowerCase() === type.toLowerCase(),
+    );
+    if (!foundType) {
+      throw new CommandError(
+        "Type not understood",
+        `Work package type not known. You can use ${allTypes.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
+      );
+    }
+    const workPackage = await client.createWorkPackage(
+      this.projectId,
+      foundType,
+      subject,
+      finalDescription,
+    );
+    await this.storage.setOpenProjectWorkPackageState(
+      workPackageToCacheState(workPackage),
+      workPackage.id,
+    );
+    if (this.state.events.includes("work_package:created")) {
+      // Don't send an event if we're going to anyway.
       return;
     }
-    console.log(wp);
+
+    const extraData = formatWorkPackageForMatrix(
+      workPackage,
+      this.config.baseURL,
+    );
+    const content = `${workPackage._embedded.author.name} created a new work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
+    await this.intent.sendEvent(this.roomId, {
+      msgtype: "m.notice",
+      body: content,
+      formatted_body: md.renderInline(content),
+      format: "org.matrix.custom.html",
+      ...formatWorkPackageForMatrix(workPackage, this.config.baseURL),
+    });
+  }
+
+  @botCommand("close", {
+    help: "Close a work package",
+    optionalArgs: ["workPackageId"],
+    includeUserId: true,
+    includeReply: true,
+  })
+  public async commandCloseWorkPackage(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    number?: string,
+  ) {
+    let finalDescription: string | undefined;
+    let workPackageId: number;
+    if (reply) {
+      const replyContent = reply.content as OpenProjectWorkPackageMatrixEvent;
+      if (
+        reply.type !== "m.room.message" ||
+        !replyContent["org.matrix.matrix-hookshot.openproject.project"].id ||
+        !replyContent["org.matrix.matrix-hookshot.openproject.work_package"].id
+      ) {
+        throw new CommandError(
+          "Did not reference a hookshot event",
+          "You can only close work packages by referencing a work package event.",
+        );
+      }
+      if (
+        replyContent["org.matrix.matrix-hookshot.openproject.project"].id !==
+        this.projectId
+      ) {
+        // This is not us.
+        throw new CommandError(
+          "Wrong project ID",
+          "Wrong command for this project.",
+        );
+      }
+      workPackageId =
+        replyContent["org.matrix.matrix-hookshot.openproject.work_package"].id;
+    } else if (number) {
+      workPackageId = parseInt(number);
+    } else {
+      throw new CommandError(
+        "No ID provided",
+        "You must provide a work package ID",
+      );
+    }
+    if (isNaN(workPackageId)) {
+      throw new CommandError(
+        "Invalid work package ID",
+        '"Work Package ID must be a valid number".',
+      );
+    }
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    const workPackage = await client.updateWorkPackage(
+      this.projectId,
+      workPackageId,
+    );
+    if (this.state.events.includes("work_package:updated")) {
+      // Don't send an event if we're going to anyway.
+      return;
+    }
+
+    const extraData = formatWorkPackageForMatrix(
+      workPackage,
+      this.config.baseURL,
+    );
+    const content = `${workPackage._embedded.author.name} closed work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
+    await this.intent.sendEvent(this.roomId, {
+      msgtype: "m.notice",
+      body: content,
+      formatted_body: md.renderInline(content),
+      format: "org.matrix.custom.html",
+      ...formatWorkPackageForMatrix(workPackage, this.config.baseURL),
+    });
   }
 
   public static getProvisionerDetails(botUserId: string) {

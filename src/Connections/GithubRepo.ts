@@ -859,9 +859,8 @@ export class GitHubRepoConnection
       const repoInfo =
         reply.content["uk.half-shot.matrix-hookshot.github.repo"];
       const pullRequestId =
-        reply.content[
-          "uk.half-shot.matrix-hookshot.github.pull_request"
-        ]?.number;
+        reply.content["uk.half-shot.matrix-hookshot.github.pull_request"]
+          ?.number;
       // Emojis can be multi-byte, so make sure we split properly
       const reviewKey = Object.keys(EMOJI_TO_REVIEW_STATE).find((k) =>
         k.includes(body.split(" ")[0]),

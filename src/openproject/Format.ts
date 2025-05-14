@@ -1,14 +1,49 @@
 import { OpenProjectEventsNames } from "../Connections/OpenProjectConnection";
+import { MatrixMessageContent } from "../MatrixEvent";
 import {
   OpenProjectWorkPackageCacheState,
   workPackageToCacheState,
 } from "./State";
 import { OpenProjectWorkPackage } from "./Types";
 
+export interface OpenProjectWorkPackageMatrixEvent {
+  "org.matrix.matrix-hookshot.openproject.work_package": {
+    id: number;
+    subject: string;
+    description: {
+      plain: string;
+      html?: string;
+    };
+    url: string;
+    author: {
+      name: string;
+      url: string;
+    };
+    assignee?: {
+      name: string;
+      url: string;
+    };
+    status: {
+      name: string;
+      color: string;
+    };
+    type: {
+      name: string;
+      color: string;
+    };
+  };
+  "org.matrix.matrix-hookshot.openproject.project": {
+    id: number;
+    name: string;
+    url: string;
+  };
+  external_url: string;
+}
+
 export function formatWorkPackageForMatrix(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
-) {
+): OpenProjectWorkPackageMatrixEvent {
   const url = new URL(
     baseURL.href +
       `projects/${pkg._embedded.project.identifier}/work_packages/${pkg.id}`,

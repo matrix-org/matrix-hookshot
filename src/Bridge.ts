@@ -1335,9 +1335,9 @@ export class Bridge {
     );
     log.debug("Content:", JSON.stringify(event));
 
-    let replyEvent: MatrixEvent<unknown>|undefined;
+    let replyEvent: MatrixEvent<unknown> | undefined;
     if (event.content["m.relates_to"]?.["m.in_reply_to"]) {
-      if (event.content.formatted_body?.includes('<mx-reply>')) {
+      if (event.content.formatted_body?.includes("<mx-reply>")) {
         // This is a legacy fallback reply:
         try {
           const processedReply = await this.replyProcessor.processEvent(
@@ -1354,7 +1354,8 @@ export class Bridge {
         }
       } else {
         // This is a new style reply.
-        const parentEventId = event.content["m.relates_to"]?.["m.in_reply_to"].event_id;
+        const parentEventId =
+          event.content["m.relates_to"]?.["m.in_reply_to"].event_id;
         replyEvent = await this.as.botClient.getEvent(roomId, parentEventId);
       }
     }

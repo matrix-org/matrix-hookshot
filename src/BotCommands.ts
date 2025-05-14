@@ -144,7 +144,7 @@ interface CommandResultErrorHuman {
 export async function handleCommand(
   userId: string,
   command: string,
-  parentEvent: MatrixEvent<unknown>|undefined,
+  parentEvent: MatrixEvent<unknown> | undefined,
   botCommands: BotCommands,
   obj: unknown,
   permissionCheckFn: PermissionCheckFn,
@@ -186,7 +186,7 @@ export async function handleCommand(
         // Ignore replies if we aren't expecting one.
         return {
           handled: false,
-        }
+        };
       }
 
       if (

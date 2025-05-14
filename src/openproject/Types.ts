@@ -26,6 +26,12 @@ export interface OpenProjectType {
   createdAt: StringDate;
   updatedAt: StringDate;
   color: string;
+  _links: {
+    self: {
+      href: string;
+      title: string;
+    };
+  };
 }
 
 export interface OpenProjectPriority {
