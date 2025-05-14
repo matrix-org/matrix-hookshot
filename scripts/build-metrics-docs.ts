@@ -29,7 +29,8 @@ Object.entries(anyRegister._metrics).map(([key, value]) => {
 
 // Generate some markdown
 
-const output = `Prometheus Metrics
+const output =
+  `Prometheus Metrics
 ==================
 
 You can configure metrics support by adding the following to your config:
@@ -52,12 +53,17 @@ Select the Prometheus instance with your Hookshot metrics as Data Source. Set In
 
 Below is the generated list of Prometheus metrics for Hookshot.
 
-` + Object.entries(categories).map(([name, entries]) => `## ${name}
+` +
+  Object.entries(categories)
+    .map(
+      ([name, entries]) =>
+        `## ${name}
 | Metric | Help | Labels |
-|--------|------|--------|` + 
-  entries.map((e) =>
-    `| ${e.name} | ${e.help} | ${e.labels.join(", ")} |`
-  ).join('\n')
-).join('\n');
+|--------|------|--------|` +
+        entries
+          .map((e) => `| ${e.name} | ${e.help} | ${e.labels.join(", ")} |`)
+          .join("\n"),
+    )
+    .join("\n");
 
-console.log(prettier.format(output, { parser: 'markdown'}));
+console.log(prettier.format(output, { parser: "markdown" }));
