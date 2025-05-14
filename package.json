@@ -17,7 +17,7 @@
     "build:app": "tsc --project tsconfig.json",
     "build:app:rs": "napi build --dts ../src/libRs.d.ts --release ./lib",
     "build:app:fix-defs": "ts-node scripts/definitions-fixer.ts src/libRs.d.ts",
-    "build:docs": "ts-node scripts/build-metrics-docs.ts > docs/metrics.md && mdbook build",
+    "build:docs": "ts-node scripts/build-metrics-docs.ts > docs/metrics.md && prettier -w docs/metrics.md && mdbook build",
     "dev:web": "vite dev",
     "build": "scripts/build-app.sh",
     "clean:web": "rimraf public/",
