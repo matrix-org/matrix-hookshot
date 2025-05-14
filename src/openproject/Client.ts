@@ -1,8 +1,9 @@
-import axios, { Method } from "axios";
+import axios, { formToJSON, Method } from "axios";
 import {
   OpenProjectProject,
   OpenProjectStoredToken,
   OpenProjectUser,
+  OpenProjectWorkPackage,
 } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { OpenProjectOAuth } from "./Oauth";
@@ -99,6 +100,19 @@ export class OpenProjectAPIClient {
   async getProject(projectId: number): Promise<OpenProjectProject> {
     return this.apiRequest<OpenProjectProject>(
       `/api/v3/projects/${encodeURIComponent(projectId)}`,
+    );
+  }
+
+
+  async createWorkPackage(projectId: number, subject: string, description?: string): Promise<OpenProjectWorkPackage> {
+    const wp: Partial<OpenProjectWorkPackage> = {
+      subject
+    };
+    if (description) {
+      wp.description = { raw: description, format: "markdown" };
+    }
+    return this.apiRequest<OpenProjectWorkPackage>(
+      `/api/v3/projects/${encodeURIComponent(projectId)}/work_packages`, 'POST', wp
     );
   }
 }

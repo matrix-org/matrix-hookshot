@@ -8,7 +8,7 @@ import {
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import markdownit from "markdown-it";
-import { BotCommands, compileBotCommands } from "../BotCommands";
+import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
@@ -23,6 +23,7 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { NotLoggedInError } from "../Errors";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -437,6 +438,20 @@ export class OpenProjectConnection
       workPackageToCacheState(data.work_package),
       data.work_package.id,
     );
+  }
+
+  @botCommand("create workpackage", { help: "Create a new work package", requiredArgs: ["subject"], optionalArgs: ["description"], includeUserId: true})
+  public async commandCreateWorkPackage(userId: string, subject: string, description?: string){
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    const wp = await client.createWorkPackage(this.projectId, subject, description);
+    if (this.state.events.includes('work_package:created')) {
+      // If we're listening for creation events, skip this.
+      return;
+    }
+    console.log(wp);
   }
 
   public static getProvisionerDetails(botUserId: string) {

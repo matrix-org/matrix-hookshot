@@ -58,7 +58,7 @@ export interface OpenProjectWorkPackage {
   id: number;
   lockVersion: number;
   subject: string;
-  description: { format: "markdown"; raw: ""; html: "" };
+  description: { format: "markdown"; raw: string; html?: string };
   scheduleManually: boolean;
   startDate: null;
   dueDate: string | null;
