@@ -356,7 +356,7 @@ exercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
 <li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
-Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on <code>/</code> rather than <code>/webhook</code>. While this behaviour will continue to work, administators are advised to use <code>/webhook</code>. </li>
+Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on <code>/</code> rather than <code>/webhook</code>. While this behaviour will continue to work, administators are advised to use <code>/webhook</code>.</li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
 <li>The <code>widgets</code> resource handles resources under <code>/widgetapi/v1...</code>. This may only be bound to <strong>one</strong> listener at present.</li>
@@ -399,27 +399,27 @@ is also only possible with a external cache.</p>
 <h4 id="json-logging"><a class="header" href="#json-logging">JSON Logging</a></h4>
 <p>Enabling the <code>json</code> option will configure hookshot to output structured JSON logs. The schema looks like:</p>
 <pre><code class="language-json5">{
-    // The level of the log.
-    &quot;level&quot;: &quot;WARN&quot;,
-    // The log message.
-    &quot;message&quot;: &quot;Failed to connect to homeserver&quot;,
-    // The module which emitted the log line.
-    &quot;module&quot;: &quot;Bridge&quot;,
-    // The timestamp of the log line.
-    &quot;timestamp&quot;: &quot;11:45:02:198&quot;,
-    // Optional error field, if the log includes an Error
-    &quot;error&quot;: &quot;connect ECONNREFUSED 127.0.0.1:8008&quot;,
-    // Additional context, possibly including the error body.
-    &quot;args&quot;: [
-        {
-            &quot;address&quot;: &quot;127.0.0.1&quot;,
-            &quot;code&quot;: &quot;ECONNREFUSED&quot;,
-            &quot;errno&quot;: -111,
-            &quot;port&quot;: 8008,
-            &quot;syscall&quot;: &quot;connect&quot;
-        },
-        &quot;retrying in 5s&quot;
-    ]
+  // The level of the log.
+  level: &quot;WARN&quot;,
+  // The log message.
+  message: &quot;Failed to connect to homeserver&quot;,
+  // The module which emitted the log line.
+  module: &quot;Bridge&quot;,
+  // The timestamp of the log line.
+  timestamp: &quot;11:45:02:198&quot;,
+  // Optional error field, if the log includes an Error
+  error: &quot;connect ECONNREFUSED 127.0.0.1:8008&quot;,
+  // Additional context, possibly including the error body.
+  args: [
+    {
+      address: &quot;127.0.0.1&quot;,
+      code: &quot;ECONNREFUSED&quot;,
+      errno: -111,
+      port: 8008,
+      syscall: &quot;connect&quot;,
+    },
+    &quot;retrying in 5s&quot;,
+  ],
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sample-configuration"><a class="header" href="#sample-configuration">Sample Configuration</a></h1>
@@ -828,8 +828,7 @@ be reasonably secure and should also be stored in the <code>config.yml</code> fi
 <pre><code class="language-yaml">jira:
   webhook:
     secret: your-webhook-secret
-  oauth:
-    ... # See below
+  oauth: ... # See below
 </code></pre>
 <p>You can omit the <code>oauth</code> section if you are not planning to allow users to log in and use interactive features (i.e. webhook only mode).</p>
 <h2 id="connecting-matrix-users-to-jira"><a class="header" href="#connecting-matrix-users-to-jira">Connecting Matrix users to JIRA</a></h2>
@@ -942,7 +941,7 @@ has been sent (<code>true</code>). By default this is <code>false</code>.</p>
 but is now disabled due to concerns mentioned below.</p>
 <p><code>maxExpiryTime</code> sets an upper limit on how long a webhook can be valid for before the bridge expires it. By default this is unlimited. This
 takes a duration represented by a string. E.g. &quot;30d&quot; is 30 days. See <a href="https://github.com/jkroso/parse-duration?tab=readme-ov-file#available-unit-types-are">this page</a>
-for available units. Additionally: </p>
+for available units. Additionally:</p>
 <ul>
 <li><code>sendExpiryNotice</code> configures whether a message is sent into a room when the connection is close to expiring.</li>
 <li><code>requireExpiryTime</code> forbids creating a webhook without a expiry time. This does not apply to existing webhooks.</li>
@@ -951,7 +950,7 @@ for available units. Additionally: </p>
 like <code>example</code> for a prefix of <code>webhook_</code> will create a user called <code>@webhook_example:example.com</code>. If you enable this option,
 you need to configure the user to be part of your registration file e.g.:</p>
 <pre><code class="language-yaml"># registration.yaml
-...
+---
 namespaces:
   users:
     - regex: &quot;@webhook_.+:example.com&quot; # Where example.com is your domain name.
@@ -1032,7 +1031,7 @@ for a more precise error.</p>
   &quot;plain&quot;: &quot;Some text&quot;, // The plaintext value to be used for the Matrix message.
   &quot;html&quot;: &quot;&lt;b&gt;Some&lt;/b&gt; text&quot;, // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
   &quot;msgtype&quot;: &quot;some.type&quot;, // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
-  &quot;mentions&quot;: { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions 
+  &quot;mentions&quot;: { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions
     &quot;room&quot;: true,
     &quot;user_ids&quot;: [&quot;@foo:bar&quot;]
   },
@@ -1047,11 +1046,17 @@ for a more precise error.</p>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
 <pre><code class="language-js">if (data.counter === undefined) {
   // The API didn't give us a counter, send no message.
-  result = {empty: true, version: &quot;v2&quot;};
+  result = { empty: true, version: &quot;v2&quot; };
 } else if (data.counter &gt; data.maxValue) {
-    result = {plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`, version: &quot;v2&quot;};
+  result = {
+    plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`,
+    version: &quot;v2&quot;,
+  };
 } else {
-    result = {plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`, version: &quot;v2&quot;};
+  result = {
+    plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`,
+    version: &quot;v2&quot;,
+  };
 }
 </code></pre>
 <h4 id="v1-api"><a class="header" href="#v1-api">V1 API</a></h4>
@@ -1060,9 +1065,9 @@ will be prefixed with <code>Received webhook:</code>. If <code>result</code> is 
 <h4 id="example-script-1"><a class="header" href="#example-script-1">Example script</a></h4>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
 <pre><code class="language-js">if (data.counter &gt; data.maxValue) {
-    result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`
+  result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`;
 } else {
-    result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
+  result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`;
 }
 </code></pre>
 <h2 id="outbound-webhooks"><a class="header" href="#outbound-webhooks">Outbound webhooks</a></h2>
@@ -1130,14 +1135,14 @@ it's connections principle.</li>
 <p>Please keep a record of the Client ID and Client Secret to be used in the next step.</p>
 <h3 id="hookshot"><a class="header" href="#hookshot">Hookshot</a></h3>
 <p>You can now set some configuration in the bridge <code>config.yml</code>:</p>
-<pre><code class="language-yaml"> # (Optional) Configure OpenProject support
- baseUrl: https://your-open-project.com
- webhook:
-   secret: secrettoken
- oauth:
-   clientId: foo
-   clientSecret: bar
-   redirectUri: https://example.com/oauth/
+<pre><code class="language-yaml"># (Optional) Configure OpenProject support
+baseUrl: https://your-open-project.com
+webhook:
+  secret: secrettoken
+oauth:
+  clientId: foo
+  clientSecret: bar
+  redirectUri: https://example.com/oauth/
 </code></pre>
 <h2 id="next-steps-3"><a class="header" href="#next-steps-3">Next steps</a></h2>
 <p>If you have followed these steps correctly, OpenProject should now be configured 🥳.</p>
@@ -1181,7 +1186,7 @@ Anyone who has access to your homeserver can query these aliases (even over fede
 on the service. This can be used to ensure you have the required permission on the remote application,
 or be able to execute commands like creating tickets.</p>
 <p>All services mentioned below support authenticating via a DM room with the bridge bot, using bot commands.
-In this guide, we are going to assume the bot is called <code>@hookshot:example.com</code> but this will vary for your setup. For all the instructions below, commands should only be executed in <strong>your DM room</strong> with hookshot. </p>
+In this guide, we are going to assume the bot is called <code>@hookshot:example.com</code> but this will vary for your setup. For all the instructions below, commands should only be executed in <strong>your DM room</strong> with hookshot.</p>
 <p>Some services additionally support logging in via the widget, without the use of a DM room or bot commands. These
 are mentioned explicitly.</p>
 <h2 id="github"><a class="header" href="#github">GitHub</a></h2>
@@ -1635,83 +1640,7 @@ the events marked as default below will be enabled. Otherwise, this is ignored.<
 </ul>
 </li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="prometheus-metrics"><a class="header" href="#prometheus-metrics">Prometheus Metrics</a></h1>
-<p>You can configure metrics support by adding the following to your config:</p>
-<pre><code class="language-yaml">metrics:
-  enabled: true
-  bindAddress: 127.0.0.1
-  port: 9002
-</code></pre>
-<p>Hookshot will then provide metrics on <code>127.0.0.1</code> at port <code>9002</code>.</p>
-<p>An example dashboard that can be used with <a href="https://grafana.com">Grafana</a> can be found at <a href="https://github.com/matrix-org/matrix-hookshot/blob/main/contrib/hookshot-dashboard.json">/contrib/hookshot-dashboard.json</a>.
-There are 3 variables at the top of the dashboard:</p>
-<p><img src="https://user-images.githubusercontent.com/2803622/179366574-1bb83e30-05c6-4558-9e66-e813e85b3a6e.png" alt="image" /></p>
-<p>Select the Prometheus instance with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value (<a href="https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618">why?</a>).</p>
-<p>Below is the generated list of Prometheus metrics for Hookshot.</p>
-<h2 id="hookshot-1"><a class="header" href="#hookshot-1">hookshot</a></h2>
-<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>hookshot_webhooks_http_request</td><td>Number of requests made to the hookshot webhooks handler</td><td>path, method</td></tr>
-<tr><td>hookshot_provisioning_http_request</td><td>Number of requests made to the hookshot provisioner handler</td><td>path, method</td></tr>
-<tr><td>hookshot_queue_event_pushes</td><td>Number of events pushed through the queue</td><td>event</td></tr>
-<tr><td>hookshot_connection_event_failed</td><td>Number of events that failed to process</td><td>event, connectionId</td></tr>
-<tr><td>hookshot_connections</td><td>Number of active hookshot connections</td><td>service</td></tr>
-<tr><td>hookshot_notifications_push</td><td>Number of notifications pushed</td><td>service</td></tr>
-<tr><td>hookshot_notifications_service_up</td><td>Whether the notification service is up or down</td><td>service</td></tr>
-<tr><td>hookshot_notifications_watchers</td><td>Number of notifications watchers running</td><td>service</td></tr>
-<tr><td>hookshot_feeds_count</td><td>Number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
-<tr><td>hookshot_feeds_fetch_ms</td><td>Time taken for hookshot to fetch all feeds</td><td></td></tr>
-<tr><td>hookshot_feeds_failing</td><td>Number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
-</tbody></table>
-<h2 id="matrix"><a class="header" href="#matrix">matrix</a></h2>
-<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>matrix_api_calls</td><td>Number of Matrix client API calls made</td><td>method</td></tr>
-<tr><td>matrix_api_calls_failed</td><td>Number of Matrix client API calls which failed</td><td>method</td></tr>
-<tr><td>matrix_appservice_events</td><td>Number of events sent over the AS API</td><td></td></tr>
-<tr><td>matrix_appservice_decryption_failed</td><td>Number of events sent over the AS API that failed to decrypt</td><td></td></tr>
-</tbody></table>
-<h2 id="feed"><a class="header" href="#feed">feed</a></h2>
-<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>feed_count</td><td>(Deprecated) Number of RSS feeds that hookshot is subscribed to</td><td></td></tr>
-<tr><td>feed_fetch_ms</td><td>(Deprecated) Time taken for hookshot to fetch all feeds</td><td></td></tr>
-<tr><td>feed_failing</td><td>(Deprecated) Number of RSS feeds that hookshot is failing to read</td><td>reason</td></tr>
-</tbody></table>
-<h2 id="process"><a class="header" href="#process">process</a></h2>
-<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>process_cpu_user_seconds_total</td><td>Total user CPU time spent in seconds.</td><td></td></tr>
-<tr><td>process_cpu_system_seconds_total</td><td>Total system CPU time spent in seconds.</td><td></td></tr>
-<tr><td>process_cpu_seconds_total</td><td>Total user and system CPU time spent in seconds.</td><td></td></tr>
-<tr><td>process_start_time_seconds</td><td>Start time of the process since unix epoch in seconds.</td><td></td></tr>
-<tr><td>process_resident_memory_bytes</td><td>Resident memory size in bytes.</td><td></td></tr>
-<tr><td>process_virtual_memory_bytes</td><td>Virtual memory size in bytes.</td><td></td></tr>
-<tr><td>process_heap_bytes</td><td>Process heap size in bytes.</td><td></td></tr>
-<tr><td>process_open_fds</td><td>Number of open file descriptors.</td><td></td></tr>
-<tr><td>process_max_fds</td><td>Maximum number of open file descriptors.</td><td></td></tr>
-</tbody></table>
-<h2 id="nodejs"><a class="header" href="#nodejs">nodejs</a></h2>
-<table><thead><tr><th>Metric</th><th>Help</th><th>Labels</th></tr></thead><tbody>
-<tr><td>nodejs_eventloop_lag_seconds</td><td>Lag of event loop in seconds.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_min_seconds</td><td>The minimum recorded event loop delay.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_max_seconds</td><td>The maximum recorded event loop delay.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_mean_seconds</td><td>The mean of the recorded event loop delays.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_stddev_seconds</td><td>The standard deviation of the recorded event loop delays.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_p50_seconds</td><td>The 50th percentile of the recorded event loop delays.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_p90_seconds</td><td>The 90th percentile of the recorded event loop delays.</td><td></td></tr>
-<tr><td>nodejs_eventloop_lag_p99_seconds</td><td>The 99th percentile of the recorded event loop delays.</td><td></td></tr>
-<tr><td>nodejs_active_resources</td><td>Number of active resources that are currently keeping the event loop alive, grouped by async resource type.</td><td>type</td></tr>
-<tr><td>nodejs_active_resources_total</td><td>Total number of active resources.</td><td></td></tr>
-<tr><td>nodejs_active_handles</td><td>Number of active libuv handles grouped by handle type. Every handle type is C++ class name.</td><td>type</td></tr>
-<tr><td>nodejs_active_handles_total</td><td>Total number of active handles.</td><td></td></tr>
-<tr><td>nodejs_active_requests</td><td>Number of active libuv requests grouped by request type. Every request type is C++ class name.</td><td>type</td></tr>
-<tr><td>nodejs_active_requests_total</td><td>Total number of active requests.</td><td></td></tr>
-<tr><td>nodejs_heap_size_total_bytes</td><td>Process heap size from Node.js in bytes.</td><td></td></tr>
-<tr><td>nodejs_heap_size_used_bytes</td><td>Process heap size used from Node.js in bytes.</td><td></td></tr>
-<tr><td>nodejs_external_memory_bytes</td><td>Node.js external memory size in bytes.</td><td></td></tr>
-<tr><td>nodejs_heap_space_size_total_bytes</td><td>Process heap space size total from Node.js in bytes.</td><td>space</td></tr>
-<tr><td>nodejs_heap_space_size_used_bytes</td><td>Process heap space size used from Node.js in bytes.</td><td>space</td></tr>
-<tr><td>nodejs_heap_space_size_available_bytes</td><td>Process heap space size available from Node.js in bytes.</td><td>space</td></tr>
-<tr><td>nodejs_version_info</td><td>Node.js version info.</td><td>version, major, minor, patch</td></tr>
-<tr><td>nodejs_gc_duration_seconds</td><td>Garbage collection duration by kind, one of major, minor, incremental or weakcb.</td><td>kind</td></tr>
-</tbody></table>
+<div style="break-before: page; page-break-before: always;"></div><p>Promise { <pending> }</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="sentry"><a class="header" href="#sentry">Sentry</a></h1>
 <p>Hookshot supports <a href="https://sentry.io/welcome/">Sentry</a> error reporting.</p>
 <p>You can configure Sentry by adding the following to your config:</p>
@@ -1882,7 +1811,7 @@ they have acknowledged the message and will make the change.</li>
 you have any other questions, please seek us out in any of the project rooms and we will be happy to assist! Other than that,
 thanks for taking the time to read this and improving our projects for
 the benefit of all 😄</p>
-<h2 id="hookshot-2"><a class="header" href="#hookshot-2">Hookshot</a></h2>
+<h2 id="hookshot-1"><a class="header" href="#hookshot-1">Hookshot</a></h2>
 <p>Hi there! Please read the <a href="https://github.com/matrix-org/matrix-appservice-bridge/blob/develop/CONTRIBUTING.md">CONTRIBUTING.md</a> guide for all matrix.org bridge
 projects.</p>
 <h2 id="hookshot-guidelines"><a class="header" href="#hookshot-guidelines">Hookshot Guidelines</a></h2>
@@ -1957,26 +1886,26 @@ the existing command system, rather than replace it.</p>
   addToAdminRooms: false
   roomSetupWidget:
     addOnInvite: false
-# disallowedIpRanges:
-#     - 127.0.0.0/8
-#     - 10.0.0.0/8
-#     - 172.16.0.0/12
-#     - 192.168.0.0/16
-#     - 100.64.0.0/10
-#     - 192.0.0.0/24
-#     - 169.254.0.0/16
-#     - 192.88.99.0/24
-#     - 198.18.0.0/15
-#     - 192.0.2.0/24
-#     - 198.51.100.0/24
-#     - 203.0.113.0/24
-#     - 224.0.0.0/4
-#     - ::1/128
-#     - fe80::/10
-#     - fc00::/7
-#     - 2001:db8::/32
-#     - ff00::/8
-#     - fec0::/10
+  # disallowedIpRanges:
+  #     - 127.0.0.0/8
+  #     - 10.0.0.0/8
+  #     - 172.16.0.0/12
+  #     - 192.168.0.0/16
+  #     - 100.64.0.0/10
+  #     - 192.0.0.0/24
+  #     - 169.254.0.0/16
+  #     - 192.88.99.0/24
+  #     - 198.18.0.0/15
+  #     - 192.0.2.0/24
+  #     - 198.51.100.0/24
+  #     - 203.0.113.0/24
+  #     - 224.0.0.0/4
+  #     - ::1/128
+  #     - fe80::/10
+  #     - fc00::/7
+  #     - 2001:db8::/32
+  #     - ff00::/8
+  #     - fec0::/10
   publicUrl: https://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
@@ -2040,8 +1969,8 @@ They will only handle connections for the specified service, which can be one of
 <p>There will be a bot user <code>@feeds:example.com</code> which responds to commands prefixed with <code>!feeds</code>, and only handles feeds connections.</p>
 <p>For the homeserver to allow hookshot control over users, they need to be added to the list of user namespaces in the <code>registration.yml</code> file provided to the homeserver.</p>
 <p>In the example above, you would need to add these lines:</p>
-<pre><code class="language-yaml">    - regex: &quot;@feeds:example.com&quot; # Where example.com is your homeserver's domain
-      exclusive: true
+<pre><code class="language-yaml">- regex: &quot;@feeds:example.com&quot; # Where example.com is your homeserver's domain
+  exclusive: true
 </code></pre>
 
                     </main>

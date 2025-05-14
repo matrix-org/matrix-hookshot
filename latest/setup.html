@@ -325,7 +325,7 @@ exercise to the user.</p>
 <p>In terms of API endpoints:</p>
 <ul>
 <li>The <code>webhooks</code> resource handles resources under <code>/</code>, so it should be on its own listener.
-Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on <code>/</code> rather than <code>/webhook</code>. While this behaviour will continue to work, administators are advised to use <code>/webhook</code>. </li>
+Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on <code>/</code> rather than <code>/webhook</code>. While this behaviour will continue to work, administators are advised to use <code>/webhook</code>.</li>
 <li>The <code>metrics</code> resource handles resources under <code>/metrics</code>.</li>
 <li>The <code>provisioning</code> resource handles resources under <code>/v1/...</code>.</li>
 <li>The <code>widgets</code> resource handles resources under <code>/widgetapi/v1...</code>. This may only be bound to <strong>one</strong> listener at present.</li>
@@ -368,27 +368,27 @@ is also only possible with a external cache.</p>
 <h4 id="json-logging"><a class="header" href="#json-logging">JSON Logging</a></h4>
 <p>Enabling the <code>json</code> option will configure hookshot to output structured JSON logs. The schema looks like:</p>
 <pre><code class="language-json5">{
-    // The level of the log.
-    &quot;level&quot;: &quot;WARN&quot;,
-    // The log message.
-    &quot;message&quot;: &quot;Failed to connect to homeserver&quot;,
-    // The module which emitted the log line.
-    &quot;module&quot;: &quot;Bridge&quot;,
-    // The timestamp of the log line.
-    &quot;timestamp&quot;: &quot;11:45:02:198&quot;,
-    // Optional error field, if the log includes an Error
-    &quot;error&quot;: &quot;connect ECONNREFUSED 127.0.0.1:8008&quot;,
-    // Additional context, possibly including the error body.
-    &quot;args&quot;: [
-        {
-            &quot;address&quot;: &quot;127.0.0.1&quot;,
-            &quot;code&quot;: &quot;ECONNREFUSED&quot;,
-            &quot;errno&quot;: -111,
-            &quot;port&quot;: 8008,
-            &quot;syscall&quot;: &quot;connect&quot;
-        },
-        &quot;retrying in 5s&quot;
-    ]
+  // The level of the log.
+  level: &quot;WARN&quot;,
+  // The log message.
+  message: &quot;Failed to connect to homeserver&quot;,
+  // The module which emitted the log line.
+  module: &quot;Bridge&quot;,
+  // The timestamp of the log line.
+  timestamp: &quot;11:45:02:198&quot;,
+  // Optional error field, if the log includes an Error
+  error: &quot;connect ECONNREFUSED 127.0.0.1:8008&quot;,
+  // Additional context, possibly including the error body.
+  args: [
+    {
+      address: &quot;127.0.0.1&quot;,
+      code: &quot;ECONNREFUSED&quot;,
+      errno: -111,
+      port: 8008,
+      syscall: &quot;connect&quot;,
+    },
+    &quot;retrying in 5s&quot;,
+  ],
 }
 </code></pre>
 

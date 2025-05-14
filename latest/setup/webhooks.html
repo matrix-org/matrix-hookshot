@@ -184,7 +184,7 @@ has been sent (<code>true</code>). By default this is <code>false</code>.</p>
 but is now disabled due to concerns mentioned below.</p>
 <p><code>maxExpiryTime</code> sets an upper limit on how long a webhook can be valid for before the bridge expires it. By default this is unlimited. This
 takes a duration represented by a string. E.g. &quot;30d&quot; is 30 days. See <a href="https://github.com/jkroso/parse-duration?tab=readme-ov-file#available-unit-types-are">this page</a>
-for available units. Additionally: </p>
+for available units. Additionally:</p>
 <ul>
 <li><code>sendExpiryNotice</code> configures whether a message is sent into a room when the connection is close to expiring.</li>
 <li><code>requireExpiryTime</code> forbids creating a webhook without a expiry time. This does not apply to existing webhooks.</li>
@@ -193,7 +193,7 @@ for available units. Additionally: </p>
 like <code>example</code> for a prefix of <code>webhook_</code> will create a user called <code>@webhook_example:example.com</code>. If you enable this option,
 you need to configure the user to be part of your registration file e.g.:</p>
 <pre><code class="language-yaml"># registration.yaml
-...
+---
 namespaces:
   users:
     - regex: &quot;@webhook_.+:example.com&quot; # Where example.com is your domain name.
@@ -274,7 +274,7 @@ for a more precise error.</p>
   &quot;plain&quot;: &quot;Some text&quot;, // The plaintext value to be used for the Matrix message.
   &quot;html&quot;: &quot;&lt;b&gt;Some&lt;/b&gt; text&quot;, // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
   &quot;msgtype&quot;: &quot;some.type&quot;, // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
-  &quot;mentions&quot;: { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions 
+  &quot;mentions&quot;: { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions
     &quot;room&quot;: true,
     &quot;user_ids&quot;: [&quot;@foo:bar&quot;]
   },
@@ -289,11 +289,17 @@ for a more precise error.</p>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
 <pre><code class="language-js">if (data.counter === undefined) {
   // The API didn't give us a counter, send no message.
-  result = {empty: true, version: &quot;v2&quot;};
+  result = { empty: true, version: &quot;v2&quot; };
 } else if (data.counter &gt; data.maxValue) {
-    result = {plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`, version: &quot;v2&quot;};
+  result = {
+    plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`,
+    version: &quot;v2&quot;,
+  };
 } else {
-    result = {plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`, version: &quot;v2&quot;};
+  result = {
+    plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`,
+    version: &quot;v2&quot;,
+  };
 }
 </code></pre>
 <h4 id="v1-api"><a class="header" href="#v1-api">V1 API</a></h4>
@@ -302,9 +308,9 @@ will be prefixed with <code>Received webhook:</code>. If <code>result</code> is 
 <h4 id="example-script-1"><a class="header" href="#example-script-1">Example script</a></h4>
 <p>Where <code>data</code> = <code>{&quot;counter&quot;: 5, &quot;maxValue&quot;: 4}</code></p>
 <pre><code class="language-js">if (data.counter &gt; data.maxValue) {
-    result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`
+  result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`;
 } else {
-    result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
+  result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`;
 }
 </code></pre>
 <h2 id="outbound-webhooks"><a class="header" href="#outbound-webhooks">Outbound webhooks</a></h2>
