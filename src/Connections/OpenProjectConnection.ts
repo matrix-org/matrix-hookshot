@@ -13,6 +13,7 @@ import { BridgeOpenProjectConfig } from "../config/sections/openproject";
 import { formatWorkPackageDiff, formatWorkPackageForMatrix } from "../openproject/format";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/state";
+import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 
 export type OpenProjectEventsNames =
     "work_package:created" |
@@ -38,6 +39,10 @@ const JiraAllowedEvents: OpenProjectEventsNames[] = [
 ];
 
 export interface OpenProjectConnectionState extends IConnectionState {
+    /**
+     * We use URL here as it's more ergonomic for users to paste, and it preserves
+     * the origin of the project too for future enhancement.
+     */
     url: string;
     events: OpenProjectEventsNames[],
 }
@@ -49,6 +54,8 @@ export interface OpenProjectConnectionRepoTarget {
     name: string;
     description: string;
     id: number;
+    url: string;
+    suggested_prefix: string;
 }
 
 export interface OpenProjectConnectionFilters {
@@ -60,7 +67,7 @@ export interface OpenProjectServiceConfig {
     baseUrl: string;
 }
 
-function validateOpenProjectConnectionState(state: unknown): OpenProjectConnectionState {
+function validateOpenProjectConnectionState(state: unknown, baseUrl: URL): OpenProjectConnectionState {
     const {url, commandPrefix, priority} = state as Partial<OpenProjectConnectionState>;
     if (url === undefined || typeof url !== "string") {
         throw new ApiError("Expected 'url' to be a string", ErrCode.BadValue);
@@ -68,12 +75,19 @@ function validateOpenProjectConnectionState(state: unknown): OpenProjectConnecti
     if (!URL.canParse(url)) {
         throw new ApiError("Expected 'url' to be a URL", ErrCode.BadValue);
     }
+    const parsedUrl = new URL(url);
+    if (parsedUrl.origin !== baseUrl.origin) {
+        throw new ApiError(`Expected 'url' to match the origin '${baseUrl.origin}'`, ErrCode.BadValue);
+    }
+    // Validate the URL
+    OpenProjectConnection.projectIdFromUrl(parsedUrl);
     if (commandPrefix) {
         if (typeof commandPrefix !== "string") {
             throw new ApiError("Expected 'commandPrefix' to be a string", ErrCode.BadValue);
         }
-        if (commandPrefix.length < 2 || commandPrefix.length > 24) {
-            throw new ApiError("Expected 'commandPrefix' to be between 2-24 characters", ErrCode.BadValue);
+        // Higher limit because project names can be long
+        if (commandPrefix.length < 2 || commandPrefix.length > 48) {
+            throw new ApiError("Expected 'commandPrefix' to be between 2-48 characters", ErrCode.BadValue);
         }
     }
     let {events} = state as Partial<OpenProjectConnectionState>;
@@ -101,20 +115,45 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
     static botCommands: BotCommands;
     static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
-    static async assertUserHasAccessToProject(tokenStore: UserTokenStore, userId: string, url: string) {
-        // TODO.
+    static projectIdFromUrl(url: URL): number {
+        const id = parseInt(/\/projects\/(\d+)\/?/.exec(url.pathname)?.[1] ?? "");
+        if (isNaN(id)) {
+            throw Error('URL for project doesnt contain a project ID');
+        }
+        return id;
     }
+
+    static async assertUserHasAccessToProject(tokenStore: UserTokenStore, userId: string, urlStr: string) {
+        const url = new URL(urlStr);
+        const client = await tokenStore.getOpenProjectForUser(userId);
+        if (!client) {
+            throw new ApiError("User is not authenticated with OpenProject", ErrCode.ForbiddenUser);
+        }
+        const projectId = OpenProjectConnection.projectIdFromUrl(url);
+        if (!projectId) {
+            throw new ApiError("URL did not contain a valid project id", ErrCode.BadValue);
+        }
+        try {
+            // Need to check that the user can access this.
+            const project = await client.getProject(projectId)
+            return project;
+        } catch (ex) {
+            throw new ApiError("Requested project was not found", ErrCode.ForbiddenUser);
+        }
+    }
+
 
     static async provisionConnection(roomId: string, userId: string, data: Record<string, unknown>, {as, intent, tokenStore, config, storage}: ProvisionConnectionOpts) {
         if (!config.openProject) {
             throw new ApiError('OpenProject integration is not configured', ErrCode.DisabledFeature);
         }
-        const validData = validateOpenProjectConnectionState(data);
+        const validData = validateOpenProjectConnectionState(data, config.openProject.baseURL);
         log.info(`Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`);
-        const project = await this.assertUserHasAccessToProject(tokenStore,  userId, validData.url);
+        await this.assertUserHasAccessToProject(tokenStore,  userId, validData.url);
         const connection = new OpenProjectConnection(roomId, as, intent, config.openProject, validData, validData.url, tokenStore, storage);
         await intent.underlyingClient.sendStateEvent(roomId, OpenProjectConnection.CanonicalEventType, connection.stateKey, validData);
         log.info(`Created connection via provisionConnection ${connection.toString()}`);
+        await new OpenProjectGrantChecker(as, tokenStore).grantConnection(roomId, { url: validData.url });
         return {connection};
     }
 
@@ -122,7 +161,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         if (!config.openProject) {
             throw Error('OpenProject is not configured');
         }
-        const connectionConfig = validateOpenProjectConnectionState(state.content);
+        const connectionConfig = validateOpenProjectConnectionState(state.content, config.openProject.baseURL);
         return new OpenProjectConnection(roomId, as, intent, config.openProject, connectionConfig, state.stateKey, tokenStore, storage);
     }
 
@@ -134,10 +173,12 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
         }
 
         const projects = await client.searchProjects(filters.search);
-        return (await projects)._embedded.elements.map((p) => ({
+        return projects.map((p) => ({
             id: p.id,
             name: p.name,
             description: p.description.raw,
+            url: p.project_url,
+            suggested_prefix: `!openproject ${p.identifier}`
         }));
     }
     public get priority(): number {
@@ -161,6 +202,7 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
 
     public readonly url: URL;
     public readonly projectId: number;
+    private readonly grantChecker: OpenProjectGrantChecker;
 
     constructor(
         roomId: string,
@@ -184,11 +226,9 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
             "!openproject",
             "openproject"
         );
+        this.grantChecker = new OpenProjectGrantChecker(as, tokenStore);
         this.url = new URL(state.url);
-        this.projectId = parseInt(/\/projects\/(\d+)\/?/.exec(this.url.pathname)?.[1] ?? "");
-        if (isNaN(this.projectId)) {
-            throw Error('URL for project doesnt contain a project ID');
-        }
+        this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
     }
 
     public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -196,14 +236,13 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
     }
 
     protected validateConnectionState(content: unknown) {
-        return validateOpenProjectConnectionState(content);
+        return validateOpenProjectConnectionState(content, this.config.baseURL);
     }
 
     public ensureGrant(sender?: string) {
-        // TODO
-        // return this.grantChecker.assertConnectionGranted(this.roomId, {
-        //     url: this.state.url,
-        // }, sender);
+        return this.grantChecker.assertConnectionGranted(this.roomId, {
+            url: this.state.url,
+        }, sender);
     }
 
     public async onWorkPackageCreated(data: OpenProjectWebhookPayloadWorkPackage) {
@@ -293,9 +332,9 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
 
     public async onRemove() {
         log.info(`Removing ${this.toString()} for ${this.roomId}`);
-        // await this.grantChecker.ungrantConnection(this.roomId, {
-        //     url: this.state.url,
-        // });
+        await this.grantChecker.ungrantConnection(this.roomId, {
+            url: this.state.url,
+        });
         // Do a sanity check that the event exists.
         await this.intent.underlyingClient.getRoomStateEvent(this.roomId, OpenProjectConnection.CanonicalEventType, this.stateKey);
         await this.intent.underlyingClient.sendStateEvent(this.roomId, OpenProjectConnection.CanonicalEventType, this.stateKey, { disabled: true });
@@ -304,7 +343,10 @@ export class OpenProjectConnection extends CommandConnection<OpenProjectConnecti
     public async provisionerUpdateConfig(userId: string, config: Record<string, unknown>) {
         // Apply previous state to the current config, as provisioners might not return "unknown" keys.
         config = { ...this.state, ...config };
-        const validatedConfig = validateOpenProjectConnectionState(config);
+        const validatedConfig = validateOpenProjectConnectionState(config, this.config.baseURL);
+        if (this.state.url !== validatedConfig.url) {
+            throw new ApiError('Project URL cannot be changed. Create a new connection instead.', ErrCode.UnsupportedOperation);
+        }
         await this.intent.underlyingClient.sendStateEvent(this.roomId, OpenProjectConnection.CanonicalEventType, this.stateKey, validatedConfig);
         this.state = validatedConfig;
     }
