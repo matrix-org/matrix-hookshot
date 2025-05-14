@@ -101,6 +101,17 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
             redirect_uri: `${hookshotWebhooksUrl}/oauth/`,
         },
     },
+    openProject: {
+        baseUrl: 'https://your-open-project.com',
+        webhook: {
+            secret: 'secrettoken'
+        },
+        oauth: {
+            clientId: "foo",
+            clientSecret: "bar",
+            redirectUri: `${hookshotWebhooksUrl}/oauth/`,
+        },
+    },
     generic: {
         allowJsTransformationFunctions: false,
         enabled: false,

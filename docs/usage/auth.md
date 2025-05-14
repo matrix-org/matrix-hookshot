@@ -1,10 +1,21 @@
 # Authenticating
 
-To authenticate with services, you must first have a DM room with the bridge set up. In this guide,
-we are going to assume the bot is called `@hookshot:example.com` but this will vary for your setup. For all
-the instructions below, commands should only be executed in the DM room.
+Some services allow you to authenticate with them, to pair your Matrix identity with your remote identity
+on the service. This can be used to ensure you have the required permission on the remote application,
+or be able to execute commands like creating tickets.
+
+All services mentioned below support authenticating via a DM room with the bridge bot, using bot commands.
+In this guide, we are going to assume the bot is called `@hookshot:example.com` but this will vary for your setup. For all the instructions below, commands should only be executed in **your DM room** with hookshot. 
+
+Some services additionally support logging in via the widget, without the use of a DM room or bot commands. These
+are mentioned explicitly.
+
+
+
 
 ## GitHub
+
+### Personal access token
 
 You can authenticate via OAuth or a Personal Access Token (PAT) when using GitHub. Authentication is required
 when trying to bridge GitHub resources into rooms.
@@ -34,14 +45,18 @@ To authenticate with a personal access token:
   the message afterwards if you like.
 1. The bridge will have connected you.
 
+
+### OAuth
+
 To authenticate via OAuth, you will need to have configured OAuth support in your config.yml, and have the endpoints required accessible from the internet.
 
 - Say `github login` to get the URL to authenticate via.
 - Click the URL sent by the bot.
 - Follow the steps, ensuring you authenticate with the right user.
 - If all goes well, you will now be connected.
+- You can check the status of authenticated instances by saying `github status`.
 
-You can check the status of authenticated instances by saying `github status`.
+You may also authenticate via a widget, if you have [configured widgets](../advanced/widgets.md)
 
 ## GitLab
 
@@ -62,7 +77,19 @@ yet.
 You can log in to JIRA via OAuth. This means you will need to have configured OAuth support in your `config.yml`, and
 have the endpoints required accessible from the internet. Authentication is required when trying to bridge JIRA resources into rooms.
 
-- Say `jira login` to get the URL to authenticate via.
+- Say `jira login`, which will generate a unique URL.
 - Click the URL sent by the bot.
 - Follow the steps, ensuring you authenticate with the right user.
 - If all goes well, you will now be connected. You can check the status of authenticated instances by saying `jira whoami`
+
+
+## OpenProject
+
+You can log in to OpenProject via OAuth. Authentication is required when trying to bridge OpenProject into rooms.
+
+- Say `openproject login`, which will generate a unique URL.
+- Click the URL sent by the bot.
+- Follow the steps, ensuring you authenticate with the right user.
+- If all goes well, you will now be connected.
+
+You may also authenticate via a widget, if you have [configured widgets](../advanced/widgets.md)

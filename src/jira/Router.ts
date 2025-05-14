@@ -4,9 +4,12 @@ import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
-import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./OAuth";
+import { JiraOAuthRequestOnPrem } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 import { createHmac } from "node:crypto";
+import { OAuthRequest, OAuthRequestResult } from "../tokens/oauth";
+
+type JiraOAuthRequestCloud = OAuthRequest;
 
 const log = new Logger("JiraRouter");
 
@@ -74,7 +77,7 @@ export class JiraWebhooksRouter {
     }
 
     private async onOAuth(req: Request<unknown, unknown, unknown, OAuthQueryCloud|OAuthQueryOnPrem>, res: Response<string|{error: string}>) {
-        let result: JiraOAuthRequestResult;
+        let result: OAuthRequestResult;
         if ("oauth_token" in req.query) {
             // On-prem
             if (typeof req.query.state !== "string") {
@@ -85,7 +88,7 @@ export class JiraWebhooksRouter {
             }
             const { state, oauth_token, oauth_verifier } = req.query;
             try {
-                result = await this.queue.pushWait<JiraOAuthRequestOnPrem, JiraOAuthRequestResult>({
+                result = await this.queue.pushWait<JiraOAuthRequestOnPrem, OAuthRequestResult>({
                     eventName: "jira.oauth.response",
                     sender: "GithubWebhooks",
                     data: {
@@ -112,7 +115,7 @@ export class JiraWebhooksRouter {
             const { state, code } = req.query;
             log.info(`Got new JIRA oauth request (${state.substring(0, 8)})`);
             try {
-                result = await this.queue.pushWait<JiraOAuthRequestCloud, JiraOAuthRequestResult>({
+                result = await this.queue.pushWait<JiraOAuthRequestCloud, OAuthRequestResult>({
                     eventName: "jira.oauth.response",
                     sender: "GithubWebhooks",
                     data: {
@@ -129,9 +132,9 @@ export class JiraWebhooksRouter {
         }
 
         switch (result) {
-            case JiraOAuthRequestResult.Success:
+            case OAuthRequestResult.Success:
                 return res.send(`<p> Your account has been bridged </p>`);
-            case JiraOAuthRequestResult.UserNotFound:
+            case OAuthRequestResult.UserNotFound:
                 return res.status(404).send(`<p>Could not find user which authorised this request. Has it timed out?</p>`);
             default:
                 return res.status(404).send(`<p>Unknown failure</p>`);

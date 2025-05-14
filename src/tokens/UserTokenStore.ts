@@ -17,17 +17,21 @@ import { JiraCloudClient } from "../jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "../errors";
 import { TypedEmitter } from "tiny-typed-emitter";
 import { hashId, TokenEncryption, stringToAlgo } from "../libRs"; 
+import { OpenProjectOAuth } from "../openproject/oauth";
+import { OpenProjectStoredToken } from "../openproject/types";
+import { OpenProjectAPIClient } from "../openproject/client";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-hookshot.gitlab.password-store:";
 const ACCOUNT_DATA_JIRA_TYPE = "uk.half-shot.matrix-hookshot.jira.password-store:";
+const ACCOUNT_DATA_OPENPROJECT_TYPE = "uk.half-shot.matrix-hookshot.jira.token-store:";
 
 const LEGACY_ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-github.password-store:";
 const LEGACY_ACCOUNT_DATA_GITLAB_TYPE = "uk.half-shot.matrix-github.gitlab.password-store:";
 
 const log = new Logger("UserTokenStore");
-export type TokenType = "github"|"gitlab"|"jira"|"generic";
-export const AllowedTokenTypes = ["github", "gitlab", "jira", "generic"];
+export type TokenType = "github"|"gitlab"|"jira"|"openproject"|"generic";
+export const AllowedTokenTypes = ["github", "gitlab", "jira", "openproject", "generic"];
 
 interface StoredTokenData {
     encrypted: string|string[];
@@ -46,6 +50,9 @@ function tokenKey(type: TokenType, userId: string, legacy = false, instanceUrl?:
     }
     if (type === "jira") {
         return `${ACCOUNT_DATA_JIRA_TYPE}${userId}`;
+    }
+    if (type === "openproject") {
+        return `${ACCOUNT_DATA_OPENPROJECT_TYPE}${userId}`;
     }
     if (!instanceUrl) {
         throw Error(`Expected instanceUrl for ${type}`);
@@ -69,6 +76,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
     private oauthSessionStore: Map<string, {userId: string, timeout: NodeJS.Timeout}> = new Map();
     private userTokens: Map<string, string>;
     public readonly jiraOAuth?: JiraOAuth;
+    public readonly openProjectOAuth?: OpenProjectOAuth;
     private tokenEncryption: TokenEncryption;
     private readonly keyId: string;
     constructor(key: Buffer, private readonly intent: Intent, private readonly config: BridgeConfig) {
@@ -84,6 +92,9 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
             } else {
                 throw Error('jira oauth misconfigured');
             }
+        }
+        if (config.openProject?.oauth) {
+            this.openProjectOAuth = new OpenProjectOAuth(this, config.openProject.oauth, config.openProject.baseURL);
         }
     }
 
@@ -128,6 +139,10 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
 
     public async storeJiraToken(userId: string, token: JiraStoredToken) {
         return this.storeUserToken("jira", userId, JSON.stringify(token));
+    }
+
+    public async storeOpenProjectToken(userId: string, token: OpenProjectStoredToken) {
+        return this.storeUserToken("openproject", userId, JSON.stringify(token));
     }
 
     public async getUserToken(type: TokenType, userId: string, instanceUrl?: string): Promise<string|null> {
@@ -253,6 +268,14 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
         return res ? GithubInstance.createUserOctokit(res, this.config.github.baseUrl) : null;
     }
 
+    public async getOpenProjectForUser(userId: string) {
+        if (!this.config.openProject || !this.openProjectOAuth) {
+            throw Error('OpenProject is not configured');
+        }
+        const res = await this.getUserToken('openproject', userId);
+        return res ? new OpenProjectAPIClient(this.config.openProject.baseURL, res, this.openProjectOAuth, (newToken) => this.storeOpenProjectToken(userId, newToken)) : null;
+    }
+
     public async getGitLabForUser(userId: string, instanceUrl: string) {
         const senderToken = await this.getUserToken("gitlab", userId, instanceUrl);
         if (!senderToken) {
@@ -295,7 +318,7 @@ export class UserTokenStore extends TypedEmitter<Emitter> {
                 (this.jiraOAuth as JiraOnPremOAuth).privateKey,
                 this.config.jira.oauth as BridgeConfigJiraOnPremOAuth,
                 this.config.jira.url,
-            );
+            ); 
         }
         throw Error('Could not determine type of client');
     }

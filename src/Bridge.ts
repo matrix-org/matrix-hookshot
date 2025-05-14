@@ -28,19 +28,21 @@ import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
 import { JiraProvisionerRouter } from "./jira/Router";
 import { GitHubProvisionerRouter } from "./github/Router";
-import { OAuthRequest } from "./WebhookTypes";
 import { promises as fs } from "fs";
 import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
 import { SetupConnection } from "./Connections/SetupConnection";
-import { JiraOAuthRequestCloud, JiraOAuthRequestOnPrem, JiraOAuthRequestResult } from "./jira/OAuth";
+import { JiraOAuthRequestOnPrem } from "./jira/OAuth";
 import { GenericWebhookEvent, GenericWebhookEventResult } from "./generic/types";
 import { SetupWidget } from "./Widgets/SetupWidget";
 import { FeedEntry, FeedError, FeedReader, FeedSuccess } from "./feeds/FeedReader";
 import * as Sentry from '@sentry/node';
 import { HoundConnection, HoundPayload } from "./Connections/HoundConnection";
 import { HoundReader } from "./hound/reader";
+import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/types";
+import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
+import { OAuthRequest, OAuthRequestResult } from "./tokens/oauth";
 
 const log = new Logger("Bridge");
 
@@ -521,15 +523,15 @@ export class Bridge {
             );
         }
 
-        this.queue.on<JiraOAuthRequestCloud|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
+        this.queue.on<OAuthRequest|JiraOAuthRequestOnPrem>("jira.oauth.response", async (msg) => {
             if (!this.config.jira || !this.tokenStore.jiraOAuth) {
                 throw Error('Cannot handle, JIRA oauth support not enabled');
             }
-            let result: JiraOAuthRequestResult;
+            let result: OAuthRequestResult;
             const userId = this.tokenStore.getUserIdForOAuthState(msg.data.state, false);
             if (!userId) {
-                return this.queue.push<JiraOAuthRequestResult>({
-                    data: JiraOAuthRequestResult.UserNotFound,
+                return this.queue.push<OAuthRequestResult>({
+                    data: OAuthRequestResult.UserNotFound,
                     sender: "Bridge",
                     messageId: msg.messageId,
                     eventName: "response.jira.oauth.response",
@@ -554,18 +556,30 @@ export class Bridge {
                 if (adminRoom) {
                     await adminRoom.sendNotice("Logged into Jira");
                 }
-                result = JiraOAuthRequestResult.Success;
+                result = OAuthRequestResult.Success;
             } catch (ex) {
                 log.warn(`Failed to handle JIRA oauth token exchange`, ex);
-                result = JiraOAuthRequestResult.UnknownFailure;
+                result = OAuthRequestResult.UnknownFailure;
             }
-            await this.queue.push<JiraOAuthRequestResult>({
+            await this.queue.push<OAuthRequestResult>({
                 data: result,
                 sender: "Bridge",
                 messageId: msg.messageId,
                 eventName: "response.jira.oauth.response",
             });
+        });
 
+        this.queue.on<OAuthRequest>("openproject.oauth.response", async (msg) => {
+            if (!this.tokenStore.openProjectOAuth) {
+                throw Error('Cannot handle, OpenProject oauth support not enabled');
+            }
+            const result = await this.tokenStore.openProjectOAuth.handleOAuth(msg.data);
+            await this.queue.push<OAuthRequestResult>({
+                data: result,
+                sender: "Bridge",
+                messageId: msg.messageId,
+                eventName: "response.openproject.oauth.response",
+            });
         });
 
         this.queue.on<GenericWebhookEvent>("generic-webhook.event", async (msg) => {
@@ -660,6 +674,18 @@ export class Bridge {
             (data) => connManager.getConnectionsForHoundChallengeId(data.challengeId),
             (c, data) => c.handleNewActivity(data.activity)
         );
+
+        this.bindHandlerToQueue<OpenProjectWebhookPayloadWorkPackage, OpenProjectConnection>(
+            "openproject.work_package:created",
+            (data) => connManager.getConnectionsForOpenProject(data.work_package._embedded.project.id),
+            (c, data) => c.onWorkPackageCreated(data)
+        );
+        this.bindHandlerToQueue<OpenProjectWebhookPayloadWorkPackage, OpenProjectConnection>(
+            "openproject.work_package:updated",
+            (data) => connManager.getConnectionsForOpenProject(data.work_package._embedded.project.id),
+            (c, data) => c.onWorkPackageUpdated(data)
+        );
+        
 
         const allRooms = this.botUsersManager.joinedRooms;
 

@@ -9,6 +9,7 @@ export enum Category {
     Github               = "Github",
     Gitlab               = "Gitlab",
     Jira                 = "Jira",
+    OpenProject                 = "OpenProject",
 }
 
 

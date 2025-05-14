@@ -24,6 +24,7 @@ import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
+import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 
 const log = new Logger("ConnectionManager");
 
@@ -347,6 +348,10 @@ export class ConnectionManager extends EventEmitter {
         return this.connections.filter(c => c instanceof HoundConnection && c.challengeId === challengeId) as HoundConnection[];
     }
 
+    public getConnectionsForOpenProject(projectId: number): OpenProjectConnection[] {
+        return this.connections.filter((c) => (c instanceof OpenProjectConnection && c.interestedInProject(projectId))) as OpenProjectConnection[];
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     public getAllConnectionsOfType<T extends IConnection>(typeT: new (...params : any[]) => T): T[] {
         return this.connections.filter((c) => (c instanceof typeT)) as T[];
@@ -443,6 +448,10 @@ export class ConnectionManager extends EventEmitter {
         case JiraProjectConnection.CanonicalEventType: {
             const configObject = this.validateConnectionTarget(userId, this.config.jira, "JIRA", "jira");
             return await JiraProjectConnection.getConnectionTargets(userId, this.tokenStore, configObject, filters);
+        }
+        case OpenProjectConnection.CanonicalEventType: {
+            this.validateConnectionTarget(userId, this.config.openProject, "OpenProject", "openproject");
+            return await OpenProjectConnection.getConnectionTargets(userId, this.tokenStore, filters);
         }
         default:
             throw new ApiError(`Connection type doesn't support getting targets or is not known`, ErrCode.NotFound);

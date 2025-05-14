@@ -14,6 +14,7 @@ They will only handle connections for the specified service, which can be one of
 * `github` - [GitHub](../setup/github.md)
 * `gitlab` - [GitLab](../setup/gitlab.md)
 * `jira` - [Jira](../setup/jira.md)
+* `openproject` - [OpenProject](../setup/openproject.md)
 
 For example with this configuration:
 ```yaml

@@ -5,7 +5,7 @@ interface Props {
     className?: string;
     visible?: boolean;
     label: string;
-    noPadding: boolean;
+    noPadding?: boolean;
 }
 
 export const InputField: FunctionComponent<Props> = ({ className, children, visible = true, label, noPadding }) => {

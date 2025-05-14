@@ -12,6 +12,7 @@ export default defineConfig({
     exclude: ['@vector-im/compound-web'],
   },
   build: {
+    sourcemap: 'inline',
     outDir: '../public',
     rollupOptions: {
       input: {

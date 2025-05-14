@@ -5,21 +5,10 @@ export interface JiraOAuth {
     exchangeRequestForToken(codeOrToken: string,verifier?: string): Promise<JiraOAuthResult>;
 }
 
-export interface JiraOAuthRequestCloud {
-    state: string;
-    code: string;
-}
-
 export interface JiraOAuthRequestOnPrem {
     state: string;
     oauthToken: string;
     oauthVerifier: string;
-}
-
-export enum JiraOAuthRequestResult {
-    UnknownFailure,
-    Success,
-    UserNotFound,
 }
 
 export function encodeJiraToken(oauthToken: string, oauthTokenSecret: string): string {

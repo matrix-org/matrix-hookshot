@@ -7,7 +7,7 @@ import { GitHubRepoConnectionState, GitHubRepoResponseItem, GitHubRepoConnection
 import { InputField, ButtonSet, Button } from "../elements";
 import { useState, useCallback, useMemo, useEffect, useContext } from "preact/hooks";
 import { DropItem } from "../elements/DropdownSearch";
-import ConnectionSearch from "../elements/ConnectionSearch";
+import { ConnectionSearch } from "../elements/ConnectionSearch";
 import { ServiceAuth } from "./Auth";
 import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
 import { BridgeContext } from "../../context";

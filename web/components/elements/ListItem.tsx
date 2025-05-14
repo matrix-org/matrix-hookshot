@@ -5,7 +5,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "@vector-im/compound-design-token
 
 export const ListItem: FunctionComponent<{text: ComponentChild}> = ({ text, children }) => {
     const [expand, setExpand] = useState(false);
-    
+
     return <div className={style.root}>
         <h3 className={style.header} onClick={() => setExpand(!expand)}>
             {text} {expand ? <ChevronUpIcon /> : <ChevronDownIcon />}

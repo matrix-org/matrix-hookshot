@@ -135,6 +135,16 @@ listeners:
 #  pollTimeoutSeconds: 30
 #  pollConcurrency: 4
 
+#openProject:
+#  # (Optional) Configure OpenProject support
+#  baseUrl: https://your-open-project.com
+#  webhook:
+#    secret: secrettoken
+#  oauth:
+#    clientId: foo
+#    clientSecret: bar
+#    redirectUri: https://example.com/oauth/
+
 #bot:
 #  # (Optional) Define profile information for the bot user
 #  displayname: Hookshot Bot
