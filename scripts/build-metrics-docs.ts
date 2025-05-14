@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import Metrics from "../src/Metrics";
 import { register } from "prom-client";
+import prettier from "prettier";
 
 // This is just used to ensure we create a singleton.
 Metrics.getMetrics();
@@ -28,7 +29,7 @@ Object.entries(anyRegister._metrics).map(([key, value]) => {
 
 // Generate some markdown
 
-console.log(`Prometheus Metrics
+const output = `Prometheus Metrics
 ==================
 
 You can configure metrics support by adding the following to your config:
@@ -51,13 +52,12 @@ Select the Prometheus instance with your Hookshot metrics as Data Source. Set In
 
 Below is the generated list of Prometheus metrics for Hookshot.
 
-`);
+` + Object.entries(categories).map(([name, entries]) => `## ${name}
+| Metric | Help | Labels |
+|--------|------|--------|` + 
+  entries.map((e) =>
+    `| ${e.name} | ${e.help} | ${e.labels.join(", ")} |`
+  ).join('\n')
+).join('\n');
 
-Object.entries(categories).forEach(([name, entries]) => {
-  console.log(`## ${name}`);
-  console.log("| Metric | Help | Labels |");
-  console.log("|--------|------|--------|");
-  entries.forEach((e) =>
-    console.log(`| ${e.name} | ${e.help} | ${e.labels.join(", ")} |`),
-  );
-});
+console.log(prettier.format(output, { parser: 'markdown'}));

@@ -61,7 +61,7 @@ jobs:
         with:
           node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
-      - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts && prettier -w docs/metrics.md | diff docs/metrics.md - 
+      - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
   
   test:
     # Test on LTS-1
