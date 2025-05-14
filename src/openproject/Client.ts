@@ -1,4 +1,4 @@
-import axios, { formToJSON, Method } from "axios";
+import axios, { Method } from "axios";
 import {
   OpenProjectProject,
   OpenProjectStoredToken,

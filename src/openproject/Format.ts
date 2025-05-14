@@ -1,5 +1,4 @@
 import { OpenProjectEventsNames } from "../Connections/OpenProjectConnection";
-import { MatrixMessageContent } from "../MatrixEvent";
 import {
   OpenProjectWorkPackageCacheState,
   workPackageToCacheState,
