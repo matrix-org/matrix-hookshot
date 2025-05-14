@@ -1,5 +1,5 @@
-Setting up GitHub
-======
+# Setting up GitHub
+
 ## GitHub App
 
 This bridge requires a [GitHub App](https://github.com/settings/apps/new). You will need to create one.
@@ -13,16 +13,16 @@ You **MUST** also provide a secret, which should match the `github.webhook.secre
 
 You will need to enable the following permissions:
 
-  - Repository
-    - Actions (`read`)
-    - Contents (`read`)
-    - Discussions (`read & write`)
-    - Issues (`read & write`)
-    - Metadata
-    - Projects (`read & write`)
-    - Pull requests (`read & write`)
- - Organisation
-    - Team Discussions (`read & write`)
+- Repository
+  - Actions (`read`)
+  - Contents (`read`)
+  - Discussions (`read & write`)
+  - Issues (`read & write`)
+  - Metadata
+  - Projects (`read & write`)
+  - Pull requests (`read & write`)
+- Organisation
+  - Team Discussions (`read & write`)
 
 Hookshot handles the following webhook event types:
 

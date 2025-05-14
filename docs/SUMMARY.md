@@ -23,6 +23,7 @@
 - [🆘 Troubleshooting](./troubleshooting.md)
 
 # 🧑‍💻 Development
+
 - [Contributing](./contributing.md)
 
 # 🥼 Advanced

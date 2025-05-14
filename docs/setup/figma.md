@@ -3,9 +3,10 @@
 ## Setting up
 
 To bridge Figma webhooks with Hookshot, you will need:
- - A personal access token with admin access to the team you intend to bridge.
- - A figma account that is on the professional tier, as the free tier does provide webhook access.
- - Your team ID. You can get this by going to the team page on Figma, and looking for the ID in the url (e.g. 12345 in `https://www.figma.com/files/team/12345/...`)
+
+- A personal access token with admin access to the team you intend to bridge.
+- A figma account that is on the professional tier, as the free tier does provide webhook access.
+- Your team ID. You can get this by going to the team page on Figma, and looking for the ID in the url (e.g. 12345 in `https://www.figma.com/files/team/12345/...`)
 
 ## Configuration
 
@@ -36,7 +37,8 @@ The bridge will automatically set up a webhook on Figma for you upon startup, an
 If you have followed these steps correctly, Figma should now be configured with hookshot 🥳.
 
 To bridge a figma file into your room, you should:
-  - Invite the bot user to the room.
-  - Make sure the bot able to send state events (usually the Moderator power level in clients)
-  - Say `!hookshot figma file fileUrl` where `fileUrl` is the URL to the figma file e.g `https://www.figma.com/files/project/12345/...`
-  - Figma comments will now be bridged into the room.
+
+- Invite the bot user to the room.
+- Make sure the bot able to send state events (usually the Moderator power level in clients)
+- Say `!hookshot figma file fileUrl` where `fileUrl` is the URL to the figma file e.g `https://www.figma.com/files/project/12345/...`
+- Figma comments will now be bridged into the room.

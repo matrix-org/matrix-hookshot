@@ -1,29 +1,36 @@
 /* eslint-disable no-console */
 import Metrics from "../src/Metrics";
 import { register } from "prom-client";
+import prettier from "prettier";
 
 // This is just used to ensure we create a singleton.
 Metrics.getMetrics();
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const anyRegister = register as any as {_metrics: {[metricName: string]: {labelNames: string[], name: string, help: string}}};
+const anyRegister = register as any as {
+  _metrics: {
+    [metricName: string]: { labelNames: string[]; name: string; help: string };
+  };
+};
 
-const categories: {[title: string]: {name: string, labels: string[], help: string}[]} = {};
+const categories: {
+  [title: string]: { name: string; labels: string[]; help: string }[];
+} = {};
 
-Object.entries(anyRegister._metrics).map(
-    ([key, value]) => {
-        const [categoryName] = key.split('_');
-        categories[categoryName] = categories[categoryName] || [];
-        categories[categoryName].push({
-            name: key,
-            labels: value.labelNames,
-            help: value.help,
-        });
-    });
+Object.entries(anyRegister._metrics).map(([key, value]) => {
+  const [categoryName] = key.split("_");
+  categories[categoryName] = categories[categoryName] || [];
+  categories[categoryName].push({
+    name: key,
+    labels: value.labelNames,
+    help: value.help,
+  });
+});
 
 // Generate some markdown
 
-console.log(`Prometheus Metrics
+const output =
+  `Prometheus Metrics
 ==================
 
 You can configure metrics support by adding the following to your config:
@@ -46,11 +53,17 @@ Select the Prometheus instance with your Hookshot metrics as Data Source. Set In
 
 Below is the generated list of Prometheus metrics for Hookshot.
 
-`)
+` +
+  Object.entries(categories)
+    .map(
+      ([name, entries]) =>
+        `## ${name}
+| Metric | Help | Labels |
+|--------|------|--------|` +
+        entries
+          .map((e) => `| ${e.name} | ${e.help} | ${e.labels.join(", ")} |`)
+          .join("\n"),
+    )
+    .join("\n");
 
-Object.entries(categories).forEach(([name, entries]) => {
-    console.log(`## ${name}`);
-    console.log('| Metric | Help | Labels |');
-    console.log('|--------|------|--------|');
-    entries.forEach((e) => console.log(`| ${e.name} | ${e.help} | ${e.labels.join(', ')} |`));
-});
+console.log(prettier.format(output, { parser: "markdown" }));

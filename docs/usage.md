@@ -1,5 +1,4 @@
-Usage
-=====
+# Usage
 
 This section covers how to use the bridge, once it's set up. We break these
 down into categories:

@@ -320,7 +320,7 @@ describe("OpenProject", () => {
           webhook: {
             secret: randomUUID(),
           },
-          baseUrl: "http://mytestproject.com/"
+          baseUrl: "http://mytestproject.com/",
         },
         widgets: {
           publicUrl: `http://localhost:${webhooksPort}`,
@@ -396,7 +396,7 @@ describe("OpenProject", () => {
         method: "POST",
         headers: {
           "X-Op-Signature": `sha1=${hmac.read().toString("hex")}`,
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: webhookPayload,
       },
