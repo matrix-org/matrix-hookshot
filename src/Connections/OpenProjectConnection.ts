@@ -503,7 +503,6 @@ export class OpenProjectConnection
   }
 }
 
- 
 const res = compileBotCommands(
   OpenProjectConnection.prototype as any,
   CommandConnection.prototype as any,

@@ -132,7 +132,6 @@ export interface InstantiateConnectionOpts {
   github?: GithubInstance;
 }
 export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
-   
   getAllConnectionsOfType<T extends IConnection>(
     typeT: new (...params: any[]) => T,
   ): T[];

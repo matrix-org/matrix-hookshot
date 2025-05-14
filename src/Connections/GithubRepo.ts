@@ -2007,7 +2007,6 @@ export class GitHubRepoConnection
   }
 }
 
- 
 const res = compileBotCommands(
   GitHubRepoConnection.prototype as any,
   CommandConnection.prototype as any,

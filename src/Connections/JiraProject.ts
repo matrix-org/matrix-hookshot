@@ -777,7 +777,6 @@ export class JiraProjectConnection
   }
 }
 
- 
 const res = compileBotCommands(
   JiraProjectConnection.prototype as any,
   CommandConnection.prototype as any,

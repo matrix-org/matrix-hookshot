@@ -555,7 +555,6 @@ export class ConnectionManager extends EventEmitter {
     ) as OpenProjectConnection[];
   }
 
-   
   public getAllConnectionsOfType<T extends IConnection>(
     typeT: new (...params: any[]) => T,
   ): T[] {

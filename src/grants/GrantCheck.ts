@@ -45,7 +45,7 @@ export class GrantChecker<cId extends ConnectionId = ConnectionId> {
    *
    * By default, this always returns false.
    */
-   
+
   protected checkFallback(
     _roomId: string,
     _connectionId: cId,

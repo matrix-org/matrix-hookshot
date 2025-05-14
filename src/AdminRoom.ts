@@ -843,7 +843,6 @@ export class AdminRoom extends AdminRoomCommandHandler {
   }
 }
 
- 
 const res = compileBotCommands(
   AdminRoom.prototype as any,
   GitHubBotCommands.prototype as any,

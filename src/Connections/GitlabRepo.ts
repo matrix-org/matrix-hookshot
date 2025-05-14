@@ -1298,7 +1298,7 @@ ${data.description}`;
 }
 
 // Typescript doesn't understand Prototypes very well yet.
- 
+
 const res = compileBotCommands(
   GitLabRepoConnection.prototype as any,
   CommandConnection.prototype as any,

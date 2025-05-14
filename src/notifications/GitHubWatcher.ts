@@ -153,7 +153,6 @@ export class GitHubWatcher
               pull_number: ev.subject.url_data.number,
               owner: rawEvent.repository.owner.login,
               repo: rawEvent.repository.name,
-               
             })
           ).data as any;
           ev.subject.reviews = (
