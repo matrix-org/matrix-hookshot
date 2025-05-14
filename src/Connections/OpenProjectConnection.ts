@@ -7,13 +7,13 @@ import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
-import { GetConnectionsResponseItem } from "../provisioning/api";
 import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/types";
 import { BridgeOpenProjectConfig } from "../config/sections/openproject";
 import { formatWorkPackageDiff, formatWorkPackageForMatrix } from "../openproject/format";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/state";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 
 export type OpenProjectEventsNames =
     "work_package:created" |
