@@ -5,6 +5,10 @@ import { OpenProjectOAuth } from "./oauth";
 
 
 const log = new Logger('OpenProjectAPIClient');
+
+
+type OpenProjectProjectWithUrl = OpenProjectProject&{project_url: string};
+
 export class OpenProjectAPIClient {
     private storedToken: OpenProjectStoredToken;
     constructor(private readonly baseUrl: URL, tokenInfo: string, private readonly oauth: OpenProjectOAuth, private readonly onTokenRefreshed: (token: OpenProjectStoredToken) => void) {
@@ -47,34 +51,25 @@ export class OpenProjectAPIClient {
         return this.apiRequest<OpenProjectUser>(`/api/v3/users/${encodeURIComponent(userId)}`);
     }
 
-    async searchProjects(nameAndIdentifier?: string) {
+    async searchProjects(nameAndIdentifier?: string): Promise<OpenProjectProjectWithUrl[]> {
         // See https://www.openproject.org/docs/api/endpoints/projects/
+        let projects: OpenProjectProject[];
         if (nameAndIdentifier) {
             const query = [
                 { "name_and_identifier": { "operator": "~", "values": [nameAndIdentifier] } }
             ]
-            return this.apiRequest<{_embedded: { elements: OpenProjectProject[]}}>(
+            projects = (await this.apiRequest<{_embedded: { elements: OpenProjectProject[]}}>(
                 `/api/v3/projects?filters=${encodeURIComponent(JSON.stringify(query))}`
-            );
+            ))._embedded.elements;
+        } else {
+            projects = (await this.apiRequest<{_embedded: { elements: OpenProjectProject[]}}>(`/api/v3/projects`))._embedded.elements;
         }
-        return this.apiRequest<{_embedded: { elements: OpenProjectProject[]}}>(`/api/v3/projects`);
+        // Note: We take the first page of results here for now.
+        return projects.map((p) => ({...p, project_url: `${this.baseUrl}projects/${p.id}`}))
     }
     
 
-    // async getProject(projectIdOrKey: string): Promise<JiraProject> {
-    //     return await super.getProject(projectIdOrKey) as JiraProject;
-    // }
-
-    // async searchUsers(opts: {query: string, maxResults?: number}|{username: string, maxResults?: number}): Promise<JiraAccount[]> {
-    //     // Types are wrong here.
-    //     return super.searchUsers(opts as never) as unknown as JiraAccount[];
-    // }
-    
-    // async addNewIssue(issue: JiraApi.IssueObject): Promise<JiraApi.JsonResponse> {
-    //     const res = await super.addNewIssue(issue);
-    //     if (res.errors) {
-    //         throw new JiraApiError(res.errorMessages, res.errors);
-    //     }
-    //     return res;
-    // }
+    async getProject(projectId: number): Promise<OpenProjectProject> {
+        return this.apiRequest<OpenProjectProject>(`/api/v3/projects/${encodeURIComponent(projectId)}`);
+    }
 }
