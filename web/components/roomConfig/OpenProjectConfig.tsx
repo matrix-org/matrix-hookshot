@@ -103,7 +103,6 @@ const ExistingConnectionConfig: FunctionComponent<{
 
   return (
     <form onSubmit={handleSave}>
-      <InputField label="Project">{connection.config.url}</InputField>
       <InputField label="Command Prefix" noPadding={true}>
         <input
           ref={commandPrefixRef}
