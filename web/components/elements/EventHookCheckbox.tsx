@@ -25,7 +25,7 @@ export const EventHookCheckbox: FunctionComponent<{
 };
 
 export const EventHookList: FunctionComponent<{
-    visible: boolean;
+    visible?: boolean;
     label: string;
     setAllowedEvents: (cb: (events: string[]) => string[]) => void,
     allowedEvents: string[],
