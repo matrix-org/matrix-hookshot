@@ -120,6 +120,7 @@ Each permission set can have a service. The `service` field can be:
 - `feed`
 - `figma`
 - `webhooks`
+- `openproject`
 - `challengehound`
 - `*`, for any service.
 
@@ -268,6 +269,7 @@ You will need to configure some services. Each service has its own documentation
 - [GitHub](./setup/github.md)
 - [GitLab](./setup/gitlab.md)
 - [Jira](./setup/jira.md)
+- [OpenProject](./setup/openproject.md)
 - [Webhooks](./setup/webhooks.md)
 
 ### Logging
