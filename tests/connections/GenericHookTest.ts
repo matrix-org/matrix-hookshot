@@ -18,7 +18,7 @@ import { MemoryStorageProvider } from "../../src/stores/MemoryStorageProvider";
 import { BridgeConfig } from "../../src/config/Config";
 import { ProvisionConnectionOpts } from "../../src/Connections";
 import { add } from "date-fns";
-import { WebhookTransformer } from "../../src/generic/transformer";
+import { WebhookTransformer } from "../../src/generic/WebhookTransformer";
 
 const ROOM_ID = "!foo:bar";
 

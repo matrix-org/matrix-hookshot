@@ -8,6 +8,7 @@ import type {
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
+import { MouseEventHandler } from "preact/compat";
 
 const ConnectionConfiguration: FunctionComponent<
   ConnectionConfigurationProps<
@@ -40,8 +41,8 @@ const ConnectionConfiguration: FunctionComponent<
     [canEdit, onSave, nameRef, outboundUrl, existingConnection],
   );
 
-  const onUrlChange = useCallback(
-    (evt: any) => {
+  const onUrlChange = useCallback<MouseEventHandler<HTMLInputElement>>(
+    (evt) => {
       setOutboundUrl(evt.target?.value);
     },
     [setOutboundUrl],
@@ -49,8 +50,8 @@ const ConnectionConfiguration: FunctionComponent<
 
   const [tokenRevealed, setTokenRevealed] = useState<boolean>(false);
 
-  const revealToken = useCallback(
-    (evt: any) => {
+  const revealToken = useCallback<MouseEventHandler<HTMLInputElement>>(
+    (evt) => {
       evt.preventDefault();
       setTokenRevealed(true);
     },
