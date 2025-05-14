@@ -849,7 +849,7 @@ export class GitHubRepoConnection
   public async onMessageEvent(
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
-    reply?: IRichReplyMetadata,
+    reply?: MatrixEvent<any>,
   ): Promise<boolean> {
     if (await super.onMessageEvent(ev, checkPermission)) {
       return true;
@@ -857,9 +857,9 @@ export class GitHubRepoConnection
     const body = ev.content.body?.trim();
     if (reply) {
       const repoInfo =
-        reply.realEvent.content["uk.half-shot.matrix-hookshot.github.repo"];
+        reply.content["uk.half-shot.matrix-hookshot.github.repo"];
       const pullRequestId =
-        reply.realEvent.content[
+        reply.content[
           "uk.half-shot.matrix-hookshot.github.pull_request"
         ]?.number;
       // Emojis can be multi-byte, so make sure we split properly

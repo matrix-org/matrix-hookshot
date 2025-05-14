@@ -1,7 +1,7 @@
 import markdown from "markdown-it";
 import { ApiError } from "./api";
 import { CommandError } from "./Errors";
-import { MatrixMessageContent } from "./MatrixEvent";
+import { MatrixEvent, MatrixMessageContent } from "./MatrixEvent";
 import { BridgePermissionLevel } from "./config/Config";
 import { PermissionCheckFn } from "./Connections";
 
@@ -35,13 +35,14 @@ export interface BotCommandOptions {
   requiredArgs?: string[];
   optionalArgs?: string[];
   includeUserId?: boolean;
+  includeReply?: boolean;
   category?: string;
   permissionLevel?: BridgePermissionLevel;
   permissionService?: string;
 }
 
 type BotCommandResult = { status?: boolean; reaction?: string } | undefined;
-type BotCommandFunction = (...args: string[]) => Promise<BotCommandResult>;
+type BotCommandFunction = (...args: unknown[]) => Promise<BotCommandResult>;
 
 export type BotCommands = {
   [prefix: string]: { fn: BotCommandFunction } & BotCommandOptions;
@@ -81,6 +82,7 @@ export function compileBotCommands(
           optionalArgs: b.optionalArgs,
           includeUserId: b.includeUserId,
           category: b.category,
+          includeReply: b.includeReply,
         };
       }
     });
@@ -142,6 +144,7 @@ interface CommandResultErrorHuman {
 export async function handleCommand(
   userId: string,
   command: string,
+  parentEvent: MatrixEvent<unknown>|undefined,
   botCommands: BotCommands,
   obj: unknown,
   permissionCheckFn: PermissionCheckFn,
@@ -179,6 +182,13 @@ export async function handleCommand(
           humanError: "You do not have permission to use this command.",
         };
       }
+      if (!command.includeReply && parentEvent) {
+        // Ignore replies if we aren't expecting one.
+        return {
+          handled: false,
+        }
+      }
+
       if (
         command.requiredArgs &&
         command.requiredArgs.length > parts.length - i
@@ -188,9 +198,12 @@ export async function handleCommand(
           humanError: "Missing at least one required parameter.",
         };
       }
-      const args = parts.slice(i);
+      const args: unknown[] = parts.slice(i);
       if (command.includeUserId) {
         args.splice(0, 0, userId);
+      }
+      if (command.includeReply) {
+        args.splice(1, 0, parentEvent);
       }
       try {
         const result = await botCommands[prefix].fn.apply(obj, args);

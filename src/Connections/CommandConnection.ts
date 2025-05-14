@@ -5,7 +5,7 @@ import {
   HelpFunction,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import { MatrixClient } from "matrix-bot-sdk";
+import { IRichReplyMetadata, MatrixClient, MessageEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
@@ -54,10 +54,12 @@ export abstract class CommandConnection<
   public async onMessageEvent(
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
+    parentEvent?: MatrixEvent<unknown>,
   ) {
     const commandResult = await handleCommand(
       ev.sender,
       ev.content.body,
+      parentEvent,
       this.botCommands,
       this,
       checkPermission,

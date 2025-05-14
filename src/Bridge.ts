@@ -7,7 +7,6 @@ import {
 import {
   Appservice,
   RichRepliesPreprocessor,
-  IRichReplyMetadata,
   StateEvent,
   EventKind,
   PowerLevelsEvent,
@@ -1335,21 +1334,31 @@ export class Bridge {
       `Got message roomId=${roomId} type=${event.type} from=${event.sender}`,
     );
     log.debug("Content:", JSON.stringify(event));
-    let processedReply;
-    let processedReplyMetadata: IRichReplyMetadata | undefined = undefined;
-    try {
-      processedReply = await this.replyProcessor.processEvent(
-        event,
-        this.as.botClient,
-        EventKind.RoomEvent,
-      );
-      processedReplyMetadata = processedReply?.mx_richreply;
-    } catch (ex) {
-      log.warn(
-        `Event ${event.event_id} could not be processed by the reply processor, possibly a faulty event`,
-        ex,
-      );
+
+    let replyEvent: MatrixEvent<unknown>|undefined;
+    if (event.content["m.relates_to"]?.["m.in_reply_to"]) {
+      if (event.content.formatted_body?.includes('<mx-reply>')) {
+        // This is a legacy fallback reply:
+        try {
+          const processedReply = await this.replyProcessor.processEvent(
+            event,
+            this.as.botClient,
+            EventKind.RoomEvent,
+          );
+          replyEvent = processedReply?.mx_richreply.realEvent;
+        } catch (ex) {
+          log.warn(
+            `Event ${event.event_id} could not be processed by the reply processor, possibly a faulty event`,
+            ex,
+          );
+        }
+      } else {
+        // This is a new style reply.
+        const parentEventId = event.content["m.relates_to"]?.["m.in_reply_to"].event_id;
+        replyEvent = await this.as.botClient.getEvent(roomId, parentEventId);
+      }
     }
+
     const adminRoom = this.adminRooms.get(roomId);
     const checkPermission = (service: string, level: BridgePermissionLevel) =>
       this.config.checkPermission(event.sender, service, level);
@@ -1375,7 +1384,7 @@ export class Bridge {
             handled = await connection.onMessageEvent(
               event,
               checkPermission,
-              processedReplyMetadata,
+              replyEvent,
             );
           }
         } catch (ex) {
@@ -1446,19 +1455,19 @@ export class Bridge {
       return;
     }
 
-    if (processedReply && processedReplyMetadata) {
+    if (replyEvent) {
       log.info(
-        `Handling reply to ${processedReplyMetadata.parentEventId} for ${adminRoom.userId}`,
+        `Handling reply to ${replyEvent.event_id} for ${adminRoom.userId}`,
       );
       // This might be a reply to a notification
       try {
-        const ev = processedReplyMetadata.realEvent;
+        const evContent = replyEvent.content as any;
         const splitParts: string[] =
-          ev.content["uk.half-shot.matrix-hookshot.github.repo"]?.name.split(
+          evContent["uk.half-shot.matrix-hookshot.github.repo"]?.name.split(
             "/",
           );
         const issueNumber =
-          ev.content["uk.half-shot.matrix-hookshot.github.issue"]?.number;
+          evContent["uk.half-shot.matrix-hookshot.github.issue"]?.number;
         if (splitParts && issueNumber) {
           log.info(`Handling reply for ${splitParts}${issueNumber}`);
           const connections =
@@ -1470,7 +1479,7 @@ export class Bridge {
           await Promise.all(
             connections.map(async (c) => {
               if (c instanceof GitHubIssueConnection) {
-                return c.onMatrixIssueComment(processedReply);
+                return c.onMatrixIssueComment(replyEvent as any);
               }
             }),
           );
