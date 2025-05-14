@@ -1,5 +1,5 @@
 import { ProvisioningRequest } from "matrix-appservice-bridge";
-import { GetAuthResponse } from "../Widgets/BridgeWidgetInterface";
+import { GetAuthResponse } from "../widgets/BridgeWidgetInterface";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Response } from "express";
 import { ApiError, ErrCode } from "../api";

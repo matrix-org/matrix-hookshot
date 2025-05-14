@@ -3,7 +3,7 @@ import {
   GitHubRepoConnectionState,
 } from "../../src/Connections/GithubRepo";
 import { GithubInstance } from "../../src/github/GithubInstance";
-import { createMessageQueue } from "../../src/MessageQueue";
+import { createMessageQueue } from "../../src/messageQueue";
 import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { DefaultConfig } from "../../src/config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";

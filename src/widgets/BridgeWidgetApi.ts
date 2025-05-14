@@ -9,10 +9,10 @@ import {
   GetConnectionsForServiceResponse,
 } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
-import BotUsersManager, { BotUser } from "../Managers/BotUsersManager";
-import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "./api";
+import BotUsersManager, { BotUser } from "../managers/BotUsersManager";
+import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "./Api";
 import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from "../github/GithubInstance";
 import {

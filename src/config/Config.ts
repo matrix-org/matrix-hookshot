@@ -12,22 +12,22 @@ import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
 import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
-import { ConfigError } from "../errors";
+import { ConfigError } from "../Errors";
 import { ApiError, ErrCode } from "../api";
 import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgeConfigCache } from "./sections/cache";
+import { BridgeConfigCache } from "./sections/Cache";
 import {
   BridgeConfigGenericWebhooks,
   BridgeConfigQueue,
   BridgeGenericWebhooksConfigYAML,
 } from "./sections";
 import { GenericHookServiceConfig } from "../Connections";
-import { BridgeConfigEncryption } from "./sections/encryption";
+import { BridgeConfigEncryption } from "./sections/Encryption";
 import {
   BridgeOpenProjectConfig,
   BridgeOpenProjectConfigYAML,
-} from "./sections/openproject";
+} from "./sections/OpenProject";
 import { OpenProjectServiceConfig } from "../Connections/OpenProjectConnection";
 
 const log = new Logger("Config");

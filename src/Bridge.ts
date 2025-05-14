@@ -13,18 +13,18 @@ import {
   PowerLevelsEvent,
   Intent,
 } from "matrix-bot-sdk";
-import BotUsersManager from "./Managers/BotUsersManager";
+import BotUsersManager from "./managers/BotUsersManager";
 import {
   BridgeConfig,
   BridgePermissionLevel,
   GitLabInstance,
 } from "./config/Config";
-import { BridgeWidgetApi } from "./Widgets/BridgeWidgetApi";
+import { BridgeWidgetApi } from "./widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";
-import { GetIssueResponse, GetIssueOpts } from "./Gitlab/Types";
+import { GetIssueResponse, GetIssueOpts } from "./gitlab/Types";
 import { GithubInstance } from "./github/GithubInstance";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { IBridgeStorageProvider } from "./stores/StorageProvider";
 import {
   IConnection,
   GitHubDiscussionSpace,
@@ -38,7 +38,6 @@ import {
   GitLabIssueConnection,
   FigmaFileConnection,
   FeedConnection,
-  GenericHookConnection,
 } from "./Connections";
 import {
   IGitLabWebhookIssueStateEvent,
@@ -48,7 +47,7 @@ import {
   IGitLabWebhookReleaseEvent,
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
-} from "./Gitlab/WebhookTypes";
+} from "./gitlab/WebhookTypes";
 import {
   JiraIssueEvent,
   JiraIssueUpdatedEvent,
@@ -64,7 +63,7 @@ import {
   MessageQueue,
   MessageQueueMessageOut,
   createMessageQueue,
-} from "./MessageQueue";
+} from "./messageQueue";
 import { MessageSenderClient } from "./MatrixSender";
 import {
   NotifFilter,
@@ -82,12 +81,10 @@ import {
   ProjectsGetResponseData,
 } from "./github/Types";
 import { retry } from "./PromiseUtil";
-import { UserNotificationsEvent } from "./Notifications/UserNotificationWatcher";
+import { UserNotificationsEvent } from "./notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
-import { JiraProvisionerRouter } from "./jira/Router";
-import { GitHubProvisionerRouter } from "./github/Router";
 import { promises as fs } from "fs";
 import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
@@ -97,8 +94,8 @@ import { JiraOAuthRequestOnPrem } from "./jira/OAuth";
 import {
   GenericWebhookEvent,
   GenericWebhookEventResult,
-} from "./generic/types";
-import { SetupWidget } from "./Widgets/SetupWidget";
+} from "./generic/Types";
+import { SetupWidget } from "./widgets/SetupWidget";
 import {
   FeedEntry,
   FeedError,
@@ -107,7 +104,7 @@ import {
 } from "./feeds/FeedReader";
 import * as Sentry from "@sentry/node";
 import { HoundConnection, HoundPayload } from "./Connections/HoundConnection";
-import { HoundReader } from "./hound/reader";
+import { HoundReader } from "./hound/HoundReader";
 import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/types";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/oauth";

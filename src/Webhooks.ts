@@ -2,7 +2,7 @@
 import { BridgeConfig } from "./config/Config";
 import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
-import { MessageQueue, createMessageQueue } from "./MessageQueue";
+import { MessageQueue, createMessageQueue } from "./messageQueue";
 import { Logger } from "matrix-appservice-bridge";
 import qs from "querystring";
 import axios from "axios";
@@ -11,7 +11,7 @@ import {
   IGitLabWebhookIssueStateEvent,
   IGitLabWebhookMREvent,
   IGitLabWebhookReleaseEvent,
-} from "./Gitlab/WebhookTypes";
+} from "./gitlab/WebhookTypes";
 import {
   EmitterWebhookEvent,
   Webhooks as OctokitWebhooks,
@@ -20,7 +20,7 @@ import { IJiraWebhookEvent } from "./jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./jira/Router";
 import { GitHubOAuthTokenResponse } from "./github/Types";
 import Metrics from "./Metrics";
-import { FigmaWebhooksRouter } from "./figma/router";
+import { FigmaWebhooksRouter } from "./figma/Router";
 import { GenericWebhooksRouter } from "./generic/Router";
 import { GithubInstance } from "./github/GithubInstance";
 import QuickLRU from "@alloc/quick-lru";

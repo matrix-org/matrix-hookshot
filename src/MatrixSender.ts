@@ -1,5 +1,5 @@
 import { BridgeConfig } from "./config/Config";
-import { MessageQueue, createMessageQueue } from "./MessageQueue";
+import { MessageQueue, createMessageQueue } from "./messageQueue";
 import { Appservice } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { randomUUID } from "node:crypto";

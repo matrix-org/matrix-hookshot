@@ -2,12 +2,12 @@ import { BridgeConfigFeeds } from "../config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
-import { MessageQueue } from "../MessageQueue";
+import { MessageQueue } from "../messageQueue";
 import axios from "axios";
 import Metrics from "../Metrics";
 import { randomUUID } from "crypto";
 import { readFeed } from "../libRs";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import UserAgent from "../UserAgent";
 import { QueueWithBackoff } from "../libRs";
 

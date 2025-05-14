@@ -4,7 +4,7 @@ import { Logger } from "matrix-appservice-bridge";
 import Metrics from "../Metrics";
 import { ListenerService } from "../ListenerService";
 import { LogService } from "matrix-bot-sdk";
-import { getAppservice } from "../appservice";
+import { getAppservice } from "../Appservice";
 
 const log = new Logger("App");
 

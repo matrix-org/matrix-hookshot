@@ -17,7 +17,7 @@ import type {
 import { InputField, ButtonSet, Button } from "../elements";
 import { EventHookList } from "../elements/EventHookCheckbox";
 import Icon from "../../icons/openproject.png";
-import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
+import { GetAuthResponse } from "../../../src/widgets/BridgeWidgetInterface";
 import { BridgeContext } from "../../context";
 import { ServiceAuth } from "./Auth";
 import { ProjectSearch } from "../elements/ConnectionSearch";

@@ -1,3 +1,3 @@
-export * from "./cache";
-export * from "./queue";
-export * from "./generichooks";
+export * from "./Cache";
+export * from "./Queue";
+export * from "./GenericHooks";

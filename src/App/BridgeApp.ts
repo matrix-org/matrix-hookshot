@@ -1,16 +1,16 @@
 import { Bridge } from "../Bridge";
 import { BridgeConfig, parseRegistrationFile } from "../config/Config";
 import { MatrixSender } from "../MatrixSender";
-import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
+import { UserNotificationWatcher } from "../notifications/UserNotificationWatcher";
 import { ListenerService } from "../ListenerService";
 import { Logger, getBridgeVersion } from "matrix-appservice-bridge";
 import { IAppserviceRegistration, LogService } from "matrix-bot-sdk";
-import { getAppservice } from "../appservice";
-import BotUsersManager from "../Managers/BotUsersManager";
+import { getAppservice } from "../Appservice";
+import BotUsersManager from "../managers/BotUsersManager";
 import * as Sentry from "@sentry/node";
 import { GenericHookConnection } from "../Connections";
 import { UserTokenStore } from "../tokens/UserTokenStore";
-import { WebhookTransformer } from "../generic/transformer";
+import { WebhookTransformer } from "../generic/WebhookTransformer";
 
 Logger.configure({ console: "info" });
 const log = new Logger("App");

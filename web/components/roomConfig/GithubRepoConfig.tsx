@@ -24,7 +24,7 @@ import {
 import { DropItem } from "../elements/DropdownSearch";
 import { ConnectionSearch } from "../elements/ConnectionSearch";
 import { ServiceAuth } from "./Auth";
-import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
+import { GetAuthResponse } from "../../../src/widgets/BridgeWidgetInterface";
 import { BridgeContext } from "../../context";
 
 const EventType = "uk.half-shot.matrix-hookshot.github.repository";

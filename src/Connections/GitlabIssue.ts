@@ -14,8 +14,8 @@ import {
   BridgeConfigGitLab,
   GitLabInstance,
 } from "../config/Config";
-import { GetIssueResponse } from "../Gitlab/Types";
-import { IGitLabWebhookNoteEvent } from "../Gitlab/WebhookTypes";
+import { GetIssueResponse } from "../gitlab/Types";
+import { IGitLabWebhookNoteEvent } from "../gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { BaseConnection } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";

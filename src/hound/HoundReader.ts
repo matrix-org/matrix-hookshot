@@ -5,8 +5,8 @@ import {
   HoundPayload,
   HoundActivity,
 } from "../Connections/HoundConnection";
-import { MessageQueue } from "../MessageQueue";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { MessageQueue } from "../messageQueue";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { BridgeConfigChallengeHound } from "../config/Config";
 import { Logger } from "matrix-appservice-bridge";
 import { hashId } from "../libRs";

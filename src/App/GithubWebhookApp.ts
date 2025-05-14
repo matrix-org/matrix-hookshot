@@ -1,7 +1,7 @@
 import { BridgeConfig } from "../config/Config";
 import { Webhooks } from "../Webhooks";
 import { Logger } from "matrix-appservice-bridge";
-import { UserNotificationWatcher } from "../Notifications/UserNotificationWatcher";
+import { UserNotificationWatcher } from "../notifications/UserNotificationWatcher";
 import Metrics from "../Metrics";
 import { ListenerService } from "../ListenerService";
 import { LogService } from "matrix-bot-sdk";

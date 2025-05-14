@@ -27,15 +27,15 @@ import {
   JiraProjectConnection,
 } from "./Connections";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
-import { GetConnectionTypeResponseItem } from "./Widgets/api";
-import { GitLabClient } from "./Gitlab/Client";
+import { GetConnectionTypeResponseItem } from "./widgets/Api";
+import { GitLabClient } from "./gitlab/Client";
 import { GithubInstance } from "./github/GithubInstance";
-import { IBridgeStorageProvider } from "./Stores/StorageProvider";
+import { IBridgeStorageProvider } from "./stores/StorageProvider";
 import { JiraProject, JiraVersion } from "./jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./tokens/UserTokenStore";
-import BotUsersManager from "./Managers/BotUsersManager";
+import BotUsersManager from "./managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";

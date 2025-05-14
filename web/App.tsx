@@ -6,7 +6,7 @@ import {
   EmbedType,
   embedTypeParameter,
 } from "./BridgeAPI";
-import { BridgeRoomState } from "../src/Widgets/BridgeWidgetInterface";
+import { BridgeRoomState } from "../src/widgets/BridgeWidgetInterface";
 import { LoadingSpinner } from "./components/elements/LoadingSpinner";
 import AdminSettings from "./components/AdminSettings";
 import RoomConfigView from "./components/RoomConfigView";

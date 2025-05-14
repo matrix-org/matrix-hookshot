@@ -1,6 +1,6 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
-import { ConnectionWarning, GetConnectionsResponseItem } from "../Widgets/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../widgets/Api";
 import {
   Appservice,
   Intent,
@@ -11,7 +11,7 @@ import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import "reflect-metadata";
 

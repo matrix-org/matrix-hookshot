@@ -1,6 +1,6 @@
 import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
-import { CommandError, TokenError, TokenErrorCode } from "../errors";
+import { CommandError, TokenError, TokenErrorCode } from "../Errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
 import { Logger } from "matrix-appservice-bridge";

@@ -1,4 +1,4 @@
-import { ExecuteResultWebhookResponse } from "../generic/transformer";
+import { ExecuteResultWebhookResponse } from "./WebhookTransformer";
 
 export interface GenericWebhookEvent {
   hookData: unknown;

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "preact/hooks";
 import { LoadingSpinner } from "./elements/LoadingSpinner";
-import { BridgeRoomState } from "../../src/Widgets/BridgeWidgetInterface";
+import { BridgeRoomState } from "../../src/widgets/BridgeWidgetInterface";
 import GeneralConfig from "./configs/GeneralConfig";
 import style from "./AdminSettings.module.scss";
 import { BridgeAPI } from "../BridgeAPI";

@@ -10,7 +10,7 @@ import {
   ReposGetResponseData,
   IssuesGetResponseData,
 } from "./github/Types";
-import { IGitLabWebhookNoteEvent } from "./Gitlab/WebhookTypes";
+import { IGitLabWebhookNoteEvent } from "./gitlab/WebhookTypes";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/gi;
 const REGEX_MATRIX_MENTION =

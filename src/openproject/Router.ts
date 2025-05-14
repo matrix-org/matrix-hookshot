@@ -1,6 +1,6 @@
 import { Request, Response, Router, json } from "express";
-import { BridgeOpenProjectConfig } from "../config/sections/openproject";
-import { MessageQueue } from "../MessageQueue";
+import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
+import { MessageQueue } from "../messageQueue";
 import { OpenProjectWebhookPayload } from "./types";
 import { ApiError, ErrCode } from "../api";
 import { createHmac } from "node:crypto";

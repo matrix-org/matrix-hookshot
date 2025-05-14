@@ -1,5 +1,5 @@
 import { GithubInstance } from "../github/GithubInstance";
-import { GitLabClient } from "../Gitlab/Client";
+import { GitLabClient } from "../gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { promises as fs } from "fs";
 import { Logger } from "matrix-appservice-bridge";
@@ -19,7 +19,7 @@ import { JiraCloudOAuth } from "../jira/oauth/CloudOAuth";
 import { JiraOnPremOAuth } from "../jira/oauth/OnPremOAuth";
 import { JiraOnPremClient } from "../jira/client/OnPremClient";
 import { JiraCloudClient } from "../jira/client/CloudClient";
-import { TokenError, TokenErrorCode } from "../errors";
+import { TokenError, TokenErrorCode } from "../Errors";
 import { TypedEmitter } from "tiny-typed-emitter";
 import { hashId, TokenEncryption, stringToAlgo } from "../libRs";
 import { OpenProjectOAuth } from "../openproject/oauth";

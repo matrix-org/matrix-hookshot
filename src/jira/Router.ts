@@ -1,5 +1,5 @@
 import { BridgeConfigJira } from "../config/Config";
-import { MessageQueue } from "../MessageQueue";
+import { MessageQueue } from "../messageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";

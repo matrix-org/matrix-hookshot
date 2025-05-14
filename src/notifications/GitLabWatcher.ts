@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { GitLabClient } from "../Gitlab/Client";
+import { GitLabClient } from "../gitlab/Client";
 import { Logger } from "matrix-appservice-bridge";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 

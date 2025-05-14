@@ -1,5 +1,5 @@
 import { GenericHookServiceConfig } from "../../Connections";
-import { ConfigError } from "../../errors";
+import { ConfigError } from "../../Errors";
 import { hideKey } from "../Decorators";
 const parseDurationImport = import("parse-duration");
 

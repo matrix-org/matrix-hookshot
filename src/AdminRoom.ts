@@ -15,7 +15,7 @@ import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
 import {
   BridgeRoomState,
   BridgeRoomStateGitHub,
-} from "./Widgets/BridgeWidgetInterface";
+} from "./widgets/BridgeWidgetInterface";
 import { Endpoints } from "@octokit/types";
 import {
   GitHubDiscussionSpace,
@@ -24,10 +24,10 @@ import {
 } from "./Connections";
 import { ConnectionManager } from "./ConnectionManager";
 import { FormatUtil } from "./FormatUtil";
-import { GetUserResponse } from "./Gitlab/Types";
+import { GetUserResponse } from "./gitlab/Types";
 import { GitHubBotCommands } from "./github/AdminCommands";
 import { GithubGraphQLClient } from "./github/GithubInstance";
-import { GitLabClient } from "./Gitlab/Client";
+import { GitLabClient } from "./gitlab/Client";
 import { Intent } from "matrix-bot-sdk";
 import { JiraBotCommands } from "./jira/AdminCommands";
 import {

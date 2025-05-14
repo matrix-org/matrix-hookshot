@@ -5,7 +5,7 @@ import {
   MessageQueueMessageOut,
 } from "./Types";
 import { Redis, default as redis } from "ioredis";
-import { BridgeConfigQueue } from "../config/sections/queue";
+import { BridgeConfigQueue } from "../config/sections/Queue";
 import { EventEmitter } from "events";
 import { Logger } from "matrix-appservice-bridge";
 import { randomUUID } from "node:crypto";

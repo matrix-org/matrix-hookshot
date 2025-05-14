@@ -1,7 +1,7 @@
 import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
 import { IssuesGetResponseData } from "../github/Types";
-import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
+import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
 import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 
 // Some RSS feeds can return a very small number of items then bounce

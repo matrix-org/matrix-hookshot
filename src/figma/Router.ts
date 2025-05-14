@@ -1,7 +1,7 @@
 import { BridgeConfigFigma } from "../config/Config";
-import { MessageQueue } from "../MessageQueue";
+import { MessageQueue } from "../messageQueue";
 import { Request, Response, Router, json } from "express";
-import { FigmaPayload } from "./types";
+import { FigmaPayload } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 
 const log = new Logger("FigmaWebhooksRouter");

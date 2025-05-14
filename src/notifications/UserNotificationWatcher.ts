@@ -7,7 +7,7 @@ import {
   createMessageQueue,
   MessageQueue,
   MessageQueueMessage,
-} from "../MessageQueue";
+} from "../messageQueue";
 import { MessageSenderClient } from "../MatrixSender";
 import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";

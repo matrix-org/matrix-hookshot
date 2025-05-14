@@ -1,13 +1,13 @@
 import { BridgeConfigFigma } from "../config/Config";
 import * as Figma from "figma-js";
 import { MatrixClient } from "matrix-bot-sdk";
-export * from "./router";
-export * from "./types";
+export * from "./Router";
+export * from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { AxiosError } from "axios";
 
-export * from "./router";
-export * from "./types";
+export * from "./Router";
+export * from "./Types";
 
 interface FigmaWebhookDefinition {
   id: string;

@@ -7,8 +7,8 @@ import {
   InstantiateConnectionOpts,
   ProvisionConnectionOpts,
 } from "./IConnection";
-import { CommandError } from "../errors";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { CommandError } from "../Errors";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { Logger } from "matrix-appservice-bridge";
 export interface HoundConnectionState extends IConnectionState {
   challengeId: string;

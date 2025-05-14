@@ -13,7 +13,7 @@ import { FileMessageEventContent, Intent, StateEvent } from "matrix-bot-sdk";
 import { randomUUID } from "crypto";
 import UserAgent from "../UserAgent";
 import { hashId } from "../libRs";
-import { GetConnectionsResponseItem } from "../Widgets/api";
+import { GetConnectionsResponseItem } from "../widgets/Api";
 
 export interface OutboundHookConnectionState extends IConnectionState {
   name: string;

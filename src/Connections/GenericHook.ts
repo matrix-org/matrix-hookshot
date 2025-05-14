@@ -15,16 +15,16 @@ import { BaseConnection } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from "node:crypto";
-import { GenericWebhookEventResult } from "../generic/types";
+import { GenericWebhookEventResult } from "../generic/Types";
 import { StatusCodes } from "http-status-codes";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { formatDuration, isMatch, millisecondsToHours } from "date-fns";
 import {
   ExecuteResultContent,
   ExecuteResultWebhookResponse,
   WebhookTransformer,
-} from "../generic/transformer";
-import { GetConnectionsResponseItem } from "../Widgets/api";
+} from "../generic/WebhookTransformer";
+import { GetConnectionsResponseItem } from "../widgets/Api";
 
 export interface GenericHookConnectionState extends IConnectionState {
   /**

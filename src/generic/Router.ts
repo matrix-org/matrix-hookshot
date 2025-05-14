@@ -1,8 +1,8 @@
-import { MessageQueue } from "../MessageQueue";
+import { MessageQueue } from "../messageQueue";
 import express, { NextFunction, Request, Response, Router } from "express";
 import { Logger } from "matrix-appservice-bridge";
 import { ApiError, ErrCode } from "../api";
-import { GenericWebhookEvent, GenericWebhookEventResult } from "./types";
+import { GenericWebhookEvent, GenericWebhookEventResult } from "./Types";
 import * as xml from "xml2js";
 import helmet from "helmet";
 import { StatusCodes } from "http-status-codes";

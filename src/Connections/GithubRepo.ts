@@ -20,7 +20,7 @@ import {
   InstantiateConnectionOpts,
   ProvisionConnectionOpts,
 } from "./IConnection";
-import { GetConnectionsResponseItem } from "../Widgets/api";
+import { GetConnectionsResponseItem } from "../widgets/Api";
 import {
   IssuesOpenedEvent,
   IssuesReopenedEvent,
@@ -44,7 +44,7 @@ import {
   MatrixReactionContent,
 } from "../MatrixEvent";
 import { MessageSenderClient } from "../MatrixSender";
-import { CommandError, NotLoggedInError } from "../errors";
+import { CommandError, NotLoggedInError } from "../Errors";
 import { ReposGetResponseData } from "../github/Types";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import axios, { AxiosError } from "axios";

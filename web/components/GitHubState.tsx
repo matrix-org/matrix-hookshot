@@ -1,5 +1,5 @@
 import { FunctionComponent } from "preact";
-import { BridgeRoomStateGitHub } from "../../src/Widgets/BridgeWidgetInterface";
+import { BridgeRoomStateGitHub } from "../../src/widgets/BridgeWidgetInterface";
 import "./GitHubState.css";
 
 const GitHubState: FunctionComponent<{ config: BridgeRoomStateGitHub }> = ({

@@ -3,7 +3,7 @@ import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
-import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
+import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
 import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 
 export class MemoryStorageProvider

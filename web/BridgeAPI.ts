@@ -3,7 +3,7 @@ import {
   GetAuthPollResponse,
   GetAuthResponse,
   GetConnectionsForServiceResponse,
-} from "../src/Widgets/BridgeWidgetInterface";
+} from "../src/widgets/BridgeWidgetInterface";
 import { GetConnectionsResponseItem } from "../src/provisioning/api";
 import {
   ExchangeOpenAPIRequestBody,

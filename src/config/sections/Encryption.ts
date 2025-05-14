@@ -1,4 +1,4 @@
-import { ConfigError } from "../../errors";
+import { ConfigError } from "../../Errors";
 import { configKey } from "../Decorators";
 
 interface BridgeConfigEncryptionYAML {

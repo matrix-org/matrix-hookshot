@@ -12,9 +12,9 @@ import {
   MessageSenderClient,
   IMatrixSendMessage,
 } from "../../src/MatrixSender";
-import { LocalMQ } from "../../src/MessageQueue/LocalMQ";
+import { LocalMQ } from "../../src/messageQueue/LocalMQ";
 import { AppserviceMock } from "../utils/AppserviceMock";
-import { MemoryStorageProvider } from "../../src/Stores/MemoryStorageProvider";
+import { MemoryStorageProvider } from "../../src/stores/MemoryStorageProvider";
 import { BridgeConfig } from "../../src/config/Config";
 import { ProvisionConnectionOpts } from "../../src/Connections";
 import { add } from "date-fns";

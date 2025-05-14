@@ -1,4 +1,4 @@
-import { createMessageQueue } from "../../src/MessageQueue";
+import { createMessageQueue } from "../../src/messageQueue";
 import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
@@ -8,14 +8,14 @@ import {
 } from "../../src/Connections";
 import { expect } from "chai";
 import { BridgeConfigGitLab } from "../../src/config/Config";
-import { IBridgeStorageProvider } from "../../src/Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
 import { IntentMock } from "../utils/IntentMock";
 import {
   IGitlabMergeRequest,
   IGitlabProject,
   IGitlabUser,
   IGitLabWebhookNoteEvent,
-} from "../../src/Gitlab/WebhookTypes";
+} from "../../src/gitlab/WebhookTypes";
 
 const ROOM_ID = "!foo:bar";
 

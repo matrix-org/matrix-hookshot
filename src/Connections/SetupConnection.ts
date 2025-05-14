@@ -13,13 +13,13 @@ import {
   JiraProjectConnectionState,
   OutboundHookConnection,
 } from ".";
-import { CommandError } from "../errors";
+import { CommandError } from "../Errors";
 import { BridgePermissionLevel } from "../config/Config";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { FeedConnection, FeedConnectionState } from "./FeedConnection";
 import { URL } from "url";
-import { SetupWidget } from "../Widgets/SetupWidget";
+import { SetupWidget } from "../widgets/SetupWidget";
 import { AdminRoom } from "../AdminRoom";
 import { GitLabRepoConnection } from "./GitlabRepo";
 import {

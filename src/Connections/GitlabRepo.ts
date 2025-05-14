@@ -15,7 +15,7 @@ import {
   IGitLabWebhookReleaseEvent,
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
-} from "../Gitlab/WebhookTypes";
+} from "../gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import {
   Connection,
@@ -24,20 +24,20 @@ import {
   InstantiateConnectionOpts,
   ProvisionConnectionOpts,
 } from "./IConnection";
-import { ConnectionWarning, GetConnectionsResponseItem } from "../Widgets/api";
+import { ConnectionWarning, GetConnectionsResponseItem } from "../widgets/Api";
 import { ErrCode, ApiError, ValidatorApiError } from "../api";
 import {
   AccessLevel,
   SerializedGitlabDiscussionThreads,
-} from "../Gitlab/Types";
+} from "../gitlab/Types";
 import Ajv, { JSONSchemaType } from "ajv";
-import { CommandError } from "../errors";
+import { CommandError } from "../Errors";
 import QuickLRU from "@alloc/quick-lru";
 import { HookFilter } from "../HookFilter";
-import { GitLabClient } from "../Gitlab/Client";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { GitLabClient } from "../gitlab/Client";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import axios from "axios";
-import { GitLabGrantChecker } from "../Gitlab/GrantChecker";
+import { GitLabGrantChecker } from "../gitlab/GrantChecker";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
   instance: string;

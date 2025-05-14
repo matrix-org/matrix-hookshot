@@ -1,4 +1,4 @@
-import { BridgeOpenProjectOAuthConfig } from "../config/sections/openproject";
+import { BridgeOpenProjectOAuthConfig } from "../config/sections/OpenProject";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { OAuthRequest, OAuthRequestResult } from "../tokens/oauth";
 import { Logger } from "matrix-appservice-bridge";

@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from "preact/hooks";
-import { GetAuthResponse } from "../../../src/Widgets/BridgeWidgetInterface";
+import { GetAuthResponse } from "../../../src/widgets/BridgeWidgetInterface";
 import { Button } from "../elements";
 import { BridgeContext } from "../../context";
 

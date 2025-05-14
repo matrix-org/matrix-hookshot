@@ -1,10 +1,10 @@
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
-import { FigmaPayload } from "../figma/types";
+import { FigmaPayload } from "../figma/Types";
 import { BaseConnection } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
-import { IBridgeStorageProvider } from "../Stores/StorageProvider";
+import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { BridgeConfig } from "../config/Config";
 import {
   Connection,

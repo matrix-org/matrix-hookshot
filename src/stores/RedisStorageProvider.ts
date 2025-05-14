@@ -5,7 +5,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
 import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
-import { SerializedGitlabDiscussionThreads } from "../Gitlab/Types";
+import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
 import { BridgeConfigCache } from "../config/sections";
 import { OpenProjectWorkPackageCacheState } from "../openproject/state";
 

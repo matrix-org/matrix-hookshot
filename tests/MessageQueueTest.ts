@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { createMessageQueue } from "../src/MessageQueue/MessageQueue";
+import { createMessageQueue } from "../src/messageQueue/messageQueue";
 
 const mq = createMessageQueue();
 
