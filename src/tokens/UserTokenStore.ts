@@ -22,9 +22,9 @@ import { JiraCloudClient } from "../jira/client/CloudClient";
 import { TokenError, TokenErrorCode } from "../Errors";
 import { TypedEmitter } from "tiny-typed-emitter";
 import { hashId, TokenEncryption, stringToAlgo } from "../libRs";
-import { OpenProjectOAuth } from "../openproject/oauth";
-import { OpenProjectStoredToken } from "../openproject/types";
-import { OpenProjectAPIClient } from "../openproject/client";
+import { OpenProjectOAuth } from "../openproject/Oauth";
+import { OpenProjectStoredToken } from "../openproject/Types";
+import { OpenProjectAPIClient } from "../openproject/Client";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE =

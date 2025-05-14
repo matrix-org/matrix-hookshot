@@ -13,14 +13,14 @@ import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
-import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/types";
+import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
-} from "../openproject/format";
+} from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
-import { workPackageToCacheState } from "../openproject/state";
+import { workPackageToCacheState } from "../openproject/State";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 

@@ -105,9 +105,9 @@ import {
 import * as Sentry from "@sentry/node";
 import { HoundConnection, HoundPayload } from "./Connections/HoundConnection";
 import { HoundReader } from "./hound/HoundReader";
-import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/types";
+import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/Types";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
-import { OAuthRequest, OAuthRequestResult } from "./tokens/oauth";
+import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 
 const log = new Logger("Bridge");
 

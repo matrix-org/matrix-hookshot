@@ -1,4 +1,4 @@
-import { OpenProjectWorkPackage } from "./types";
+import { OpenProjectWorkPackage } from "./Types";
 
 export function workPackageToCacheState(
   pkg: OpenProjectWorkPackage,

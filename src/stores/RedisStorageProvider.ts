@@ -7,7 +7,7 @@ import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
 import { BridgeConfigCache } from "../config/sections";
-import { OpenProjectWorkPackageCacheState } from "../openproject/state";
+import { OpenProjectWorkPackageCacheState } from "../openproject/State";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";

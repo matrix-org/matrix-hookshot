@@ -4,7 +4,7 @@ import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
 import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
-import { OpenProjectWorkPackageCacheState } from "../openproject/state";
+import { OpenProjectWorkPackageCacheState } from "../openproject/State";
 
 export class MemoryStorageProvider
   extends MSP

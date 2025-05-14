@@ -2,8 +2,8 @@ import { OpenProjectEventsNames } from "../Connections/OpenProjectConnection";
 import {
   OpenProjectWorkPackageCacheState,
   workPackageToCacheState,
-} from "./state";
-import { OpenProjectWorkPackage } from "./types";
+} from "./State";
+import { OpenProjectWorkPackage } from "./Types";
 
 export function formatWorkPackageForMatrix(
   pkg: OpenProjectWorkPackage,

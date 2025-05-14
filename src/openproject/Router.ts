@@ -1,11 +1,11 @@
 import { Request, Response, Router, json } from "express";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { MessageQueue } from "../messageQueue";
-import { OpenProjectWebhookPayload } from "./types";
+import { OpenProjectWebhookPayload } from "./Types";
 import { ApiError, ErrCode } from "../api";
 import { createHmac } from "node:crypto";
 import { Logger } from "matrix-appservice-bridge";
-import { OAuthRequest, OAuthRequestResult } from "../tokens/oauth";
+import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
 
 const log = new Logger("OpenProjectWebhooksRouter");
 export class OpenProjectWebhooksRouter {

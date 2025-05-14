@@ -27,7 +27,7 @@ import QuickLRU from "@alloc/quick-lru";
 import type { WebhookEventName } from "@octokit/webhooks-types";
 import { ApiError, ErrCode } from "./api";
 import { OpenProjectWebhooksRouter } from "./openproject/Router";
-import { OAuthRequest } from "./tokens/oauth";
+import { OAuthRequest } from "./tokens/Oauth";
 
 const log = new Logger("Webhooks");
 

@@ -7,7 +7,7 @@ import { ApiError, ErrCode } from "../api";
 import { JiraOAuthRequestOnPrem } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 import { createHmac } from "node:crypto";
-import { OAuthRequest, OAuthRequestResult } from "../tokens/oauth";
+import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
 
 type JiraOAuthRequestCloud = OAuthRequest;
 

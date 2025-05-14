@@ -1,6 +1,6 @@
 import { BridgeOpenProjectOAuthConfig } from "../config/sections/OpenProject";
 import { UserTokenStore } from "../tokens/UserTokenStore";
-import { OAuthRequest, OAuthRequestResult } from "../tokens/oauth";
+import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
 import { Logger } from "matrix-appservice-bridge";
 
 const log = new Logger("OpenProjectOAuth");

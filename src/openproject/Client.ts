@@ -3,9 +3,9 @@ import {
   OpenProjectProject,
   OpenProjectStoredToken,
   OpenProjectUser,
-} from "./types";
+} from "./Types";
 import { Logger } from "matrix-appservice-bridge";
-import { OpenProjectOAuth } from "./oauth";
+import { OpenProjectOAuth } from "./Oauth";
 
 const log = new Logger("OpenProjectAPIClient");
 
