@@ -20,14 +20,26 @@ function makePrefixedUrl(urlString?: string): URL {
     return new URL(urlString?.endsWith("/") ? urlString : urlString + "/");
 }
 export class BridgeOpenProjectConfig {
-    webhookSecret: string;
+    /**
+     * @ignore For config generator only.
+     */
+    public readonly baseUrl;
+
+    /**
+     * @ignore For config generator only.
+     */
+    public readonly webhook: {secret: string};
+
+    @hideKey()
     baseURL: URL;
     oauth?: BridgeOpenProjectOAuthConfig;
 
+
     constructor(config: BridgeOpenProjectConfigYAML) {
         assert(config.webhook?.secret);
-        this.webhookSecret = config.webhook.secret;
+        this.webhook = config.webhook;
         this.baseURL = makePrefixedUrl(config.baseUrl);
+        this.baseUrl = config.baseUrl;
         if (config.oauth) {
             assert(config.oauth.clientId);
             assert(config.oauth.clientSecret);

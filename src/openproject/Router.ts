@@ -34,7 +34,7 @@ export class OpenProjectWebhooksRouter {
             throw new ApiError("No signature provided on request", ErrCode.BadToken);
         }
 
-        const calculatedSecret = createHmac('sha1', this.config.webhookSecret).update(buffer).digest('hex');
+        const calculatedSecret = createHmac('sha1', this.config.webhook.secret).update(buffer).digest('hex');
         if (signature !== calculatedSecret) {
             throw new ApiError("Signature did not match", ErrCode.BadToken);
         }
