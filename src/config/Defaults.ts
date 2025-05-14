@@ -127,9 +127,6 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         pollTimeoutSeconds: 30,
         pollConcurrency: 4,
     },
-    provisioning: {
-        secret: "!secretToken"
-    },
     metrics: {
         enabled: true,
     },
@@ -142,7 +139,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
         {
             port: 9001,
             bindAddress: '127.0.0.1',
-            resources: ['metrics', 'provisioning'],
+            resources: ['metrics'],
         },
         {
             port: 9002,

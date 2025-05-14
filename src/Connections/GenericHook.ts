@@ -2,12 +2,10 @@ import { Connection, IConnection, IConnectionState, InstantiateConnectionOpts, P
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender"
 import markdownit from "markdown-it";
-import { QuickJSWASMModule, newQuickJSWASMModule, shouldInterruptAfterDeadline } from "quickjs-emscripten";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
-import { GetConnectionsResponseItem } from "../provisioning/api";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from 'node:crypto';
@@ -16,6 +14,7 @@ import { StatusCodes } from "http-status-codes";
 import { IBridgeStorageProvider } from "../Stores/StorageProvider";
 import { formatDuration, isMatch, millisecondsToHours } from "date-fns";
 import { ExecuteResultContent, ExecuteResultWebhookResponse, WebhookTransformer } from "../generic/transformer";
+import { GetConnectionsResponseItem } from "../Widgets/api";
 
 export interface GenericHookConnectionState extends IConnectionState {
     /**

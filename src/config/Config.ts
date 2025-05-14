@@ -372,12 +372,6 @@ export interface BridgeConfigServiceBot {
     service: string;
 }
 
-export interface BridgeConfigProvisioning {
-    bindAddress?: string;
-    port?: number;
-    secret: string;
-}
-
 export interface BridgeConfigMetrics {
     enabled: boolean;
     bindAddress?: string;
@@ -414,7 +408,6 @@ export interface BridgeConfigRoot {
     metrics?: BridgeConfigMetrics;
     passFile: string;
     permissions?: BridgeConfigActorPermission[];
-    provisioning?: BridgeConfigProvisioning;
     queue?: BridgeConfigQueue;
     sentry?: BridgeConfigSentry;
     serviceBots?: BridgeConfigServiceBot[];
@@ -464,8 +457,6 @@ export class BridgeConfig {
     public readonly serviceBots?: BridgeConfigServiceBot[];
     @configKey("EXPERIMENTAL support for complimentary widgets", true)
     public readonly widgets?: BridgeWidgetConfig;
-    @configKey("Provisioning API for integration managers", true)
-    public readonly provisioning?: BridgeConfigProvisioning;
     @configKey("Prometheus metrics support", true)
     public readonly metrics?: BridgeConfigMetrics;
 
@@ -502,7 +493,6 @@ export class BridgeConfig {
         this.jira = configData.jira && new BridgeConfigJira(configData.jira);
         this.generic = configData.generic && new BridgeConfigGenericWebhooks(configData.generic);
         this.feeds = configData.feeds && new BridgeConfigFeeds(configData.feeds);
-        this.provisioning = configData.provisioning;
         this.passFile = configData.passFile ?? "./passkey.pem";
         this.bot = configData.bot;
         this.serviceBots = configData.serviceBots;
@@ -568,7 +558,11 @@ export class BridgeConfig {
         }
 
         if ('goNebMigrator' in configData) {
-            log.warn(`The GoNEB migrator has been removed from this release. You should remove the 'goNebMigrator' from your config.`);
+            log.warn(`The GoNEB migrator has been removed from Hookshot. You should remove the 'goNebMigrator' from your config.`);
+        }
+
+        if ('provisioning' in configData) {
+            log.warn(`The provisioning API has been removed from Hookshot. You should remove the 'provisioning' from your config.`);
         }
 
         // Listeners is a bit special
@@ -589,15 +583,6 @@ export class BridgeConfig {
                 resources: ['widgets'],
                 port: configData.widgets.port,
             })
-        }
-
-        if (this.provisioning?.port) {
-            this.listeners.push({
-                resources: ['provisioning'],
-                port: this.provisioning.port,
-                bindAddress: this.provisioning.bindAddress,
-            })
-            log.warn("The `provisioning` configuration still specifies a port/bindAddress. This should be moved to the `listeners` config.");
         }
 
         if (this.metrics?.port) {
