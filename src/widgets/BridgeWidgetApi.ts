@@ -20,7 +20,7 @@ import {
   TokenType,
   UserTokenStore,
 } from "../tokens/UserTokenStore";
-import { OpenProjectWidgetAPI } from "../openproject/widgetApi";
+import { OpenProjectWidgetAPI } from "../openproject/WidgetApi";
 
 const log = new Logger("BridgeWidgetApi");
 

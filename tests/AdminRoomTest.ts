@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { expect } from "chai";
 import { AdminRoom } from "../src/AdminRoom";
 import { DefaultConfig } from "../src/config/Defaults";

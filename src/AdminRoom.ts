@@ -38,7 +38,7 @@ import { ProjectsListResponseData } from "./github/Types";
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
-import { OpenProjectBotCommands } from "./openproject/adminCommands";
+import { OpenProjectBotCommands } from "./openproject/AdminCommands";
 type ProjectsListForRepoResponseData =
   Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData =
