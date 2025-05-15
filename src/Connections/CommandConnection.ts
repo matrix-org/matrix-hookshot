@@ -40,7 +40,7 @@ export abstract class CommandConnection<
   }
 
   public conflictsWithCommandPrefix(commandPrefix: string) {
-    return this.commandPrefix == commandPrefix + " ";
+    return this.commandPrefix === commandPrefix + " ";
   }
 
   public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
@@ -65,6 +65,7 @@ export abstract class CommandConnection<
       checkPermission,
       this.serviceName,
       this.commandPrefix,
+      this.defaultCommandPrefix,
     );
     if (commandResult.handled !== true) {
       // Not for us.

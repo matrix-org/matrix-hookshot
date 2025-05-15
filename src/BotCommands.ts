@@ -39,6 +39,7 @@ export interface BotCommandOptions {
   category?: string;
   permissionLevel?: BridgePermissionLevel;
   permissionService?: string;
+  runOnGlobalPrefix?: boolean;
 }
 
 type BotCommandResult = { status?: boolean; reaction?: string } | undefined;
@@ -83,6 +84,7 @@ export function compileBotCommands(
           includeUserId: b.includeUserId,
           category: b.category,
           includeReply: b.includeReply,
+          runOnGlobalPrefix: b.runOnGlobalPrefix,
         };
       }
     });
@@ -150,17 +152,21 @@ export async function handleCommand(
   permissionCheckFn: PermissionCheckFn,
   defaultPermissionService?: string,
   prefix?: string,
+  globalPrefix?: string,
 ): Promise<
   | CommandResultNotHandled
   | CommandResultSuccess
   | CommandResultErrorUnknown
   | CommandResultErrorHuman
 > {
-  if (prefix) {
-    if (!command.startsWith(prefix)) {
-      return { handled: false };
-    }
+  let usingGlobalPrefix = false;
+  if (prefix && command.startsWith(prefix)) {
     command = command.substring(prefix.length);
+  } else if (globalPrefix && command.startsWith(globalPrefix)) {
+    usingGlobalPrefix = true;
+    command = command.substring(globalPrefix.length);
+  } else {
+    return { handled: false };
   }
   const parts = (await stringArgv).parseArgsStringToArgv(command);
   for (let i = parts.length; i > 0; i--) {
@@ -184,6 +190,12 @@ export async function handleCommand(
       }
       if (!command.includeReply && parentEvent) {
         // Ignore replies if we aren't expecting one.
+        return {
+          handled: false,
+        };
+      }
+      if (!command.runOnGlobalPrefix && usingGlobalPrefix) {
+        // Ignore global prefix commands.
         return {
           handled: false,
         };
