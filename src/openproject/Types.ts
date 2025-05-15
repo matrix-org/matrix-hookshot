@@ -17,6 +17,12 @@ export interface OpenProjectStatus {
   isDefault: boolean;
   isReadonly: boolean;
   color: string;
+  _links: {
+    self: {
+      href: string;
+      title: string;
+    };
+  };
 }
 
 export interface OpenProjectType {

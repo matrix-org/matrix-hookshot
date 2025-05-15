@@ -1,6 +1,7 @@
 import axios, { Method } from "axios";
 import {
   OpenProjectProject,
+  OpenProjectStatus,
   OpenProjectStoredToken,
   OpenProjectType,
   OpenProjectUser,
@@ -8,6 +9,7 @@ import {
 } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { OpenProjectOAuth } from "./Oauth";
+const urlJoin = import("url-join").then((d) => d.default);
 
 const log = new Logger("OpenProjectAPIClient");
 
@@ -34,7 +36,8 @@ export class OpenProjectAPIClient {
     data?: R,
   ): Promise<T> {
     await this.checkTokenAge();
-    const url = `${this.baseUrl.origin}/${this.baseUrl.pathname}${path}`;
+
+    const url = (await urlJoin)(this.baseUrl.toString(), path);
     const res = await axios.request<T>({
       url,
       method: method,
@@ -115,6 +118,15 @@ export class OpenProjectAPIClient {
     )._embedded.elements;
   }
 
+  async getStatuses(): Promise<OpenProjectStatus[]> {
+    // TODO: Paginate?
+    return (
+      await this.apiRequest<OpenProjectIterableResult<OpenProjectStatus>>(
+        `/api/v3/statuses`,
+      )
+    )._embedded.elements;
+  }
+
   async createWorkPackage(
     projectId: number,
     type: OpenProjectType,
@@ -137,22 +149,33 @@ export class OpenProjectAPIClient {
     );
   }
 
-  // TODO: Make this more generic
   async updateWorkPackage(
-    projectId: number,
     workPackageId: number,
+    // TODO: Type.
+    update: object,
   ): Promise<OpenProjectWorkPackage> {
+    // Needed for the lockVersion.
     const existingWp = await this.apiRequest<OpenProjectWorkPackage>(
-      `/api/v3/projects/${encodeURIComponent(projectId)}/work_packages/${workPackageId}`,
+      `/api/v3/work_packages/${workPackageId}`,
       "GET",
     );
     return this.apiRequest<OpenProjectWorkPackage>(
-      `/api/v3/projects/${encodeURIComponent(projectId)}/work_packages/${workPackageId}`,
+      `/api/v3/work_packages/${workPackageId}`,
       "PATCH",
       {
         lockVersion: (await existingWp).lockVersion,
-        status: {
-          title: "Closed",
+        ...update,
+      },
+    );
+  }
+
+  async addWorkPackageComment(wpId: number, comment: string): Promise<void> {
+    await this.apiRequest<OpenProjectWorkPackage>(
+      `/api/v3/work_packages/${encodeURIComponent(wpId)}/activities`,
+      "POST",
+      {
+        comment: {
+          raw: comment,
         },
       },
     );

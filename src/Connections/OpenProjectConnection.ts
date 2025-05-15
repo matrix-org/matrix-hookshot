@@ -529,23 +529,26 @@ export class OpenProjectConnection
 
   @botCommand("close", {
     help: "Close a work package",
-    optionalArgs: ["workPackageId"],
+    optionalArgs: ["workPackageId", "description"],
     includeUserId: true,
     includeReply: true,
+    // We allow uses to call global close.
+    runOnGlobalPrefix: true,
   })
   public async commandCloseWorkPackage(
     userId: string,
     reply: MatrixEvent<unknown> | undefined,
-    number?: string,
+    workPackageIdOrComment?: string,
+    comment?: string,
   ) {
-    let finalDescription: string | undefined;
+    let finalComment: string | undefined;
     let workPackageId: number;
     if (reply) {
       const replyContent = reply.content as OpenProjectWorkPackageMatrixEvent;
       if (
         reply.type !== "m.room.message" ||
-        !replyContent["org.matrix.matrix-hookshot.openproject.project"].id ||
-        !replyContent["org.matrix.matrix-hookshot.openproject.work_package"].id
+        !replyContent["org.matrix.matrix-hookshot.openproject.project"]?.id ||
+        !replyContent["org.matrix.matrix-hookshot.openproject.work_package"]?.id
       ) {
         throw new CommandError(
           "Did not reference a hookshot event",
@@ -557,15 +560,14 @@ export class OpenProjectConnection
         this.projectId
       ) {
         // This is not us.
-        throw new CommandError(
-          "Wrong project ID",
-          "Wrong command for this project.",
-        );
+        return;
       }
       workPackageId =
         replyContent["org.matrix.matrix-hookshot.openproject.work_package"].id;
-    } else if (number) {
-      workPackageId = parseInt(number);
+      finalComment = workPackageIdOrComment;
+    } else if (workPackageIdOrComment) {
+      workPackageId = parseInt(workPackageIdOrComment);
+      finalComment = comment;
     } else {
       throw new CommandError(
         "No ID provided",
@@ -575,17 +577,39 @@ export class OpenProjectConnection
     if (isNaN(workPackageId)) {
       throw new CommandError(
         "Invalid work package ID",
-        '"Work Package ID must be a valid number".',
+        "Work Package ID must be a valid number",
       );
     }
+
     const client = await this.tokenStore.getOpenProjectForUser(userId);
     if (!client) {
       throw new NotLoggedInError();
     }
-    const workPackage = await client.updateWorkPackage(
-      this.projectId,
-      workPackageId,
-    );
+
+    // TODO: Cache this.
+    const validStatuses = await client.getStatuses();
+    // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
+    const closedStatus =
+      validStatuses.find((s) => s.name.toLowerCase() === "closed") ??
+      validStatuses.find((s) => s.isClosed);
+
+    if (!closedStatus) {
+      throw new CommandError(
+        "No closed status on OpenProject",
+        "This instance doesn't have a closed status, so the work package cannot be closed.",
+      );
+    }
+
+    const workPackage = await client.updateWorkPackage(workPackageId, {
+      _links: {
+        status: {
+          href: closedStatus?._links.self.href,
+        },
+      },
+    });
+    if (finalComment) {
+      await client.addWorkPackageComment(workPackageId, finalComment);
+    }
     if (this.state.events.includes("work_package:updated")) {
       // Don't send an event if we're going to anyway.
       return;
