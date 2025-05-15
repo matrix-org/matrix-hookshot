@@ -1,5 +1,8 @@
 import axios, { Method } from "axios";
 import {
+  OpenProjectIterableResult,
+  OpenProjectMembership,
+  OpenProjectPriority,
   OpenProjectProject,
   OpenProjectStatus,
   OpenProjectStoredToken,
@@ -14,10 +17,6 @@ const urlJoin = import("url-join").then((d) => d.default);
 const log = new Logger("OpenProjectAPIClient");
 
 type OpenProjectProjectWithUrl = OpenProjectProject & { project_url: string };
-
-type OpenProjectIterableResult<T> = {
-  _embedded: { elements: T[] };
-};
 
 export class OpenProjectAPIClient {
   private storedToken: OpenProjectStoredToken;
@@ -54,15 +53,15 @@ export class OpenProjectAPIClient {
     if (!this.storedToken.refresh_token || !this.storedToken.expires_in) {
       throw Error("Cannot refresh token, token does not support it");
     }
-    if (this.storedToken.expires_in + 60000 > Date.now()) {
+    if (this.storedToken.expires_in > Date.now()) {
       return;
     }
-    log.info(`Refreshing oauth token`);
+    log.info(`Refreshing oauth token`, Date.now(),this.storedToken.expires_in);
     const data = await this.oauth.exchangeRefreshToken(
       this.storedToken.refresh_token,
     );
     this.storedToken = {
-      expires_in: data.expires_in,
+      expires_in: Date.now() + (data.expires_in * 1000),
       refresh_token: data.refresh_token,
       access_token: data.access_token,
     };
@@ -118,11 +117,35 @@ export class OpenProjectAPIClient {
     )._embedded.elements;
   }
 
+  async searchForUserInProject(
+    projectId: number,
+    title: string,
+  ): Promise<{href: string, title: string}|undefined> {
+    const project = await this.getProject(projectId);
+    const memberships = await this.apiRequest<OpenProjectIterableResult<OpenProjectMembership>>(project._links.memberships.href);
+    const lowercaseTitle = title.trim().toLowerCase();
+    for (const membership of memberships._embedded.elements) {
+      if (membership._links.principal.title.toLowerCase() === lowercaseTitle) {
+        return membership._links.principal;
+      }
+    }
+    return undefined;
+  }
+
   async getStatuses(): Promise<OpenProjectStatus[]> {
     // TODO: Paginate?
     return (
       await this.apiRequest<OpenProjectIterableResult<OpenProjectStatus>>(
         `/api/v3/statuses`,
+      )
+    )._embedded.elements;
+  }
+
+  async getPriorities(): Promise<OpenProjectPriority[]> {
+    // TODO: Paginate?
+    return (
+      await this.apiRequest<OpenProjectIterableResult<OpenProjectPriority>>(
+        `/api/v3/priorities`,
       )
     )._embedded.elements;
   }
