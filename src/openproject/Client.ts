@@ -56,12 +56,12 @@ export class OpenProjectAPIClient {
     if (this.storedToken.expires_in > Date.now()) {
       return;
     }
-    log.info(`Refreshing oauth token`, Date.now(),this.storedToken.expires_in);
+    log.info(`Refreshing oauth token`, Date.now(), this.storedToken.expires_in);
     const data = await this.oauth.exchangeRefreshToken(
       this.storedToken.refresh_token,
     );
     this.storedToken = {
-      expires_in: Date.now() + (data.expires_in * 1000),
+      expires_in: Date.now() + data.expires_in * 1000,
       refresh_token: data.refresh_token,
       access_token: data.access_token,
     };
@@ -120,9 +120,11 @@ export class OpenProjectAPIClient {
   async searchForUserInProject(
     projectId: number,
     title: string,
-  ): Promise<{href: string, title: string}|undefined> {
+  ): Promise<{ href: string; title: string } | undefined> {
     const project = await this.getProject(projectId);
-    const memberships = await this.apiRequest<OpenProjectIterableResult<OpenProjectMembership>>(project._links.memberships.href);
+    const memberships = await this.apiRequest<
+      OpenProjectIterableResult<OpenProjectMembership>
+    >(project._links.memberships.href);
     const lowercaseTitle = title.trim().toLowerCase();
     for (const membership of memberships._embedded.elements) {
       if (membership._links.principal.title.toLowerCase() === lowercaseTitle) {

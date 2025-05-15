@@ -20,7 +20,10 @@ import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
-import { OpenProjectUser, OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
+import {
+  OpenProjectUser,
+  OpenProjectWebhookPayloadWorkPackage,
+} from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import {
   formatWorkPackageDiff,
@@ -448,7 +451,9 @@ export class OpenProjectConnection
     });
   }
 
-  public getWorkPackageIDFromReply(reply?: MatrixEvent<unknown>): number|undefined {
+  public getWorkPackageIDFromReply(
+    reply?: MatrixEvent<unknown>,
+  ): number | undefined {
     if (!reply) {
       return undefined;
     }
@@ -470,7 +475,8 @@ export class OpenProjectConnection
       // This is not us.
       return;
     }
-    return replyContent["org.matrix.matrix-hookshot.openproject.work_package"].id;
+    return replyContent["org.matrix.matrix-hookshot.openproject.work_package"]
+      .id;
   }
 
   @botCommand("create", {
@@ -593,7 +599,6 @@ export class OpenProjectConnection
       );
     }
 
-
     // TODO: Cache this.
     const validStatuses = await client.getStatuses();
     // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
@@ -685,7 +690,11 @@ export class OpenProjectConnection
     }
 
     // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
-    const priorityRef = finalPriority && (await client.getPriorities()).find((s) => s.name.toLowerCase() === finalPriority?.toLowerCase());
+    const priorityRef =
+      finalPriority &&
+      (await client.getPriorities()).find(
+        (s) => s.name.toLowerCase() === finalPriority?.toLowerCase(),
+      );
 
     if (!priorityRef) {
       throw new CommandError(
@@ -703,7 +712,13 @@ export class OpenProjectConnection
     });
   }
 
-  public async helperChangeWorkPackageUser(field: 'assignee'|'responsible', userId: string, reply: MatrixEvent<unknown> | undefined, workPackageIdOrUser?: string, providedUser?: string) {
+  public async helperChangeWorkPackageUser(
+    field: "assignee" | "responsible",
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    workPackageIdOrUser?: string,
+    providedUser?: string,
+  ) {
     const client = await this.tokenStore.getOpenProjectForUser(userId);
     if (!client) {
       throw new NotLoggedInError();
@@ -730,15 +745,17 @@ export class OpenProjectConnection
       );
     }
 
-    let userHref: {href: string|null};
+    let userHref: { href: string | null };
 
     if (assigneeName) {
       if (["none", "unset"].includes(assigneeName.toLowerCase())) {
-        userHref = {href: null};
+        userHref = { href: null };
       } else {
         try {
           const matrixId = new UserID(assigneeName);
-          const userClient = await this.tokenStore.getOpenProjectForUser(matrixId.toString());
+          const userClient = await this.tokenStore.getOpenProjectForUser(
+            matrixId.toString(),
+          );
           if (!userClient) {
             throw new CommandError(
               "Invalid user",
@@ -751,7 +768,10 @@ export class OpenProjectConnection
             throw ex;
           }
           // Not a matrix ID
-          const foundUser = await client.searchForUserInProject(this.projectId, assigneeName);
+          const foundUser = await client.searchForUserInProject(
+            this.projectId,
+            assigneeName,
+          );
           if (!foundUser) {
             throw new CommandError(
               "Invalid user",
@@ -773,7 +793,6 @@ export class OpenProjectConnection
         },
       },
     });
-
   }
 
   @botCommand("assign", {
@@ -790,7 +809,13 @@ export class OpenProjectConnection
     workPackageIdOrAssignee?: string,
     cliAssignee?: string,
   ) {
-    return this.helperChangeWorkPackageUser("assignee", userId, reply, workPackageIdOrAssignee, cliAssignee);
+    return this.helperChangeWorkPackageUser(
+      "assignee",
+      userId,
+      reply,
+      workPackageIdOrAssignee,
+      cliAssignee,
+    );
   }
 
   @botCommand("responsible", {
@@ -807,7 +832,13 @@ export class OpenProjectConnection
     workPackageIdOrAssignee?: string,
     cliAssignee?: string,
   ) {
-    return this.helperChangeWorkPackageUser("responsible", userId, reply, workPackageIdOrAssignee, cliAssignee);
+    return this.helperChangeWorkPackageUser(
+      "responsible",
+      userId,
+      reply,
+      workPackageIdOrAssignee,
+      cliAssignee,
+    );
   }
 
   public static getProvisionerDetails(botUserId: string) {

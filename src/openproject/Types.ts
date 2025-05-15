@@ -1,10 +1,8 @@
 type StringDate = string;
 
-
 export type OpenProjectIterableResult<T> = {
   _embedded: { elements: T[] };
 };
-
 
 export interface OpenProjectUser {
   id: number;
@@ -82,9 +80,9 @@ export interface OpenProjectProject {
   };
   _links: {
     memberships: {
-      href: string,
-    }
-  }
+      href: string;
+    };
+  };
 }
 
 export interface OpenProjectWorkPackage {
@@ -126,17 +124,17 @@ export interface OpenProjectWorkPackage {
 
 export interface OpenProjectMembership {
   _type: "Membership";
-  id: number,
+  id: number;
   _links: {
     principal: {
-      href: string,
-      title: string,
-    },
+      href: string;
+      title: string;
+    };
     roles: {
-      href: string,
-      title: string,
-    }[],
-  }
+      href: string;
+      title: string;
+    }[];
+  };
 }
 
 export interface OpenProjectWebhookPayloadWorkPackage {
