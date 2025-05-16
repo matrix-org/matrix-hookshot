@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import Metrics from "../src/Metrics";
 import { register } from "prom-client";
 import prettier from "prettier";
@@ -66,4 +65,6 @@ Below is the generated list of Prometheus metrics for Hookshot.
     )
     .join("\n");
 
-prettier.format(output, { parser: "markdown" }).then(console.log);
+prettier
+  .format(output, { parser: "markdown" })
+  .then((s: string) => process.stdout.write(s));
