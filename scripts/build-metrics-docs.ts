@@ -66,4 +66,4 @@ Below is the generated list of Prometheus metrics for Hookshot.
     )
     .join("\n");
 
-console.log(prettier.format(output, { parser: "markdown" }));
+prettier.format(output, { parser: "markdown" }).then(console.log);
