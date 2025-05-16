@@ -377,6 +377,7 @@ export class OpenProjectConnection
     const extraData = formatWorkPackageForMatrix(
       data.work_package,
       this.config.baseURL,
+      this.stateKey,
     );
     const content = `${creator.name} created a new work package [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
     await this.intent.sendEvent(this.roomId, {
@@ -410,6 +411,7 @@ export class OpenProjectConnection
     const extraData = formatWorkPackageForMatrix(
       data.work_package,
       this.config.baseURL,
+      this.stateKey,
     );
     const oldChanges = await this.storage.getOpenProjectWorkPackageState(
       data.work_package._embedded.project.id,
@@ -547,6 +549,7 @@ export class OpenProjectConnection
     const extraData = formatWorkPackageForMatrix(
       workPackage,
       this.config.baseURL,
+      this.stateKey,
     );
     const content = `${workPackage._embedded.author.name} created a new work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
     await this.intent.sendEvent(this.roomId, {
@@ -565,6 +568,7 @@ export class OpenProjectConnection
     includeReply: true,
     // We allow uses to call global for shorthand replies.
     runOnGlobalPrefix: true,
+    eventCommandName: "org.matrix.matrix-hookshot.openproject.command.close"
   })
   public async commandCloseWorkPackage(
     userId: string,
@@ -630,6 +634,7 @@ export class OpenProjectConnection
     const extraData = formatWorkPackageForMatrix(
       workPackage,
       this.config.baseURL,
+      this.stateKey,
     );
     const content = `${workPackage._embedded.author.name} closed work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
     await this.intent.sendEvent(this.roomId, {

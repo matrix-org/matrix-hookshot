@@ -40,6 +40,8 @@ export interface BotCommandOptions {
   permissionLevel?: BridgePermissionLevel;
   permissionService?: string;
   runOnGlobalPrefix?: boolean;
+  // For org.matrix.matrix-hookshot.command activation
+  eventCommandName?: string;
 }
 
 type BotCommandResult = { status?: boolean; reaction?: string } | undefined;
@@ -85,6 +87,7 @@ export function compileBotCommands(
           category: b.category,
           includeReply: b.includeReply,
           runOnGlobalPrefix: b.runOnGlobalPrefix,
+          eventCommandName: b.eventCommandName,
         };
       }
     });
@@ -148,7 +151,7 @@ export async function handleCommand(
   command: string,
   parentEvent: MatrixEvent<unknown> | undefined,
   botCommands: BotCommands,
-  obj: unknown,
+  parentThis: unknown,
   permissionCheckFn: PermissionCheckFn,
   defaultPermissionService?: string,
   prefix?: string,
@@ -218,7 +221,7 @@ export async function handleCommand(
         args.splice(1, 0, parentEvent);
       }
       try {
-        const result = await botCommands[prefix].fn.apply(obj, args);
+        const result = await botCommands[prefix].fn.apply(parentThis, args);
         return { handled: true, result };
       } catch (ex) {
         const commandError = ex as CommandError;
@@ -234,4 +237,79 @@ export async function handleCommand(
     }
   }
   return { handled: false };
+}
+
+export interface HookshotCommandContent {
+  command: string,
+  "m.relates_to": {
+    "rel_type": "org.matrix-hooshot.command-target",
+    "event_id": string,
+  },
+}
+
+export async function handleEventCommand(
+  userId: string,
+  eventContent: HookshotCommandContent,
+  parentEvent: MatrixEvent<unknown>,
+  botCommands: BotCommands,
+  obj: unknown,
+  permissionCheckFn: PermissionCheckFn,
+  defaultPermissionService?: string,
+): Promise<
+  | CommandResultNotHandled
+  | CommandResultSuccess
+  | CommandResultErrorUnknown
+  | CommandResultErrorHuman
+> {
+  const command = Object.values(botCommands).find(c => c.eventCommandName === eventContent.command);
+  if (!command) {
+    return {
+      handled: false,
+    }
+  }
+  const permissionService =
+    command.permissionService || defaultPermissionService;
+  if (
+    permissionService &&
+    !permissionCheckFn(
+      permissionService,
+      command.permissionLevel || BridgePermissionLevel.commands,
+    )
+  ) {
+    return {
+      handled: true,
+      humanError: "You do not have permission to use this command.",
+    };
+  }
+  
+
+  if (
+    command.requiredArgs?.length
+  ) {
+    return {
+      handled: true,
+      humanError: "Missing at least one required parameter.",
+    };
+  }
+  const args: unknown[] = [];
+  if (command.includeUserId) {
+    args.splice(0, 0, userId);
+  }
+  if (command.includeReply) {
+    args.splice(1, 0, parentEvent);
+  }
+  try {
+    const result = await command.fn.apply(obj, args);
+    return { handled: true, result };
+  } catch (ex) {
+    const commandError = ex as CommandError;
+    if (ex instanceof ApiError) {
+      return { handled: true, humanError: ex.error };
+    }
+    return {
+      handled: true,
+      error: commandError,
+      humanError: commandError.humanError,
+    };
+  }
 }
