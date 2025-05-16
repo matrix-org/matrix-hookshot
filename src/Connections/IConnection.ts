@@ -57,7 +57,7 @@ export interface IConnection {
   /**
    * When a room gets any event
    */
-  onEvent?: (ev: MatrixEvent<unknown>) => Promise<void>;
+  onEvent?: (ev: MatrixEvent<unknown>, checkPermission: PermissionCheckFn) => Promise<void>;
 
   /**
    * When a room gets a message event.
