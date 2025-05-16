@@ -20,9 +20,7 @@ import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
-import {
-  OpenProjectWebhookPayloadWorkPackage,
-} from "../openproject/Types";
+import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import {
   formatWorkPackageDiff,
