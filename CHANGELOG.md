@@ -1,5 +1,7 @@
 # 7.0.0 (2025-05-16)
 
+**Breaking change**: JIRA Cloud webhooks now *require* a secret to configured to ensure secure handling of webhook information. This is a change from previously accepting a query string. See [https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html#cloud](the documentation) for more information.
+
 ### Features
 
 - Add support for JIRA cloud secure webhooks. See the [documentation](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html) for more information. ([\#1044](https://github.com/matrix-org/matrix-hookshot/issues/1044))
