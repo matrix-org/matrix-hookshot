@@ -1,3 +1,30 @@
+# 7.0.0 (2025-05-16)
+
+### Features
+
+- Add support for JIRA cloud secure webhooks. See the [documentation](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html) for more information. ([\#1044](https://github.com/matrix-org/matrix-hookshot/issues/1044))
+- Add support for OpenProject. ([\#1050](https://github.com/matrix-org/matrix-hookshot/issues/1050), [\#1056](https://github.com/matrix-org/matrix-hookshot/issues/1056))
+- Add new `mentions` field to generic hook transformation functions, to intentionally mention users. ([\#1051](https://github.com/matrix-org/matrix-hookshot/issues/1051))
+
+### Bugfixes
+
+- Fix JIRA integration config not updating when applying changes via the widget. ([\#c01d13b](https://github.com/matrix-org/matrix-hookshot/issues/c01d13b))
+- GitHub repository listings / room configuation will now work correctly if your organization or username contains uppercase characters. ([\#1033](https://github.com/matrix-org/matrix-hookshot/issues/1033))
+- Hookshot will now attempt to join permission rooms on startup. ([\#1041](https://github.com/matrix-org/matrix-hookshot/issues/1041))
+
+### Deprecations and Removals
+
+- The legacy provisioning API has been removed (used by services such as Dimension). Developers should seek to update
+  to use the widget API, which supports more features and is regularly updated. ([\#931](https://github.com/matrix-org/matrix-hookshot/issues/931))
+
+### Internal Changes
+
+- Update Ubuntu version in docs CI. ([\#1043](https://github.com/matrix-org/matrix-hookshot/issues/1043))
+- Don't login to Docker when running CI against dependabot PRs ([\#1046](https://github.com/matrix-org/matrix-hookshot/issues/1046))
+- Replace homerunner with testcontainers for (stable) E2E testing. ([\#1047](https://github.com/matrix-org/matrix-hookshot/issues/1047))
+- Apply prettier formatting, and use a consistent file naming scheme. ([\#1055](https://github.com/matrix-org/matrix-hookshot/issues/1055)), ([\#1058](https://github.com/matrix-org/matrix-hookshot/issues/1058))
+
+
 # 6.0.3 (2025-02-25)
 
 ### Bugfixes
