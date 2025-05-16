@@ -261,32 +261,25 @@ export async function handleCommand(
         humanError: "Missing at least one required parameter.",
       };
     }
-    const args: unknown[] = parts.slice(i);
-    if (command.includeUserId)
-      if (command.includeUserId) {
-        args.splice(0, 0, userId);
-      }
-    if (command.includeReply) {
-      args.splice(1, 0, parentEvent);
-    }
+    const args: string[] = parts.slice(i);
     try {
       let result: BotCommandResult;
       if (command.includeUserId && command.includeReply) {
         result = await (
           botCommands[prefix].fn as BotCommandFunctionWithUserIdAndReply
-        ).apply(obj, [userId, parentEvent, ...parts]);
+        ).apply(obj, [userId, parentEvent, ...args]);
       } else if (command.includeUserId) {
         result = await (
           botCommands[prefix].fn as BotCommandFunctionWithUserId
-        ).apply(obj, [userId, ...parts]);
+        ).apply(obj, [userId, ...args]);
       } else if (command.includeReply) {
         result = await (
           botCommands[prefix].fn as BotCommandFunctionWithReply
-        ).apply(obj, [parentEvent, ...parts]);
+        ).apply(obj, [parentEvent, ...args]);
       } else {
         result = await (
           botCommands[prefix].fn as BotCommandFunctionStandard
-        ).apply(obj, parts);
+        ).apply(obj, args);
       }
       return { handled: true, result };
     } catch (ex) {
