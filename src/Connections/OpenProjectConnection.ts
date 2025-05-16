@@ -21,7 +21,6 @@ import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
 import {
-  OpenProjectUser,
   OpenProjectWebhookPayloadWorkPackage,
 } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
@@ -385,7 +384,7 @@ export class OpenProjectConnection
       body: content,
       formatted_body: md.renderInline(content),
       format: "org.matrix.custom.html",
-      ...formatWorkPackageForMatrix(data.work_package, this.config.baseURL),
+      ...extraData,
     });
     await this.storage.setOpenProjectWorkPackageState(
       workPackageToCacheState(data.work_package),
@@ -447,7 +446,7 @@ export class OpenProjectConnection
       formatted_body:
         md.renderInline(content) + (postfix ? md.render(postfix) : ""),
       format: "org.matrix.custom.html",
-      ...formatWorkPackageForMatrix(data.work_package, this.config.baseURL),
+      ...extraData,
     });
   }
 
@@ -465,7 +464,7 @@ export class OpenProjectConnection
     ) {
       throw new CommandError(
         "Did not reference a hookshot event",
-        "You can only close work packages by referencing a work package event.",
+        "You must reply to a work package message when running this command.",
       );
     }
     if (
@@ -555,7 +554,7 @@ export class OpenProjectConnection
       body: content,
       formatted_body: md.renderInline(content),
       format: "org.matrix.custom.html",
-      ...formatWorkPackageForMatrix(workPackage, this.config.baseURL),
+      ...extraData,
     });
   }
 
@@ -638,12 +637,12 @@ export class OpenProjectConnection
       body: content,
       formatted_body: md.renderInline(content),
       format: "org.matrix.custom.html",
-      ...formatWorkPackageForMatrix(workPackage, this.config.baseURL),
+      ...extraData,
     });
   }
 
   @botCommand("priority", {
-    help: "Set the priority a work package",
+    help: "Set the priority for a work package",
     optionalArgs: ["workPackageId", "priority"],
     includeUserId: true,
     includeReply: true,
@@ -796,7 +795,7 @@ export class OpenProjectConnection
   }
 
   @botCommand("assign", {
-    help: "Assign a work package",
+    help: "Assign a work package to a new user (use 'unset' to remove)",
     optionalArgs: ["workPackageId", "assignee"],
     includeUserId: true,
     includeReply: true,
@@ -819,7 +818,7 @@ export class OpenProjectConnection
   }
 
   @botCommand("responsible", {
-    help: "Set a user as responsible for a package",
+    help: "Assign a responsible user to a work package (use 'unset' to remove)",
     optionalArgs: ["workPackageId", "responsibleUser"],
     includeUserId: true,
     includeReply: true,
