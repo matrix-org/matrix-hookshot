@@ -288,6 +288,11 @@ export class ConnectionManager extends EventEmitter {
       return;
     }
 
+    if (!this.config.enabledServices.includes(connectionType.ServiceCategory)) {
+      log.warn(`Skipping ${state.type} for ${roomId} as service is not enabled`)
+      return;
+    }
+
     // Get a bot user for the connection type
     const botUser = this.botUsersManager.getBotUserInRoom(
       roomId,
