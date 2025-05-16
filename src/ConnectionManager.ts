@@ -289,7 +289,9 @@ export class ConnectionManager extends EventEmitter {
     }
 
     if (!this.config.enabledServices.includes(connectionType.ServiceCategory)) {
-      log.warn(`Skipping ${state.type} for ${roomId} as service is not enabled`)
+      log.warn(
+        `Skipping ${state.type} for ${roomId} as service is not enabled`,
+      );
       return;
     }
 
