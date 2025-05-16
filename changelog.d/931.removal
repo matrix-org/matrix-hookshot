@@ -1,2 +1,0 @@
-The legacy provisioning API has been removed (used by services such as Dimension). Developers should seek to update
-to use the widget API, which supports more features and is regularly updated.

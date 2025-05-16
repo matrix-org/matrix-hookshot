@@ -7,7 +7,7 @@ import {
   HookshotCommandContent,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import { MatrixClient } from "matrix-bot-sdk";
+import { IRichReplyMetadata, MatrixClient, MessageEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";

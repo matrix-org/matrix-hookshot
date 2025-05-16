@@ -31,21 +31,69 @@ export function botCommand(
   });
 }
 export interface BotCommandOptions {
+  /**
+   * Help text for the command.
+   */
   help: string;
+  /**
+   * Ordered set of arguments that are required. If too few arguments are required, this will error.
+   */
   requiredArgs?: string[];
+  /**
+   * Optional ordered set of arguments. No checks are made, these are passed in after requiredArgs.
+   */
   optionalArgs?: string[];
+  /**
+   * Prepend the userId to the command. Always the first argument
+   */
   includeUserId?: boolean;
+  /**
+   * Prepend the reply event to the commend. Will be the second argument
+   */
   includeReply?: boolean;
+  /**
+   * The named category of the command, used for filtering out commands the user can't access (and help text headings)
+   */
   category?: string;
+  /**
+   * Required permission to run this command.
+   */
   permissionLevel?: BridgePermissionLevel;
+  /**
+   * Required permission service to run this command.
+   */
   permissionService?: string;
+  /**
+   * Allow this command to be executed if it matches the `globalPrefix` (e.g. !github). This is usually
+   * so that users can execute a command using shorthand.
+   */
   runOnGlobalPrefix?: boolean;
   // For org.matrix.matrix-hookshot.command activation
   eventCommandName?: string;
 }
 
 type BotCommandResult = { status?: boolean; reaction?: string } | undefined;
-type BotCommandFunction = (...args: unknown[]) => Promise<BotCommandResult>;
+type BotCommandFunctionWithUserId = (
+  userId: string,
+  ...args: string[]
+) => Promise<BotCommandResult>;
+type BotCommandFunctionWithReply = (
+  reply?: MatrixEvent<unknown>,
+  ...args: string[]
+) => Promise<BotCommandResult>;
+type BotCommandFunctionWithUserIdAndReply = (
+  userId: string,
+  reply?: MatrixEvent<unknown>,
+  ...args: string[]
+) => Promise<BotCommandResult>;
+type BotCommandFunctionStandard = (
+  ...args: string[]
+) => Promise<BotCommandResult>;
+type BotCommandFunction =
+  | BotCommandFunctionStandard
+  | BotCommandFunctionWithUserId
+  | BotCommandFunctionWithReply
+  | BotCommandFunctionWithUserIdAndReply;
 
 export type BotCommands = {
   [prefix: string]: { fn: BotCommandFunction } & BotCommandOptions;
@@ -77,6 +125,9 @@ export function compileBotCommands(
           `\` - ${b.help}`;
         cmdStrs[category] = cmdStrs[category] || [];
         cmdStrs[category].push(cmdStr);
+        if (botCommands[b.prefix as string]) {
+          throw Error("Two commands cannot share the same prefix");
+        }
         // We know that these types are safe.
         botCommands[b.prefix as string] = {
           fn: prototype[propertyKey],
@@ -94,7 +145,7 @@ export function compileBotCommands(
   });
   return {
     helpMessage: (
-      cmdPrefix?: string,
+      cmdPrefix = "",
       onlyCategories?: string[],
       includeTitles = true,
     ) => {
@@ -114,10 +165,8 @@ export function compileBotCommands(
       }
       return {
         msgtype: "m.notice",
-        body: content.replace(/££PREFIX££/g, cmdPrefix || ""),
-        formatted_body: md
-          .render(content)
-          .replace(/££PREFIX££/g, cmdPrefix || ""),
+        body: content.replace(/££PREFIX££/g, cmdPrefix),
+        formatted_body: md.render(content).replace(/££PREFIX££/g, cmdPrefix),
         format: "org.matrix.custom.html",
       };
     },
@@ -168,7 +217,7 @@ export async function handleCommand(
   } else if (globalPrefix && command.startsWith(globalPrefix)) {
     usingGlobalPrefix = true;
     command = command.substring(globalPrefix.length);
-  } else {
+  } else if (prefix || globalPrefix) {
     return { handled: false };
   }
   const parts = (await stringArgv).parseArgsStringToArgv(command);
@@ -176,64 +225,76 @@ export async function handleCommand(
     const prefix = parts.slice(0, i).join(" ").toLowerCase();
     // We have a match!
     const command = botCommands[prefix];
-    if (command) {
-      const permissionService =
-        command.permissionService || defaultPermissionService;
-      if (
-        permissionService &&
-        !permissionCheckFn(
-          permissionService,
-          command.permissionLevel || BridgePermissionLevel.commands,
-        )
-      ) {
-        return {
-          handled: true,
-          humanError: "You do not have permission to use this command.",
-        };
-      }
-      if (!command.includeReply && parentEvent) {
-        // Ignore replies if we aren't expecting one.
-        return {
-          handled: false,
-        };
-      }
-      if (!command.runOnGlobalPrefix && usingGlobalPrefix) {
-        // Ignore global prefix commands.
-        return {
-          handled: false,
-        };
-      }
+    if (!command) {
+      continue;
+    }
+    const permissionService =
+      command.permissionService || defaultPermissionService;
+    if (
+      permissionService &&
+      !permissionCheckFn(
+        permissionService,
+        command.permissionLevel || BridgePermissionLevel.commands,
+      )
+    ) {
+      return {
+        handled: true,
+        humanError: "You do not have permission to use this command.",
+      };
+    }
+    if (!command.includeReply && parentEvent) {
+      // Ignore replies if we aren't expecting one.
+      return {
+        handled: false,
+      };
+    }
+    if (!command.runOnGlobalPrefix && usingGlobalPrefix) {
+      // Ignore global prefix commands.
+      return {
+        handled: false,
+      };
+    }
 
-      if (
-        command.requiredArgs &&
-        command.requiredArgs.length > parts.length - i
-      ) {
-        return {
-          handled: true,
-          humanError: "Missing at least one required parameter.",
-        };
+    if (
+      command.requiredArgs &&
+      command.requiredArgs.length > parts.length - i
+    ) {
+      return {
+        handled: true,
+        humanError: "Missing at least one required parameter.",
+      };
+    }
+    const args: string[] = parts.slice(i);
+    try {
+      let result: BotCommandResult;
+      if (command.includeUserId && command.includeReply) {
+        result = await (
+          botCommands[prefix].fn as BotCommandFunctionWithUserIdAndReply
+        ).apply(parentThis, [userId, parentEvent, ...args]);
+      } else if (command.includeUserId) {
+        result = await (
+          botCommands[prefix].fn as BotCommandFunctionWithUserId
+        ).apply(parentThis, [userId, ...args]);
+      } else if (command.includeReply) {
+        result = await (
+          botCommands[prefix].fn as BotCommandFunctionWithReply
+        ).apply(parentThis, [parentEvent, ...args]);
+      } else {
+        result = await (
+          botCommands[prefix].fn as BotCommandFunctionStandard
+        ).apply(parentThis, args);
       }
-      const args: unknown[] = parts.slice(i);
-      if (command.includeUserId) {
-        args.splice(0, 0, userId);
+      return { handled: true, result };
+    } catch (ex) {
+      const commandError = ex as CommandError;
+      if (ex instanceof ApiError) {
+        return { handled: true, humanError: ex.error };
       }
-      if (command.includeReply) {
-        args.splice(1, 0, parentEvent);
-      }
-      try {
-        const result = await botCommands[prefix].fn.apply(parentThis, args);
-        return { handled: true, result };
-      } catch (ex) {
-        const commandError = ex as CommandError;
-        if (ex instanceof ApiError) {
-          return { handled: true, humanError: ex.error };
-        }
-        return {
-          handled: true,
-          error: commandError,
-          humanError: commandError.humanError,
-        };
-      }
+      return {
+        handled: true,
+        error: commandError,
+        humanError: commandError.humanError,
+      };
     }
   }
   return { handled: false };
@@ -299,7 +360,7 @@ export async function handleEventCommand(
     args.splice(1, 0, parentEvent);
   }
   try {
-    const result = await command.fn.apply(obj, args);
+    const result = (await command.fn as any).apply(obj, args);
     return { handled: true, result };
   } catch (ex) {
     const commandError = ex as CommandError;
