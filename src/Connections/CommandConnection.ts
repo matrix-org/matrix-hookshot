@@ -5,7 +5,7 @@ import {
   HelpFunction,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import { MatrixClient } from "matrix-bot-sdk";
+import { IRichReplyMetadata, MatrixClient, MessageEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
@@ -40,7 +40,7 @@ export abstract class CommandConnection<
   }
 
   public conflictsWithCommandPrefix(commandPrefix: string) {
-    return this.commandPrefix == commandPrefix + " ";
+    return this.commandPrefix === commandPrefix + " ";
   }
 
   public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
@@ -54,15 +54,18 @@ export abstract class CommandConnection<
   public async onMessageEvent(
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
+    parentEvent?: MatrixEvent<unknown>,
   ) {
     const commandResult = await handleCommand(
       ev.sender,
       ev.content.body,
+      parentEvent,
       this.botCommands,
       this,
       checkPermission,
       this.serviceName,
       this.commandPrefix,
+      this.defaultCommandPrefix,
     );
     if (commandResult.handled !== true) {
       // Not for us.

@@ -787,6 +787,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     const result = await handleCommand(
       this.userId,
       command,
+      undefined,
       AdminRoom.botCommands,
       this,
       checkPermission,

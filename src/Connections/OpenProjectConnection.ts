@@ -5,10 +5,17 @@ import {
   InstantiateConnectionOpts,
   ProvisionConnectionOpts,
 } from "./IConnection";
-import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixEvent,
+  MessageEventContent,
+  StateEvent,
+  UserID,
+} from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import markdownit from "markdown-it";
-import { BotCommands, compileBotCommands } from "../BotCommands";
+import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
@@ -18,11 +25,13 @@ import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
+  OpenProjectWorkPackageMatrixEvent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { CommandError, NotLoggedInError } from "../Errors";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -373,7 +382,7 @@ export class OpenProjectConnection
       body: content,
       formatted_body: md.renderInline(content),
       format: "org.matrix.custom.html",
-      ...formatWorkPackageForMatrix(data.work_package, this.config.baseURL),
+      ...extraData,
     });
     await this.storage.setOpenProjectWorkPackageState(
       workPackageToCacheState(data.work_package),
@@ -386,6 +395,10 @@ export class OpenProjectConnection
   ) {
     log.info(
       `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
+    );
+    await this.storage.setOpenProjectWorkPackageState(
+      workPackageToCacheState(data.work_package),
+      data.work_package.id,
     );
 
     const creator = data.work_package._embedded.author;
@@ -431,11 +444,397 @@ export class OpenProjectConnection
       formatted_body:
         md.renderInline(content) + (postfix ? md.render(postfix) : ""),
       format: "org.matrix.custom.html",
-      ...formatWorkPackageForMatrix(data.work_package, this.config.baseURL),
+      ...extraData,
     });
+  }
+
+  public getWorkPackageIDFromReply(
+    reply?: MatrixEvent<unknown>,
+  ): number | undefined {
+    if (!reply) {
+      return undefined;
+    }
+    const replyContent = reply?.content as OpenProjectWorkPackageMatrixEvent;
+    if (
+      reply.type !== "m.room.message" ||
+      !replyContent["org.matrix.matrix-hookshot.openproject.project"]?.id ||
+      !replyContent["org.matrix.matrix-hookshot.openproject.work_package"]?.id
+    ) {
+      throw new CommandError(
+        "Did not reference a hookshot event",
+        "You must reply to a work package message when running this command.",
+      );
+    }
+    if (
+      replyContent["org.matrix.matrix-hookshot.openproject.project"].id !==
+      this.projectId
+    ) {
+      // This is not us.
+      return;
+    }
+    return replyContent["org.matrix.matrix-hookshot.openproject.work_package"]
+      .id;
+  }
+
+  @botCommand("create", {
+    help: "Create a new work package",
+    requiredArgs: ["type", "subject"],
+    optionalArgs: ["description"],
+    includeUserId: true,
+    includeReply: true,
+  })
+  public async commandCreateWorkPackage(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    type: string,
+    subject: string,
+    cmdDescription?: string,
+  ) {
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    let finalDescription: string | undefined;
+    if (reply) {
+      if (reply.type !== "m.room.message") {
+        throw new CommandError(
+          "Reply was not a m.room.message",
+          "You can only use textual events as work package descriptions.",
+        );
+      }
+      const replyContent = reply.content as MessageEventContent;
+      if (!replyContent.body?.trim()) {
+        throw new CommandError(
+          "Source message had no body",
+          "This event has no content and cannot be used.",
+        );
+      }
+      if (cmdDescription) {
+        finalDescription = `${cmdDescription}\n\n${replyContent.body}`;
+      } else {
+        finalDescription = replyContent.body;
+      }
+    } else {
+      finalDescription = cmdDescription;
+    }
+    const allTypes = await client.getTypesInProject(this.projectId);
+    const foundType = allTypes.find(
+      (t) => t.name.toLowerCase() === type.toLowerCase(),
+    );
+    if (!foundType) {
+      throw new CommandError(
+        "Type not understood",
+        `Work package type not known. You can use ${allTypes.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
+      );
+    }
+    const workPackage = await client.createWorkPackage(
+      this.projectId,
+      foundType,
+      subject,
+      finalDescription,
+    );
     await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
+      workPackageToCacheState(workPackage),
+      workPackage.id,
+    );
+    if (this.state.events.includes("work_package:created")) {
+      // Don't send an event if we're going to anyway.
+      return;
+    }
+
+    const extraData = formatWorkPackageForMatrix(
+      workPackage,
+      this.config.baseURL,
+    );
+    const content = `${workPackage._embedded.author.name} created a new work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
+    await this.intent.sendEvent(this.roomId, {
+      msgtype: "m.notice",
+      body: content,
+      formatted_body: md.renderInline(content),
+      format: "org.matrix.custom.html",
+      ...extraData,
+    });
+  }
+
+  @botCommand("close", {
+    help: "Close a work package",
+    optionalArgs: ["workPackageId", "description"],
+    includeUserId: true,
+    includeReply: true,
+    // We allow uses to call global for shorthand replies.
+    runOnGlobalPrefix: true,
+  })
+  public async commandCloseWorkPackage(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    workPackageIdOrComment?: string,
+    comment?: string,
+  ) {
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    let finalComment: string | undefined;
+    let workPackageId;
+    const replyWp = this.getWorkPackageIDFromReply(reply);
+    if (replyWp) {
+      workPackageId = replyWp;
+      finalComment = workPackageIdOrComment;
+    } else if (workPackageIdOrComment) {
+      workPackageId = parseInt(workPackageIdOrComment);
+      finalComment = comment;
+    } else {
+      throw new CommandError(
+        "No ID provided",
+        "You must provide a work package ID",
+      );
+    }
+    if (isNaN(workPackageId)) {
+      throw new CommandError(
+        "Invalid work package ID",
+        "Work Package ID must be a valid number",
+      );
+    }
+
+    // TODO: Cache this.
+    const validStatuses = await client.getStatuses();
+    // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
+    const closedStatus =
+      validStatuses.find((s) => s.name.toLowerCase() === "closed") ??
+      validStatuses.find((s) => s.isClosed);
+
+    if (!closedStatus) {
+      throw new CommandError(
+        "No closed status on OpenProject",
+        "This instance doesn't have a closed status, so the work package cannot be closed.",
+      );
+    }
+
+    const workPackage = await client.updateWorkPackage(workPackageId, {
+      _links: {
+        status: {
+          href: closedStatus?._links.self.href,
+        },
+      },
+    });
+    if (finalComment) {
+      await client.addWorkPackageComment(workPackageId, finalComment);
+    }
+    if (this.state.events.includes("work_package:updated")) {
+      // Don't send an event if we're going to anyway.
+      return;
+    }
+
+    const extraData = formatWorkPackageForMatrix(
+      workPackage,
+      this.config.baseURL,
+    );
+    const content = `${workPackage._embedded.author.name} closed work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
+    await this.intent.sendEvent(this.roomId, {
+      msgtype: "m.notice",
+      body: content,
+      formatted_body: md.renderInline(content),
+      format: "org.matrix.custom.html",
+      ...extraData,
+    });
+  }
+
+  @botCommand("priority", {
+    help: "Set the priority for a work package",
+    optionalArgs: ["workPackageId", "priority"],
+    includeUserId: true,
+    includeReply: true,
+    // We allow uses to call global for shorthand replies.
+    runOnGlobalPrefix: true,
+  })
+  public async commandSetPriority(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    workPackageIdOrPriority?: string,
+    priority?: string,
+  ) {
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    let finalPriority: string | undefined;
+    let workPackageId;
+    const replyWp = this.getWorkPackageIDFromReply(reply);
+    if (replyWp) {
+      workPackageId = replyWp;
+      finalPriority = workPackageIdOrPriority;
+    } else if (workPackageIdOrPriority) {
+      workPackageId = parseInt(workPackageIdOrPriority);
+      finalPriority = priority;
+    } else {
+      throw new CommandError(
+        "No ID provided",
+        "You must provide a work package ID",
+      );
+    }
+    if (isNaN(workPackageId)) {
+      throw new CommandError(
+        "Invalid work package ID",
+        "Work Package ID must be a valid number",
+      );
+    }
+    const priorities = await client.getPriorities();
+    if (!finalPriority) {
+      throw new CommandError(
+        "Priority not provided",
+        `Priority not provided. You can use ${priorities.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
+      );
+    }
+
+    // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
+    const priorityRef =
+      finalPriority &&
+      (await client.getPriorities()).find(
+        (s) => s.name.toLowerCase() === finalPriority?.toLowerCase(),
+      );
+
+    if (!priorityRef) {
+      throw new CommandError(
+        "Priority not understood",
+        `Priority not understood. You can use ${priorities.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
+      );
+    }
+
+    const workPackage = await client.updateWorkPackage(workPackageId, {
+      _links: {
+        priority: {
+          href: priorityRef?._links.self.href,
+        },
+      },
+    });
+  }
+
+  public async helperChangeWorkPackageUser(
+    field: "assignee" | "responsible",
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    workPackageIdOrUser?: string,
+    providedUser?: string,
+  ) {
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    let assigneeName: string | undefined;
+    let workPackageId;
+    const replyWp = this.getWorkPackageIDFromReply(reply);
+    if (replyWp) {
+      workPackageId = replyWp;
+      assigneeName = workPackageIdOrUser;
+    } else if (workPackageIdOrUser) {
+      workPackageId = parseInt(workPackageIdOrUser);
+      assigneeName = providedUser;
+    } else {
+      throw new CommandError(
+        "No ID provided",
+        "You must provide a work package ID",
+      );
+    }
+    if (isNaN(workPackageId)) {
+      throw new CommandError(
+        "Invalid work package ID",
+        "Work Package ID must be a valid number",
+      );
+    }
+
+    let userHref: { href: string | null };
+
+    if (assigneeName) {
+      if (["none", "unset"].includes(assigneeName.toLowerCase())) {
+        userHref = { href: null };
+      } else {
+        try {
+          const matrixId = new UserID(assigneeName);
+          const userClient = await this.tokenStore.getOpenProjectForUser(
+            matrixId.toString(),
+          );
+          if (!userClient) {
+            throw new CommandError(
+              "Invalid user",
+              "Matrix user does not map to a OpenProject user",
+            );
+          }
+          userHref = (await userClient.getIdentity())._links.self;
+        } catch (ex) {
+          if (ex instanceof CommandError) {
+            throw ex;
+          }
+          // Not a matrix ID
+          const foundUser = await client.searchForUserInProject(
+            this.projectId,
+            assigneeName,
+          );
+          if (!foundUser) {
+            throw new CommandError(
+              "Invalid user",
+              "Could not find a user by that name",
+            );
+          }
+          userHref = foundUser;
+        }
+      }
+    } else {
+      // Self assign.
+      userHref = (await client.getIdentity())._links.self;
+    }
+
+    await client.updateWorkPackage(workPackageId, {
+      _links: {
+        [field]: {
+          href: userHref.href,
+        },
+      },
+    });
+  }
+
+  @botCommand("assign", {
+    help: "Assign a work package to a new user (use 'unset' to remove)",
+    optionalArgs: ["workPackageId", "assignee"],
+    includeUserId: true,
+    includeReply: true,
+    // We allow uses to call global for shorthand replies.
+    runOnGlobalPrefix: true,
+  })
+  public async commandAssignWorkPackage(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    workPackageIdOrAssignee?: string,
+    cliAssignee?: string,
+  ) {
+    return this.helperChangeWorkPackageUser(
+      "assignee",
+      userId,
+      reply,
+      workPackageIdOrAssignee,
+      cliAssignee,
+    );
+  }
+
+  @botCommand("responsible", {
+    help: "Assign a responsible user to a work package (use 'unset' to remove)",
+    optionalArgs: ["workPackageId", "responsibleUser"],
+    includeUserId: true,
+    includeReply: true,
+    // We allow uses to call global for shorthand replies.
+    runOnGlobalPrefix: true,
+  })
+  public async commandResponsibleWorkPackage(
+    userId: string,
+    reply: MatrixEvent<unknown> | undefined,
+    workPackageIdOrAssignee?: string,
+    cliAssignee?: string,
+  ) {
+    return this.helperChangeWorkPackageUser(
+      "responsible",
+      userId,
+      reply,
+      workPackageIdOrAssignee,
+      cliAssignee,
     );
   }
 
