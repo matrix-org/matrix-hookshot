@@ -301,11 +301,11 @@ export async function handleCommand(
 }
 
 export interface HookshotCommandContent {
-  command: string,
+  command: string;
   "m.relates_to": {
-    "rel_type": "org.matrix-hooshot.command-target",
-    "event_id": string,
-  },
+    rel_type: "org.matrix-hooshot.command-target";
+    event_id: string;
+  };
 }
 
 export async function handleEventCommand(
@@ -322,11 +322,13 @@ export async function handleEventCommand(
   | CommandResultErrorUnknown
   | CommandResultErrorHuman
 > {
-  const command = Object.values(botCommands).find(c => c.eventCommandName === eventContent.command);
+  const command = Object.values(botCommands).find(
+    (c) => c.eventCommandName === eventContent.command,
+  );
   if (!command) {
     return {
       handled: false,
-    }
+    };
   }
   const permissionService =
     command.permissionService || defaultPermissionService;
@@ -342,11 +344,8 @@ export async function handleEventCommand(
       humanError: "You do not have permission to use this command.",
     };
   }
-  
 
-  if (
-    command.requiredArgs?.length
-  ) {
+  if (command.requiredArgs?.length) {
     return {
       handled: true,
       humanError: "Missing at least one required parameter.",
@@ -360,7 +359,7 @@ export async function handleEventCommand(
     args.splice(1, 0, parentEvent);
   }
   try {
-    const result = (await command.fn as any).apply(obj, args);
+    const result = ((await command.fn) as any).apply(obj, args);
     return { handled: true, result };
   } catch (ex) {
     const commandError = ex as CommandError;

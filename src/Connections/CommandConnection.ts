@@ -53,21 +53,26 @@ export abstract class CommandConnection<
     content: unknown,
   ): Promise<ValidatedStateType> | ValidatedStateType;
 
-  public async onEvent(ev: MatrixEvent<unknown>, checkPermission: PermissionCheckFn) {
+  public async onEvent(
+    ev: MatrixEvent<unknown>,
+    checkPermission: PermissionCheckFn,
+  ) {
     if (ev.type !== "org.matrix.matrix-hookshot.command") {
       return;
     }
-    const content = (ev.content as HookshotCommandContent);
+    const content = ev.content as HookshotCommandContent;
     const res = await handleEventCommand(
       ev.sender,
       content,
-      await this.botClient.getEvent(this.roomId, content["m.relates_to"].event_id),
+      await this.botClient.getEvent(
+        this.roomId,
+        content["m.relates_to"].event_id,
+      ),
       this.botCommands,
       this,
       checkPermission,
       this.serviceName,
     );
-    console.log(ev, '=>', res);
   }
 
   public async onMessageEvent(

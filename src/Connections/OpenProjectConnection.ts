@@ -20,9 +20,7 @@ import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
-import {
-  OpenProjectWebhookPayloadWorkPackage,
-} from "../openproject/Types";
+import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import {
   formatWorkPackageDiff,
@@ -568,7 +566,7 @@ export class OpenProjectConnection
     includeReply: true,
     // We allow uses to call global for shorthand replies.
     runOnGlobalPrefix: true,
-    eventCommandName: "org.matrix.matrix-hookshot.openproject.command.close"
+    eventCommandName: "org.matrix.matrix-hookshot.openproject.command.close",
   })
   public async commandCloseWorkPackage(
     userId: string,
