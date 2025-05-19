@@ -15,7 +15,6 @@ export interface BridgeGenericWebhooksConfigYAML {
   waitForComplete?: boolean;
   enableHttpGet?: boolean;
   outbound?: boolean;
-  disallowedIpRanges?: string[];
   maxExpiryTime?: string;
   sendExpiryNotice?: boolean;
   requireExpiryTime?: boolean;
