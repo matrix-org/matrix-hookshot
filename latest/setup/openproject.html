@@ -172,14 +172,14 @@ it's connections principle.</li>
 <p>Please keep a record of the Client ID and Client Secret to be used in the next step.</p>
 <h3 id="hookshot"><a class="header" href="#hookshot">Hookshot</a></h3>
 <p>You can now set some configuration in the bridge <code>config.yml</code>:</p>
-<pre><code class="language-yaml"># (Optional) Configure OpenProject support
-baseUrl: https://your-open-project.com
-webhook:
-  secret: secrettoken
-oauth:
-  clientId: foo
-  clientSecret: bar
-  redirectUri: https://example.com/oauth/
+<pre><code class="language-yaml">openProject:
+  baseUrl: https://your-open-project.com
+  webhook:
+    secret: secrettoken
+  oauth:
+    clientId: foo
+    clientSecret: bar
+    redirectUri: https://example.com/oauth/
 </code></pre>
 <h2 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h2>
 <p>If you have followed these steps correctly, OpenProject should now be configured 🥳.</p>
