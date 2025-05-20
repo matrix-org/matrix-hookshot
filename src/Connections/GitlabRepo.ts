@@ -15,6 +15,7 @@ import {
   IGitLabWebhookReleaseEvent,
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
+  IGitLabWebhookPipelineEvent,
 } from "../gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import {
@@ -97,7 +98,8 @@ type AllowedEventsNames =
   | "wiki"
   | `wiki.${string}`
   | "release"
-  | "release.created";
+  | "release.created"
+  | "pipeline";
 
 const AllowedEvents: AllowedEventsNames[] = [
   "merge_request.open",
@@ -114,7 +116,11 @@ const AllowedEvents: AllowedEventsNames[] = [
   "wiki",
   "release",
   "release.created",
+  "pipeline",
 ];
+//
+//  | "pipeline";
+
 
 const DefaultHooks = AllowedEvents;
 
@@ -186,8 +192,7 @@ export interface GitLabTargetFilter {
 @Connection
 export class GitLabRepoConnection
   extends CommandConnection<GitLabRepoConnectionState, ConnectionStateValidated>
-  implements IConnection
-{
+  implements IConnection {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.repository";
   static readonly LegacyCanonicalEventType =
@@ -963,6 +968,44 @@ export class GitLabRepoConnection
     const content = `**${data.commit.author.name}** 🪄 released [${data.name}](${data.url}) for ${orgRepoName}
 
 ${data.description}`;
+    await this.intent.sendEvent(this.roomId, {
+      msgtype: "m.notice",
+      body: content,
+      formatted_body: md.render(content),
+      format: "org.matrix.custom.html",
+    });
+  }
+
+  public async onPipelineEvent(event: IGitLabWebhookPipelineEvent) {
+
+    /*console.log("HOOK FILTER CHECK:", {
+      enabledHooks: this.hookFilter.enabledHooks,
+      shouldSkip: this.hookFilter.shouldSkip("pipeline"),
+    });*/
+
+
+    if (this.hookFilter.shouldSkip("pipeline")) {
+      //console.log(">>> [qaqah] Skipping pipeline event due to filter.");
+      return;
+    }
+
+    //console.log(">>> onPipelineEvent data:", this.hookFilter.enabledHooks);
+
+    log.info(`onPipelineEvent ${this.roomId} ${this.instance.url}/${this.path}`);
+
+    const {
+      status,
+      ref,
+      duration,
+      created_at,
+      finished_at,
+    } = event.object_attributes;
+
+    const content = `Pipeline **${status.toUpperCase()}** on branch \`${ref}\` for project [${event.project.name}](${event.project.web_url}) triggered by **${event.user.username}**
+    \nDuration: ${duration ?? "?"}s
+    \nStarted: ${created_at}
+    \nFinished: ${finished_at}`;
+
     await this.intent.sendEvent(this.roomId, {
       msgtype: "m.notice",
       body: content,

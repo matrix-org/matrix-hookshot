@@ -200,6 +200,7 @@ export interface IGitLabWebhookNoteEvent {
   object_attributes: IGitLabNote;
   merge_request?: IGitlabMergeRequest;
 }
+
 export interface IGitLabWebhookIssueStateEvent {
   user: IGitlabUser;
   event_type: string;
@@ -215,5 +216,27 @@ export interface IGitLabWebhookIssueStateEvent {
     iid: number;
     action: string;
     description: string;
+  };
+}
+
+export interface IGitLabWebhookPipelineEvent {
+  object_kind: "pipeline";
+  user: {
+    name: string;
+    username: string;
+    avatar_url: string;
+  };
+  project: {
+    name: string;
+    web_url: string;
+    path_with_namespace: string;
+  };
+  object_attributes: {
+    id: number;
+    status: string;
+    ref: string;
+    duration: number;
+    created_at: string;
+    finished_at: string;
   };
 }

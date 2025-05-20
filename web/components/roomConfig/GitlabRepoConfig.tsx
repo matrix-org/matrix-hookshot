@@ -273,6 +273,13 @@ const ConnectionConfiguration: FunctionComponent<
             hookEventName="tag_push"
             onChange={toggleEnabledHook}
           >
+            Pipelines
+          </EventHookCheckbox>
+          <EventHookCheckbox
+            enabledHooks={enabledHooks}
+            hookEventName="pipeline"
+            onChange={toggleEnabledHook}
+          >
             Tag pushes
           </EventHookCheckbox>
           <EventHookCheckbox

@@ -47,6 +47,7 @@ import {
   IGitLabWebhookReleaseEvent,
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
+  IGitLabWebhookPipelineEvent,
 } from "./gitlab/WebhookTypes";
 import {
   JiraIssueEvent,
@@ -614,6 +615,15 @@ export class Bridge {
       (c, data) => c.onWikiPageEvent(data),
     );
 
+    this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
+      "gitlab.pipeline",
+      (data) =>
+        connManager.getConnectionsForGitLabRepo(
+          data.project.path_with_namespace,
+        ),
+      (c, data) => c.onPipelineEvent(data),
+    );
+
     this.queue.on<UserNotificationsEvent>(
       "notifications.user.events",
       async (msg) => {
@@ -683,9 +693,9 @@ export class Bridge {
         return [
           ...(iid
             ? connManager.getConnectionsForGitLabIssueWebhook(
-                data.repository.homepage,
-                iid,
-              )
+              data.repository.homepage,
+              iid,
+            )
             : []),
           ...connManager.getConnectionsForGitLabRepo(
             data.project.path_with_namespace,
