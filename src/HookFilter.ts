@@ -20,10 +20,11 @@ export class HookFilter<T extends string> {
     return [...resultHookSet];
   }
 
-  constructor(public enabledHooks: T[] = []) {}
+  constructor(public enabledHooks: T[] = []) { }
 
   public shouldSkip(...hookName: T[]) {
     // Should skip if all of the hook names are missing
+    //console.log("→ shouldSkip called with", hookName, "vs", this.enabledHooks);
     return hookName.every((name) => !this.enabledHooks.includes(name));
   }
 }
