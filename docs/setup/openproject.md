@@ -27,14 +27,14 @@ Please keep a record of the Client ID and Client Secret to be used in the next s
 You can now set some configuration in the bridge `config.yml`:
 
 ```yaml
-# (Optional) Configure OpenProject support
-baseUrl: https://your-open-project.com
-webhook:
-  secret: secrettoken
-oauth:
-  clientId: foo
-  clientSecret: bar
-  redirectUri: https://example.com/oauth/
+openProject:
+  baseUrl: https://your-open-project.com
+  webhook:
+    secret: secrettoken
+  oauth:
+    clientId: foo
+    clientSecret: bar
+    redirectUri: https://example.com/oauth/
 ```
 
 ## Next steps
