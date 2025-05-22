@@ -15,6 +15,7 @@ import {
   IGitlabProject,
   IGitlabUser,
   IGitLabWebhookNoteEvent,
+  IGitLabWebhookPipelineEvent,
 } from "../../src/gitlab/WebhookTypes";
 
 const ROOM_ID = "!foo:bar";
@@ -73,6 +74,28 @@ const GITLAB_MR_COMMENT: IGitLabWebhookNoteEvent = {
     homepage: "https://gitlab.com/tadeuszs/my-awesome-project",
     name: "a-repo",
     url: "https://gitlab.com/tadeuszs/my-awesome-project",
+  },
+};
+
+const GITLAB_PIPELINE_EVENT: IGitLabWebhookPipelineEvent = {
+  object_kind: "pipeline",
+  user: {
+    name: "Test User",
+    username: "testuser",
+    avatar_url: "",
+  },
+  project: {
+    name: "Test Project",
+    web_url: "https://gitlab.example.com/test/project",
+    path_with_namespace: "test/project",
+  },
+  object_attributes: {
+    id: 1,
+    status: "success",
+    ref: "main",
+    duration: 120,
+    created_at: "2025-05-20T10:00:00Z",
+    finished_at: "2025-05-20T10:02:00Z",
   },
 };
 
@@ -339,7 +362,6 @@ describe("GitLabRepoConnection", () => {
       await connection.onMergeRequestOpened(
         GITLAB_ISSUE_CREATED_PAYLOAD as never,
       );
-      // Statement text.
       intent.expectEventBodyContains("**alice** opened a new MR", 0);
       intent.expectEventBodyContains(
         GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url,
@@ -363,7 +385,6 @@ describe("GitLabRepoConnection", () => {
           },
         ],
       } as never);
-      // ..or issues with no labels
       await connection.onMergeRequestOpened(
         GITLAB_ISSUE_CREATED_PAYLOAD as never,
       );
@@ -399,5 +420,218 @@ describe("GitLabRepoConnection", () => {
       } as never);
       intent.expectEventBodyContains("**alice** opened a new MR", 0);
     });
+  });
+
+  describe("onPipelineEvent", () => {
+    it("should handle a pipeline event", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineEvent(GITLAB_PIPELINE_EVENT);
+
+      intent.expectEventBodyContains("**SUCCESS** on branch `main`", 0);
+      intent.expectEventBodyContains("Test Project", 0);
+      intent.expectEventBodyContains("testuser", 0);
+      intent.expectEventBodyContains("Duration: 120s", 0);
+    });
+
+    it("should skip the pipeline event if hook is not enabled", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["push"], // pipeline not enabled
+      });
+
+      await connection.onPipelineEvent(GITLAB_PIPELINE_EVENT);
+      intent.expectNoEvent();
+    });
+
+    it("should skip the pipeline event if hook is explicitly excluded", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: [],
+      });
+
+      await connection.onPipelineEvent(GITLAB_PIPELINE_EVENT);
+      intent.expectNoEvent();
+    });
+
+    it('01 - should handle status ""success"" with correct hook (expect event)', async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ['pipeline'],
+      });
+
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: {
+          ...GITLAB_PIPELINE_EVENT.object_attributes,
+          status: "success",
+        },
+      };
+
+      await connection.onPipelineEvent(customEvent);
+      intent.expectEventBodyContains("**SUCCESS**", 0);
+      intent.expectEventBodyContains("Pipeline", 0);
+      intent.expectEventBodyContains("branch `main`", 0);
+      intent.expectEventBodyContains("[Test Project](https://gitlab.example.com/test/project)", 0);
+      intent.expectEventBodyContains("**testuser**", 0);
+      intent.expectEventBodyContains("Duration: 120s", 0);
+
+    });
+
+    it('02 - should handle status "success" with wrong hook (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['push'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "success" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('03 - should handle status "success" with no hooks (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "success" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('04 - should handle status "failed" with correct hook (expect event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['pipeline'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "failed" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectEventBodyContains("**FAILED**", 0);
+      intent.expectEventBodyContains("branch `main`", 0);
+      intent.expectEventBodyContains("[Test Project](https://gitlab.example.com/test/project)", 0);
+      intent.expectEventBodyContains("**testuser**", 0);
+      intent.expectEventBodyContains("Duration: 120s", 0);
+    });
+
+    it('05 - should handle status "failed" with wrong hook (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['push'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "failed" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('06 - should handle status "failed" with no hooks (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "failed" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('07 - should handle status "canceled" with correct hook (expect event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['pipeline'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "canceled" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectEventBodyContains("**CANCELED**", 0);
+      intent.expectEventBodyContains("branch `main`", 0);
+      intent.expectEventBodyContains("[Test Project](https://gitlab.example.com/test/project)", 0);
+      intent.expectEventBodyContains("**testuser**", 0);
+      intent.expectEventBodyContains("Duration: 120s", 0);
+    });
+
+    it('08 - should handle status "canceled" with wrong hook (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['push'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "canceled" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('09 - should handle status "canceled" with no hooks (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "canceled" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('10 - should handle status "running" with correct hook (expect event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['pipeline'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "running" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectEventBodyContains("**RUNNING**", 0);
+      intent.expectEventBodyContains("branch `main`", 0);
+      intent.expectEventBodyContains("[Test Project](https://gitlab.example.com/test/project)", 0);
+      intent.expectEventBodyContains("**testuser**", 0);
+      intent.expectEventBodyContains("Duration: 120s", 0);
+    });
+
+    it('11 - should handle status "running" with wrong hook (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['push'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "running" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('12 - should handle status "running" with no hooks (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "running" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('13 - should handle status "manual" with correct hook (expect event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['pipeline'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "manual" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectEventBodyContains("**MANUAL**", 0);
+      intent.expectEventBodyContains("branch `main`", 0);
+      intent.expectEventBodyContains("[Test Project](https://gitlab.example.com/test/project)", 0);
+      intent.expectEventBodyContains("**testuser**", 0);
+      intent.expectEventBodyContains("Duration: 120s", 0);
+    });
+
+    it('14 - should handle status "manual" with wrong hook (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: ['push'] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "manual" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
+    it('15 - should handle status "manual" with no hooks (expect no event)', async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      const customEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status: "manual" },
+      };
+      await connection.onPipelineEvent(customEvent);
+      intent.expectNoEvent();
+    });
+
   });
 });
