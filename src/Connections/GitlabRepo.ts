@@ -988,26 +988,24 @@ ${data.description}`;
     } = event.object_attributes;
 
     const statusUpper = status.toUpperCase();
-    const statusHtml = statusUpper === "SUCCESS"
+    
+        const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
+        const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
+        await this.intent.sendEvent(this.roomId, {
+            msgtype: "m.notice",
+            body: triggerText,
+            formatted_body: triggerHtml,
+            format: "org.matrix.custom.html",
+        });
+
+    if (["SUCCESS", "FAILED", "CANCELED"].includes(statusUpper)) {
+
+      const statusHtml = statusUpper === "SUCCESS"
       ? `<font color="green"><b>${statusUpper}</b></font>`
-      : statusUpper === "FAILED"
+      : statusUpper === "FAILED" || "CANCELED"
         ? `<font color="red"><b>${statusUpper}</b></font>`
         : `<b>${statusUpper}</b>`;
 
-    if (statusUpper === "PENDING") {
-      const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
-      const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
-      await this.intent.sendEvent(this.roomId, {
-        msgtype: "m.notice",
-        body: triggerText,
-        formatted_body: triggerHtml,
-        format: "org.matrix.custom.html",
-      });
-    }
-
-    else if (statusUpper === "RUNNING") {
-    }
-    else {
       const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
       const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
 

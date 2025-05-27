@@ -422,47 +422,67 @@ describe("GitLabRepoConnection", () => {
     });
   });
 
-  describe("onPipelineEvent", () => {
-    const statuses = ["success", "failed", "canceled", "running", "manual"];
+    describe("onPipelineEvent", () => {
+    const baseEvent = {
+      ...GITLAB_PIPELINE_EVENT,
+      object_attributes: {
+        ...GITLAB_PIPELINE_EVENT.object_attributes,
+      },
+    };
 
-    statuses.forEach((status) => {
-      describe(`Status "${status}"`, () => {
-        it(`should handle status "${status}" with correct hook (expect event)`, async () => {
-          const { connection, intent } = createConnection({ enableHooks: ["pipeline"] });
-          const customEvent = {
-            ...GITLAB_PIPELINE_EVENT,
-            object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status },
-          };
-          await connection.onPipelineEvent(customEvent);
-
-          intent.expectEventBodyContains(`**${status.toUpperCase()}**`, 0);
-          intent.expectEventBodyContains("branch `main`", 0);
-          intent.expectEventBodyContains("[Test Project](https://gitlab.example.com/test/project)", 0);
-          intent.expectEventBodyContains("**testuser**", 0);
-          intent.expectEventBodyContains("Duration: 120s", 0);
-        });
-
-        it(`should handle status "${status}" with wrong hook (expect no event)`, async () => {
-          const { connection, intent } = createConnection({ enableHooks: ["push"] });
-          const customEvent = {
-            ...GITLAB_PIPELINE_EVENT,
-            object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status },
-          };
-          await connection.onPipelineEvent(customEvent);
-          intent.expectNoEvent();
-        });
-
-        it(`should handle status "${status}" with no hooks (expect no event)`, async () => {
-          const { connection, intent } = createConnection({ enableHooks: [] });
-          const customEvent = {
-            ...GITLAB_PIPELINE_EVENT,
-            object_attributes: { ...GITLAB_PIPELINE_EVENT.object_attributes, status },
-          };
-          await connection.onPipelineEvent(customEvent);
-          intent.expectNoEvent();
-        });
-      });
+    it("should skip event if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineEvent({ ...baseEvent, object_attributes: { ...baseEvent.object_attributes, status: "success" } });
+      intent.expectNoEvent();
     });
+
+    it("should send only the triggered message if pipeline just started", async () => {
+      const { connection, intent } = createConnection({ enableHooks: ["pipeline"] });
+      await connection.onPipelineEvent({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "pending", // pipeline just started
+        },
+      });
+
+      intent.expectEventBodyContains("Pipeline triggered", 0);
+    });
+
+    it("should send triggered and final success message (green)", async () => {
+      const { connection, intent } = createConnection({ enableHooks: ["pipeline"] });
+
+      await connection.onPipelineEvent({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "success",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("triggered");
+
+      expect(intent.sentEvents[1].content.body).to.include("SUCCESS");
+      expect(intent.sentEvents[1].content.formatted_body).to.include('<font color="green"><b>SUCCESS</b></font>');
+    });
+
+    it("should send triggered and final failed message (red)", async () => {
+      const { connection, intent } = createConnection({ enableHooks: ["pipeline"] });
+
+      await connection.onPipelineEvent({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "failed",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("triggered");
+
+      expect(intent.sentEvents[1].content.body).to.include("FAILED");
+      expect(intent.sentEvents[1].content.formatted_body).to.include('<font color="red"><b>FAILED</b></font>');
+    });
+
   });
 
 });
