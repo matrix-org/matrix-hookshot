@@ -977,42 +977,49 @@ ${data.description}`;
   }
 
   public async onPipelineEvent(event: IGitLabWebhookPipelineEvent) {
-
-    /*console.log("HOOK FILTER CHECK:", {
-      enabledHooks: this.hookFilter.enabledHooks,
-      shouldSkip: this.hookFilter.shouldSkip("pipeline"),
-    });*/
-
-
     if (this.hookFilter.shouldSkip("pipeline")) {
-      //console.log(">>> [qaqah] Skipping pipeline event due to filter.");
       return;
     }
-
-    //console.log(">>> onPipelineEvent data:", this.hookFilter.enabledHooks);
-
     log.info(`onPipelineEvent ${this.roomId} ${this.instance.url}/${this.path}`);
-
     const {
       status,
       ref,
       duration,
-      created_at,
-      finished_at,
     } = event.object_attributes;
 
-    const content = `Pipeline **${status.toUpperCase()}** on branch \`${ref}\` for project [${event.project.name}](${event.project.web_url}) triggered by **${event.user.username}**
-    \nDuration: ${duration ?? "?"}s
-    \nStarted: ${created_at}
-    \nFinished: ${finished_at}`;
+    const statusUpper = status.toUpperCase();
+    const statusHtml = statusUpper === "SUCCESS"
+      ? `<font color="green"><b>${statusUpper}</b></font>`
+      : statusUpper === "FAILED"
+        ? `<font color="red"><b>${statusUpper}</b></font>`
+        : `<b>${statusUpper}</b>`;
 
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    if (statusUpper === "PENDING") {
+      const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
+      const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
+      await this.intent.sendEvent(this.roomId, {
+        msgtype: "m.notice",
+        body: triggerText,
+        formatted_body: triggerHtml,
+        format: "org.matrix.custom.html",
+      });
+    }
+
+    else if (statusUpper === "RUNNING") {
+    }
+    else {
+      const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
+      const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+
+      await this.intent.sendEvent(this.roomId, {
+        msgtype: "m.notice",
+        body: contentText,
+        formatted_body: contentHtml,
+        format: "org.matrix.custom.html",
+      });
+    }
   }
+
 
   private async renderDebouncedMergeRequest(
     uniqueId: string,
