@@ -565,6 +565,8 @@ export class GitLabRepoConnection
   private readonly grantChecker;
   private readonly commentDebounceMs: number;
 
+  private notifiedPipelines = new Set<number>();
+
   constructor(
     roomId: string,
     stateKey: string,
@@ -977,18 +979,21 @@ ${data.description}`;
   }
 
   public async onPipelineEvent(event: IGitLabWebhookPipelineEvent) {
+
     if (this.hookFilter.shouldSkip("pipeline")) {
       return;
     }
+
     log.info(`onPipelineEvent ${this.roomId} ${this.instance.url}/${this.path}`);
     const {
       status,
       ref,
       duration,
+      id: pipelineId, 
     } = event.object_attributes;
 
     const statusUpper = status.toUpperCase();
-    
+    if (!this.notifiedPipelines.has(pipelineId)) {
         const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
         const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
         await this.intent.sendEvent(this.roomId, {
@@ -997,14 +1002,19 @@ ${data.description}`;
             formatted_body: triggerHtml,
             format: "org.matrix.custom.html",
         });
+    
+      this.notifiedPipelines.add(pipelineId);
+    }
 
     if (["SUCCESS", "FAILED", "CANCELED"].includes(statusUpper)) {
 
       const statusHtml = statusUpper === "SUCCESS"
       ? `<font color="green"><b>${statusUpper}</b></font>`
-      : statusUpper === "FAILED" || "CANCELED"
+      : statusUpper === "FAILED"
         ? `<font color="red"><b>${statusUpper}</b></font>`
-        : `<b>${statusUpper}</b>`;
+        : statusUpper === "CANCELED"
+          ? `<font color="darkgray"><b>${statusUpper}</b></font>`
+          : `<b>${statusUpper}</b>`;
 
       const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
       const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
@@ -1015,6 +1025,7 @@ ${data.description}`;
         formatted_body: contentHtml,
         format: "org.matrix.custom.html",
       });
+      this.notifiedPipelines.delete(pipelineId);
     }
   }
 
