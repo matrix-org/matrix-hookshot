@@ -397,10 +397,6 @@ export class OpenProjectConnection
     log.info(
       `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
     );
-    await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
-    );
 
     const creator = data.work_package._embedded.author;
     if (!creator) {
@@ -413,6 +409,10 @@ export class OpenProjectConnection
     );
     const oldChanges = await this.storage.getOpenProjectWorkPackageState(
       data.work_package._embedded.project.id,
+      data.work_package.id,
+    );
+    await this.storage.setOpenProjectWorkPackageState(
+      workPackageToCacheState(data.work_package),
       data.work_package.id,
     );
 
@@ -435,9 +435,11 @@ export class OpenProjectConnection
         return;
       }
     }
+
     if (!this.isInterestedInHookEvent(hookEvent ?? "work_package:updated")) {
       return;
     }
+
     const content = `**${creator.name}** ${changeStatement} for [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
 
     await this.intent.sendEvent(this.roomId, {
