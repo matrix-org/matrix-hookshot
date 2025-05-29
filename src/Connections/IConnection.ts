@@ -66,7 +66,7 @@ export interface IConnection {
   onMessageEvent?: (
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
-    replyMetadata?: IRichReplyMetadata,
+    parentEvent?: MatrixEvent<unknown>,
   ) => Promise<boolean>;
 
   onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
