@@ -118,9 +118,6 @@ const AllowedEvents: AllowedEventsNames[] = [
   "release.created",
   "pipeline",
 ];
-//
-//  | "pipeline";
-
 
 const DefaultHooks = AllowedEvents;
 
@@ -989,32 +986,32 @@ ${data.description}`;
       status,
       ref,
       duration,
-      id: pipelineId, 
+      id: pipelineId,
     } = event.object_attributes;
 
     const statusUpper = status.toUpperCase();
     if (!this.notifiedPipelines.has(pipelineId)) {
-        const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
-        const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
-        await this.intent.sendEvent(this.roomId, {
-            msgtype: "m.notice",
-            body: triggerText,
-            formatted_body: triggerHtml,
-            format: "org.matrix.custom.html",
-        });
-    
+      const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
+      const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
+      await this.intent.sendEvent(this.roomId, {
+        msgtype: "m.notice",
+        body: triggerText,
+        formatted_body: triggerHtml,
+        format: "org.matrix.custom.html",
+      });
+
       this.notifiedPipelines.add(pipelineId);
     }
 
     if (["SUCCESS", "FAILED", "CANCELED"].includes(statusUpper)) {
 
       const statusHtml = statusUpper === "SUCCESS"
-      ? `<font color="green"><b>${statusUpper}</b></font>`
-      : statusUpper === "FAILED"
-        ? `<font color="red"><b>${statusUpper}</b></font>`
-        : statusUpper === "CANCELED"
-          ? `<font color="darkgray"><b>${statusUpper}</b></font>`
-          : `<b>${statusUpper}</b>`;
+        ? `<font color="green"><b>${statusUpper}</b></font>`
+        : statusUpper === "FAILED"
+          ? `<font color="red"><b>${statusUpper}</b></font>`
+          : statusUpper === "CANCELED"
+            ? `<font color="darkgray"><b>${statusUpper}</b></font>`
+            : `<b>${statusUpper}</b>`;
 
       const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
       const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
