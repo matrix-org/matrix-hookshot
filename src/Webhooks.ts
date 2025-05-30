@@ -182,6 +182,8 @@ export class Webhooks extends EventEmitter {
       return `gitlab.release.${action}`;
     } else if (body.object_kind === "push") {
       return `gitlab.push`;
+    } else if (body.object_kind === "pipeline") {
+      return "gitlab.pipeline";
     } else {
       return null;
     }

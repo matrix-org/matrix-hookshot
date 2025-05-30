@@ -1,0 +1,1 @@
+Adds support for GitLab 'pipeline' events via Hookshot. Thanks to @madjidDer, @ManilDF, and @leguye!
