@@ -54,3 +54,8 @@ the events marked as default below will be enabled. Otherwise, this is ignored.
   - release.created \*
 - tag_push \*
 - wiki \*
+- pipeline \*
+  - pipeline.triggered \*
+  - pipeline.canceled \*
+  - pipeline.failed \*
+  - pipeline.success \*
