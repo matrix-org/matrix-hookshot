@@ -189,7 +189,8 @@ export interface GitLabTargetFilter {
 @Connection
 export class GitLabRepoConnection
   extends CommandConnection<GitLabRepoConnectionState, ConnectionStateValidated>
-  implements IConnection {
+  implements IConnection
+{
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.repository";
   static readonly LegacyCanonicalEventType =
@@ -976,18 +977,14 @@ ${data.description}`;
   }
 
   public async onPipelineEvent(event: IGitLabWebhookPipelineEvent) {
-
     if (this.hookFilter.shouldSkip("pipeline")) {
       return;
     }
 
-    log.info(`onPipelineEvent ${this.roomId} ${this.instance.url}/${this.path}`);
-    const {
-      status,
-      ref,
-      duration,
-      id: pipelineId,
-    } = event.object_attributes;
+    log.info(
+      `onPipelineEvent ${this.roomId} ${this.instance.url}/${this.path}`,
+    );
+    const { status, ref, duration, id: pipelineId } = event.object_attributes;
 
     const statusUpper = status.toUpperCase();
     if (!this.notifiedPipelines.has(pipelineId)) {
@@ -1004,14 +1001,14 @@ ${data.description}`;
     }
 
     if (["SUCCESS", "FAILED", "CANCELED"].includes(statusUpper)) {
-
-      const statusHtml = statusUpper === "SUCCESS"
-        ? `<font color="green"><b>${statusUpper}</b></font>`
-        : statusUpper === "FAILED"
-          ? `<font color="red"><b>${statusUpper}</b></font>`
-          : statusUpper === "CANCELED"
-            ? `<font color="darkgray"><b>${statusUpper}</b></font>`
-            : `<b>${statusUpper}</b>`;
+      const statusHtml =
+        statusUpper === "SUCCESS"
+          ? `<font color="green"><b>${statusUpper}</b></font>`
+          : statusUpper === "FAILED"
+            ? `<font color="red"><b>${statusUpper}</b></font>`
+            : statusUpper === "CANCELED"
+              ? `<font color="darkgray"><b>${statusUpper}</b></font>`
+              : `<b>${statusUpper}</b>`;
 
       const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
       const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
@@ -1025,7 +1022,6 @@ ${data.description}`;
       this.notifiedPipelines.delete(pipelineId);
     }
   }
-
 
   private async renderDebouncedMergeRequest(
     uniqueId: string,
