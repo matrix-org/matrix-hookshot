@@ -197,7 +197,7 @@ export class JiraWebhooksRouter {
     const router = Router();
     router.get("/oauth", json(), this.onOAuth.bind(this));
     router.post(
-      "/",
+      "/webhook",
       json({ verify: this.verifyWebhookRequest.bind(this) }),
       this.onWebhook.bind(this),
     );

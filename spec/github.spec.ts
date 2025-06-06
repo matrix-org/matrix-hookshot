@@ -71,7 +71,7 @@ describe("GitHub", () => {
     return testEnv?.tearDown();
   });
 
-  test.each(["/", "/github/"])(
+  test.each(["/", "/github/webhook"])(
     "should be able to handle a GitHub event  (on path %s)",
     async (path) => {
       const user = testEnv.getUser("user");

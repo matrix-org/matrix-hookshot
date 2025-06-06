@@ -113,7 +113,7 @@ describe("JIRA", () => {
     return testEnv?.tearDown();
   });
 
-  test.each(["/", "/jira"])(
+  test.each(["/", "/jira/webhook"])(
     "should be able to handle a JIRA event (on path %s)",
     async (path) => {
       const user = testEnv.getUser("user");

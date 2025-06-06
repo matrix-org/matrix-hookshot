@@ -49,7 +49,7 @@ describe("GitLab", () => {
     return testEnv?.tearDown();
   });
 
-  test.each(["/", "/gitlab/"])(
+  test.each(["/", "/gitlab/webhook"])(
     "should be able to handle a GitLab event (on path %s)",
     async (path) => {
       const user = testEnv.getUser("user");

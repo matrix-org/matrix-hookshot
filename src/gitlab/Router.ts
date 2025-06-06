@@ -106,7 +106,7 @@ export class GitLabWebhooksRouter {
   public getRouter() {
     const router = Router();
     router.use(json({ verify: this.verifyRequest.bind(this) }));
-    router.post("/", this.onWebhook.bind(this));
+    router.post("/webhook", this.onWebhook.bind(this));
     return router;
   }
 }
