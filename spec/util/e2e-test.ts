@@ -462,10 +462,6 @@ export class E2ETestEnv<ML extends string = string> {
     private readonly dir: string,
   ) {
     const appService = app.appservice;
-    // Setup the appservice ping endpoint
-    appService.expressAppInstance.post("/_matrix/app/v1/ping", (_req, res) =>
-      res.status(200).send({}),
-    );
 
     // Patch the "begin" function to expose host ports, and ping the appservice
     // The reason we don't do this unconditionally, is that if we never start the appservice,
@@ -482,12 +478,7 @@ export class E2ETestEnv<ML extends string = string> {
       // Ask the HS to ping the appservice.
       // TODO: Because of crypto reasons, the appservice bot client might not be a "true" appservice session
       // but instead a crypto session. For this reason we need to do a raw request.
-      new MatrixClient(homeserver.url, homeserver.asToken).doRequest(
-        "POST",
-        `/_matrix/client/v1/appservice/hookshot/ping`,
-        null,
-        {},
-      );
+      appService.pingHomeserver();
     };
   }
 
