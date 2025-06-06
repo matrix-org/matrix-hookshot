@@ -9,15 +9,6 @@ import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
 
 const log = new Logger("OpenProjectWebhooksRouter");
 export class OpenProjectWebhooksRouter {
-  public static IsRequest(req: Request): boolean {
-    if (req.headers["x-atlassian-webhook-identifier"]) {
-      return true; // Cloud
-    } else if (req.headers["user-agent"]?.match(/JIRA/)) {
-      return true; // JIRA On-prem
-    }
-    return false;
-  }
-
   constructor(
     private readonly config: BridgeOpenProjectConfig,
     private readonly queue: MessageQueue,
