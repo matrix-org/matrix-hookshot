@@ -652,7 +652,10 @@ export class GenericHookConnection
       );
 
       // Matrix cannot handle float data, so make sure we parse out any floats.
-      const safeData = (this.state.includeHookBody ?? this.config.includeHookBody) ? GenericHookConnection.sanitiseObjectForMatrixJSON(data) : undefined;
+      const safeData =
+        (this.state.includeHookBody ?? this.config.includeHookBody)
+          ? GenericHookConnection.sanitiseObjectForMatrixJSON(data)
+          : undefined;
 
       await this.messageClient.sendMatrixMessage(
         this.roomId,
@@ -665,7 +668,9 @@ export class GenericHookConnection
             ? { "m.mentions": content.mentions }
             : undefined),
           format: "org.matrix.custom.html",
-          ...(safeData ? {"uk.half-shot.hookshot.webhook_data": safeData } : undefined),
+          ...(safeData
+            ? { "uk.half-shot.hookshot.webhook_data": safeData }
+            : undefined),
         },
         "m.room.message",
         sender,
