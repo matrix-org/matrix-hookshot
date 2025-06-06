@@ -41,7 +41,7 @@ export class Webhooks extends EventEmitter {
 
     if (this.config.gitlab) {
       this.gitlab = new GitLabWebhooksRouter(this.config.gitlab, this.queue);
-      this.expressRouter.use("/github", this.gitlab.getRouter());
+      this.expressRouter.use("/gitlab", this.gitlab.getRouter());
     }
 
     if (this.config.jira) {

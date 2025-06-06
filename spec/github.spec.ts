@@ -71,8 +71,8 @@ describe("GitHub", () => {
     return testEnv?.tearDown();
   });
 
-  test.each(["/", "/gitlab"])(
-    "should be able to handle a GitHub event",
+  test.each(["/", "/github/"])(
+    "should be able to handle a GitHub event on (path %s)",
     async (path) => {
       const user = testEnv.getUser("user");
       const bridgeApi = await getBridgeApi(

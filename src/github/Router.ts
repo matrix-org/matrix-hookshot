@@ -292,7 +292,7 @@ export class GitHubWebhooksRouter {
   public getRouter() {
     const router = Router();
     router.use(json({ verify: this.verifyRequest.bind(this) }));
-    router.get("/", this.onWebhook.bind(this));
+    router.post("/", this.onWebhook.bind(this));
     router.get("/oauth", this.onGetOAuth.bind(this));
     return router;
   }

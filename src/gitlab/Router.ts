@@ -88,7 +88,7 @@ export class GitLabWebhooksRouter {
   }
 
   public onWebhook(req: Request, res: Response) {
-    res.json({});
+    res.send("OK");
     const eventName = this.payloadHandler(req.body);
     if (eventName) {
       this.queue
@@ -106,7 +106,7 @@ export class GitLabWebhooksRouter {
   public getRouter() {
     const router = Router();
     router.use(json({ verify: this.verifyRequest.bind(this) }));
-    router.get("/", this.onWebhook.bind(this));
+    router.post("/", this.onWebhook.bind(this));
     return router;
   }
 }
