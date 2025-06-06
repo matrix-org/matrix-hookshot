@@ -377,7 +377,7 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     const registration: IAppserviceRegistration = {
-      id: 'hookshot',
+      id: "hookshot",
       as_token: homeserver.asToken,
       hs_token: homeserver.hsToken,
       sender_localpart: "hookshot",
