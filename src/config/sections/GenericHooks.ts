@@ -18,6 +18,7 @@ export interface BridgeGenericWebhooksConfigYAML {
   maxExpiryTime?: string;
   sendExpiryNotice?: boolean;
   requireExpiryTime?: boolean;
+  includeHookBody?: boolean;
 }
 
 export class BridgeConfigGenericWebhooks {
@@ -39,6 +40,7 @@ export class BridgeConfigGenericWebhooks {
   public readonly requireExpiryTime: boolean;
   // Public facing value for config generator
   public readonly maxExpiryTime?: string;
+  public readonly includeHookBody: boolean;
 
   constructor(yaml: BridgeGenericWebhooksConfigYAML) {
     this.enabled = yaml.enabled || false;
@@ -46,6 +48,7 @@ export class BridgeConfigGenericWebhooks {
     this.enableHttpGet = yaml.enableHttpGet || false;
     this.sendExpiryNotice = yaml.sendExpiryNotice || false;
     this.requireExpiryTime = yaml.requireExpiryTime || false;
+    this.includeHookBody = yaml.includeHookBody ?? true;
     try {
       this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
       this.urlPrefix = () => {
