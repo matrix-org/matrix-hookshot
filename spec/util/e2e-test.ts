@@ -377,6 +377,7 @@ export class E2ETestEnv<ML extends string = string> {
     }
 
     const registration: IAppserviceRegistration = {
+      id: 'hookshot',
       as_token: homeserver.asToken,
       hs_token: homeserver.hsToken,
       sender_localpart: "hookshot",
@@ -474,11 +475,6 @@ export class E2ETestEnv<ML extends string = string> {
       // It looks like having the port forwarder setup before
       // we actually start the appservice sometimes causes issues
       await TestContainers.exposeHostPorts(config.bridge.port);
-
-      // Ask the HS to ping the appservice.
-      // TODO: Because of crypto reasons, the appservice bot client might not be a "true" appservice session
-      // but instead a crypto session. For this reason we need to do a raw request.
-      appService.pingHomeserver();
     };
   }
 

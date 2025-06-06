@@ -2,13 +2,11 @@ import {
   MatrixClient,
   MemoryStorageProvider,
   RustSdkCryptoStorageProvider,
-  RustSdkCryptoStoreType,
 } from "matrix-bot-sdk";
 import { createHash, createHmac } from "crypto";
 import { E2ETestMatrixClient, E2ETestMatrixClientOpts } from "./e2e-test";
 import path from "node:path";
 import { createContainers, TestContainerNetwork } from "./containers";
-import { TestContainers } from "testcontainers";
 
 export interface TestHomeServer {
   url: string;
