@@ -8,7 +8,6 @@ This should be done for the JIRA instance you wish to bridge. The setup steps va
 Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/jira</code> should be used wherever possible.
 </section>
 
-
 ### Cloud
 
 See https://support.atlassian.com/jira-cloud-administration/docs/manage-webhooks/ for documentation on how to setup webhooks.
