@@ -118,6 +118,7 @@ listeners:
 #  sendExpiryNotice: false
 #  requireExpiryTime: false
 #  maxExpiryTime: 30d
+#  includeHookBody: true
 
 #figma:
 #  # (Optional) Configure this to enable Figma support
