@@ -60,8 +60,7 @@ describe("Permissions test", () => {
       sender: testEnv.botMxid,
       roomId,
     });
-    // XXX: Missing type
-    expect((data.content as any)["reason"]).to.equal(
+    expect(data.content.reason).to.equal(
       "You do not have permission to invite this bot.",
     );
 
