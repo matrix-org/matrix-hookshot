@@ -617,6 +617,15 @@ export class Bridge {
     );
 
     this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
+      "gitlab.pipeline.success",
+      (data) =>
+        connManager.getConnectionsForGitLabRepo(
+          data.project.path_with_namespace,
+        ),
+      (c, data) => c.onPipelineSuccess(data),
+    );
+
+    this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
       "gitlab.pipeline",
       (data) =>
         connManager.getConnectionsForGitLabRepo(
