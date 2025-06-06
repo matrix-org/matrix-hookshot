@@ -72,7 +72,7 @@ describe("GitHub", () => {
   });
 
   test.each(["/", "/github/"])(
-    "should be able to handle a GitHub event on (path %s)",
+    "should be able to handle a GitHub event  (on path %s)",
     async (path) => {
       const user = testEnv.getUser("user");
       const bridgeApi = await getBridgeApi(

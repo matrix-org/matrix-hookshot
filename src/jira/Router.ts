@@ -8,6 +8,7 @@ import { JiraOAuthRequestOnPrem } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 import { createHmac } from "node:crypto";
 import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
+import { IJiraWebhookEvent } from "./WebhookTypes";
 
 type JiraOAuthRequestCloud = OAuthRequest;
 
@@ -44,7 +45,11 @@ export class JiraWebhooksRouter {
    * @throws If the request is invalid
    * @param req The express request.
    */
-  public verifyWebhookRequest(req: Request, buffer: Buffer): void {
+  public verifyWebhookRequest(
+    req: Request,
+    _res: Response,
+    buffer: Buffer,
+  ): void {
     const querySecret = req.query.secret;
     const hubSecret = req.headers["x-hub-signature"]?.slice("sha256=".length);
     if (querySecret) {
@@ -167,10 +172,35 @@ export class JiraWebhooksRouter {
     }
   }
 
+  public onWebhook(
+    req: Request<unknown, unknown, IJiraWebhookEvent>,
+    res: Response,
+  ) {
+    if (!req.body.webhookEvent) {
+      throw new ApiError("Missing webhookEvent in body", ErrCode.BadValue);
+    }
+    res.send("OK");
+    const webhookEvent = req.body.webhookEvent.replace("jira:", "");
+    log.debug(`onWebhook ${webhookEvent}:`, req.body);
+    this.queue
+      .push({
+        eventName: `jira.${webhookEvent}`,
+        sender: "GithubWebhooks",
+        data: req.body,
+      })
+      .catch((err) => {
+        log.error(`Failed to emit payload: ${err}`);
+      });
+  }
+
   public getRouter() {
     const router = Router();
-    router.use(json());
-    router.get("/oauth", this.onOAuth.bind(this));
+    router.get("/oauth", json(), this.onOAuth.bind(this));
+    router.post(
+      "/",
+      json({ verify: this.verifyWebhookRequest.bind(this) }),
+      this.onWebhook.bind(this),
+    );
     return router;
   }
 }

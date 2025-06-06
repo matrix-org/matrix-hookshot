@@ -24,10 +24,10 @@ describe("GitLab", () => {
             secret: randomUUID(),
           },
           instances: {
-            'example.org': {
-              url: 'http://gitlab.example.org'
-            }
-          }
+            "example.org": {
+              url: "http://gitlab.example.org",
+            },
+          },
         },
         widgets: {
           publicUrl: `http://localhost:${webhooksPort}`,
@@ -50,7 +50,7 @@ describe("GitLab", () => {
   });
 
   test.each(["/", "/gitlab/"])(
-    "should be able to handle a GitLab event on (path %s)",
+    "should be able to handle a GitLab event (on path %s)",
     async (path) => {
       const user = testEnv.getUser("user");
       const bridgeApi = await getBridgeApi(
@@ -73,7 +73,7 @@ describe("GitLab", () => {
         "my-test",
         {
           instance: "example.org",
-          path: 'my-project',
+          path: "my-project",
         } satisfies GitLabRepoConnectionState,
       );
 
@@ -91,37 +91,35 @@ describe("GitLab", () => {
 
       const webhookPayload = JSON.stringify({
         object_kind: "merge_request",
-        event_type: 'any',
+        event_type: "any",
         user: {
-          username: 'alice',
-          name: 'Alice',
-          email: 'alice@example.org',
-          avatar_url: 'foobar'
+          username: "alice",
+          name: "Alice",
+          email: "alice@example.org",
+          avatar_url: "foobar",
         },
         project: {
-          path_with_namespace: 'my-project',
-          web_url: 'https://gilab.example.org/my-project',
-          homepage: 'foo',
+          path_with_namespace: "my-project",
+          web_url: "https://gilab.example.org/my-project",
+          homepage: "foo",
         },
         repository: {
-          name: 'example',
-          homepage: 'foo',
-          url: 'https://gilab.example.org',
-          description: 'https://gilab.example.org/my-project'
+          name: "example",
+          homepage: "foo",
+          url: "https://gilab.example.org",
+          description: "https://gilab.example.org/my-project",
         },
         object_attributes: {
-          action: 'open',
-          title: 'My test MR',
-          url: 'https://gilab.example.org/my-project/-/merge_requests/1',
+          action: "open",
+          title: "My test MR",
+          url: "https://gilab.example.org/my-project/-/merge_requests/1",
           iid: 0,
           author_id: 0,
           state: "opened",
-          labels: []
+          labels: [],
         },
         labels: [],
-        changes: {
-
-        }
+        changes: {},
       } satisfies IGitLabWebhookMREvent);
 
       // Send a webhook
@@ -139,7 +137,9 @@ describe("GitLab", () => {
       // And await the notice.
       const { body } = (await webhookNotice).data.content;
       expect(body).toContain("**alice** opened a new MR");
-      expect(body).toContain("https://gilab.example.org/my-project/-/merge_requests/1");
+      expect(body).toContain(
+        "https://gilab.example.org/my-project/-/merge_requests/1",
+      );
       expect(body).toContain("My test MR");
     },
   );

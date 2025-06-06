@@ -3,7 +3,6 @@ import { Router, default as express, Request, Response } from "express";
 import { EventEmitter } from "events";
 import { MessageQueue, createMessageQueue } from "./messageQueue";
 import { Logger } from "matrix-appservice-bridge";
-import { IJiraWebhookEvent } from "./jira/WebhookTypes";
 import { JiraWebhooksRouter } from "./jira/Router";
 import Metrics from "./Metrics";
 import { FigmaWebhooksRouter } from "./figma/Router";
@@ -90,9 +89,10 @@ export class Webhooks extends EventEmitter {
         limit: "10mb",
       }),
     );
+
+    // LEGACY PATHS. These will be removed in a future version.
     this.expressRouter.post("/", this.onPayload.bind(this));
     if (this.github) {
-      // Legacy path.
       this.expressRouter.get("/oauth", this.github.onGetOAuth.bind(this));
     }
   }
@@ -101,15 +101,8 @@ export class Webhooks extends EventEmitter {
     this.queue.stop?.();
   }
 
-  private onJiraPayload(body: IJiraWebhookEvent) {
-    body.webhookEvent = body.webhookEvent.replace("jira:", "");
-    log.debug(`onJiraPayload ${body.webhookEvent}:`, body);
-    return `jira.${body.webhookEvent}`;
-  }
-
   private onPayload(req: Request, res: Response) {
     try {
-      const body = req.body;
       if (GitHubWebhooksRouter.IsRequest(req)) {
         if (!this.github) {
           log.warn(
@@ -129,20 +122,12 @@ export class Webhooks extends EventEmitter {
         this.gitlab.onWebhook(req, res);
         return;
       } else if (JiraWebhooksRouter.IsJIRARequest(req)) {
-        let eventName: string | null = null;
-        res.sendStatus(200);
-        eventName = this.onJiraPayload(body);
-        if (eventName) {
-          this.queue
-            .push({
-              eventName,
-              sender: "GithubWebhooks",
-              data: body,
-            })
-            .catch((err) => {
-              log.error(`Failed to emit payload: ${err}`);
-            });
+        if (!this.jira) {
+          log.warn(`Not configured for JIRA webhooks, but got a JIRA event`);
+          throw new ApiError("JIRA not configured", ErrCode.DisabledFeature);
         }
+        this.jira.onWebhook(req, res);
+        return;
       } else {
         log.debug("Unknown request:", req.body);
         throw new ApiError(
@@ -165,17 +150,13 @@ export class Webhooks extends EventEmitter {
     buffer: Buffer,
     encoding: BufferEncoding,
   ): void {
-    if (this.config.gitlab && req.headers["x-gitlab-token"]) {
-      // XXX: Legacy
-      this.gitlab?.verifyRequest(req);
-      return;
+    // LEGACY. Remove when removing the `/` endpoint.
+    if (this.gitlab && req.headers["x-gitlab-token"]) {
+      this.gitlab.verifyRequest(req);
     } else if (this.github && req.headers["x-hub-signature-256"]) {
-      // XXX: Legacy
       this.github.verifyRequest(req, _res, buffer, encoding);
-      return;
     } else if (this.jira && JiraWebhooksRouter.IsJIRARequest(req)) {
-      this.jira.verifyWebhookRequest(req, buffer);
-      return;
+      this.jira.verifyWebhookRequest(req, _res, buffer);
     }
   }
 }
