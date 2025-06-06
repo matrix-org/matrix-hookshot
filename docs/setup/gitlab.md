@@ -23,7 +23,11 @@ to specify an instance.
 You should generate a webhook `secret` (e.g. `pwgen -n 64 -s 1`) and then use this as your
 "Secret token" when adding webhooks.
 
-The `publicUrl` must be the URL where GitLab webhook events are received (i.e. the path to `/`
+<section class="notice">
+Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/gitlab/webhook</code> should be used wherever possible.
+</section>
+
+The `publicUrl` must be the URL where GitLab webhook events are received (i.e. the path to `/gitlab/webhook`
 for your `webhooks` listener).
 
 <section class="warning">

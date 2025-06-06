@@ -71,95 +71,101 @@ describe("GitHub", () => {
     return testEnv?.tearDown();
   });
 
-  test("should be able to handle a GitHub event", async () => {
-    const user = testEnv.getUser("user");
-    const bridgeApi = await getBridgeApi(
-      testEnv.opts.config?.widgets?.publicUrl!,
-      user,
-    );
-    const testRoomId = await user.createRoom({
-      name: "Test room",
-      invite: [testEnv.botMxid],
-    });
-    await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
-    await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId: testRoomId });
-    // Now hack in a GitHub connection.
-    await testEnv.app.appservice.botClient.sendStateEvent(
-      testRoomId,
-      GitHubRepoConnection.CanonicalEventType,
-      "my-test",
-      {
-        org: "my-org",
-        repo: "my-repo",
-      } satisfies GitHubRepoConnectionState,
-    );
+  test.each(["/", "/github/webhook"])(
+    "should be able to handle a GitHub event  (on path %s)",
+    async (path) => {
+      const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const testRoomId = await user.createRoom({
+        name: "Test room",
+        invite: [testEnv.botMxid],
+      });
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      await user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      // Now hack in a GitHub connection.
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        testRoomId,
+        GitHubRepoConnection.CanonicalEventType,
+        "my-test",
+        {
+          org: "my-org",
+          repo: "my-repo",
+        } satisfies GitHubRepoConnectionState,
+      );
 
-    // Wait for connection to be accepted.
-    await waitFor(
-      async () =>
-        (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
-    );
+      // Wait for connection to be accepted.
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+      );
 
-    const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
-      eventType: "m.room.message",
-      sender: testEnv.botMxid,
-      roomId: testRoomId,
-    });
+      const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
 
-    const webhookPayload = JSON.stringify({
-      action: "opened",
-      number: 1,
-      pull_request: {
-        id: 1,
-        url: "https://api.github.com/repos/my-org/my-repo/pulls/1",
-        html_url: "https://github.com/my-org/my-repo/pulls/1",
+      const webhookPayload = JSON.stringify({
+        action: "opened",
         number: 1,
-        state: "open",
-        locked: false,
-        title: "My test pull request",
-        user: {
+        pull_request: {
+          id: 1,
+          url: "https://api.github.com/repos/my-org/my-repo/pulls/1",
+          html_url: "https://github.com/my-org/my-repo/pulls/1",
+          number: 1,
+          state: "open",
+          locked: false,
+          title: "My test pull request",
+          user: {
+            login: "alice",
+          },
+        },
+        repository: {
+          id: 1,
+          html_url: "https://github.com/my-org/my-repo",
+          name: "my-repo",
+          full_name: "my-org/my-repo",
+          owner: {
+            login: "my-org",
+          },
+        },
+        sender: {
           login: "alice",
         },
-      },
-      repository: {
-        id: 1,
-        html_url: "https://github.com/my-org/my-repo",
-        name: "my-repo",
-        full_name: "my-org/my-repo",
-        owner: {
-          login: "my-org",
+      });
+
+      const hmac = createHmac(
+        "sha256",
+        testEnv.opts.config?.github?.webhook.secret!,
+      );
+      hmac.write(webhookPayload);
+      hmac.end();
+
+      // Send a webhook
+      const req = await fetch(`http://localhost:${webhooksPort}${path}`, {
+        method: "POST",
+        headers: {
+          "x-github-event": "pull_request",
+          "X-Hub-Signature-256": `sha256=${hmac.read().toString("hex")}`,
+          "X-GitHub-Delivery": randomUUID(),
+          "Content-Type": "application/json",
         },
-      },
-      sender: {
-        login: "alice",
-      },
-    });
+        body: webhookPayload,
+      });
+      expect(req.status).toBe(200);
+      expect(await req.text()).toBe("OK");
 
-    const hmac = createHmac(
-      "sha256",
-      testEnv.opts.config?.github?.webhook.secret!,
-    );
-    hmac.write(webhookPayload);
-    hmac.end();
-
-    // Send a webhook
-    const req = await fetch(`http://localhost:${webhooksPort}/`, {
-      method: "POST",
-      headers: {
-        "x-github-event": "pull_request",
-        "X-Hub-Signature-256": `sha256=${hmac.read().toString("hex")}`,
-        "X-GitHub-Delivery": randomUUID(),
-        "Content-Type": "application/json",
-      },
-      body: webhookPayload,
-    });
-    expect(req.status).toBe(200);
-    expect(await req.text()).toBe("OK");
-
-    // And await the notice.
-    const { body } = (await webhookNotice).data.content;
-    expect(body).toContain("**alice** opened a new PR");
-    expect(body).toContain("https://github.com/my-org/my-repo/pulls/1");
-    expect(body).toContain("My test pull request");
-  });
+      // And await the notice.
+      const { body } = (await webhookNotice).data.content;
+      expect(body).toContain("**alice** opened a new PR");
+      expect(body).toContain("https://github.com/my-org/my-repo/pulls/1");
+      expect(body).toContain("My test pull request");
+    },
+  );
 });
