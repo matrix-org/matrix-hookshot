@@ -5,7 +5,7 @@
 This should be done for the JIRA instance you wish to bridge. The setup steps vary for Cloud and Enterprise (on-premise).
 
 <section class="notice">
-Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/jira</code> should be used wherever possible.
+Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/jira/webhook</code> should be used wherever possible.
 </section>
 
 ### Cloud
