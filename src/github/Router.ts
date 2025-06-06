@@ -41,10 +41,7 @@ export class GitHubWebhooksRouter {
     maxSize: 100,
   });
   public static IsRequest(req: Request): boolean {
-    if (req.headers["x-github-delivery"]) {
-      return true; // Cloud
-    }
-    return false;
+    return !!req.headers["x-github-delivery"];
   }
 
   constructor(

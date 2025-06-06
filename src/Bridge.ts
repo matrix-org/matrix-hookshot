@@ -70,18 +70,18 @@ import {
   NotificationFilterStateContent,
 } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import {
-  NotificationsEnableEvent,
-  NotificationsDisableEvent,
-  Webhooks,
-} from "./Webhooks";
+import { Webhooks } from "./Webhooks";
 import {
   GitHubOAuthToken,
   GitHubOAuthTokenResponse,
   ProjectsGetResponseData,
 } from "./github/Types";
 import { retry } from "./PromiseUtil";
-import { UserNotificationsEvent } from "./notifications/UserNotificationWatcher";
+import {
+  NotificationsDisableEvent,
+  NotificationsEnableEvent,
+  UserNotificationsEvent,
+} from "./notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
