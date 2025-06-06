@@ -103,7 +103,7 @@ describe("GitLab - Pipeline Event", () => {
   };
 
   test(
-    "should handle GitLab pipeline success event with both messages",
+    "should handle GitLab pipeline success event with one messages",
     async () => {
       const user = testEnv.getUser("user");
       const bridgeApi = await getBridgeApi(
@@ -140,7 +140,7 @@ describe("GitLab - Pipeline Event", () => {
         user,
         testRoomId,
         testEnv.botMxid,
-        2,
+        1,
       );
 
       const webhookPayload = JSON.stringify({
@@ -193,13 +193,10 @@ describe("GitLab - Pipeline Event", () => {
 
       const receivedMessages = await messagesPromise;
 
-      expect(receivedMessages.length).toBe(2);
+      expect(receivedMessages.length).toBe(1);
 
       const triggeredMessage = receivedMessages[0];
-      expect(triggeredMessage.body.toLowerCase()).toContain("triggered");
-
-      const successMessage = receivedMessages[1];
-      expect(successMessage.body.toLowerCase()).toContain("success");
+      expect(triggeredMessage.body.toLowerCase()).toContain("success");
     },
     E2ESetupTestTimeout,
   );

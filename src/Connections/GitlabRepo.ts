@@ -99,7 +99,8 @@ type AllowedEventsNames =
   | `wiki.${string}`
   | "release"
   | "release.created"
-  | "pipeline";
+  | "pipeline"
+  | "pipeline.success";
 
 const AllowedEvents: AllowedEventsNames[] = [
   "merge_request.open",
@@ -117,6 +118,7 @@ const AllowedEvents: AllowedEventsNames[] = [
   "release",
   "release.created",
   "pipeline",
+  "pipeline.success",
 ];
 
 const DefaultHooks = AllowedEvents;
@@ -1000,11 +1002,9 @@ ${data.description}`;
       this.notifiedPipelines.add(pipelineId);
     }
 
-    if (["SUCCESS", "FAILED", "CANCELED"].includes(statusUpper)) {
+    if (["FAILED", "CANCELED"].includes(statusUpper)) {
       const statusHtml =
-        statusUpper === "SUCCESS"
-          ? `<font color="green"><b>${statusUpper}</b></font>`
-          : statusUpper === "FAILED"
+          statusUpper === "FAILED"
             ? `<font color="red"><b>${statusUpper}</b></font>`
             : statusUpper === "CANCELED"
               ? `<font color="darkgray"><b>${statusUpper}</b></font>`
@@ -1022,6 +1022,26 @@ ${data.description}`;
       this.notifiedPipelines.delete(pipelineId);
     }
   }
+
+  public async onPipelineSuccess(event: IGitLabWebhookPipelineEvent) {
+  if (this.hookFilter.shouldSkip("pipeline", "pipeline.success")) {
+    return;
+  }
+
+  log.info(`onPipelineSuccess ${this.roomId} ${this.instance.url}/${this.path}`);
+  const { ref, duration } = event.object_attributes;
+
+  const contentText = `Pipeline SUCCESS on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
+  const contentHtml = `Pipeline <font color="green"><b>SUCCESS</b></font> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+
+  await this.intent.sendEvent(this.roomId, {
+    msgtype: "m.notice",
+    body: contentText,
+    formatted_body: contentHtml,
+    format: "org.matrix.custom.html",
+  });
+}
+
 
   private async renderDebouncedMergeRequest(
     uniqueId: string,

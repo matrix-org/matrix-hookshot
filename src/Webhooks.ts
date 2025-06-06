@@ -10,6 +10,7 @@ import {
   IGitLabWebhookEvent,
   IGitLabWebhookIssueStateEvent,
   IGitLabWebhookMREvent,
+  IGitLabWebhookPipelineEvent,
   IGitLabWebhookReleaseEvent,
 } from "./gitlab/WebhookTypes";
 import {
@@ -183,6 +184,11 @@ export class Webhooks extends EventEmitter {
     } else if (body.object_kind === "push") {
       return `gitlab.push`;
     } else if (body.object_kind === "pipeline") {
+      const pipeline_event = (body as unknown as IGitLabWebhookPipelineEvent)
+      const status = pipeline_event.object_attributes?.status?.toLowerCase();
+      if (status === "success") {
+        return "gitlab.pipeline.success";
+      }
       return "gitlab.pipeline";
     } else {
       return null;
