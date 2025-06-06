@@ -17,8 +17,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "typeRoots": [
-      "./typings"
-    ]
+    "typeRoots": ["./typings"]
   }
 }

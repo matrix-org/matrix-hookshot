@@ -1,5 +1,4 @@
-Widgets
-=======
+# Widgets
 
 <section class="warning">
 Widgets themselves are still not part of the stable Matrix spec (currently it's defined as a proposal in <a rel="noopener" href="https://github.com/matrix-org/matrix-spec/issues/285" target="_blank">matrix-spec/285</a>, and
@@ -11,7 +10,6 @@ the existing command system, rather than replace it.
 
 <img alt="Example of a configuration widget" src="./widgets.png" style="display: block; margin-left: auto; width: 500px; margin-right: auto;"></img>
 
-
 ### Configuration
 
 ```yaml
@@ -19,26 +17,26 @@ widgets:
   addToAdminRooms: false
   roomSetupWidget:
     addOnInvite: false
-# disallowedIpRanges:
-#     - 127.0.0.0/8
-#     - 10.0.0.0/8
-#     - 172.16.0.0/12
-#     - 192.168.0.0/16
-#     - 100.64.0.0/10
-#     - 192.0.0.0/24
-#     - 169.254.0.0/16
-#     - 192.88.99.0/24
-#     - 198.18.0.0/15
-#     - 192.0.2.0/24
-#     - 198.51.100.0/24
-#     - 203.0.113.0/24
-#     - 224.0.0.0/4
-#     - ::1/128
-#     - fe80::/10
-#     - fc00::/7
-#     - 2001:db8::/32
-#     - ff00::/8
-#     - fec0::/10
+  # disallowedIpRanges:
+  #     - 127.0.0.0/8
+  #     - 10.0.0.0/8
+  #     - 172.16.0.0/12
+  #     - 192.168.0.0/16
+  #     - 100.64.0.0/10
+  #     - 192.0.0.0/24
+  #     - 169.254.0.0/16
+  #     - 192.88.99.0/24
+  #     - 198.18.0.0/15
+  #     - 192.0.2.0/24
+  #     - 198.51.100.0/24
+  #     - 203.0.113.0/24
+  #     - 224.0.0.0/4
+  #     - ::1/128
+  #     - fe80::/10
+  #     - fc00::/7
+  #     - 2001:db8::/32
+  #     - ff00::/8
+  #     - fec0::/10
   publicUrl: https://example.com/widgetapi/v1/static
   branding:
     widgetTitle: Hookshot Configuration
@@ -60,12 +58,13 @@ Unless you know what you are doing, it is recommended to not include this key. T
 `widgets` listener under `/widgetapi/v1/static`.
 
 `branding` allows you to change the strings used for various bits of widget UI. At the moment you can:
- - Set `widgetTitle` to change the title of the widget that is created.
+
+- Set `widgetTitle` to change the title of the widget that is created.
 
 `openIdOverrides` allows you to configure the correct federation endpoints for a given set of Matrix server names. This is useful if you are
 testing/developing Hookshot in a local dev environment. Production environments should not use this configuration (as their Matrix server name
 should be resolvable). The config takes a mapping of Matrix server name => base path for federation.
-E.g. if your server name was `my-local-server` and your federation was readable via http://localhost/_matrix/federation,
+E.g. if your server name was `my-local-server` and your federation was readable via http://localhost/\_matrix/federation,
 you would put configure `my-local-server: "http://localhost"`.
 
 In addition to setting up the widgets config, you must bind a listener for the widgets resource in your `listeners` config.
@@ -85,4 +84,3 @@ See the [setup page](../setup#listeners-configuration) for more information on l
 The API for widgets is currently in flux due to being fairly new, and it's not recommended
 to develop against it at this time. At a future date this API will be merged with the existing
 provisioning API and the details will be published.
-

@@ -1,5 +1,4 @@
-JIRA Project
-=================
+# JIRA Project
 
 This connection type connects a JIRA project to a room.
 
@@ -27,11 +26,10 @@ Send the command `!hookshot jira remove project <url>` to remove a room's connec
 
 This connection supports a few options which can be defined in the room state:
 
-| Option | Description | Allowed values | Default |
-|--------|-------------|----------------|---------|
-|events|Choose to include notifications for some event types|Array of: [Supported event types](#supported-event-types) |`issue_created`|
-|commandPrefix|Choose the prefix to use when sending commands to the bot|A string, ideally starts with "!"|`!jira`|
-
+| Option        | Description                                               | Allowed values                                            | Default         |
+| ------------- | --------------------------------------------------------- | --------------------------------------------------------- | --------------- |
+| events        | Choose to include notifications for some event types      | Array of: [Supported event types](#supported-event-types) | `issue_created` |
+| commandPrefix | Choose the prefix to use when sending commands to the bot | A string, ideally starts with "!"                         | `!jira`         |
 
 ### Supported event types
 

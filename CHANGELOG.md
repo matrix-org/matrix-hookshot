@@ -1,3 +1,62 @@
+# 7.0.0 (2025-05-16)
+
+**Breaking change**: JIRA Cloud webhooks now *require* a secret to configured to ensure secure handling of webhook information. This is a change from previously accepting a query string. See [https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html#cloud](the documentation) for more information.
+
+### Features
+
+- Add support for JIRA cloud secure webhooks. See the [documentation](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html) for more information. ([\#1044](https://github.com/matrix-org/matrix-hookshot/issues/1044))
+- Add support for OpenProject. ([\#1050](https://github.com/matrix-org/matrix-hookshot/issues/1050), [\#1056](https://github.com/matrix-org/matrix-hookshot/issues/1056))
+- Add new `mentions` field to generic hook transformation functions, to intentionally mention users. ([\#1051](https://github.com/matrix-org/matrix-hookshot/issues/1051))
+
+### Bugfixes
+
+- Fix JIRA integration config not updating when applying changes via the widget. ([\#c01d13b](https://github.com/matrix-org/matrix-hookshot/issues/c01d13b))
+- GitHub repository listings / room configuation will now work correctly if your organization or username contains uppercase characters. ([\#1033](https://github.com/matrix-org/matrix-hookshot/issues/1033))
+- Hookshot will now attempt to join permission rooms on startup. ([\#1041](https://github.com/matrix-org/matrix-hookshot/issues/1041))
+
+### Deprecations and Removals
+
+- The legacy provisioning API has been removed (used by services such as Dimension). Developers should seek to update
+  to use the widget API, which supports more features and is regularly updated. ([\#931](https://github.com/matrix-org/matrix-hookshot/issues/931))
+
+### Internal Changes
+
+- Update Ubuntu version in docs CI. ([\#1043](https://github.com/matrix-org/matrix-hookshot/issues/1043))
+- Don't login to Docker when running CI against dependabot PRs ([\#1046](https://github.com/matrix-org/matrix-hookshot/issues/1046))
+- Replace homerunner with testcontainers for (stable) E2E testing. ([\#1047](https://github.com/matrix-org/matrix-hookshot/issues/1047))
+- Apply prettier formatting, and use a consistent file naming scheme. ([\#1055](https://github.com/matrix-org/matrix-hookshot/issues/1055)), ([\#1058](https://github.com/matrix-org/matrix-hookshot/issues/1058))
+
+
+# 6.0.3 (2025-02-25)
+
+### Bugfixes
+
+- Fixed Helm chart templates missing `namespace:` in resource metadata, causing some resources to appear in different namespaces under certain circumstances, specifically deployment scenarios using ArgoCD-deployed Helmfile with a release namespace set for Hookshot differently than the ArgoCD Application's namespace. Most other Helm deployment methods should continue to work as expected with your existing configuration, as the inferred namespace would have resulted in proper resource placement without this change. ([\#1013](https://github.com/matrix-org/matrix-hookshot/issues/1013))
+- Fix hookshot failing to handle incoming webhooks when it is unable to change a user's displayname. ([\#1019](https://github.com/matrix-org/matrix-hookshot/issues/1019))
+- GitLab merge request comments are now correctly filtered based on label include / exclude configuration. ([\#1756](https://github.com/matrix-org/matrix-hookshot/issues/1756))
+
+### Improved Documentation
+
+- Explain how to edit room state for GitLab projects from within Element. ([\#1016](https://github.com/matrix-org/matrix-hookshot/issues/1016))
+
+### Internal Changes
+
+- Update dependencies with security advisories. ([\#1024](https://github.com/matrix-org/matrix-hookshot/issues/1024))
+
+
+# 6.0.2 (2025-01-23)
+
+**Security release**: It is strongly recommended that you upgrade to this release, as it contains security fixes.
+
+### Internal Changes
+
+- Switch to using GitHub Actions native arm runners for Docker builds, which will reduce build times. ([\#1008](https://github.com/matrix-org/matrix-hookshot/issues/1008))
+
+### Security
+
+Fixes for [CVE-2025-23197](https://www.cve.org/CVERecord?id=CVE-2025-23197) / [GHSA-cr4q-jf47-3645](https://github.com/matrix-org/matrix-hookshot/security/advisories/GHSA-cr4q-jf47-3645).
+
+
 # 6.0.1 (2024-11-29)
 
 This release fixes an issue where arm64 Docker images were not being built on release.
