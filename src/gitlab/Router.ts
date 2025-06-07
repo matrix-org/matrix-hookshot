@@ -68,7 +68,6 @@ export class GitLabWebhooksRouter {
       return `gitlab.release.${action}`;
     } else if (body.object_kind === "push") {
       return `gitlab.push`;
-    
     } else if (body.object_kind === "pipeline") {
       const pipeline_event = (body as unknown as IGitLabWebhookPipelineEvent)
       const status = pipeline_event.object_attributes?.status?.toLowerCase();
