@@ -16,7 +16,6 @@ import {
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
   IGitLabWebhookPipelineEvent,
-  IGitLabWebhookPipelineEvent,
 } from "../gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import {
@@ -121,9 +120,6 @@ const AllowedEvents: AllowedEventsNames[] = [
   "pipeline",
   "pipeline.success",
 ];
-//
-//  | "pipeline";
-
 
 const DefaultHooks = AllowedEvents;
 

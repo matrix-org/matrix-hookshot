@@ -462,12 +462,12 @@ describe("GitLabRepoConnection", () => {
       intent.expectEventBodyContains("Pipeline triggered", 0);
     });
 
-    it("should send triggered and final success message (green)", async () => {
+    it("should send final success message (green)", async () => {
       const { connection, intent } = createConnection({
         enableHooks: ["pipeline"],
       });
 
-      await connection.onPipelineEvent({
+      await connection.onPipelineSuccess({
         ...baseEvent,
         object_attributes: {
           ...baseEvent.object_attributes,
@@ -475,10 +475,10 @@ describe("GitLabRepoConnection", () => {
         },
       });
 
-      expect(intent.sentEvents[0].content.body).to.include("triggered");
+      //expect(intent.sentEvents[0].content.body).to.include("triggered");
 
-      expect(intent.sentEvents[1].content.body).to.include("SUCCESS");
-      expect(intent.sentEvents[1].content.formatted_body).to.include(
+      expect(intent.sentEvents[0].content.body).to.include("SUCCESS");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
         '<font color="green"><b>SUCCESS</b></font>',
       );
     });

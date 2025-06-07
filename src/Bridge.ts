@@ -48,7 +48,6 @@ import {
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
   IGitLabWebhookPipelineEvent,
-  IGitLabWebhookPipelineEvent,
 } from "./gitlab/WebhookTypes";
 import {
   JiraIssueEvent,
