@@ -15,6 +15,7 @@ import {
   IGitLabWebhookReleaseEvent,
   IGitLabWebhookTagPushEvent,
   IGitLabWebhookWikiPageEvent,
+  IGitLabWebhookPipelineEvent,
 } from "../gitlab/WebhookTypes";
 import { CommandConnection } from "./CommandConnection";
 import {
@@ -97,7 +98,9 @@ type AllowedEventsNames =
   | "wiki"
   | `wiki.${string}`
   | "release"
-  | "release.created";
+  | "release.created"
+  | "pipeline"
+  | "pipeline.success";
 
 const AllowedEvents: AllowedEventsNames[] = [
   "merge_request.open",
@@ -114,6 +117,8 @@ const AllowedEvents: AllowedEventsNames[] = [
   "wiki",
   "release",
   "release.created",
+  "pipeline",
+  "pipeline.success",
 ];
 
 const DefaultHooks = AllowedEvents;
@@ -186,8 +191,7 @@ export interface GitLabTargetFilter {
 @Connection
 export class GitLabRepoConnection
   extends CommandConnection<GitLabRepoConnectionState, ConnectionStateValidated>
-  implements IConnection
-{
+  implements IConnection {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.repository";
   static readonly LegacyCanonicalEventType =
@@ -559,6 +563,8 @@ export class GitLabRepoConnection
 
   private readonly grantChecker;
   private readonly commentDebounceMs: number;
+
+  private notifiedPipelines = new Set<number>();
 
   constructor(
     roomId: string,
@@ -970,6 +976,79 @@ ${data.description}`;
       format: "org.matrix.custom.html",
     });
   }
+
+  public async onPipelineEvent(event: IGitLabWebhookPipelineEvent) {
+
+    /*console.log("HOOK FILTER CHECK:", {
+      enabledHooks: this.hookFilter.enabledHooks,
+      shouldSkip: this.hookFilter.shouldSkip("pipeline"),
+    });*/
+
+
+    if (this.hookFilter.shouldSkip("pipeline")) {
+      //console.log(">>> [qaqah] Skipping pipeline event due to filter.");
+      return;
+    }
+
+    log.info(
+      `onPipelineEvent ${this.roomId} ${this.instance.url}/${this.path}`,
+    );
+    const { status, ref, duration, id: pipelineId } = event.object_attributes;
+
+    const statusUpper = status.toUpperCase();
+    if (!this.notifiedPipelines.has(pipelineId)) {
+      const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
+      const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
+      await this.intent.sendEvent(this.roomId, {
+        msgtype: "m.notice",
+        body: triggerText,
+        formatted_body: triggerHtml,
+        format: "org.matrix.custom.html",
+      });
+
+      this.notifiedPipelines.add(pipelineId);
+    }
+
+    if (["FAILED", "CANCELED"].includes(statusUpper)) {
+      const statusHtml =
+          statusUpper === "FAILED"
+            ? `<font color="red"><b>${statusUpper}</b></font>`
+            : statusUpper === "CANCELED"
+              ? `<font color="darkgray"><b>${statusUpper}</b></font>`
+              : `<b>${statusUpper}</b>`;
+
+      const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
+      const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+
+      await this.intent.sendEvent(this.roomId, {
+        msgtype: "m.notice",
+        body: contentText,
+        formatted_body: contentHtml,
+        format: "org.matrix.custom.html",
+      });
+      this.notifiedPipelines.delete(pipelineId);
+    }
+  }
+
+  public async onPipelineSuccess(event: IGitLabWebhookPipelineEvent) {
+  if (this.hookFilter.shouldSkip("pipeline", "pipeline.success")) {
+    return;
+  }
+
+  log.info(`onPipelineSuccess ${this.roomId} ${this.instance.url}/${this.path}`);
+  const { ref, duration } = event.object_attributes;
+
+  const contentText = `Pipeline SUCCESS on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
+  const contentHtml = `Pipeline <font color="green"><b>SUCCESS</b></font> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+
+  await this.intent.sendEvent(this.roomId, {
+    msgtype: "m.notice",
+    body: contentText,
+    formatted_body: contentHtml,
+    format: "org.matrix.custom.html",
+  });
+}
+
 
   private async renderDebouncedMergeRequest(
     uniqueId: string,

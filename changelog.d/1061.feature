@@ -1,0 +1,1 @@
+Add support for GitLab 'pipeline' event notifications. Thanks to @madjidDer, @ManilDF, and @leguye!

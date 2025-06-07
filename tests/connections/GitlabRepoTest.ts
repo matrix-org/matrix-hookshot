@@ -15,6 +15,7 @@ import {
   IGitlabProject,
   IGitlabUser,
   IGitLabWebhookNoteEvent,
+  IGitLabWebhookPipelineEvent,
 } from "../../src/gitlab/WebhookTypes";
 
 const ROOM_ID = "!foo:bar";
@@ -73,6 +74,28 @@ const GITLAB_MR_COMMENT: IGitLabWebhookNoteEvent = {
     homepage: "https://gitlab.com/tadeuszs/my-awesome-project",
     name: "a-repo",
     url: "https://gitlab.com/tadeuszs/my-awesome-project",
+  },
+};
+
+const GITLAB_PIPELINE_EVENT: IGitLabWebhookPipelineEvent = {
+  object_kind: "pipeline",
+  user: {
+    name: "Test User",
+    username: "testuser",
+    avatar_url: "",
+  },
+  project: {
+    name: "Test Project",
+    web_url: "https://gitlab.example.com/test/project",
+    path_with_namespace: "test/project",
+  },
+  object_attributes: {
+    id: 1,
+    status: "success",
+    ref: "main",
+    duration: 120,
+    created_at: "2025-05-20T10:00:00Z",
+    finished_at: "2025-05-20T10:02:00Z",
   },
 };
 
@@ -339,7 +362,6 @@ describe("GitLabRepoConnection", () => {
       await connection.onMergeRequestOpened(
         GITLAB_ISSUE_CREATED_PAYLOAD as never,
       );
-      // Statement text.
       intent.expectEventBodyContains("**alice** opened a new MR", 0);
       intent.expectEventBodyContains(
         GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url,
@@ -363,7 +385,6 @@ describe("GitLabRepoConnection", () => {
           },
         ],
       } as never);
-      // ..or issues with no labels
       await connection.onMergeRequestOpened(
         GITLAB_ISSUE_CREATED_PAYLOAD as never,
       );
@@ -398,6 +419,89 @@ describe("GitLabRepoConnection", () => {
         ],
       } as never);
       intent.expectEventBodyContains("**alice** opened a new MR", 0);
+    });
+  });
+
+  describe("onPipelineEvent", () => {
+    
+    let baseEvent: IGitLabWebhookPipelineEvent;
+
+    beforeEach(() => {
+      baseEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: {
+          ...GITLAB_PIPELINE_EVENT.object_attributes,
+        },
+      };
+    });
+
+    it("should skip event if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineEvent({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "success",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should send only the triggered message if pipeline just started", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+      await connection.onPipelineEvent({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "pending", // pipeline just started
+        },
+      });
+
+      intent.expectEventBodyContains("Pipeline triggered", 0);
+    });
+
+    it("should send final success message (green)", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineSuccess({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "success",
+        },
+      });
+
+      //expect(intent.sentEvents[0].content.body).to.include("triggered");
+
+      expect(intent.sentEvents[0].content.body).to.include("SUCCESS");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
+        '<font color="green"><b>SUCCESS</b></font>',
+      );
+    });
+
+    it("should send triggered and final failed message (red)", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineEvent({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "failed",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("triggered");
+
+      expect(intent.sentEvents[1].content.body).to.include("FAILED");
+      expect(intent.sentEvents[1].content.formatted_body).to.include(
+        '<font color="red"><b>FAILED</b></font>',
+      );
     });
   });
 });
