@@ -31,4 +31,5 @@
 - [Workers](./advanced/workers.md)
 - [🔒 Encryption](./advanced/encryption.md)
 - [🪀 Widgets](./advanced/widgets.md)
+- [Element Web Integration](./advanced/element_module.md)
 - [Service Bots](./advanced/service_bots.md)
