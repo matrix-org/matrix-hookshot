@@ -9,7 +9,6 @@
         "moduleResolution": "bundler",
         "esModuleInterop": true,
         "forceConsistentCasingInFileNames": true,
-        "allowImportingTsExtensions": true,
         "strict": true,
         "declaration": true
     },

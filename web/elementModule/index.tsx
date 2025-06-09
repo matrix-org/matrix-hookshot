@@ -6,7 +6,7 @@ Please see LICENSE files in the repository root for full details.
 */
 
 import type { Module, Api, ModuleFactory, CustomMessageComponentProps } from "@element-hq/element-web-module-api";
-import { type OpenProjectContent, OpenProjectEventWidget, OpenProjectEventWidgetChanged } from "./eventWidget";
+import { type OpenProjectContent, OpenProjectEventWidget, OpenProjectEventWidgetChanged } from "./OpenProject";
 
 
 class HookshotModule implements Module {

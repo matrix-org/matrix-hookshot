@@ -11,18 +11,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import externalGlobals from "rollup-plugin-external-globals";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
+import dts from "vite-plugin-dts";
 
 export default defineConfig({
     build: {
         lib: {
-            entry: resolve(__dirname, "src/index.tsx"),
+            entry: resolve("web", "elementModule", "index.tsx"),
             name: "hookshot-openproject",
             fileName: "index",
             formats: ["es"],
         },
-        outDir: "lib",
+        outDir: "public/elementModule",
         target: "esnext",
         sourcemap: true,
         rollupOptions: {
@@ -30,6 +29,7 @@ export default defineConfig({
         },
     },
     plugins: [
+        dts({tsconfigPath: resolve("web", "elementModule", "tsconfig.json")}),
         react(),
         nodePolyfills({
             include: ["events"],
