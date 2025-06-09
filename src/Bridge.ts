@@ -11,6 +11,7 @@ import {
   EventKind,
   PowerLevelsEvent,
   Intent,
+  MatrixError,
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
 import {
@@ -69,18 +70,18 @@ import {
   NotificationFilterStateContent,
 } from "./NotificationFilters";
 import { NotificationProcessor } from "./NotificationsProcessor";
-import {
-  NotificationsEnableEvent,
-  NotificationsDisableEvent,
-  Webhooks,
-} from "./Webhooks";
+import { Webhooks } from "./Webhooks";
 import {
   GitHubOAuthToken,
   GitHubOAuthTokenResponse,
   ProjectsGetResponseData,
 } from "./github/Types";
 import { retry } from "./PromiseUtil";
-import { UserNotificationsEvent } from "./notifications/UserNotificationWatcher";
+import {
+  NotificationsDisableEvent,
+  NotificationsEnableEvent,
+  UserNotificationsEvent,
+} from "./notifications/UserNotificationWatcher";
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import * as GitHubWebhookTypes from "@octokit/webhooks-types";
 import { Logger } from "matrix-appservice-bridge";
@@ -1168,6 +1169,22 @@ export class Bridge {
     this.listener.bindResource("webhooks", webhookHandler.expressRouter);
 
     await this.as.begin();
+    log.info(`Pinging homeserver to validate connection`);
+    try {
+      await this.as.pingHomeserver();
+    } catch (ex) {
+      if (ex instanceof MatrixError && ex.errcode === "M_CONNECTION_FAILED") {
+        log.error(
+          "**WARNING**: The homeserver reports it is unable to contact Hookshot. This will render Hookshot unusable until fixed." +
+            "Verify that the bridge.port / bridge.bindAddress in the config is reachable. Consult your homeserver documentation for appservice configuration.",
+        );
+      } else {
+        log.warn(
+          "Homeserver was pinged but was unable to validate the connection. You may be running a unsupported configuration.",
+          ex,
+        );
+      }
+    }
     log.info(
       `Bridge is now ready. Found ${this.connectionManager.size} connections`,
     );

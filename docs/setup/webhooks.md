@@ -41,6 +41,9 @@ webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/w
 respond with a 200 as soon as the webhook has entered processing (`false`) while others prefer to know if the resulting Matrix message
 has been sent (`true`). By default this is `false`.
 
+`includeHookBody` will determine whether the bridge will include the full webhook request body
+(`uk.half-shot.hookshot.webhook_data`) inside the Matrix event. By default this is `true`.
+
 `enableHttpGet` means that webhooks can be triggered by `GET` requests, in addition to `POST` and `PUT`. This was previously on by default,
 but is now disabled due to concerns mentioned below.
 

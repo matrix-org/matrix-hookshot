@@ -1,7 +1,3 @@
-import {
-  NotificationsDisableEvent,
-  NotificationsEnableEvent,
-} from "../Webhooks";
 import { Logger } from "matrix-appservice-bridge";
 import {
   createMessageQueue,
@@ -23,6 +19,22 @@ export interface UserNotificationsEvent {
 
 const MIN_INTERVAL_MS = 15000;
 const FAILURE_THRESHOLD = 50;
+
+export interface NotificationsEnableEvent {
+  userId: string;
+  roomId: string;
+  since?: number;
+  token: string;
+  filterParticipating: boolean;
+  type: "github" | "gitlab";
+  instanceUrl?: string;
+}
+
+export interface NotificationsDisableEvent {
+  userId: string;
+  type: "github" | "gitlab";
+  instanceUrl?: string;
+}
 
 const log = new Logger("UserNotificationWatcher");
 

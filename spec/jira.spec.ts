@@ -113,72 +113,78 @@ describe("JIRA", () => {
     return testEnv?.tearDown();
   });
 
-  test("should be able to handle a JIRA event", async () => {
-    const user = testEnv.getUser("user");
-    const bridgeApi = await getBridgeApi(
-      testEnv.opts.config?.widgets?.publicUrl!,
-      user,
-    );
-    const testRoomId = await user.createRoom({
-      name: "Test room",
-      invite: [testEnv.botMxid],
-    });
-    await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
-    const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
-    // Pre-grant connection to allow us to bypass the oauth dance.
-    await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId: testRoomId });
-    const granter = new JiraGrantChecker(testEnv.app.appservice, null as any);
-    await granter.grantConnection(testRoomId, {
-      url: jiraURL,
-    });
-
-    // "Create" a JIRA connection.
-    await testEnv.app.appservice.botClient.sendStateEvent(
-      testRoomId,
-      JiraProjectConnection.CanonicalEventType,
-      jiraURL,
-      {
+  test.each(["/", "/jira/webhook"])(
+    "should be able to handle a JIRA event (on path %s)",
+    async (path) => {
+      const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const testRoomId = await user.createRoom({
+        name: "Test room",
+        invite: [testEnv.botMxid],
+      });
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
+      // Pre-grant connection to allow us to bypass the oauth dance.
+      await user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      const granter = new JiraGrantChecker(testEnv.app.appservice, null as any);
+      await granter.grantConnection(testRoomId, {
         url: jiraURL,
-      } satisfies JiraProjectConnectionState,
-    );
+      });
 
-    await waitFor(
-      async () =>
-        (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
-    );
+      // "Create" a JIRA connection.
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        testRoomId,
+        JiraProjectConnection.CanonicalEventType,
+        jiraURL,
+        {
+          url: jiraURL,
+        } satisfies JiraProjectConnectionState,
+      );
 
-    const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
-      eventType: "m.room.message",
-      sender: testEnv.botMxid,
-      roomId: testRoomId,
-    });
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+      );
 
-    const webhookPayload = JSON.stringify(JIRA_PAYLOAD);
+      const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
 
-    const hmac = createHmac(
-      "sha256",
-      testEnv.opts.config?.jira?.webhook.secret!,
-    );
-    hmac.write(webhookPayload);
-    hmac.end();
+      const webhookPayload = JSON.stringify(JIRA_PAYLOAD);
 
-    // Send a webhook
-    const req = await fetch(`http://localhost:${webhooksPort}/`, {
-      method: "POST",
-      headers: {
-        "X-Hub-Signature": `sha256=${hmac.read().toString("hex")}`,
-        "x-atlassian-webhook-identifier": randomUUID(),
-        "Content-Type": "application/json",
-      },
-      body: webhookPayload,
-    });
-    expect(req.status).toBe(200);
-    expect(await req.text()).toBe("OK");
+      const hmac = createHmac(
+        "sha256",
+        testEnv.opts.config?.jira?.webhook.secret!,
+      );
+      hmac.write(webhookPayload);
+      hmac.end();
 
-    // And await the notice.
-    const { body } = (await webhookNotice).data.content;
-    expect(body).toContain(
-      'Test User created a new JIRA issue [TP-8](https://example.org/browse/TP-8): "Test issue"',
-    );
-  });
+      // Send a webhook
+      const req = await fetch(`http://localhost:${webhooksPort}${path}`, {
+        method: "POST",
+        headers: {
+          "X-Hub-Signature": `sha256=${hmac.read().toString("hex")}`,
+          "x-atlassian-webhook-identifier": randomUUID(),
+          "Content-Type": "application/json",
+        },
+        body: webhookPayload,
+      });
+      expect(req.status).toBe(200);
+      expect(await req.text()).toBe("OK");
+
+      // And await the notice.
+      const { body } = (await webhookNotice).data.content;
+      expect(body).toContain(
+        'Test User created a new JIRA issue [TP-8](https://example.org/browse/TP-8): "Test issue"',
+      );
+    },
+  );
 });

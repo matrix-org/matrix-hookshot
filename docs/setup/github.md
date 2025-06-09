@@ -6,7 +6,11 @@ This bridge requires a [GitHub App](https://github.com/settings/apps/new). You w
 
 ### Webhook
 
-The **Webhook URL** should point to the public address of your hookshot instance, at the `/` path.
+<section class="notice">
+Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/github/webhook</code> should be used wherever possible.
+</section>
+
+The **Webhook URL** should point to the public address of your hookshot instance, at the `/github/webhook` path.
 You **MUST** also provide a secret, which should match the `github.webhook.secret` value in your config.
 
 ### Permissions

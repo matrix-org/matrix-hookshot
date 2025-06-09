@@ -3,7 +3,15 @@ import {
   E2ETestEnv,
   E2ETestMatrixClient,
 } from "./util/e2e-test";
-import { describe, test, beforeAll, afterAll, expect, vitest } from "vitest";
+import {
+  describe,
+  test,
+  beforeAll,
+  afterAll,
+  afterEach,
+  expect,
+  vitest,
+} from "vitest";
 import { GenericHookConnection } from "../src/Connections";
 import { TextualMessageEventContent } from "matrix-bot-sdk";
 import { add } from "date-fns/add";
@@ -76,6 +84,10 @@ describe("Inbound (Generic) Webhooks", () => {
 
   afterAll(() => {
     return testEnv?.tearDown();
+  });
+
+  afterEach(() => {
+    vitest.useRealTimers();
   });
 
   test("should be able to create a new webhook and handle an incoming request.", async () => {
@@ -158,5 +170,47 @@ describe("Inbound (Generic) Webhooks", () => {
       ok: false,
       error: "This hook has expired",
     });
+  });
+  test("should allow disabling hook data in matrix events.", async () => {
+    const user = testEnv.getUser("user");
+    const roomId = await user.createRoom({ name: "My Test Webhooks room" });
+    const okMsg = user.waitForRoomEvent({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    const url = await createInboundConnection(user, testEnv.botMxid, roomId);
+    expect((await okMsg).data.content.body).toEqual(
+      "Room configured to bridge webhooks. See admin room for secret url.",
+    );
+
+    await user.sendStateEvent(
+      roomId,
+      GenericHookConnection.CanonicalEventType,
+      "test",
+      {
+        ...(await user.getRoomStateEvent(
+          roomId,
+          GenericHookConnection.CanonicalEventType,
+          "test",
+        )),
+        includeHookBody: false,
+      },
+    );
+
+    const expectedMsg = user.waitForRoomEvent({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    const req = await fetch(url, {
+      method: "PUT",
+      body: "Hello world",
+    });
+    expect(req.status).toEqual(200);
+    expect(await req.json()).toEqual({ ok: true });
+    expect(
+      (await expectedMsg).data.content["uk.half-shot.hookshot.webhook_data"],
+    ).toBeUndefined();
   });
 });

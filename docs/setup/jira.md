@@ -4,6 +4,10 @@
 
 This should be done for the JIRA instance you wish to bridge. The setup steps vary for Cloud and Enterprise (on-premise).
 
+<section class="notice">
+Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/jira/webhook</code> should be used wherever possible.
+</section>
+
 ### Cloud
 
 See https://support.atlassian.com/jira-cloud-administration/docs/manage-webhooks/ for documentation on how to setup webhooks.
@@ -15,7 +19,7 @@ Hookshot **requires** that you use a secret. Please copy the generated secret va
 You need to go to the `WebHooks` configuration page under Settings > System.
 Note that this may require administrative access to the JIRA instance.
 
-Next, add a webhook that points to `/` on the public webhooks address for hookshot. You must also include a
+Next, add a webhook that points to `/jira/webhook` on the public webhooks address for hookshot. You must also include a
 secret value by appending `?secret=your-webhook-secret`. The secret value can be anything, but should
 be reasonably secure and should also be stored in the `config.yml` file.
 
