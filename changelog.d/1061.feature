@@ -1,1 +1,1 @@
-Add support for GitLab 'pipeline' event notifications. Thanks to @madjidDer, @ManilDF, and @leguye!
+Add support for GitLab 'pipeline' event notifications. Thanks to @madjidDer, @ManilDF, @Hakim-Lakrout and @leguye!  
