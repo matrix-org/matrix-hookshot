@@ -37,7 +37,7 @@ class HookshotModule implements Module {
 
     this.api.customComponents.registerMessageRenderer(
       shouldRender,
-      (props, originalComponent) => {
+      (props) => {
         const content = props.mxEvent.getContent();
         if (
           content["org.matrix.matrix-hookshot.openproject.work_package.changed"]
