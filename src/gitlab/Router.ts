@@ -69,13 +69,13 @@ export class GitLabWebhooksRouter {
     } else if (body.object_kind === "push") {
       return `gitlab.push`;
     } else if (body.object_kind === "pipeline") {
-      const pipeline_event = (body as unknown as IGitLabWebhookPipelineEvent)
-      const status = pipeline_event.object_attributes?.status?.toLowerCase();
+      const pipelineEevent = body as unknown as IGitLabWebhookPipelineEvent;
+      const status = pipelineEevent.object_attributes?.status?.toLowerCase();
       if (status === "success") {
         return "gitlab.pipeline.success";
       }
       return "gitlab.pipeline";
-    }else {
+    } else {
       return null;
     }
   }

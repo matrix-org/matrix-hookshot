@@ -191,7 +191,8 @@ export interface GitLabTargetFilter {
 @Connection
 export class GitLabRepoConnection
   extends CommandConnection<GitLabRepoConnectionState, ConnectionStateValidated>
-  implements IConnection {
+  implements IConnection
+{
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.repository";
   static readonly LegacyCanonicalEventType =
@@ -978,12 +979,10 @@ ${data.description}`;
   }
 
   public async onPipelineEvent(event: IGitLabWebhookPipelineEvent) {
-
     /*console.log("HOOK FILTER CHECK:", {
       enabledHooks: this.hookFilter.enabledHooks,
       shouldSkip: this.hookFilter.shouldSkip("pipeline"),
     });*/
-
 
     if (this.hookFilter.shouldSkip("pipeline")) {
       //console.log(">>> [qaqah] Skipping pipeline event due to filter.");
@@ -1011,11 +1010,11 @@ ${data.description}`;
 
     if (["FAILED", "CANCELED"].includes(statusUpper)) {
       const statusHtml =
-          statusUpper === "FAILED"
-            ? `<font color="red"><b>${statusUpper}</b></font>`
-            : statusUpper === "CANCELED"
-              ? `<font color="darkgray"><b>${statusUpper}</b></font>`
-              : `<b>${statusUpper}</b>`;
+        statusUpper === "FAILED"
+          ? `<font color="red"><b>${statusUpper}</b></font>`
+          : statusUpper === "CANCELED"
+            ? `<font color="darkgray"><b>${statusUpper}</b></font>`
+            : `<b>${statusUpper}</b>`;
 
       const contentText = `Pipeline ${statusUpper} on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
       const contentHtml = `Pipeline ${statusHtml} on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
@@ -1031,24 +1030,25 @@ ${data.description}`;
   }
 
   public async onPipelineSuccess(event: IGitLabWebhookPipelineEvent) {
-  if (this.hookFilter.shouldSkip("pipeline", "pipeline.success")) {
-    return;
+    if (this.hookFilter.shouldSkip("pipeline", "pipeline.success")) {
+      return;
+    }
+
+    log.info(
+      `onPipelineSuccess ${this.roomId} ${this.instance.url}/${this.path}`,
+    );
+    const { ref, duration } = event.object_attributes;
+
+    const contentText = `Pipeline SUCCESS on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
+    const contentHtml = `Pipeline <font color="green"><b>SUCCESS</b></font> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+
+    await this.intent.sendEvent(this.roomId, {
+      msgtype: "m.notice",
+      body: contentText,
+      formatted_body: contentHtml,
+      format: "org.matrix.custom.html",
+    });
   }
-
-  log.info(`onPipelineSuccess ${this.roomId} ${this.instance.url}/${this.path}`);
-  const { ref, duration } = event.object_attributes;
-
-  const contentText = `Pipeline SUCCESS on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
-  const contentHtml = `Pipeline <font color="green"><b>SUCCESS</b></font> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
-
-  await this.intent.sendEvent(this.roomId, {
-    msgtype: "m.notice",
-    body: contentText,
-    formatted_body: contentHtml,
-    format: "org.matrix.custom.html",
-  });
-}
-
 
   private async renderDebouncedMergeRequest(
     uniqueId: string,

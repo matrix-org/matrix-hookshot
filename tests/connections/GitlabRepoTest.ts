@@ -423,7 +423,6 @@ describe("GitLabRepoConnection", () => {
   });
 
   describe("onPipelineEvent", () => {
-    
     let baseEvent: IGitLabWebhookPipelineEvent;
 
     beforeEach(() => {

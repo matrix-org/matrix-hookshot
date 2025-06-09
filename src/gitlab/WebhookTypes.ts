@@ -201,7 +201,6 @@ export interface IGitLabWebhookNoteEvent {
   merge_request?: IGitlabMergeRequest;
 }
 
-
 export interface IGitLabWebhookIssueStateEvent {
   user: IGitlabUser;
   event_type: string;

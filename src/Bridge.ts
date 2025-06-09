@@ -702,9 +702,9 @@ export class Bridge {
         return [
           ...(iid
             ? connManager.getConnectionsForGitLabIssueWebhook(
-              data.repository.homepage,
-              iid,
-            )
+                data.repository.homepage,
+                iid,
+              )
             : []),
           ...connManager.getConnectionsForGitLabRepo(
             data.project.path_with_namespace,

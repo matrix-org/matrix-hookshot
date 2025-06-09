@@ -20,7 +20,7 @@ export class HookFilter<T extends string> {
     return [...resultHookSet];
   }
 
-  constructor(public enabledHooks: T[] = []) { }
+  constructor(public enabledHooks: T[] = []) {}
 
   public shouldSkip(...hookName: T[]) {
     // Should skip if all of the hook names are missing
