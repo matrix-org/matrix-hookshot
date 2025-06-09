@@ -616,6 +616,15 @@ export class Bridge {
     );
 
     this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
+      "gitlab.pipeline.running",
+      (data) =>
+        connManager.getConnectionsForGitLabRepo(
+          data.project.path_with_namespace,
+        ),
+      (c, data) => c.onPipelineTriggered(data),
+    );
+
+    this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
       "gitlab.pipeline.success",
       (data) =>
         connManager.getConnectionsForGitLabRepo(
@@ -625,12 +634,21 @@ export class Bridge {
     );
 
     this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
-      "gitlab.pipeline",
+      "gitlab.pipeline.failed",
       (data) =>
         connManager.getConnectionsForGitLabRepo(
           data.project.path_with_namespace,
         ),
-      (c, data) => c.onPipelineEvent(data),
+      (c, data) => c.onPipelineFailed(data),
+    );
+
+    this.bindHandlerToQueue<IGitLabWebhookPipelineEvent, GitLabRepoConnection>(
+      "gitlab.pipeline.canceled",
+      (data) =>
+        connManager.getConnectionsForGitLabRepo(
+          data.project.path_with_namespace,
+        ),
+      (c, data) => c.onPipelineCanceled(data),
     );
 
     this.queue.on<UserNotificationsEvent>(

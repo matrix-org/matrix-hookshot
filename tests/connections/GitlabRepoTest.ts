@@ -434,9 +434,21 @@ describe("GitLabRepoConnection", () => {
       };
     });
 
-    it("should skip event if hook is disabled", async () => {
+    it("should skip onPipelineTriggered if hook is disabled", async () => {
       const { connection, intent } = createConnection({ enableHooks: [] });
-      await connection.onPipelineEvent({
+      await connection.onPipelineTriggered({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "running",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should skip onPipelineSuccess if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineSuccess({
         ...baseEvent,
         object_attributes: {
           ...baseEvent.object_attributes,
@@ -446,15 +458,39 @@ describe("GitLabRepoConnection", () => {
       intent.expectNoEvent();
     });
 
+    it("should skip onPipelineFailed if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineFailed({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "failed",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should skip onPipelineCanceled if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineCanceled({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "canceled",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
     it("should send only the triggered message if pipeline just started", async () => {
       const { connection, intent } = createConnection({
         enableHooks: ["pipeline"],
       });
-      await connection.onPipelineEvent({
+      await connection.onPipelineTriggered({
         ...baseEvent,
         object_attributes: {
           ...baseEvent.object_attributes,
-          status: "pending", // pipeline just started
+          status: "running", // pipeline just started
         },
       });
 
@@ -474,20 +510,37 @@ describe("GitLabRepoConnection", () => {
         },
       });
 
-      //expect(intent.sentEvents[0].content.body).to.include("triggered");
-
       expect(intent.sentEvents[0].content.body).to.include("SUCCESS");
       expect(intent.sentEvents[0].content.formatted_body).to.include(
-        '<font color="green"><b>SUCCESS</b></font>',
+        '<span data-mx-color="#00aa00"><b>SUCCESS</b></span>',
       );
     });
 
-    it("should send triggered and final failed message (red)", async () => {
+    it("should send canceled message (gray)", async () => {
       const { connection, intent } = createConnection({
         enableHooks: ["pipeline"],
       });
 
-      await connection.onPipelineEvent({
+      await connection.onPipelineCanceled({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "canceled",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("CANCELED");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
+        '<span data-mx-color="#a9a9a9"><b>CANCELED</b></span>',
+      );
+    });
+
+    it("should send failed message (red)", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineFailed({
         ...baseEvent,
         object_attributes: {
           ...baseEvent.object_attributes,
@@ -495,11 +548,9 @@ describe("GitLabRepoConnection", () => {
         },
       });
 
-      expect(intent.sentEvents[0].content.body).to.include("triggered");
-
-      expect(intent.sentEvents[1].content.body).to.include("FAILED");
-      expect(intent.sentEvents[1].content.formatted_body).to.include(
-        '<font color="red"><b>FAILED</b></font>',
+      expect(intent.sentEvents[0].content.body).to.include("FAILED");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
+        '<span data-mx-color="#ff0000"><b>FAILED</b></span>',
       );
     });
   });

@@ -71,10 +71,7 @@ export class GitLabWebhooksRouter {
     } else if (body.object_kind === "pipeline") {
       const pipelineEevent = body as unknown as IGitLabWebhookPipelineEvent;
       const status = pipelineEevent.object_attributes?.status?.toLowerCase();
-      if (status === "success") {
-        return "gitlab.pipeline.success";
-      }
-      return "gitlab.pipeline";
+      return `gitlab.pipeline.${status}`;
     } else {
       return null;
     }
