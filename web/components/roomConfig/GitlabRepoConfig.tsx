@@ -273,13 +273,6 @@ const ConnectionConfiguration: FunctionComponent<
             hookEventName="tag_push"
             onChange={toggleEnabledHook}
           >
-            Pipelines
-          </EventHookCheckbox>
-          <EventHookCheckbox
-            enabledHooks={enabledHooks}
-            hookEventName="pipeline"
-            onChange={toggleEnabledHook}
-          >
             Tag pushes
           </EventHookCheckbox>
           <EventHookCheckbox
@@ -296,6 +289,47 @@ const ConnectionConfiguration: FunctionComponent<
           >
             Releases
           </EventHookCheckbox>
+          <EventHookCheckbox
+            enabledHooks={enabledHooks}
+            hookEventName="pipeline"
+            onChange={toggleEnabledHook}
+          >
+            Pipelines
+          </EventHookCheckbox>
+          <ul>
+            <EventHookCheckbox
+              enabledHooks={enabledHooks}
+              parentEvent="pipeline"
+              hookEventName="pipeline.success"
+              onChange={toggleEnabledHook}
+            >
+              Success
+            </EventHookCheckbox>
+            <EventHookCheckbox
+              enabledHooks={enabledHooks}
+              parentEvent="pipeline"
+              hookEventName="pipeline.failed"
+              onChange={toggleEnabledHook}
+            >
+              Failed
+            </EventHookCheckbox>
+            <EventHookCheckbox
+              enabledHooks={enabledHooks}
+              parentEvent="pipeline"
+              hookEventName="pipeline.running"
+              onChange={toggleEnabledHook}
+            >
+              Running
+            </EventHookCheckbox>
+            <EventHookCheckbox
+              enabledHooks={enabledHooks}
+              parentEvent="pipeline"
+              hookEventName="pipeline.canceled"
+              onChange={toggleEnabledHook}
+            >
+              Canceled
+            </EventHookCheckbox>
+          </ul>
         </ul>
       </InputField>
       <ButtonSet>

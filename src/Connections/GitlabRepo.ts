@@ -1013,7 +1013,7 @@ ${data.description}`;
     const { ref, duration } = event.object_attributes;
 
     const contentText = `Pipeline SUCCESS on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
-    const contentHtml = `Pipeline <span data-mx-color="#00aa00"><b>SUCCESS</b></span> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+    const contentHtml = `Pipeline <span data-mx-color="#00aa00"><b>SUCCESS</b></span> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - ${duration != null ? `- Duration: ${duration}s` : ""}`;
 
     await this.intent.sendEvent(this.roomId, {
       msgtype: "m.notice",
@@ -1034,7 +1034,7 @@ ${data.description}`;
     const { ref, duration } = event.object_attributes;
 
     const contentText = `Pipeline FAILED on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
-    const contentHtml = `Pipeline <span data-mx-color="#ff0000"><b>FAILED</b></span> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+    const contentHtml = `Pipeline <span data-mx-color="#ff0000"><b>FAILED</b></span> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - ${duration != null ? `- Duration: ${duration}s` : ""}`;
 
     await this.intent.sendEvent(this.roomId, {
       msgtype: "m.notice",
@@ -1055,7 +1055,7 @@ ${data.description}`;
     const { ref, duration } = event.object_attributes;
 
     const contentText = `Pipeline CANCELED on branch \`${ref}\` for project ${event.project.name} by ${event.user.username} - Duration: ${duration ?? "?"}s`;
-    const contentHtml = `Pipeline <span data-mx-color="#a9a9a9"><b>CANCELED</b></span> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - Duration: ${duration ?? "?"}s`;
+    const contentHtml = `Pipeline <span data-mx-color="#a9a9a9"><b>CANCELED</b></span> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b> - ${duration != null ? `- Duration: ${duration}s` : ""}`;
 
     await this.intent.sendEvent(this.roomId, {
       msgtype: "m.notice",
