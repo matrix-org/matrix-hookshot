@@ -1771,7 +1771,11 @@ export class Bridge {
         id: connection.connectionId,
       });
       try {
-        await connection.onEvent(event);
+        const checkPermission = (
+          service: string,
+          level: BridgePermissionLevel,
+        ) => this.config.checkPermission(event.sender, service, level);
+        await connection.onEvent(event, checkPermission);
       } catch (ex) {
         Sentry.captureException(ex, scope);
         log.warn(

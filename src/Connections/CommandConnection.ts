@@ -2,7 +2,9 @@ import {
   botCommand,
   BotCommands,
   handleCommand,
+  handleEventCommand,
   HelpFunction,
+  HookshotCommandContent,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
 import { IRichReplyMetadata, MatrixClient, MessageEvent } from "matrix-bot-sdk";
@@ -50,6 +52,28 @@ export abstract class CommandConnection<
   protected abstract validateConnectionState(
     content: unknown,
   ): Promise<ValidatedStateType> | ValidatedStateType;
+
+  public async onEvent(
+    ev: MatrixEvent<unknown>,
+    checkPermission: PermissionCheckFn,
+  ) {
+    if (ev.type !== "org.matrix.matrix-hookshot.command") {
+      return;
+    }
+    const content = ev.content as HookshotCommandContent;
+    const res = await handleEventCommand(
+      ev.sender,
+      content,
+      await this.botClient.getEvent(
+        this.roomId,
+        content["m.relates_to"].event_id,
+      ),
+      this.botCommands,
+      this,
+      checkPermission,
+      this.serviceName,
+    );
+  }
 
   public async onMessageEvent(
     ev: MatrixEvent<MatrixMessageContent>,

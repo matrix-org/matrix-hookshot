@@ -36,12 +36,21 @@ export interface OpenProjectWorkPackageMatrixEvent {
     name: string;
     url: string;
   };
+  "org.matrix.matrix-hookshot.commands": {
+    "org.matrix.matrix-hookshot.openproject.command.close": {
+      label: string;
+    };
+    "org.matrix.matrix-hookshot.openproject.command.flag": {
+      label: string;
+    };
+  };
   external_url: string;
 }
 
 export function formatWorkPackageForMatrix(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
+  _stateKey: string,
 ): OpenProjectWorkPackageMatrixEvent {
   const url = new URL(
     baseURL.href +
@@ -87,6 +96,14 @@ export function formatWorkPackageForMatrix(
         baseURL.href + `projects/${pkg._embedded.project.id}`,
         baseURL,
       ).toString(),
+    },
+    "org.matrix.matrix-hookshot.commands": {
+      "org.matrix.matrix-hookshot.openproject.command.close": {
+        label: "Close work package",
+      },
+      "org.matrix.matrix-hookshot.openproject.command.flag": {
+        label: "Flag work package",
+      },
     },
     external_url: url,
   };
