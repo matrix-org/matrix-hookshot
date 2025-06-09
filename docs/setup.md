@@ -238,7 +238,6 @@ In terms of API endpoints:
   - `/webhooks` for Generic Webhooks
   - `/openproject` for OpenProject
   - `/figma` for Figma.
-  - `/openproject` for OpenProject.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
