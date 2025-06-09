@@ -990,7 +990,7 @@ ${data.description}`;
     log.info(
       `onPipelineTriggered ${this.roomId} ${this.instance.url}/${this.path}`,
     );
-    const { ref, duration } = event.object_attributes;
+    const { ref } = event.object_attributes;
 
     const triggerText = `Pipeline triggered on branch \`${ref}\` for project ${event.project.name} by ${event.user.username}`;
     const triggerHtml = `Pipeline <b>triggered</b> on branch <code>${ref}</code> for project <a href="${event.project.web_url}">${event.project.name}</a> by <b>${event.user.username}</b>`;
