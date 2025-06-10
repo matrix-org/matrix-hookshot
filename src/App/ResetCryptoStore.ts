@@ -12,9 +12,9 @@ const log = new Logger("ResetCryptoStore");
 let bridgeStorage: IBridgeStorageProvider | undefined;
 
 async function start() {
-  const configFile = process.argv[2] || "./config.yml";
-  const registrationFile = process.argv[3] || "./registration.yml";
-  const config = await BridgeConfig.parseConfig(configFile, process.env);
+  const { configFiles, registrationFile } =
+    BridgeConfig.getConfigOptionsFromArgv();
+  const config = await BridgeConfig.parseConfig(configFiles, process.env);
   const registration = await parseRegistrationFile(registrationFile);
   Logger.configure({
     console: config.logging.level,
@@ -31,7 +31,7 @@ async function start() {
   bridgeStorage = storage;
   if (!cryptoStorage) {
     log.info(
-      `Encryption is not enabled in the configuration file "${configFile}", so there is no encryption state to be reset`,
+      `Encryption is not enabled in the configuration file, so there is no encryption state to be reset`,
     );
     return;
   }

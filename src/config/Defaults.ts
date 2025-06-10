@@ -240,10 +240,10 @@ function renderDefaultConfig() {
   return doc.toString();
 }
 
-async function renderRegistrationFile(configPath?: string) {
+async function renderRegistrationFile(configPaths: string[]) {
   let bridgeConfig: BridgeConfig;
-  if (configPath) {
-    bridgeConfig = await BridgeConfig.parseConfig(configPath, process.env);
+  if (configPaths.length) {
+    bridgeConfig = await BridgeConfig.parseConfig(configPaths, process.env);
   } else {
     bridgeConfig = DefaultConfig;
   }
@@ -287,7 +287,7 @@ if (require.main === module) {
   if (process.argv[2] === "--config") {
     console.log(renderDefaultConfig());
   } else if (process.argv[2] === "--registration") {
-    renderRegistrationFile(process.argv[3]).catch((ex) => {
+    renderRegistrationFile(process.argv.slice(3)).catch((ex) => {
       console.error(ex);
       process.exit(1);
     });

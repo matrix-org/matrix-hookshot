@@ -78,9 +78,9 @@ export async function start(
 }
 
 async function startFromFile() {
-  const configFile = process.argv[2] || "./config.yml";
-  const registrationFile = process.argv[3] || "./registration.yml";
-  const config = await BridgeConfig.parseConfig(configFile, process.env);
+  const { configFiles, registrationFile } =
+    BridgeConfig.getConfigOptionsFromArgv();
+  const config = await BridgeConfig.parseConfig(configFiles, process.env);
   const registration = await parseRegistrationFile(registrationFile);
   const { bridgeApp, listener, storage } = await start(config, registration);
   process.once("SIGTERM", () => {

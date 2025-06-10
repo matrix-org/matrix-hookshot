@@ -9,9 +9,9 @@ import { getAppservice } from "../Appservice";
 const log = new Logger("App");
 
 async function start() {
-  const configFile = process.argv[2] || "./config.yml";
-  const registrationFile = process.argv[3] || "./registration.yml";
-  const config = await BridgeConfig.parseConfig(configFile, process.env);
+  const { configFiles, registrationFile } =
+    BridgeConfig.getConfigOptionsFromArgv();
+  const config = await BridgeConfig.parseConfig(configFiles, process.env);
   const registration = await parseRegistrationFile(registrationFile);
   Logger.configure({
     console: config.logging.level,
