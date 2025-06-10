@@ -4,6 +4,13 @@ services:
   valkey:
     image: valkey/valkey:8.1.1
 
+  element:
+    image: vectorim/element-web:develop
+    volumes:
+      - ./contrib/docker/element/config.json:/app/config.json:ro
+    ports:
+      - "127.0.0.1:8083:80"
+
   init-app:
     image: alpine:3
     command: /contrib/init.sh

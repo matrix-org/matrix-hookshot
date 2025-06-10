@@ -35,4 +35,7 @@ trusted_key_servers:
 
 app_service_config_files:
   - /contrib/registration.yaml
+
+enable_registration: true
+enable_registration_without_verification: true
 # vim:ft=yaml

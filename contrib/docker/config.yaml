@@ -1,37 +1,38 @@
-cache:
-  redisUri: "redis://valkey:6379"
-
-listeners:
-  - port: 9001
-    bindAddress: 0.0.0.0
-    resources:
-      - webhooks
-      - widgets
+# This is an example configuration file
 
 bridge:
+  # Basic homeserver configuration
   domain: localhost
   url: http://synapse:8008
   port: 9993
   bindAddress: 0.0.0.0
 
 logging:
-  level: debug # One of "debug", "info", "warn", "error"
-  json: false
+  level: debug
   colorize: true
 
 passFile: /data/passkey.pem
+listeners:
+  - port: 9001
+    bindAddress: 0.0.0.0
+    resources:
+      - widgets
+      - webhooks
 
-widgets:
-  publicUrl: "http://localhost:9001/widgetapi/v1/static"
-  addToAdminRooms: true
-  roomSetupWidget:
-    addOnInvite: true
-  setRoomName: true
-  openIdOverrides: 
-    "localhost": "http://localhost:8008"
+cache:
+  redisUri: redis://valkey:6379
 
 generic:
   enabled: true
-  urlPrefix: http://localhost:9001/webhook
-  waitForComplete: true
+  urlPrefix: https://localhost:9001/webhook/
   allowJsTransformationFunctions: true
+  waitForComplete: true
+
+widgets:
+  publicUrl: https://localhost:9001/widgetapi/v1/static/
+  roomSetupWidget:
+    addOnInvite: true
+  branding:
+    widgetTitle: Hookshot Configuration
+  openIdOverrides:
+    "localhost": "http://localhost:8008"
