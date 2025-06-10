@@ -5919,10 +5919,10 @@ matrix-appservice@^2.0.0:
     js-yaml "^4.1.0"
     morgan "^1.10.0"
 
-"matrix-bot-sdk@npm:@vector-im/matrix-bot-sdk@0.7.1-element.9":
-  version "0.7.1-element.9"
-  resolved "https://registry.yarnpkg.com/@vector-im/matrix-bot-sdk/-/matrix-bot-sdk-0.7.1-element.9.tgz#63c03b76e2330bc0c9faf6607bdce636eabac7ab"
-  integrity sha512-Jmvo85Z2waX64ZtoHHG6tfguAf1UA2adPKIGwxDKY+4zgLqQjo4WoirU0DTHbLR1P72nlMJ0uBdryNSnfg80ng==
+"matrix-bot-sdk@npm:@vector-im/matrix-bot-sdk@0.7.1-element.11":
+  version "0.7.1-element.11"
+  resolved "https://registry.yarnpkg.com/@vector-im/matrix-bot-sdk/-/matrix-bot-sdk-0.7.1-element.11.tgz#5827d9d381d0290d6f87039840584d5c2d61b403"
+  integrity sha512-+Btt441GaegnuGO4b2JaGHNu4FYxy1Zi8vJxMk9VsSkGvZENNQB84hzXqfpKAk5UF2S5uGchCzN9TsXdZkWrWg==
   dependencies:
     "@matrix-org/matrix-sdk-crypto-nodejs" "0.3.0-beta.1"
     "@types/express" "^4.17.21"
