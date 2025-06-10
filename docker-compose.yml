@@ -1,44 +1,52 @@
-version: '3.7'
+name: matrix-hookshot
+
 services:
-  redis:
-    image: redis
-  webhook:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+  valkey:
+    image: valkey/valkey:8.1.1
+
+  init-app:
+    image: alpine:3
+    command: /contrib/init.sh
+    volumes:
+      - ./contrib/docker/:/contrib:ro
+      - hookshot-data:/data
+      - synapse-data:/synapse-data
+
+  synapse:
+    image: matrixdotorg/synapse:latest
     ports:
-      - "127.0.0.1:7775:7775"
-    volumes:
-      - ./data:/data
-    links:
-      - redis
+      - "127.0.0.1:8008:8008"
     environment:
-      CFG_QUEUE_MONOLITHIC: "false"
-      CFG_QUEUE_HOST: "redis"
-    command: node /bin/matrix-hookshot/App/GithubWebhookApp.js /data/config.yml /data/registration.yml
-  sender:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+      - SYNAPSE_CONFIG_DIR=/contrib/synapse
     volumes:
-      - ./data:/data
-    links:
-      - redis
-    environment:
-      CFG_QUEUE_MONOLITHIC: "false"
-      CFG_QUEUE_HOST: "redis"
-    command: node /bin/matrix-hookshot/App/MatrixSenderApp.js /data/config.yml /data/registration.yml
+      - ./contrib/docker:/contrib:ro
+      - synapse-data:/data
+    depends_on:
+      init-app:
+        condition: service_completed_successfully
+
   app:
     build:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - "127.0.0.1:9993:9993"
+      - "127.0.0.1:9001:9001"
     volumes:
-      - ./data:/data
+      - hookshot-data:/data
+      - ./contrib/docker/:/contrib:ro
+      - ./config.yml:/config/config.yml:ro
     links:
-      - redis
-    environment:
-      CFG_QUEUE_MONOLITHIC: "false"
-      CFG_QUEUE_HOST: "redis"
-    command: node /bin/matrix-hookshot/App/BridgeApp.js /data/config.yml /data/registration.yml
+      - valkey
+      - synapse
+    command: node /bin/matrix-hookshot/App/BridgeApp.js /config/config.yml /contrib/registration.yaml /contrib/config.yaml
+    depends_on:
+      valkey:
+        condition: service_started
+      init-app:
+        condition: service_completed_successfully
+      synapse:
+        condition: service_healthy
+
+volumes:
+  hookshot-data:
+  synapse-data:
