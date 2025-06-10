@@ -29,10 +29,10 @@ generic:
   waitForComplete: true
 
 widgets:
-  publicUrl: https://localhost:9001/widgetapi/v1/static/
+  publicUrl: http://localhost:9001/widgetapi/v1/static/
   roomSetupWidget:
     addOnInvite: true
   branding:
     widgetTitle: Hookshot Configuration
   openIdOverrides:
-    "localhost": "http://localhost:8008"
+    "localhost": "http://synapse:8008"
