@@ -9,8 +9,12 @@ import { LogService } from "matrix-bot-sdk";
 const log = new Logger("App");
 
 async function start() {
-  const configFile = process.argv[2] || "./config.yml";
-  const config = await BridgeConfig.parseConfig(configFile, process.env);
+  const { configFiles, registrationFile } =
+    BridgeConfig.getConfigOptionsFromArgv();
+  const config = await BridgeConfig.parseConfig(
+    [configFiles[0], registrationFile, ...configFiles.slice(1)],
+    process.env,
+  );
   Logger.configure({
     console: config.logging.level,
     colorize: config.logging.colorize,

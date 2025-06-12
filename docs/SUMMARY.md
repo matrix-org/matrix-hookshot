@@ -24,7 +24,8 @@
 
 # 🧑‍💻 Development
 
-- [Contributing](./contributing.md)
+- [Contributing](./dev/contributing.md)
+- [Setup](./dev/setup.md)
 
 # 🥼 Advanced
 
