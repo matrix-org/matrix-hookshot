@@ -1,8 +1,8 @@
-name: matrix-hookshot
+name: matrix-hookshot-dev
 
 services:
   valkey:
-    image: valkey/valkey:8.1.1
+    image: valkey/valkey:8
 
   element:
     image: vectorim/element-web:develop
@@ -53,6 +53,16 @@ services:
         condition: service_completed_successfully
       synapse:
         condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+          ignore:
+            - node_modules/
+            - docs/
+            - public/
+            - book/
+            - .*/
 
 volumes:
   hookshot-data:
