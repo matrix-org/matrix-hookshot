@@ -26,22 +26,21 @@ in production.
 
 ## Docker Compose
 
-The only hard requirements for this process are that you have Docker compose installed. 
+The only hard requirements for this process are that you have Docker compose installed.
 
 The steps to a complete test environment are as follows:
 
- - Checkout the project repository from https://github.com/matrix-org/matrix-hookshot.
- - Create an empty `config.yml` file in the root of your checkout.
- - Run `docker compose up`. This may take some time for all the images to be present.
- - Go to `http://localhost:8083` and register a new user.
- - Create a new room, invite `@hookshot:localhost`.
- - Promote it to Moderator as requested.
- - Go to the Hookshot widget (under extensions) to configure a webhook.
+- Checkout the project repository from https://github.com/matrix-org/matrix-hookshot.
+- Create an empty `config.yml` file in the root of your checkout.
+- Run `docker compose up`. This may take some time for all the images to be present.
+- Go to `http://localhost:8083` and register a new user.
+- Create a new room, invite `@hookshot:localhost`.
+- Promote it to Moderator as requested.
+- Go to the Hookshot widget (under extensions) to configure a webhook.
 
 This gives you a very basic experience, but we can configure this further. You can extend the config.yml with any of the options in [the sample config](../setup/sample-configuration). Keep in mind certain configuration options are pre-filled to ensure compatibility in the Docker environment. To override those settings
 you will need to copy the appropirate configuration block from `contrib/docker/config.yaml`.
 
 ### CA Certificates for developing against local HTTPS services
 
-If you prefer to develop against services that require adding a CA file, you can follow the [official advice](https://docs.docker.com/engine/network/ca-certs/#add-certificates-to-images) which works for the Hookshot image. 
-
+If you prefer to develop against services that require adding a CA file, you can follow the [official advice](https://docs.docker.com/engine/network/ca-certs/#add-certificates-to-images) which works for the Hookshot image.
