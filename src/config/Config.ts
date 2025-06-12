@@ -859,12 +859,35 @@ export class BridgeConfig {
     return config;
   }
 
+  static getConfigOptionsFromArgv(argv = process.argv): {
+    configFiles: string[];
+    registrationFile: string;
+  } {
+    const configFile = argv[2] || "./config.yml";
+    const registrationFile = argv[3] || "./registration.yml";
+    return {
+      configFiles: [configFile, ...argv.slice(4)],
+      registrationFile,
+    };
+  }
+
   static async parseConfig(
-    filename: string,
+    filenames: string[],
     env: { [key: string]: string | undefined },
   ) {
-    const file = await fs.readFile(filename, "utf-8");
-    return new BridgeConfig(YAML.parse(file), env);
+    if (filenames.length < 1) {
+      throw Error("No configuration file given");
+    }
+    let configurationRaw: any = {};
+    // This is a shallow merge of configs.
+    for (const filename of filenames) {
+      configurationRaw = {
+        ...configurationRaw,
+        ...YAML.parse(await fs.readFile(filename, "utf-8")),
+      };
+    }
+    log.info("Loading config from ", filenames.join(", "));
+    return new BridgeConfig(configurationRaw, env);
   }
 }
 
@@ -876,7 +899,10 @@ export async function parseRegistrationFile(filename: string) {
 // Can be called directly
 if (require.main === module) {
   Logger.configure({ console: "info" });
-  BridgeConfig.parseConfig(process.argv[2] || "config.yml", process.env)
+  BridgeConfig.parseConfig(
+    [process.argv[2] || "config.yml", ...process.argv.slice(4)],
+    process.env,
+  )
     .then(() => {
       console.log("Config successfully validated.");
       process.exit(0);

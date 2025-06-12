@@ -42,6 +42,11 @@ export interface GenericHookConnectionState extends IConnectionState {
   waitForComplete?: boolean | undefined;
 
   /**
+   * Should the Matrix event include the `uk.half-shot.hookshot.webhook_data` property.
+   */
+  includeHookBody?: boolean;
+
+  /**
    * If the webhook has an expriation date, then the date at which the webhook is no longer value
    * (in UTC) time.
    */
@@ -164,6 +169,7 @@ export class GenericHookConnection
       transformationFunction,
       waitForComplete,
       expirationDate: expirationDateStr,
+      includeHookBody,
     } = state;
     if (!name) {
       throw new ApiError("Missing name", ErrCode.BadValue);
@@ -177,6 +183,12 @@ export class GenericHookConnection
     if (waitForComplete !== undefined && typeof waitForComplete !== "boolean") {
       throw new ApiError(
         "'waitForComplete' must be a boolean",
+        ErrCode.BadValue,
+      );
+    }
+    if (includeHookBody !== undefined && typeof includeHookBody !== "boolean") {
+      throw new ApiError(
+        "'includeHookBody' must be a boolean",
         ErrCode.BadValue,
       );
     }
@@ -217,6 +229,7 @@ export class GenericHookConnection
       transformationFunction: transformationFunction || undefined,
       waitForComplete,
       expirationDate,
+      includeHookBody,
     };
   }
 
@@ -639,7 +652,10 @@ export class GenericHookConnection
       );
 
       // Matrix cannot handle float data, so make sure we parse out any floats.
-      const safeData = GenericHookConnection.sanitiseObjectForMatrixJSON(data);
+      const safeData =
+        (this.state.includeHookBody ?? this.config.includeHookBody)
+          ? GenericHookConnection.sanitiseObjectForMatrixJSON(data)
+          : undefined;
 
       await this.messageClient.sendMatrixMessage(
         this.roomId,
@@ -652,7 +668,9 @@ export class GenericHookConnection
             ? { "m.mentions": content.mentions }
             : undefined),
           format: "org.matrix.custom.html",
-          "uk.half-shot.hookshot.webhook_data": safeData,
+          ...(safeData
+            ? { "uk.half-shot.hookshot.webhook_data": safeData }
+            : undefined),
         },
         "m.room.message",
         sender,

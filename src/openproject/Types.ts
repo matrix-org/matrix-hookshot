@@ -1,5 +1,9 @@
 type StringDate = string;
 
+export type OpenProjectIterableResult<T> = {
+  _embedded: { elements: T[] };
+};
+
 export interface OpenProjectUser {
   id: number;
   name: string;
@@ -8,6 +12,12 @@ export interface OpenProjectUser {
   updatedAt: StringDate;
   avatar: string;
   status: "active";
+  _links: {
+    self: {
+      href: string;
+      title: string;
+    };
+  };
 }
 
 export interface OpenProjectStatus {
@@ -17,6 +27,12 @@ export interface OpenProjectStatus {
   isDefault: boolean;
   isReadonly: boolean;
   color: string;
+  _links: {
+    self: {
+      href: string;
+      title: string;
+    };
+  };
 }
 
 export interface OpenProjectType {
@@ -26,6 +42,12 @@ export interface OpenProjectType {
   createdAt: StringDate;
   updatedAt: StringDate;
   color: string;
+  _links: {
+    self: {
+      href: string;
+      title: string;
+    };
+  };
 }
 
 export interface OpenProjectPriority {
@@ -36,6 +58,11 @@ export interface OpenProjectPriority {
   createdAt: StringDate;
   updatedAt: StringDate;
   color: string;
+  _links: {
+    self: {
+      href: string;
+    };
+  };
 }
 
 export interface OpenProjectProject {
@@ -51,6 +78,11 @@ export interface OpenProjectProject {
     raw: string;
     html: string;
   };
+  _links: {
+    memberships: {
+      href: string;
+    };
+  };
 }
 
 export interface OpenProjectWorkPackage {
@@ -58,7 +90,7 @@ export interface OpenProjectWorkPackage {
   id: number;
   lockVersion: number;
   subject: string;
-  description: { format: "markdown"; raw: ""; html: "" };
+  description: { format: "markdown"; raw: string; html?: string };
   scheduleManually: boolean;
   startDate: null;
   dueDate: string | null;
@@ -87,6 +119,21 @@ export interface OpenProjectWorkPackage {
   };
   _links: {
     self: object;
+  };
+}
+
+export interface OpenProjectMembership {
+  _type: "Membership";
+  id: number;
+  _links: {
+    principal: {
+      href: string;
+      title: string;
+    };
+    roles: {
+      href: string;
+      title: string;
+    }[];
   };
 }
 
