@@ -1,6 +1,6 @@
 # Setting up a development environment
 
-Getting started with Hookshot development is pretty easy! If you are familiar with Matrix server managmenet, and specifically integration
+Getting started with Hookshot development is pretty easy! If you are familiar with Matrix server management, and specifically integration
 development then you will probably be quite comfortable just using our [standard install process](https://matrix-org.github.io/matrix-hookshot/latest/setup.html#local-installation).
 
 If you are less familar, then we have a [Docker Compose](https://docs.docker.com/compose/) setup that requires very minimal effort to get going.
