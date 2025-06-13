@@ -1,5 +1,4 @@
-Getting set up
-==============
+# Getting set up
 
 This page explains how to set up Hookshot for use with a Matrix homeserver.
 
@@ -28,7 +27,6 @@ yarn # or npm i
 ```
 
 Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development`, depending if you want [better performance or more verbose logging](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production), and then running it:
-
 
 ```bash
 NODE_ENV=production yarn start
@@ -120,6 +118,7 @@ Each permission set can have a service. The `service` field can be:
 - `feed`
 - `figma`
 - `webhooks`
+- `openproject`
 - `challengehound`
 - `*`, for any service.
 
@@ -150,7 +149,6 @@ permissions:
 
 would grant `@badapple:example.com` the right to `manageConnections` for GitHub, even though they
 were explicitly named for a lower permission.
-
 
 #### Example
 
@@ -231,11 +229,15 @@ However, if you use Nginx, have a look at this example:
 
 This will pass all requests at `/widgetapi` to Hookshot.
 
-
 In terms of API endpoints:
 
-- The `webhooks` resource handles resources under `/`, so it should be on its own listener.
-  Note that OAuth requests also go through this listener. Previous versions of the bridge listened for requests on `/` rather than `/webhook`. While this behaviour will continue to work, administators are advised to use `/webhook`. 
+- The `webhooks` resource handles incoming webhooks for various services. Currently, these are:
+  - `/github` for GitHub
+  - `/gitlab` for GitLab
+  - `/jira` for JIRA
+  - `/webhooks` for Generic Webhooks
+  - `/openproject` for OpenProject
+  - `/figma` for Figma.
 - The `metrics` resource handles resources under `/metrics`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
@@ -258,7 +260,6 @@ cache:
   redisUri: "redis://redis-host:3679"
 ```
 
-
 ### Services configuration
 
 You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.
@@ -268,6 +269,7 @@ You will need to configure some services. Each service has its own documentation
 - [GitHub](./setup/github.md)
 - [GitLab](./setup/gitlab.md)
 - [Jira](./setup/jira.md)
+- [OpenProject](./setup/openproject.md)
 - [Webhooks](./setup/webhooks.md)
 
 ### Logging
@@ -292,26 +294,26 @@ Enabling the `json` option will configure hookshot to output structured JSON log
 
 ```json5
 {
-    // The level of the log.
-    "level": "WARN",
-    // The log message.
-    "message": "Failed to connect to homeserver",
-    // The module which emitted the log line.
-    "module": "Bridge",
-    // The timestamp of the log line.
-    "timestamp": "11:45:02:198",
-    // Optional error field, if the log includes an Error
-    "error": "connect ECONNREFUSED 127.0.0.1:8008",
-    // Additional context, possibly including the error body.
-    "args": [
-        {
-            "address": "127.0.0.1",
-            "code": "ECONNREFUSED",
-            "errno": -111,
-            "port": 8008,
-            "syscall": "connect"
-        },
-        "retrying in 5s"
-    ]
+  // The level of the log.
+  level: "WARN",
+  // The log message.
+  message: "Failed to connect to homeserver",
+  // The module which emitted the log line.
+  module: "Bridge",
+  // The timestamp of the log line.
+  timestamp: "11:45:02:198",
+  // Optional error field, if the log includes an Error
+  error: "connect ECONNREFUSED 127.0.0.1:8008",
+  // Additional context, possibly including the error body.
+  args: [
+    {
+      address: "127.0.0.1",
+      code: "ECONNREFUSED",
+      errno: -111,
+      port: 8008,
+      syscall: "connect",
+    },
+    "retrying in 5s",
+  ],
 }
 ```

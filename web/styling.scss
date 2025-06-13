@@ -1,14 +1,16 @@
 :root {
-  --background-color: #FFFFFF;
-  --foreground-color: #17191C;
-  --primary-color: #0DBD8B;
+  --background-color: #ffffff;
+  --foreground-color: #17191c;
+  --primary-color: #0dbd8b;
   --primary-color-disabled: #0dbd8baf;
 
-  background-color: #F4F6FA;
+  background-color: #f4f6fa;
   color: var(--foreground-color);
   min-height: 100%;
   width: 100%;
-  font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
+  font-family:
+    "Inter", "Twemoji", "Apple Color Emoji", "Segoe UI Emoji", "Arial",
+    "Helvetica", sans-serif, "Noto Color Emoji";
 }
 
 // @media (prefers-color-scheme: dark) {
@@ -31,7 +33,6 @@ body {
   height: fit-content;
   block-size: fit-content !important;
 }
-
 
 button {
   font-weight: 600;

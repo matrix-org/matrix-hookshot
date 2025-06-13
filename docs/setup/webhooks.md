@@ -2,7 +2,6 @@
 
 Hookshot supports two kinds of webhooks, inbound (previously known as Generic Webhooks) and outbound.
 
-
 ## Configuration
 
 You will need to add the following configuration to the config file.
@@ -42,15 +41,18 @@ webhook requests from `https://example.com/mywebhookspath` to the bridge (on `/w
 respond with a 200 as soon as the webhook has entered processing (`false`) while others prefer to know if the resulting Matrix message
 has been sent (`true`). By default this is `false`.
 
+`includeHookBody` will determine whether the bridge will include the full webhook request body
+(`uk.half-shot.hookshot.webhook_data`) inside the Matrix event. By default this is `true`.
+
 `enableHttpGet` means that webhooks can be triggered by `GET` requests, in addition to `POST` and `PUT`. This was previously on by default,
 but is now disabled due to concerns mentioned below.
 
 `maxExpiryTime` sets an upper limit on how long a webhook can be valid for before the bridge expires it. By default this is unlimited. This
 takes a duration represented by a string. E.g. "30d" is 30 days. See [this page](https://github.com/jkroso/parse-duration?tab=readme-ov-file#available-unit-types-are)
-for available units. Additionally: 
+for available units. Additionally:
 
-  - `sendExpiryNotice` configures whether a message is sent into a room when the connection is close to expiring.
-  - `requireExpiryTime` forbids creating a webhook without a expiry time. This does not apply to existing webhooks.
+- `sendExpiryNotice` configures whether a message is sent into a room when the connection is close to expiring.
+- `requireExpiryTime` forbids creating a webhook without a expiry time. This does not apply to existing webhooks.
 
 You may set a `userIdPrefix` to create a specific user for each new webhook connection in a room. For example, a connection with a name
 like `example` for a prefix of `webhook_` will create a user called `@webhook_example:example.com`. If you enable this option,
@@ -58,7 +60,7 @@ you need to configure the user to be part of your registration file e.g.:
 
 ```yaml
 # registration.yaml
-...
+---
 namespaces:
   users:
     - regex: "@webhook_.+:example.com" # Where example.com is your domain name.
@@ -68,10 +70,11 @@ namespaces:
 ### Adding a webhook
 
 To add a webhook to your room:
-  - Invite the bot user to the room.
-  - Make sure the bot able to send state events (usually the Moderator power level in clients)
-  - Say `!hookshot webhook example` where `example` is a name for your hook.
-  - The bot will respond with the webhook URL to be sent to services.
+
+- Invite the bot user to the room.
+- Make sure the bot able to send state events (usually the Moderator power level in clients)
+- Say `!hookshot webhook example` where `example` is a name for your hook.
+- The bot will respond with the webhook URL to be sent to services.
 
 ### Webhook Handling
 
@@ -86,10 +89,9 @@ a `html` key is provided.).
 
 If the body contains a `html` key, then that key will be used as the HTML message body in Matrix (aka `formatted_body`). A `text` key fallback MUST still be provided.
 
-If the body *also* contains a `username` key, then the message will be prepended by the given username. This will be prepended to both `text` and `html`.
+If the body _also_ contains a `username` key, then the message will be prepended by the given username. This will be prepended to both `text` and `html`.
 
 If the body does NOT contain a `text` field, the full payload will be sent to the room. This can be adapted into a message by creating a **JavaScript transformation function**.
-
 
 #### Payload formats
 
@@ -125,7 +127,6 @@ can specify this either globally in your config, or on the widget with `waitForC
 
 If you make use of the `webhookResponse` feature, you will need to enable `waitForComplete` as otherwise hookshot will
 immeditately respond with it's default response values.
-
 
 #### Expiring webhooks
 
@@ -174,6 +175,10 @@ The `v2` api expects an object to be returned from the `result` variable.
   "plain": "Some text", // The plaintext value to be used for the Matrix message.
   "html": "<b>Some</b> text", // The HTML value to be used for the Matrix message. If not provided, plain will be interpreted as markdown.
   "msgtype": "some.type", // The message type, such as m.notice or m.text, to be used for the Matrix message. If not provided, m.notice will be used.
+  "mentions": { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions
+    "room": true,
+    "user_ids": ["@foo:bar"]
+  },
   "webhookResponse": { // Optional response to send to the webhook requestor. All fields are optional. Defaults listed.
     "body": "{ \"ok\": true }",
     "contentType": "application/json",
@@ -189,14 +194,19 @@ Where `data` = `{"counter": 5, "maxValue": 4}`
 ```js
 if (data.counter === undefined) {
   // The API didn't give us a counter, send no message.
-  result = {empty: true, version: "v2"};
+  result = { empty: true, version: "v2" };
 } else if (data.counter > data.maxValue) {
-    result = {plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`, version: "v2"};
+  result = {
+    plain: `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`,
+    version: "v2",
+  };
 } else {
-    result = {plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`, version: "v2"};
+  result = {
+    plain: `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`,
+    version: "v2",
+  };
 }
 ```
-
 
 #### V1 API
 
@@ -209,9 +219,9 @@ Where `data` = `{"counter": 5, "maxValue": 4}`
 
 ```js
 if (data.counter > data.maxValue) {
-    result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`
+  result = `**Oh no!** The counter has gone over by ${data.counter - data.maxValue}`;
 } else {
-    result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`
+  result = `*Everything is fine*, the counter is under by ${data.maxValue - data.counter}`;
 }
 ```
 
@@ -232,10 +242,10 @@ or `POST` methods.
 
 Each request will contain 3 headers which you may use to authenticate and direct traffic:
 
-  - 'X-Matrix-Hookshot-EventId' contains the event's ID.
-  - 'X-Matrix-Hookshot-RoomId' contains the room ID where the message was sent.
-  - 'X-Matrix-Hookshot-Token' is the unique authentication token provided when you created the webhook. Use this
-    to verify that the message came from Hookshot.
+- 'X-Matrix-Hookshot-EventId' contains the event's ID.
+- 'X-Matrix-Hookshot-RoomId' contains the room ID where the message was sent.
+- 'X-Matrix-Hookshot-Token' is the unique authentication token provided when you created the webhook. Use this
+  to verify that the message came from Hookshot.
 
 The payloads are formatted as `multipart/form-data`.
 

@@ -2,17 +2,28 @@
 
 ## Adding a webhook to a JIRA Instance
 
-This should be done for the JIRA instance you wish to bridge. The setup steps are the same for both On-Prem and Cloud.
+This should be done for the JIRA instance you wish to bridge. The setup steps vary for Cloud and Enterprise (on-premise).
+
+<section class="notice">
+Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/jira/webhook</code> should be used wherever possible.
+</section>
+
+### Cloud
+
+See https://support.atlassian.com/jira-cloud-administration/docs/manage-webhooks/ for documentation on how to setup webhooks.
+
+Hookshot **requires** that you use a secret. Please copy the generated secret value to you config (seen below).
+
+### Enterprise
 
 You need to go to the `WebHooks` configuration page under Settings > System.
 Note that this may require administrative access to the JIRA instance.
 
-Next, add a webhook that points to `/` on the public webhooks address for hookshot. You should also include a
+Next, add a webhook that points to `/jira/webhook` on the public webhooks address for hookshot. You must also include a
 secret value by appending `?secret=your-webhook-secret`. The secret value can be anything, but should
 be reasonably secure and should also be stored in the `config.yml` file.
 
-Ensure that you enable all the events that you wish to be bridged.
-
+For both, ensure that you enable all the events that you wish to be bridged.
 
 ## Configuration
 
@@ -21,9 +32,8 @@ You can now set some configuration in the bridge `config.yml`:
 ```yaml
 jira:
   webhook:
-    secret: some-secret
-  oauth:
-    ... # See below
+    secret: your-webhook-secret
+  oauth: ... # See below
 ```
 
 You can omit the `oauth` section if you are not planning to allow users to log in and use interactive features (i.e. webhook only mode).
@@ -41,10 +51,11 @@ You'll first need to head to https://developer.atlassian.com/console/myapps/crea
 "OAuth 2.0 (3LO)" integration.
 
 Once named and created, you will need to:
-  1. Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.
-  2. Use rotating tokens under Authorisation.
-  3. Set a callback url. This will be the public URL to hookshot with a path of `/jira/oauth`.
-  4. Copy the client ID and Secret from Settings
+
+1. Enable the User REST, Jira Platform REST and User Identity APIs under Permissions.
+2. Use rotating tokens under Authorisation.
+3. Set a callback url. This will be the public URL to hookshot with a path of `/jira/oauth`.
+4. Copy the client ID and Secret from Settings
 
 You can now set some configuration in the bridge `config.yml`
 
@@ -63,14 +74,12 @@ The `redirect_uri` value must be the **public** path to `/jira/oauth` on the web
 points `https://example.com/hookshot` to the bridge `webhooks` listener, you should use the path `https://example.com/hookshot/jira/oauth`.
 This value MUST exactly match the **Callback URL** on the JIRA integration page page.
 
-
 ## JIRA for On-Premise (Datacenter)
 
 These instructions are written for Jira Datacenter 8.x.
 These instructions use `openssl` to generate certificates, so users on non-Unix systems will need to find an alternative way to generate these certificates.
 
 To begin, configure your `config.yml`:
-
 
 ```yaml
 jira:
@@ -86,8 +95,8 @@ jira:
     # The path to your webhooks listener on the "/jira/oauth" path.
     redirect_uri: http://localhost:5065/jira/oauth
 ```
-To start with, set up your JIRA instance to support OAuth.
 
+To start with, set up your JIRA instance to support OAuth.
 
 1. Open the **Administration** page for your JIRA instance.
 2. Click **Applications**.

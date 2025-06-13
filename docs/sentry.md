@@ -1,5 +1,4 @@
-Sentry
-======
+# Sentry
 
 Hookshot supports [Sentry](https://sentry.io/welcome/) error reporting.
 

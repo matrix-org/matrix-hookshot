@@ -10,6 +10,7 @@
   - [JIRA](./setup/jira.md)
   - [Webhooks](./setup/webhooks.md)
   - [ChallengeHound](./setup/challengehound.md)
+  - [OpenProject](./setup/openproject.md)
 - [👤 Usage](./usage.md)
   - [Dynamic Rooms](./usage/dynamic_rooms.md)
   - [Authenticating](./usage/auth.md)
@@ -22,11 +23,12 @@
 - [🆘 Troubleshooting](./troubleshooting.md)
 
 # 🧑‍💻 Development
-- [Contributing](./contributing.md)
+
+- [Contributing](./dev/contributing.md)
+- [Setup](./dev/setup.md)
 
 # 🥼 Advanced
 
-- [Provisioning](./advanced/provisioning.md)
 - [Workers](./advanced/workers.md)
 - [🔒 Encryption](./advanced/encryption.md)
 - [🪀 Widgets](./advanced/widgets.md)
