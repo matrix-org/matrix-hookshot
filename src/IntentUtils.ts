@@ -44,7 +44,7 @@ export async function getIntentForUser(
   as: Appservice,
   prefix?: string,
 ) {
-  const {domain} = new UserID(as.botUserId);
+  const { domain } = new UserID(as.botUserId);
   const intent = as.getIntentForUserId(
     `@${prefix ?? ""}${user.login}:${domain}`,
   );

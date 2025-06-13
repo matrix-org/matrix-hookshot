@@ -455,7 +455,7 @@ export class GenericHookConnection
     if (!this.config.userIdPrefix) {
       return this.intent.userId;
     }
-    const {domain} = new UserID(this.intent.userId);
+    const { domain } = new UserID(this.intent.userId);
     const name =
       this.state.name &&
       this.state.name

@@ -80,30 +80,51 @@ describe("Config/BridgePermissions", () => {
         .to.be.true;
     });
 
-
     it("handles domain actors with ports", () => {
       const bridgePermissionNoPort = genBridgePermissions(
         "bar",
         "my-service",
         "login",
       );
-      expect(bridgePermissionNoPort.checkAction("@foo:bar:9999", "my-service", "login"))
-        .to.be.false;
-      expect(bridgePermissionNoPort.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.true;
+      expect(
+        bridgePermissionNoPort.checkAction(
+          "@foo:bar:9999",
+          "my-service",
+          "login",
+        ),
+      ).to.be.false;
+      expect(
+        bridgePermissionNoPort.checkAction("@foo:bar", "my-service", "login"),
+      ).to.be.true;
       const bridgePermissionWithPort = genBridgePermissions(
         "bar:9999",
         "my-service",
         "login",
       );
-      expect(bridgePermissionWithPort.checkAction("@foo:bar:9999", "my-service", "login"))
-        .to.be.true;
-      expect(bridgePermissionWithPort.checkAction("@foo:bar:999", "my-service", "login"))
-        .to.be.false;
-      expect(bridgePermissionWithPort.checkAction("@foo:bar:", "my-service", "login"))
-        .to.be.false;
-      expect(bridgePermissionWithPort.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.false;
+      expect(
+        bridgePermissionWithPort.checkAction(
+          "@foo:bar:9999",
+          "my-service",
+          "login",
+        ),
+      ).to.be.true;
+      expect(
+        bridgePermissionWithPort.checkAction(
+          "@foo:bar:999",
+          "my-service",
+          "login",
+        ),
+      ).to.be.false;
+      expect(
+        bridgePermissionWithPort.checkAction(
+          "@foo:bar:",
+          "my-service",
+          "login",
+        ),
+      ).to.be.false;
+      expect(
+        bridgePermissionWithPort.checkAction("@foo:bar", "my-service", "login"),
+      ).to.be.false;
     });
 
     it("will return true for a wildcard actor", () => {
