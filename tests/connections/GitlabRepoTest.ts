@@ -15,6 +15,7 @@ import {
   IGitlabProject,
   IGitlabUser,
   IGitLabWebhookNoteEvent,
+  IGitLabWebhookPipelineEvent,
 } from "../../src/gitlab/WebhookTypes";
 
 const ROOM_ID = "!foo:bar";
@@ -73,6 +74,28 @@ const GITLAB_MR_COMMENT: IGitLabWebhookNoteEvent = {
     homepage: "https://gitlab.com/tadeuszs/my-awesome-project",
     name: "a-repo",
     url: "https://gitlab.com/tadeuszs/my-awesome-project",
+  },
+};
+
+const GITLAB_PIPELINE_EVENT: IGitLabWebhookPipelineEvent = {
+  object_kind: "pipeline",
+  user: {
+    name: "Test User",
+    username: "testuser",
+    avatar_url: "",
+  },
+  project: {
+    name: "Test Project",
+    web_url: "https://gitlab.example.com/test/project",
+    path_with_namespace: "test/project",
+  },
+  object_attributes: {
+    id: 1,
+    status: "success",
+    ref: "main",
+    duration: 120,
+    created_at: "2025-05-20T10:00:00Z",
+    finished_at: "2025-05-20T10:02:00Z",
   },
 };
 
@@ -339,7 +362,6 @@ describe("GitLabRepoConnection", () => {
       await connection.onMergeRequestOpened(
         GITLAB_ISSUE_CREATED_PAYLOAD as never,
       );
-      // Statement text.
       intent.expectEventBodyContains("**alice** opened a new MR", 0);
       intent.expectEventBodyContains(
         GITLAB_ISSUE_CREATED_PAYLOAD.object_attributes.url,
@@ -363,7 +385,6 @@ describe("GitLabRepoConnection", () => {
           },
         ],
       } as never);
-      // ..or issues with no labels
       await connection.onMergeRequestOpened(
         GITLAB_ISSUE_CREATED_PAYLOAD as never,
       );
@@ -398,6 +419,139 @@ describe("GitLabRepoConnection", () => {
         ],
       } as never);
       intent.expectEventBodyContains("**alice** opened a new MR", 0);
+    });
+  });
+
+  describe("onPipelineEvent", () => {
+    let baseEvent: IGitLabWebhookPipelineEvent;
+
+    beforeEach(() => {
+      baseEvent = {
+        ...GITLAB_PIPELINE_EVENT,
+        object_attributes: {
+          ...GITLAB_PIPELINE_EVENT.object_attributes,
+        },
+      };
+    });
+
+    it("should skip onPipelineTriggered if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineTriggered({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "running",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should skip onPipelineSuccess if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineSuccess({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "success",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should skip onPipelineFailed if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineFailed({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "failed",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should skip onPipelineCanceled if hook is disabled", async () => {
+      const { connection, intent } = createConnection({ enableHooks: [] });
+      await connection.onPipelineCanceled({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "canceled",
+        },
+      });
+      intent.expectNoEvent();
+    });
+
+    it("should send only the triggered message if pipeline just started", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+      await connection.onPipelineTriggered({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "running", // pipeline just started
+        },
+      });
+
+      intent.expectEventBodyContains("Pipeline triggered", 0);
+    });
+
+    it("should send final success message (green)", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineSuccess({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "success",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("SUCCESS");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
+        '<span data-mx-color="#00aa00"><b>SUCCESS</b></span>',
+      );
+    });
+
+    it("should send canceled message (gray)", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineCanceled({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "canceled",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("CANCELED");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
+        '<span data-mx-color="#a9a9a9"><b>CANCELED</b></span>',
+      );
+    });
+
+    it("should send failed message (red)", async () => {
+      const { connection, intent } = createConnection({
+        enableHooks: ["pipeline"],
+      });
+
+      await connection.onPipelineFailed({
+        ...baseEvent,
+        object_attributes: {
+          ...baseEvent.object_attributes,
+          status: "failed",
+        },
+      });
+
+      expect(intent.sentEvents[0].content.body).to.include("FAILED");
+      expect(intent.sentEvents[0].content.formatted_body).to.include(
+        '<span data-mx-color="#ff0000"><b>FAILED</b></span>',
+      );
     });
   });
 });
