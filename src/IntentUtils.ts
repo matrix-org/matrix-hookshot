@@ -1,5 +1,5 @@
 import { Logger } from "matrix-appservice-bridge";
-import { Appservice, Intent, MatrixClient } from "matrix-bot-sdk";
+import { Appservice, Intent, MatrixClient, UserID } from "matrix-bot-sdk";
 import axios from "axios";
 
 const log = new Logger("IntentUtils");
@@ -44,7 +44,7 @@ export async function getIntentForUser(
   as: Appservice,
   prefix?: string,
 ) {
-  const domain = as.botUserId.split(":")[1];
+  const { domain } = new UserID(as.botUserId);
   const intent = as.getIntentForUserId(
     `@${prefix ?? ""}${user.login}:${domain}`,
   );

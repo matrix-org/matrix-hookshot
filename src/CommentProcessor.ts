@@ -1,4 +1,4 @@
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, UserID } from "matrix-bot-sdk";
 import markdown from "markdown-it";
 import emoji from "node-emoji";
 import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
@@ -142,7 +142,8 @@ export class CommentProcessor {
     for (const [full, userId] of mentionMatches) {
       if (this.as.isNamespacedUser(userId)) {
         // XXX: Prefix hack
-        const githubId = userId.split(":")[0].substr("@_github_".length);
+        const parsedUserID = new UserID(userId);
+        const githubId = parsedUserID.localpart.slice("@_github_".length);
         if (!githubId) {
           continue;
         }
