@@ -9,7 +9,7 @@ import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender";
 import markdownit from "markdown-it";
 import { MatrixEvent } from "../MatrixEvent";
-import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
+import { Appservice, Intent, StateEvent, UserID } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
@@ -455,7 +455,7 @@ export class GenericHookConnection
     if (!this.config.userIdPrefix) {
       return this.intent.userId;
     }
-    const [, domain] = this.intent.userId.split(":");
+    const { domain } = new UserID(this.intent.userId);
     const name =
       this.state.name &&
       this.state.name
