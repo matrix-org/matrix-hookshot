@@ -8,4 +8,5 @@ projects.
    which help us determine which services are affected by an issue.
  - In addition to Typescript, Hookshot makes use of [Rust](https://rust-lang.org). You will need to setup Rust in order to build the project. https://rustup.rs/ is a good option for most people.
  - The official hookshot support/development room is [#hookshot:half-shot.uk](https://matrix.to/#/#hookshot:half-shot.uk)
-
+ 
+If you are planning on contributing a code change, check out our [developer documentation](https://matrix-org.github.io/matrix-hookshot/latest/dev/setup.html)
