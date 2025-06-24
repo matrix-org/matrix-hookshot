@@ -45,7 +45,7 @@ services:
     links:
       - valkey
       - synapse
-    command: node /bin/matrix-hookshot/App/BridgeApp.js /config/config.yml /contrib/registration.yaml /contrib/config.yaml
+    command: node /bin/matrix-hookshot/App/BridgeApp.js /contrib/config.yaml /contrib/registration.yaml /config/config.yml
     depends_on:
       valkey:
         condition: service_started
