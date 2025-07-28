@@ -1,0 +1,1 @@
+Update the releaser script to commit changes to the Cargo metadata files and to warn about uncommitted changes.
