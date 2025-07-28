@@ -40,6 +40,11 @@ This connection supports a few options which can be defined in the room state:
 | workflowRun.matchingBranch     | Only report workflow runs if it matches this regex.                                       | Regex string                                              | _empty_                                      |
 | workflowRun.includingWorkflows | Only report workflow runs with a matching workflow name.                                  | Array of: String matching a workflow name                 | _empty_                                      |
 | workflowRun.excludingWorkflows | Never report workflow runs with a matching workflow name.                                 | Array of: String matching a workflow name                 | _empty_                                      |
+| push               | Configuration options for push events        | `{ template: "md_bullets" \| "html_dropdown", maxCommits: number, showCommitBody: boolean }` |_empty_ |
+| push.template      | Defines the format of the message sent to the room for push events. | `"md_bullets"` \| `"html_dropdown"`|`"html_dropdown"` |
+| push.maxCommits    | Specifies the maximum number of commits to display in the message. | Positive integer|`5`|
+| push.showCommitBody| Determines whether the commit message body (in addition to the commit title) should be included in the notification. | `true` \| `false`|`false` |
+
 
 [^1]: `ignoreHooks` is no longer accepted for new state events. Use `enableHooks` to explicitly state all events you want to see.
 

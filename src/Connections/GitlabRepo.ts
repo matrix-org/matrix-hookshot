@@ -38,6 +38,7 @@ import { GitLabClient } from "../gitlab/Client";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../gitlab/GrantChecker";
+import { FormatUtil } from "../FormatUtil";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
   instance: string;
@@ -52,6 +53,11 @@ export interface GitLabRepoConnectionState extends IConnectionState {
   pushTagsRegex?: string;
   includingLabels?: string[];
   excludingLabels?: string[];
+  push?: {
+    template?: "md_bullets" | "html_dropdown";
+    maxCommits?: number;
+    showCommitBody?: boolean;
+  };
 }
 
 interface ConnectionStateValidated extends GitLabRepoConnectionState {
@@ -169,6 +175,15 @@ const ConnectionStateSchema = {
       type: "boolean",
       nullable: true,
     },
+    push: {
+      type: "object",
+      nullable: true,
+      properties: {
+        template: { type: "string", nullable: true, enum: ["md_bullets", "html_dropdown"] },
+        maxCommits: { type: "number", nullable: true },
+        showCommitBody: { type: "boolean", nullable: true }
+      }
+    }
   },
   required: ["instance", "path"],
   additionalProperties: true,
@@ -885,44 +900,38 @@ export class GitLabRepoConnection
     log.info(
       `onGitLabPush ${this.roomId} ${this.instance.url}/${this.path} ${event.after}`,
     );
-    const branchname = event.ref.replace("refs/heads/", "");
-    const commitsurl = `${event.project.homepage}/-/commits/${branchname}`;
-    const branchurl = `${event.project.homepage}/-/tree/${branchname}`;
+    const branchName = event.ref.replace("refs/heads/", "");
+    const commitsUrl = `${event.project.homepage}/-/commits/${branchName}`;
+    const branchUrl = `${event.project.homepage}/-/tree/${branchName}`;
     const shouldName = !event.commits.every(
       (c) => c.author.email === event.user_email,
     );
 
-    const tooManyCommits = event.total_commits_count > PUSH_MAX_COMMITS;
-    const displayedCommits = tooManyCommits
-      ? 1
-      : Math.min(event.total_commits_count, PUSH_MAX_COMMITS);
-
-    // Take the top 5 commits. The array is ordered in reverse.
-    const commits = event.commits
-      .reverse()
-      .slice(0, displayedCommits)
-      .map((commit) => {
-        return `[\`${commit.id.slice(0, 8)}\`](${event.project.homepage}/-/commit/${commit.id}) ${commit.title}${shouldName ? ` by ${commit.author.name}` : ""}`;
-      })
-      .join("\n - ");
-
-    let content =
-      `**${event.user_name}** pushed [${event.total_commits_count} commit${event.total_commits_count > 1 ? "s" : ""}](${commitsurl})` +
-      ` to [\`${branchname}\`](${branchurl}) for ${event.project.path_with_namespace}`;
-
-    if (displayedCommits >= 2) {
-      content += `\n - ${commits}\n`;
-    } else if (displayedCommits === 1) {
-      content += `: ${commits}`;
-      if (tooManyCommits) {
-        content += `, and [${event.total_commits_count - 1} more](${commitsurl}) commits`;
-      }
-    }
+    const { body, formatted_body } = FormatUtil.formatPushEventContent({
+      contributors: Object.values(event.commits.reduce((acc: Record<string, string>, commit) => {
+        acc[commit.author.name] = commit.author.name;
+        return acc;
+      }, {} as Record<string, string>)),
+      commits: event.commits.map(commit => ({
+        id: commit.id,
+        url: commit.url,
+        message: commit.message,
+        author: { name: commit.author.name },
+      })),
+      branchName,
+      branchUrl,
+      commitsUrl,
+      repoName: event.repository.name,
+      maxCommits: this.state.push?.maxCommits ?? PUSH_MAX_COMMITS,
+      shouldName,
+      template: this.state.push?.template ?? "html_dropdown",
+      showCommitBody: this.state.push?.showCommitBody,
+    });
 
     await this.intent.sendEvent(this.roomId, {
       msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
+      body,
+      formatted_body,
       format: "org.matrix.custom.html",
     });
   }

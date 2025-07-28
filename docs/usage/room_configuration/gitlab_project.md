@@ -29,6 +29,10 @@ This connection supports a few options which can be defined in the room state[^2
 | includeCommentBody | Include the body of a comment when notifying on merge requests      | Boolean                                                   | false                                        |
 | includingLabels    | Only notify on issues matching these label names                    | Array of: String matching a label name                    | _empty_                                      |
 | pushTagsRegex      | Only mention pushed tags which match this regex                     | Regex string                                              | _empty_                                      |
+|push|Configuration options for push events|`{ template: "md_bullets" \| "html_dropdown", maxCommits: number, showCommitBody: boolean }`|*empty*|
+|push.template|Defines the format of the message sent to the room for push events.|`"md_bullets"` \| `"md_bullets"`|`"html_dropdown"`|
+|push.maxCommits|Specifies the maximum number of commits to display in the message.|Positive integer|`5`|
+|push.showCommitBody|Determines whether the commit message body (in addition to the commit title) should be included in the notification.|`true` \| `false`|`false`|
 
 [^1]: `ignoreHooks` is no longer accepted for new state events. Use `enableHooks` to explicitly state all events you want to see.
 
