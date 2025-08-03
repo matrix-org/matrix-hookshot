@@ -136,7 +136,7 @@ generic:
 
 ### Request Format
 
-Hookshot sends `POST` (default) or `PUT` requests to an external service. The request contains:
+Hookshot sends `PUT` requests to an external service. The request contains:
 
 | Header | Description |
 |--------|-------------|
