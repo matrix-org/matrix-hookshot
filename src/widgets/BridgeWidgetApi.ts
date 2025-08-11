@@ -13,7 +13,7 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, { BotUser } from "../managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "./Api";
-import { Appservice, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, PLManager, PowerLevelsEvent } from "matrix-bot-sdk";
 import { GithubInstance } from "../github/GithubInstance";
 import {
   AllowedTokenTypes,
@@ -216,13 +216,22 @@ export class BridgeWidgetApi extends ProvisioningApi {
       botUser.intent,
     );
     const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
-    const powerlevel = new PowerLevelsEvent({
+  
+
+    const powerlevel = PLManager.createFromRoomState([{
+      type: "m.room.power_levels",
+      state_key: "",
       content: await botUser.intent.underlyingClient.getRoomStateEvent(
         roomId,
         "m.room.power_levels",
         "",
       ),
-    });
+    }, {
+      type: 'm.room.create',
+      state_key: "",
+      content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, 'm.room.create', '')
+    }]);
+
     const serviceFilter = req.params.service;
     const connections = allConnections
       .map((c) => c.getProvisionerDetails?.(true))
@@ -232,19 +241,18 @@ export class BridgeWidgetApi extends ProvisioningApi {
         (c) =>
           typeof serviceFilter !== "string" || c?.service === serviceFilter,
       ) as GetConnectionsResponseItem[];
-    const userPl =
-      powerlevel.content.users?.[req.userId] || powerlevel.defaultUserLevel;
-    const botPl =
-      powerlevel.content.users?.[botUser.userId] || powerlevel.defaultUserLevel;
+    const userPl = powerlevel.getUserPowerLevel(req.userId);
+    const botPl = powerlevel.getUserPowerLevel(botUser.userId);
+    
     for (const c of connections) {
       // TODO: What about crypto?
       const requiredPlForEdit = Math.max(
-        powerlevel.content.events?.[c.type] ?? 0,
-        powerlevel.defaultStateEventLevel,
+        powerlevel.currentPL.events?.[c.type] ?? 0,
+        powerlevel.currentPL.state_default ?? 50,
       );
       const requiredPlForMessages = Math.max(
-        powerlevel.content.events?.["m.room.message"] ??
-          powerlevel.content.events_default ??
+        powerlevel.currentPL.events?.["m.room.message"] ??
+          powerlevel.currentPL.events_default ??
           0,
       );
       c.canEdit = userPl >= requiredPlForEdit;
@@ -256,7 +264,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
 
     return {
       connections,
-      canEdit: userPl >= powerlevel.defaultStateEventLevel,
+      canEdit: userPl >= (powerlevel.currentPL.state_default ?? 50),
     };
   }
 

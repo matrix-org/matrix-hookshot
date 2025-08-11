@@ -2,6 +2,7 @@ import {
   Intent,
   MatrixError,
   MembershipEventContent,
+  PLManager,
   PowerLevelsEventContent,
 } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
@@ -57,7 +58,7 @@ export async function assertUserPermissionsInRoom(
         ErrCode.NotInRoom,
       );
     }
-    if (isNotFoundError(ex)) {
+    if (ex instanceof MatrixError && ex.errcode === "M_NOT_FOUND") {
       throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
     }
     log.warn(`Failed to find member event for ${userId} in room ${roomId}`, ex);
@@ -77,7 +78,7 @@ export async function assertUserPermissionsInRoom(
       throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
     }
   } catch (ex) {
-    if (isNotFoundError(ex)) {
+    if (ex instanceof MatrixError && ex.errcode === "M_NOT_FOUND") {
       throw new ApiError("User is not joined to the room.", ErrCode.NotInRoom);
     }
     log.warn(`Failed to find member event for ${userId} in room ${roomId}`, ex);
@@ -89,13 +90,11 @@ export async function assertUserPermissionsInRoom(
   if (requiredPermission === "read") {
     return true;
   }
-  let pls: PowerLevelsEventContent;
+  let pls;
   try {
-    pls = (await intent.underlyingClient.getRoomStateEvent(
-      roomId,
-      "m.room.power_levels",
-      "",
-    )) as PowerLevelsEventContent;
+    pls = PLManager.createFromRoomState(
+      await intent.underlyingClient.getRoomState(roomId)
+    );
   } catch (ex) {
     log.warn(`Failed to find PL event for room ${roomId}`, ex);
     throw new ApiError(
@@ -105,9 +104,9 @@ export async function assertUserPermissionsInRoom(
   }
 
   // TODO: Decide what PL consider "write" permissions
-  const botPl = pls.users?.[intent.userId] || pls.users_default || 0;
-  const userPl = pls.users?.[userId] || pls.users_default || 0;
-  const requiredPl = pls.state_default || 50;
+  const botPl = pls.getUserPowerLevel(intent.userId);
+  const userPl = pls.getUserPowerLevel(userId);
+  const requiredPl = pls.currentPL.state_default || 50;
 
   // Check the bot's permissions
   if (botPl < requiredPl) {
@@ -126,13 +125,4 @@ export async function assertUserPermissionsInRoom(
       ErrCode.ForbiddenUser,
     );
   }
-}
-
-// TODO Use MatrixError as a type once matrix-bot-sdk is updated to a version that exports it
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isNotFoundError(ex: any) {
-  return (
-    "M_NOT_FOUND" ==
-    (ex instanceof ApiError ? ex.jsonBody.errcode : (ex.body?.errcode ?? ""))
-  );
 }
