@@ -93,7 +93,7 @@ export async function assertUserPermissionsInRoom(
   let pls;
   try {
     pls = PLManager.createFromRoomState(
-      await intent.underlyingClient.getRoomState(roomId)
+      await intent.underlyingClient.getRoomState(roomId),
     );
   } catch (ex) {
     log.warn(`Failed to find PL event for room ${roomId}`, ex);

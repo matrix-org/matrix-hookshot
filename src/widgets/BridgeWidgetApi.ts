@@ -216,21 +216,27 @@ export class BridgeWidgetApi extends ProvisioningApi {
       botUser.intent,
     );
     const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
-  
 
-    const powerlevel = PLManager.createFromRoomState([{
-      type: "m.room.power_levels",
-      state_key: "",
-      content: await botUser.intent.underlyingClient.getRoomStateEvent(
-        roomId,
-        "m.room.power_levels",
-        "",
-      ),
-    }, {
-      type: 'm.room.create',
-      state_key: "",
-      content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, 'm.room.create', '')
-    }]);
+    const powerlevel = PLManager.createFromRoomState([
+      {
+        type: "m.room.power_levels",
+        state_key: "",
+        content: await botUser.intent.underlyingClient.getRoomStateEvent(
+          roomId,
+          "m.room.power_levels",
+          "",
+        ),
+      },
+      {
+        type: "m.room.create",
+        state_key: "",
+        content: await botUser.intent.underlyingClient.getRoomStateEvent(
+          roomId,
+          "m.room.create",
+          "",
+        ),
+      },
+    ]);
 
     const serviceFilter = req.params.service;
     const connections = allConnections
@@ -243,7 +249,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
       ) as GetConnectionsResponseItem[];
     const userPl = powerlevel.getUserPowerLevel(req.userId);
     const botPl = powerlevel.getUserPowerLevel(botUser.userId);
-    
+
     for (const c of connections) {
       // TODO: What about crypto?
       const requiredPlForEdit = Math.max(

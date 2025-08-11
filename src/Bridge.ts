@@ -1720,19 +1720,28 @@ export class Bridge {
           log.debug(
             `${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`,
           );
-          const pls = PLManager.createFromRoomState([{
-            type: "m.room.power_levels",
-            state_key: "",
-            content: event,
-          }, {
-            type: 'm.room.create',
-            state_key: "",
-            content: await botUser.intent.underlyingClient.getRoomStateEvent(roomId, 'm.room.create', '')
-          }]);
+          const pls = PLManager.createFromRoomState([
+            {
+              type: "m.room.power_levels",
+              state_key: "",
+              content: event,
+            },
+            {
+              type: "m.room.create",
+              state_key: "",
+              content: await botUser.intent.underlyingClient.getRoomStateEvent(
+                roomId,
+                "m.room.create",
+                "",
+              ),
+            },
+          ]);
           const currentPl = pls.getUserPowerLevel(botUser.userId);
           const rawPL = new PowerLevelsEvent(event);
-          const previousPl = rawPL.previousContent?.users?.[botUser.userId] ??
-            rawPL.previousContent?.users_default ?? 0;
+          const previousPl =
+            rawPL.previousContent?.users?.[botUser.userId] ??
+            rawPL.previousContent?.users_default ??
+            0;
           const requiredPl =
             pls.currentPL.events?.["im.vector.modular.widgets"] ??
             rawPL.defaultStateEventLevel;
