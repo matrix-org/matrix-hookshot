@@ -110,4 +110,25 @@ describe("Permissions test", () => {
       "Room configured to bridge webhooks. See admin room for secret url.",
     );
   });
+
+  test("should allow users with permission to use a service in a v12 room", async () => {
+    const user = testEnv.getUser("allowed_user");
+    const roomId = await user.createRoom({
+      name: "Test room",
+      invite: [testEnv.botMxid],
+      room_version: "12"
+    });
+    await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
+    await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
+
+    const msgWebhooks = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    await user.sendText(roomId, "!hookshot webhook test");
+    expect((await msgWebhooks).data.content.body).to.include(
+      "Room configured to bridge webhooks. See admin room for secret url.",
+    );
+  });
 });
