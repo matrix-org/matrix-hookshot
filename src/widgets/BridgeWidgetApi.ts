@@ -217,26 +217,10 @@ export class BridgeWidgetApi extends ProvisioningApi {
     );
     const allConnections = this.connMan.getAllConnectionsForRoom(roomId);
 
-    const powerlevel = PLManager.createFromRoomState([
-      {
-        type: "m.room.power_levels",
-        state_key: "",
-        content: await botUser.intent.underlyingClient.getRoomStateEvent(
-          roomId,
-          "m.room.power_levels",
-          "",
-        ),
-      },
-      {
-        type: "m.room.create",
-        state_key: "",
-        content: await botUser.intent.underlyingClient.getRoomStateEvent(
-          roomId,
-          "m.room.create",
-          "",
-        ),
-      },
-    ]);
+    const powerlevel = new PLManager(
+      await botUser.intent.underlyingClient.getRoomCreateEvent(roomId),
+      await botUser.intent.underlyingClient.getRoomStateEventContent(roomId, "m.room.power_levels", ""),
+    );
 
     const serviceFilter = req.params.service;
     const connections = allConnections

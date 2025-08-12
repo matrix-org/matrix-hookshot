@@ -1,4 +1,5 @@
 import {
+  APIRoomEvent,
   Appservice,
   Intent,
   IRichReplyMetadata,
@@ -61,12 +62,16 @@ import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
+<<<<<<< HEAD
 import {
   GitHubIssueMessageBodyIssue,
   GitHubIssueMessageBodyRepo,
   GitHubRepoMessageBody,
   MinimalGitHubIssue,
 } from "../libRs";
+=======
+import { GitHubIssueMessageBodyIssue, GitHubRepoMessageBody, MinimalGitHubIssue } from "../libRs";
+>>>>>>> 1d4c9784 (Fixes for new PR)
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../github/GrantChecker";
@@ -1708,10 +1713,16 @@ export class GitHubRepoConnection
       const ev = await this.intent.underlyingClient.getEvent(
         this.roomId,
         event_id,
+<<<<<<< HEAD
       );
       const issueContent = ev.content[
         "uk.half-shot.matrix-hookshot.github.issue"
       ] as GitHubIssueMessageBodyIssue | undefined;
+=======
+      ) as APIRoomEvent;
+      const issueContent =
+        ev.content["uk.half-shot.matrix-hookshot.github.issue"] as GitHubIssueMessageBodyIssue;
+>>>>>>> 1d4c9784 (Fixes for new PR)
       if (!issueContent) {
         log.debug("Reaction to event did not pertain to a issue");
         return; // Not our event.

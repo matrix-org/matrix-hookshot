@@ -14,6 +14,7 @@ import {
   MatrixError,
   RoomEvent,
   PLManager,
+  PowerLevelsEventContent,
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
 import {
@@ -1376,7 +1377,7 @@ export class Bridge {
         // This is a new style reply.
         const parentEventId =
           event.content["m.relates_to"]?.["m.in_reply_to"].event_id;
-        replyEvent = await this.as.botClient.getEvent(roomId, parentEventId);
+        replyEvent = await this.as.botClient.getEvent(roomId, parentEventId) as MatrixEvent<unknown>;
       }
     }
 
@@ -1720,31 +1721,14 @@ export class Bridge {
           log.debug(
             `${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`,
           );
-          const pls = PLManager.createFromRoomState([
-            {
-              type: "m.room.power_levels",
-              state_key: "",
-              content: event,
-            },
-            {
-              type: "m.room.create",
-              state_key: "",
-              content: await botUser.intent.underlyingClient.getRoomStateEvent(
-                roomId,
-                "m.room.create",
-                "",
-              ),
-            },
-          ]);
-          const currentPl = pls.getUserPowerLevel(botUser.userId);
-          const rawPL = new PowerLevelsEvent(event);
-          const previousPl =
-            rawPL.previousContent?.users?.[botUser.userId] ??
-            rawPL.previousContent?.users_default ??
-            0;
-          const requiredPl =
-            pls.currentPL.events?.["im.vector.modular.widgets"] ??
-            rawPL.defaultStateEventLevel;
+          const createEvent = await botUser.intent.underlyingClient.getRoomCreateEvent(roomId);
+          const plEvent = new PowerLevelsEvent(event);
+          const plsOld = new PLManager(createEvent, plEvent.previousContent);
+          const plsNew = new PLManager(createEvent, plEvent.content);
+        
+          const previousPl = plsOld.getUserPowerLevel(botUser.userId);
+          const currentPl = plsOld.getUserPowerLevel(botUser.userId);
+          const requiredPl = plsNew.currentPL.events?.["im.vector.modular.widgets"] ?? plsNew.currentPL.state_default ?? 50;
           if (currentPl !== previousPl && currentPl >= requiredPl) {
             // PL changed for bot user, check to see if the widget can be created.
             try {
