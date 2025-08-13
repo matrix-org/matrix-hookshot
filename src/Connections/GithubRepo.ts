@@ -64,6 +64,7 @@ import { GitHubRepoMessageBody, MinimalGitHubIssue } from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../github/GrantChecker";
+import { removeConnectionState } from "./BaseConnection";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -564,11 +565,11 @@ export class GitHubRepoConnection
 
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.repository";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.repository";
   static readonly EventTypes = [
     GitHubRepoConnection.CanonicalEventType,
-    GitHubRepoConnection.LegacyCanonicalEventType,
+    GitHubRepoConnection.LegacyEventType,
   ];
   static readonly ServiceCategory = "github";
   static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
@@ -1851,6 +1852,20 @@ export class GitHubRepoConnection
     );
     return foundRepos;
   }
+  private matchesLabelFilter(itemWithLabels: {
+    labels?: { name: string }[];
+  }): boolean {
+    const labels = itemWithLabels.labels?.map((l) => l.name) || [];
+    if (this.state.excludingLabels?.length) {
+      if (this.state.excludingLabels.find((l) => labels.includes(l))) {
+        return false;
+      }
+    }
+    if (this.state.includingLabels?.length) {
+      return !!this.state.includingLabels.find((l) => labels.includes(l));
+    }
+    return true;
+  }
 
   public static async getConnectionTargets(
     userId: string,
@@ -1963,46 +1978,25 @@ export class GitHubRepoConnection
       repo: this.repo,
     });
     // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitHubRepoConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitHubRepoConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitHubRepoConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitHubRepoConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubRepoConnection);
   }
 
-  private matchesLabelFilter(itemWithLabels: {
-    labels?: { name: string }[];
-  }): boolean {
-    const labels = itemWithLabels.labels?.map((l) => l.name) || [];
-    if (this.state.excludingLabels?.length) {
-      if (this.state.excludingLabels.find((l) => labels.includes(l))) {
-        return false;
-      }
-    }
-    if (this.state.includingLabels?.length) {
-      return !!this.state.includingLabels.find((l) => labels.includes(l));
-    }
-    return true;
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(
+      newRoomId,
+      {
+        org: this.org,
+        repo: this.repo,
+    });
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GitHubRepoConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 }
 

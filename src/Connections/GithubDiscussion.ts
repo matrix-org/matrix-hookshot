@@ -15,7 +15,7 @@ import markdown from "markdown-it";
 import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfig, BridgeConfigGitHub } from "../config/Config";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import QuickLRU from "@alloc/quick-lru";
@@ -41,12 +41,12 @@ export class GitHubDiscussionConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.discussion";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.discussion";
 
   static readonly EventTypes = [
     GitHubDiscussionConnection.CanonicalEventType,
-    GitHubDiscussionConnection.LegacyCanonicalEventType,
+    GitHubDiscussionConnection.LegacyEventType,
   ];
 
   static readonly QueryRoomRegex = /#github_disc_(.+)_(.+)_(\d+):.*/;
@@ -254,32 +254,7 @@ export class GitHubDiscussionConnection
       this.roomId,
       GitHubDiscussionConnection.grantKey(this.state),
     );
-    // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitHubDiscussionConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitHubDiscussionConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitHubDiscussionConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitHubDiscussionConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubDiscussionConnection);
   }
 
   public async ensureGrant(sender?: string) {
@@ -288,5 +263,22 @@ export class GitHubDiscussionConnection
       GitHubDiscussionConnection.grantKey(this.state),
       sender,
     );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Grant permissions to new room
+    await this.grantChecker.grantConnection(
+      newRoomId,
+      GitHubDiscussionConnection.grantKey(this.state),
+    );
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GitHubDiscussionConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 }

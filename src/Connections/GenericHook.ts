@@ -11,7 +11,7 @@ import markdownit from "markdown-it";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent, UserID } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from "node:crypto";
@@ -388,13 +388,13 @@ export class GenericHookConnection
 
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.generic.hook";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.generic.hook";
   static readonly ServiceCategory = "generic";
 
   static readonly EventTypes = [
     GenericHookConnection.CanonicalEventType,
-    GenericHookConnection.LegacyCanonicalEventType,
+    GenericHookConnection.LegacyEventType,
   ];
 
   private webhookTransformer?: WebhookTransformer;
@@ -721,31 +721,7 @@ export class GenericHookConnection
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
     clearInterval(this.warnOnExpiryInterval);
     // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GenericHookConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GenericHookConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GenericHookConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GenericHookConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GenericHookConnection);
     await GenericHookConnection.ensureRoomAccountData(
       this.roomId,
       this.intent,

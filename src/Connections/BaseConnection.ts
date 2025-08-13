@@ -1,3 +1,4 @@
+import { MatrixClient, MatrixError } from "matrix-bot-sdk";
 import { FormatUtil } from "../FormatUtil";
 
 /**
@@ -19,4 +20,46 @@ export abstract class BaseConnection {
   public get priority(): number {
     return -1;
   }
+}
+
+export async function removeConnectionState(client: MatrixClient, roomId: string, stateKey: string, {CanonicalEventType, LegacyEventType}: { CanonicalEventType: string, LegacyEventType?: string }) {
+    try {
+      await client.getRoomStateEventContent(
+        roomId,
+        CanonicalEventType,
+        stateKey,
+      );
+    } catch (ex) {
+      if (ex instanceof MatrixError && ex.errcode === "M_NOT_FOUND") {
+        if (!LegacyEventType) {
+          throw Error('No state found, cannot remove connection');
+        }
+        try {
+          await client.getRoomStateEventContent(
+            roomId,
+            CanonicalEventType,
+            stateKey,
+          );
+        } catch (ex) {
+          if (ex instanceof MatrixError && ex.errcode === "M_NOT_FOUND") {
+            throw Error('No state found, cannot remove connection');
+          }
+          throw ex;
+        }
+        await client.sendStateEvent(
+          roomId,
+          LegacyEventType,
+          stateKey,
+          { disabled: true },
+        );
+      } else {
+        throw ex;
+      }
+    }
+    await client.sendStateEvent(
+      roomId,
+      CanonicalEventType,
+      stateKey,
+      { disabled: true },
+    );
 }

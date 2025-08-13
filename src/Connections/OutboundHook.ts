@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from "axios";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import {
   Connection,
   IConnection,
@@ -333,19 +333,20 @@ export class OutboundHookConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    // Do a sanity check that the event exists.
-    await this.intent.underlyingClient.getRoomStateEvent(
-      this.roomId,
-      OutboundHookConnection.CanonicalEventType,
-      this.stateKey,
-    );
-    await this.intent.underlyingClient.sendStateEvent(
-      this.roomId,
-      OutboundHookConnection.CanonicalEventType,
-      this.stateKey,
-      { disabled: true },
-    );
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, OutboundHookConnection);
     // TODO: Remove token
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      OutboundHookConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async provisionerUpdateConfig(

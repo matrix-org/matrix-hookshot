@@ -6,7 +6,7 @@ import {
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { ProjectsGetResponseData } from "../github/Types";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
 
@@ -26,12 +26,12 @@ export class GitHubProjectConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.project";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.project";
   static readonly ServiceCategory = "github";
   static readonly EventTypes = [
     GitHubProjectConnection.CanonicalEventType,
-    GitHubProjectConnection.LegacyCanonicalEventType,
+    GitHubProjectConnection.LegacyEventType,
   ];
 
   public static createConnectionForState(
@@ -110,7 +110,7 @@ export class GitHubProjectConnection
   constructor(
     public readonly roomId: string,
     as: Appservice,
-    intent: Intent,
+    public readonly intent: Intent,
     config: BridgeConfig,
     private state: GitHubProjectConnectionState,
     stateKey: string,
@@ -125,6 +125,32 @@ export class GitHubProjectConnection
       GitHubProjectConnection.getGrantKey(this.state.project_id),
       sender,
     );
+  }
+
+  public async onRemove() {
+    log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    await this.grantChecker.ungrantConnection(
+      this.roomId,
+      GitHubProjectConnection.getGrantKey(this.state.project_id),
+    );
+    // Do a sanity check that the event exists.
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubProjectConnection);
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(
+      newRoomId,
+      GitHubProjectConnection.getGrantKey(this.state.project_id),
+    );
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GitHubProjectConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public isInterestedInStateEvent(eventType: string, stateKey: string) {

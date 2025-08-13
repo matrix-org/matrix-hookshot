@@ -1,7 +1,7 @@
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/Types";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
@@ -155,31 +155,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
       fileId: this.state.fileId,
       instanceName: this.state.instanceName || "none",
     });
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        FigmaFileConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        FigmaFileConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        FigmaFileConnection.LegacyEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        FigmaFileConnection.LegacyEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, FigmaFileConnection);
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

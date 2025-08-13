@@ -9,7 +9,7 @@ import { ReposGetResponseData } from "../github/Types";
 import axios from "axios";
 import { GitHubDiscussionConnection } from "./GithubDiscussion";
 import { GithubInstance } from "../github/GithubInstance";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
 
@@ -30,12 +30,12 @@ export class GitHubDiscussionSpace
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.discussion.space";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.discussion.space";
 
   static readonly EventTypes = [
     GitHubDiscussionSpace.CanonicalEventType,
-    GitHubDiscussionSpace.LegacyCanonicalEventType,
+    GitHubDiscussionSpace.LegacyEventType,
   ];
 
   static readonly QueryRoomRegex = /#github_disc_(.+)_(.+):.*/;
@@ -222,31 +222,23 @@ export class GitHubDiscussionSpace
       this.roomId,
       GitHubDiscussionSpace.grantKey(this.state),
     );
-    // Do a sanity check that the event exists.
-    try {
-      await this.space.client.getRoomStateEvent(
-        this.roomId,
-        GitHubDiscussionSpace.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.space.client.sendStateEvent(
-        this.roomId,
-        GitHubDiscussionSpace.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.space.client.getRoomStateEvent(
-        this.roomId,
-        GitHubDiscussionSpace.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.space.client.sendStateEvent(
-        this.roomId,
-        GitHubDiscussionSpace.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(this.space.client, this.roomId, this.stateKey, GitHubDiscussionSpace);
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Grant permissions to new room
+    await this.grantChecker.grantConnection(
+      newRoomId,
+      GitHubDiscussionSpace.grantKey(this.state),
+    );
+    // Copy across state
+    await this.space.client.sendStateEvent(
+      newRoomId,
+      GitHubDiscussionSpace.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 }

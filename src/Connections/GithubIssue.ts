@@ -23,7 +23,7 @@ import {
   IssuesEditedEvent,
   IssueCommentCreatedEvent,
 } from "@octokit/webhooks-types";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGitHub } from "../config/Config";
 
 export interface GitHubIssueConnectionState {
@@ -55,12 +55,12 @@ export class GitHubIssueConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.issue";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.bridge";
 
   static readonly EventTypes = [
     GitHubIssueConnection.CanonicalEventType,
-    GitHubIssueConnection.LegacyCanonicalEventType,
+    GitHubIssueConnection.LegacyEventType,
   ];
 
   static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
@@ -479,36 +479,23 @@ export class GitHubIssueConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitHubIssueConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitHubIssueConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitHubIssueConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitHubIssueConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubIssueConnection);
   }
 
   public onIssueStateChange() {
     return this.syncIssueState();
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GitHubIssueConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async onMessageEvent(ev: MatrixEvent<MatrixMessageContent>) {
