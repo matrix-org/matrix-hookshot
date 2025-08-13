@@ -817,6 +817,26 @@ export class GenericHookConnection
     await this.storage.setHasGenericHookWarnedExpiry(this.hookId, true);
   }
 
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Carry across account data first
+    await GenericHookConnection.ensureRoomAccountData(
+      newRoomId,
+      this.intent,
+      this.hookId,
+      this.stateKey,
+      false,
+    );
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GenericHookConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
+  }
+
   public toString() {
     return `GenericHookConnection ${this.hookId}`;
   }
