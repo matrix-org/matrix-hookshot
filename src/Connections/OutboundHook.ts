@@ -333,7 +333,12 @@ export class OutboundHookConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, OutboundHookConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      OutboundHookConnection,
+    );
     // TODO: Remove token
   }
 

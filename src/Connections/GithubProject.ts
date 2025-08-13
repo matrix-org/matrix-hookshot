@@ -26,8 +26,7 @@ export class GitHubProjectConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.project";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.project";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.project";
   static readonly ServiceCategory = "github";
   static readonly EventTypes = [
     GitHubProjectConnection.CanonicalEventType,
@@ -134,7 +133,12 @@ export class GitHubProjectConnection
       GitHubProjectConnection.getGrantKey(this.state.project_id),
     );
     // Do a sanity check that the event exists.
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubProjectConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitHubProjectConnection,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

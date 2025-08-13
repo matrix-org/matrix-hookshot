@@ -26,8 +26,7 @@ export interface GitHubUserSpaceConnectionState {
 export class GitHubUserSpace extends BaseConnection implements IConnection {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.user.space";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.user.space";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.user.space";
 
   static readonly EventTypes = [
     GitHubUserSpace.CanonicalEventType,
@@ -213,16 +212,22 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    await this.grantChecker.ungrantConnection(this.roomId,
-      GitHubUserSpace.grantKey(this.state)
+    await this.grantChecker.ungrantConnection(
+      this.roomId,
+      GitHubUserSpace.grantKey(this.state),
     );
-    await removeConnectionState(this.space.client, this.roomId, this.stateKey, GitHubUserSpace);
+    await removeConnectionState(
+      this.space.client,
+      this.roomId,
+      this.stateKey,
+      GitHubUserSpace,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {
     await this.grantChecker.grantConnection(
       newRoomId,
-      GitHubUserSpace.grantKey(this.state)
+      GitHubUserSpace.grantKey(this.state),
     );
     // Copy across state
     await this.as.botClient.sendStateEvent(

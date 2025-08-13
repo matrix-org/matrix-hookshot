@@ -222,7 +222,12 @@ export class GitHubDiscussionSpace
       this.roomId,
       GitHubDiscussionSpace.grantKey(this.state),
     );
-    await removeConnectionState(this.space.client, this.roomId, this.stateKey, GitHubDiscussionSpace);
+    await removeConnectionState(
+      this.space.client,
+      this.roomId,
+      this.stateKey,
+      GitHubDiscussionSpace,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

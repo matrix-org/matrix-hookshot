@@ -49,8 +49,7 @@ export class GitLabIssueConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.issue";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.gitlab.issue";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.gitlab.issue";
   static readonly EventTypes = [
     GitLabIssueConnection.CanonicalEventType,
     GitLabIssueConnection.LegacyEventType,
@@ -67,7 +66,7 @@ export class GitLabIssueConnection
       instance: state.instance,
       project: state.projects[0],
       issue: state.iid.toString(),
-    }
+    };
   }
 
   public static async createConnectionForState(
@@ -353,16 +352,22 @@ export class GitLabIssueConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    await this.grantChecker.ungrantConnection(this.roomId,
-      GitLabIssueConnection.grantKey(this.state)
+    await this.grantChecker.ungrantConnection(
+      this.roomId,
+      GitLabIssueConnection.grantKey(this.state),
     );
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitLabIssueConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitLabIssueConnection,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {
     await this.grantChecker.grantConnection(
       newRoomId,
-      GitLabIssueConnection.grantKey(this.state)
+      GitLabIssueConnection.grantKey(this.state),
     );
     // Copy across state
     await this.as.botClient.sendStateEvent(

@@ -55,8 +55,7 @@ export class GitHubIssueConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.issue";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.bridge";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.bridge";
 
   static readonly EventTypes = [
     GitHubIssueConnection.CanonicalEventType,
@@ -479,7 +478,12 @@ export class GitHubIssueConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubIssueConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitHubIssueConnection,
+    );
   }
 
   public onIssueStateChange() {

@@ -864,7 +864,12 @@ export class OpenProjectConnection
       url: this.state.url,
     });
     // Do a sanity check that the event exists.
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, OpenProjectConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      OpenProjectConnection,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

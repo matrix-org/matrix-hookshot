@@ -41,8 +41,7 @@ export class GitHubDiscussionConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.discussion";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.discussion";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.discussion";
 
   static readonly EventTypes = [
     GitHubDiscussionConnection.CanonicalEventType,
@@ -254,7 +253,12 @@ export class GitHubDiscussionConnection
       this.roomId,
       GitHubDiscussionConnection.grantKey(this.state),
     );
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubDiscussionConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitHubDiscussionConnection,
+    );
   }
 
   public async ensureGrant(sender?: string) {

@@ -155,7 +155,12 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
       fileId: this.state.fileId,
       instanceName: this.state.instanceName || "none",
     });
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, FigmaFileConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      FigmaFileConnection,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

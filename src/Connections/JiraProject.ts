@@ -31,6 +31,7 @@ import { BridgeConfigJira } from "../config/Config";
 import { HookshotJiraApi } from "../jira/Client";
 import { GrantChecker } from "../grants/GrantCheck";
 import { JiraGrantChecker } from "../jira/GrantChecker";
+import { removeConnectionState } from "./BaseConnection";
 
 type JiraAllowedEventsNames =
   | "issue_created"
@@ -127,12 +128,11 @@ export class JiraProjectConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.jira.project";
-  static readonly LegacyCanonicalEventType =
-    "uk.half-shot.matrix-github.jira.project";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.jira.project";
 
   static readonly EventTypes = [
     JiraProjectConnection.CanonicalEventType,
-    JiraProjectConnection.LegacyCanonicalEventType,
+    JiraProjectConnection.LegacyEventType,
   ];
   static readonly ServiceCategory = "jira";
   static botCommands: BotCommands;
@@ -216,6 +216,9 @@ export class JiraProjectConnection
       );
       connection.state.id = project.id;
     }
+    await new JiraGrantChecker(as, tokenStore).grantConnection(roomId, {
+      url: validData.url,
+    });
     await intent.underlyingClient.sendStateEvent(
       roomId,
       JiraProjectConnection.CanonicalEventType,
@@ -703,32 +706,27 @@ export class JiraProjectConnection
     await this.grantChecker.ungrantConnection(this.roomId, {
       url: this.state.url,
     });
-    // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        JiraProjectConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        JiraProjectConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        JiraProjectConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        JiraProjectConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      JiraProjectConnection,
+    );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(this.roomId, {
+      url: this.state.url,
+    });
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      JiraProjectConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async provisionerUpdateConfig(

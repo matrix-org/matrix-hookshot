@@ -388,8 +388,7 @@ export class GenericHookConnection
 
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.generic.hook";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.generic.hook";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.generic.hook";
   static readonly ServiceCategory = "generic";
 
   static readonly EventTypes = [
@@ -720,7 +719,12 @@ export class GenericHookConnection
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
     clearInterval(this.warnOnExpiryInterval);
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GenericHookConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GenericHookConnection,
+    );
     await GenericHookConnection.ensureRoomAccountData(
       this.roomId,
       this.intent,
@@ -798,7 +802,7 @@ export class GenericHookConnection
       newRoomId,
       this.intent,
       this.hookId,
-      this.stateKey
+      this.stateKey,
     );
     // Copy across state
     await this.intent.underlyingClient.sendStateEvent(

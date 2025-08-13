@@ -374,7 +374,11 @@ export class ConnectionManager extends EventEmitter {
 
     // If the room has a tombstone, we never create connections inside of it.
     try {
-      await botUser.intent.underlyingClient.getRoomStateEventContent(roomId, "m.room.tombstone", "");
+      await botUser.intent.underlyingClient.getRoomStateEventContent(
+        roomId,
+        "m.room.tombstone",
+        "",
+      );
       return;
     } catch (ex) {
       if (ex instanceof MatrixError === false || ex.errcode !== "M_NOT_FOUND") {
@@ -884,7 +888,10 @@ export class ConnectionManager extends EventEmitter {
         log.warn(`Connection type ${newRoomId} does not support migration`);
       }
     }
-    log.info("New room fully migrated, removing connections from old room", oldRoomId);
+    log.info(
+      "New room fully migrated, removing connections from old room",
+      oldRoomId,
+    );
     await this.removeConnectionsForRoom(oldRoomId);
   }
 }

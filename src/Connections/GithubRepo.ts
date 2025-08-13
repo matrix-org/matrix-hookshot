@@ -565,8 +565,7 @@ export class GitHubRepoConnection
 
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.repository";
-  static readonly LegacyEventType =
-    "uk.half-shot.matrix-github.repository";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.repository";
   static readonly EventTypes = [
     GitHubRepoConnection.CanonicalEventType,
     GitHubRepoConnection.LegacyEventType,
@@ -1977,15 +1976,18 @@ export class GitHubRepoConnection
       org: this.org,
       repo: this.repo,
     });
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubRepoConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitHubRepoConnection,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {
-    await this.grantChecker.grantConnection(
-      newRoomId,
-      {
-        org: this.org,
-        repo: this.repo,
+    await this.grantChecker.grantConnection(newRoomId, {
+      org: this.org,
+      repo: this.repo,
     });
     // Copy across state
     await this.intent.underlyingClient.sendStateEvent(

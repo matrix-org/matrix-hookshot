@@ -1246,7 +1246,12 @@ ${data.description}`;
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
     await this.grantChecker.ungrantConnection(this.roomId, this.getGrantKey());
     // Do a sanity check that the event exists.
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitLabRepoConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitLabRepoConnection,
+    );
     // TODO: Clean up webhooks
   }
 
@@ -1278,10 +1283,7 @@ ${data.description}`;
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {
-    await this.grantChecker.grantConnection(
-      newRoomId,
-      this.getGrantKey(),
-    );
+    await this.grantChecker.grantConnection(newRoomId, this.getGrantKey());
     // Copy across state
     await this.intent.underlyingClient.sendStateEvent(
       newRoomId,

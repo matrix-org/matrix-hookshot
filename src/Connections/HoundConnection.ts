@@ -285,7 +285,12 @@ export class HoundConnection extends BaseConnection implements IConnection {
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, HoundConnection);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      HoundConnection,
+    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {
