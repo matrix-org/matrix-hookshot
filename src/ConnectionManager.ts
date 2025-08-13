@@ -5,6 +5,7 @@
 import {
   Appservice,
   Intent,
+  MatrixError,
   PowerLevelsEvent,
   StateEvent,
 } from "matrix-bot-sdk";
@@ -369,6 +370,17 @@ export class ConnectionManager extends EventEmitter {
         `Failed to find a bot in room '${roomId}' when creating connections`,
       );
       return;
+    }
+
+    // If the room has a tombstone, we never create connections inside of it.
+    try {
+      await botUser.intent.underlyingClient.getRoomStateEventContent(roomId, "m.room.tombstone", "");
+      return;
+    } catch (ex) {
+      if (ex instanceof MatrixError === false || ex.errcode !== "M_NOT_FOUND") {
+        throw ex;
+      }
+      // No tombstone, so room is valid.
     }
 
     // This endpoint can be heavy, wrap it in pillows.
@@ -866,10 +878,13 @@ export class ConnectionManager extends EventEmitter {
     log.info("New room is ready for upgrade!", newRoomId);
     for (const connection of this.getAllConnectionsForRoom(oldRoomId)) {
       if (connection.migrateToNewRoom) {
-        connection.migrateToNewRoom(newRoomId);
+        await connection.migrateToNewRoom(newRoomId);
+        log.warn(`Connection ${connection.toString()} migrated`);
       } else {
         log.warn(`Connection type ${newRoomId} does not support migration`);
       }
     }
+    log.info("New room fully migrated, removing connections from old room", oldRoomId);
+    await this.removeConnectionsForRoom(oldRoomId);
   }
 }

@@ -720,7 +720,6 @@ export class GenericHookConnection
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
     clearInterval(this.warnOnExpiryInterval);
-    // Do a sanity check that the event exists.
     await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GenericHookConnection);
     await GenericHookConnection.ensureRoomAccountData(
       this.roomId,
@@ -799,8 +798,7 @@ export class GenericHookConnection
       newRoomId,
       this.intent,
       this.hookId,
-      this.stateKey,
-      false,
+      this.stateKey
     );
     // Copy across state
     await this.intent.underlyingClient.sendStateEvent(

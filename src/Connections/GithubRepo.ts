@@ -1977,7 +1977,6 @@ export class GitHubRepoConnection
       org: this.org,
       repo: this.repo,
     });
-    // Do a sanity check that the event exists.
     await removeConnectionState(this.intent.underlyingClient, this.roomId, this.stateKey, GitHubRepoConnection);
   }
 
