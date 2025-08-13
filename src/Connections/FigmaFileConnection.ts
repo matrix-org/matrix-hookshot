@@ -151,10 +151,51 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
   }
 
   public async onRemove() {
-    return this.grantChecker.ungrantConnection(this.roomId, {
+    await this.grantChecker.ungrantConnection(this.roomId, {
       fileId: this.state.fileId,
       instanceName: this.state.instanceName || "none",
     });
+    try {
+      await this.intent.underlyingClient.getRoomStateEvent(
+        this.roomId,
+        FigmaFileConnection.CanonicalEventType,
+        this.stateKey,
+      );
+      await this.intent.underlyingClient.sendStateEvent(
+        this.roomId,
+        FigmaFileConnection.CanonicalEventType,
+        this.stateKey,
+        { disabled: true },
+      );
+    } catch (ex) {
+      await this.intent.underlyingClient.getRoomStateEvent(
+        this.roomId,
+        FigmaFileConnection.LegacyEventType,
+        this.stateKey,
+      );
+      await this.intent.underlyingClient.sendStateEvent(
+        this.roomId,
+        FigmaFileConnection.LegacyEventType,
+        this.stateKey,
+        { disabled: true },
+      );
+    }
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(newRoomId, {
+      fileId: this.state.fileId,
+      instanceName: this.state.instanceName || "none",
+    });
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      FigmaFileConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async handleNewComment(payload: FigmaPayload) {
