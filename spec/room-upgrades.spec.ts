@@ -1,6 +1,7 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
 import { describe, test, beforeAll, afterAll, expect } from "vitest";
 import { createInboundConnection, waitFor } from "./util/helpers";
+import { getBridgeApi } from "./util/bridge-api";
 
 describe("Room Upgrades", () => {
   let testEnv: E2ETestEnv;
@@ -16,12 +17,14 @@ describe("Room Upgrades", () => {
           waitForComplete: true,
           urlPrefix: `http://localhost:${webhooksPort}`,
         },
+        widgets: {
+          publicUrl: `http://localhost:${webhooksPort}`,
+        },
         listeners: [
           {
             port: webhooksPort,
             bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks"],
+            resources: ["webhooks", "widgets"],
           },
         ],
       },
@@ -33,11 +36,15 @@ describe("Room Upgrades", () => {
     return testEnv?.tearDown();
   });
 
-  test.only(
-    "should be able to create a new webhook, upgrade the room, and have the state carry over.",
-    { timeout: 10000 },
+  test(
+    "should be able to create a new generic webhook, upgrade the room, and have the state carry over.",
+    { timeout: 25000 },
     async () => {
       const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
       const previousRoomId = await user.createRoom({
         name: "My Test Webhooks room",
       });
@@ -69,6 +76,12 @@ describe("Room Upgrades", () => {
         roomId: newRoomId,
         sender: testEnv.botMxid,
       });
+
+      // Wait for hookshot to accept the new state.
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(newRoomId)).length === 1,
+      );
 
       const expectedMsg = user.waitForRoomEvent({
         eventType: "m.room.message",
