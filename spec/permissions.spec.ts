@@ -116,7 +116,7 @@ describe("Permissions test", () => {
     const roomId = await user.createRoom({
       name: "Test room",
       invite: [testEnv.botMxid],
-      room_version: "12"
+      room_version: "12",
     });
     await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
     await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });

@@ -219,7 +219,11 @@ export class BridgeWidgetApi extends ProvisioningApi {
 
     const powerlevel = new PLManager(
       await botUser.intent.underlyingClient.getRoomCreateEvent(roomId),
-      await botUser.intent.underlyingClient.getRoomStateEventContent(roomId, "m.room.power_levels", ""),
+      await botUser.intent.underlyingClient.getRoomStateEventContent(
+        roomId,
+        "m.room.power_levels",
+        "",
+      ),
     );
 
     const serviceFilter = req.params.service;

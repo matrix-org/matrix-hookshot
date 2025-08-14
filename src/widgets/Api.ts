@@ -94,7 +94,11 @@ export async function assertUserPermissionsInRoom(
   try {
     pls = new PLManager(
       await intent.underlyingClient.getRoomCreateEvent(roomId),
-      await intent.underlyingClient.getRoomStateEventContent(roomId, "m.room.power_levels", ""),
+      await intent.underlyingClient.getRoomStateEventContent(
+        roomId,
+        "m.room.power_levels",
+        "",
+      ),
     );
   } catch (ex) {
     log.warn(`Failed to find PL event for room ${roomId}`, ex);
