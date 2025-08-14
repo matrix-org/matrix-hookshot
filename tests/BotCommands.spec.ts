@@ -10,7 +10,7 @@ import { RoomEvent } from "matrix-bot-sdk";
 
 describe("BotCommands", () => {
   const USER_ID = "@foo:bar.com";
-  const fakeReply: RoomEvent<{}> = new RoomEvent({
+  const fakeReply: RoomEvent<Record<string, never>> = new RoomEvent({
     content: {},
     event_id: "$event:id",
     sender: "@sender",
