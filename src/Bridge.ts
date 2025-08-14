@@ -13,8 +13,7 @@ import {
   Intent,
   MatrixError,
   RoomEvent,
-  PLManager,
-  PowerLevelsEventContent,
+  PLManager
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
 import {
