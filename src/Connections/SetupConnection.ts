@@ -289,7 +289,15 @@ export class SetupConnection extends CommandConnection {
                 ev.type === JiraProjectConnection.LegacyCanonicalEventType) &&
               ev.content.url,
           )
-          .map((ev) => ev.content),
+          .map((ev) => {
+            try {
+              return JiraProjectConnection.validateState(ev.content);
+            } catch {
+              // If the connection failed validation, ignore it.
+              return undefined;
+            }
+          })
+          .filter((c) => !!c),
       );
 
     if (projects.length === 0) {
@@ -443,7 +451,15 @@ export class SetupConnection extends CommandConnection {
               ev.type === GenericHookConnection.CanonicalEventType &&
               ev.content.name,
           )
-          .map((ev) => ev.content),
+          .map((ev) => {
+            try {
+              return GenericHookConnection.validateState(ev.content);
+            } catch {
+              // If the connection failed validation, ignore it.
+              return undefined;
+            }
+          })
+          .filter((c) => !!c),
       );
 
     if (webhooks.length === 0) {
@@ -675,7 +691,15 @@ export class SetupConnection extends CommandConnection {
             (ev: any) =>
               ev.type === FeedConnection.CanonicalEventType && ev.content.url,
           )
-          .map((ev) => ev.content),
+          .map((ev) => {
+            try {
+              return FeedConnection.validateState(ev.content);
+            } catch {
+              // If the connection failed validation, ignore it.
+              return undefined;
+            }
+          })
+          .filter((c) => !!c),
       );
 
     if (feeds.length === 0) {

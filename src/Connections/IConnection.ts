@@ -5,6 +5,7 @@ import {
   Appservice,
   Intent,
   IRichReplyMetadata,
+  RoomEvent,
   StateEvent,
 } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
@@ -14,6 +15,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import "reflect-metadata";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 
 export type PermissionCheckFn = (
   service: string,
@@ -66,7 +68,7 @@ export interface IConnection {
   onMessageEvent?: (
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
-    parentEvent?: MatrixEvent<unknown>,
+    parentEvent?: RoomEvent<IJsonType>,
   ) => Promise<boolean>;
 
   onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
