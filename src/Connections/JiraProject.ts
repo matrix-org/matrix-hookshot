@@ -76,44 +76,6 @@ export interface JiraTargetFilter {
 export type JiraProjectResponseItem =
   GetConnectionsResponseItem<JiraProjectConnectionState>;
 
-function validateJiraConnectionState(
-  state: unknown,
-): JiraProjectConnectionState {
-  const { id, url, commandPrefix, priority } =
-    state as Partial<JiraProjectConnectionState>;
-  if (id !== undefined && typeof id !== "string") {
-    throw new ApiError("Expected 'id' to be a string", ErrCode.BadValue);
-  }
-  if (url === undefined) {
-    throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
-  }
-  if (commandPrefix) {
-    if (typeof commandPrefix !== "string") {
-      throw new ApiError(
-        "Expected 'commandPrefix' to be a string",
-        ErrCode.BadValue,
-      );
-    }
-    if (commandPrefix.length < 2 || commandPrefix.length > 24) {
-      throw new ApiError(
-        "Expected 'commandPrefix' to be between 2-24 characters",
-        ErrCode.BadValue,
-      );
-    }
-  }
-  let { events } = state as Partial<JiraProjectConnectionState>;
-  if (!events || (events[0] as string) == "issue.created") {
-    // migration
-    events = ["issue_created"];
-  } else if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
-    throw new ApiError(
-      `'events' can only contain ${JiraAllowedEvents.join(", ")}`,
-      ErrCode.BadValue,
-    );
-  }
-  return { id, url, commandPrefix, events, priority };
-}
-
 const log = new Logger("JiraProjectConnection");
 const md = new markdownit();
 
@@ -137,6 +99,42 @@ export class JiraProjectConnection
   static readonly ServiceCategory = "jira";
   static botCommands: BotCommands;
   static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
+
+  public static validateState(state: unknown): JiraProjectConnectionState {
+    const { id, url, commandPrefix, priority } =
+      state as Partial<JiraProjectConnectionState>;
+    if (id !== undefined && typeof id !== "string") {
+      throw new ApiError("Expected 'id' to be a string", ErrCode.BadValue);
+    }
+    if (url === undefined) {
+      throw new ApiError("Expected a 'url' property", ErrCode.BadValue);
+    }
+    if (commandPrefix) {
+      if (typeof commandPrefix !== "string") {
+        throw new ApiError(
+          "Expected 'commandPrefix' to be a string",
+          ErrCode.BadValue,
+        );
+      }
+      if (commandPrefix.length < 2 || commandPrefix.length > 24) {
+        throw new ApiError(
+          "Expected 'commandPrefix' to be between 2-24 characters",
+          ErrCode.BadValue,
+        );
+      }
+    }
+    let { events } = state as Partial<JiraProjectConnectionState>;
+    if (!events || (events[0] as string) == "issue.created") {
+      // migration
+      events = ["issue_created"];
+    } else if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
+      throw new ApiError(
+        `'events' can only contain ${JiraAllowedEvents.join(", ")}`,
+        ErrCode.BadValue,
+      );
+    }
+    return { id, url, commandPrefix, events, priority };
+  }
 
   static async assertUserHasAccessToProject(
     tokenStore: UserTokenStore,
@@ -189,7 +187,7 @@ export class JiraProjectConnection
         ErrCode.DisabledFeature,
       );
     }
-    const validData = validateJiraConnectionState(data);
+    const validData = JiraProjectConnection.validateState(data);
     log.info(
       `Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`,
     );
@@ -236,7 +234,7 @@ export class JiraProjectConnection
     if (!config.jira) {
       throw Error("JIRA is not configured");
     }
-    const connectionConfig = validateJiraConnectionState(state.content);
+    const connectionConfig = JiraProjectConnection.validateState(state.content);
     return new JiraProjectConnection(
       roomId,
       as,
@@ -347,7 +345,7 @@ export class JiraProjectConnection
   }
 
   protected validateConnectionState(content: unknown) {
-    return validateJiraConnectionState(content);
+    return JiraProjectConnection.validateState(content);
   }
 
   public ensureGrant(sender?: string) {
@@ -737,7 +735,7 @@ export class JiraProjectConnection
   ) {
     // Apply previous state to the current config, as provisioners might not return "unknown" keys.
     config = { ...this.state, ...config };
-    const validatedConfig = validateJiraConnectionState(config);
+    const validatedConfig = JiraProjectConnection.validateState(config);
     if (!validatedConfig.id) {
       await this.updateProjectId(validatedConfig, userId);
     }
