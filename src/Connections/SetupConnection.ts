@@ -451,7 +451,6 @@ export class SetupConnection extends CommandConnection {
               ev.type === GenericHookConnection.CanonicalEventType &&
               ev.content.name,
           )
-<<<<<<< HEAD
           .map((ev) => {
             try {
               return GenericHookConnection.validateState(ev.content);
@@ -461,9 +460,6 @@ export class SetupConnection extends CommandConnection {
             }
           })
           .filter((c) => !!c),
-=======
-          .map((ev) => ev.content as unknown as GenericHookConnectionState),
->>>>>>> 1d4c9784 (Fixes for new PR)
       );
 
     if (webhooks.length === 0) {
@@ -695,7 +691,6 @@ export class SetupConnection extends CommandConnection {
             (ev: any) =>
               ev.type === FeedConnection.CanonicalEventType && ev.content.url,
           )
-<<<<<<< HEAD
           .map((ev) => {
             try {
               return FeedConnection.validateState(ev.content);
@@ -705,9 +700,6 @@ export class SetupConnection extends CommandConnection {
             }
           })
           .filter((c) => !!c),
-=======
-          .map((ev) => ev.content as unknown as FeedConnectionState),
->>>>>>> 1d4c9784 (Fixes for new PR)
       );
 
     if (feeds.length === 0) {

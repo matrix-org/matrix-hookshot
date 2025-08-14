@@ -1377,7 +1377,7 @@ export class Bridge {
         // This is a new style reply.
         const parentEventId =
           event.content["m.relates_to"]?.["m.in_reply_to"].event_id;
-        replyEvent = await this.as.botClient.getEvent(roomId, parentEventId) as MatrixEvent<unknown>;
+        replyEvent = await this.as.botClient.getEvent(roomId, parentEventId);
       }
     }
 
