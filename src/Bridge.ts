@@ -1404,7 +1404,7 @@ export class Bridge {
             handled = await connection.onMessageEvent(
               event,
               checkPermission,
-              replyEvent,
+              replyEvent?.raw,
             );
           }
         } catch (ex) {
@@ -1499,7 +1499,7 @@ export class Bridge {
           await Promise.all(
             connections.map(async (c) => {
               if (c instanceof GitHubIssueConnection) {
-                return c.onMatrixIssueComment(replyEvent as any);
+                return c.onMatrixIssueComment(replyEvent.raw);
               }
             }),
           );
