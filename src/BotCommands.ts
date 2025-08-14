@@ -4,6 +4,8 @@ import { CommandError } from "./Errors";
 import { MatrixEvent, MatrixMessageContent } from "./MatrixEvent";
 import { BridgePermissionLevel } from "./config/Config";
 import { PermissionCheckFn } from "./Connections";
+import { RoomEvent } from "matrix-bot-sdk";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 
 const stringArgv = import("string-argv");
 const md = new markdown();
@@ -76,12 +78,12 @@ type BotCommandFunctionWithUserId = (
   ...args: string[]
 ) => Promise<BotCommandResult>;
 type BotCommandFunctionWithReply = (
-  reply?: MatrixEvent<unknown>,
+  reply?: RoomEvent<IJsonType>,
   ...args: string[]
 ) => Promise<BotCommandResult>;
 type BotCommandFunctionWithUserIdAndReply = (
   userId: string,
-  reply?: MatrixEvent<unknown>,
+  reply?: RoomEvent<IJsonType>,
   ...args: string[]
 ) => Promise<BotCommandResult>;
 type BotCommandFunctionStandard = (
@@ -195,7 +197,7 @@ interface CommandResultErrorHuman {
 export async function handleCommand(
   userId: string,
   command: string,
-  parentEvent: MatrixEvent<unknown> | undefined,
+  parentEvent: RoomEvent<IJsonType> | undefined,
   botCommands: BotCommands,
   obj: unknown,
   permissionCheckFn: PermissionCheckFn,

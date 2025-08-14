@@ -5,10 +5,16 @@ import {
   HelpFunction,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import { IRichReplyMetadata, MatrixClient, MessageEvent } from "matrix-bot-sdk";
+import {
+  IRichReplyMetadata,
+  MatrixClient,
+  MessageEvent,
+  RoomEvent,
+} from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 const log = new Logger("CommandConnection");
 
 /**
@@ -54,7 +60,7 @@ export abstract class CommandConnection<
   public async onMessageEvent(
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
-    parentEvent?: MatrixEvent<unknown>,
+    parentEvent?: RoomEvent<IJsonType>,
   ) {
     const commandResult = await handleCommand(
       ev.sender,

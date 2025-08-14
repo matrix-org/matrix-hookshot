@@ -12,6 +12,7 @@ import {
   PowerLevelsEvent,
   Intent,
   MatrixError,
+  RoomEvent,
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
 import {
@@ -108,6 +109,7 @@ import { HoundReader } from "./hound/HoundReader";
 import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/Types";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 
 const log = new Logger("Bridge");
 
@@ -1352,7 +1354,7 @@ export class Bridge {
     );
     log.debug("Content:", JSON.stringify(event));
 
-    let replyEvent: MatrixEvent<unknown> | undefined;
+    let replyEvent: RoomEvent<IJsonType> | undefined;
     if (event.content["m.relates_to"]?.["m.in_reply_to"]) {
       if (event.content.formatted_body?.includes("<mx-reply>")) {
         // This is a legacy fallback reply:
@@ -1402,7 +1404,7 @@ export class Bridge {
             handled = await connection.onMessageEvent(
               event,
               checkPermission,
-              replyEvent,
+              replyEvent?.raw,
             );
           }
         } catch (ex) {
@@ -1475,7 +1477,7 @@ export class Bridge {
 
     if (replyEvent) {
       log.info(
-        `Handling reply to ${replyEvent.event_id} for ${adminRoom.userId}`,
+        `Handling reply to ${replyEvent.eventId} for ${adminRoom.userId}`,
       );
       // This might be a reply to a notification
       try {
@@ -1497,7 +1499,7 @@ export class Bridge {
           await Promise.all(
             connections.map(async (c) => {
               if (c instanceof GitHubIssueConnection) {
-                return c.onMatrixIssueComment(replyEvent as any);
+                return c.onMatrixIssueComment(replyEvent.raw);
               }
             }),
           );

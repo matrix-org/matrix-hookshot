@@ -2,6 +2,7 @@ import {
   Appservice,
   Intent,
   IRichReplyMetadata,
+  RoomEvent,
   StateEvent,
 } from "matrix-bot-sdk";
 import {
@@ -60,10 +61,16 @@ import { GitHubIssueConnection } from "./GithubIssue";
 import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
-import { GitHubRepoMessageBody, MinimalGitHubIssue } from "../libRs";
+import {
+  GitHubIssueMessageBodyIssue,
+  GitHubIssueMessageBodyRepo,
+  GitHubRepoMessageBody,
+  MinimalGitHubIssue,
+} from "../libRs";
 import Ajv, { JSONSchemaType } from "ajv";
 import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../github/GrantChecker";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -849,18 +856,21 @@ export class GitHubRepoConnection
   public async onMessageEvent(
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
-    reply?: MatrixEvent<any>,
+    reply?: RoomEvent<IJsonType>,
   ): Promise<boolean> {
     if (await super.onMessageEvent(ev, checkPermission)) {
       return true;
     }
     const body = ev.content.body?.trim();
     if (reply) {
-      const repoInfo =
-        reply.content["uk.half-shot.matrix-hookshot.github.repo"];
-      const pullRequestId =
-        reply.content["uk.half-shot.matrix-hookshot.github.pull_request"]
-          ?.number;
+      const repoInfo = reply.content[
+        "uk.half-shot.matrix-hookshot.github.repo"
+      ] as unknown as GitHubIssueMessageBodyRepo;
+      const pullRequestId = (
+        reply.content[
+          "uk.half-shot.matrix-hookshot.github.pull_request"
+        ] as unknown as GitHubIssueMessageBodyIssue
+      )?.number;
       // Emojis can be multi-byte, so make sure we split properly
       const reviewKey = Object.keys(EMOJI_TO_REVIEW_STATE).find((k) =>
         k.includes(body.split(" ")[0]),
@@ -1699,8 +1709,9 @@ export class GitHubRepoConnection
         this.roomId,
         event_id,
       );
-      const issueContent =
-        ev.content["uk.half-shot.matrix-hookshot.github.issue"];
+      const issueContent = ev.content[
+        "uk.half-shot.matrix-hookshot.github.issue"
+      ] as GitHubIssueMessageBodyIssue | undefined;
       if (!issueContent) {
         log.debug("Reaction to event did not pertain to a issue");
         return; // Not our event.
