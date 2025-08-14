@@ -1725,10 +1725,10 @@ export class Bridge {
           const createEvent = await botUser.intent.underlyingClient.getRoomCreateEvent(roomId);
           const plEvent = new PowerLevelsEvent(event);
           const plsOld = new PLManager(createEvent, plEvent.previousContent);
-          const plsNew = new PLManager(createEvent, plEvent.content);
+          const plsCurrent = new PLManager(createEvent, plEvent.content);
           const previousPl = plsOld.getUserPowerLevel(botUser.userId);
           const currentPl = plsOld.getUserPowerLevel(botUser.userId);
-          const requiredPl = plsNew.currentPL.events?.["im.vector.modular.widgets"] ?? plsNew.currentPL.state_default ?? 50;
+          const requiredPl = plsCurrent.currentPL.events?.["im.vector.modular.widgets"] ?? plsCurrent.currentPL.state_default ?? 50;
 
           if (currentPl !== previousPl && currentPl >= requiredPl) {
             // PL changed for bot user, check to see if the widget can be created.
