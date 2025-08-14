@@ -5,19 +5,19 @@ import {
   compileBotCommands,
   handleCommand,
 } from "../src/BotCommands";
-import { MatrixEvent } from "../src/MatrixEvent";
 import { BridgePermissionLevel } from "../src/config/Config";
+import { RoomEvent } from "matrix-bot-sdk";
 
 describe("BotCommands", () => {
   const USER_ID = "@foo:bar.com";
-  const fakeReply: MatrixEvent<void> = {
-    content: undefined,
+  const fakeReply: RoomEvent<{}> = new RoomEvent({
+    content: {},
     event_id: "$event:id",
     sender: "@sender",
     origin_server_ts: 12345,
     state_key: undefined,
     type: "test.type",
-  };
+  });
 
   describe("handleCommand", () => {
     it("should not handle an empty command list", async () => {
