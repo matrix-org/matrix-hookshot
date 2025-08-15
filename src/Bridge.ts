@@ -13,6 +13,7 @@ import {
   Intent,
   MatrixError,
   RoomEvent,
+  PLManager,
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
 import {
@@ -1743,15 +1744,19 @@ export class Bridge {
           log.debug(
             `${roomId} got a new powerlevel change and isn't connected to any connections, testing to see if we should create a setup widget`,
           );
+
+          const createEvent =
+            await botUser.intent.underlyingClient.getRoomCreateEvent(roomId);
           const plEvent = new PowerLevelsEvent(event);
-          const currentPl =
-            plEvent.content.users?.[botUser.userId] ?? plEvent.defaultUserLevel;
-          const previousPl =
-            plEvent.previousContent?.users?.[botUser.userId] ??
-            plEvent.previousContent?.users_default;
+          const plsOld = new PLManager(createEvent, plEvent.previousContent);
+          const plsCurrent = new PLManager(createEvent, plEvent.content);
+          const previousPl = plsOld.getUserPowerLevel(botUser.userId);
+          const currentPl = plsCurrent.getUserPowerLevel(botUser.userId);
           const requiredPl =
-            plEvent.content.events?.["im.vector.modular.widgets"] ??
-            plEvent.defaultStateEventLevel;
+            plsCurrent.currentPL.events?.["im.vector.modular.widgets"] ??
+            plsCurrent.currentPL.state_default ??
+            50;
+
           if (currentPl !== previousPl && currentPl >= requiredPl) {
             // PL changed for bot user, check to see if the widget can be created.
             try {
