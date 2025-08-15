@@ -13,7 +13,7 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { ConnectionManager } from "../ConnectionManager";
 import BotUsersManager, { BotUser } from "../managers/BotUsersManager";
 import { assertUserPermissionsInRoom, GetConnectionsResponseItem } from "./Api";
-import { Appservice, PLManager, PowerLevelsEvent } from "matrix-bot-sdk";
+import { Appservice, PLManager } from "matrix-bot-sdk";
 import { GithubInstance } from "../github/GithubInstance";
 import {
   AllowedTokenTypes,

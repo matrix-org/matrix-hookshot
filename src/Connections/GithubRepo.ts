@@ -1,5 +1,4 @@
 import {
-  APIRoomEvent,
   Appservice,
   Intent,
   IRichReplyMetadata,

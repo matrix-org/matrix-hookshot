@@ -3,7 +3,6 @@ import {
   MatrixError,
   MembershipEventContent,
   PLManager,
-  PowerLevelsEventContent,
 } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { Logger } from "matrix-appservice-bridge";
