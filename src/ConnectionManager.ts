@@ -822,17 +822,12 @@ export class ConnectionManager extends EventEmitter {
     void this.checkAndMigrateUpgradedRoom(newRoomId);
   }
 
-  public onPowerLevel(newRoomId: string) {
+  public checkAndMigrateIfPendingUpgrade(
+    newRoomId: string,
+    eventTypeToLog: string,
+  ) {
     if (this.pendingRoomUpgrades.has(newRoomId)) {
-      log.debug(`Got power level event for upgraded room ${newRoomId}`);
-      // Run check asynchronously
-      void this.checkAndMigrateUpgradedRoom(newRoomId);
-    }
-  }
-
-  public onJoinToUpgradeRoom(newRoomId: string) {
-    if (this.pendingRoomUpgrades.has(newRoomId)) {
-      log.debug(`Got join event for upgraded room ${newRoomId}`);
+      log.debug(`Got ${eventTypeToLog} event for upgraded room ${newRoomId}`);
       // Run check asynchronously
       void this.checkAndMigrateUpgradedRoom(newRoomId);
     }

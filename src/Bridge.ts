@@ -1539,7 +1539,7 @@ export class Bridge {
       return;
     }
     this.botUsersManager.onRoomJoin(botUser, roomId);
-    this.connectionManager.onJoinToUpgradeRoom(roomId);
+    this.connectionManager.checkAndMigrateIfPendingUpgrade(roomId, "join");
 
     if (this.config.encryption) {
       // Ensure crypto is aware of all members of this room before posting any messages,
@@ -1644,7 +1644,10 @@ export class Bridge {
       }
 
       if (event.type === "m.room.power_levels" && event.state_key === "") {
-        this.connectionManager.onPowerLevel(roomId);
+        this.connectionManager.checkAndMigrateIfPendingUpgrade(
+          roomId,
+          "power level",
+        );
       }
 
       // A state update, hurrah!
