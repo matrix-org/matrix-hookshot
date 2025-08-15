@@ -1727,7 +1727,7 @@ export class Bridge {
           const plsOld = new PLManager(createEvent, plEvent.previousContent);
           const plsCurrent = new PLManager(createEvent, plEvent.content);
           const previousPl = plsOld.getUserPowerLevel(botUser.userId);
-          const currentPl = plsOld.getUserPowerLevel(botUser.userId);
+          const currentPl = plsCurrent.getUserPowerLevel(botUser.userId);
           const requiredPl =
             plsCurrent.currentPL.events?.["im.vector.modular.widgets"] ??
             plsCurrent.currentPL.state_default ??
