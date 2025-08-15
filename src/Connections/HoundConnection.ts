@@ -1,6 +1,6 @@
 import { Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import {
   Connection,
@@ -281,6 +281,28 @@ export class HoundConnection extends BaseConnection implements IConnection {
       activity.activityId,
       eventId,
     );
+  }
+
+  public async onRemove() {
+    log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      HoundConnection,
+    );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      HoundConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public toString() {

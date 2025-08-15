@@ -1526,6 +1526,9 @@ export class Bridge {
     roomId: string,
     matrixEvent: MatrixEvent<MatrixMemberContent>,
   ) {
+    if (!this.connectionManager) {
+      return;
+    }
     const userId = matrixEvent.state_key;
     if (!userId) {
       return;
@@ -1537,6 +1540,7 @@ export class Bridge {
       return;
     }
     this.botUsersManager.onRoomJoin(botUser, roomId);
+    this.connectionManager.checkAndMigrateIfPendingUpgrade(roomId, "join");
 
     if (this.config.encryption) {
       // Ensure crypto is aware of all members of this room before posting any messages,
@@ -1627,6 +1631,26 @@ export class Bridge {
         }
         return;
       }
+
+      if (event.type === "m.room.tombstone" && event.state_key === "") {
+        const replacementRoomId = event.content.replacement_room;
+        if (typeof replacementRoomId !== "string") {
+          // This event is invalid, ignore it.
+          return;
+        }
+        await this.connectionManager.onTombstoneEvent(
+          roomId,
+          replacementRoomId,
+        );
+      }
+
+      if (event.type === "m.room.power_levels" && event.state_key === "") {
+        this.connectionManager.checkAndMigrateIfPendingUpgrade(
+          roomId,
+          "power level",
+        );
+      }
+
       // A state update, hurrah!
       const existingConnections =
         this.connectionManager.getInterestedForRoomState(

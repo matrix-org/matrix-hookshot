@@ -8,7 +8,7 @@ import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
 import { GitHubDiscussionSpace } from ".";
 import { GithubInstance } from "../github/GithubInstance";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
 
@@ -26,11 +26,11 @@ export interface GitHubUserSpaceConnectionState {
 export class GitHubUserSpace extends BaseConnection implements IConnection {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.user.space";
-  static readonly LegacyCanonicalEventType =
-    "uk.half-shot.matrix-github.user.space";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.user.space";
 
   static readonly EventTypes = [
-    GitHubUserSpace.CanonicalEventType, // Legacy event, with an awful name.
+    GitHubUserSpace.CanonicalEventType,
+    GitHubUserSpace.LegacyEventType,
   ];
 
   static readonly QueryRoomRegex = /#github_(.+):.*/;
@@ -164,7 +164,7 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
   private readonly grantChecker: GrantChecker;
 
   constructor(
-    as: Appservice,
+    private readonly as: Appservice,
     config: BridgeConfig,
     public readonly space: Space,
     private state: GitHubUserSpaceConnectionState,
@@ -208,5 +208,35 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
     if (!children[discussion.roomId]) {
       await this.space.addChildRoom(discussion.roomId);
     }
+  }
+
+  public async onRemove() {
+    log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    await this.grantChecker.ungrantConnection(
+      this.roomId,
+      GitHubUserSpace.grantKey(this.state),
+    );
+    await removeConnectionState(
+      this.space.client,
+      this.roomId,
+      this.stateKey,
+      GitHubUserSpace,
+    );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(
+      newRoomId,
+      GitHubUserSpace.grantKey(this.state),
+    );
+    // Copy across state
+    await this.as.botClient.sendStateEvent(
+      newRoomId,
+      GitHubUserSpace.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 }

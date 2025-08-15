@@ -1,7 +1,7 @@
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import markdownit from "markdown-it";
 import { FigmaPayload } from "../figma/Types";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { IConnection, IConnectionState } from ".";
 import { Logger } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
@@ -151,10 +151,32 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
   }
 
   public async onRemove() {
-    return this.grantChecker.ungrantConnection(this.roomId, {
+    await this.grantChecker.ungrantConnection(this.roomId, {
       fileId: this.state.fileId,
       instanceName: this.state.instanceName || "none",
     });
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      FigmaFileConnection,
+    );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(newRoomId, {
+      fileId: this.state.fileId,
+      instanceName: this.state.instanceName || "none",
+    });
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      FigmaFileConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async handleNewComment(payload: FigmaPayload) {

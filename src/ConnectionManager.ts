@@ -2,7 +2,13 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
-import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixError,
+  PowerLevelsEvent,
+  StateEvent,
+} from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
 import {
   BridgeConfig,
@@ -35,7 +41,7 @@ import { JiraProject, JiraVersion } from "./jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./tokens/UserTokenStore";
-import BotUsersManager from "./managers/BotUsersManager";
+import BotUsersManager, { BotUser } from "./managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
@@ -53,6 +59,7 @@ export class ConnectionManager extends EventEmitter {
     string,
     GetConnectionTypeResponseItem
   > = {};
+  private readonly pendingRoomUpgrades = new Set<string>(); // newRoomId
 
   public get size() {
     return this.connections.length;
@@ -363,6 +370,21 @@ export class ConnectionManager extends EventEmitter {
         `Failed to find a bot in room '${roomId}' when creating connections`,
       );
       return;
+    }
+
+    // If the room has a tombstone, we never create connections inside of it.
+    try {
+      await botUser.intent.underlyingClient.getRoomStateEventContent(
+        roomId,
+        "m.room.tombstone",
+        "",
+      );
+      return;
+    } catch (ex) {
+      if (ex instanceof MatrixError === false || ex.errcode !== "M_NOT_FOUND") {
+        throw ex;
+      }
+      // No tombstone, so room is valid.
     }
 
     // This endpoint can be heavy, wrap it in pillows.
@@ -774,5 +796,97 @@ export class ConnectionManager extends EventEmitter {
       );
     }
     return configObject;
+  }
+
+  // Room Upgrades
+  public async onTombstoneEvent(currentRoomId: string, newRoomId: string) {
+    log.info(
+      `Checking whether room upgrade can progress ${currentRoomId} -> ${newRoomId}`,
+    );
+    this.pendingRoomUpgrades.add(newRoomId);
+
+    for (const botUser of this.botUsersManager.getBotUsersInRoom(
+      currentRoomId,
+    )) {
+      // Ensure all the bots from the old room join the new one
+      try {
+        log.debug(`Trying to join ${botUser.userId} to ${newRoomId}`);
+        await botUser.intent.joinRoom(newRoomId);
+      } catch (ex) {
+        // May just be because we're too quick
+        log.debug(`Failed to join ${botUser.userId} to ${newRoomId}`, ex);
+      }
+    }
+
+    // Run check asynchronously
+    void this.checkAndMigrateUpgradedRoom(newRoomId);
+  }
+
+  public checkAndMigrateIfPendingUpgrade(
+    newRoomId: string,
+    eventTypeToLog: string,
+  ) {
+    if (this.pendingRoomUpgrades.has(newRoomId)) {
+      log.debug(`Got ${eventTypeToLog} event for upgraded room ${newRoomId}`);
+      // Run check asynchronously
+      void this.checkAndMigrateUpgradedRoom(newRoomId);
+    }
+  }
+
+  private async checkAndMigrateUpgradedRoom(newRoomId: string) {
+    // Remove the room from the set while we process it to prevent concurrent attempts.
+    this.pendingRoomUpgrades.delete(newRoomId);
+    let bot: BotUser | undefined;
+    let oldRoomId: string | undefined;
+    try {
+      // NOTE: We just care about having *any* bot in the room, rather than the specific
+      // service bot. We just need one bot that can send the appropriate state.
+      bot = this.botUsersManager.getBotUserInRoom(newRoomId);
+      if (!bot) {
+        log.debug("Bot not in room yet, not performing any actions");
+        this.pendingRoomUpgrades.add(newRoomId);
+        return;
+      }
+      const hasPowerlevel =
+        await bot.intent.underlyingClient.userHasPowerLevelFor(
+          bot.intent.userId,
+          newRoomId,
+          "im.vector.modular.widgets",
+          true,
+        );
+
+      if (!hasPowerlevel) {
+        log.debug("Bot does not have power in the upgraded room, skipping");
+        this.pendingRoomUpgrades.add(newRoomId);
+        return;
+      }
+      const createEvent =
+        await bot.intent.underlyingClient.getRoomCreateEvent(newRoomId);
+      oldRoomId = createEvent.content.predecessor?.room_id;
+      if (!oldRoomId) {
+        log.error(
+          "Upgraded room has no predecessor, which means the upgrade is invalid. Ignoring upgrade!",
+        );
+        return;
+      }
+    } catch (ex) {
+      // We hit an unexpected failure, so add back to the set.
+      this.pendingRoomUpgrades.add(newRoomId);
+      throw ex;
+    }
+    log.info("New room is ready for upgrade!", newRoomId);
+    for (const connection of this.getAllConnectionsForRoom(oldRoomId)) {
+      if (connection.migrateToNewRoom) {
+        await connection.migrateToNewRoom(newRoomId);
+        log.warn(`Connection ${connection.toString()} migrated`);
+      } else {
+        log.warn(`Connection type ${newRoomId} does not support migration`);
+      }
+    }
+    log.info(
+      "New room fully migrated, removing connections from old room",
+      oldRoomId,
+    );
+    await this.removeConnectionsForRoom(oldRoomId);
   }
 }

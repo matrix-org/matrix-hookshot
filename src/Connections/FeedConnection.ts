@@ -339,7 +339,6 @@ export class FeedConnection extends BaseConnection implements IConnection {
     this.state = validatedConfig;
   }
 
-  // needed to ensure that the connection is removable
   public async onRemove(): Promise<void> {
     log.info(`Removing connection ${this.connectionId}`);
     await this.intent.underlyingClient.sendStateEvent(
@@ -348,6 +347,18 @@ export class FeedConnection extends BaseConnection implements IConnection {
       this.feedUrl,
       {},
     );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      FeedConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   toString(): string {

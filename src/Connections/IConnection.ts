@@ -80,6 +80,12 @@ export interface IConnection {
   isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
 
   /**
+   * The room is being migrated, and this state should be migrated away.
+   * @param newRoomId
+   */
+  migrateToNewRoom?(newRoomId: string): Promise<void>;
+
+  /**
    * The details to be sent to the provisioner when requested about this connection.
    */
   getProvisionerDetails?: (showSecrets?: boolean) => GetConnectionsResponseItem;

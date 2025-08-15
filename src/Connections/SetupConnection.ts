@@ -286,7 +286,7 @@ export class SetupConnection extends CommandConnection {
           .filter(
             (ev: any) =>
               (ev.type === JiraProjectConnection.CanonicalEventType ||
-                ev.type === JiraProjectConnection.LegacyCanonicalEventType) &&
+                ev.type === JiraProjectConnection.LegacyEventType) &&
               ev.content.url,
           )
           .map((ev) => {
@@ -333,7 +333,7 @@ export class SetupConnection extends CommandConnection {
 
     const eventTypes = [
       JiraProjectConnection.CanonicalEventType,
-      JiraProjectConnection.LegacyCanonicalEventType,
+      JiraProjectConnection.LegacyEventType,
     ];
     let event = null;
     let eventType = "";
