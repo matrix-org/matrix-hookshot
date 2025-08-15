@@ -1,1 +1,0 @@
-Add support for following room upgrades. Hookshot will now carry across all connections from the predecessor room to the next room.

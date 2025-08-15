@@ -1,3 +1,38 @@
+7.1.0 (2025-08-15)
+==================
+
+Features
+--------
+
+- Add an option in the config to disable hook bodies in Matrix messages. ([\#1004](https://github.com/matrix-org/matrix-hookshot/issues/1004))
+- Hookshot will now ping the homeserver on startup to ensure it can be reached. ([\#1062](https://github.com/matrix-org/matrix-hookshot/issues/1062))
+- Multiple config files (merged in order) may now be specified on the command line. ([\#1065](https://github.com/matrix-org/matrix-hookshot/issues/1065))
+- Support Matrix v12 rooms. ([\#1077](https://github.com/matrix-org/matrix-hookshot/issues/1077))
+- Add support for following room upgrades. Hookshot will now carry across all connections from the predecessor room to the next room. ([\#1079](https://github.com/matrix-org/matrix-hookshot/issues/1079))
+
+
+Bugfixes
+--------
+
+- Fix bugs in handling server names that includes colons. ([\#1068](https://github.com/matrix-org/matrix-hookshot/issues/1068))
+
+
+Improved Documentation
+----------------------
+
+- Instructions for how to setup a developer enviroment [are now included](https://matrix-org.github.io/matrix-hookshot/latest/dev/setup.html). This includes
+  a new `docker-compose.yml` file for development. The previous unmaintained docker-compose setup for multiple workers has been removed. ([\#1065](https://github.com/matrix-org/matrix-hookshot/issues/1065))
+
+
+Internal Changes
+----------------
+
+- Support Node 24, and drop support for Node 23. ([\#1059](https://github.com/matrix-org/matrix-hookshot/issues/1059))
+- GitHub and GitLab webhook requests should now be directed to /github and /gitlab respectively. `/` and `/oauth` is now deprecated and will be removed in a future release. ([\#1063](https://github.com/matrix-org/matrix-hookshot/issues/1063))
+- Log encrypted device identities for consumption by third party tooling. ([\#1066](https://github.com/matrix-org/matrix-hookshot/issues/1066))
+- Update matrix-appservice-bridge to 11.0.0. ([\#1083](https://github.com/matrix-org/matrix-hookshot/issues/1083))
+
+
 # 7.0.0 (2025-05-16)
 
 **Breaking change**: JIRA Cloud webhooks now *require* a secret to configured to ensure secure handling of webhook information. This is a change from previously accepting a query string. See [https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html#cloud](the documentation) for more information.

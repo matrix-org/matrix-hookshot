@@ -1,1 +1,0 @@
-Multiple config files (merged in order) may now be specified on the command line.
