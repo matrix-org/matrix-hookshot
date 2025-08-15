@@ -1,0 +1,261 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>GitLab Project - Matrix Hookshot</title>
+                
+
+        <!-- Custom HTML head -->
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+                <link rel="icon" href="../../favicon.svg">
+                        <link rel="shortcut icon" href="../../favicon.png">
+                <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+                <link rel="stylesheet" href="../../css/print.css" media="print">
+        
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="../../fonts/fonts.css">
+        
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+                <link rel="stylesheet" href="../../docs/_site/style.css">
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../../hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="../../setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="../../setup/feeds.html"><strong aria-hidden="true">2.2.</strong> Feeds</a></li><li class="chapter-item expanded "><a href="../../setup/figma.html"><strong aria-hidden="true">2.3.</strong> Figma</a></li><li class="chapter-item expanded "><a href="../../setup/github.html"><strong aria-hidden="true">2.4.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="../../setup/gitlab.html"><strong aria-hidden="true">2.5.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="../../setup/jira.html"><strong aria-hidden="true">2.6.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="../../setup/webhooks.html"><strong aria-hidden="true">2.7.</strong> Webhooks</a></li><li class="chapter-item expanded "><a href="../../setup/challengehound.html"><strong aria-hidden="true">2.8.</strong> ChallengeHound</a></li><li class="chapter-item expanded "><a href="../../setup/openproject.html"><strong aria-hidden="true">2.9.</strong> OpenProject</a></li></ol></li><li class="chapter-item expanded "><a href="../../usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="../../usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="../../usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li><li class="chapter-item expanded "><a href="../../usage/room_configuration/gitlab_project.html" class="active"><strong aria-hidden="true">3.3.2.</strong> GitLab Project</a></li><li class="chapter-item expanded "><a href="../../usage/room_configuration/jira_project.html"><strong aria-hidden="true">3.3.3.</strong> JIRA Project</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="../../metrics.html"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded "><a href="../../sentry.html"><strong aria-hidden="true">5.</strong> Sentry</a></li><li class="chapter-item expanded "><a href="../../troubleshooting.html"><strong aria-hidden="true">6.</strong> 🆘 Troubleshooting</a></li><li class="chapter-item expanded affix "><li class="part-title">🧑‍💻 Development</li><li class="chapter-item expanded "><a href="../../dev/contributing.html"><strong aria-hidden="true">7.</strong> Contributing</a></li><li class="chapter-item expanded "><a href="../../dev/setup.html"><strong aria-hidden="true">8.</strong> Setup</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="../../advanced/workers.html"><strong aria-hidden="true">9.</strong> Workers</a></li><li class="chapter-item expanded "><a href="../../advanced/encryption.html"><strong aria-hidden="true">10.</strong> 🔒 Encryption</a></li><li class="chapter-item expanded "><a href="../../advanced/widgets.html"><strong aria-hidden="true">11.</strong> 🪀 Widgets</a></li><li class="chapter-item expanded "><a href="../../advanced/service_bots.html"><strong aria-hidden="true">12.</strong> Service Bots</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                                            </div>
+
+                    <h1 class="menu-title">Matrix Hookshot</h1>
+
+                    <div class="right-buttons">
+                                                <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                                                                        <a href="https://github.com/matrix-org/matrix-hookshot" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                                                                        <a href="https://github.com/matrix-org/matrix-hookshot/edit/main/docs/usage/room_configuration/gitlab_project.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="gitlab-project"><a class="header" href="#gitlab-project">GitLab Project</a></h1>
+<p>This connection type connects a GitLab project (e.g. https://gitlab.matrix.org/matrix-org/olm) to a room.</p>
+<h2 id="setting-up"><a class="header" href="#setting-up">Setting up</a></h2>
+<p>To set up a connection to a GitLab project in a new room:</p>
+<p>(NB you must have permission to bridge GitLab repositories before you can use this command, see <a href="../auth.html#gitlab">auth</a>.)</p>
+<ol>
+<li>Create a new, unencrypted room. It can be public or private.</li>
+<li>Invite the bridge bot (e.g. <code>@hookshot:example.com</code>).</li>
+<li>Give the bridge bot moderator permissions or higher (power level 50) (or otherwise configure the room so the bot can edit room state).</li>
+<li>Send the command <code>!hookshot gitlab project https://mydomain/my/project</code>.</li>
+<li>If you have permission to bridge this repo, the bridge will respond with a confirmation message. (Users with <code>Developer</code> permissions or greater can bridge projects.)</li>
+<li>If you have configured the bridge with a <code>publicUrl</code> inside <code>gitlab.webhook</code> in your <a href="../../setup/gitlab.html">config</a>, you authenticated with Hookshot on that instance in your admin room, and you have <code>Maintainer</code> permissions or greater on the project, the bot will automatically provision the webhook for you.</li>
+<li>Otherwise, you'll need to manually configure the project with a webhook that points to your public address for the webhooks listener, sets the &quot;Secret token&quot; to the one you put in your Hookshot configuration (<code>gitlab.webhook.secret</code>), and enables all Triggers that need to be bridged (as Hookshot can only bridge events for enabled Triggers). This can be configured on the GitLab webpage for the project under Settings &gt; Webhook Settings. If you do not have access to this page, you must ask someone who does (i.e. someone with at least <code>Maintainer</code> permissions on the project) to add the webhook for you.</li>
+</ol>
+<h2 id="configuration"><a class="header" href="#configuration">Configuration</a></h2>
+<p>This connection supports a few options which can be defined in the room state<sup class="footnote-reference"><a href="#2">1</a></sup>:</p>
+<table><thead><tr><th>Option</th><th>Description</th><th>Allowed values</th><th>Default</th></tr></thead><tbody>
+<tr><td>commandPrefix</td><td>Choose the prefix to use when sending commands to the bot</td><td>A string, ideally starts with &quot;!&quot;</td><td><code>!gh</code></td></tr>
+<tr><td>enableHooks <sup class="footnote-reference"><a href="#1">2</a></sup></td><td>Enable notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td>If not defined, defaults are mentioned below</td></tr>
+<tr><td>excludingLabels</td><td>Never notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
+<tr><td>ignoreHooks <sup class="footnote-reference"><a href="#1">2</a></sup></td><td><strong>deprecated</strong> Choose to exclude notifications for some event types</td><td>Array of: <a href="#supported-event-types">Supported event types</a></td><td><em>empty</em></td></tr>
+<tr><td>includeCommentBody</td><td>Include the body of a comment when notifying on merge requests</td><td>Boolean</td><td>false</td></tr>
+<tr><td>includingLabels</td><td>Only notify on issues matching these label names</td><td>Array of: String matching a label name</td><td><em>empty</em></td></tr>
+<tr><td>pushTagsRegex</td><td>Only mention pushed tags which match this regex</td><td>Regex string</td><td><em>empty</em></td></tr>
+</tbody></table>
+<div class="footnote-definition" id="1"><sup class="footnote-definition-label">2</sup>
+<p><code>ignoreHooks</code> is no longer accepted for new state events. Use <code>enableHooks</code> to explicitly state all events you want to see.</p>
+</div>
+<div class="footnote-definition" id="2"><sup class="footnote-definition-label">1</sup>
+<p>To change room state with Element Web/Desktop: open devtools by typing <code>/devtools</code> + enter in the chat box, and click on &quot;Explore room state&quot;. Next, choose <code>uk.half-shot.matrix-hookshot.gitlab.repository</code>. You'll then be able to see and edit (if you have the required permissions) the settings by setting properties on the JSON object directly.</p>
+</div>
+<h3 id="supported-event-types"><a class="header" href="#supported-event-types">Supported event types</a></h3>
+<p>This connection supports sending messages when the following actions happen on the repository.</p>
+<p>Note: Some of these event types are enabled by default (marked with a <code>*</code>). When <code>ignoreHooks</code> <em>is</em> defined,
+the events marked as default below will be enabled. Otherwise, this is ignored.</p>
+<ul>
+<li>merge_request *
+<ul>
+<li>merge_request.close *</li>
+<li>merge_request.merge *</li>
+<li>merge_request.open *</li>
+<li>merge_request.reopen *</li>
+<li>merge_request.review.comments *</li>
+<li>merge_request.review *</li>
+<li>merge_request.review.individual</li>
+</ul>
+</li>
+<li>push *</li>
+<li>release *
+<ul>
+<li>release.created *</li>
+</ul>
+</li>
+<li>tag_push *</li>
+<li>wiki *</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="../../usage/room_configuration/github_repo.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="../../usage/room_configuration/jira_project.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a rel="prev" href="../../usage/room_configuration/github_repo.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a rel="next" href="../../usage/room_configuration/jira_project.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+        
+                <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+        
+                <script src="../../elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="../../clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="../../book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+                <script type="text/javascript" src="../../docs/_site/main.js"></script>
+                <script type="text/javascript" src="../../docs/_site/version.js"></script>
+        
+        
+    </body>
+</html>

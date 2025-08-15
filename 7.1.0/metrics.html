@@ -1,0 +1,277 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>📊 Metrics - Matrix Hookshot</title>
+                
+
+        <!-- Custom HTML head -->
+        
+
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+                <link rel="icon" href="favicon.svg">
+                        <link rel="shortcut icon" href="favicon.png">
+                <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+                <link rel="stylesheet" href="css/print.css" media="print">
+        
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+                <link rel="stylesheet" href="fonts/fonts.css">
+        
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+                <link rel="stylesheet" href="docs/_site/style.css">
+        
+            </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="hookshot.html"><strong aria-hidden="true">1.</strong> ℹ️ Hookshot</a></li><li class="chapter-item expanded "><a href="setup.html"><strong aria-hidden="true">2.</strong> ⚙️ Setup</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="setup/sample-configuration.html"><strong aria-hidden="true">2.1.</strong> 📃 Sample Configuration</a></li><li class="chapter-item expanded "><a href="setup/feeds.html"><strong aria-hidden="true">2.2.</strong> Feeds</a></li><li class="chapter-item expanded "><a href="setup/figma.html"><strong aria-hidden="true">2.3.</strong> Figma</a></li><li class="chapter-item expanded "><a href="setup/github.html"><strong aria-hidden="true">2.4.</strong> GitHub</a></li><li class="chapter-item expanded "><a href="setup/gitlab.html"><strong aria-hidden="true">2.5.</strong> GitLab</a></li><li class="chapter-item expanded "><a href="setup/jira.html"><strong aria-hidden="true">2.6.</strong> JIRA</a></li><li class="chapter-item expanded "><a href="setup/webhooks.html"><strong aria-hidden="true">2.7.</strong> Webhooks</a></li><li class="chapter-item expanded "><a href="setup/challengehound.html"><strong aria-hidden="true">2.8.</strong> ChallengeHound</a></li><li class="chapter-item expanded "><a href="setup/openproject.html"><strong aria-hidden="true">2.9.</strong> OpenProject</a></li></ol></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> 👤 Usage</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/dynamic_rooms.html"><strong aria-hidden="true">3.1.</strong> Dynamic Rooms</a></li><li class="chapter-item expanded "><a href="usage/auth.html"><strong aria-hidden="true">3.2.</strong> Authenticating</a></li><li class="chapter-item expanded "><a href="usage/room_configuration.html"><strong aria-hidden="true">3.3.</strong> Room Configuration</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="usage/room_configuration/github_repo.html"><strong aria-hidden="true">3.3.1.</strong> GitHub Repo</a></li><li class="chapter-item expanded "><a href="usage/room_configuration/gitlab_project.html"><strong aria-hidden="true">3.3.2.</strong> GitLab Project</a></li><li class="chapter-item expanded "><a href="usage/room_configuration/jira_project.html"><strong aria-hidden="true">3.3.3.</strong> JIRA Project</a></li></ol></li></ol></li><li class="chapter-item expanded "><a href="metrics.html" class="active"><strong aria-hidden="true">4.</strong> 📊 Metrics</a></li><li class="chapter-item expanded "><a href="sentry.html"><strong aria-hidden="true">5.</strong> Sentry</a></li><li class="chapter-item expanded "><a href="troubleshooting.html"><strong aria-hidden="true">6.</strong> 🆘 Troubleshooting</a></li><li class="chapter-item expanded affix "><li class="part-title">🧑‍💻 Development</li><li class="chapter-item expanded "><a href="dev/contributing.html"><strong aria-hidden="true">7.</strong> Contributing</a></li><li class="chapter-item expanded "><a href="dev/setup.html"><strong aria-hidden="true">8.</strong> Setup</a></li><li class="chapter-item expanded affix "><li class="part-title">🥼 Advanced</li><li class="chapter-item expanded "><a href="advanced/workers.html"><strong aria-hidden="true">9.</strong> Workers</a></li><li class="chapter-item expanded "><a href="advanced/encryption.html"><strong aria-hidden="true">10.</strong> 🔒 Encryption</a></li><li class="chapter-item expanded "><a href="advanced/widgets.html"><strong aria-hidden="true">11.</strong> 🪀 Widgets</a></li><li class="chapter-item expanded "><a href="advanced/service_bots.html"><strong aria-hidden="true">12.</strong> Service Bots</a></li></ol>            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                                                <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                                            </div>
+
+                    <h1 class="menu-title">Matrix Hookshot</h1>
+
+                    <div class="right-buttons">
+                                                <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                                                                        <a href="https://github.com/matrix-org/matrix-hookshot" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                                                                        <a href="https://github.com/matrix-org/matrix-hookshot/edit/main/docs/metrics.md" title="Suggest an edit" aria-label="Suggest an edit">
+                            <i id="git-edit-button" class="fa fa-edit"></i>
+                        </a>
+                        
+                    </div>
+                </div>
+
+                                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="prometheus-metrics"><a class="header" href="#prometheus-metrics">Prometheus Metrics</a></h1>
+<p>You can configure metrics support by adding the following to your config:</p>
+<pre><code class="language-yaml">metrics:
+  enabled: true
+  bindAddress: 127.0.0.1
+  port: 9002
+</code></pre>
+<p>Hookshot will then provide metrics on <code>127.0.0.1</code> at port <code>9002</code>.</p>
+<p>An example dashboard that can be used with <a href="https://grafana.com">Grafana</a> can be found at <a href="https://github.com/matrix-org/matrix-hookshot/blob/main/contrib/hookshot-dashboard.json">/contrib/hookshot-dashboard.json</a>.
+There are 3 variables at the top of the dashboard:</p>
+<p><img src="https://user-images.githubusercontent.com/2803622/179366574-1bb83e30-05c6-4558-9e66-e813e85b3a6e.png" alt="image" /></p>
+<p>Select the Prometheus instance with your Hookshot metrics as Data Source. Set Interval to your scraping interval. Set 2x Interval to twice the Interval value (<a href="https://github.com/matrix-org/matrix-hookshot/pull/407#issuecomment-1186251618">why?</a>).</p>
+<p>Below is the generated list of Prometheus metrics for Hookshot.</p>
+<h2 id="hookshot"><a class="header" href="#hookshot">hookshot</a></h2>
+<p>| Metric | Help | Labels |
+|--------|------|--------|| hookshot_webhooks_http_request | Number of requests made to the hookshot webhooks handler | path, method |
+| hookshot_provisioning_http_request | Number of requests made to the hookshot provisioner handler | path, method |
+| hookshot_queue_event_pushes | Number of events pushed through the queue | event |
+| hookshot_connection_event_failed | Number of events that failed to process | event, connectionId |
+| hookshot_connections | Number of active hookshot connections | service |
+| hookshot_notifications_push | Number of notifications pushed | service |
+| hookshot_notifications_service_up | Whether the notification service is up or down | service |
+| hookshot_notifications_watchers | Number of notifications watchers running | service |
+| hookshot_feeds_count | Number of RSS feeds that hookshot is subscribed to | |
+| hookshot_feeds_fetch_ms | Time taken for hookshot to fetch all feeds | |
+| hookshot_feeds_failing | Number of RSS feeds that hookshot is failing to read | reason |</p>
+<h2 id="matrix"><a class="header" href="#matrix">matrix</a></h2>
+<p>| Metric | Help | Labels |
+|--------|------|--------|| matrix_api_calls | Number of Matrix client API calls made | method |
+| matrix_api_calls_failed | Number of Matrix client API calls which failed | method |
+| matrix_appservice_events | Number of events sent over the AS API | |
+| matrix_appservice_decryption_failed | Number of events sent over the AS API that failed to decrypt | |</p>
+<h2 id="feed"><a class="header" href="#feed">feed</a></h2>
+<p>| Metric | Help | Labels |
+|--------|------|--------|| feed_count | (Deprecated) Number of RSS feeds that hookshot is subscribed to | |
+| feed_fetch_ms | (Deprecated) Time taken for hookshot to fetch all feeds | |
+| feed_failing | (Deprecated) Number of RSS feeds that hookshot is failing to read | reason |</p>
+<h2 id="process"><a class="header" href="#process">process</a></h2>
+<p>| Metric | Help | Labels |
+|--------|------|--------|| process_cpu_user_seconds_total | Total user CPU time spent in seconds. | |
+| process_cpu_system_seconds_total | Total system CPU time spent in seconds. | |
+| process_cpu_seconds_total | Total user and system CPU time spent in seconds. | |
+| process_start_time_seconds | Start time of the process since unix epoch in seconds. | |
+| process_resident_memory_bytes | Resident memory size in bytes. | |
+| process_virtual_memory_bytes | Virtual memory size in bytes. | |
+| process_heap_bytes | Process heap size in bytes. | |
+| process_open_fds | Number of open file descriptors. | |
+| process_max_fds | Maximum number of open file descriptors. | |</p>
+<h2 id="nodejs"><a class="header" href="#nodejs">nodejs</a></h2>
+<p>| Metric | Help | Labels |
+|--------|------|--------|| nodejs_eventloop_lag_seconds | Lag of event loop in seconds. | |
+| nodejs_eventloop_lag_min_seconds | The minimum recorded event loop delay. | |
+| nodejs_eventloop_lag_max_seconds | The maximum recorded event loop delay. | |
+| nodejs_eventloop_lag_mean_seconds | The mean of the recorded event loop delays. | |
+| nodejs_eventloop_lag_stddev_seconds | The standard deviation of the recorded event loop delays. | |
+| nodejs_eventloop_lag_p50_seconds | The 50th percentile of the recorded event loop delays. | |
+| nodejs_eventloop_lag_p90_seconds | The 90th percentile of the recorded event loop delays. | |
+| nodejs_eventloop_lag_p99_seconds | The 99th percentile of the recorded event loop delays. | |
+| nodejs_active_resources | Number of active resources that are currently keeping the event loop alive, grouped by async resource type. | type |
+| nodejs_active_resources_total | Total number of active resources. | |
+| nodejs_active_handles | Number of active libuv handles grouped by handle type. Every handle type is C++ class name. | type |
+| nodejs_active_handles_total | Total number of active handles. | |
+| nodejs_active_requests | Number of active libuv requests grouped by request type. Every request type is C++ class name. | type |
+| nodejs_active_requests_total | Total number of active requests. | |
+| nodejs_heap_size_total_bytes | Process heap size from Node.js in bytes. | |
+| nodejs_heap_size_used_bytes | Process heap size used from Node.js in bytes. | |
+| nodejs_external_memory_bytes | Node.js external memory size in bytes. | |
+| nodejs_heap_space_size_total_bytes | Process heap space size total from Node.js in bytes. | space |
+| nodejs_heap_space_size_used_bytes | Process heap space size used from Node.js in bytes. | space |
+| nodejs_heap_space_size_available_bytes | Process heap space size available from Node.js in bytes. | space |
+| nodejs_version_info | Node.js version info. | version, major, minor, patch |
+| nodejs_gc_duration_seconds | Garbage collection duration by kind, one of major, minor, incremental or weakcb. | kind |</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                                                    <a rel="prev" href="usage/room_configuration/jira_project.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                        
+                                                    <a rel="next" href="sentry.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                                    <a rel="prev" href="usage/room_configuration/jira_project.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+                                    <a rel="next" href="sentry.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                            </nav>
+
+        </div>
+
+        
+        
+        
+                <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        
+        
+                <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+                <script type="text/javascript" src="docs/_site/main.js"></script>
+                <script type="text/javascript" src="docs/_site/version.js"></script>
+        
+        
+    </body>
+</html>
