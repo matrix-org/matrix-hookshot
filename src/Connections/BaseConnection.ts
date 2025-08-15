@@ -41,7 +41,7 @@ export async function removeConnectionState(
       try {
         await client.getRoomStateEventContent(
           roomId,
-          CanonicalEventType,
+          LegacyEventType,
           stateKey,
         );
       } catch (ex) {
