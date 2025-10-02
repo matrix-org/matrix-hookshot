@@ -9,7 +9,13 @@ import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender";
 import markdownit from "markdown-it";
 import { MatrixEvent } from "../MatrixEvent";
-import { Appservice, Intent, StateEvent, UserID } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixError,
+  StateEvent,
+  UserID,
+} from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
@@ -25,6 +31,7 @@ import {
   WebhookTransformer,
 } from "../generic/WebhookTransformer";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { ConnectionCreationError } from "../ConnectionManager";
 
 export interface GenericHookConnectionState extends IConnectionState {
   /**
@@ -242,12 +249,19 @@ export class GenericHookConnection
       throw Error("Generic webhooks are not configured");
     }
     // Generic hooks store the hookId in the account data
-    const acctData =
-      await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
-        GenericHookConnection.CanonicalEventType,
-        roomId,
-        {},
-      );
+    let acctData: Record<string, string> = {};
+    try {
+      acctData =
+        await intent.underlyingClient.getRoomAccountData<GenericHookAccountData>(
+          GenericHookConnection.CanonicalEventType,
+          roomId,
+        );
+    } catch (ex) {
+      if (ex instanceof MatrixError && ex.errcode === "M_NOT_FOUND") {
+        acctData = {};
+      }
+      throw new ConnectionCreationError(true, ex, roomId);
+    }
     const state = this.validateState(event.content);
     // hookId => stateKey
     let hookId = Object.entries(acctData).find(
@@ -262,12 +276,16 @@ export class GenericHookConnection
       if (config.generic.requireExpiryTime && !state.expirationDate) {
         throw new Error("Expiration date must be set");
       }
-      await GenericHookConnection.ensureRoomAccountData(
-        roomId,
-        intent,
-        hookId,
-        event.stateKey,
-      );
+      try {
+        await GenericHookConnection.ensureRoomAccountData(
+          roomId,
+          intent,
+          hookId,
+          event.stateKey,
+        );
+      } catch (ex) {
+        throw new ConnectionCreationError(true, ex, roomId);
+      }
     }
 
     return new GenericHookConnection(

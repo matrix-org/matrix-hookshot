@@ -33,3 +33,11 @@ export class TokenError extends Error {
     super(code);
   }
 }
+
+export class ConnectionConfigurationError extends Error {
+  constructor(connectionId: string, fieldName: string, message: string) {
+    super(
+      `Unable to create connection ${connectionId} due to invalid field ${fieldName}: ${message}`,
+    );
+  }
+}

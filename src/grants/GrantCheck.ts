@@ -15,8 +15,11 @@ export class GrantRejectedError extends Error {
   constructor(
     public readonly roomId: string,
     public readonly connectionId: string,
+    public readonly innerError?: Error,
   ) {
-    super(`No grant exists for ${roomId}/${connectionId}. Rejecting`);
+    super(`No grant exists for ${roomId}/${connectionId}. Rejecting`, {
+      cause: innerError,
+    });
   }
 }
 
@@ -84,7 +87,7 @@ export class GrantChecker<cId extends ConnectionId = ConnectionId> {
         }
       } else {
         log.warn(`Failed to check grant in ${roomId}/${connectionId}`, ex);
-        throw new GrantRejectedError(roomId, connId);
+        throw new GrantRejectedError(roomId, connId, ex);
       }
     }
   }
