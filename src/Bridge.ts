@@ -23,7 +23,10 @@ import {
 } from "./config/Config";
 import { BridgeWidgetApi } from "./widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
-import { ConnectionManager } from "./ConnectionManager";
+import {
+  ConnectionCreationError,
+  ConnectionManager,
+} from "./ConnectionManager";
 import { GetIssueResponse, GetIssueOpts } from "./gitlab/Types";
 import { GithubInstance } from "./github/GithubInstance";
 import { IBridgeStorageProvider } from "./stores/StorageProvider";
@@ -1036,6 +1039,10 @@ export class Bridge {
         try {
           await connManager.createConnectionsForRoomId(roomId, false);
         } catch (ex) {
+          if (ex instanceof ConnectionCreationError && ex.retryable) {
+            // Failed to create connection, but the error was transiet and we should retry creating the room.
+            allRooms.push(roomId);
+          }
           log.error(`Unable to create connection for ${roomId}`, ex);
           continue;
         }

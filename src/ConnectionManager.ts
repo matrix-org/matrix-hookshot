@@ -3,10 +3,10 @@
  */
 
 import {
+  APIRoomStateEvent,
   Appservice,
   Intent,
   MatrixError,
-  PowerLevelsEvent,
   StateEvent,
 } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
@@ -42,16 +42,32 @@ import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./tokens/UserTokenStore";
 import BotUsersManager, { BotUser } from "./managers/BotUsersManager";
-import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
+import { GrantRejectedError } from "./grants/GrantCheck";
 
 const log = new Logger("ConnectionManager");
 
 const GET_STATE_ATTEMPTS = 5;
 const GET_STATE_TIMEOUT_MS = 1000;
+
+/**
+ * Represents a failure to create a connection.
+ */
+export class ConnectionCreationError extends Error {
+  constructor(
+    public readonly retryable: boolean,
+    inner: Error,
+    roomId: string,
+  ) {
+    super(
+      `Failed to create connections for ${roomId} (retryable: ${retryable})`,
+      { cause: inner },
+    );
+  }
+}
 
 export class ConnectionManager extends EventEmitter {
   private connections: IConnection[] = [];
@@ -176,9 +192,8 @@ export class ConnectionManager extends EventEmitter {
         `User ${state.sender} is disallowed to manage state for ${serviceType} in ${roomId}`,
       );
       return false;
-    } else {
-      return true;
     }
+    return false;
   }
 
   /**
@@ -271,7 +286,8 @@ export class ConnectionManager extends EventEmitter {
   }
 
   /**
-   * This is called ONLY when we spot new state in a room and want to create a connection for it.
+   * This is called when we spot a new state even in a room and want to create a connection
+   * or called for each room we are joined to on startup.
    * @param roomId
    * @param state
    * @param rollbackBadState
@@ -311,7 +327,7 @@ export class ConnectionManager extends EventEmitter {
       log.error(
         `Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connection for state`,
       );
-      throw Error("Could not find a bot to handle this connection");
+      return;
     }
 
     if (
@@ -345,6 +361,13 @@ export class ConnectionManager extends EventEmitter {
       await connection.ensureGrant?.(state.sender);
       return connection;
     } catch (ex) {
+      if (ex instanceof GrantRejectedError && ex.cause) {
+        // The grant was rejected BUT it had an inner cause, which means it was a networking failure.
+        throw new ConnectionCreationError(true, ex, roomId);
+      }
+      if (ex instanceof ConnectionCreationError) {
+        throw ex;
+      }
       log.error(
         `Not creating connection for state ${roomId}/${state.type}`,
         ex,
@@ -379,21 +402,30 @@ export class ConnectionManager extends EventEmitter {
         "m.room.tombstone",
         "",
       );
+      log.debug(`Room ${roomId} has a tombstone, so not creating connection.`);
       return;
     } catch (ex) {
-      if (ex instanceof MatrixError === false || ex.errcode !== "M_NOT_FOUND") {
-        throw ex;
+      if (ex instanceof MatrixError) {
+        if (ex.errcode === "M_NOT_FOUND") {
+          // Good, that's what we want.
+        } else if (ex.errcode === "M_FORBIDDEN") {
+          // We're not in the room, surprising since we seem to have a bot?
+          throw new ConnectionCreationError(false, ex, roomId);
+        }
+      } else {
+        // All other errors are retryable, as far as we're concerned.
+        throw new ConnectionCreationError(true, ex, roomId);
       }
-      // No tombstone, so room is valid.
     }
 
-    // This endpoint can be heavy, wrap it in pillows.
-    const state = await retry(
-      () => botUser.intent.underlyingClient.getRoomState(roomId),
-      GET_STATE_ATTEMPTS,
-      GET_STATE_TIMEOUT_MS,
-      retryMatrixErrorFilter,
-    );
+    // Note: Fetching state is expensive, sometimes the response can be a 5XX.
+    let state: APIRoomStateEvent[];
+    try {
+      state = await botUser.intent.underlyingClient.getRoomState(roomId);
+    } catch (ex) {
+      // We've already firmly established we can access the room, so all other errors are probably server issues.
+      throw new ConnectionCreationError(true, ex, roomId);
+    }
 
     for (const event of state) {
       try {
@@ -407,7 +439,19 @@ export class ConnectionManager extends EventEmitter {
           this.push(conn);
         }
       } catch (ex) {
-        log.error(`Failed to create connection for ${roomId}:`, ex);
+        // Passthrough any creation failures
+        if (ex instanceof ConnectionCreationError) {
+          log.warn(
+            `Room ${roomId} did not create connection ${event.type}, but will retry.`,
+            ex,
+          );
+          if (ex.retryable) {
+            // If we can retry creating this state connection, then throw now
+            // and the caller will reshedule
+            throw ex;
+          }
+        } // Else, just log and give up.
+        log.warn(`Room ${roomId} did not create connection ${event.type}`, ex);
       }
     }
   }
