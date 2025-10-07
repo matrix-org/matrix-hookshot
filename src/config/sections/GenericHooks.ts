@@ -7,6 +7,12 @@ function makePrefixedUrl(urlString: string): URL {
   return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
 }
 
+function validatePayloadSizeLimit(sizeLimit: string): boolean {
+  // Validate format like "1mb", "500kb", "10mb", etc.
+  const sizePattern = /^\d+(\.\d+)?(kb|mb|gb)$/i;
+  return sizePattern.test(sizeLimit);
+}
+
 export interface BridgeGenericWebhooksConfigYAML {
   enabled: boolean;
   urlPrefix: string;
@@ -19,6 +25,7 @@ export interface BridgeGenericWebhooksConfigYAML {
   sendExpiryNotice?: boolean;
   requireExpiryTime?: boolean;
   includeHookBody?: boolean;
+  payloadSizeLimit?: string;
 }
 
 export class BridgeConfigGenericWebhooks {
@@ -41,6 +48,7 @@ export class BridgeConfigGenericWebhooks {
   // Public facing value for config generator
   public readonly maxExpiryTime?: string;
   public readonly includeHookBody: boolean;
+  public readonly payloadSizeLimit: string;
 
   constructor(yaml: BridgeGenericWebhooksConfigYAML) {
     this.enabled = yaml.enabled || false;
@@ -49,6 +57,18 @@ export class BridgeConfigGenericWebhooks {
     this.sendExpiryNotice = yaml.sendExpiryNotice || false;
     this.requireExpiryTime = yaml.requireExpiryTime || false;
     this.includeHookBody = yaml.includeHookBody ?? true;
+    
+    // Set default payload size limit to 1mb (safer than 10mb, larger than 100kb)
+    this.payloadSizeLimit = yaml.payloadSizeLimit || "1mb";
+    
+    // Validate the payload size limit format
+    if (!validatePayloadSizeLimit(this.payloadSizeLimit)) {
+      throw new ConfigError(
+        "generic.payloadSizeLimit",
+        "must be in format like '1mb', '500kb', '10mb', etc.",
+      );
+    }
+    
     try {
       this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
       this.urlPrefix = () => {

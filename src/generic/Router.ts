@@ -15,6 +15,7 @@ export class GenericWebhooksRouter {
     private readonly queue: MessageQueue,
     private readonly deprecatedPath = false,
     private readonly allowGet: boolean,
+    private readonly payloadSizeLimit: string = "1mb",
   ) {}
 
   private onWebhook(
@@ -92,8 +93,8 @@ export class GenericWebhooksRouter {
       });
   }
 
-  private static xmlHandler(req: Request, res: Response, next: NextFunction) {
-    express.text({ type: ["*/xml", "+xml"] })(req, res, (err) => {
+  private xmlHandler(req: Request, res: Response, next: NextFunction) {
+    express.text({ type: ["*/xml", "+xml"], limit: this.payloadSizeLimit })(req, res, (err: any) => {
       if (err) {
         next(err);
         return;
@@ -130,10 +131,10 @@ export class GenericWebhooksRouter {
         xFrameOptions: { action: "deny" },
         crossOriginResourcePolicy: { policy: "same-site" },
       }),
-      GenericWebhooksRouter.xmlHandler,
-      express.urlencoded({ extended: false }),
-      express.json(),
-      express.text({ type: "text/*" }),
+      this.xmlHandler.bind(this),
+      express.urlencoded({ extended: false, limit: this.payloadSizeLimit }),
+      express.json({ limit: this.payloadSizeLimit }),
+      express.text({ type: "text/*", limit: this.payloadSizeLimit }),
       this.onWebhook.bind(this),
     );
     return router;

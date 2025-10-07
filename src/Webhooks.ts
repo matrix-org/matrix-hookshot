@@ -63,6 +63,7 @@ export class Webhooks extends EventEmitter {
           this.queue,
           false,
           this.config.generic.enableHttpGet,
+          this.config.generic.payloadSizeLimit,
         ).getRouter(),
       );
       // TODO: Remove old deprecated endpoint
@@ -71,6 +72,7 @@ export class Webhooks extends EventEmitter {
           this.queue,
           true,
           this.config.generic.enableHttpGet,
+          this.config.generic.payloadSizeLimit,
         ).getRouter(),
       );
     }
