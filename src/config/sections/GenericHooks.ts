@@ -57,10 +57,10 @@ export class BridgeConfigGenericWebhooks {
     this.sendExpiryNotice = yaml.sendExpiryNotice || false;
     this.requireExpiryTime = yaml.requireExpiryTime || false;
     this.includeHookBody = yaml.includeHookBody ?? true;
-    
+
     // Set default payload size limit to 1mb (safer than 10mb, larger than 100kb)
     this.payloadSizeLimit = yaml.payloadSizeLimit || "1mb";
-    
+
     // Validate the payload size limit format
     if (!validatePayloadSizeLimit(this.payloadSizeLimit)) {
       throw new ConfigError(
@@ -68,7 +68,7 @@ export class BridgeConfigGenericWebhooks {
         "must be in format like '1mb', '500kb', '10mb', etc.",
       );
     }
-    
+
     try {
       this.parsedUrlPrefix = makePrefixedUrl(yaml.urlPrefix);
       this.urlPrefix = () => {

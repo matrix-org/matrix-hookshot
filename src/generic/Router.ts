@@ -94,26 +94,30 @@ export class GenericWebhooksRouter {
   }
 
   private xmlHandler(req: Request, res: Response, next: NextFunction) {
-    express.text({ type: ["*/xml", "+xml"], limit: this.payloadSizeLimit })(req, res, (err: any) => {
-      if (err) {
-        next(err);
-        return;
-      }
-      if (typeof req.body !== "string") {
-        next();
-        return;
-      }
-      xml
-        .parseStringPromise(req.body)
-        .then((xmlResult) => {
-          req.body = xmlResult;
+    express.text({ type: ["*/xml", "+xml"], limit: this.payloadSizeLimit })(
+      req,
+      res,
+      (err: any) => {
+        if (err) {
+          next(err);
+          return;
+        }
+        if (typeof req.body !== "string") {
           next();
-        })
-        .catch((e) => {
-          res.statusCode = 400;
-          next(e);
-        });
-    });
+          return;
+        }
+        xml
+          .parseStringPromise(req.body)
+          .then((xmlResult) => {
+            req.body = xmlResult;
+            next();
+          })
+          .catch((e) => {
+            res.statusCode = 400;
+            next(e);
+          });
+      },
+    );
   }
 
   public getRouter() {
