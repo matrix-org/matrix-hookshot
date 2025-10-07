@@ -119,8 +119,6 @@ listeners:
 #  requireExpiryTime: false
 #  maxExpiryTime: 30d
 #  includeHookBody: true
-#
-#  # (Optional) Maximum size for webhook payloads. Defaults to '1mb'. Examples: '500kb', '5mb', '10mb'
 #  payloadSizeLimit: 1mb
 
 #figma:
