@@ -1,0 +1,1 @@
+Add configuration option for generic webhooks to configure maximum request body size limit, increase default to 1mb from default 100kb
