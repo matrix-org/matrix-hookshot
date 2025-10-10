@@ -1274,7 +1274,7 @@ export class GitHubRepoConnection
       `onIssueEdited ${this.roomId} ${this.org}/${this.repo} #${event.issue.number}`,
     );
     const orgRepoName = event.repository.full_name;
-    const icon = "✏";
+    const icon = "✏️";
     const content = emojify(
       `${icon} **${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emojify(event.issue.title)}"`,
     );
@@ -1563,7 +1563,7 @@ export class GitHubRepoConnection
       }
     }
 
-    const icon = verb === "merged" ? "✳" : "⚫";
+    const icon = verb === "merged" ? "✳️" : "⚫";
     const content = emojify(
       `${icon} **${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`,
     );
@@ -1684,7 +1684,7 @@ export class GitHubRepoConnection
       `onWorkflowCompleted ${this.roomId} ${this.org}/${this.repo} '${workflowRun.id}'`,
     );
     const orgRepoName = event.repository.full_name;
-    const icon = "☑";
+    const icon = "✅";
     const content = emojify(
       `${icon} Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``,
     );
