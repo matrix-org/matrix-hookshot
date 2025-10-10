@@ -15,7 +15,7 @@ export class GenericWebhooksRouter {
     private readonly queue: MessageQueue,
     private readonly deprecatedPath = false,
     private readonly allowGet: boolean,
-    private readonly payloadSizeLimit: string = "1mb",
+    private readonly payloadSizeLimit: string|number,
   ) {}
 
   private onWebhook(
