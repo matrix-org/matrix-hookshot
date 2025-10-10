@@ -32,6 +32,7 @@ describe("config/sections/GenericHooks", () => {
           }),
       ).to.throw();
     });
+
     it("throws with a float", () => {
       expect(
         () =>
