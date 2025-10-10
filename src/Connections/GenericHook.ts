@@ -99,6 +99,10 @@ const WARN_AT_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000;
 const MIN_EXPIRY_MS = 60 * 60 * 1000;
 const CHECK_EXPIRY_MS = 15 * 60 * 1000;
 
+// This is a bit lower than the max size an event can be in Matrix.
+// > The complete event MUST NOT be larger than 65536 bytes, when formatted with the federation event format, including any signatures, and encoded as Canonical JSON.
+const MAX_EVENT_SIZE_BYTES = 65536 - 4 * 1024;
+
 const EXPIRY_NOTICE_MESSAGE =
   "The webhook **%NAME** will be expiring in %TIME.";
 
@@ -651,22 +655,46 @@ export class GenericHookConnection
       );
 
       // Matrix cannot handle float data, so make sure we parse out any floats.
-      const safeData =
+      let safeData =
         (this.state.includeHookBody ?? this.config.includeHookBody)
           ? GenericHookConnection.sanitiseObjectForMatrixJSON(data)
           : undefined;
+
+      // render can output redundant trailing newlines, so trim it.
+      content.html = content.html || md.render(content.plain).trim();
+
+      while (
+        content.plain.length +
+          (content.html ?? "").length +
+          (safeData ? JSON.stringify(safeData) : "").length >
+        MAX_EVENT_SIZE_BYTES
+      ) {
+        // We're oversize, so start trimming the event down.
+        if (safeData) {
+          // Start by trimming down the webhook data
+          safeData = undefined;
+          continue;
+        }
+        if (content.html) {
+          // Then remove the HTML
+          content.html = undefined;
+          continue;
+        }
+        // Finally, trim right down. Ensure we account for double width.
+        content.plain = content.plain.slice(0, MAX_EVENT_SIZE_BYTES / 2) + "…";
+        break;
+      }
 
       await this.messageClient.sendMatrixMessage(
         this.roomId,
         {
           msgtype: content.msgtype || "m.notice",
           body: content.plain,
-          // render can output redundant trailing newlines, so trim it.
-          formatted_body: content.html || md.render(content.plain).trim(),
+          ...(content.html ? { formatted_body: content.html } : undefined),
           ...(content.mentions
             ? { "m.mentions": content.mentions }
             : undefined),
-          format: "org.matrix.custom.html",
+          ...(content.html ? { format: "org.matrix.custom.html" } : undefined),
           ...(safeData
             ? { "uk.half-shot.hookshot.webhook_data": safeData }
             : undefined),

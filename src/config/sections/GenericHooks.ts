@@ -1,6 +1,6 @@
 import { GenericHookServiceConfig } from "../../Connections";
 import { ConfigError } from "../../Errors";
-import { hideKey } from "../Decorators";
+import { configKey, hideKey } from "../Decorators";
 const parseDurationImport = import("parse-duration");
 
 function makePrefixedUrl(urlString: string): URL {
@@ -25,7 +25,7 @@ export interface BridgeGenericWebhooksConfigYAML {
   sendExpiryNotice?: boolean;
   requireExpiryTime?: boolean;
   includeHookBody?: boolean;
-  payloadSizeLimit?: string;
+  payloadSizeLimit?: string | number;
 }
 
 export class BridgeConfigGenericWebhooks {
@@ -48,7 +48,11 @@ export class BridgeConfigGenericWebhooks {
   // Public facing value for config generator
   public readonly maxExpiryTime?: string;
   public readonly includeHookBody: boolean;
-  public readonly payloadSizeLimit: string;
+  @configKey(
+    "How large may an incoming payload be. Specify in bytes or in a format like '1mb', '500kb', '10mb', etc.",
+    true,
+  )
+  public readonly payloadSizeLimit: number | string;
 
   constructor(yaml: BridgeGenericWebhooksConfigYAML) {
     this.enabled = yaml.enabled || false;
@@ -59,13 +63,35 @@ export class BridgeConfigGenericWebhooks {
     this.includeHookBody = yaml.includeHookBody ?? true;
 
     // Set default payload size limit to 1mb (safer than 10mb, larger than 100kb)
-    this.payloadSizeLimit = yaml.payloadSizeLimit || "1mb";
+    const payloadSizeLimitYaml =
+      yaml.payloadSizeLimit === undefined ? "1mb" : yaml.payloadSizeLimit;
 
-    // Validate the payload size limit format
-    if (!validatePayloadSizeLimit(this.payloadSizeLimit)) {
+    if (typeof payloadSizeLimitYaml === "number") {
+      if (
+        payloadSizeLimitYaml < 1 ||
+        Number.isNaN(payloadSizeLimitYaml) ||
+        !Number.isInteger(payloadSizeLimitYaml)
+      ) {
+        throw new ConfigError(
+          "generic.payloadSizeLimit",
+          "must a positive integer (or in a format like '1mb', '500kb', '10mb', etc.)",
+        );
+      }
+      // Bytes
+      this.payloadSizeLimit = payloadSizeLimitYaml;
+    } else if (typeof payloadSizeLimitYaml === "string") {
+      // Validate the payload size limit format
+      if (!validatePayloadSizeLimit(payloadSizeLimitYaml)) {
+        throw new ConfigError(
+          "generic.payloadSizeLimit",
+          "must be in format like '1mb', '500kb', '10mb', etc.",
+        );
+      }
+      this.payloadSizeLimit = payloadSizeLimitYaml;
+    } else {
       throw new ConfigError(
         "generic.payloadSizeLimit",
-        "must be in format like '1mb', '500kb', '10mb', etc.",
+        "must be a string or a number",
       );
     }
 

@@ -93,7 +93,7 @@ export class GenericWebhooksRouter {
       });
   }
 
-  private xmlHandler(req: Request, res: Response, next: NextFunction) {
+  private xmlHandler = (req: Request, res: Response, next: NextFunction) => {
     express.text({ type: ["*/xml", "+xml"], limit: this.payloadSizeLimit })(
       req,
       res,
@@ -118,7 +118,7 @@ export class GenericWebhooksRouter {
           });
       },
     );
-  }
+  };
 
   public getRouter() {
     const router = Router();
@@ -135,7 +135,7 @@ export class GenericWebhooksRouter {
         xFrameOptions: { action: "deny" },
         crossOriginResourcePolicy: { policy: "same-site" },
       }),
-      this.xmlHandler.bind(this),
+      this.xmlHandler,
       express.urlencoded({ extended: false, limit: this.payloadSizeLimit }),
       express.json({ limit: this.payloadSizeLimit }),
       express.text({ type: "text/*", limit: this.payloadSizeLimit }),
