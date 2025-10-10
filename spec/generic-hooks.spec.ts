@@ -25,6 +25,7 @@ describe("Inbound (Generic) Webhooks", () => {
           // Prefer to wait for complete as it reduces the concurrency of the test.
           waitForComplete: true,
           urlPrefix: `http://localhost:${webhooksPort}`,
+          payloadSizeLimit: "10mb",
         },
         listeners: [
           {
@@ -168,6 +169,39 @@ describe("Inbound (Generic) Webhooks", () => {
     expect(await req.json()).toEqual({ ok: true });
     expect(
       (await expectedMsg).data.content["uk.half-shot.hookshot.webhook_data"],
+    ).toBeUndefined();
+  });
+
+  test("should handle an incoming request with a larger body", async () => {
+    const user = testEnv.getUser("user");
+    const roomId = await user.createRoom({ name: "My Test Webhooks room" });
+    const okMsg = user.waitForRoomEvent({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    const url = await createInboundConnection(user, testEnv.botMxid, roomId);
+    expect((await okMsg).data.content.body).toEqual(
+      "Room configured to bridge webhooks. See admin room for secret url.",
+    );
+
+    const expectedMsg = user.waitForRoomEvent({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    const body = Array.from({ length: 1024 * 1024 * 10 }).join("a");
+    const req = await fetch(url, {
+      method: "PUT",
+      body: body,
+    });
+    expect(req.status).toEqual(200);
+    expect(await req.json()).toEqual({ ok: true });
+    const resultMsg = await expectedMsg;
+    expect(resultMsg.data.content.body).toBeDefined();
+    expect(resultMsg.data.content.formatted_body).toBeUndefined();
+    expect(
+      resultMsg.data.content["uk.half-shot.hookshot.webhook_data"],
     ).toBeUndefined();
   });
 });

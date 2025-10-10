@@ -119,6 +119,9 @@ listeners:
 #  requireExpiryTime: false
 #  maxExpiryTime: 30d
 #  includeHookBody: true
+#  payloadSizeLimit:
+#    # (Optional) How large may an incoming payload be. Specify in bytes or in a format like '1mb', '500kb', '10mb', etc.
+#    1mb
 
 #figma:
 #  # (Optional) Configure this to enable Figma support

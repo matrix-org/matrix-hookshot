@@ -125,6 +125,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
     waitForComplete: false,
     maxExpiryTime: "30d",
     sendExpiryNotice: false,
+    payloadSizeLimit: "1mb",
   },
   figma: {
     publicUrl: `${hookshotWebhooksUrl}/hookshot/`,
