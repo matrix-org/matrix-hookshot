@@ -1,3 +1,18 @@
+# 7.2.0 (2025-10-10)
+
+### Features
+
+- Add configuration option for generic webhooks to configure maximum request body size limit, increase default to 1mb from default 100kb. ([\#1090](https://github.com/matrix-org/matrix-hookshot/issues/1090))
+
+### Bugfixes
+
+- Fix a bug where users may fail to be registered with a `IO.ELEMENT.MSC4190.M_APPSERVICE_LOGIN_UNSUPPORTED` error when `MSC4190` is enabled on the homeserver. ([\#522](https://github.com/matrix-org/matrix-appservice-bridge/issues/522)) ([\#1092](https://github.com/matrix-org/matrix-hookshot/issues/1092))
+
+### Internal Changes
+
+- Use emojis for all icons instead of dingbats, ensuring all clients render the icons in colour. ([\#1091](https://github.com/matrix-org/matrix-hookshot/issues/1091))
+
+
 7.1.0 (2025-08-15)
 ==================
 
