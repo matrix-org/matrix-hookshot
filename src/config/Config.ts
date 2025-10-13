@@ -29,6 +29,7 @@ import {
   BridgeOpenProjectConfigYAML,
 } from "./sections/OpenProject";
 import { OpenProjectServiceConfig } from "../Connections/OpenProjectConnection";
+import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("Config");
 
@@ -649,16 +650,9 @@ export class BridgeConfig {
       );
     }
 
-    if (
-      !this.github &&
-      !this.gitlab &&
-      !this.jira &&
-      !this.generic &&
-      !this.figma &&
-      !this.feeds
-    ) {
+    if (this.enabledServices.length === 0) {
       throw Error(
-        "Config is not valid: At least one of GitHub, GitLab, JIRA, Figma, feeds or generic hooks must be configured",
+        "Config is not valid: At least one service kind must be configured",
       );
     }
 
@@ -784,40 +778,42 @@ export class BridgeConfig {
     );
   }
 
-  public get enabledServices(): string[] {
+  public get enabledServices(): ConnectionType[] {
     const services = [];
     if (this.feeds && this.feeds.enabled) {
-      services.push("feeds");
+      services.push(ConnectionType.Feeds);
     }
     if (this.figma) {
-      services.push("figma");
+      services.push(ConnectionType.Figma);
     }
-    if (this.generic && this.generic.enabled) {
-      services.push("generic");
+    if (this.generic) {
+      if (this.generic.enabled) {
+        services.push(ConnectionType.Generic);
+      }
       if (this.generic.outbound) {
-        services.push("genericOutbound");
+        services.push(ConnectionType.GenericOutbound);
       }
     }
     if (this.github) {
-      services.push("github");
+      services.push(ConnectionType.Github);
     }
     if (this.gitlab) {
-      services.push("gitlab");
+      services.push(ConnectionType.Gitlab);
     }
     if (this.jira) {
-      services.push("jira");
+      services.push(ConnectionType.Jira);
     }
     if (this.challengeHound) {
-      services.push("challengehound");
+      services.push(ConnectionType.ChallengeHound);
     }
     if (this.openProject) {
-      services.push("openproject");
+      services.push(ConnectionType.OpenProject);
     }
     return services;
   }
 
   public async getPublicConfigForService(
-    serviceName: string,
+    serviceName: ConnectionType,
   ): Promise<
     | Record<string, unknown>
     | GenericHookServiceConfig
@@ -829,22 +825,33 @@ export class BridgeConfig {
       | GenericHookServiceConfig
       | OpenProjectServiceConfig;
     switch (serviceName) {
-      case "feeds":
+      case ConnectionType.ChallengeHound:
+        config = this.challengeHound ? {} : undefined;
+        break;
+      case ConnectionType.Feeds:
         config = this.feeds?.publicConfig;
         break;
-      case "generic":
+      case ConnectionType.Generic:
         config = await this.generic?.publicConfig;
         break;
-      case "github":
+      case ConnectionType.Github:
         config = this.github?.publicConfig();
         break;
-      case "gitlab":
+      case ConnectionType.Gitlab:
         config = this.gitlab?.publicConfig;
         break;
-      case "genericOutbound":
-      case "jira":
-      case "openproject":
+      case ConnectionType.OpenProject:
         config = this.openProject?.publicConfig;
+        break;
+      // These services do not have public configs.
+      case ConnectionType.Figma:
+        config = this.figma ? {} : undefined;
+        break;
+      case ConnectionType.GenericOutbound:
+        config = this.generic?.outbound ? {} : undefined;
+        break;
+      case ConnectionType.Jira:
+        config = this.jira ? {} : undefined;
         break;
       default:
         throw new ApiError(
