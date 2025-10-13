@@ -243,7 +243,7 @@ export class GenericHookConnection
     event: StateEvent<Record<string, unknown>>,
     { as, intent, config, messageClient, storage }: InstantiateConnectionOpts,
   ) {
-    if (!config.generic?.outbound) {
+    if (!config.generic?.enabled) {
       throw Error("Generic webhooks are not configured");
     }
     // Generic hooks store the hookId in the account data
@@ -294,7 +294,7 @@ export class GenericHookConnection
     data: Partial<Record<keyof GenericHookConnectionState, unknown>> = {},
     { as, intent, config, messageClient, storage }: ProvisionConnectionOpts,
   ) {
-    if (!config.generic) {
+    if (!config.generic?.enabled) {
       throw Error("Generic Webhooks are not configured");
     }
     const hookId = randomUUID();
