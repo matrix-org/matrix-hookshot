@@ -55,7 +55,8 @@ export class BridgeConfigGenericWebhooks {
   public readonly payloadSizeLimit: number | string;
 
   constructor(yaml: BridgeGenericWebhooksConfigYAML) {
-    this.enabled = yaml.enabled || false;
+    // Note, we previously ignored `enabled`. For backwards compat, assume it's true if not defined.
+    this.enabled = yaml.enabled ?? true;
     this.outbound = yaml.outbound || false;
     this.enableHttpGet = yaml.enableHttpGet || false;
     this.sendExpiryNotice = yaml.sendExpiryNotice || false;
