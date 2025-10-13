@@ -10,6 +10,7 @@ import {
 import { CommandError } from "../Errors";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { Logger } from "matrix-appservice-bridge";
+import { ConnectionType } from "./type";
 export interface HoundConnectionState extends IConnectionState {
   challengeId: string;
 }
@@ -117,7 +118,7 @@ export class HoundConnection extends BaseConnection implements IConnection {
     HoundConnection.CanonicalEventType,
     HoundConnection.LegacyEventType,
   ];
-  static readonly ServiceCategory = "challengehound";
+  static readonly ServiceCategory = ConnectionType.ChallengeHound;
 
   public static getIdFromURL(url: string): string {
     const parts = new URL(url).pathname.split("/");

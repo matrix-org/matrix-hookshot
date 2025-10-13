@@ -1,15 +1,16 @@
-import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
+import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { JiraAPIAccessibleResource } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgePermissionLevel } from "../config/Config";
+import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("JiraBotCommands");
 
 export class JiraBotCommands extends AdminRoomCommandHandler {
   @botCommand("jira login", {
     help: "Log in to JIRA",
-    category: Category.Jira,
+    category: ConnectionType.Jira,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async loginCommand() {
@@ -24,7 +25,7 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
 
   @botCommand("jira logout", {
     help: "Clear any login information",
-    category: Category.Jira,
+    category: ConnectionType.Jira,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async logout() {
@@ -48,7 +49,7 @@ export class JiraBotCommands extends AdminRoomCommandHandler {
 
   @botCommand("jira whoami", {
     help: "Determine JIRA identity",
-    category: Category.Jira,
+    category: ConnectionType.Jira,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async whoami() {

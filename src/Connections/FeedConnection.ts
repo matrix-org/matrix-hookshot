@@ -10,6 +10,7 @@ import { GetConnectionsResponseItem } from "../widgets/Api";
 import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
+import { ConnectionType } from "./type";
 const log = new Logger("FeedConnection");
 const md = new markdown({
   html: true,
@@ -56,7 +57,7 @@ const DEFAULT_TEMPLATE_WITH_ONLY_TITLE = "New post in $FEEDNAME: $TITLE";
 export class FeedConnection extends BaseConnection implements IConnection {
   static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.feed";
   static readonly EventTypes = [FeedConnection.CanonicalEventType];
-  static readonly ServiceCategory = "feeds";
+  static readonly ServiceCategory = ConnectionType.Feeds;
 
   public static createConnectionForState(
     roomId: string,

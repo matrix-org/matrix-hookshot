@@ -16,6 +16,7 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import "reflect-metadata";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { ConnectionType } from "./type";
 
 export type PermissionCheckFn = (
   service: string,
@@ -113,7 +114,7 @@ export interface IConnection {
 
 export interface ConnectionDeclaration<C extends IConnection = IConnection> {
   EventTypes: string[];
-  ServiceCategory: string;
+  ServiceCategory: ConnectionType;
   provisionConnection?: (
     roomId: string,
     userId: string,

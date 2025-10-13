@@ -19,6 +19,7 @@ import { IGitLabWebhookNoteEvent } from "../gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
+import { ConnectionType } from "./type";
 
 export interface GitLabIssueConnectionState {
   instance: string;
@@ -55,7 +56,7 @@ export class GitLabIssueConnection
     GitLabIssueConnection.LegacyEventType,
   ];
   static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
-  static readonly ServiceCategory = "gitlab";
+  static readonly ServiceCategory = ConnectionType.Gitlab;
 
   static getTopicString(authorName: string, state: string): string {
     return `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`;

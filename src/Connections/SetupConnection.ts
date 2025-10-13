@@ -32,6 +32,8 @@ import { Intent } from "matrix-bot-sdk";
 import YAML from "yaml";
 import { HoundConnection } from "./HoundConnection";
 import { OpenProjectConnection } from "./OpenProjectConnection";
+import { Category } from "../AdminRoomCommandHandler";
+import { ConnectionType } from "./type";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 const parseDurationImport = import("parse-duration");
@@ -737,7 +739,7 @@ export class SetupConnection extends CommandConnection {
     help: "Unsubscribe from an RSS/Atom feed.",
     requiredArgs: ["url"],
     includeUserId: true,
-    category: "feeds",
+    category: ConnectionType.Feeds,
   })
   public async onFeedRemove(userId: string, url: string) {
     await this.checkUserPermissions(
@@ -777,7 +779,7 @@ export class SetupConnection extends CommandConnection {
     help: "Bridge a ChallengeHound challenge to the room.",
     requiredArgs: ["url"],
     includeUserId: true,
-    category: "challengehound",
+    category: ConnectionType.ChallengeHound,
   })
   public async onChallengeHoundAdd(userId: string, url: string) {
     if (!this.config.challengeHound) {
@@ -877,7 +879,7 @@ export class SetupConnection extends CommandConnection {
     help: "Bridge a OpenProject project to the room.",
     requiredArgs: ["url"],
     includeUserId: true,
-    category: "openproject",
+    category: ConnectionType.OpenProject,
   })
   public async onOpenProjectAdd(userId: string, url: string) {
     if (!this.config.openProject) {
@@ -954,7 +956,7 @@ export class SetupConnection extends CommandConnection {
   }
 
   @botCommand("setup-widget", {
-    category: "widget",
+    category: Category.Widget,
     help: "Open the setup widget in the room",
   })
   public async onSetupWidget() {

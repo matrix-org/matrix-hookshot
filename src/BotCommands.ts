@@ -6,6 +6,8 @@ import { BridgePermissionLevel } from "./config/Config";
 import { PermissionCheckFn } from "./Connections";
 import { RoomEvent } from "matrix-bot-sdk";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { Category } from "./AdminRoomCommandHandler";
+import { ConnectionType } from "./Connections/type";
 
 const stringArgv = import("string-argv");
 const md = new markdown();
@@ -56,7 +58,7 @@ export interface BotCommandOptions {
   /**
    * The named category of the command, used for filtering out commands the user can't access (and help text headings)
    */
-  category?: string;
+  category?: Category | ConnectionType;
   /**
    * Required permission to run this command.
    */

@@ -11,6 +11,7 @@ import { GithubInstance } from "../github/GithubInstance";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
+import { ConnectionType } from "./type";
 
 const log = new Logger("GitHubOwnerSpace");
 
@@ -34,7 +35,7 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
   ];
 
   static readonly QueryRoomRegex = /#github_(.+):.*/;
-  static readonly ServiceCategory = "github";
+  static readonly ServiceCategory = ConnectionType.Github;
 
   private static grantKey(state: GitHubUserSpaceConnectionState) {
     return `${this.CanonicalEventType}/${state.username}`;

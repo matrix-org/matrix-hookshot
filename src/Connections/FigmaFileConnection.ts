@@ -12,6 +12,7 @@ import {
   ProvisionConnectionOpts,
 } from "./IConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
+import { ConnectionType } from "./type";
 
 const log = new Logger("FigmaFileConnection");
 
@@ -33,7 +34,7 @@ export class FigmaFileConnection extends BaseConnection implements IConnection {
     FigmaFileConnection.CanonicalEventType,
     FigmaFileConnection.LegacyEventType,
   ];
-  static readonly ServiceCategory = "figma";
+  static readonly ServiceCategory = ConnectionType.Figma;
 
   public static validateState(
     data: Record<string, unknown>,

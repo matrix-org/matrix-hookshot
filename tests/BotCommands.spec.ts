@@ -7,6 +7,7 @@ import {
 } from "../src/BotCommands";
 import { BridgePermissionLevel } from "../src/config/Config";
 import { RoomEvent } from "matrix-bot-sdk";
+import { Category } from "../src/AdminRoomCommandHandler";
 
 describe("BotCommands", () => {
   const USER_ID = "@foo:bar.com";
@@ -385,17 +386,22 @@ describe("BotCommands", () => {
       class TestBotCommands {
         @botCommand("command", "a simple bit of help text")
         public async myTestCommand() {}
-        @botCommand("command two", { help: "more text", category: "test-cat" })
+        @botCommand("command two", {
+          help: "more text",
+          category: Category.Widget,
+        })
         public async myTestCommandWithArgs() {}
       }
       const output = compileBotCommands(TestBotCommands.prototype as any);
       // By default show all
       expect(output.helpMessage("!test-prefix ").body).to.equal(
-        " - `!test-prefix command` - a simple bit of help text\n### Test-cat\n - `!test-prefix command two` - more text\n",
+        " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // Or when specified
-      expect(output.helpMessage("!test-prefix ", ["test-cat"]).body).to.equal(
-        " - `!test-prefix command` - a simple bit of help text\n### Test-cat\n - `!test-prefix command two` - more text\n",
+      expect(
+        output.helpMessage("!test-prefix ", [Category.Widget]).body,
+      ).to.equal(
+        " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // But not when unspecified
       expect(

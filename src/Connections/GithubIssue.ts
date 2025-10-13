@@ -25,6 +25,7 @@ import {
 } from "@octokit/webhooks-types";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGitHub } from "../config/Config";
+import { ConnectionType } from "./type";
 
 export interface GitHubIssueConnectionState {
   org: string;
@@ -63,7 +64,7 @@ export class GitHubIssueConnection
   ];
 
   static readonly QueryRoomRegex = /#github_(.+)_(.+)_(\d+):.*/;
-  static readonly ServiceCategory = "github";
+  static readonly ServiceCategory = ConnectionType.Github;
 
   static generateAliasLocalpart(
     org: string,

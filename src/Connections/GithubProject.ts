@@ -9,6 +9,7 @@ import { ProjectsGetResponseData } from "../github/Types";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
+import { ConnectionType } from "./type";
 
 export interface GitHubProjectConnectionState {
   project_id: number;
@@ -27,7 +28,7 @@ export class GitHubProjectConnection
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.github.project";
   static readonly LegacyEventType = "uk.half-shot.matrix-github.project";
-  static readonly ServiceCategory = "github";
+  static readonly ServiceCategory = ConnectionType.Github;
   static readonly EventTypes = [
     GitHubProjectConnection.CanonicalEventType,
     GitHubProjectConnection.LegacyEventType,

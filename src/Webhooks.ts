@@ -56,7 +56,7 @@ export class Webhooks extends EventEmitter {
         new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter(),
       );
     }
-    if (this.config.generic) {
+    if (this.config.generic?.enabled) {
       this.expressRouter.use(
         "/webhook",
         new GenericWebhooksRouter(

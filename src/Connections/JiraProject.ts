@@ -32,6 +32,7 @@ import { HookshotJiraApi } from "../jira/Client";
 import { GrantChecker } from "../grants/GrantCheck";
 import { JiraGrantChecker } from "../jira/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
+import { ConnectionType } from "./type";
 
 type JiraAllowedEventsNames =
   | "issue_created"
@@ -96,7 +97,7 @@ export class JiraProjectConnection
     JiraProjectConnection.CanonicalEventType,
     JiraProjectConnection.LegacyEventType,
   ];
-  static readonly ServiceCategory = "jira";
+  static readonly ServiceCategory = ConnectionType.Jira;
   static botCommands: BotCommands;
   static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 

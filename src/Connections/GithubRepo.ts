@@ -72,6 +72,7 @@ import { HookFilter } from "../HookFilter";
 import { GitHubGrantChecker } from "../github/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { ConnectionType } from "./type";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -577,7 +578,7 @@ export class GitHubRepoConnection
     GitHubRepoConnection.CanonicalEventType,
     GitHubRepoConnection.LegacyEventType,
   ];
-  static readonly ServiceCategory = "github";
+  static readonly ServiceCategory = ConnectionType.Github;
   static readonly QueryRoomRegex = /#github_(.+)_(.+):.*/;
 
   static async createConnectionForState(

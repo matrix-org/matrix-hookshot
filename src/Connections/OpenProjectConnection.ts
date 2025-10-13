@@ -33,6 +33,7 @@ import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { CommandError, NotLoggedInError } from "../Errors";
 import { removeConnectionState } from "./BaseConnection";
+import { ConnectionType } from "./type";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -147,7 +148,7 @@ export class OpenProjectConnection
     "org.matrix.matrix-hookshot.openproject.project";
 
   static readonly EventTypes = [OpenProjectConnection.CanonicalEventType];
-  static readonly ServiceCategory = "openproject";
+  static readonly ServiceCategory = ConnectionType.OpenProject;
   static botCommands: BotCommands;
   static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 

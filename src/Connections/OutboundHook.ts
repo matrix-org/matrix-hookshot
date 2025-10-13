@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import UserAgent from "../UserAgent";
 import { hashId } from "../libRs";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { ConnectionType } from "./type";
 
 export interface OutboundHookConnectionState extends IConnectionState {
   name: string;
@@ -42,7 +43,7 @@ export class OutboundHookConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.outbound-hook";
-  static readonly ServiceCategory = "genericOutbound";
+  static readonly ServiceCategory = ConnectionType.GenericOutbound;
 
   static readonly EventTypes = [OutboundHookConnection.CanonicalEventType];
 

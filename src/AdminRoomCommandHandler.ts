@@ -5,10 +5,7 @@ import { UserTokenStore } from "./tokens/UserTokenStore";
 
 export enum Category {
   ConnectionManagement = "Connection Management",
-  Github = "Github",
-  Gitlab = "Gitlab",
-  Jira = "Jira",
-  OpenProject = "OpenProject",
+  Widget = "widget",
 }
 
 export interface AdminAccountData {

@@ -21,6 +21,7 @@ import {
   UserTokenStore,
 } from "../tokens/UserTokenStore";
 import { OpenProjectWidgetAPI } from "../openproject/WidgetApi";
+import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("BridgeWidgetApi");
 
@@ -197,7 +198,11 @@ export class BridgeWidgetApi extends ProvisioningApi {
     if (req.params.service === "github") {
       res.send(this.config.github?.publicConfig(this.github));
     } else {
-      res.send(await this.config.getPublicConfigForService(req.params.service));
+      res.send(
+        await this.config.getPublicConfigForService(
+          req.params.service as ConnectionType,
+        ),
+      );
     }
   }
 

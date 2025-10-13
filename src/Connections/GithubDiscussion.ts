@@ -19,6 +19,7 @@ import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfig, BridgeConfigGitHub } from "../config/Config";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import QuickLRU from "@alloc/quick-lru";
+import { ConnectionType } from "./type";
 export interface GitHubDiscussionConnectionState {
   owner: string;
   repo: string;
@@ -49,7 +50,7 @@ export class GitHubDiscussionConnection
   ];
 
   static readonly QueryRoomRegex = /#github_disc_(.+)_(.+)_(\d+):.*/;
-  static readonly ServiceCategory = "github";
+  static readonly ServiceCategory = ConnectionType.Github;
 
   public static createConnectionForState(
     roomId: string,

@@ -39,6 +39,7 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../gitlab/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
+import { ConnectionType } from "./type";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
   instance: string;
@@ -201,7 +202,7 @@ export class GitLabRepoConnection
 
   static botCommands: BotCommands;
   static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
-  static ServiceCategory = "gitlab";
+  static ServiceCategory = ConnectionType.Gitlab;
 
   static validateState(
     state: unknown,

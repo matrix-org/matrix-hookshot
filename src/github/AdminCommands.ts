@@ -1,16 +1,17 @@
-import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
+import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { CommandError, TokenError, TokenErrorCode } from "../Errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgePermissionLevel } from "../config/Config";
+import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("GitHubBotCommands");
 export class GitHubBotCommands extends AdminRoomCommandHandler {
   @botCommand("github login", {
     help: "Log in to GitHub",
-    category: Category.Github,
+    category: ConnectionType.Github,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async loginCommand() {
@@ -42,7 +43,7 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
   @botCommand("github setpersonaltoken", {
     help: "Set your personal access token for GitHub",
     requiredArgs: ["accessToken"],
-    category: Category.Github,
+    category: ConnectionType.Github,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async setGHPersonalAccessToken(accessToken: string) {
@@ -79,7 +80,7 @@ export class GitHubBotCommands extends AdminRoomCommandHandler {
 
   @botCommand("github status", {
     help: "Check the status of your GitHub authentication",
-    category: Category.Github,
+    category: ConnectionType.Github,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async getTokenStatus() {

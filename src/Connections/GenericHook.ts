@@ -25,6 +25,7 @@ import {
   WebhookTransformer,
 } from "../generic/WebhookTransformer";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { ConnectionType } from "./type";
 
 export interface GenericHookConnectionState extends IConnectionState {
   /**
@@ -242,7 +243,7 @@ export class GenericHookConnection
     event: StateEvent<Record<string, unknown>>,
     { as, intent, config, messageClient, storage }: InstantiateConnectionOpts,
   ) {
-    if (!config.generic) {
+    if (!config.generic?.outbound) {
       throw Error("Generic webhooks are not configured");
     }
     // Generic hooks store the hookId in the account data
@@ -393,7 +394,7 @@ export class GenericHookConnection
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.generic.hook";
   static readonly LegacyEventType = "uk.half-shot.matrix-github.generic.hook";
-  static readonly ServiceCategory = "generic";
+  static readonly ServiceCategory = ConnectionType.Generic;
 
   static readonly EventTypes = [
     GenericHookConnection.CanonicalEventType,

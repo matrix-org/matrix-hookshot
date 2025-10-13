@@ -12,6 +12,7 @@ import { GithubInstance } from "../github/GithubInstance";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
+import { ConnectionType } from "./type";
 
 const log = new Logger("GitHubDiscussionSpace");
 
@@ -39,7 +40,7 @@ export class GitHubDiscussionSpace
   ];
 
   static readonly QueryRoomRegex = /#github_disc_(.+)_(.+):.*/;
-  static readonly ServiceCategory = "github";
+  static readonly ServiceCategory = ConnectionType.Github;
 
   public static async createConnectionForState(
     roomId: string,
