@@ -99,8 +99,8 @@ export class OutboundHookConnection
     event: StateEvent<Record<string, unknown>>,
     { intent, config, tokenStore }: InstantiateConnectionOpts,
   ) {
-    if (!config.generic) {
-      throw Error("Generic webhooks are not configured");
+    if (!config.generic?.outbound) {
+      throw Error("Outbound support for Generic Webhooks is not configured");
     }
     // Generic hooks store the hookId in the account data
     const state = this.validateState(event.content);
@@ -128,10 +128,7 @@ export class OutboundHookConnection
     data: Record<string, unknown> = {},
     { intent, config, tokenStore }: ProvisionConnectionOpts,
   ) {
-    if (!config.generic) {
-      throw Error("Generic Webhooks are not configured");
-    }
-    if (!config.generic.outbound) {
+    if (!config.generic?.outbound) {
       throw Error("Outbound support for Generic Webhooks is not configured");
     }
 
