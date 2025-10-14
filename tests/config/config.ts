@@ -3,6 +3,12 @@ import { DefaultConfigRoot } from "../../src/config/Defaults";
 import { expect } from "chai";
 import { ConnectionType } from "../../src/Connections/type";
 
+const minimalConfig = {
+  bridge: DefaultConfigRoot.bridge,
+  logging: DefaultConfigRoot.logging,
+  passFile: DefaultConfigRoot.passFile,
+};
+
 describe("Config/BridgeConfig", () => {
   describe("will handle the legacy queue.monolitihc option", () => {
     it("with no parameters", () => {
@@ -101,17 +107,7 @@ describe("Config/BridgeConfig", () => {
     });
   });
 
-  /**
-  Jira = "jira",
-  OpenProject = "openproject",
-   */
-
   describe("publicConfig", () => {
-    const minimalConfig = {
-      bridge: DefaultConfigRoot.bridge,
-      logging: DefaultConfigRoot.logging,
-      passFile: DefaultConfigRoot.passFile,
-    };
     it("for ChallengeHound", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -121,6 +117,7 @@ describe("Config/BridgeConfig", () => {
         await config.getPublicConfigForService(ConnectionType.ChallengeHound),
       ).to.deep.equal({});
     });
+
     it("for Feeds", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -130,6 +127,7 @@ describe("Config/BridgeConfig", () => {
         await config.getPublicConfigForService(ConnectionType.Feeds),
       ).to.deep.equal({ pollIntervalSeconds: 150 });
     });
+
     it("for Figma", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -144,6 +142,7 @@ describe("Config/BridgeConfig", () => {
         await config.getPublicConfigForService(ConnectionType.Figma),
       ).to.deep.equal({});
     });
+
     it("for Generic (inbound)", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -165,6 +164,7 @@ describe("Config/BridgeConfig", () => {
         waitForComplete: undefined,
       });
     });
+
     it("for Generic (outbound)", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -181,6 +181,7 @@ describe("Config/BridgeConfig", () => {
         await config.getPublicConfigForService(ConnectionType.GenericOutbound),
       ).to.deep.equal({});
     });
+
     it("for Github", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -202,6 +203,7 @@ describe("Config/BridgeConfig", () => {
         newInstallationUrl: undefined,
       });
     });
+
     it("for Gitlab", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -223,6 +225,7 @@ describe("Config/BridgeConfig", () => {
         userIdPrefix: "_foobar_",
       });
     });
+
     it("for Jira", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
@@ -236,6 +239,7 @@ describe("Config/BridgeConfig", () => {
         await config.getPublicConfigForService(ConnectionType.Jira),
       ).to.deep.equal({});
     });
+
     it("for OpenProject", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
