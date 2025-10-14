@@ -108,7 +108,6 @@ describe("Config/BridgeConfig", () => {
   });
 
   describe("publicConfig", () => {
-
     it("for ChallengeHound", async () => {
       const config = new BridgeConfig({
         ...minimalConfig,
