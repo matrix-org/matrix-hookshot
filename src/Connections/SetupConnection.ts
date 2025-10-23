@@ -624,11 +624,16 @@ export class SetupConnection extends CommandConnection {
   @botCommand("feed", {
     help: "Bridge an RSS/Atom feed to the room.",
     requiredArgs: ["url"],
-    optionalArgs: ["label"],
+    optionalArgs: ["label", "template"],
     includeUserId: true,
     category: FeedConnection.ServiceCategory,
   })
-  public async onFeed(userId: string, url: string, label?: string) {
+  public async onFeed(
+    userId: string,
+    url: string,
+    label?: string,
+    template?: string,
+  ) {
     if (!this.config.feeds?.enabled) {
       throw new CommandError(
         "not-configured",
@@ -660,7 +665,7 @@ export class SetupConnection extends CommandConnection {
     const { connection } = await FeedConnection.provisionConnection(
       this.roomId,
       userId,
-      { url, label },
+      { url, label, template },
       this.provisionOpts,
     );
     this.pushConnections(connection);
