@@ -1,5 +1,4 @@
 import axios from "axios";
-import { GitLabInstance } from "../config/Config";
 import {
   GetIssueResponse,
   GetUserResponse,
@@ -20,6 +19,7 @@ import {
 import { Logger } from "matrix-appservice-bridge";
 import { URLSearchParams } from "url";
 import UserAgent from "../UserAgent";
+import { GitLabInstance } from "../config/sections";
 
 const log = new Logger("GitLabClient");
 

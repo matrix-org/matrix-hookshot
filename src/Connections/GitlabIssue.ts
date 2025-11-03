@@ -9,17 +9,14 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import {
-  BridgeConfig,
-  BridgeConfigGitLab,
-  GitLabInstance,
-} from "../config/Config";
+import { BridgeConfig } from "../config/Config";
 import { GetIssueResponse } from "../gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { ConnectionType } from "./type";
+import { GitLabInstance, BridgeConfigGitLab } from "../config/sections";
 
 export interface GitLabIssueConnectionState {
   instance: string;

@@ -147,7 +147,7 @@ export interface BridgeConfigRoot {
   webhook?: BridgeConfigWebhook;
   widgets?: BridgeWidgetConfigYAML;
   challengeHound?: BridgeConfigChallengeHound;
-  connections: BridgeConfigConnectionConfig[];
+  connections?: BridgeConfigConnectionConfig[];
 }
 
 export class BridgeConfig {
@@ -226,7 +226,6 @@ export class BridgeConfig {
 
   @hideKey()
   private readonly bridgePermissions: BridgePermissions;
-
 
   @configKey("Static connections that may be configured by an admin", true)
   public readonly connections: BridgeConfigConnectionConfig[];
@@ -435,12 +434,18 @@ export class BridgeConfig {
     }
     configData.connections?.forEach((connection, index) => {
       try {
-        validateConnectionConfig(connection, this.enabledServices)
+        validateConnectionConfig(connection, this.enabledServices);
       } catch (ex) {
         if (ex instanceof ConfigError) {
-          throw new ConfigError(`connections.${index}.${ex.configPath}`, ex.msg);
+          throw new ConfigError(
+            `connections.${index}.${ex.configPath}`,
+            ex.msg,
+          );
         } else {
-          throw new ConfigError(`connections.${index}`, ex instanceof Error ? ex.message : "Unknown error");
+          throw new ConfigError(
+            `connections.${index}`,
+            ex instanceof Error ? ex.message : "Unknown error",
+          );
         }
       }
     });
@@ -605,13 +610,16 @@ export class BridgeConfig {
       const parsedConfig = YAML.parse(await fs.readFile(filename, "utf-8"));
       const existingConnections = configurationRaw.connections ?? [];
       if (!Array.isArray(existingConnections)) {
-        throw new ConfigError(filename, 'connections is not an array');
+        throw new ConfigError(filename, "connections is not an array");
       }
       configurationRaw = {
         ...configurationRaw,
         ...parsedConfig,
         // Manually merge connections together.
-        connections: [...existingConnections, ...parsedConfig.connections ?? []],
+        connections: [
+          ...existingConnections,
+          ...(parsedConfig.connections ?? []),
+        ],
       };
     }
     return new BridgeConfig(configurationRaw as BridgeConfigRoot, env);

@@ -4,11 +4,11 @@ import {
   JiraStoredToken,
   JiraOnPremProjectSearchResponse,
 } from "../Types";
-import { BridgeConfigJiraOnPremOAuth } from "../../config/Config";
 import { decodeJiraToken } from "../OAuth";
 import { KeyObject } from "crypto";
 import { HookshotJiraApi, JiraClient } from "../Client";
 import JiraApi from "jira-client";
+import { BridgeConfigJiraOnPremOAuth } from "../../config/sections";
 
 function createSearchTerm(name?: string) {
   return name?.toLowerCase()?.replaceAll(/[^a-z0-9]/g, "") || "";

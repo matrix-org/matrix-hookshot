@@ -3,7 +3,6 @@ import { MessageQueue } from "../messageQueue";
 import { ApiError, ErrCode } from "../api";
 import { Logger } from "matrix-appservice-bridge";
 import { OAuthRequest } from "../tokens/Oauth";
-import { BridgeConfigGitHub } from "../config/Config";
 import {
   EmitterWebhookEvent,
   Webhooks as OctokitWebhooks,
@@ -14,6 +13,7 @@ import { GithubInstance } from "./GithubInstance";
 import axios from "axios";
 import { GitHubOAuthTokenResponse } from "./Types";
 import qs from "querystring";
+import { BridgeConfigGitHub } from "../config/sections";
 
 const log = new Logger("GitHubWebhooksRouter");
 

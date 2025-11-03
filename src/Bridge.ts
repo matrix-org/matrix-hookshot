@@ -16,10 +16,7 @@ import {
   PLManager,
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
-import {
-  BridgeConfig,
-  BridgePermissionLevel,
-} from "./config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
 import { BridgeWidgetApi } from "./widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
 import { ConnectionManager } from "./ConnectionManager";

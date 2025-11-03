@@ -4,7 +4,6 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
 import {
   IGitlabMergeRequest,
   IGitlabProject,
@@ -40,6 +39,7 @@ import axios from "axios";
 import { GitLabGrantChecker } from "../gitlab/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
+import { BridgeConfigGitLab, GitLabInstance } from "../config/sections";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
   instance: string;

@@ -370,7 +370,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
         ErrCode.UnsupportedOperation,
       );
     }
-    
+
     this.connMan.validateCommandPrefix(roomId, req.body, connection);
     await connection.provisionerUpdateConfig(req.userId, req.body);
     res.send(connection.getProvisionerDetails(true));
