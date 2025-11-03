@@ -241,7 +241,7 @@ export class GenericHookConnection
   static async createConnectionForState(
     roomId: string,
     event: StateEvent<Record<string, unknown>>,
-    { as, intent, config, messageClient, storage }: InstantiateConnectionOpts,
+    { as, intent, config, messageClient, storage, isStatic }: InstantiateConnectionOpts,
   ) {
     if (!config.generic?.enabled) {
       throw Error("Generic webhooks are not configured");
@@ -285,6 +285,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      isStatic ?? false,
     );
   }
 
@@ -350,6 +351,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      false,
     );
     return {
       connection,
@@ -395,6 +397,7 @@ export class GenericHookConnection
     "uk.half-shot.matrix-hookshot.generic.hook";
   static readonly LegacyEventType = "uk.half-shot.matrix-github.generic.hook";
   static readonly ServiceCategory = ConnectionType.Generic;
+  static readonly SupportsStaticConfiguration = true;
 
   static readonly EventTypes = [
     GenericHookConnection.CanonicalEventType,
@@ -418,6 +421,7 @@ export class GenericHookConnection
     private readonly as: Appservice,
     private readonly intent: Intent,
     private readonly storage: IBridgeStorageProvider,
+    public readonly isStatic: boolean,
   ) {
     super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
     if (state.transformationFunction && WebhookTransformer.canTransform) {
@@ -746,6 +750,10 @@ export class GenericHookConnection
   }
 
   public async onRemove() {
+    if (this.isStatic) {
+      // Static connections cannot be migrated.
+      throw new ApiError("Static connections cannot be removed", ErrCode.UnsupportedOperation, )
+    }
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
     clearInterval(this.warnOnExpiryInterval);
     await removeConnectionState(
@@ -767,6 +775,10 @@ export class GenericHookConnection
     _userId: string,
     config: Record<keyof GenericHookConnectionState, unknown>,
   ) {
+    if (this.isStatic) {
+      // Static connections cannot be migrated.
+      throw new ApiError("Static connections cannot be updated", ErrCode.UnsupportedOperation, )
+    }
     // Apply previous state to the current config, as provisioners might not return "unknown" keys.
     config.expirationDate = config.expirationDate ?? undefined;
     config = { ...this.state, ...config };
