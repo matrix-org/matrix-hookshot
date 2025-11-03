@@ -435,7 +435,7 @@ export class GenericHookConnection
     private readonly as: Appservice,
     private readonly intent: Intent,
     private readonly storage: IBridgeStorageProvider,
-    public readonly isStatic: boolean,
+    public readonly isStatic = false,
   ) {
     super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
     if (state.transformationFunction && WebhookTransformer.canTransform) {
