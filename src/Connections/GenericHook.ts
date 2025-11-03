@@ -241,38 +241,53 @@ export class GenericHookConnection
   static async createConnectionForState(
     roomId: string,
     event: StateEvent<Record<string, unknown>>,
-    { as, intent, config, messageClient, storage, isStatic }: InstantiateConnectionOpts,
+    {
+      as,
+      intent,
+      config,
+      messageClient,
+      storage,
+      isStatic,
+    }: InstantiateConnectionOpts,
   ) {
+    console.log("createConnectionForState");
     if (!config.generic?.enabled) {
       throw Error("Generic webhooks are not configured");
     }
-    // Generic hooks store the hookId in the account data
-    const acctData =
-      await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
-        GenericHookConnection.CanonicalEventType,
-        roomId,
-        {},
-      );
     const state = this.validateState(event.content);
-    // hookId => stateKey
-    let hookId = Object.entries(acctData).find(
-      ([, v]) => v === event.stateKey,
-    )?.[0];
-    if (!hookId) {
-      hookId = randomUUID();
-      log.warn(
-        `hookId for ${roomId} not set in accountData, setting to ${hookId}`,
-      );
-      // If this is a new hook...
-      if (config.generic.requireExpiryTime && !state.expirationDate) {
-        throw new Error("Expiration date must be set");
+    let hookId;
+    if (!isStatic) {
+      // Generic hooks store the hookId in the account data
+      const acctData =
+        await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
+          GenericHookConnection.CanonicalEventType,
+          roomId,
+          {},
+        );
+      // hookId => stateKey
+      hookId = Object.entries(acctData).find(
+        ([, v]) => v === event.stateKey,
+      )?.[0];
+      if (!hookId) {
+        hookId = randomUUID();
+        log.warn(
+          `hookId for ${roomId} not set in accountData, setting to ${hookId}`,
+        );
+        // If this is a new hook...
+        if (config.generic.requireExpiryTime && !state.expirationDate) {
+          throw new Error("Expiration date must be set");
+        }
+        await GenericHookConnection.ensureRoomAccountData(
+          roomId,
+          intent,
+          hookId,
+          event.stateKey,
+        );
       }
-      await GenericHookConnection.ensureRoomAccountData(
-        roomId,
-        intent,
-        hookId,
-        event.stateKey,
-      );
+    } else {
+      // Static connections define their own hookId
+      // This is DANGEROUS if this was a user-defined connection, but we allow it because the administator set it.
+      hookId = event.stateKey;
     }
 
     return new GenericHookConnection(
@@ -752,7 +767,10 @@ export class GenericHookConnection
   public async onRemove() {
     if (this.isStatic) {
       // Static connections cannot be migrated.
-      throw new ApiError("Static connections cannot be removed", ErrCode.UnsupportedOperation, )
+      throw new ApiError(
+        "Static connections cannot be removed",
+        ErrCode.UnsupportedOperation,
+      );
     }
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
     clearInterval(this.warnOnExpiryInterval);
@@ -777,7 +795,10 @@ export class GenericHookConnection
   ) {
     if (this.isStatic) {
       // Static connections cannot be migrated.
-      throw new ApiError("Static connections cannot be updated", ErrCode.UnsupportedOperation, )
+      throw new ApiError(
+        "Static connections cannot be updated",
+        ErrCode.UnsupportedOperation,
+      );
     }
     // Apply previous state to the current config, as provisioners might not return "unknown" keys.
     config.expirationDate = config.expirationDate ?? undefined;

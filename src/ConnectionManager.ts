@@ -10,10 +10,7 @@ import {
   StateEvent,
 } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
-import {
-  BridgeConfig,
-  BridgePermissionLevel,
-} from "./config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
 import { CommentProcessor } from "./CommentProcessor";
 import {
   ConnectionDeclaration,
@@ -316,7 +313,9 @@ export class ConnectionManager extends EventEmitter {
       throw Error("Could not find a bot to handle this connection");
     }
 
-    if ( !isStatic ||
+    // Don't verify a static connection.
+    if (
+      !isStatic &&
       !this.verifyStateEvent(
         roomId,
         botUser.intent,
@@ -344,8 +343,10 @@ export class ConnectionManager extends EventEmitter {
           isStatic,
         },
       );
-      // Finally, ensure the connection is allowed by us.
-      await connection.ensureGrant?.(state.sender);
+      if (!isStatic) {
+        // Finally, ensure the connection is allowed by us.
+        await connection.ensureGrant?.(state.sender);
+      }
       return connection;
     } catch (ex) {
       log.error(
@@ -415,24 +416,32 @@ export class ConnectionManager extends EventEmitter {
     }
 
     // Create static connections
-    for (const staticConfig of this.config.connections.filter((c) => c.roomId === roomId)) {
+    for (const staticConfig of this.config.connections.filter(
+      (c) => c.roomId === roomId,
+    )) {
       try {
-          const conn = await this.createConnectionForState(
-            roomId,
-            new StateEvent({
-              room_id: roomId,
-              type: staticConfig.connectionType,
-              state_key: staticConfig.stateKey,
-              content: staticConfig.state,
-            }),
-            false,
-          );
+        const conn = await this.createConnectionForState(
+          roomId,
+          new StateEvent({
+            room_id: roomId,
+            type: staticConfig.connectionType,
+            state_key: staticConfig.stateKey,
+            content: staticConfig.state,
+          }),
+          false,
+          true,
+        );
         if (conn) {
-          log.debug(`Room ${roomId} is connected to: ${conn} (via static config)`);
+          log.debug(
+            `Room ${roomId} is connected to: ${conn} (via static config)`,
+          );
           this.push(conn);
         }
       } catch (ex) {
-        log.error(`Failed to create connection for ${roomId} (via static config):`, ex);
+        log.error(
+          `Failed to create connection for ${roomId} (via static config):`,
+          ex,
+        );
       }
     }
   }
