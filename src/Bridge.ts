@@ -19,7 +19,6 @@ import BotUsersManager from "./managers/BotUsersManager";
 import {
   BridgeConfig,
   BridgePermissionLevel,
-  GitLabInstance,
 } from "./config/Config";
 import { BridgeWidgetApi } from "./widgets/BridgeWidgetApi";
 import { CommentProcessor } from "./CommentProcessor";
@@ -111,6 +110,7 @@ import { OpenProjectWebhookPayloadWorkPackage } from "./openproject/Types";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { GitLabInstance } from "./config/sections";
 
 const log = new Logger("Bridge");
 

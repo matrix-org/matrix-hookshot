@@ -321,8 +321,10 @@ export class BridgeWidgetApi extends ProvisioningApi {
           "Connection supported provisioning but not getProvisionerDetails",
         );
       }
+      const details = result.connection.getProvisionerDetails(true);
       res.send({
-        ...result.connection.getProvisionerDetails(true),
+        ...details,
+        canEdit: result.connection.isStatic ? false : details.canEdit,
         warning: result.warning,
       });
     } catch (ex) {
@@ -362,6 +364,13 @@ export class BridgeWidgetApi extends ProvisioningApi {
         ErrCode.UnsupportedOperation,
       );
     }
+    if (connection.isStatic) {
+      throw new ApiError(
+        "Connection is static and cannot be changed at runtime",
+        ErrCode.UnsupportedOperation,
+      );
+    }
+    
     this.connMan.validateCommandPrefix(roomId, req.body, connection);
     await connection.provisionerUpdateConfig(req.userId, req.body);
     res.send(connection.getProvisionerDetails(true));
@@ -392,6 +401,12 @@ export class BridgeWidgetApi extends ProvisioningApi {
     if (!connection.onRemove) {
       throw new ApiError(
         "Connection does not support removal",
+        ErrCode.UnsupportedOperation,
+      );
+    }
+    if (connection.isStatic) {
+      throw new ApiError(
+        "Connection is static and cannot be changed at runtime",
         ErrCode.UnsupportedOperation,
       );
     }

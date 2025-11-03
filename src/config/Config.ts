@@ -32,6 +32,8 @@ import {
   BridgeConfigGitLabYAML,
   BridgeConfigGitHub,
   BridgeConfigGitHubYAML,
+  BridgeConfigConnectionConfig,
+  validateConnectionConfig,
 } from "./sections";
 import {
   GenericHookServiceConfig,
@@ -145,6 +147,7 @@ export interface BridgeConfigRoot {
   webhook?: BridgeConfigWebhook;
   widgets?: BridgeWidgetConfigYAML;
   challengeHound?: BridgeConfigChallengeHound;
+  connections: BridgeConfigConnectionConfig[];
 }
 
 export class BridgeConfig {
@@ -223,6 +226,10 @@ export class BridgeConfig {
 
   @hideKey()
   private readonly bridgePermissions: BridgePermissions;
+
+
+  @configKey("Static connections that may be configured by an admin", true)
+  public readonly connections: BridgeConfigConnectionConfig[];
 
   constructor(
     configData: BridgeConfigRoot,
@@ -426,6 +433,18 @@ export class BridgeConfig {
         "The `figma.overrideUserId` config value is deprecated. A service bot should be configured instead.",
       );
     }
+    configData.connections?.forEach((connection, index) => {
+      try {
+        validateConnectionConfig(connection, this.enabledServices)
+      } catch (ex) {
+        if (ex instanceof ConfigError) {
+          throw new ConfigError(`connections.${index}.${ex.configPath}`, ex.msg);
+        } else {
+          throw new ConfigError(`connections.${index}`, ex instanceof Error ? ex.message : "Unknown error");
+        }
+      }
+    });
+    this.connections = configData.connections ?? [];
   }
 
   public async prefillMembershipCache(client: MatrixClient) {
@@ -579,16 +598,23 @@ export class BridgeConfig {
     if (filenames.length < 1) {
       throw Error("No configuration file given");
     }
-    let configurationRaw: any = {};
+    let configurationRaw: Partial<Record<keyof BridgeConfigRoot, unknown>> = {};
     // This is a shallow merge of configs.
+    log.info("Loading config from ", filenames.join(", "));
     for (const filename of filenames) {
+      const parsedConfig = YAML.parse(await fs.readFile(filename, "utf-8"));
+      const existingConnections = configurationRaw.connections ?? [];
+      if (!Array.isArray(existingConnections)) {
+        throw new ConfigError(filename, 'connections is not an array');
+      }
       configurationRaw = {
         ...configurationRaw,
-        ...YAML.parse(await fs.readFile(filename, "utf-8")),
+        ...parsedConfig,
+        // Manually merge connections together.
+        connections: [...existingConnections, ...parsedConfig.connections ?? []],
       };
     }
-    log.info("Loading config from ", filenames.join(", "));
-    return new BridgeConfig(configurationRaw, env);
+    return new BridgeConfig(configurationRaw as BridgeConfigRoot, env);
   }
 }
 

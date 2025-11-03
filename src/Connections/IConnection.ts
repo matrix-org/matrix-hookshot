@@ -37,6 +37,11 @@ export interface IConnection {
   priority: number;
 
   /**
+   * If true, the connection cannot be altered in any way.
+   */
+  isStatic?: boolean;
+
+  /**
    * Ensures that the current state loaded into the connection has been granted by
    * the remote service. I.e. If the room is bridged into a GitHub repository,
    * check that the *sender* has permission to bridge it.
@@ -115,6 +120,7 @@ export interface IConnection {
 export interface ConnectionDeclaration<C extends IConnection = IConnection> {
   EventTypes: string[];
   ServiceCategory: ConnectionType;
+  SupportsStaticConfiguration?: boolean;
   provisionConnection?: (
     roomId: string,
     userId: string,
@@ -139,6 +145,7 @@ export interface InstantiateConnectionOpts {
   messageClient: MessageSenderClient;
   storage: IBridgeStorageProvider;
   github?: GithubInstance;
+  isStatic?: boolean;
 }
 export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
   getAllConnectionsOfType<T extends IConnection>(

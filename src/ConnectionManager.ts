@@ -13,7 +13,6 @@ import { ApiError, ErrCode } from "./api";
 import {
   BridgeConfig,
   BridgePermissionLevel,
-  GitLabInstance,
 } from "./config/Config";
 import { CommentProcessor } from "./CommentProcessor";
 import {
@@ -47,6 +46,7 @@ import Metrics from "./Metrics";
 import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
+import { GitLabInstance } from "./config/sections";
 
 const log = new Logger("ConnectionManager");
 
@@ -271,16 +271,18 @@ export class ConnectionManager extends EventEmitter {
   }
 
   /**
-   * This is called ONLY when we spot new state in a room and want to create a connection for it.
-   * @param roomId
-   * @param state
-   * @param rollbackBadState
+   * This is called when we spot new state in a room and want to create a connection for it.
+   * @param roomId The room where the connection is being created.
+   * @param state The state event for the connection.
+   * @param rollbackBadState If we can't create a connection, should the state be "rolled back"?
+   * @param isStatic Is the connection coming from the config, and therefore immutable?
    * @returns
    */
   public async createConnectionForState(
     roomId: string,
     state: StateEvent<any>,
     rollbackBadState: boolean,
+    isStatic = false,
   ): Promise<IConnection | undefined> {
     // Empty object == redacted
     if (
@@ -314,7 +316,7 @@ export class ConnectionManager extends EventEmitter {
       throw Error("Could not find a bot to handle this connection");
     }
 
-    if (
+    if ( !isStatic ||
       !this.verifyStateEvent(
         roomId,
         botUser.intent,
@@ -339,6 +341,7 @@ export class ConnectionManager extends EventEmitter {
           messageClient: this.messageClient,
           storage: this.storage,
           github: this.github,
+          isStatic,
         },
       );
       // Finally, ensure the connection is allowed by us.
@@ -408,6 +411,28 @@ export class ConnectionManager extends EventEmitter {
         }
       } catch (ex) {
         log.error(`Failed to create connection for ${roomId}:`, ex);
+      }
+    }
+
+    // Create static connections
+    for (const staticConfig of this.config.connections.filter((c) => c.roomId === roomId)) {
+      try {
+          const conn = await this.createConnectionForState(
+            roomId,
+            new StateEvent({
+              room_id: roomId,
+              type: staticConfig.connectionType,
+              state_key: staticConfig.stateKey,
+              content: staticConfig.state,
+            }),
+            false,
+          );
+        if (conn) {
+          log.debug(`Room ${roomId} is connected to: ${conn} (via static config)`);
+          this.push(conn);
+        }
+      } catch (ex) {
+        log.error(`Failed to create connection for ${roomId} (via static config):`, ex);
       }
     }
   }
@@ -876,6 +901,10 @@ export class ConnectionManager extends EventEmitter {
     }
     log.info("New room is ready for upgrade!", newRoomId);
     for (const connection of this.getAllConnectionsForRoom(oldRoomId)) {
+      if (connection.isStatic) {
+        // Static connections cannot be migrated.
+        continue;
+      }
       if (connection.migrateToNewRoom) {
         await connection.migrateToNewRoom(newRoomId);
         log.warn(`Connection ${connection.toString()} migrated`);
