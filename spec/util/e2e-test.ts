@@ -26,6 +26,12 @@ const REDIS_DATABASE_URI =
 
 interface Opts<ML extends string> {
   matrixLocalparts?: ML[];
+  staticConnectionRooms?: Record<
+    string,
+    {
+      members: string[];
+    }
+  >;
   permissionsRoom?: {
     members: string[];
     permissions: Array<BridgeConfigServicePermission>;
@@ -378,6 +384,7 @@ export class E2ETestEnv<ML extends string = string> {
 
     const registration: IAppserviceRegistration = {
       id: "hookshot",
+      url: null,
       as_token: homeserver.asToken,
       hs_token: homeserver.hsToken,
       sender_localpart: "hookshot",
@@ -394,9 +401,22 @@ export class E2ETestEnv<ML extends string = string> {
       "de.sorunome.msc2409.push_ephemeral": true,
     };
 
+    const connectionRooms: Record<string, string> = {};
+
+    const botClient = new MatrixClient(homeserver.url, homeserver.asToken);
+    for (const [roomIdMapper, roomOpts] of Object.entries(
+      opts.staticConnectionRooms ?? {},
+    )) {
+      connectionRooms[roomIdMapper] = await botClient.createRoom({
+        name: `${roomIdMapper}`,
+        invite: roomOpts.members.map(
+          (localpart) => `@${localpart}:${homeserver.domain}`,
+        ),
+      });
+    }
+
     let permissions: BridgeConfigActorPermission[] = [];
     if (opts.permissionsRoom) {
-      const botClient = new MatrixClient(homeserver.url, homeserver.asToken);
       const permsRoom = await botClient.createRoom({
         name: "Permissions room",
         invite: opts.permissionsRoom.members.map(
@@ -448,11 +468,17 @@ export class E2ETestEnv<ML extends string = string> {
       cache: cacheConfig,
       permissions,
       ...providedConfig,
+      connections: opts.config?.connections?.map((c) => ({
+        ...c,
+        roomId: connectionRooms[c.roomId],
+      })),
     });
     const app = await start(config, registration);
     app.listener.finaliseListeners();
 
-    return new E2ETestEnv(homeserver, app, opts, config, dir);
+    console.log(connectionRooms, opts.config?.connections);
+
+    return new E2ETestEnv(homeserver, app, opts, config, dir, connectionRooms);
   }
 
   private constructor(
@@ -461,6 +487,7 @@ export class E2ETestEnv<ML extends string = string> {
     public readonly opts: Opts<ML>,
     private readonly config: BridgeConfig,
     private readonly dir: string,
+    public readonly connectionRooms: Record<string, string>,
   ) {
     const appService = app.appservice;
 
