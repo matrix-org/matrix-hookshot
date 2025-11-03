@@ -250,7 +250,6 @@ export class GenericHookConnection
       isStatic,
     }: InstantiateConnectionOpts,
   ) {
-    console.log("createConnectionForState");
     if (!config.generic?.enabled) {
       throw Error("Generic webhooks are not configured");
     }
