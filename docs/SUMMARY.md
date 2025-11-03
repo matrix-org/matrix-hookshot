@@ -13,6 +13,7 @@
   - [OpenProject](./setup/openproject.md)
 - [👤 Usage](./usage.md)
   - [Dynamic Rooms](./usage/dynamic_rooms.md)
+  - [Static Connections](./usage/static_connections.md)
   - [Authenticating](./usage/auth.md)
   - [Room Configuration](./usage/room_configuration.md)
     - [GitHub Repo](./usage/room_configuration/github_repo.md)
