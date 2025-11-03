@@ -200,5 +200,9 @@ listeners:
 #  dsn: https://examplePublicKey@o0.ingest.sentry.io/0
 #  environment: production
 
+#connections:
+#  # (Optional) Static connections that may be configured by an admin
+#  []
+
 
 
