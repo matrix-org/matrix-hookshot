@@ -10,5 +10,6 @@ export * from "./GitlabRepo";
 export * from "./IConnection";
 export * from "./JiraProject";
 export * from "./FigmaFileConnection";
+export * from "./OpenProjectConnection";
 export * from "./FeedConnection";
 export * from "./OutboundHook";

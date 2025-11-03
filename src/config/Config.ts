@@ -10,32 +10,36 @@ import {
 import * as assert from "assert";
 import { configKey, hideKey } from "./Decorators";
 import { BridgeConfigListener, ResourceTypeArray } from "../ListenerService";
-import { GitHubRepoConnectionOptions } from "../Connections/GithubRepo";
 import { BridgeConfigActorPermission, BridgePermissions } from "../libRs";
 import { ConfigError } from "../Errors";
 import { ApiError, ErrCode } from "../api";
-import { GithubInstance, GITHUB_CLOUD_URL } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgeConfigCache } from "./sections/Cache";
 import {
   BridgeConfigGenericWebhooks,
   BridgeConfigQueue,
   BridgeGenericWebhooksConfigYAML,
-} from "./sections";
-import { GenericHookServiceConfig } from "../Connections";
-import { BridgeConfigEncryption } from "./sections/Encryption";
-import {
+  BridgeWidgetConfig,
+  BridgeWidgetConfigYAML,
+  BridgeConfigFeeds,
+  BridgeConfigFeedsYAML,
+  BridgeConfigEncryption,
   BridgeOpenProjectConfig,
   BridgeOpenProjectConfigYAML,
-} from "./sections/OpenProject";
-import { OpenProjectServiceConfig } from "../Connections/OpenProjectConnection";
+  BridgeConfigJira,
+  BridgeConfigJiraYAML,
+  BridgeConfigGitLab,
+  BridgeConfigGitLabYAML,
+  BridgeConfigGitHub,
+  BridgeConfigGitHubYAML,
+} from "./sections";
+import {
+  GenericHookServiceConfig,
+  OpenProjectServiceConfig,
+} from "../Connections";
 import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("Config");
-
-function makePrefixedUrl(urlString: string): URL {
-  return new URL(urlString.endsWith("/") ? urlString : urlString + "/");
-}
 
 export const ValidLogLevelStrings = [
   LogLevel.ERROR.toString(),
@@ -54,245 +58,6 @@ export enum BridgePermissionLevel {
   admin = 5,
 }
 
-interface BridgeConfigGitHubYAML {
-  enterpriseUrl?: string;
-  auth: {
-    id: number | string;
-    privateKeyFile: string;
-  };
-  webhook: {
-    secret: string;
-  };
-  oauth?: {
-    client_id: string;
-    client_secret: string;
-    redirect_uri: string;
-  };
-  defaultOptions?: GitHubRepoConnectionOptions;
-  userIdPrefix?: string;
-}
-
-export class BridgeConfigGitHub {
-  @configKey("Authentication for the GitHub App.", false)
-  readonly auth: {
-    id: number | string;
-    privateKeyFile: string;
-  };
-  @configKey("Webhook settings for the GitHub app.", false)
-  readonly webhook: {
-    secret: string;
-  };
-  @configKey("Settings for allowing users to sign in via OAuth.", true)
-  readonly oauth?: {
-    client_id: string;
-    client_secret: string;
-    redirect_uri: string;
-  };
-  @configKey("Default options for GitHub connections.", true)
-  readonly defaultOptions?: GitHubRepoConnectionOptions;
-
-  @configKey("Prefix used when creating ghost users for GitHub accounts.", true)
-  readonly userIdPrefix: string;
-
-  @configKey("URL for enterprise deployments. Does not include /api/v3", true)
-  private enterpriseUrl?: string;
-
-  @hideKey()
-  public readonly baseUrl: URL;
-
-  constructor(yaml: BridgeConfigGitHubYAML) {
-    this.auth = yaml.auth;
-    this.webhook = yaml.webhook;
-    this.oauth = yaml.oauth;
-    this.defaultOptions = yaml.defaultOptions;
-    this.userIdPrefix = yaml.userIdPrefix || "_github_";
-    this.baseUrl = yaml.enterpriseUrl
-      ? new URL(yaml.enterpriseUrl)
-      : GITHUB_CLOUD_URL;
-  }
-
-  public publicConfig(githubInstance?: GithubInstance) {
-    return {
-      userIdPrefix: this.userIdPrefix,
-      newInstallationUrl: githubInstance?.newInstallationUrl?.toString(),
-    };
-  }
-}
-
-export interface BridgeConfigJiraCloudOAuth {
-  client_id: string;
-  client_secret: string;
-  redirect_uri: string;
-}
-
-export interface BridgeConfigJiraOnPremOAuth {
-  consumerKey: string;
-  privateKey: string;
-  redirect_uri: string;
-}
-
-export interface BridgeConfigJiraYAML {
-  webhook: {
-    secret: string;
-  };
-  url?: string;
-  oauth?: BridgeConfigJiraCloudOAuth | BridgeConfigJiraOnPremOAuth;
-}
-export class BridgeConfigJira implements BridgeConfigJiraYAML {
-  static CLOUD_INSTANCE_NAME = "api.atlassian.com";
-
-  @configKey("Webhook settings for JIRA")
-  readonly webhook: {
-    secret: string;
-  };
-
-  // To hide the undefined for now
-  @hideKey()
-  @configKey(
-    "URL for the instance if using on prem. Ignore if targetting cloud (atlassian.net)",
-    true,
-  )
-  readonly url?: string;
-  @configKey(
-    "OAuth settings for connecting users to JIRA. See documentation for more information",
-    true,
-  )
-  readonly oauth?: BridgeConfigJiraCloudOAuth | BridgeConfigJiraOnPremOAuth;
-
-  @hideKey()
-  readonly instanceUrl?: URL;
-
-  @hideKey()
-  readonly instanceName: string;
-
-  constructor(yaml: BridgeConfigJiraYAML) {
-    assert.ok(yaml.webhook);
-    assert.ok(yaml.webhook.secret);
-    this.webhook = yaml.webhook;
-    this.url = yaml.url;
-    this.instanceUrl = yaml.url !== undefined ? new URL(yaml.url) : undefined;
-    this.instanceName =
-      this.instanceUrl?.host || BridgeConfigJira.CLOUD_INSTANCE_NAME;
-    if (!yaml.oauth) {
-      return;
-    }
-    let oauth: BridgeConfigJiraCloudOAuth | BridgeConfigJiraOnPremOAuth;
-
-    assert.ok(yaml.oauth.redirect_uri);
-    // Validate oauth settings
-    if (this.url) {
-      // On-prem
-      oauth = yaml.oauth as BridgeConfigJiraOnPremOAuth;
-      assert.ok(oauth.consumerKey);
-      assert.ok(oauth.privateKey);
-    } else {
-      // Cloud
-      oauth = yaml.oauth as BridgeConfigJiraCloudOAuth;
-      assert.ok(oauth.client_id);
-      assert.ok(oauth.client_secret);
-    }
-    this.oauth = oauth;
-  }
-}
-
-export interface GitLabInstance {
-  url: string;
-}
-
-export interface BridgeConfigGitLabYAML {
-  webhook: {
-    publicUrl?: string;
-    secret: string;
-  };
-  instances: { [name: string]: GitLabInstance };
-  userIdPrefix?: string;
-  commentDebounceMs?: number;
-}
-
-export class BridgeConfigGitLab {
-  readonly instances: { [name: string]: GitLabInstance };
-  readonly webhook: {
-    publicUrl?: string;
-    secret: string;
-  };
-
-  @configKey("Prefix used when creating ghost users for GitLab accounts.", true)
-  readonly userIdPrefix: string;
-
-  @configKey(
-    "Aggregate comments by waiting this many miliseconds before posting them to Matrix. Defaults to 5000 (5 seconds)",
-    true,
-  )
-  readonly commentDebounceMs: number;
-
-  constructor(yaml: BridgeConfigGitLabYAML) {
-    this.instances = yaml.instances;
-    this.webhook = yaml.webhook;
-    this.userIdPrefix = yaml.userIdPrefix || "_gitlab_";
-
-    for (const name in this.instances) {
-      const url = this.instances[name].url;
-      if (url.endsWith("/")) {
-        this.instances[name].url = url.slice(0, -1);
-      }
-    }
-
-    if (yaml.commentDebounceMs === undefined) {
-      this.commentDebounceMs = 5000;
-    } else {
-      this.commentDebounceMs = yaml.commentDebounceMs;
-    }
-  }
-
-  @hideKey()
-  public get publicConfig() {
-    return {
-      userIdPrefix: this.userIdPrefix,
-    };
-  }
-
-  public getInstanceByProjectUrl(
-    url: string,
-  ): { name: string; instance: GitLabInstance } | null {
-    for (const [name, instance] of Object.entries(this.instances)) {
-      if (url.startsWith(instance.url)) {
-        return { name, instance };
-      }
-    }
-    return null;
-  }
-}
-
-export interface BridgeConfigFeedsYAML {
-  enabled: boolean;
-  pollIntervalSeconds?: number;
-  pollConcurrency?: number;
-  pollTimeoutSeconds?: number;
-}
-
-export class BridgeConfigFeeds {
-  public enabled: boolean;
-  public pollIntervalSeconds: number;
-  public pollTimeoutSeconds: number;
-  public pollConcurrency: number;
-
-  constructor(yaml: BridgeConfigFeedsYAML) {
-    this.enabled = yaml.enabled;
-    this.pollConcurrency = yaml.pollConcurrency ?? 4;
-    this.pollIntervalSeconds = yaml.pollIntervalSeconds ?? 600;
-    assert.strictEqual(typeof this.pollIntervalSeconds, "number");
-    this.pollTimeoutSeconds = yaml.pollTimeoutSeconds ?? 30;
-    assert.strictEqual(typeof this.pollTimeoutSeconds, "number");
-  }
-
-  @hideKey()
-  public get publicConfig() {
-    return {
-      pollIntervalSeconds: this.pollIntervalSeconds,
-    };
-  }
-}
-
 export interface BridgeConfigFigma {
   publicUrl: string;
   overrideUserId?: string;
@@ -303,77 +68,6 @@ export interface BridgeConfigFigma {
       passcode: string;
     };
   };
-}
-
-interface BridgeWidgetConfigYAML {
-  publicUrl: string;
-  /**
-   * @deprecated Prefer using listener config.
-   */
-  port?: number;
-  addToAdminRooms?: boolean;
-  roomSetupWidget?: {
-    addOnInvite?: boolean;
-  };
-  disallowedIpRanges?: string[];
-  branding?: {
-    widgetTitle: string;
-  };
-  openIdOverrides?: Record<string, string>;
-}
-
-export class BridgeWidgetConfig {
-  public readonly addToAdminRooms: boolean;
-
-  @hideKey()
-  public readonly parsedPublicUrl: URL;
-  public readonly publicUrl: () => string;
-
-  public readonly roomSetupWidget?: {
-    addOnInvite?: boolean;
-  };
-  public readonly disallowedIpRanges?: string[];
-  public readonly branding: {
-    widgetTitle: string;
-  };
-
-  @hideKey()
-  public readonly openIdOverrides?: Record<string, URL>;
-  constructor(yaml: BridgeWidgetConfigYAML) {
-    this.addToAdminRooms = yaml.addToAdminRooms || false;
-    this.disallowedIpRanges = yaml.disallowedIpRanges;
-    this.roomSetupWidget = yaml.roomSetupWidget;
-    if (
-      yaml.disallowedIpRanges !== undefined &&
-      (!Array.isArray(yaml.disallowedIpRanges) ||
-        !yaml.disallowedIpRanges.every((s) => typeof s === "string"))
-    ) {
-      throw new ConfigError(
-        "widgets.disallowedIpRanges",
-        "must be a string array",
-      );
-    }
-    try {
-      this.parsedPublicUrl = makePrefixedUrl(yaml.publicUrl);
-      this.publicUrl = () => {
-        return this.parsedPublicUrl.href;
-      };
-    } catch {
-      throw new ConfigError(
-        "widgets.publicUrl",
-        "is not defined or not a valid URL",
-      );
-    }
-    this.branding = yaml.branding || {
-      widgetTitle: "Hookshot Configuration",
-    };
-    if (yaml.openIdOverrides) {
-      this.openIdOverrides = {};
-      for (const [serverName, urlStr] of Object.entries(yaml.openIdOverrides)) {
-        this.openIdOverrides[serverName] = new URL(urlStr);
-      }
-    }
-  }
 }
 
 interface BridgeConfigBridge {
