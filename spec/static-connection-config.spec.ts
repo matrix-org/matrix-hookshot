@@ -65,6 +65,7 @@ describe("Statically configured connection", () => {
   test("should be able to handle an incoming request.", async () => {
     const user = testEnv.getUser("user");
     const roomId = testEnv.connectionRooms["my-room"];
+    await user.joinRoom(roomId);
     const url = new URL(
       testEnv.opts.config?.generic?.urlPrefix! + "/webhook/foo",
     );
@@ -81,7 +82,7 @@ describe("Statically configured connection", () => {
     });
     expect(req.status).toEqual(200);
     expect(await req.json()).toEqual({ ok: true });
-    console.log("waiting for msg");
+    console.log("waiting for msg", testEnv.botMxid, roomId);
     expect((await expectedMsg).data.content).toEqual({
       msgtype: "m.notice",
       body: "Received webhook data: Hello world",
@@ -89,6 +90,5 @@ describe("Statically configured connection", () => {
       format: "org.matrix.custom.html",
       "uk.half-shot.hookshot.webhook_data": "Hello world",
     });
-    console.log("got msg");
   });
 });

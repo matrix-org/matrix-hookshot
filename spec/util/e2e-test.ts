@@ -1,6 +1,5 @@
 import { TestHomeServer, createHS, destroyHS } from "./homerunner";
 import {
-  Appservice,
   IAppserviceRegistration,
   MatrixClient,
   Membership,
@@ -12,7 +11,6 @@ import { BridgeConfig, BridgeConfigRoot } from "../../src/config/Config";
 import { start } from "../../src/App/BridgeApp";
 import { RSAKeyPairOptions, generateKeyPair } from "node:crypto";
 import path from "node:path";
-import Redis from "ioredis";
 import {
   BridgeConfigActorPermission,
   BridgeConfigServicePermission,
@@ -21,8 +19,6 @@ import { TestContainers } from "testcontainers";
 
 const WAIT_EVENT_TIMEOUT = 20000;
 export const E2ESetupTestTimeout = 60000;
-const REDIS_DATABASE_URI =
-  process.env.HOOKSHOT_E2E_REDIS_DB_URI ?? "redis://localhost:6379";
 
 interface Opts<ML extends string> {
   matrixLocalparts?: ML[];
@@ -163,6 +159,7 @@ export class E2ETestMatrixClient extends MatrixClient {
           event_id: string;
         },
       ) => {
+        console.log("EVENT", eventData);
         if (eventData.sender !== sender) {
           return undefined;
         }
