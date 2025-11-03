@@ -159,7 +159,6 @@ export class E2ETestMatrixClient extends MatrixClient {
           event_id: string;
         },
       ) => {
-        console.log("EVENT", eventData);
         if (eventData.sender !== sender) {
           return undefined;
         }
@@ -472,8 +471,6 @@ export class E2ETestEnv<ML extends string = string> {
     });
     const app = await start(config, registration);
     app.listener.finaliseListeners();
-
-    console.log(connectionRooms, opts.config?.connections);
 
     return new E2ETestEnv(homeserver, app, opts, config, dir, connectionRooms);
   }

@@ -19,7 +19,7 @@ export function validateConnectionConfig(
   if (typeof connection.stateKey !== "string") {
     throw new ConfigError("stateKey", "is not an string");
   }
-  if (typeof connection.state !== "object") {
+  if (typeof connection.state !== "object" || connection.state === null) {
     throw new ConfigError("state", "is not an object");
   }
   if (typeof connection.connectionType !== "string") {
@@ -32,7 +32,10 @@ export function validateConnectionConfig(
   if (!resolvedcType) {
     throw new ConfigError("connectionType", "is not a known connection type");
   }
-  if (!resolvedcType.SupportsStaticConfiguration) {
+  if (
+    "SupportsStaticConfiguration" in resolvedcType === false ||
+    !resolvedcType.SupportsStaticConfiguration
+  ) {
     throw new ConfigError(
       "connectionType",
       "does not support static configuration",
@@ -43,6 +46,11 @@ export function validateConnectionConfig(
       "connectionType",
       `Service '${resolvedcType.ServiceCategory}' is not enabled in the config.`,
     );
+  }
+  try {
+    resolvedcType.validateState(connection.state as Record<string, unknown>);
+  } catch (ex) {
+    throw new ConfigError("state", `connection state did not validate:`, ex);
   }
 
   return true;

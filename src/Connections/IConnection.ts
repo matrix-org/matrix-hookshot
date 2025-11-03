@@ -117,10 +117,13 @@ export interface IConnection {
   conflictsWithCommandPrefix?: (commandPrefix: string) => boolean;
 }
 
-export interface ConnectionDeclaration<C extends IConnection = IConnection> {
+export type ConnectionDeclaration<C extends IConnection = IConnection> =
+  | ConnectionDeclarationBase<C>
+  | ConnectionDeclarationWithStatic<C>;
+
+interface ConnectionDeclarationBase<C extends IConnection = IConnection> {
   EventTypes: string[];
   ServiceCategory: ConnectionType;
-  SupportsStaticConfiguration?: boolean;
   provisionConnection?: (
     roomId: string,
     userId: string,
@@ -132,6 +135,12 @@ export interface ConnectionDeclaration<C extends IConnection = IConnection> {
     state: StateEvent<Record<string, unknown>>,
     opts: InstantiateConnectionOpts,
   ) => C | Promise<C>;
+}
+
+interface ConnectionDeclarationWithStatic<C extends IConnection = IConnection>
+  extends ConnectionDeclarationBase<C> {
+  SupportsStaticConfiguration: true;
+  validateState: (data: Record<string, unknown>) => void;
 }
 
 export const ConnectionDeclarations: Array<ConnectionDeclaration> = [];

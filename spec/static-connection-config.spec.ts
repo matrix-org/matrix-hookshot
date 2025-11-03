@@ -82,7 +82,6 @@ describe("Statically configured connection", () => {
     });
     expect(req.status).toEqual(200);
     expect(await req.json()).toEqual({ ok: true });
-    console.log("waiting for msg", testEnv.botMxid, roomId);
     expect((await expectedMsg).data.content).toEqual({
       msgtype: "m.notice",
       body: "Received webhook data: Hello world",
