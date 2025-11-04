@@ -17,10 +17,10 @@ connections:
    roomId: "!any-room-id:example.org"
    state:
      name: My static hook
+     # All below are optional
      waitForComplete: true
      includeHookBody: true
      expirationDate: 2025-11-03T16:44:59.533Z
-     # All below are optional
      transformationFunction: |
         result = {
             plain: "*Everything is fine*",
