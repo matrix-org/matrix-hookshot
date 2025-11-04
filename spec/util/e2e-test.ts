@@ -1,6 +1,5 @@
 import { TestHomeServer, createHS, destroyHS } from "./homerunner";
 import {
-  Appservice,
   IAppserviceRegistration,
   MatrixClient,
   Membership,
@@ -12,7 +11,6 @@ import { BridgeConfig, BridgeConfigRoot } from "../../src/config/Config";
 import { start } from "../../src/App/BridgeApp";
 import { RSAKeyPairOptions, generateKeyPair } from "node:crypto";
 import path from "node:path";
-import Redis from "ioredis";
 import {
   BridgeConfigActorPermission,
   BridgeConfigServicePermission,
@@ -21,11 +19,15 @@ import { TestContainers } from "testcontainers";
 
 const WAIT_EVENT_TIMEOUT = 20000;
 export const E2ESetupTestTimeout = 60000;
-const REDIS_DATABASE_URI =
-  process.env.HOOKSHOT_E2E_REDIS_DB_URI ?? "redis://localhost:6379";
 
 interface Opts<ML extends string> {
   matrixLocalparts?: ML[];
+  staticConnectionRooms?: Record<
+    string,
+    {
+      members: string[];
+    }
+  >;
   permissionsRoom?: {
     members: string[];
     permissions: Array<BridgeConfigServicePermission>;
@@ -378,6 +380,7 @@ export class E2ETestEnv<ML extends string = string> {
 
     const registration: IAppserviceRegistration = {
       id: "hookshot",
+      url: null,
       as_token: homeserver.asToken,
       hs_token: homeserver.hsToken,
       sender_localpart: "hookshot",
@@ -394,9 +397,22 @@ export class E2ETestEnv<ML extends string = string> {
       "de.sorunome.msc2409.push_ephemeral": true,
     };
 
+    const connectionRooms: Record<string, string> = {};
+
+    const botClient = new MatrixClient(homeserver.url, homeserver.asToken);
+    for (const [roomIdMapper, roomOpts] of Object.entries(
+      opts.staticConnectionRooms ?? {},
+    )) {
+      connectionRooms[roomIdMapper] = await botClient.createRoom({
+        name: `${roomIdMapper}`,
+        invite: roomOpts.members.map(
+          (localpart) => `@${localpart}:${homeserver.domain}`,
+        ),
+      });
+    }
+
     let permissions: BridgeConfigActorPermission[] = [];
     if (opts.permissionsRoom) {
-      const botClient = new MatrixClient(homeserver.url, homeserver.asToken);
       const permsRoom = await botClient.createRoom({
         name: "Permissions room",
         invite: opts.permissionsRoom.members.map(
@@ -448,11 +464,15 @@ export class E2ETestEnv<ML extends string = string> {
       cache: cacheConfig,
       permissions,
       ...providedConfig,
+      connections: opts.config?.connections?.map((c) => ({
+        ...c,
+        roomId: connectionRooms[c.roomId],
+      })),
     });
     const app = await start(config, registration);
     app.listener.finaliseListeners();
 
-    return new E2ETestEnv(homeserver, app, opts, config, dir);
+    return new E2ETestEnv(homeserver, app, opts, config, dir, connectionRooms);
   }
 
   private constructor(
@@ -461,6 +481,7 @@ export class E2ETestEnv<ML extends string = string> {
     public readonly opts: Opts<ML>,
     private readonly config: BridgeConfig,
     private readonly dir: string,
+    public readonly connectionRooms: Record<string, string>,
   ) {
     const appService = app.appservice;
 

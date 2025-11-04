@@ -1,4 +1,3 @@
-import { BridgeConfigJira } from "../config/Config";
 import { MessageQueue } from "../messageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../tokens/UserTokenStore";
@@ -9,6 +8,7 @@ import { HookshotJiraApi } from "./Client";
 import { createHmac } from "node:crypto";
 import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
 import { IJiraWebhookEvent } from "./WebhookTypes";
+import { BridgeConfigJira } from "../config/sections";
 
 type JiraOAuthRequestCloud = OAuthRequest;
 

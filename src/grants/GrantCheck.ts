@@ -117,7 +117,7 @@ export class GrantChecker<cId extends ConnectionId = ConnectionId> {
 export class ConfigGrantChecker<
   cId extends ConnectionId = ConnectionId,
 > extends GrantChecker<cId> {
-  static ConfigMinAccessLevel = BridgePermissionLevel.admin;
+  static ConfigMinAccessLevel = 5;
 
   constructor(
     grantType: string,

@@ -1,4 +1,3 @@
-import { BridgeConfigJiraOnPremOAuth } from "../../config/Config";
 import Axios, { Method } from "axios";
 import qs from "querystring";
 import { createPrivateKey, createSign, KeyObject } from "crypto";
@@ -6,6 +5,7 @@ import fs from "fs";
 import { Logger } from "matrix-appservice-bridge";
 import { encodeJiraToken, JiraOAuth } from "../OAuth";
 import { JiraOAuthResult } from "../Types";
+import { BridgeConfigJiraOnPremOAuth } from "../../config/sections";
 
 const log = new Logger("JiraOnPremOAuth");
 

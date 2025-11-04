@@ -16,10 +16,11 @@ import { DiscussionCommentCreatedEvent } from "@octokit/webhooks-types";
 import { GithubGraphQLClient } from "../github/GithubInstance";
 import { Logger } from "matrix-appservice-bridge";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
-import { BridgeConfig, BridgeConfigGitHub } from "../config/Config";
+import { BridgeConfig } from "../config/Config";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import QuickLRU from "@alloc/quick-lru";
 import { ConnectionType } from "./type";
+import { BridgeConfigGitHub } from "../config/sections";
 export interface GitHubDiscussionConnectionState {
   owner: string;
   repo: string;

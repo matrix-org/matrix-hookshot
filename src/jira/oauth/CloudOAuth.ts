@@ -1,8 +1,8 @@
-import { BridgeConfigJiraCloudOAuth } from "../../config/Config";
 import { JiraOAuth } from "../OAuth";
 import qs from "querystring";
 import axios from "axios";
 import { JiraOAuthResult } from "../Types";
+import { BridgeConfigJiraCloudOAuth } from "../../config/sections";
 
 const JiraOnPremOAuthScopes = [
   // Reading issues, comments

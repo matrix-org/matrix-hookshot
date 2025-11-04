@@ -24,8 +24,8 @@ import {
   IssueCommentCreatedEvent,
 } from "@octokit/webhooks-types";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
-import { BridgeConfigGitHub } from "../config/Config";
 import { ConnectionType } from "./type";
+import { BridgeConfigGitHub } from "../config/sections";
 
 export interface GitHubIssueConnectionState {
   org: string;

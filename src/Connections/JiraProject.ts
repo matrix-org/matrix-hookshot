@@ -27,12 +27,12 @@ import { CommandError, NotLoggedInError } from "../Errors";
 import { ApiError, ErrCode } from "../api";
 import JiraApi from "jira-client";
 import { GetConnectionsResponseItem } from "../widgets/Api";
-import { BridgeConfigJira } from "../config/Config";
 import { HookshotJiraApi } from "../jira/Client";
 import { GrantChecker } from "../grants/GrantCheck";
 import { JiraGrantChecker } from "../jira/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
+import { BridgeConfigJira } from "../config/sections";
 
 type JiraAllowedEventsNames =
   | "issue_created"

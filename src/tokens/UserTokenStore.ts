@@ -5,12 +5,7 @@ import { promises as fs } from "fs";
 import { Logger } from "matrix-appservice-bridge";
 import { isJiraCloudInstance, JiraClient } from "../jira/Client";
 import { JiraStoredToken } from "../jira/Types";
-import {
-  BridgeConfig,
-  BridgeConfigJira,
-  BridgeConfigJiraOnPremOAuth,
-  BridgePermissionLevel,
-} from "../config/Config";
+import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
 import { randomUUID } from "node:crypto";
 import { GitHubOAuthToken } from "../github/Types";
 import { ApiError, ErrCode } from "../api";
@@ -25,6 +20,10 @@ import { hashId, TokenEncryption, stringToAlgo } from "../libRs";
 import { OpenProjectOAuth } from "../openproject/Oauth";
 import { OpenProjectStoredToken } from "../openproject/Types";
 import { OpenProjectAPIClient } from "../openproject/Client";
+import {
+  BridgeConfigJira,
+  BridgeConfigJiraOnPremOAuth,
+} from "../config/sections";
 
 const ACCOUNT_DATA_TYPE = "uk.half-shot.matrix-hookshot.github.password-store:";
 const ACCOUNT_DATA_GITLAB_TYPE =

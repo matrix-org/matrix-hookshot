@@ -58,7 +58,6 @@ import {
   GithubInstance,
 } from "../github/GithubInstance";
 import { GitHubIssueConnection } from "./GithubIssue";
-import { BridgeConfigGitHub } from "../config/Config";
 import { ApiError, ErrCode, ValidatorApiError } from "../api";
 import { PermissionCheckFn } from ".";
 import {
@@ -73,6 +72,7 @@ import { GitHubGrantChecker } from "../github/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { ConnectionType } from "./type";
+import { BridgeConfigGitHub } from "../config/sections";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
