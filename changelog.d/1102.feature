@@ -1,1 +1,1 @@
-Immutable connections may now be configured in the config file.
+Static connections may now be configured in the config file.
