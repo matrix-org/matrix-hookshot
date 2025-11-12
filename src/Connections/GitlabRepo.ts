@@ -4,7 +4,6 @@ import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgeConfigGitLab, GitLabInstance } from "../config/Config";
 import {
   IGitlabMergeRequest,
   IGitlabProject,
@@ -39,6 +38,9 @@ import { GitLabClient } from "../gitlab/Client";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import axios from "axios";
 import { GitLabGrantChecker } from "../gitlab/GrantChecker";
+import { removeConnectionState } from "./BaseConnection";
+import { ConnectionType } from "./type";
+import { BridgeConfigGitLab, GitLabInstance } from "../config/sections";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
   instance: string;
@@ -201,17 +203,17 @@ export class GitLabRepoConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.repository";
-  static readonly LegacyCanonicalEventType =
+  static readonly LegacyEventType =
     "uk.half-shot.matrix-github.gitlab.repository";
 
   static readonly EventTypes = [
     GitLabRepoConnection.CanonicalEventType,
-    GitLabRepoConnection.LegacyCanonicalEventType,
+    GitLabRepoConnection.LegacyEventType,
   ];
 
   static botCommands: BotCommands;
   static helpMessage: (cmdPrefix?: string | undefined) => MatrixMessageContent;
-  static ServiceCategory = "gitlab";
+  static ServiceCategory = ConnectionType.Gitlab;
 
   static validateState(
     state: unknown,
@@ -1328,38 +1330,23 @@ ${data.description}`;
     this.hookFilter.enabledHooks = this.state.enableHooks;
   }
 
-  public async onRemove() {
-    log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    await this.grantChecker.ungrantConnection(this.roomId, {
+  private getGrantKey() {
+    return {
       instance: this.state.instance,
       path: this.path,
-    });
+    };
+  }
+
+  public async onRemove() {
+    log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    await this.grantChecker.ungrantConnection(this.roomId, this.getGrantKey());
     // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitLabRepoConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitLabRepoConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GitLabRepoConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GitLabRepoConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    }
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitLabRepoConnection,
+    );
     // TODO: Clean up webhooks
   }
 
@@ -1388,6 +1375,19 @@ ${data.description}`;
       this.connectionId,
       serialized,
     );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(newRoomId, this.getGrantKey());
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GitLabRepoConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 }
 

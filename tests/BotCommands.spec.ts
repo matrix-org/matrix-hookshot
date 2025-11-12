@@ -5,19 +5,20 @@ import {
   compileBotCommands,
   handleCommand,
 } from "../src/BotCommands";
-import { MatrixEvent } from "../src/MatrixEvent";
 import { BridgePermissionLevel } from "../src/config/Config";
+import { RoomEvent } from "matrix-bot-sdk";
+import { Category } from "../src/AdminRoomCommandHandler";
 
 describe("BotCommands", () => {
   const USER_ID = "@foo:bar.com";
-  const fakeReply: MatrixEvent<void> = {
-    content: undefined,
+  const fakeReply: RoomEvent<Record<string, never>> = new RoomEvent({
+    content: {},
     event_id: "$event:id",
     sender: "@sender",
     origin_server_ts: 12345,
     state_key: undefined,
     type: "test.type",
-  };
+  });
 
   describe("handleCommand", () => {
     it("should not handle an empty command list", async () => {
@@ -385,17 +386,22 @@ describe("BotCommands", () => {
       class TestBotCommands {
         @botCommand("command", "a simple bit of help text")
         public async myTestCommand() {}
-        @botCommand("command two", { help: "more text", category: "test-cat" })
+        @botCommand("command two", {
+          help: "more text",
+          category: Category.Widget,
+        })
         public async myTestCommandWithArgs() {}
       }
       const output = compileBotCommands(TestBotCommands.prototype as any);
       // By default show all
       expect(output.helpMessage("!test-prefix ").body).to.equal(
-        " - `!test-prefix command` - a simple bit of help text\n### Test-cat\n - `!test-prefix command two` - more text\n",
+        " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // Or when specified
-      expect(output.helpMessage("!test-prefix ", ["test-cat"]).body).to.equal(
-        " - `!test-prefix command` - a simple bit of help text\n### Test-cat\n - `!test-prefix command two` - more text\n",
+      expect(
+        output.helpMessage("!test-prefix ", [Category.Widget]).body,
+      ).to.equal(
+        " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // But not when unspecified
       expect(

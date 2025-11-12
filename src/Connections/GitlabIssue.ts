@@ -9,16 +9,14 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";
-import {
-  BridgeConfig,
-  BridgeConfigGitLab,
-  GitLabInstance,
-} from "../config/Config";
+import { BridgeConfig } from "../config/Config";
 import { GetIssueResponse } from "../gitlab/Types";
 import { IGitLabWebhookNoteEvent } from "../gitlab/WebhookTypes";
 import { ensureUserIsInRoom, getIntentForUser } from "../IntentUtils";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
+import { ConnectionType } from "./type";
+import { GitLabInstance, BridgeConfigGitLab } from "../config/sections";
 
 export interface GitLabIssueConnectionState {
   instance: string;
@@ -49,17 +47,24 @@ export class GitLabIssueConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.gitlab.issue";
-  static readonly LegacyCanonicalEventType =
-    "uk.half-shot.matrix-github.gitlab.issue";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.gitlab.issue";
   static readonly EventTypes = [
     GitLabIssueConnection.CanonicalEventType,
-    GitLabIssueConnection.LegacyCanonicalEventType,
+    GitLabIssueConnection.LegacyEventType,
   ];
   static readonly QueryRoomRegex = /#gitlab_(.+)_(.+)_(\d+):.*/;
-  static readonly ServiceCategory = "gitlab";
+  static readonly ServiceCategory = ConnectionType.Gitlab;
 
   static getTopicString(authorName: string, state: string): string {
     return `Author: ${authorName} | State: ${state === "closed" ? "closed" : "open"}`;
+  }
+
+  private static grantKey(state: GitLabIssueConnectionState) {
+    return {
+      instance: state.instance,
+      project: state.projects[0],
+      issue: state.iid.toString(),
+    };
   }
 
   public static async createConnectionForState(
@@ -191,11 +196,7 @@ export class GitLabIssueConnection
   public ensureGrant(sender?: string) {
     return this.grantChecker.assertConnectionGranted(
       this.roomId,
-      {
-        instance: this.state.instance,
-        project: this.state.projects[0],
-        issue: this.state.iid.toString(),
-      },
+      GitLabIssueConnection.grantKey(this.state),
       sender,
     );
   }
@@ -345,6 +346,36 @@ export class GitLabIssueConnection
     }
     await this.onMatrixIssueComment(ev);
     return true;
+  }
+
+  public async onRemove() {
+    log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    await this.grantChecker.ungrantConnection(
+      this.roomId,
+      GitLabIssueConnection.grantKey(this.state),
+    );
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GitLabIssueConnection,
+    );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(
+      newRoomId,
+      GitLabIssueConnection.grantKey(this.state),
+    );
+    // Copy across state
+    await this.as.botClient.sendStateEvent(
+      newRoomId,
+      GitLabIssueConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public toString() {

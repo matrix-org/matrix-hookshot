@@ -1,5 +1,5 @@
 import axios, { isAxiosError } from "axios";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import {
   Connection,
   IConnection,
@@ -14,6 +14,7 @@ import { randomUUID } from "crypto";
 import UserAgent from "../UserAgent";
 import { hashId } from "../libRs";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { ConnectionType } from "./type";
 
 export interface OutboundHookConnectionState extends IConnectionState {
   name: string;
@@ -42,7 +43,7 @@ export class OutboundHookConnection
 {
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.outbound-hook";
-  static readonly ServiceCategory = "genericOutbound";
+  static readonly ServiceCategory = ConnectionType.GenericOutbound;
 
   static readonly EventTypes = [OutboundHookConnection.CanonicalEventType];
 
@@ -98,8 +99,8 @@ export class OutboundHookConnection
     event: StateEvent<Record<string, unknown>>,
     { intent, config, tokenStore }: InstantiateConnectionOpts,
   ) {
-    if (!config.generic) {
-      throw Error("Generic webhooks are not configured");
+    if (!config.generic?.outbound) {
+      throw Error("Outbound support for Generic Webhooks is not configured");
     }
     // Generic hooks store the hookId in the account data
     const state = this.validateState(event.content);
@@ -127,10 +128,7 @@ export class OutboundHookConnection
     data: Record<string, unknown> = {},
     { intent, config, tokenStore }: ProvisionConnectionOpts,
   ) {
-    if (!config.generic) {
-      throw Error("Generic Webhooks are not configured");
-    }
-    if (!config.generic.outbound) {
+    if (!config.generic?.outbound) {
       throw Error("Outbound support for Generic Webhooks is not configured");
     }
 
@@ -333,19 +331,25 @@ export class OutboundHookConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    // Do a sanity check that the event exists.
-    await this.intent.underlyingClient.getRoomStateEvent(
+    await removeConnectionState(
+      this.intent.underlyingClient,
       this.roomId,
-      OutboundHookConnection.CanonicalEventType,
       this.stateKey,
-    );
-    await this.intent.underlyingClient.sendStateEvent(
-      this.roomId,
-      OutboundHookConnection.CanonicalEventType,
-      this.stateKey,
-      { disabled: true },
+      OutboundHookConnection,
     );
     // TODO: Remove token
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      OutboundHookConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async provisionerUpdateConfig(

@@ -7,7 +7,7 @@ import {
   GitLabRepoConnectionState,
 } from "../../src/Connections";
 import { expect } from "chai";
-import { BridgeConfigGitLab } from "../../src/config/Config";
+import { BridgeConfigGitLab } from "../../src/config/sections/Gitlab";
 import { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
 import { IntentMock } from "../utils/IntentMock";
 import {

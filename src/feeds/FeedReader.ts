@@ -1,4 +1,3 @@
-import { BridgeConfigFeeds } from "../config/Config";
 import { ConnectionManager } from "../ConnectionManager";
 import { FeedConnection } from "../Connections";
 import { Logger } from "matrix-appservice-bridge";
@@ -10,6 +9,7 @@ import { readFeed } from "../libRs";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import UserAgent from "../UserAgent";
 import { QueueWithBackoff } from "../libRs";
+import { BridgeConfigFeeds } from "../config/sections";
 
 const log = new Logger("FeedReader");
 

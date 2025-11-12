@@ -1,2 +1,0 @@
-Instructions for how to setup a developer enviroment [are now included](https://matrix-org.github.io/matrix-hookshot/latest/dev/setup.html). This includes
-a new `docker-compose.yml` file for development. The previous unmaintained docker-compose setup for multiple workers has been removed.

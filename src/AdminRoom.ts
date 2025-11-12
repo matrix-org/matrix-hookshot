@@ -39,6 +39,7 @@ import { UserTokenStore } from "./tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { OpenProjectBotCommands } from "./openproject/AdminCommands";
+import { ConnectionType } from "./Connections/type";
 type ProjectsListForRepoResponseData =
   Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData =
@@ -184,10 +185,10 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("help", { help: "This help text" })
   public async helpCommand() {
     const enabledCategories = [
-      this.config.github ? Category.Github : "",
-      this.config.gitlab ? Category.Gitlab : "",
-      this.config.jira ? Category.Jira : "",
-      this.config.openProject ? Category.OpenProject : "",
+      this.config.github ? ConnectionType.Github : "",
+      this.config.gitlab ? ConnectionType.Gitlab : "",
+      this.config.jira ? ConnectionType.Jira : "",
+      this.config.openProject ? ConnectionType.OpenProject : "",
       this.config.github && this.canAdminConnections("github")
         ? Category.ConnectionManagement
         : "",
@@ -231,7 +232,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
   @botCommand("github notifications toggle", {
     help: "Toggle enabling/disabling GitHub notifications in this room",
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   public async setGitHubNotificationsStateToggle() {
     const newData = await this.saveAccountData((data) => {
@@ -252,7 +253,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
   @botCommand("github notifications filter participating", {
     help: "Toggle enabling/disabling GitHub notifications in this room",
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   private async setGitHubNotificationsStateParticipating() {
     const newData = await this.saveAccountData((data) => {
@@ -278,7 +279,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
   @botCommand("github notifications", {
     help: "Show the current notification settings",
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   public async getGitHubNotificationsState() {
     if (!this.notificationsEnabled("github")) {
@@ -357,7 +358,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("github project list-for-user", {
     help: "List GitHub projects for a user",
     optionalArgs: ["user", "repo"],
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   private async listGitHubProjectsForUser(username?: string, repo?: string) {
     if (!this.config.github) {
@@ -411,7 +412,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
     help: "List GitHub projects for an org",
     requiredArgs: ["org"],
     optionalArgs: ["repo"],
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   private async listGitHubProjectsForOrg(org: string, repo?: string) {
     if (!this.config.github) {
@@ -461,7 +462,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("github project open", {
     help: "Open a GitHub project as a room",
     requiredArgs: ["projectId"],
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   private async openProject(projectId: string) {
     if (!this.config.github) {
@@ -493,7 +494,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("github discussion open", {
     help: "Open a discussion room",
     requiredArgs: ["owner", "repo", "number"],
-    category: Category.Github,
+    category: ConnectionType.Github,
   })
   private async listDiscussions(
     owner: string,
@@ -534,7 +535,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("gitlab open issue", {
     help: "Open or join a issue room for GitLab",
     requiredArgs: ["url"],
-    category: Category.Gitlab,
+    category: ConnectionType.Gitlab,
   })
   private async gitLabOpenIssue(url: string) {
     if (!this.config.gitlab) {
@@ -583,7 +584,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("gitlab personaltoken", {
     help: "Set your personal access token for GitLab",
     requiredArgs: ["instanceName", "accessToken"],
-    category: Category.Gitlab,
+    category: ConnectionType.Gitlab,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async setGitLabPersonalAccessToken(
@@ -623,7 +624,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("gitlab hastoken", {
     help: "Check if you have a token stored for GitLab",
     requiredArgs: ["instanceName"],
-    category: Category.Gitlab,
+    category: ConnectionType.Gitlab,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async gitlabHasPersonalToken(instanceName: string) {
@@ -651,7 +652,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
 
   @botCommand("filters list", {
     help: "List your saved filters",
-    category: Category.Github,
+    category: ConnectionType.Github,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async getFilters() {
@@ -684,7 +685,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("filters set", {
     help: "Create (or update) a filter. You can use 'orgs:', 'users:' or 'repos:' as filter parameters.",
     requiredArgs: ["name", "...parameters"],
-    category: Category.Github,
+    category: ConnectionType.Github,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async setFilter(name: string, ...parameters: string[]) {
@@ -724,7 +725,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
   @botCommand("filters notifications toggle", {
     help: "Apply a filter as a whitelist to your notifications",
     requiredArgs: ["name"],
-    category: Category.Github,
+    category: ConnectionType.Github,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async setFiltersNotificationsToggle(name: string) {

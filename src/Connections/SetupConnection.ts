@@ -32,6 +32,8 @@ import { Intent } from "matrix-bot-sdk";
 import YAML from "yaml";
 import { HoundConnection } from "./HoundConnection";
 import { OpenProjectConnection } from "./OpenProjectConnection";
+import { Category } from "../AdminRoomCommandHandler";
+import { ConnectionType } from "./type";
 const md = new markdown();
 const log = new Logger("SetupConnection");
 const parseDurationImport = import("parse-duration");
@@ -286,10 +288,18 @@ export class SetupConnection extends CommandConnection {
           .filter(
             (ev: any) =>
               (ev.type === JiraProjectConnection.CanonicalEventType ||
-                ev.type === JiraProjectConnection.LegacyCanonicalEventType) &&
+                ev.type === JiraProjectConnection.LegacyEventType) &&
               ev.content.url,
           )
-          .map((ev) => ev.content),
+          .map((ev) => {
+            try {
+              return JiraProjectConnection.validateState(ev.content);
+            } catch {
+              // If the connection failed validation, ignore it.
+              return undefined;
+            }
+          })
+          .filter((c) => !!c),
       );
 
     if (projects.length === 0) {
@@ -325,7 +335,7 @@ export class SetupConnection extends CommandConnection {
 
     const eventTypes = [
       JiraProjectConnection.CanonicalEventType,
-      JiraProjectConnection.LegacyCanonicalEventType,
+      JiraProjectConnection.LegacyEventType,
     ];
     let event = null;
     let eventType = "";
@@ -443,7 +453,15 @@ export class SetupConnection extends CommandConnection {
               ev.type === GenericHookConnection.CanonicalEventType &&
               ev.content.name,
           )
-          .map((ev) => ev.content),
+          .map((ev) => {
+            try {
+              return GenericHookConnection.validateState(ev.content);
+            } catch {
+              // If the connection failed validation, ignore it.
+              return undefined;
+            }
+          })
+          .filter((c) => !!c),
       );
 
     if (webhooks.length === 0) {
@@ -606,11 +624,16 @@ export class SetupConnection extends CommandConnection {
   @botCommand("feed", {
     help: "Bridge an RSS/Atom feed to the room.",
     requiredArgs: ["url"],
-    optionalArgs: ["label"],
+    optionalArgs: ["label", "template"],
     includeUserId: true,
     category: FeedConnection.ServiceCategory,
   })
-  public async onFeed(userId: string, url: string, label?: string) {
+  public async onFeed(
+    userId: string,
+    url: string,
+    label?: string,
+    template?: string,
+  ) {
     if (!this.config.feeds?.enabled) {
       throw new CommandError(
         "not-configured",
@@ -642,7 +665,7 @@ export class SetupConnection extends CommandConnection {
     const { connection } = await FeedConnection.provisionConnection(
       this.roomId,
       userId,
-      { url, label },
+      { url, label, template },
       this.provisionOpts,
     );
     this.pushConnections(connection);
@@ -675,7 +698,15 @@ export class SetupConnection extends CommandConnection {
             (ev: any) =>
               ev.type === FeedConnection.CanonicalEventType && ev.content.url,
           )
-          .map((ev) => ev.content),
+          .map((ev) => {
+            try {
+              return FeedConnection.validateState(ev.content);
+            } catch {
+              // If the connection failed validation, ignore it.
+              return undefined;
+            }
+          })
+          .filter((c) => !!c),
       );
 
     if (feeds.length === 0) {
@@ -713,7 +744,7 @@ export class SetupConnection extends CommandConnection {
     help: "Unsubscribe from an RSS/Atom feed.",
     requiredArgs: ["url"],
     includeUserId: true,
-    category: "feeds",
+    category: ConnectionType.Feeds,
   })
   public async onFeedRemove(userId: string, url: string) {
     await this.checkUserPermissions(
@@ -753,7 +784,7 @@ export class SetupConnection extends CommandConnection {
     help: "Bridge a ChallengeHound challenge to the room.",
     requiredArgs: ["url"],
     includeUserId: true,
-    category: "challengehound",
+    category: ConnectionType.ChallengeHound,
   })
   public async onChallengeHoundAdd(userId: string, url: string) {
     if (!this.config.challengeHound) {
@@ -853,7 +884,7 @@ export class SetupConnection extends CommandConnection {
     help: "Bridge a OpenProject project to the room.",
     requiredArgs: ["url"],
     includeUserId: true,
-    category: "openproject",
+    category: ConnectionType.OpenProject,
   })
   public async onOpenProjectAdd(userId: string, url: string) {
     if (!this.config.openProject) {
@@ -930,7 +961,7 @@ export class SetupConnection extends CommandConnection {
   }
 
   @botCommand("setup-widget", {
-    category: "widget",
+    category: Category.Widget,
     help: "Open the setup widget in the room",
   })
   public async onSetupWidget() {

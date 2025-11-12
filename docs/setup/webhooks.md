@@ -19,6 +19,8 @@ generic:
   # userIdPrefix: webhook_
 ```
 
+Inbound webhooks may also be specified [statically](../usage/static_connections.html#generic-hook-ukhalf-shotmatrix-hookshotgenerichook)
+
 ## Inbound Webhooks
 
 Hookshot supports generic webhook support so that services can send messages into Matrix rooms without being aware of the Matrix protocol. This works

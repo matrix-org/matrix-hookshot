@@ -8,14 +8,14 @@ import {
   JiraCloudProjectSearchResponse,
   JiraStoredToken,
 } from "../Types";
-import {
-  BridgeConfigJira,
-  BridgeConfigJiraCloudOAuth,
-} from "../../config/Config";
 import { Logger } from "matrix-appservice-bridge";
 import { HookshotJiraApi, JiraClient } from "../Client";
 import JiraApi from "jira-client";
 import * as qs from "node:querystring";
+import {
+  BridgeConfigJira,
+  BridgeConfigJiraCloudOAuth,
+} from "../../config/sections";
 
 const log = new Logger("JiraCloudClient");
 const ACCESSIBLE_RESOURCE_CACHE_LIMIT = 100;

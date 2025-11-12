@@ -1,1 +1,0 @@
-GitHub and GitLab webhook requests should now be directed to /github and /gitlab respectively. `/` and `/oauth` is now deprecated and will be removed in a future release.

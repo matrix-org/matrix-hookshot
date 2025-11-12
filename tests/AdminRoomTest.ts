@@ -5,6 +5,7 @@ import { ConnectionManager } from "../src/ConnectionManager";
 import { NotifFilter } from "../src/NotificationFilters";
 import { UserTokenStore } from "../src/tokens/UserTokenStore";
 import { IntentMock } from "./utils/IntentMock";
+import { ConnectionType } from "../src/Connections/type";
 
 const ROOM_ID = "!foo:bar";
 
@@ -37,10 +38,10 @@ describe("AdminRoom", () => {
     expect(intent.sentEvents[0]).to.deep.equal({
       roomId: ROOM_ID,
       content: AdminRoom.helpMessage(undefined, [
-        "Github",
-        "Gitlab",
-        "Jira",
-        "OpenProject",
+        ConnectionType.Github,
+        ConnectionType.Gitlab,
+        ConnectionType.Jira,
+        ConnectionType.OpenProject,
       ]),
     });
   });

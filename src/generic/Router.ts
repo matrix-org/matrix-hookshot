@@ -15,6 +15,7 @@ export class GenericWebhooksRouter {
     private readonly queue: MessageQueue,
     private readonly deprecatedPath = false,
     private readonly allowGet: boolean,
+    private readonly payloadSizeLimit: string | number,
   ) {}
 
   private onWebhook(
@@ -92,28 +93,32 @@ export class GenericWebhooksRouter {
       });
   }
 
-  private static xmlHandler(req: Request, res: Response, next: NextFunction) {
-    express.text({ type: ["*/xml", "+xml"] })(req, res, (err) => {
-      if (err) {
-        next(err);
-        return;
-      }
-      if (typeof req.body !== "string") {
-        next();
-        return;
-      }
-      xml
-        .parseStringPromise(req.body)
-        .then((xmlResult) => {
-          req.body = xmlResult;
+  private xmlHandler = (req: Request, res: Response, next: NextFunction) => {
+    express.text({ type: ["*/xml", "+xml"], limit: this.payloadSizeLimit })(
+      req,
+      res,
+      (err: any) => {
+        if (err) {
+          next(err);
+          return;
+        }
+        if (typeof req.body !== "string") {
           next();
-        })
-        .catch((e) => {
-          res.statusCode = 400;
-          next(e);
-        });
-    });
-  }
+          return;
+        }
+        xml
+          .parseStringPromise(req.body)
+          .then((xmlResult) => {
+            req.body = xmlResult;
+            next();
+          })
+          .catch((e) => {
+            res.statusCode = 400;
+            next(e);
+          });
+      },
+    );
+  };
 
   public getRouter() {
     const router = Router();
@@ -130,10 +135,10 @@ export class GenericWebhooksRouter {
         xFrameOptions: { action: "deny" },
         crossOriginResourcePolicy: { policy: "same-site" },
       }),
-      GenericWebhooksRouter.xmlHandler,
-      express.urlencoded({ extended: false }),
-      express.json(),
-      express.text({ type: "text/*" }),
+      this.xmlHandler,
+      express.urlencoded({ extended: false, limit: this.payloadSizeLimit }),
+      express.json({ limit: this.payloadSizeLimit }),
+      express.text({ type: "text/*", limit: this.payloadSizeLimit }),
       this.onWebhook.bind(this),
     );
     return router;

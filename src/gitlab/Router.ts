@@ -2,7 +2,6 @@ import { Request, Response, Router, json } from "express";
 import { MessageQueue } from "../messageQueue";
 import { ApiError, ErrCode } from "../api";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgeConfigGitLab } from "../config/Config";
 import {
   IGitLabWebhookEvent,
   IGitLabWebhookIssueStateEvent,
@@ -10,6 +9,7 @@ import {
   IGitLabWebhookPipelineEvent,
   IGitLabWebhookReleaseEvent,
 } from "./WebhookTypes";
+import { BridgeConfigGitLab } from "../config/sections";
 
 const log = new Logger("GitLabWebhooksRouter");
 export interface OAuthPageParams {

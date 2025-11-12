@@ -10,6 +10,7 @@ import { GetConnectionsResponseItem } from "../widgets/Api";
 import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
+import { ConnectionType } from "./type";
 const log = new Logger("FeedConnection");
 const md = new markdown({
   html: true,
@@ -56,7 +57,7 @@ const DEFAULT_TEMPLATE_WITH_ONLY_TITLE = "New post in $FEEDNAME: $TITLE";
 export class FeedConnection extends BaseConnection implements IConnection {
   static readonly CanonicalEventType = "uk.half-shot.matrix-hookshot.feed";
   static readonly EventTypes = [FeedConnection.CanonicalEventType];
-  static readonly ServiceCategory = "feeds";
+  static readonly ServiceCategory = ConnectionType.Feeds;
 
   public static createConnectionForState(
     roomId: string,
@@ -339,7 +340,6 @@ export class FeedConnection extends BaseConnection implements IConnection {
     this.state = validatedConfig;
   }
 
-  // needed to ensure that the connection is removable
   public async onRemove(): Promise<void> {
     log.info(`Removing connection ${this.connectionId}`);
     await this.intent.underlyingClient.sendStateEvent(
@@ -348,6 +348,18 @@ export class FeedConnection extends BaseConnection implements IConnection {
       this.feedUrl,
       {},
     );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      FeedConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   toString(): string {

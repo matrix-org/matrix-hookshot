@@ -118,13 +118,14 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
   },
   generic: {
     allowJsTransformationFunctions: false,
-    enabled: false,
+    enabled: true,
     enableHttpGet: false,
     urlPrefix: `${hookshotWebhooksUrl}/webhook/`,
     userIdPrefix: "_webhooks_",
     waitForComplete: false,
     maxExpiryTime: "30d",
     sendExpiryNotice: false,
+    payloadSizeLimit: "1mb",
   },
   figma: {
     publicUrl: `${hookshotWebhooksUrl}/hookshot/`,
@@ -169,6 +170,16 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
   encryption: {
     storagePath: "./cryptostore",
   },
+  connections: [
+    {
+      connectionType: "uk.half-shot.matrix-hookshot.generic.hook",
+      stateKey: "any-unique-id",
+      roomId: "!any-room-id:example.org",
+      state: {
+        name: "My static hook",
+      },
+    },
+  ],
 };
 
 export const DefaultConfig = new BridgeConfig(DefaultConfigRoot);

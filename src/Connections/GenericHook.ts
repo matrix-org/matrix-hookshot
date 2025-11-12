@@ -11,7 +11,7 @@ import markdownit from "markdown-it";
 import { MatrixEvent } from "../MatrixEvent";
 import { Appservice, Intent, StateEvent, UserID } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
-import { BaseConnection } from "./BaseConnection";
+import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from "node:crypto";
@@ -25,6 +25,7 @@ import {
   WebhookTransformer,
 } from "../generic/WebhookTransformer";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { ConnectionType } from "./type";
 
 export interface GenericHookConnectionState extends IConnectionState {
   /**
@@ -98,6 +99,10 @@ const SANITIZE_MAX_BREADTH = 50;
 const WARN_AT_EXPIRY_MS = 3 * 24 * 60 * 60 * 1000;
 const MIN_EXPIRY_MS = 60 * 60 * 1000;
 const CHECK_EXPIRY_MS = 15 * 60 * 1000;
+
+// This is a bit lower than the max size an event can be in Matrix.
+// > The complete event MUST NOT be larger than 65536 bytes, when formatted with the federation event format, including any signatures, and encoded as Canonical JSON.
+const MAX_EVENT_SIZE_BYTES = 65536 - 4 * 1024;
 
 const EXPIRY_NOTICE_MESSAGE =
   "The webhook **%NAME** will be expiring in %TIME.";
@@ -236,38 +241,52 @@ export class GenericHookConnection
   static async createConnectionForState(
     roomId: string,
     event: StateEvent<Record<string, unknown>>,
-    { as, intent, config, messageClient, storage }: InstantiateConnectionOpts,
+    {
+      as,
+      intent,
+      config,
+      messageClient,
+      storage,
+      isStatic,
+    }: InstantiateConnectionOpts,
   ) {
-    if (!config.generic) {
+    if (!config.generic?.enabled) {
       throw Error("Generic webhooks are not configured");
     }
-    // Generic hooks store the hookId in the account data
-    const acctData =
-      await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
-        GenericHookConnection.CanonicalEventType,
-        roomId,
-        {},
-      );
     const state = this.validateState(event.content);
-    // hookId => stateKey
-    let hookId = Object.entries(acctData).find(
-      ([, v]) => v === event.stateKey,
-    )?.[0];
-    if (!hookId) {
-      hookId = randomUUID();
-      log.warn(
-        `hookId for ${roomId} not set in accountData, setting to ${hookId}`,
-      );
-      // If this is a new hook...
-      if (config.generic.requireExpiryTime && !state.expirationDate) {
-        throw new Error("Expiration date must be set");
+    let hookId;
+    if (!isStatic) {
+      // Generic hooks store the hookId in the account data
+      const acctData =
+        await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
+          GenericHookConnection.CanonicalEventType,
+          roomId,
+          {},
+        );
+      // hookId => stateKey
+      hookId = Object.entries(acctData).find(
+        ([, v]) => v === event.stateKey,
+      )?.[0];
+      if (!hookId) {
+        hookId = randomUUID();
+        log.warn(
+          `hookId for ${roomId} not set in accountData, setting to ${hookId}`,
+        );
+        // If this is a new hook...
+        if (config.generic.requireExpiryTime && !state.expirationDate) {
+          throw new Error("Expiration date must be set");
+        }
+        await GenericHookConnection.ensureRoomAccountData(
+          roomId,
+          intent,
+          hookId,
+          event.stateKey,
+        );
       }
-      await GenericHookConnection.ensureRoomAccountData(
-        roomId,
-        intent,
-        hookId,
-        event.stateKey,
-      );
+    } else {
+      // Static connections define their own hookId
+      // This is DANGEROUS if this was a user-defined connection, but we allow it because the administator set it.
+      hookId = event.stateKey;
     }
 
     return new GenericHookConnection(
@@ -280,6 +299,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      isStatic ?? false,
     );
   }
 
@@ -289,7 +309,7 @@ export class GenericHookConnection
     data: Partial<Record<keyof GenericHookConnectionState, unknown>> = {},
     { as, intent, config, messageClient, storage }: ProvisionConnectionOpts,
   ) {
-    if (!config.generic) {
+    if (!config.generic?.enabled) {
       throw Error("Generic Webhooks are not configured");
     }
     const hookId = randomUUID();
@@ -345,6 +365,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      false,
     );
     return {
       connection,
@@ -388,13 +409,13 @@ export class GenericHookConnection
 
   static readonly CanonicalEventType =
     "uk.half-shot.matrix-hookshot.generic.hook";
-  static readonly LegacyCanonicalEventType =
-    "uk.half-shot.matrix-github.generic.hook";
-  static readonly ServiceCategory = "generic";
+  static readonly LegacyEventType = "uk.half-shot.matrix-github.generic.hook";
+  static readonly ServiceCategory = ConnectionType.Generic;
+  static readonly SupportsStaticConfiguration = true;
 
   static readonly EventTypes = [
     GenericHookConnection.CanonicalEventType,
-    GenericHookConnection.LegacyCanonicalEventType,
+    GenericHookConnection.LegacyEventType,
   ];
 
   private webhookTransformer?: WebhookTransformer;
@@ -414,6 +435,7 @@ export class GenericHookConnection
     private readonly as: Appservice,
     private readonly intent: Intent,
     private readonly storage: IBridgeStorageProvider,
+    public readonly isStatic = false,
   ) {
     super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
     if (state.transformationFunction && WebhookTransformer.canTransform) {
@@ -652,22 +674,46 @@ export class GenericHookConnection
       );
 
       // Matrix cannot handle float data, so make sure we parse out any floats.
-      const safeData =
+      let safeData =
         (this.state.includeHookBody ?? this.config.includeHookBody)
           ? GenericHookConnection.sanitiseObjectForMatrixJSON(data)
           : undefined;
+
+      // render can output redundant trailing newlines, so trim it.
+      content.html = content.html || md.render(content.plain).trim();
+
+      while (
+        content.plain.length +
+          (content.html ?? "").length +
+          (safeData ? JSON.stringify(safeData) : "").length >
+        MAX_EVENT_SIZE_BYTES
+      ) {
+        // We're oversize, so start trimming the event down.
+        if (safeData) {
+          // Start by trimming down the webhook data
+          safeData = undefined;
+          continue;
+        }
+        if (content.html) {
+          // Then remove the HTML
+          content.html = undefined;
+          continue;
+        }
+        // Finally, trim right down. Ensure we account for double width.
+        content.plain = content.plain.slice(0, MAX_EVENT_SIZE_BYTES / 2) + "…";
+        break;
+      }
 
       await this.messageClient.sendMatrixMessage(
         this.roomId,
         {
           msgtype: content.msgtype || "m.notice",
           body: content.plain,
-          // render can output redundant trailing newlines, so trim it.
-          formatted_body: content.html || md.render(content.plain).trim(),
+          ...(content.html ? { formatted_body: content.html } : undefined),
           ...(content.mentions
             ? { "m.mentions": content.mentions }
             : undefined),
-          format: "org.matrix.custom.html",
+          ...(content.html ? { format: "org.matrix.custom.html" } : undefined),
           ...(safeData
             ? { "uk.half-shot.hookshot.webhook_data": safeData }
             : undefined),
@@ -718,34 +764,21 @@ export class GenericHookConnection
   }
 
   public async onRemove() {
-    log.info(`Removing ${this.toString()} for ${this.roomId}`);
-    clearInterval(this.warnOnExpiryInterval);
-    // Do a sanity check that the event exists.
-    try {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GenericHookConnection.CanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GenericHookConnection.CanonicalEventType,
-        this.stateKey,
-        { disabled: true },
-      );
-    } catch (ex) {
-      await this.intent.underlyingClient.getRoomStateEvent(
-        this.roomId,
-        GenericHookConnection.LegacyCanonicalEventType,
-        this.stateKey,
-      );
-      await this.intent.underlyingClient.sendStateEvent(
-        this.roomId,
-        GenericHookConnection.LegacyCanonicalEventType,
-        this.stateKey,
-        { disabled: true },
+    if (this.isStatic) {
+      // Static connections cannot be migrated.
+      throw new ApiError(
+        "Static connections cannot be removed",
+        ErrCode.UnsupportedOperation,
       );
     }
+    log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    clearInterval(this.warnOnExpiryInterval);
+    await removeConnectionState(
+      this.intent.underlyingClient,
+      this.roomId,
+      this.stateKey,
+      GenericHookConnection,
+    );
     await GenericHookConnection.ensureRoomAccountData(
       this.roomId,
       this.intent,
@@ -759,6 +792,13 @@ export class GenericHookConnection
     _userId: string,
     config: Record<keyof GenericHookConnectionState, unknown>,
   ) {
+    if (this.isStatic) {
+      // Static connections cannot be migrated.
+      throw new ApiError(
+        "Static connections cannot be updated",
+        ErrCode.UnsupportedOperation,
+      );
+    }
     // Apply previous state to the current config, as provisioners might not return "unknown" keys.
     config.expirationDate = config.expirationDate ?? undefined;
     config = { ...this.state, ...config };
@@ -815,6 +855,25 @@ export class GenericHookConnection
       this.getUserId(),
     );
     await this.storage.setHasGenericHookWarnedExpiry(this.hookId, true);
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    // Carry across account data first
+    await GenericHookConnection.ensureRoomAccountData(
+      newRoomId,
+      this.intent,
+      this.hookId,
+      this.stateKey,
+    );
+    // Copy across state
+    await this.intent.underlyingClient.sendStateEvent(
+      newRoomId,
+      GenericHookConnection.CanonicalEventType,
+      this.stateKey,
+      this.state,
+    );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public toString() {

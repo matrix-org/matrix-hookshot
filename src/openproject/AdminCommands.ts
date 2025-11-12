@@ -1,14 +1,15 @@
-import { AdminRoomCommandHandler, Category } from "../AdminRoomCommandHandler";
+import { AdminRoomCommandHandler } from "../AdminRoomCommandHandler";
 import { botCommand } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
 import { BridgePermissionLevel } from "../config/Config";
+import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("OpenProjectBotCommands");
 
 export class OpenProjectBotCommands extends AdminRoomCommandHandler {
   @botCommand("openproject login", {
     help: "Log in to OpenProject",
-    category: Category.OpenProject,
+    category: ConnectionType.OpenProject,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async loginCommand() {
@@ -23,7 +24,7 @@ export class OpenProjectBotCommands extends AdminRoomCommandHandler {
 
   @botCommand("openproject logout", {
     help: "Log out of OpenProject",
-    category: Category.OpenProject,
+    category: ConnectionType.OpenProject,
     permissionLevel: BridgePermissionLevel.login,
   })
   public async logoutCommand() {

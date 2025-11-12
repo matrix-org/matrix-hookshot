@@ -32,6 +32,8 @@ import { workPackageToCacheState } from "../openproject/State";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { CommandError, NotLoggedInError } from "../Errors";
+import { removeConnectionState } from "./BaseConnection";
+import { ConnectionType } from "./type";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -146,7 +148,7 @@ export class OpenProjectConnection
     "org.matrix.matrix-hookshot.openproject.project";
 
   static readonly EventTypes = [OpenProjectConnection.CanonicalEventType];
-  static readonly ServiceCategory = "openproject";
+  static readonly ServiceCategory = ConnectionType.OpenProject;
   static botCommands: BotCommands;
   static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
@@ -863,17 +865,27 @@ export class OpenProjectConnection
       url: this.state.url,
     });
     // Do a sanity check that the event exists.
-    await this.intent.underlyingClient.getRoomStateEvent(
+    await removeConnectionState(
+      this.intent.underlyingClient,
       this.roomId,
-      OpenProjectConnection.CanonicalEventType,
       this.stateKey,
+      OpenProjectConnection,
     );
+  }
+
+  public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    await this.grantChecker.grantConnection(this.roomId, {
+      url: this.state.url,
+    });
+    // Copy across state
     await this.intent.underlyingClient.sendStateEvent(
-      this.roomId,
+      newRoomId,
       OpenProjectConnection.CanonicalEventType,
       this.stateKey,
-      { disabled: true },
+      this.state,
     );
+    // And finally, delete this connection
+    await this.onRemove();
   }
 
   public async provisionerUpdateConfig(

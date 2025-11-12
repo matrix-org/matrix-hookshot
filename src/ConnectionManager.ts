@@ -2,13 +2,15 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
-import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
-import { ApiError, ErrCode } from "./api";
 import {
-  BridgeConfig,
-  BridgePermissionLevel,
-  GitLabInstance,
-} from "./config/Config";
+  Appservice,
+  Intent,
+  MatrixError,
+  PowerLevelsEvent,
+  StateEvent,
+} from "matrix-bot-sdk";
+import { ApiError, ErrCode } from "./api";
+import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
 import { CommentProcessor } from "./CommentProcessor";
 import {
   ConnectionDeclaration,
@@ -35,12 +37,13 @@ import { JiraProject, JiraVersion } from "./jira/Types";
 import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "./MatrixSender";
 import { UserTokenStore } from "./tokens/UserTokenStore";
-import BotUsersManager from "./managers/BotUsersManager";
+import BotUsersManager, { BotUser } from "./managers/BotUsersManager";
 import { retry, retryMatrixErrorFilter } from "./PromiseUtil";
 import Metrics from "./Metrics";
 import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
+import { GitLabInstance } from "./config/sections";
 
 const log = new Logger("ConnectionManager");
 
@@ -53,6 +56,7 @@ export class ConnectionManager extends EventEmitter {
     string,
     GetConnectionTypeResponseItem
   > = {};
+  private readonly pendingRoomUpgrades = new Set<string>(); // newRoomId
 
   public get size() {
     return this.connections.length;
@@ -264,16 +268,18 @@ export class ConnectionManager extends EventEmitter {
   }
 
   /**
-   * This is called ONLY when we spot new state in a room and want to create a connection for it.
-   * @param roomId
-   * @param state
-   * @param rollbackBadState
+   * This is called when we spot new state in a room and want to create a connection for it.
+   * @param roomId The room where the connection is being created.
+   * @param state The state event for the connection.
+   * @param rollbackBadState If we can't create a connection, should the state be "rolled back"?
+   * @param isStatic Is the connection coming from the config, and therefore immutable?
    * @returns
    */
   public async createConnectionForState(
     roomId: string,
     state: StateEvent<any>,
     rollbackBadState: boolean,
+    isStatic = false,
   ): Promise<IConnection | undefined> {
     // Empty object == redacted
     if (
@@ -307,7 +313,9 @@ export class ConnectionManager extends EventEmitter {
       throw Error("Could not find a bot to handle this connection");
     }
 
+    // Don't verify a static connection.
     if (
+      !isStatic &&
       !this.verifyStateEvent(
         roomId,
         botUser.intent,
@@ -332,10 +340,13 @@ export class ConnectionManager extends EventEmitter {
           messageClient: this.messageClient,
           storage: this.storage,
           github: this.github,
+          isStatic,
         },
       );
-      // Finally, ensure the connection is allowed by us.
-      await connection.ensureGrant?.(state.sender);
+      if (!isStatic) {
+        // Finally, ensure the connection is allowed by us.
+        await connection.ensureGrant?.(state.sender);
+      }
       return connection;
     } catch (ex) {
       log.error(
@@ -365,6 +376,21 @@ export class ConnectionManager extends EventEmitter {
       return;
     }
 
+    // If the room has a tombstone, we never create connections inside of it.
+    try {
+      await botUser.intent.underlyingClient.getRoomStateEventContent(
+        roomId,
+        "m.room.tombstone",
+        "",
+      );
+      return;
+    } catch (ex) {
+      if (ex instanceof MatrixError === false || ex.errcode !== "M_NOT_FOUND") {
+        throw ex;
+      }
+      // No tombstone, so room is valid.
+    }
+
     // This endpoint can be heavy, wrap it in pillows.
     const state = await retry(
       () => botUser.intent.underlyingClient.getRoomState(roomId),
@@ -386,6 +412,36 @@ export class ConnectionManager extends EventEmitter {
         }
       } catch (ex) {
         log.error(`Failed to create connection for ${roomId}:`, ex);
+      }
+    }
+
+    // Create static connections
+    for (const staticConfig of this.config.connections.filter(
+      (c) => c.roomId === roomId,
+    )) {
+      try {
+        const conn = await this.createConnectionForState(
+          roomId,
+          new StateEvent({
+            room_id: roomId,
+            type: staticConfig.connectionType,
+            state_key: staticConfig.stateKey,
+            content: staticConfig.state,
+          }),
+          false,
+          true,
+        );
+        if (conn) {
+          log.debug(
+            `Room ${roomId} is connected to: ${conn} (via static config)`,
+          );
+          this.push(conn);
+        }
+      } catch (ex) {
+        log.error(
+          `Failed to create connection for ${roomId} (via static config):`,
+          ex,
+        );
       }
     }
   }
@@ -774,5 +830,101 @@ export class ConnectionManager extends EventEmitter {
       );
     }
     return configObject;
+  }
+
+  // Room Upgrades
+  public async onTombstoneEvent(currentRoomId: string, newRoomId: string) {
+    log.info(
+      `Checking whether room upgrade can progress ${currentRoomId} -> ${newRoomId}`,
+    );
+    this.pendingRoomUpgrades.add(newRoomId);
+
+    for (const botUser of this.botUsersManager.getBotUsersInRoom(
+      currentRoomId,
+    )) {
+      // Ensure all the bots from the old room join the new one
+      try {
+        log.debug(`Trying to join ${botUser.userId} to ${newRoomId}`);
+        await botUser.intent.joinRoom(newRoomId);
+      } catch (ex) {
+        // May just be because we're too quick
+        log.debug(`Failed to join ${botUser.userId} to ${newRoomId}`, ex);
+      }
+    }
+
+    // Run check asynchronously
+    void this.checkAndMigrateUpgradedRoom(newRoomId);
+  }
+
+  public checkAndMigrateIfPendingUpgrade(
+    newRoomId: string,
+    eventTypeToLog: string,
+  ) {
+    if (this.pendingRoomUpgrades.has(newRoomId)) {
+      log.debug(`Got ${eventTypeToLog} event for upgraded room ${newRoomId}`);
+      // Run check asynchronously
+      void this.checkAndMigrateUpgradedRoom(newRoomId);
+    }
+  }
+
+  private async checkAndMigrateUpgradedRoom(newRoomId: string) {
+    // Remove the room from the set while we process it to prevent concurrent attempts.
+    this.pendingRoomUpgrades.delete(newRoomId);
+    let bot: BotUser | undefined;
+    let oldRoomId: string | undefined;
+    try {
+      // NOTE: We just care about having *any* bot in the room, rather than the specific
+      // service bot. We just need one bot that can send the appropriate state.
+      bot = this.botUsersManager.getBotUserInRoom(newRoomId);
+      if (!bot) {
+        log.debug("Bot not in room yet, not performing any actions");
+        this.pendingRoomUpgrades.add(newRoomId);
+        return;
+      }
+      const hasPowerlevel =
+        await bot.intent.underlyingClient.userHasPowerLevelFor(
+          bot.intent.userId,
+          newRoomId,
+          "im.vector.modular.widgets",
+          true,
+        );
+
+      if (!hasPowerlevel) {
+        log.debug("Bot does not have power in the upgraded room, skipping");
+        this.pendingRoomUpgrades.add(newRoomId);
+        return;
+      }
+      const createEvent =
+        await bot.intent.underlyingClient.getRoomCreateEvent(newRoomId);
+      oldRoomId = createEvent.content.predecessor?.room_id;
+      if (!oldRoomId) {
+        log.error(
+          "Upgraded room has no predecessor, which means the upgrade is invalid. Ignoring upgrade!",
+        );
+        return;
+      }
+    } catch (ex) {
+      // We hit an unexpected failure, so add back to the set.
+      this.pendingRoomUpgrades.add(newRoomId);
+      throw ex;
+    }
+    log.info("New room is ready for upgrade!", newRoomId);
+    for (const connection of this.getAllConnectionsForRoom(oldRoomId)) {
+      if (connection.isStatic) {
+        // Static connections cannot be migrated.
+        continue;
+      }
+      if (connection.migrateToNewRoom) {
+        await connection.migrateToNewRoom(newRoomId);
+        log.warn(`Connection ${connection.toString()} migrated`);
+      } else {
+        log.warn(`Connection type ${newRoomId} does not support migration`);
+      }
+    }
+    log.info(
+      "New room fully migrated, removing connections from old room",
+      oldRoomId,
+    );
+    await this.removeConnectionsForRoom(oldRoomId);
   }
 }

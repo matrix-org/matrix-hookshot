@@ -1,8 +1,4 @@
-import {
-  E2ESetupTestTimeout,
-  E2ETestEnv,
-  E2ETestMatrixClient,
-} from "./util/e2e-test";
+import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
 import {
   describe,
   test,
@@ -13,47 +9,8 @@ import {
   vitest,
 } from "vitest";
 import { GenericHookConnection } from "../src/Connections";
-import { TextualMessageEventContent } from "matrix-bot-sdk";
 import { add } from "date-fns/add";
-
-async function createInboundConnection(
-  user: E2ETestMatrixClient,
-  botMxid: string,
-  roomId: string,
-  duration?: string,
-) {
-  const join = user.waitForRoomJoin({ sender: botMxid, roomId });
-  const connectionEvent = user.waitForRoomEvent({
-    eventType: GenericHookConnection.CanonicalEventType,
-    stateKey: "test",
-    sender: botMxid,
-  });
-  await user.inviteUser(botMxid, roomId);
-  await user.setUserPowerLevel(botMxid, roomId, 50);
-  await join;
-
-  // Note: Here we create the DM proactively so this works across multiple
-  // tests.
-  // Get the DM room so we can get the token.
-  const dmRoomId = await user.dms.getOrCreateDm(botMxid);
-
-  await user.sendText(
-    roomId,
-    "!hookshot webhook test" + (duration ? ` ${duration}` : ""),
-  );
-  // Test the contents of this.
-  await connectionEvent;
-
-  const msgPromise = user.waitForRoomEvent({
-    sender: botMxid,
-    eventType: "m.room.message",
-    roomId: dmRoomId,
-  });
-  const { data: msgData } = await msgPromise;
-  const msgContent = msgData.content as unknown as TextualMessageEventContent;
-  const [_unused1, _unused2, url] = msgContent.body.split("\n");
-  return url;
-}
+import { createInboundConnection } from "./util/helpers";
 
 describe("Inbound (Generic) Webhooks", () => {
   let testEnv: E2ETestEnv;
@@ -68,6 +25,7 @@ describe("Inbound (Generic) Webhooks", () => {
           // Prefer to wait for complete as it reduces the concurrency of the test.
           waitForComplete: true,
           urlPrefix: `http://localhost:${webhooksPort}`,
+          payloadSizeLimit: "10mb",
         },
         listeners: [
           {
@@ -211,6 +169,39 @@ describe("Inbound (Generic) Webhooks", () => {
     expect(await req.json()).toEqual({ ok: true });
     expect(
       (await expectedMsg).data.content["uk.half-shot.hookshot.webhook_data"],
+    ).toBeUndefined();
+  });
+
+  test("should handle an incoming request with a larger body", async () => {
+    const user = testEnv.getUser("user");
+    const roomId = await user.createRoom({ name: "My Test Webhooks room" });
+    const okMsg = user.waitForRoomEvent({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    const url = await createInboundConnection(user, testEnv.botMxid, roomId);
+    expect((await okMsg).data.content.body).toEqual(
+      "Room configured to bridge webhooks. See admin room for secret url.",
+    );
+
+    const expectedMsg = user.waitForRoomEvent({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    const body = Array.from({ length: 1024 * 1024 * 10 }).join("a");
+    const req = await fetch(url, {
+      method: "PUT",
+      body: body,
+    });
+    expect(req.status).toEqual(200);
+    expect(await req.json()).toEqual({ ok: true });
+    const resultMsg = await expectedMsg;
+    expect(resultMsg.data.content.body).toBeDefined();
+    expect(resultMsg.data.content.formatted_body).toBeUndefined();
+    expect(
+      resultMsg.data.content["uk.half-shot.hookshot.webhook_data"],
     ).toBeUndefined();
   });
 });

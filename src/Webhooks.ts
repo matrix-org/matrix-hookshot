@@ -56,13 +56,14 @@ export class Webhooks extends EventEmitter {
         new FigmaWebhooksRouter(this.config.figma, this.queue).getRouter(),
       );
     }
-    if (this.config.generic) {
+    if (this.config.generic?.enabled) {
       this.expressRouter.use(
         "/webhook",
         new GenericWebhooksRouter(
           this.queue,
           false,
           this.config.generic.enableHttpGet,
+          this.config.generic.payloadSizeLimit,
         ).getRouter(),
       );
       // TODO: Remove old deprecated endpoint
@@ -71,6 +72,7 @@ export class Webhooks extends EventEmitter {
           this.queue,
           true,
           this.config.generic.enableHttpGet,
+          this.config.generic.payloadSizeLimit,
         ).getRouter(),
       );
     }

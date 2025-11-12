@@ -5,6 +5,7 @@ import {
   Appservice,
   Intent,
   IRichReplyMetadata,
+  RoomEvent,
   StateEvent,
 } from "matrix-bot-sdk";
 import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
@@ -14,6 +15,8 @@ import { MessageSenderClient } from "../MatrixSender";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import "reflect-metadata";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { ConnectionType } from "./type";
 
 export type PermissionCheckFn = (
   service: string,
@@ -32,6 +35,11 @@ export interface IConnection {
   roomId: string;
 
   priority: number;
+
+  /**
+   * If true, the connection cannot be altered in any way.
+   */
+  isStatic?: boolean;
 
   /**
    * Ensures that the current state loaded into the connection has been granted by
@@ -66,7 +74,7 @@ export interface IConnection {
   onMessageEvent?: (
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
-    parentEvent?: MatrixEvent<unknown>,
+    parentEvent?: RoomEvent<IJsonType>,
   ) => Promise<boolean>;
 
   onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
@@ -76,6 +84,12 @@ export interface IConnection {
   onIssueEdited?: (event: IssuesEditedEvent) => Promise<void>;
 
   isInterestedInStateEvent: (eventType: string, stateKey: string) => boolean;
+
+  /**
+   * The room is being migrated, and this state should be migrated away.
+   * @param newRoomId
+   */
+  migrateToNewRoom?(newRoomId: string): Promise<void>;
 
   /**
    * The details to be sent to the provisioner when requested about this connection.
@@ -103,9 +117,13 @@ export interface IConnection {
   conflictsWithCommandPrefix?: (commandPrefix: string) => boolean;
 }
 
-export interface ConnectionDeclaration<C extends IConnection = IConnection> {
+export type ConnectionDeclaration<C extends IConnection = IConnection> =
+  | ConnectionDeclarationBase<C>
+  | ConnectionDeclarationWithStatic<C>;
+
+interface ConnectionDeclarationBase<C extends IConnection = IConnection> {
   EventTypes: string[];
-  ServiceCategory: string;
+  ServiceCategory: ConnectionType;
   provisionConnection?: (
     roomId: string,
     userId: string,
@@ -119,6 +137,12 @@ export interface ConnectionDeclaration<C extends IConnection = IConnection> {
   ) => C | Promise<C>;
 }
 
+interface ConnectionDeclarationWithStatic<C extends IConnection = IConnection>
+  extends ConnectionDeclarationBase<C> {
+  SupportsStaticConfiguration: true;
+  validateState: (data: Record<string, unknown>) => void;
+}
+
 export const ConnectionDeclarations: Array<ConnectionDeclaration> = [];
 
 export interface InstantiateConnectionOpts {
@@ -130,6 +154,7 @@ export interface InstantiateConnectionOpts {
   messageClient: MessageSenderClient;
   storage: IBridgeStorageProvider;
   github?: GithubInstance;
+  isStatic?: boolean;
 }
 export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
   getAllConnectionsOfType<T extends IConnection>(
