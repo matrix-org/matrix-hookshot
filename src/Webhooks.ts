@@ -36,6 +36,8 @@ export class Webhooks extends EventEmitter {
         this.config.widgets?.parsedPublicUrl,
       );
       this.expressRouter.use("/github", this.github.getRouter());
+      // LEGACY PATH - Will be removed in a future release.
+      this.expressRouter.get("/oauth", this.github.onGetOAuth.bind(this.github));
     }
 
     if (this.config.gitlab) {
@@ -94,9 +96,6 @@ export class Webhooks extends EventEmitter {
 
     // LEGACY PATHS. These will be removed in a future version.
     this.expressRouter.post("/", this.onPayload.bind(this));
-    if (this.github) {
-      this.expressRouter.get("/oauth", this.github.onGetOAuth.bind(this));
-    }
   }
 
   public stop() {
