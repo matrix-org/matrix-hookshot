@@ -43,6 +43,11 @@ describe("GitHub", () => {
           webhook: {
             secret: randomUUID(),
           },
+          oauth: {
+            client_id: "GITHUB_ID",
+            client_secret: "GITHUB_SECRET",
+            redirect_uri: "http://example.org/redirectme",
+          },
           // So we can mock out the URL
           enterpriseUrl: `http://localhost:${githubPort}`,
           auth: {
@@ -166,6 +171,16 @@ describe("GitHub", () => {
       expect(body).toContain("**alice** opened a new PR");
       expect(body).toContain("https://github.com/my-org/my-repo/pulls/1");
       expect(body).toContain("My test pull request");
+    },
+  );
+
+  test.each(["/oauth", "/github/oauth"])(
+    "should redirect invalid oauth requests to oauth.html",
+    async (path) => {
+      // This simply tests that oauth requests do not end up being ignored.
+      const req = await fetch(`http://localhost:${webhooksPort}${path}`);
+      expect(req.url.startsWith(`http://localhost:${webhooksPort}/oauth.html`))
+        .to.be.true;
     },
   );
 });

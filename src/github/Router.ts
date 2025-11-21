@@ -174,13 +174,13 @@ export class GitHubWebhooksRouter {
 
     const { setup_action: setupAction, state } = req.query;
     log.info("Got new oauth request", { state, setupAction });
+    if (!this.config.oauth) {
+      throw new ApiError(
+        "Bridge is not configured with OAuth support",
+        ErrCode.DisabledFeature,
+      );
+    }
     try {
-      if (!this.config.oauth) {
-        throw new ApiError(
-          "Bridge is not configured with OAuth support",
-          ErrCode.DisabledFeature,
-        );
-      }
       if (req.query.error) {
         throw new ApiError(
           `GitHub Error: ${req.query.error} ${req.query.error_description}`,
@@ -291,9 +291,9 @@ export class GitHubWebhooksRouter {
 
   public getRouter() {
     const router = Router();
+    router.get("/oauth", this.onGetOAuth.bind(this));
     router.use(json({ verify: this.verifyRequest.bind(this) }));
     router.post("/webhook", this.onWebhook.bind(this));
-    router.get("/oauth", this.onGetOAuth.bind(this));
     return router;
   }
 }
