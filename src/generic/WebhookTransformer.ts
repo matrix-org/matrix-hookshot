@@ -11,6 +11,14 @@ interface Mentions {
   room?: boolean;
 }
 
+interface RelatesTo {
+  event_id?: string;
+  is_falling_back?: boolean;
+  key?: string;
+  "m.in_reply_to"?: { event_id?: string };
+  rel_type?: string;
+}
+
 interface FunctionResultObject {
   version: string;
   plain?: string;
@@ -32,6 +40,7 @@ export interface ExecuteResultContent {
   html?: string;
   msgtype?: string;
   mentions?: Mentions;
+  relates_to?: RelatesTo;
 }
 
 export interface ExecuteResult {
