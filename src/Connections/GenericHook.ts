@@ -23,6 +23,7 @@ import {
   ExecuteResultContent,
   ExecuteResultWebhookResponse,
   WebhookTransformer,
+  RelatesTo,
 } from "../generic/WebhookTransformer";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { ConnectionType } from "./type";
@@ -591,9 +592,9 @@ export class GenericHookConnection
     }
   }
 
-  public transformHookData(data: unknown): { plain: string; html?: string } {
+  public transformHookData(data: unknown): { plain: string; html?: string, relates_to?: RelatesTo } {
     // Supported parameters https://developers.mattermost.com/integrate/incoming-webhooks/#parameters
-    const msg: { plain: string; html?: string } = { plain: "" };
+    const msg: { plain: string; html?: string, relates_to?: RelatesTo } = { plain: "" };
     const safeData =
       typeof data === "object" && data !== null
         ? (data as Record<string, unknown>)
@@ -619,6 +620,10 @@ export class GenericHookConnection
       if (msg.html) {
         msg.html = `<strong>${safeData.username}</strong>: ${msg.html}`;
       }
+    }
+
+    if (typeof safeData?.relates_to  === "object") {
+      msg.relates_to = safeData?.relates_to;
     }
     // TODO: Transform Slackdown into markdown.
     return msg;
