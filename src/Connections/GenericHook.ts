@@ -623,7 +623,7 @@ export class GenericHookConnection
     }
 
     if (typeof safeData?.relates_to  === "object") {
-      msg.relates_to = safeData.relates_to;
+      msg.relates_to = safeData.relates_to ?? undefined;
     }
     // TODO: Transform Slackdown into markdown.
     return msg;
