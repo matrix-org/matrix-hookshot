@@ -43,10 +43,8 @@ containers:
 {{- toYaml .Values.containerSecurityContext | nindent 6 }}
 {{- end }}
     volumeMounts:
-{{- if or (and (not .Values.hookshot.existingConfigMap) (.Values.hookshot.config)) (.Values.hookshot.existingConfigMap) }}
       - name: config
         mountPath: "/data"
-{{- end }}
     ports:
       - name: webhook
         containerPort: 9000
@@ -58,7 +56,7 @@ containers:
         containerPort: 9002
         protocol: TCP
     env:
-      
+
     envFrom:
     {{- if .Values.envFromSecret }}
       - secretRef:
@@ -109,8 +107,14 @@ tolerations:
 {{- end }}
 volumes:
   - name: config
-    configMap:
-      name: {{ template "hookshot.configMapName" . }}
+    projected:
+      sources:
+        configMap:
+          name: {{ template "hookshot.configMapName" . }}
+        secret:
+          secretName: {{ template "hookshot.registrationSecretName" . }}
+        secret:
+          secretName: {{ template "hookshot.passkeySecretName" . }}
 {{- $root := . }}
 {{- range .Values.extraConfigmapMounts }}
   - name: {{ tpl .name $root }}
