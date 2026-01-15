@@ -4,7 +4,6 @@ import {
   IAppserviceCryptoStorageProvider,
   IAppserviceRegistration,
   RustSdkAppserviceCryptoStorageProvider,
-  RustSdkCryptoStoreType,
 } from "matrix-bot-sdk";
 import { BridgeConfig } from "./config/Config";
 import Metrics from "./Metrics";
@@ -40,23 +39,7 @@ export function getAppservice(
     homeserverUrl: config.bridge.url,
     port: config.bridge.port,
     bindAddress: config.bridge.bindAddress,
-    registration: {
-      ...registration,
-      namespaces: {
-        // Support multiple users
-        users: [
-          {
-            regex:
-              "(" +
-              registration.namespaces.users.map((r) => r.regex).join(")|(") +
-              ")",
-            exclusive: true,
-          },
-        ],
-        aliases: registration.namespaces.aliases,
-        rooms: registration.namespaces.rooms,
-      },
-    },
+    registration: registration,
     storage: storage,
     intentOptions: {
       encryption: !!cryptoStorage,
