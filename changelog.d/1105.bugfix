@@ -1,1 +1,0 @@
-Fix /oauth responding with 405 despite GitHub being configured.

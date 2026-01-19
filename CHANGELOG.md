@@ -1,3 +1,22 @@
+# 7.3.0 (2026-01-19)
+
+## Features
+
+- Add an optional template argument to the `feed` command, to allow specifying a template for feed entries when using the command interface. ([\#1097](https://github.com/matrix-org/matrix-hookshot/issues/1097))
+- Static connections may now be configured in the config file. ([\#1102](https://github.com/matrix-org/matrix-hookshot/issues/1102))
+- Prefixes are now supported on listeners. You may specify a `prefix` under any `listener` config entry. ([\#1119](https://github.com/matrix-org/matrix-hookshot/issues/1119))
+
+## Bugfixes
+
+- Fix a case where outbound webhooks would not work if you had not enabled openproject (due to a mixed up config check). ([\#1095](https://github.com/matrix-org/matrix-hookshot/issues/1095))
+- Fix /oauth responding with 405 despite GitHub being configured. ([\#1105](https://github.com/matrix-org/matrix-hookshot/issues/1105))
+- Ensure running Hookshot with a missing or empty user namespace in the registration file. ([\#1116](https://github.com/matrix-org/matrix-hookshot/issues/1116))
+
+## Internal Changes
+
+- Update matrix-bot-sdk / matrix-appservice-bridge to latest versions. ([\#1120](https://github.com/matrix-org/matrix-hookshot/issues/1120))
+
+
 # 7.2.0 (2025-10-10)
 
 ### Features
