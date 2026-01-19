@@ -21,6 +21,7 @@ export const ResourceTypeArray: ResourceName[] = [
 import { Handlers } from "@sentry/node";
 export interface BridgeConfigListener {
   bindAddress?: string;
+  prefix?: string;
   port: number;
   resources: Array<ResourceName>;
 }
@@ -62,7 +63,7 @@ export class ListenerService {
       log.debug(
         `Registering ${listener.config.bindAddress || "127.0.0.1"}:${listener.config.port} for ${resourceName}`,
       );
-      listener.app.use(router);
+      listener.app.use(listener.config.prefix ?? "", router);
       listener.resourcesBound = true;
     }
   }
@@ -102,15 +103,18 @@ export class ListenerService {
       const addr = listener.config.bindAddress || "127.0.0.1";
       listener.server = listener.app.listen(listener.config.port, addr);
 
-      // Ensure each listener has a ready probe.
-      listener.app.get("/live", (_, res) => res.send({ ok: true }));
-      listener.app.get("/ready", (_, res) =>
+      // Ensure each listener has a ready probe.'
+      const probeRouter = Router();
+      probeRouter.get("/live", (_, res) => res.send({ ok: true }));
+      probeRouter.get("/ready", (_, res) =>
         res
           .status(listener.resourcesBound ? 200 : 500)
           .send({ ready: listener.resourcesBound }),
       );
+
+      listener.app.use(listener.config.prefix ?? "", probeRouter);
       log.info(
-        `Listening on http://${addr}:${listener.config.port} for ${listener.config.resources.join(", ")}`,
+        `Listening on http://${addr}:${listener.config.port}/${listener.config.prefix ?? ""} for ${listener.config.resources.join(", ")}`,
       );
     }
   }
