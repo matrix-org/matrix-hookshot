@@ -65,7 +65,7 @@ jobs:
   
   test:
     # Test on LTS-1
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         node_version: [22, 24]
@@ -86,7 +86,7 @@ jobs:
 
   integration-test:
     # Test on LTS-1
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs:
       - test
