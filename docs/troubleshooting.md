@@ -1,5 +1,4 @@
-Troubleshooting
-===============
+# Troubleshooting
 
 If you are having difficulties getting set up with hookshot, the advice below might be able to resolve common issues.
 

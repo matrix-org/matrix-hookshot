@@ -1,7 +1,7 @@
 # Stage 0: Build the thing
 # Need debian based image to build the native rust module
 # as musl doesn't support cdylib
-FROM node:20.12-slim AS builder
+FROM node:22-slim AS builder
 
 # Needed in order to build rust FFI bindings.
 RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config pkg-config libssl-dev
@@ -23,13 +23,11 @@ RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
 
 COPY . ./
 
-# Workaround: Need to install esbuild manually https://github.com/evanw/esbuild/issues/462#issuecomment-771328459
-RUN node node_modules/esbuild/install.js
 RUN yarn build
 
 
 # Stage 1: The actual container
-FROM node:20.12-slim
+FROM node:22-slim
 
 WORKDIR /bin/matrix-hookshot
 

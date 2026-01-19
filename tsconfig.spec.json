@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false,
+    "declaration": false,
+    "outDir": "./spec-lib",
+    "rootDir": "./",
+    "allowJs": true
+  },
+  "include": [
+      "spec/**/*"
+  ],
+  "exclude": [
+      "tests/**/*",
+      "web/**/*"
+  ]
+}

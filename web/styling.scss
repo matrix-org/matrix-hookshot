@@ -1,14 +1,16 @@
 :root {
-  --background-color: #FFFFFF;
-  --foreground-color: #17191C;
-  --primary-color: #0DBD8B;
+  --background-color: #ffffff;
+  --foreground-color: #17191c;
+  --primary-color: #0dbd8b;
   --primary-color-disabled: #0dbd8baf;
 
-  background-color: #F4F6FA;
+  background-color: #f4f6fa;
   color: var(--foreground-color);
   min-height: 100%;
   width: 100%;
-  font-family: 'Inter', 'Twemoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Arial', 'Helvetica', sans-serif, 'Noto Color Emoji';
+  font-family:
+    "Inter", "Twemoji", "Apple Color Emoji", "Segoe UI Emoji", "Arial",
+    "Helvetica", sans-serif, "Noto Color Emoji";
 }
 
 // @media (prefers-color-scheme: dark) {
@@ -32,38 +34,7 @@ body {
   block-size: fit-content !important;
 }
 
-
 button {
   font-weight: 600;
   margin-right: 8px;
-}
-
-
-.chevron::before {
-	border-style: solid;
-	border-width: 0.25em 0.25em 0 0;
-  border-radius: 3px;
-	content: '';
-	display: inline-block;
-	height: 10px;
-	position: relative;
-	top: 0.15em;
-	vertical-align: top;
-	width: 10px;
-	left: 0.25em;
-	transform: rotate(-135deg);
-  margin-right: 5px;
-}
-
-.chevron.down::before {
-	transform: rotate(-225deg);
-  border-color: var(--cpd-color-text-primary);
-  float: right;
-}
-
-
-.chevron.up::before {
-	transform: rotate(-45deg);
-  border-color: var(--cpd-color-text-primary);
-  float: right;
 }

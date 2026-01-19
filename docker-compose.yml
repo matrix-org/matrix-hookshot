@@ -1,44 +1,69 @@
-version: '3.7'
+name: matrix-hookshot-dev
+
 services:
-  redis:
-    image: redis
-  webhook:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+  valkey:
+    image: valkey/valkey:8
+
+  element:
+    image: vectorim/element-web:develop
+    volumes:
+      - ./contrib/docker/element/config.json:/app/config.json:ro
     ports:
-      - "127.0.0.1:7775:7775"
+      - "127.0.0.1:8083:80"
+
+  init-app:
+    image: alpine:3
+    command: /contrib/init.sh
     volumes:
-      - ./data:/data
-    links:
-      - redis
+      - ./contrib/docker/:/contrib:ro
+      - hookshot-data:/data
+      - synapse-data:/synapse-data
+
+  synapse:
+    image: matrixdotorg/synapse:latest
+    ports:
+      - "127.0.0.1:8008:8008"
     environment:
-      CFG_QUEUE_MONOLITHIC: "false"
-      CFG_QUEUE_HOST: "redis"
-    command: node /bin/matrix-hookshot/App/GithubWebhookApp.js /data/config.yml /data/registration.yml
-  sender:
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+      - SYNAPSE_CONFIG_DIR=/contrib/synapse
     volumes:
-      - ./data:/data
-    links:
-      - redis
-    environment:
-      CFG_QUEUE_MONOLITHIC: "false"
-      CFG_QUEUE_HOST: "redis"
-    command: node /bin/matrix-hookshot/App/MatrixSenderApp.js /data/config.yml /data/registration.yml
+      - ./contrib/docker:/contrib:ro
+      - synapse-data:/data
+    depends_on:
+      init-app:
+        condition: service_completed_successfully
+
   app:
     build:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - "127.0.0.1:9993:9993"
+      - "127.0.0.1:9001:9001"
     volumes:
-      - ./data:/data
+      - hookshot-data:/data
+      - ./contrib/docker/:/contrib:ro
+      - ./config.yml:/config/config.yml:ro
     links:
-      - redis
-    environment:
-      CFG_QUEUE_MONOLITHIC: "false"
-      CFG_QUEUE_HOST: "redis"
-    command: node /bin/matrix-hookshot/App/BridgeApp.js /data/config.yml /data/registration.yml
+      - valkey
+      - synapse
+    command: node /bin/matrix-hookshot/App/BridgeApp.js /contrib/config.yaml /contrib/registration.yaml /config/config.yml
+    depends_on:
+      valkey:
+        condition: service_started
+      init-app:
+        condition: service_completed_successfully
+      synapse:
+        condition: service_healthy
+    develop:
+      watch:
+        - action: rebuild
+          path: .
+          ignore:
+            - node_modules/
+            - docs/
+            - public/
+            - book/
+            - .*/
+
+volumes:
+  hookshot-data:
+  synapse-data:

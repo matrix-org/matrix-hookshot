@@ -1,28 +1,32 @@
-Setting up GitHub
-======
+# Setting up GitHub
+
 ## GitHub App
 
 This bridge requires a [GitHub App](https://github.com/settings/apps/new). You will need to create one.
 
 ### Webhook
 
-The **Webhook URL** should point to the public address of your hookshot instance, at the `/` path.
+<section class="notice">
+Previously Hookshot supported <code>/</code> as the public path for webhook delivery. This path is now deprecated and <code>/github/webhook</code> should be used wherever possible.
+</section>
+
+The **Webhook URL** should point to the public address of your hookshot instance, at the `/github/webhook` path.
 You **MUST** also provide a secret, which should match the `github.webhook.secret` value in your config.
 
 ### Permissions
 
 You will need to enable the following permissions:
 
-  - Repository
-    - Actions (`read`)
-    - Contents (`read`)
-    - Discussions (`read & write`)
-    - Issues (`read & write`)
-    - Metadata
-    - Projects (`read & write`)
-    - Pull requests (`read & write`)
- - Organisation
-    - Team Discussions (`read & write`)
+- Repository
+  - Actions (`read`)
+  - Contents (`read`)
+  - Discussions (`read & write`)
+  - Issues (`read & write`)
+  - Metadata
+  - Projects (`read & write`)
+  - Pull requests (`read & write`)
+- Organisation
+  - Team Discussions (`read & write`)
 
 Hookshot handles the following webhook event types:
 

@@ -60,3 +60,5 @@ may include any of the following tokens:
 | $SUMMARY   | The summary of the entry.                                  |
 
 If not specified, the default template is `New post in $FEEDNAME: $LINK`.
+
+The template can also be given as an argument when adding the feed to a room, e.g. `!hookshot feed <URL> <LABEL> <TEMPLATE>`. If the template contains spaces, it can be quoted using double quotes.

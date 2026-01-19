@@ -1,0 +1,38 @@
+# This is an example configuration file
+
+bridge:
+  # Basic homeserver configuration
+  domain: localhost
+  url: http://synapse:8008
+  port: 9993
+  bindAddress: 0.0.0.0
+
+logging:
+  level: debug
+  colorize: true
+
+passFile: /data/passkey.pem
+listeners:
+  - port: 9001
+    bindAddress: 0.0.0.0
+    resources:
+      - widgets
+      - webhooks
+
+cache:
+  redisUri: redis://valkey:6379
+
+generic:
+  enabled: true
+  urlPrefix: https://localhost:9001/webhook/
+  allowJsTransformationFunctions: true
+  waitForComplete: true
+
+widgets:
+  publicUrl: http://localhost:9001/widgetapi/v1/static/
+  roomSetupWidget:
+    addOnInvite: true
+  branding:
+    widgetTitle: Hookshot Configuration
+  openIdOverrides:
+    "localhost": "http://synapse:8008"

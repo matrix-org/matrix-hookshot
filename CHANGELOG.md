@@ -1,3 +1,161 @@
+# 7.3.0 (2026-01-19)
+
+## Features
+
+- Add an optional template argument to the `feed` command, to allow specifying a template for feed entries when using the command interface. ([\#1097](https://github.com/matrix-org/matrix-hookshot/issues/1097))
+- Static connections may now be configured in the config file. ([\#1102](https://github.com/matrix-org/matrix-hookshot/issues/1102))
+- Prefixes are now supported on listeners. You may specify a `prefix` under any `listener` config entry. ([\#1119](https://github.com/matrix-org/matrix-hookshot/issues/1119))
+
+## Bugfixes
+
+- Fix a case where outbound webhooks would not work if you had not enabled openproject (due to a mixed up config check). ([\#1095](https://github.com/matrix-org/matrix-hookshot/issues/1095))
+- Fix /oauth responding with 405 despite GitHub being configured. ([\#1105](https://github.com/matrix-org/matrix-hookshot/issues/1105))
+- Ensure running Hookshot with a missing or empty user namespace in the registration file. ([\#1116](https://github.com/matrix-org/matrix-hookshot/issues/1116))
+
+## Internal Changes
+
+- Update matrix-bot-sdk / matrix-appservice-bridge to latest versions. ([\#1120](https://github.com/matrix-org/matrix-hookshot/issues/1120))
+
+
+# 7.2.0 (2025-10-10)
+
+### Features
+
+- Add configuration option for generic webhooks to configure maximum request body size limit, increase default to 1mb from default 100kb. ([\#1090](https://github.com/matrix-org/matrix-hookshot/issues/1090))
+
+### Bugfixes
+
+- Fix a bug where users may fail to be registered with a `IO.ELEMENT.MSC4190.M_APPSERVICE_LOGIN_UNSUPPORTED` error when `MSC4190` is enabled on the homeserver. ([\#522](https://github.com/matrix-org/matrix-appservice-bridge/issues/522)) ([\#1092](https://github.com/matrix-org/matrix-hookshot/issues/1092))
+
+### Internal Changes
+
+- Use emojis for all icons instead of dingbats, ensuring all clients render the icons in colour. ([\#1091](https://github.com/matrix-org/matrix-hookshot/issues/1091))
+
+
+7.1.0 (2025-08-15)
+==================
+
+Features
+--------
+
+- Add an option in the config to disable hook bodies in Matrix messages. ([\#1004](https://github.com/matrix-org/matrix-hookshot/issues/1004))
+- Hookshot will now ping the homeserver on startup to ensure it can be reached. ([\#1062](https://github.com/matrix-org/matrix-hookshot/issues/1062))
+- Multiple config files (merged in order) may now be specified on the command line. ([\#1065](https://github.com/matrix-org/matrix-hookshot/issues/1065))
+- Support Matrix v12 rooms. ([\#1077](https://github.com/matrix-org/matrix-hookshot/issues/1077))
+- Add support for following room upgrades. Hookshot will now carry across all connections from the predecessor room to the next room. ([\#1079](https://github.com/matrix-org/matrix-hookshot/issues/1079))
+
+
+Bugfixes
+--------
+
+- Fix bugs in handling server names that includes colons. ([\#1068](https://github.com/matrix-org/matrix-hookshot/issues/1068))
+
+
+Improved Documentation
+----------------------
+
+- Instructions for how to setup a developer enviroment [are now included](https://matrix-org.github.io/matrix-hookshot/latest/dev/setup.html). This includes
+  a new `docker-compose.yml` file for development. The previous unmaintained docker-compose setup for multiple workers has been removed. ([\#1065](https://github.com/matrix-org/matrix-hookshot/issues/1065))
+
+
+Internal Changes
+----------------
+
+- Support Node 24, and drop support for Node 23. ([\#1059](https://github.com/matrix-org/matrix-hookshot/issues/1059))
+- GitHub and GitLab webhook requests should now be directed to /github and /gitlab respectively. `/` and `/oauth` is now deprecated and will be removed in a future release. ([\#1063](https://github.com/matrix-org/matrix-hookshot/issues/1063))
+- Log encrypted device identities for consumption by third party tooling. ([\#1066](https://github.com/matrix-org/matrix-hookshot/issues/1066))
+- Update matrix-appservice-bridge to 11.0.0. ([\#1083](https://github.com/matrix-org/matrix-hookshot/issues/1083))
+
+
+# 7.0.0 (2025-05-16)
+
+**Breaking change**: JIRA Cloud webhooks now *require* a secret to configured to ensure secure handling of webhook information. This is a change from previously accepting a query string. See [https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html#cloud](the documentation) for more information.
+
+### Features
+
+- Add support for JIRA cloud secure webhooks. See the [documentation](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html) for more information. ([\#1044](https://github.com/matrix-org/matrix-hookshot/issues/1044))
+- Add support for OpenProject. ([\#1050](https://github.com/matrix-org/matrix-hookshot/issues/1050), [\#1056](https://github.com/matrix-org/matrix-hookshot/issues/1056))
+- Add new `mentions` field to generic hook transformation functions, to intentionally mention users. ([\#1051](https://github.com/matrix-org/matrix-hookshot/issues/1051))
+
+### Bugfixes
+
+- Fix JIRA integration config not updating when applying changes via the widget. ([\#c01d13b](https://github.com/matrix-org/matrix-hookshot/issues/c01d13b))
+- GitHub repository listings / room configuation will now work correctly if your organization or username contains uppercase characters. ([\#1033](https://github.com/matrix-org/matrix-hookshot/issues/1033))
+- Hookshot will now attempt to join permission rooms on startup. ([\#1041](https://github.com/matrix-org/matrix-hookshot/issues/1041))
+
+### Deprecations and Removals
+
+- The legacy provisioning API has been removed (used by services such as Dimension). Developers should seek to update
+  to use the widget API, which supports more features and is regularly updated. ([\#931](https://github.com/matrix-org/matrix-hookshot/issues/931))
+
+### Internal Changes
+
+- Update Ubuntu version in docs CI. ([\#1043](https://github.com/matrix-org/matrix-hookshot/issues/1043))
+- Don't login to Docker when running CI against dependabot PRs ([\#1046](https://github.com/matrix-org/matrix-hookshot/issues/1046))
+- Replace homerunner with testcontainers for (stable) E2E testing. ([\#1047](https://github.com/matrix-org/matrix-hookshot/issues/1047))
+- Apply prettier formatting, and use a consistent file naming scheme. ([\#1055](https://github.com/matrix-org/matrix-hookshot/issues/1055)), ([\#1058](https://github.com/matrix-org/matrix-hookshot/issues/1058))
+
+
+# 6.0.3 (2025-02-25)
+
+### Bugfixes
+
+- Fixed Helm chart templates missing `namespace:` in resource metadata, causing some resources to appear in different namespaces under certain circumstances, specifically deployment scenarios using ArgoCD-deployed Helmfile with a release namespace set for Hookshot differently than the ArgoCD Application's namespace. Most other Helm deployment methods should continue to work as expected with your existing configuration, as the inferred namespace would have resulted in proper resource placement without this change. ([\#1013](https://github.com/matrix-org/matrix-hookshot/issues/1013))
+- Fix hookshot failing to handle incoming webhooks when it is unable to change a user's displayname. ([\#1019](https://github.com/matrix-org/matrix-hookshot/issues/1019))
+- GitLab merge request comments are now correctly filtered based on label include / exclude configuration. ([\#1756](https://github.com/matrix-org/matrix-hookshot/issues/1756))
+
+### Improved Documentation
+
+- Explain how to edit room state for GitLab projects from within Element. ([\#1016](https://github.com/matrix-org/matrix-hookshot/issues/1016))
+
+### Internal Changes
+
+- Update dependencies with security advisories. ([\#1024](https://github.com/matrix-org/matrix-hookshot/issues/1024))
+
+
+# 6.0.2 (2025-01-23)
+
+**Security release**: It is strongly recommended that you upgrade to this release, as it contains security fixes.
+
+### Internal Changes
+
+- Switch to using GitHub Actions native arm runners for Docker builds, which will reduce build times. ([\#1008](https://github.com/matrix-org/matrix-hookshot/issues/1008))
+
+### Security
+
+Fixes for [CVE-2025-23197](https://www.cve.org/CVERecord?id=CVE-2025-23197) / [GHSA-cr4q-jf47-3645](https://github.com/matrix-org/matrix-hookshot/security/advisories/GHSA-cr4q-jf47-3645).
+
+
+# 6.0.1 (2024-11-29)
+
+This release fixes an issue where arm64 Docker images were not being built on release.
+
+# 6.0.0 (2024-11-29)
+
+### Features
+
+- Add support for setting an expiry time on a webhook. See the documentation on [Generic Webhooks](https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html) for more information. ([\#984](https://github.com/matrix-org/matrix-hookshot/issues/984))
+- Support for E2E Encrypted rooms is now considered stable and can be enabled in production. Please see the [documentation](https://matrix-org.github.io/matrix-hookshot/latest/advanced/encryption.html)
+  on the requirements for enabling support. ([\#989](https://github.com/matrix-org/matrix-hookshot/issues/989))
+
+### Bugfixes
+
+- Fix Challenge Hound activities being duplicated if the cache layer (e.g Redis) goes away. ([\#982](https://github.com/matrix-org/matrix-hookshot/issues/982))
+
+### Deprecations and Removals
+
+- Drop support for Node 20 and start supporting Node 22, 23. ([\#990](https://github.com/matrix-org/matrix-hookshot/issues/990))
+
+### Internal Changes
+
+- Reduce bundle size of widget. ([\#985](https://github.com/matrix-org/matrix-hookshot/issues/985))
+- Don't invoke newsfile CI check for dependabot. ([\#987](https://github.com/matrix-org/matrix-hookshot/issues/987))
+- Add devenv development files. ([\#993](https://github.com/matrix-org/matrix-hookshot/issues/993))
+- Push Docker images to ghcr.io, and and build an image on each commit. ([\#994](https://github.com/matrix-org/matrix-hookshot/issues/994))
+- Retry e2e tests in CI due to container creation flakiness. ([\#995](https://github.com/matrix-org/matrix-hookshot/issues/995))
+- Update matrix-bot-sdk to pull in new matrix-rust-sdk. ([\#996](https://github.com/matrix-org/matrix-hookshot/issues/996))
+
+
 5.4.1 (2024-06-21)
 ==================
 

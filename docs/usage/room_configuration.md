@@ -1,8 +1,6 @@
-Room Configuration
-==================
+# Room Configuration
 
 Hookshot works off the principle of **Connections**.
-
 
 A room can have many connections to different services. The connections are defined
 in the room state of a room. A connection defines the service it connects to, the
@@ -17,7 +15,6 @@ Hookshot supports several connection types, which are defined under the Room Con
 heading.
 
 The availability of connection types depends on the configuration provided to hookshot.
-
 
 ### The `!hookshot` command
 

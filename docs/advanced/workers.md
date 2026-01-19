@@ -1,5 +1,4 @@
-Workers
-=======
+# Workers
 
 Hookshot supports running in a worker configuration, using Redis as the middleman process to handle traffic between processes.
 
@@ -26,6 +25,7 @@ Note that if [encryption](./encryption.md) is enabled, you MUST enable the `cach
 storage in Redis, but cannot make use of worker-mode queues.
 
 Once that is done, you can simply start the processes by name using yarn:
+
 ```
 yarn start:webhooks
 yarn start:matrixsender

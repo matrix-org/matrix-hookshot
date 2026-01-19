@@ -1,4 +1,4 @@
-Matrix Hookshot
+![logo](logo.png) Matrix Hookshot
 ===============
 
 [![#hookshot:half-shot.uk](https://img.shields.io/matrix/hookshot:half-shot.uk.svg?server_fqdn=chaotic.half-shot.uk&label=%23hookshot:half-shot.uk&logo=matrix)](https://matrix.to/#/#hookshot:half-shot.uk)
@@ -22,6 +22,7 @@ We richly support the following integrations:
 - [GitHub](https://matrix-org.github.io/matrix-hookshot/latest/setup/github.html)
 - [GitLab](https://matrix-org.github.io/matrix-hookshot/latest/setup/gitlab.html)
 - [Jira](https://matrix-org.github.io/matrix-hookshot/latest/setup/jira.html)
+- [OpenProject](https://matrix-org.github.io/matrix-hookshot/latest/setup/openproject.html)
 - [RSS/Atom feeds](https://matrix-org.github.io/matrix-hookshot/latest/setup/feeds.html)
 
 Get started by reading [the setup guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html)!

@@ -1,20 +1,20 @@
 export interface DiscussionQLResponse {
+  id: string;
+  number: number;
+  author: {
+    login: string;
+    avatarUrl: string;
+  };
+  bodyHTML: string;
+  bodyText: string;
+  category: {
+    name: string;
     id: string;
-    number: number;
-    author: {
-        login: string;
-        avatarUrl: string;
-    };
-    bodyHTML: string;
-    bodyText: string;
-    category: {
-        name: string;
-        id: string;
-    };
-    createdAt: string;
-    locked: boolean;
-    title: string;
-    url: string;
+  };
+  createdAt: string;
+  locked: boolean;
+  title: string;
+  url: string;
 }
 
 export const DiscussionQL = `
@@ -37,4 +37,4 @@ createdAt,
 locked,
 title,
 url,
-`
+`;

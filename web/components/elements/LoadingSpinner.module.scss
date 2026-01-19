@@ -1,18 +1,18 @@
 @keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner {
-    width: 16px;
-    height: 16px;
+  width: 16px;
+  height: 16px;
 
-    animation-name: spin;
-    animation-duration: 1000ms;
-    animation-timing-function: steps(8, end);
-    animation-iteration-count: infinite;
+  animation-name: spin;
+  animation-duration: 1000ms;
+  animation-timing-function: steps(8, end);
+  animation-iteration-count: infinite;
 }

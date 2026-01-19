@@ -1,41 +1,42 @@
 .dropdownItem {
-    padding: 0.25em 0.5em;
-    border-radius: 8px;
-    cursor: pointer;
+  padding: 0.25em 0.5em;
+  border-radius: 8px;
+  cursor: pointer;
 
-    &:hover {
+  list-style: none;
 
-        background-color: rgba(54, 54, 54, 0.138);
-    }
+  &:hover {
+    background-color: rgba(54, 54, 54, 0.138);
+  }
 }
 
 .title {
-    font-weight: 600;
+  font-weight: 600;
 }
 
 .description {
-    /* These work cross browser */
-    // https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-line-clamp
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    overflow: hidden;
+  /* These work cross browser */
+  // https://developer.mozilla.org/en-US/docs/Web/CSS/-webkit-line-clamp
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
 .value {
-    font-weight: 400;
-    color: var(--cpd-color-text-primary);
+  font-weight: 400;
+  color: var(--cpd-color-text-primary);
 }
 
 .hasImg {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-gap: 1em;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-gap: 1em;
 }
 
 .itemImage {
-    width: auto;
-    max-height: 48px;
-    margin-top: auto;
-    margin-bottom: auto;
+  width: auto;
+  max-height: 48px;
+  margin-top: auto;
+  margin-bottom: auto;
 }

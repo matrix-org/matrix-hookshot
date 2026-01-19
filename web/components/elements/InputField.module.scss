@@ -1,59 +1,69 @@
 .inputField.nopad {
-    label {
-        position: relative;
-        margin: 0;
-    }
+  label {
+    position: relative;
+    margin: 0;
+  }
 }
 
 .inputField {
+  width: 100%;
+  margin-bottom: 12px;
+  label {
+    position: absolute;
+    left: 0;
+    margin: -8px 45px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 20px);
+    padding: 0 2px;
+    color: var(--cpd-color-text-primary);
+  }
+
+  > ul {
+    padding-left: 10px;
+  }
+
+  li {
+    list-style: none;
+  }
+
+  ul > label {
+    position: relative;
+    left: auto;
+    margin: auto;
+  }
+
+  input[type="text"],
+  input[type="search"],
+  input[type="datetime-local"] {
+    border: 1px solid var(--cpd-color-border-interactive-primary);
+    box-sizing: border-box;
+    border-radius: 8px;
     width: 100%;
-    margin-bottom: 12px;
-    label  {
-        position: absolute;
-        left: 0;
-        margin: -8px 45px;
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        max-width: calc(100% - 20px);
-        padding: 0 2px;
-        color:  var(--cpd-color-text-primary);
-    }
+    font-size: 14px;
+    padding: 8px 12px;
+    color: var(--cpd-color-text-primary);
+    background: var(--cpd-color-bg-subtle-primary);
+  }
 
-    > ul {
-        padding-left: 10px;
-    }
-    
+  select {
+    border: 1px solid var(--cpd-color-border-interactive-primary);
+    box-sizing: border-box;
+    border-radius: 8px;
+    width: 100%;
+    font-size: 14px;
+    padding: 8px 12px;
+    color: var(--cpd-color-text-primary);
+    background: var(--cpd-color-bg-subtle-primary);
+  }
+}
 
-    li {
-        list-style: none;
-    }
+.container {
+  display: flex;
+  gap: 4px;
 
-    ul > label {
-        position: relative;
-        left: auto;
-        margin: auto;
-    }
-
-    input[type="text"],input[type="search"] {
-        border: 1px solid var(--cpd-color-border-interactive-primary);
-        box-sizing: border-box;
-        border-radius: 8px;
-        width: 100%;
-        font-size: 14px;
-        padding: 8px 12px;
-        color:  var(--cpd-color-text-primary);
-        background: var(--cpd-color-bg-subtle-primary); 
-    }
-
-    select {
-        border: 1px solid var(--cpd-color-border-interactive-primary);
-        box-sizing: border-box;
-        border-radius: 8px;
-        width: 100%;
-        font-size: 14px;
-        padding: 8px 12px;
-        color:  var(--cpd-color-text-primary);
-        background: var(--cpd-color-bg-subtle-primary); 
-    }
+  button {
+    min-width: 0;
+  }
 }
