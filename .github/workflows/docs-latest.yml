@@ -31,7 +31,7 @@ jobs:
       - run: mdbook build
 
       - name: Deploy latest
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         # Only push if this is main, otherwise we just want to build
         if: github.ref == 'refs/heads/main'
         with:
