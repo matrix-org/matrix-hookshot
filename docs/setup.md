@@ -202,6 +202,8 @@ listeners:
   #
   - port: 9000
     bindAddress: 0.0.0.0
+    # Optional, may specify a prefix for the listener to put all routes under.
+    prefix: "/hookshot"
     resources:
       - webhooks
   - port: 9001

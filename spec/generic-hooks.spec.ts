@@ -24,7 +24,7 @@ describe("Inbound (Generic) Webhooks", () => {
           enabled: true,
           // Prefer to wait for complete as it reduces the concurrency of the test.
           waitForComplete: true,
-          urlPrefix: `http://localhost:${webhooksPort}`,
+          urlPrefix: `http://localhost:${webhooksPort}/customprefix/webhook`,
           payloadSizeLimit: "10mb",
         },
         listeners: [
@@ -33,6 +33,8 @@ describe("Inbound (Generic) Webhooks", () => {
             bindAddress: "0.0.0.0",
             // Bind to the SAME listener to ensure we don't have conflicts.
             resources: ["webhooks"],
+            // Test that custom prefixes work
+            prefix: "/customprefix",
           },
         ],
       },
