@@ -103,7 +103,7 @@ export class ListenerService {
       const addr = listener.config.bindAddress || "127.0.0.1";
       listener.server = listener.app.listen(listener.config.port, addr);
 
-      // Ensure each listener has a ready probe.'
+      // Ensure each listener has a ready probe.
       const probeRouter = Router();
       probeRouter.get("/live", (_, res) => res.send({ ok: true }));
       probeRouter.get("/ready", (_, res) =>
@@ -114,7 +114,7 @@ export class ListenerService {
 
       listener.app.use(listener.config.prefix ?? "", probeRouter);
       log.info(
-        `Listening on http://${addr}:${listener.config.port}/${listener.config.prefix ?? ""} for ${listener.config.resources.join(", ")}`,
+        `Listening on http://${addr}:${listener.config.port}/${listener.config.prefix ?? "/"} for ${listener.config.resources.join(", ")}`,
       );
     }
   }
