@@ -455,6 +455,13 @@ export class GenericHookConnection
   }
 
   /**
+   * Public URL where this webhook is reachable.
+   */
+  public get webhookURL(): URL | undefined {
+    return new URL(this.hookId, this.config.parsedUrlPrefix);
+  }
+
+  /**
    * Should the webhook handler wait for this to finish before
    * sending a response back.
    */

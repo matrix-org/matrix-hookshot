@@ -53,7 +53,7 @@ Where `/etc/matrix-hookshot` would contain the configuration files `config.yml` 
 
 There's now a basic chart defined in [helm/hookshot](/helm/hookshot/) that can be used to deploy the Hookshot Docker container in a Kubernetes-native way.
 
-More information on this method is available [here](https://github.com/matrix-org/matrix-hookshot/helm/hookshot/README.md)
+More information on this method is available [here](https://github.com/matrix-org/matrix-hookshot/blob/main/helm/hookshot/README.md)
 
 ## Configuration
 
@@ -202,6 +202,8 @@ listeners:
   #
   - port: 9000
     bindAddress: 0.0.0.0
+    # Optional, may specify a prefix for the listener to put all routes under.
+    prefix: "/hookshot"
     resources:
       - webhooks
   - port: 9001

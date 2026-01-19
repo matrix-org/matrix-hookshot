@@ -1,1 +1,0 @@
-Fix a case where outbound webhooks would not work if you had not enabled openproject (due to a mixed up config check).
