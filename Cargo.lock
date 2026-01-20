@@ -223,9 +223,9 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "contrast"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9e2e6885a8c59c03522edaa351a7ad5b6d47ed2632fcfbc0f2b00fcce520eb1"
+checksum = "a62091f3a1f3dd1463b54a24e2b0a1eab65bb04a6d05453a02a66f7c74547f6b"
 dependencies = [
  "num-traits",
  "rgb",
