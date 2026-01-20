@@ -1972,14 +1972,15 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.135"
+version = "1.0.149"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b0d7ba2887406110130a978386c4e1befb98c674b4fba677954e4db976630d9"
+checksum = "83fc039473c5595ace860d8c4fafa220ff474b3fc6bfdb4293327f1a37e94d86"
 dependencies = [
  "itoa",
  "memchr",
- "ryu",
  "serde",
+ "serde_core",
+ "zmij",
 ]
 
 [[package]]
@@ -3014,3 +3015,9 @@ dependencies = [
  "quote",
  "syn 2.0.96",
 ]
+
+[[package]]
+name = "zmij"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfcd145825aace48cff44a8844de64bf75feec3080e0aa5cdbde72961ae51a65"
