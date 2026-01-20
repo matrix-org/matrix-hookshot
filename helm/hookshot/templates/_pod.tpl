@@ -48,6 +48,9 @@ containers:
         mountPath: "/data"
 {{- end }}
     ports:
+      - name: bridge
+        containerPort: {{ .Values.hookshot.config.bridge.port }}
+        protocol: TCP
       - name: webhook
         containerPort: 9000
         protocol: TCP
