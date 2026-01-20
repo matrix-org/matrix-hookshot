@@ -10,7 +10,6 @@ interface Mentions {
   user_ids?: string[];
   room?: boolean;
 }
-
 interface FunctionResultObject {
   version: string;
   plain?: string;
@@ -19,6 +18,14 @@ interface FunctionResultObject {
   empty?: boolean;
   webhookResponse?: ExecuteResultWebhookResponse;
   mentions?: Mentions;
+}
+
+export interface RelatesTo {
+  event_id?: string;
+  is_falling_back?: boolean;
+  key?: string;
+  "m.in_reply_to"?: { event_id?: string };
+  rel_type?: string;
 }
 
 export interface ExecuteResultWebhookResponse {
@@ -32,6 +39,7 @@ export interface ExecuteResultContent {
   html?: string;
   msgtype?: string;
   mentions?: Mentions;
+  relates_to?: RelatesTo;
 }
 
 export interface ExecuteResult {
