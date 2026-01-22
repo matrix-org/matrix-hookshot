@@ -13,9 +13,7 @@ export const MAX_FEED_ITEMS = 10_000;
 export const MAX_HOUND_ITEMS = 100;
 
 export interface IBridgeStorageProvider
-  extends IAppserviceStorageProvider,
-    IStorageProvider,
-    ProvisioningStore {
+  extends IAppserviceStorageProvider, IStorageProvider, ProvisioningStore {
   connect?(): Promise<void>;
   disconnect?(): Promise<void>;
   setGithubIssue(
