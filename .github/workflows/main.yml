@@ -22,7 +22,7 @@ jobs:
   lint-node:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - name: Use Node.js
       uses: actions/setup-node@v3
       with:
@@ -33,7 +33,7 @@ jobs:
   lint-rust:
    runs-on: ubuntu-latest
    steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v6
     - uses: actions-rust-lang/setup-rust-toolchain@v1
       with:
           toolchain: stable
@@ -44,7 +44,7 @@ jobs:
   config:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
@@ -55,7 +55,7 @@ jobs:
   metrics-docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Use Node.js
         uses: actions/setup-node@v3
         with:
@@ -70,7 +70,7 @@ jobs:
       matrix:
         node_version: [22, 24]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Use Node.js ${{ matrix.node_version }}
         uses: actions/setup-node@v3
         with:
@@ -91,7 +91,7 @@ jobs:
     needs:
       - test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v3
         with:
           node-version-file: .node-version

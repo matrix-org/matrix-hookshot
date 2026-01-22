@@ -11,7 +11,7 @@ jobs:
     # No newsfile required for dependabot
     if: ${{ github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
         with: # Needed for comparison
           fetch-depth: 0
       - uses: actions/setup-python@v6
