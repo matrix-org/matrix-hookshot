@@ -101,6 +101,8 @@ function getEmojiForType(type: string) {
       return "⛷️";
     case "swim":
       return "🏊";
+    case "row":
+      return "🚣";
     default:
       return "🕴️";
   }
