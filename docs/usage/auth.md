@@ -27,7 +27,6 @@ To authenticate with a personal access token:
 1. Open [https://github.com/settings/tokens](https://github.com/settings/tokens) (Github > Settings > Developer Settings / Personal access tokens)
 1. Click **Generate new token**
 1. Give it a good name, and a sensible expiration date. For scopes you will need:
-
    - Repo (to access repo information)
      - If you want notifications for private repos, you need `repo: Full control of private repositories`. If you just want notifications for public repos, you only need:
        - repo:status

@@ -19,8 +19,10 @@ export interface ConnectionWarning {
   message: string;
 }
 
-export interface GetConnectionsResponseItem<Config = object, Secrets = object>
-  extends GetConnectionTypeResponseItem {
+export interface GetConnectionsResponseItem<
+  Config = object,
+  Secrets = object,
+> extends GetConnectionTypeResponseItem {
   id: string;
   config: Config;
   secrets?: Secrets;
