@@ -637,10 +637,10 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/retry/-/retry-0.4.1.tgz#9a96ce501bc62df46c4031fbd970e3cc6b10f07b"
   integrity sha512-c7hNEllBlenFTHBky65mhq8WD2kbN9Q6gk0bTk8lSBvc554jpXSkST1iePudpt7+A/AQvuHs9EMqjHDXMY1lrA==
 
-"@ioredis/commands@^1.1.1":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@ioredis/commands/-/commands-1.2.0.tgz#6d61b3097470af1fdbbe622795b8921d42018e11"
-  integrity sha512-Sx1pU8EM64o2BrqNpEO1CNLtKQwyhuXuqyfH7oGKCk+1a33d2r5saW8zNwm3j6BTExtjrv2BxTgzzkMwts6vGg==
+"@ioredis/commands@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@ioredis/commands/-/commands-1.5.0.tgz#3dddcea446a4b1dc177d0743a1e07ff50691652a"
+  integrity sha512-eUgLqrMf8nJkZxT24JvVRrQya1vZkQh8BBeYNwGDqa5I0VUi8ACx7uFvAaLxintokpTenkK6DASvo/bvNbBGow==
 
 "@isaacs/cliui@^8.0.2":
   version "8.0.2"
@@ -4706,11 +4706,11 @@ invariant@^2.2.4:
     loose-envify "^1.0.0"
 
 ioredis@^5.6.1:
-  version "5.6.1"
-  resolved "https://registry.yarnpkg.com/ioredis/-/ioredis-5.6.1.tgz#1ed7dc9131081e77342503425afceaf7357ae599"
-  integrity sha512-UxC0Yv1Y4WRJiGQxQkP0hfdL0/5/6YvdfOOClRgJ0qppSarkhneSa6UvkMkms0AkdGimSH3Ikqm+6mkMmX7vGA==
+  version "5.9.2"
+  resolved "https://registry.yarnpkg.com/ioredis/-/ioredis-5.9.2.tgz#ffdce2a019950299716e88ee56cd5802b399b108"
+  integrity sha512-tAAg/72/VxOUW7RQSX1pIxJVucYKcjFjfvj60L57jrZpYCHC3XN0WCQ3sNYL4Gmvv+7GPvTAjc+KSdeNuE8oWQ==
   dependencies:
-    "@ioredis/commands" "^1.1.1"
+    "@ioredis/commands" "1.5.0"
     cluster-key-slot "^1.1.0"
     debug "^4.3.4"
     denque "^2.1.0"
