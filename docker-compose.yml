@@ -2,7 +2,7 @@ name: matrix-hookshot-dev
 
 services:
   valkey:
-    image: valkey/valkey:8
+    image: valkey/valkey:9
 
   element:
     image: vectorim/element-web:develop
