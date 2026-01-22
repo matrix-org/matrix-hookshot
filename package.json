@@ -118,7 +118,7 @@
     "nyc": "^17.1.0",
     "preact": "^10.26.2",
     "prettier": "^3.5.3",
-    "rimraf": "6.0.1",
+    "rimraf": "6.1.2",
     "sass": "^1.81.0",
     "testcontainers": "^10.25.0",
     "ts-node": "10.9.2",
