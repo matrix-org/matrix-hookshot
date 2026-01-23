@@ -31,7 +31,7 @@ export abstract class CommandConnection<
     stateKey: string,
     canonicalStateType: string,
     protected state: ValidatedStateType,
-    private readonly botClient: MatrixClient,
+    protected readonly botClient: MatrixClient,
     private readonly botCommands: BotCommands,
     private readonly helpMessage: HelpFunction,
     protected readonly helpCategories: string[],
