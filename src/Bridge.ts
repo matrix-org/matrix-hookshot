@@ -1400,7 +1400,6 @@ export class Bridge {
         });
         try {
           if (connection.onMessageEvent) {
-            log.debug(`Sending the message to ${connection.toString()}`);
             handled = await connection.onMessageEvent(
               event,
               checkPermission,
