@@ -1024,6 +1024,7 @@ export class SetupConnection extends CommandConnection {
 }
 
 // Typescript doesn't understand Prototypes very well yet.
+
 const res = compileBotCommands(
   SetupConnection.prototype as any,
   CommandConnection.prototype as any,

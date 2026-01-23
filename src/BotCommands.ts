@@ -1,15 +1,13 @@
 import markdown from "markdown-it";
 import { ApiError } from "./api";
 import { CommandError } from "./Errors";
-import { MatrixMessageContent } from "./MatrixEvent";
+import { MatrixEvent, MatrixMessageContent } from "./MatrixEvent";
 import { BridgePermissionLevel } from "./config/Config";
 import { PermissionCheckFn } from "./Connections";
 import { RoomEvent } from "matrix-bot-sdk";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { Category } from "./AdminRoomCommandHandler";
 import { ConnectionType } from "./Connections/type";
-import { Logger } from "matrix-appservice-bridge";
-const log = new Logger("BotCommands");
 
 const stringArgv = import("string-argv");
 const md = new markdown();
@@ -214,19 +212,13 @@ export async function handleCommand(
   | CommandResultErrorUnknown
   | CommandResultErrorHuman
 > {
-  log.info(`handling command "${command}"`);
   let usingGlobalPrefix = false;
   if (prefix && command.startsWith(prefix)) {
-    log.info(`Command has prefix ${prefix}`);
     command = command.substring(prefix.length);
   } else if (globalPrefix && command.startsWith(globalPrefix)) {
-    log.info(`Command has has globalPrefix ${globalPrefix}`);
     usingGlobalPrefix = true;
     command = command.substring(globalPrefix.length);
   } else if (prefix || globalPrefix) {
-    log.info(
-      `Skipped command because both ${prefix} and ${globalPrefix} were truthy`,
-    );
     return { handled: false };
   }
   const parts = (await stringArgv).parseArgsStringToArgv(command);
@@ -235,10 +227,8 @@ export async function handleCommand(
     // We have a match!
     const command = botCommands[prefix];
     if (!command) {
-      log.info(`Skipped ${prefix}`);
       continue;
     }
-    log.info(`Matched`, JSON.stringify(command));
     const permissionService =
       command.permissionService || defaultPermissionService;
     if (
@@ -254,14 +244,12 @@ export async function handleCommand(
       };
     }
     if (!command.includeReply && parentEvent) {
-      log.info("User event has reply, skipping");
       // Ignore replies if we aren't expecting one.
       return {
         handled: false,
       };
     }
     if (!command.runOnGlobalPrefix && usingGlobalPrefix) {
-      log.info("Command does not run on global prefixes");
       // Ignore global prefix commands.
       return {
         handled: false,
@@ -310,6 +298,5 @@ export async function handleCommand(
       };
     }
   }
-  log.info("Got to the end of the function and wasn't handled");
   return { handled: false };
 }
