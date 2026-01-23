@@ -982,21 +982,6 @@ export class SetupConnection extends CommandConnection {
     }
   }
 
-  // TODO: This *should* be part of CommandConnection but there is a bug that prevents
-  // the help text from working.
-  @botCommand("help", "This help text")
-  public async helpCommand() {
-    return this.botClient.sendEvent(
-      this.roomId,
-      "m.room.message",
-      SetupConnection.helpMessage(
-        this.commandPrefix,
-        this.helpCategories,
-        this.includeTitlesInHelp,
-      ),
-    );
-  }
-
   private async checkUserPermissions(
     userId: string,
     service: string,
@@ -1039,6 +1024,9 @@ export class SetupConnection extends CommandConnection {
 }
 
 // Typescript doesn't understand Prototypes very well yet.
-const res = compileBotCommands(SetupConnection.prototype as any);
+const res = compileBotCommands(
+  SetupConnection.prototype as any,
+  CommandConnection.prototype as any,
+);
 SetupConnection.helpMessage = res.helpMessage;
 SetupConnection.botCommands = res.botCommands;

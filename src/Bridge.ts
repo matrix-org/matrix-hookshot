@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import {
   AdminRoom,
@@ -36,6 +37,7 @@ import {
   GitLabIssueConnection,
   FigmaFileConnection,
   FeedConnection,
+  SetupConnection,
 } from "./Connections";
 import {
   IGitLabWebhookIssueStateEvent,
@@ -87,7 +89,6 @@ import { promises as fs } from "fs";
 import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
-import { SetupConnection } from "./Connections/SetupConnection";
 import { JiraOAuthRequestOnPrem } from "./jira/OAuth";
 import {
   GenericWebhookEvent,
@@ -1335,15 +1336,21 @@ export class Bridge {
     roomId: string,
     event: MatrixEvent<MatrixMessageContent>,
   ) {
+    log.debug("SUPER VERBOSE MESSAGES AHEAD");
     if (!this.connectionManager) {
+      log.debug("We have no connection manager");
       // Not ready yet.
       return;
     }
     if (this.as.isNamespacedUser(event.sender)) {
+      log.debug(`${event.sender} is a namespaced user`);
       /* We ignore messages from our users */
       return;
     }
     if (Date.now() - event.origin_server_ts > 30000) {
+      log.debug(
+        `The message is OLD. ${event.origin_server_ts} - ${Date.now()} > 30000`,
+      );
       /* We ignore old messages too */
       return;
     }
@@ -1382,6 +1389,7 @@ export class Bridge {
       this.config.checkPermission(event.sender, service, level);
 
     if (!adminRoom) {
+      log.debug(`This is not an admin room...`);
       let handled = false;
       for (const connection of this.connectionManager.getAllConnectionsForRoom(
         roomId,
@@ -1399,6 +1407,7 @@ export class Bridge {
         });
         try {
           if (connection.onMessageEvent) {
+            log.debug(`Sending the message to ${connection.toString()}`);
             handled = await connection.onMessageEvent(
               event,
               checkPermission,
@@ -1413,9 +1422,18 @@ export class Bridge {
           Sentry.captureException(ex, scope);
         }
         if (handled) {
+          log.debug(`Handled, ignoring future messages`);
           break;
         }
       }
+      log.debug(
+        `${event.sender} can manage connections? (and was msg handled: ${handled})`,
+        this.config.checkPermissionAny(
+          event.sender,
+          BridgePermissionLevel.manageConnections,
+        ),
+      );
+
       if (
         !handled &&
         this.config.checkPermissionAny(

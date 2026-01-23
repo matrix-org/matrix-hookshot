@@ -2,13 +2,7 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
-import {
-  Appservice,
-  Intent,
-  MatrixError,
-  PowerLevelsEvent,
-  StateEvent,
-} from "matrix-bot-sdk";
+import { Appservice, Intent, MatrixError, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
 import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
 import { CommentProcessor } from "./CommentProcessor";

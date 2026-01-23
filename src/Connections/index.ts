@@ -13,3 +13,4 @@ export * from "./FigmaFileConnection";
 export * from "./OpenProjectConnection";
 export * from "./FeedConnection";
 export * from "./OutboundHook";
+export * from "./SetupConnection";
