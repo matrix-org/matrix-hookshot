@@ -8,7 +8,6 @@ import { IAppserviceRegistration, LogService } from "matrix-bot-sdk";
 import { getAppservice } from "../Appservice";
 import BotUsersManager from "../managers/BotUsersManager";
 import * as Sentry from "@sentry/node";
-import { GenericHookConnection } from "../Connections";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { WebhookTransformer } from "../generic/WebhookTransformer";
 

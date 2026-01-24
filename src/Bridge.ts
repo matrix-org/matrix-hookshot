@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { AdminAccountData } from "./AdminRoomCommandHandler";
 import {
   AdminRoom,
@@ -36,6 +37,7 @@ import {
   GitLabIssueConnection,
   FigmaFileConnection,
   FeedConnection,
+  SetupConnection,
 } from "./Connections";
 import {
   IGitLabWebhookIssueStateEvent,
@@ -87,7 +89,6 @@ import { promises as fs } from "fs";
 import Metrics from "./Metrics";
 import { FigmaEvent, ensureFigmaWebhooks } from "./figma";
 import { ListenerService } from "./ListenerService";
-import { SetupConnection } from "./Connections/SetupConnection";
 import { JiraOAuthRequestOnPrem } from "./jira/OAuth";
 import {
   GenericWebhookEvent,
@@ -1416,6 +1417,7 @@ export class Bridge {
           break;
         }
       }
+
       if (
         !handled &&
         this.config.checkPermissionAny(
