@@ -1,3 +1,16 @@
+# 7.3.1 (2026-01-24)
+
+## Features
+
+- Add generic webhook transformation JS snippet which can handle GitLab Pipeline payloads  under `contrib/jsTransformationFunctions/gitlab-pipeline.js`. ([\#1109](https://github.com/matrix-org/matrix-hookshot/issues/1109))
+- Add generic webhook transformation JS snippet to format text as code block under `contrib/jsTransformationFunctions/format-as-code.js` ([\#1111](https://github.com/matrix-org/matrix-hookshot/issues/1111))
+- Rowers can now enjoy the correct emoji when using the ChallengeHound connection type. ([\#1184](https://github.com/matrix-org/matrix-hookshot/issues/1184))
+
+## Bugfixes
+
+- Fix the "!hookshot help" command not working. ([\#1204](https://github.com/matrix-org/matrix-hookshot/issues/1204))
+
+
 # 7.3.0 (2026-01-19)
 
 ## Features
