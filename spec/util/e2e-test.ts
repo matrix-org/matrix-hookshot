@@ -309,7 +309,11 @@ export class E2ETestMatrixClient extends MatrixClient {
 
 export class E2ETestEnv<ML extends string = string> {
   static get workerId() {
-    return (process as any).__tinypool_state__.workerId;
+    const workerId = parseInt(process.env.VITEST_WORKER_ID);
+    if (isNaN(workerId)) {
+      throw Error("WorkerID is invalid");
+    }
+    return workerId;
   }
 
   static async createTestEnv<ML extends string>(
