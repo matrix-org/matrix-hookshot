@@ -131,7 +131,7 @@ impl JsTokenEncryption {
 
     #[napi]
     pub fn encrypt(&self, input: String) -> Result<Vec<String>, Error> {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut parts: Vec<String> = Vec::new();
         for part in input.into_bytes().chunks(MAX_TOKEN_PART_SIZE) {
             match self

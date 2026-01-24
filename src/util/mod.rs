@@ -102,8 +102,8 @@ impl QueueWithBackoff {
     pub fn backoff(&mut self, item: String) -> u32 {
         let last_backoff = (*self.last_backoff_duration.get(&item).unwrap_or(&0)) as f64;
 
-        let mut rng = rand::thread_rng();
-        let y: f64 = rng.gen::<f64>() + 0.5f64; // generates a float between 0.5 and 1.1
+        let mut rng = rand::rng();
+        let y: f64 = rng.random::<f64>() + 0.5f64; // generates a float between 0.5 and 1.1
 
         let backoff_duration = ((y * self.backoff_time) + last_backoff.powf(self.backoff_exponent))
             .min(self.backoff_max) as u32;
@@ -118,7 +118,7 @@ impl QueueWithBackoff {
         // If the backoff queue contains this time (likely)
         // then we want to increase the backoff time slightly
         // to allow for it.
-        let incr: f64 = (rng.gen::<f64>() * 2f64) + 2f64;
+        let incr: f64 = (rng.random::<f64>() * 2f64) + 2f64;
         while self.backoff.contains_key(&time) {
             time += (incr * self.backoff_time) as u64;
         }
@@ -133,7 +133,7 @@ impl QueueWithBackoff {
     }
 
     fn shuffle(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         self.queue.make_contiguous().shuffle(&mut rng);
     }
 
