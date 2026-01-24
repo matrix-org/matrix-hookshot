@@ -112,7 +112,7 @@
     "chai": "^4",
     "eslint": "^9.15.0",
     "eslint-plugin-chai-expect": "^3.1.0",
-    "eslint-plugin-mocha": "^10.5.0",
+    "eslint-plugin-mocha": "^11.0.0",
     "eslint-plugin-react": "^7.37.2",
     "mocha": "^10.8.2",
     "nyc": "^17.1.0",
