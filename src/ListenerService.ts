@@ -114,7 +114,7 @@ export class ListenerService {
 
       listener.app.use(listener.config.prefix ?? "", probeRouter);
       log.info(
-        `Listening on http://${addr}:${listener.config.port}/${listener.config.prefix ?? "/"} for ${listener.config.resources.join(", ")}`,
+        `Listening on http://${addr}:${listener.config.port}${listener.config.prefix ?? "/"} for ${listener.config.resources.join(", ")}`,
       );
     }
   }
