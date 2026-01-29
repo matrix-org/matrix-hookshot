@@ -44,6 +44,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
       expressApp,
       widgetTokenPrefix: "hookshot_",
       disallowedIpRanges: config.widgets?.disallowedIpRanges,
+      allowedIpRanges: config.widgets?.allowedIpRanges,
       openIdOverride: config.widgets?.openIdOverrides,
     });
 

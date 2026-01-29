@@ -54,6 +54,9 @@ When `addOnInvite` is true, the bridge will add a widget to rooms when the bot i
 `disallowedIpRanges` describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
 Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convenience.
 
+`allowedIpRanges` describes which IP ranges within `disallowedIpRanges` are explicitly allow-listed.
+This removes the need to override `disallowedIpRanges` to remove or adjust specific IP ranges.
+
 `publicUrl` should be set to the publicly reachable address for the widget `public` content. By default, Hookshot hosts this content on the
 `widgets` listener under `/widgetapi/v1/static`.
 
