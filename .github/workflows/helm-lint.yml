@@ -22,6 +22,6 @@ jobs:
           exec: helm lint ./helm/hookshot/
 
       - name: Validate
-        uses: nlamirault/helm-kubeconform-action@v0.1.0
+        uses: nlamirault/helm-kubeconform-action@v0.2.0
         with:
           charts: ./helm/
