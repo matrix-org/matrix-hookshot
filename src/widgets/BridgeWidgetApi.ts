@@ -31,6 +31,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
     private readonly config: BridgeConfig,
     storageProvider: IBridgeStorageProvider,
     expressApp: Application,
+    listenerPrefix: string,
     private readonly connMan: ConnectionManager,
     private readonly botUsersManager: BotUsersManager,
     private readonly as: Appservice,
@@ -38,7 +39,7 @@ export class BridgeWidgetApi extends ProvisioningApi {
     private readonly github?: GithubInstance,
   ) {
     super(storageProvider, {
-      apiPrefix: "/widgetapi",
+      apiPrefix: `${listenerPrefix}/widgetapi`,
       widgetFrontendLocation: "public",
       expressApp,
       widgetTokenPrefix: "hookshot_",

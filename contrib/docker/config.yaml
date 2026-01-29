@@ -24,7 +24,7 @@ cache:
 
 generic:
   enabled: true
-  urlPrefix: https://localhost:9001/webhook/
+  urlPrefix: http://localhost:9001/webhook/
   allowJsTransformationFunctions: true
   waitForComplete: true
 

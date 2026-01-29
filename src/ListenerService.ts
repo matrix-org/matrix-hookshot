@@ -79,7 +79,9 @@ export class ListenerService {
     }
   }
 
-  public getApplicationsForResource(resourceName: ResourceName): Application[] {
+  public getApplicationsPrefixesForResource(
+    resourceName: ResourceName,
+  ): { app: Application; listenerPrefix: string }[] {
     const listeners = this.listeners.filter((l) =>
       l.config.resources.includes(resourceName),
     );
@@ -92,7 +94,10 @@ export class ListenerService {
       );
       listener.resourcesBound = true;
     }
-    return listeners.map((l) => l.app);
+    return listeners.map((l) => ({
+      app: l.app,
+      listenerPrefix: l.config.prefix ?? "",
+    }));
   }
 
   public start() {
@@ -114,7 +119,7 @@ export class ListenerService {
 
       listener.app.use(listener.config.prefix ?? "", probeRouter);
       log.info(
-        `Listening on http://${addr}:${listener.config.port}/${listener.config.prefix ?? "/"} for ${listener.config.resources.join(", ")}`,
+        `Listening on http://${addr}:${listener.config.port}${listener.config.prefix ?? "/"} for ${listener.config.resources.join(", ")}`,
       );
     }
   }

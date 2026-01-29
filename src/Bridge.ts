@@ -1124,15 +1124,18 @@ export class Bridge {
       }
     }
     if (this.config.widgets) {
-      const apps = this.listener.getApplicationsForResource("widgets");
-      if (apps.length > 1) {
+      const appsAndPrefixes =
+        this.listener.getApplicationsPrefixesForResource("widgets");
+      if (appsAndPrefixes.length > 1) {
         throw Error("You may only bind `widgets` to one listener.");
       }
+      const { app, listenerPrefix } = appsAndPrefixes[0];
       new BridgeWidgetApi(
         this.adminRooms,
         this.config,
         this.storage,
-        apps[0],
+        app,
+        listenerPrefix,
         this.connectionManager,
         this.botUsersManager,
         this.as,
