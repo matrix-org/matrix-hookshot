@@ -45,6 +45,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
       addOnInvite: false,
     },
     disallowedIpRanges: DefaultDisallowedIpRanges,
+    // Don't set allowedIpRanges as overriding any of DefaultDisallowedIpRanges by default doesn't make sense
     branding: {
       widgetTitle: "Hookshot Configuration",
     },
