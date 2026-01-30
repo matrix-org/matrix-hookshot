@@ -1948,6 +1948,8 @@ This can be enabled by setting <code>roomSetupWidget</code> to an object. You ca
 When <code>addOnInvite</code> is true, the bridge will add a widget to rooms when the bot is invited, and the room has <strong>no existing connections</strong>.</p>
 <p><code>disallowedIpRanges</code> describes which IP ranges should be disallowed when resolving homeserver IP addresses (for security reasons).
 Unless you know what you are doing, it is recommended to not include this key. The default blocked IPs are listed above for your convenience.</p>
+<p><code>allowedIpRanges</code> describes which IP ranges within <code>disallowedIpRanges</code> are explicitly allow-listed.
+This removes the need to override <code>disallowedIpRanges</code> to remove or adjust specific IP ranges.</p>
 <p><code>publicUrl</code> should be set to the publicly reachable address for the widget <code>public</code> content. By default, Hookshot hosts this content on the
 <code>widgets</code> listener under <code>/widgetapi/v1/static</code>.</p>
 <p><code>branding</code> allows you to change the strings used for various bits of widget UI. At the moment you can:</p>
