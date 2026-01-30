@@ -1,3 +1,14 @@
+# 7.3.2 (2026-01-30)
+
+## Features
+
+- Allow configuration of `widgets.allowedIpRanges` to allow-list specific ranges within `widgets.disallowedIpRanges`. ([\#1209](https://github.com/matrix-org/matrix-hookshot/issues/1209))
+
+## Bugfixes
+
+- Mount the widgets resource respect its listener's path prefix. ([\#1208](https://github.com/matrix-org/matrix-hookshot/issues/1208))
+
+
 # 7.3.1 (2026-01-24)
 
 ## Features
