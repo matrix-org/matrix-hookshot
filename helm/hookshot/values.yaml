@@ -101,8 +101,17 @@ tolerations: []
 # -- Affinity settings for deployment
 affinity: {}
 hookshot:
+  existingSecret:
+    # -- Name of existing Secret with valid Hookshot registration.yaml.
+    # If set, ignores hookshot.registration
+    registration: ""
+    # -- Name of existing Secret with valid Hookshot passkey.pem
+    # If set, ignores hookshot.passkey
+    passkey: ""
+
   # -- Name of existing ConfigMap with valid Hookshot configuration
-  existingConfigMap:
+  existingConfigMap: ""
+
   # -- Raw Hookshot configuration. Gets templated into a YAML file and then loaded unless an existingConfigMap is specified.
   config:
     # This is an example configuration file
@@ -113,9 +122,9 @@ hookshot:
       mediaUrl: https://example.com
       port: 9993
       bindAddress: 127.0.0.1
-    passFile: passkey.pem
-    # A passkey used to encrypt tokens stored inside the bridge.
+    # -- A passkey used to encrypt tokens stored inside the bridge.
     # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
+    passFile: /data/passkey.pem
     logging:
       # Logging settings. You can have a severity debug,info,warn,error
       level: info
@@ -298,4 +307,6 @@ hookshot:
     sender_localpart: hookshot
     url: "http://example.com"
     rate_limited: false
+  # -- A passkey used to encrypt tokens stored inside the bridge.
+  # Run openssl genpkey -out passkey.pem -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:4096 to generate
   passkey: ""
