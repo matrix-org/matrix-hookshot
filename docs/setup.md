@@ -70,7 +70,7 @@ Copy `registration.sample.yml` into `registration.yml` and fill in:
 At a minimum, you will need to replace the `as_token` and `hs_token` and change the domain part of the namespaces. The sample config can be also found at our [github repo](https://raw.githubusercontent.com/matrix-org/matrix-hookshot/main/registration.sample.yml) for your convienence.
 
 You will need to link the registration file to the homeserver. Consult your homeserver documentation
-on how to add appservices. [Synapse documents the process here](https://matrix-org.github.io/synapse/latest/application_services.html).
+on how to add appservices. [Synapse documents the process here](https://element-hq.github.io/synapse/latest/application_services.html).
 
 ### Homeserver Configuration
 
