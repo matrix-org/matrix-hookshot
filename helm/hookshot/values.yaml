@@ -92,6 +92,15 @@ resources: {}
 #   cpu: 100m
 #   memory: 128Mi
 
+# Persistent volume for encryption store, mounted in the pod as /persistent.
+# Can be disabled if encryption is not used.
+persistence:
+  enabled: true
+  # existingClaim: hookshot
+  # storageClass: "-"
+  accessMode: ReadWriteOnce
+  size: 8Gi
+
 autoscaling:
   enabled: false
 # -- Node selector parameters
