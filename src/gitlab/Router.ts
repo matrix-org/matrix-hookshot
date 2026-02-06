@@ -6,6 +6,7 @@ import {
   IGitLabWebhookEvent,
   IGitLabWebhookIssueStateEvent,
   IGitLabWebhookMREvent,
+  IGitLabWebhookPipelineEvent,
   IGitLabWebhookReleaseEvent,
 } from "./WebhookTypes";
 import { BridgeConfigGitLab } from "../config/sections";
@@ -67,6 +68,10 @@ export class GitLabWebhooksRouter {
       return `gitlab.release.${action}`;
     } else if (body.object_kind === "push") {
       return `gitlab.push`;
+    } else if (body.object_kind === "pipeline") {
+      const pipelineEvent = body as unknown as IGitLabWebhookPipelineEvent;
+      const status = pipelineEvent.object_attributes?.status?.toLowerCase();
+      return `gitlab.pipeline.${status}`;
     } else {
       return null;
     }
