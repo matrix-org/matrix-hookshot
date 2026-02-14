@@ -48,7 +48,7 @@
     "@octokit/auth-token": "^4.0.0",
     "@octokit/rest": "^20.0.2",
     "@octokit/webhooks": "^12.0.10",
-    "@sentry/node": "^7.52.1",
+    "@sentry/node": "^10.0.0",
     "@vector-im/compound-design-tokens": "^2.0.1",
     "@vector-im/compound-web": "^7.3.0",
     "ajv": "^8.11.0",
