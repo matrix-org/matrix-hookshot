@@ -136,9 +136,8 @@ interface ConnectionDeclarationBase<C extends IConnection = IConnection> {
   ) => C | Promise<C>;
 }
 
-interface ConnectionDeclarationWithStatic<
-  C extends IConnection = IConnection,
-> extends ConnectionDeclarationBase<C> {
+interface ConnectionDeclarationWithStatic<C extends IConnection = IConnection>
+  extends ConnectionDeclarationBase<C> {
   SupportsStaticConfiguration: true;
   validateState: (data: Record<string, unknown>) => void;
 }
