@@ -6253,9 +6253,9 @@ postman-request@^2.88.1-postman.30:
     uuid "^8.3.2"
 
 preact-render-to-string@^6.3.1:
-  version "6.6.5"
-  resolved "https://registry.yarnpkg.com/preact-render-to-string/-/preact-render-to-string-6.6.5.tgz#1be84cc8565e3bcfcf2a33cb9c61185e6498ab31"
-  integrity sha512-O6MHzYNIKYaiSX3bOw0gGZfEbOmlIDtDfWwN1JJdc/T3ihzRT6tGGSEWE088dWrEDGa1u7101q+6fzQnO9XCPA==
+  version "6.6.6"
+  resolved "https://registry.yarnpkg.com/preact-render-to-string/-/preact-render-to-string-6.6.6.tgz#b9c66cad7f24cc605a73d6612bf371e656c6d994"
+  integrity sha512-EfqZJytnjJldV+YaaqhthU2oXsEf5e+6rDv957p+zxAvNfFLQOPfvBOTncscQ+akzu6Wrl7s3Pa0LjUQmWJsGQ==
 
 preact@^10.26.2:
   version "10.28.4"
