@@ -61,6 +61,7 @@ jobs:
             arch: arm64
 
     runs-on: ${{ matrix.os }}
+    environment: dockerhub
 
     steps:
       - name: Checkout
@@ -116,6 +117,7 @@ jobs:
       attestations: write
       id-token: write
 
+    environment: dockerhub
     strategy:
       matrix:
         image: ${{ fromJson(needs.docker-clean-metadata.outputs.json).tags }}

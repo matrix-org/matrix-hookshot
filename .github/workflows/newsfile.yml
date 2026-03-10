@@ -5,11 +5,12 @@ on:
     branches: [main]
   merge_group:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   changelog:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # No newsfile required for dependabot
     if: ${{ github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' }}
