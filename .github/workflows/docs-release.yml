@@ -44,7 +44,7 @@ jobs:
           ref: "gh-pages"
           persist-credentials: false
 
-      - enbrun: mv book "${RELEASE_VERSION}"
+      - run: mv book "${RELEASE_VERSION}"
 
       - name: Upload artifact
         id: deployment
