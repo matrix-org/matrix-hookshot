@@ -48,15 +48,16 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: "gh-pages"
+          path: "./gh-pages"
           persist-credentials: false
 
-      - run: rm -R latest && mv book latest
+      - run: rm -R ./gh-pages/latest && mv ./book ./gh-pages/latest
 
       - name: Upload artifact
         id: deployment
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
-          path: .
+          path: "./gh-pages"
 
   # Deployment job
   deploy:
