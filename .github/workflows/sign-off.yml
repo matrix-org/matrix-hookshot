@@ -8,4 +8,4 @@ permissions: {}
 
 jobs:
   signoff:
-    uses: matrix-org/backend-meta@18beaf3c8e536108bd04d18e6c3dc40ba3931e28 # v2
+    uses: matrix-org/backend-meta/.github/workflows/sign-off.yml@18beaf3c8e536108bd04d18e6c3dc40ba3931e28 # v2

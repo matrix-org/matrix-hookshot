@@ -38,9 +38,11 @@ jobs:
 
       - name: Set chart appVersion to current package.json version
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
+        env:
+          VERSION: "${{steps.get_hookshot_version.outputs.hookshot_version}}"
         with:
           cmd: |
-            yq -i '.appVersion="${{steps.get_hookshot_version.outputs.hookshot_version}}"' helm/hookshot/Chart.yaml
+            yq -i '.appVersion="$VERSION"' helm/hookshot/Chart.yaml
 
       - name: Set values hookshot config to current config.sample.yml contents
         uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
