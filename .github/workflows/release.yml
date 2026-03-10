@@ -2,25 +2,29 @@ on:
   push:
     tags: ["[0-9].[0-9].[0-9]"]
 
+permissions:
+  contents: write # Modify repository contents and create releases
+  pull-requests: write # Create PRs for automated updates
+  actions: write # Modify workflow files (for self-updating workflows)
+
 jobs:
   draft-release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - name: Get changelog
-        id: extract-changelog
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - name: Create release
         env:
           REF_NAME: ${{ github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref }}
         run: |
           git fetch --tags --force
           RELEASE_NAME="${REF_NAME} $(date +'%Y-%m-%d')"
           git tag -l --format='%(contents:body)' "${REF_NAME}" > next-changelog.txt
-          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_OUTPUT
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref }}
-          name: ${{ steps.extract-changelog.outputs.RELEASE_NAME }}
-          body_path: next-changelog.txt
-          draft: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          gh release create "${REF_NAME}" \
+              --repo="$GITHUB_REPOSITORY" \
+              --title="$RELEASE_NAME" \
+              --notes-file="next-changelog.txt"
+              --draft

@@ -8,35 +8,42 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Pattern 2: PR Interaction (commenting, status checks, reviews)
+permissions:
+  contents: read # Read repository code
+  pages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Use Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .node-version
 
       # We want to install matrix-appservice-bridge, which we depend on.
       - run: yarn --ignore-scripts
-  
+
       - name: Get release tag
         run: echo "RELEASE_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
       - name: Set up mdBook
-        uses: peaceiris/actions-mdbook@v2
+        uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 # v2
         with:
-          mdbook-version: '0.4.11'
+          mdbook-version: "0.4.11"
 
       - name: Set version of docs
-        run: echo 'window.HOOKSHOT_VERSION = "${{ env.RELEASE_VERSION }}";' > ./docs/_site/version.js
+        run: echo 'window.HOOKSHOT_VERSION = "${RELEASE_VERSION}";' > ./docs/_site/version.js
 
       - run: mdbook build
 
       - name: Deploy latest
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           keep_files: true
