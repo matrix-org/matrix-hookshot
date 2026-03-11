@@ -2,17 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - changelog.d/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - changelog.d/**'
 
   workflow_dispatch:
   merge_group:
 
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -20,66 +21,99 @@ concurrency:
 
 jobs:
   lint-node:
-   runs-on: ubuntu-latest
-   steps:
-    - uses: actions/checkout@v6
-    - name: Use Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version-file: .node-version
-    - run: yarn --ignore-scripts
-    - run: yarn lint:js
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - name: Use Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: .node-version
+      - run: yarn --ignore-scripts
+      - run: yarn lint:js
 
   lint-rust:
-   runs-on: ubuntu-latest
-   steps:
-    - uses: actions/checkout@v6
-    - uses: actions-rust-lang/setup-rust-toolchain@v1
-      with:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions-rust-lang/setup-rust-toolchain@a0b538fa0b742a6aa35d6e2c169b4bd06d225a98 # v1
+        with:
           toolchain: stable
           components: rustfmt
-    - run: cargo fmt --all -- --check
-    - run: cargo clippy -- -Dwarnings
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy -- -Dwarnings
+
+  zizmor:
+    name: Zizmor Github Actions lint
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@0dce2577a4760a2749d8cfb7a84b7d5585ebcb7d # v0.5.0
 
   config:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
-      - run: yarn --silent ts-node src/config/Defaults.ts --config | diff config.sample.yml - 
+      - run: yarn --silent ts-node src/config/Defaults.ts --config | diff config.sample.yml -
 
   metrics-docs:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - name: Use Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .node-version
       - run: yarn # Need to build scripts to get rust bindings
-      - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md - 
-  
+      - run: yarn --silent ts-node ./scripts/build-metrics-docs.ts | diff docs/metrics.md -
+
   test:
     # Test on LTS-1
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
       matrix:
         node_version: [22, 24]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ matrix.node_version }}
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: ${{ matrix.node_version }}
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@a0b538fa0b742a6aa35d6e2c169b4bd06d225a98 # v1
         with:
-            toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-        with: 
+          toolchain: stable
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
           shared-key: ubuntu-2204-rust-cache
       - run: yarn
       - run: yarn test:cover
@@ -88,18 +122,22 @@ jobs:
     # Test on LTS-1
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     needs:
       - test
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: .node-version
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions-rust-lang/setup-rust-toolchain@a0b538fa0b742a6aa35d6e2c169b4bd06d225a98 # v1
         with:
           toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-        with: 
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2
+        with:
           shared-key: ubuntu-2204-rust-cache
       - run: yarn
       - run: yarn test:e2e
