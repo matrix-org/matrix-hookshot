@@ -1,6 +1,10 @@
-import { ConnectionDeclarations } from "../../Connections";
-import { ConnectionType } from "../../Connections/type";
+import {
+  ConnectionDeclarations,
+  GenericHookConnection,
+} from "../../Connections";
+import type { ConnectionType } from "../../Connections/type";
 import { ConfigError } from "../../Errors";
+import type { BridgeConfig } from "../Config";
 
 export interface BridgeConfigConnectionConfig {
   roomId: string;
@@ -12,6 +16,7 @@ export interface BridgeConfigConnectionConfig {
 export function validateConnectionConfig(
   connection: Record<keyof BridgeConfigConnectionConfig, unknown>,
   enabledServices: ConnectionType[],
+  config: BridgeConfig,
 ): connection is BridgeConfigConnectionConfig {
   if (typeof connection.roomId !== "string") {
     throw new ConfigError("roomId", "is not a string");
@@ -48,7 +53,14 @@ export function validateConnectionConfig(
     );
   }
   try {
-    resolvedcType.validateState(connection.state as Record<string, unknown>);
+    if (resolvedcType === GenericHookConnection) {
+      GenericHookConnection.validateState(
+        connection.state as Record<string, unknown>,
+        !!config.generic?.allowJsTransformationFunctions,
+      );
+    } else {
+      resolvedcType.validateState(connection.state as Record<string, unknown>);
+    }
   } catch (ex) {
     throw new ConfigError("state", `connection state did not validate:`, ex);
   }

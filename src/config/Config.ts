@@ -434,7 +434,7 @@ export class BridgeConfig {
     }
     configData.connections?.forEach((connection, index) => {
       try {
-        validateConnectionConfig(connection, this.enabledServices);
+        validateConnectionConfig(connection, this.enabledServices, this);
       } catch (ex) {
         if (ex instanceof ConfigError) {
           throw new ConfigError(
