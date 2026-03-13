@@ -259,7 +259,7 @@ To enable, simply set:
 
 ```yaml
 cache:
-  redisUri: "redis://redis-host:3679"
+  redisUri: "redis://redis-host:6379"
 ```
 
 ### Services configuration
