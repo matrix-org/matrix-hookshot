@@ -81,7 +81,7 @@
     "vite-plugin-magical-svg": "^1.1.1",
     "winston": "^3.11.0",
     "xml2js": "^0.6.2",
-    "yaml": "^2.3.4"
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "@babel/core": "^7.26.9",
