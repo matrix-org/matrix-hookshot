@@ -492,7 +492,10 @@ describe("GenericHookConnection", () => {
 
   it("will return successful even when a transformation function throws", async () => {
     const [connection, mq] = createGenericHook(
-      { name: "test", transformationFunction: "throw new Error('the spoon is a lie')" },
+      {
+        name: "test",
+        transformationFunction: "throw new Error('the spoon is a lie')",
+      },
       { allowJsTransformationFunctions: true },
     );
     const messagePromise = handleMessage(mq);
@@ -573,7 +576,9 @@ describe("GenericHookConnection", () => {
     // No message should be sent to Matrix since content is empty
     const result = await connection.onGenericHook({ test: "data" });
     expect(result.successful).to.be.true;
-    const response = (result as { response: { body: string; statusCode: number } }).response;
+    const response = (
+      result as { response: { body: string; statusCode: number } }
+    ).response;
     expect(response.body).to.equal('{"status": "ignored"}');
     expect(response.statusCode).to.equal(204);
   });
@@ -589,7 +594,10 @@ describe("GenericHookConnection", () => {
 
   it("will deliver fallback text to Matrix when transformation throws", async () => {
     const [connection, mq] = createGenericHook(
-      { name: "test", transformationFunction: "this is not valid javascript!!!" },
+      {
+        name: "test",
+        transformationFunction: "this is not valid javascript!!!",
+      },
       { allowJsTransformationFunctions: true },
     );
     const messagePromise = handleMessage(mq);
@@ -615,7 +623,9 @@ describe("GenericHookConnection", () => {
     const message = await messagePromise;
     expect(result.successful).to.be.true;
     expect(message.content.msgtype).to.equal("m.text");
-    expect(message.content.body).to.equal("a towel is the most massively useful thing");
+    expect(message.content.body).to.equal(
+      "a towel is the most massively useful thing",
+    );
   });
 
   it("should fail to create a hook with an invalid expiry time", () => {
