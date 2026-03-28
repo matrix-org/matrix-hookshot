@@ -533,6 +533,91 @@ describe("GenericHookConnection", () => {
     expect(response.body).to.equal('{"received": true}');
   });
 
+  it("will not include webhookResponse when transformation has no webhookResponse", async () => {
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: V2TFFunction },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({
+      question: "What is the meaning of life?",
+      answer: 42,
+    });
+    await messagePromise;
+    expect(result.successful).to.be.true;
+    expect((result as { response?: unknown }).response).to.be.undefined;
+  });
+
+  it("will not include webhookResponse when transformation throws", async () => {
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: "throw new Error('kaboom')" },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({ test: "data" });
+    await messagePromise;
+    expect(result.successful).to.be.true;
+    expect((result as { response?: unknown }).response).to.be.undefined;
+  });
+
+  it("will handle empty result from transformation with webhookResponse", async () => {
+    const tfEmpty = `result = {
+      empty: true,
+      version: "v2",
+      webhookResponse: { body: '{"status": "ignored"}', statusCode: 204 }
+    }`;
+    const [connection] = createGenericHook(
+      { name: "test", transformationFunction: tfEmpty },
+      { allowJsTransformationFunctions: true },
+    );
+    // No message should be sent to Matrix since content is empty
+    const result = await connection.onGenericHook({ test: "data" });
+    expect(result.successful).to.be.true;
+    const response = (result as { response: { body: string; statusCode: number } }).response;
+    expect(response.body).to.equal('{"status": "ignored"}');
+    expect(response.statusCode).to.equal(204);
+  });
+
+  it("will return successful:true for simple webhook without transformation", async () => {
+    const [connection, mq] = createGenericHook();
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({ simple: "data" });
+    await messagePromise;
+    expect(result.successful).to.be.true;
+    expect((result as { response?: unknown }).response).to.be.undefined;
+  });
+
+  it("will deliver fallback text to Matrix when transformation throws", async () => {
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: "this is not valid javascript!!!" },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    await connection.onGenericHook({ test: "data" });
+    const message = await messagePromise;
+    expect(message.content.body).to.equal(
+      "Webhook received but failed to process via transformation function",
+    );
+  });
+
+  it("will handle transformation that returns v2 result with custom msgtype", async () => {
+    const tfCustomMsgtype = `result = {
+      plain: "a towel is the most massively useful thing",
+      msgtype: "m.text",
+      version: "v2"
+    }`;
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: tfCustomMsgtype },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({ test: "data" });
+    const message = await messagePromise;
+    expect(result.successful).to.be.true;
+    expect(message.content.msgtype).to.equal("m.text");
+    expect(message.content.body).to.equal("a towel is the most massively useful thing");
+  });
+
   it("should fail to create a hook with an invalid expiry time", () => {
     for (const expirationDate of [
       0,
