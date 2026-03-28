@@ -652,7 +652,7 @@ export class GenericHookConnection
 
     let content: ExecuteResultContent | undefined;
     let webhookResponse: ExecuteResultWebhookResponse | undefined;
-    let successful = true;
+    const successful = true;
     if (this.webhookTransformer) {
       try {
         const result = this.webhookTransformer.execute(data);
