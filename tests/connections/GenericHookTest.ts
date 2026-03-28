@@ -476,6 +476,63 @@ describe("GenericHookConnection", () => {
     }
   });
 
+  it("will return successful when a valid transformation function is used", async () => {
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: V2TFFunction },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({
+      question: "What is the meaning of life?",
+      answer: 42,
+    });
+    await messagePromise;
+    expect(result.successful).to.be.true;
+  });
+
+  it("will return successful even when a transformation function throws", async () => {
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: "throw new Error('the spoon is a lie')" },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({ test: "data" });
+    await messagePromise;
+    // The message is delivered with fallback text, so the webhook was
+    // processed successfully from the caller's perspective.
+    expect(result.successful).to.be.true;
+  });
+
+  it("will return successful when transformation function has invalid syntax", async () => {
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: "bibble bobble" },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({ test: "data" });
+    await messagePromise;
+    expect(result.successful).to.be.true;
+  });
+
+  it("will include webhookResponse in result when transformation provides one", async () => {
+    const tfWithResponse = `result = {
+      plain: "processed",
+      version: "v2",
+      webhookResponse: { body: '{"received": true}', statusCode: 200, contentType: "application/json" }
+    }`;
+    const [connection, mq] = createGenericHook(
+      { name: "test", transformationFunction: tfWithResponse },
+      { allowJsTransformationFunctions: true },
+    );
+    const messagePromise = handleMessage(mq);
+    const result = await connection.onGenericHook({ test: "data" });
+    await messagePromise;
+    expect(result.successful).to.be.true;
+    expect(result).to.have.property("response");
+    const response = (result as { response: { body: string } }).response;
+    expect(response.body).to.equal('{"received": true}');
+  });
+
   it("should fail to create a hook with an invalid expiry time", () => {
     for (const expirationDate of [
       0,
