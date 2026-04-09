@@ -1358,6 +1358,8 @@ export class Bridge {
 
     let replyEvent: RoomEvent<IJsonType> | undefined;
     if (event.content["m.relates_to"]?.["m.in_reply_to"]) {
+      const parentEventId =
+        event.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
       if (event.content.formatted_body?.includes("<mx-reply>")) {
         // This is a legacy fallback reply:
         try {
@@ -1373,11 +1375,16 @@ export class Bridge {
             ex,
           );
         }
-      } else {
-        // This is a new style reply.
-        const parentEventId =
-          event.content["m.relates_to"]?.["m.in_reply_to"].event_id;
-        replyEvent = await this.as.botClient.getEvent(roomId, parentEventId);
+      } else if (parentEventId) {
+        try {
+          // This is a new style reply.
+          await this.as.botClient.getEvent(roomId, parentEventId);
+        } catch (ex) {
+          log.warn(
+            `Could not lookup event ${parentEventId} referenced in ${event.event_id}`,
+            ex,
+          );
+        }
       }
     }
 
