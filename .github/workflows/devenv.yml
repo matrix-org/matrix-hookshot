@@ -2,24 +2,30 @@ name: Devenv
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - "/devenv*"
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths:
       - "/devenv*"
 
+permissions: {}
+
 jobs:
   test-nix-env:
-   runs-on: ubuntu-latest
-   steps:
-    - uses: actions/checkout@v6
-    - uses: cachix/install-nix-action@v26
-    - uses: cachix/cachix-action@v14
-      with:
-        name: devenv
-    - name: Install devenv.sh
-      run: nix profile install nixpkgs#devenv
-    - name: Build the devenv shell and run any git hooks
-      run: devenv test
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@8887e596b4ee1134dae06b98d573bd674693f47c # v26
+      - uses: cachix/cachix-action@18cf96c7c98e048e10a83abd92116114cd8504be # v14
+        with:
+          name: devenv
+      - name: Install devenv.sh
+        run: nix profile install nixpkgs#devenv
+      - name: Build the devenv shell and run any git hooks
+        run: devenv test
