@@ -952,6 +952,22 @@ export class Bridge {
               event: "generic-webhook.event",
               connectionId: c.connectionId,
             });
+            if (
+              index === 0 &&
+              !didPush &&
+              (this.config.generic?.waitForComplete || c.waitForComplete)
+            ) {
+              await this.queue.push<GenericWebhookEventResult>({
+                data: {
+                  successful: false,
+                  error: ex instanceof Error ? ex.message : "Unknown error",
+                },
+                sender: "Bridge",
+                messageId,
+                eventName: "response.generic-webhook.event",
+              });
+              didPush = true;
+            }
           }
         }),
       );

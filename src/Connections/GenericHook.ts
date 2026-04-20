@@ -652,7 +652,7 @@ export class GenericHookConnection
 
     let content: ExecuteResultContent | undefined;
     let webhookResponse: ExecuteResultWebhookResponse | undefined;
-    let successful = true;
+    const successful = true;
     if (this.webhookTransformer) {
       try {
         const result = this.webhookTransformer.execute(data);
@@ -663,7 +663,10 @@ export class GenericHookConnection
         content = {
           plain: `Webhook received but failed to process via transformation function`,
         };
-        successful = false;
+        // Don't set successful=false here — the webhook will still be
+        // delivered to the room with fallback text. Marking it as failed
+        // causes waitForComplete callers to receive an HTTP error even
+        // though the message was posted.
       }
     } else {
       content = this.transformHookData(data);
