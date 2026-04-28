@@ -166,8 +166,17 @@ export class GenericHookConnection
     return obj;
   }
 
+  /**
+   * Validate that some untrusted configuration from Matrix is valid configuration
+   * for this connection type.
+   * @param state Untrusted input
+   * @param transformingEnabled Are JS transformation functions enabled. Defaults to the global configuration, but may
+   * be overridden during early initalisation.
+   * @returns The validated state.
+   */
   static validateState(
     state: Partial<Record<keyof GenericHookConnectionState, unknown>>,
+    transformingEnabled = WebhookTransformer.canTransform,
   ): GenericHookConnectionState {
     const {
       name,
@@ -199,7 +208,7 @@ export class GenericHookConnection
     }
     // Use !=, not !==, to check for both undefined and null
     if (transformationFunction != undefined) {
-      if (!WebhookTransformer.canTransform) {
+      if (!transformingEnabled) {
         throw new ApiError(
           "Transformation functions are not allowed",
           ErrCode.DisabledFeature,
