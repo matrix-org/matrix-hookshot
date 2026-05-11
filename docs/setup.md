@@ -34,6 +34,10 @@ NODE_ENV=production yarn start
 
 ## Installation via Docker
 
+<section class="notice">
+    The docker image was previously available at docker.io under <code>halfshot/matrix-hookshot</code>, but this is no longer maintained. Please update to use the image below.
+</section>
+
 To get started quickly, you can use the Docker image [`ghcr.io/matrix-org/matrix-hookshot`](https://github.com/matrix-org/matrix-hookshot/pkgs/container/matrix-hookshot).
 
 ```bash
