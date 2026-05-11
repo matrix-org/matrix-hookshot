@@ -40,6 +40,7 @@ import { GitLabGrantChecker } from "../gitlab/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitLab, GitLabInstance } from "../config/sections";
+import { getStringHeader } from "../util/axios";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
   instance: string;
@@ -465,7 +466,7 @@ export class GitLabRepoConnection
       if (res.status !== 200) {
         return null;
       }
-      const contentType = res.headers["content-type"];
+      const contentType = getStringHeader(res.headers["Content-Type"]);
       if (!contentType?.startsWith("image/")) {
         return null;
       }
