@@ -9,7 +9,13 @@ import { Logger } from "matrix-appservice-bridge";
 import { MessageSenderClient } from "../MatrixSender";
 import markdownit from "markdown-it";
 import { MatrixEvent } from "../MatrixEvent";
-import { Appservice, Intent, StateEvent, UserID } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixError,
+  StateEvent,
+  UserID,
+} from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
@@ -26,12 +32,12 @@ import {
 } from "../generic/WebhookTransformer";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { ConnectionType } from "./type";
+import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
+
+const FETCH_ACCOUNT_DATA_MAX_ATTEMPTS = 5;
+const FETCH_ACCOUNT_DATA_INTERVAL_MS = 5000;
 
 export interface GenericHookConnectionState extends IConnectionState {
-  /**
-   * This is ONLY used for display purposes, but the account data value is used to prevent misuse.
-   */
-  hookId?: string;
   /**
    * The name given in the provisioning UI and displaynames.
    */
@@ -238,6 +244,50 @@ export class GenericHookConnection
     };
   }
 
+  /**
+   * Get the hookIds for all connections in this room.
+   * @throws If the account data could not be found.
+   */
+  static async getHookIds(
+    intent: Intent,
+    roomId: string,
+  ): Promise<GenericHookAccountData> {
+    try {
+      const acctData = await retry(
+        () =>
+          intent.underlyingClient.getRoomAccountData<GenericHookAccountData>(
+            GenericHookConnection.CanonicalEventType,
+            roomId,
+          ),
+        FETCH_ACCOUNT_DATA_MAX_ATTEMPTS,
+        FETCH_ACCOUNT_DATA_INTERVAL_MS,
+        // Filter for showstopper errors like 4XX errors, but otherwise
+        // retry until we hit the attempt limit.
+        retryMatrixErrorFilter,
+      );
+      return acctData;
+    } catch (ex) {
+      if (ex instanceof MatrixError && ex.errcode === "M_NOT_FOUND") {
+        return {};
+      }
+      throw ex;
+    }
+  }
+
+  /**
+   * Get the hookId for a connection by it's stateKey.
+   * @returns The hookId, or undefined if one can not be found.
+   * @throws If the account data could not be found.
+   */
+  static async getHookId(
+    intent: Intent,
+    roomId: string,
+    stateKey: string,
+  ): Promise<string | undefined> {
+    const acctData = this.getHookIds(intent, roomId);
+    return Object.entries(acctData).find(([, v]) => v === stateKey)?.[0];
+  }
+
   static async createConnectionForState(
     roomId: string,
     event: StateEvent<Record<string, unknown>>,
@@ -257,36 +307,36 @@ export class GenericHookConnection
     let hookId;
     if (!isStatic) {
       // Generic hooks store the hookId in the account data
-      const acctData =
-        await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
-          GenericHookConnection.CanonicalEventType,
-          roomId,
-          {},
-        );
-      // hookId => stateKey
-      hookId = Object.entries(acctData).find(
-        ([, v]) => v === event.stateKey,
-      )?.[0];
+      let hookId = await this.getHookId(intent, roomId, event.stateKey);
+      // This should ONLY happen if the user created the state.
       if (!hookId) {
-        hookId = randomUUID();
-        log.warn(
-          `hookId for ${roomId} not set in accountData, setting to ${hookId}`,
-        );
-        // If this is a new hook...
-        if (config.generic.requireExpiryTime && !state.expirationDate) {
-          throw new Error("Expiration date must be set");
+        if (as.isNamespacedUser(event.sender)) {
+          throw new Error(
+            `No hookId found for "${state.name}". Refusing to generate a hookId as not owned by us.`,
+          );
+        } else {
+          // This state was last edited by something other than hookshot, so it's plausible we do not
+          // have a hookId yet for it.
+          log.warn(
+            `hookId for ${roomId} not set in accountData for "${state.name}", generating a new hookId.`,
+          );
+          hookId = randomUUID();
+          await GenericHookConnection.ensureRoomAccountData(
+            roomId,
+            intent,
+            hookId,
+            event.stateKey,
+          );
         }
-        await GenericHookConnection.ensureRoomAccountData(
-          roomId,
-          intent,
-          hookId,
-          event.stateKey,
-        );
       }
     } else {
       // Static connections define their own hookId
       // This is DANGEROUS if this was a user-defined connection, but we allow it because the administator set it.
       hookId = event.stateKey;
+    }
+
+    if (!hookId) {
+      throw Error("No hookId for GenericHookConnection, cannot handle.");
     }
 
     return new GenericHookConnection(
@@ -383,12 +433,7 @@ export class GenericHookConnection
     stateKey: string,
     remove = false,
   ) {
-    const data =
-      await intent.underlyingClient.getSafeRoomAccountData<GenericHookAccountData>(
-        GenericHookConnection.CanonicalEventType,
-        roomId,
-        {},
-      );
+    const data = await this.getHookIds(intent, roomId);
     if (remove && data[hookId] === stateKey) {
       delete data[hookId];
       await intent.underlyingClient.setRoomAccountData(
