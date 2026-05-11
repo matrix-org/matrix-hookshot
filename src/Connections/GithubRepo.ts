@@ -73,6 +73,7 @@ import { removeConnectionState } from "./BaseConnection";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitHub } from "../config/sections";
+import { getStringHeader } from "../util/axios";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -648,10 +649,9 @@ export class GitHubRepoConnection
           responseType: "arraybuffer",
         });
         log.info(`uploading ${profile.data.avatar_url}`);
-        const contentType: string = res.headers["content-type"];
         const mxcUrl = await opts.as.botClient.uploadContent(
           Buffer.from(res.data as ArrayBuffer),
-          contentType,
+          getStringHeader(res.headers["Content-Type"]),
           `avatar_${profile.data.id}.png`,
         );
         avatarUrl = {
