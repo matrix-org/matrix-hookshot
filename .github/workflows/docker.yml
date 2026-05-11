@@ -20,9 +20,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-env:
-  DOCKER_NAMESPACE: halfshot
-
 permissions: {}
 
 jobs:
@@ -43,7 +40,6 @@ jobs:
           flavor: |
             latest=auto
           images: |
-            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
             ghcr.io/matrix-org/matrix-hookshot
 
   docker-build:
@@ -61,19 +57,12 @@ jobs:
             arch: arm64
 
     runs-on: ${{ matrix.os }}
-    environment: dockerhub
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-      - name: Log in to Docker Hub
-        if: github.actor != 'dependabot[bot]'
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Log in to the GitHub Container registry
         if: github.actor != 'dependabot[bot]'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -94,7 +83,6 @@ jobs:
             latest=auto
             suffix=-${{ matrix.arch }},onlatest=true
           images: |
-            ${{ env.DOCKER_NAMESPACE }}/matrix-hookshot
             ghcr.io/matrix-org/matrix-hookshot
 
       - name: Build and push Docker images
@@ -117,18 +105,11 @@ jobs:
       attestations: write
       id-token: write
 
-    environment: dockerhub
     strategy:
       matrix:
         image: ${{ fromJson(needs.docker-clean-metadata.outputs.json).tags }}
 
     steps:
-      - name: Log in to Docker Hub
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
-
       - name: Log in to the GitHub Container registry
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
