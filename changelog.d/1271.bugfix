@@ -1,1 +1,0 @@
-Fix a bug where Hookshot may accidentally assign a new hookId to webhooks if the homeserver is unreliable during startup.
