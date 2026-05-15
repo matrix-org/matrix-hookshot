@@ -1,0 +1,1 @@
+Fix generic webhooks returning HTTP error when waitForComplete is enabled with a transformation function.
