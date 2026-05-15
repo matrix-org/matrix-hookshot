@@ -86,7 +86,7 @@ You'll need to configure your Ingress connectivity according to your environment
 | hookshot.registration.sender_localpart | string | `"hookshot"` |  |
 | hookshot.registration.url | string | `"http://example.com"` |  |
 | image.pullPolicy | string | `"IfNotPresent"` | Pull policy for Hookshot image |
-| image.repository | string | `"halfshot/matrix-hookshot"` | Repository to pull hookshot image from |
+| image.repository | string | `"ghcr.io/matrix-org/matrix-hookshot"` | Repository to pull hookshot image from |
 | image.tag | string | `nil` | Image tag to pull. Defaults to chart's appVersion value as set in Chart.yaml |
 | imagePullSecrets | list | `[]` | List of names of k8s secrets to be used as ImagePullSecrets for the pod |
 | ingress.appservice.annotations | object | `{}` | Annotations for appservice ingress |
