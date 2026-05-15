@@ -284,7 +284,7 @@ export class GenericHookConnection
     roomId: string,
     stateKey: string,
   ): Promise<string | undefined> {
-    const acctData = this.getHookIds(intent, roomId);
+    const acctData = await this.getHookIds(intent, roomId);
     return Object.entries(acctData).find(([, v]) => v === stateKey)?.[0];
   }
 
@@ -304,35 +304,46 @@ export class GenericHookConnection
       throw Error("Generic webhooks are not configured");
     }
     const state = this.validateState(event.content);
-    let hookId;
-    if (!isStatic) {
-      // Generic hooks store the hookId in the account data
-      let hookId = await this.getHookId(intent, roomId, event.stateKey);
-      // This should ONLY happen if the user created the state.
-      if (!hookId) {
-        if (as.isNamespacedUser(event.sender)) {
-          throw new Error(
-            `No hookId found for "${state.name}". Refusing to generate a hookId as not owned by us.`,
-          );
-        } else {
-          // This state was last edited by something other than hookshot, so it's plausible we do not
-          // have a hookId yet for it.
-          log.warn(
-            `hookId for ${roomId} not set in accountData for "${state.name}", generating a new hookId.`,
-          );
-          hookId = randomUUID();
-          await GenericHookConnection.ensureRoomAccountData(
-            roomId,
-            intent,
-            hookId,
-            event.stateKey,
-          );
-        }
+
+    if (isStatic) {
+      return new GenericHookConnection(
+        roomId,
+        state,
+        // Static connections define their own hookId via the stateKey.
+        // This is DANGEROUS if this was a user-defined connection, but we allow it because the administator set it.
+        event.stateKey,
+        event.stateKey,
+        messageClient,
+        config.generic,
+        as,
+        intent,
+        storage,
+        true,
+      );
+    }
+    // Generic hooks store the hookId in the account data
+    let hookId = await this.getHookId(intent, roomId, event.stateKey);
+
+    // This should ONLY happen if the user created the state.
+    if (!hookId) {
+      if (as.isNamespacedUser(event.sender)) {
+        throw new Error(
+          `No hookId found for "${state.name}". Refusing to generate a hookId as it's owned by us.`,
+        );
+      } else {
+        // This state was last edited by something other than hookshot, so it's plausible we do not
+        // have a hookId yet for it.
+        log.warn(
+          `hookId for ${roomId} not set in accountData for "${state.name}", generating a new hookId.`,
+        );
+        hookId = randomUUID();
+        await GenericHookConnection.ensureRoomAccountData(
+          roomId,
+          intent,
+          hookId,
+          event.stateKey,
+        );
       }
-    } else {
-      // Static connections define their own hookId
-      // This is DANGEROUS if this was a user-defined connection, but we allow it because the administator set it.
-      hookId = event.stateKey;
     }
 
     if (!hookId) {
@@ -349,7 +360,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
-      isStatic ?? false,
+      false,
     );
   }
 
@@ -910,6 +921,7 @@ export class GenericHookConnection
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {
+    log.info(`Migrating ${this.toString()} in ${this.roomId} to ${newRoomId}`);
     // Carry across account data first
     await GenericHookConnection.ensureRoomAccountData(
       newRoomId,
