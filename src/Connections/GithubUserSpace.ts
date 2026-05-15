@@ -12,6 +12,7 @@ import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConfigGrantChecker, GrantChecker } from "../grants/GrantCheck";
 import { BridgeConfig } from "../config/Config";
 import { ConnectionType } from "./type";
+import { getStringHeader } from "../util/axios";
 
 const log = new Logger("GitHubOwnerSpace");
 
@@ -105,10 +106,9 @@ export class GitHubUserSpace extends BaseConnection implements IConnection {
         });
         log.info(`uploading ${avatarUrl}`);
         // This does exist, but headers is silly and doesn't have content-type.
-        const contentType: string = res.headers["content-type"];
         const mxcUrl = await opts.as.botClient.uploadContent(
           Buffer.from(res.data as ArrayBuffer),
-          contentType,
+          getStringHeader(res.headers["Content-Type"]),
           `avatar_${state.username}.png`,
         );
         avatarState = {
