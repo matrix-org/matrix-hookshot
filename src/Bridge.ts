@@ -15,6 +15,7 @@ import {
   MatrixError,
   RoomEvent,
   PLManager,
+  UserID,
 } from "matrix-bot-sdk";
 import BotUsersManager from "./managers/BotUsersManager";
 import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
@@ -109,6 +110,7 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
+import { ApiError, ErrCode } from "./api";
 
 const log = new Logger("Bridge");
 
@@ -188,6 +190,7 @@ export class Bridge {
         this.config.github.auth.id,
         await fs.readFile(this.config.github.auth.privateKeyFile, "utf-8"),
         this.config.github.baseUrl,
+        this.tokenStore,
       );
       await this.github.start();
     }
@@ -244,6 +247,58 @@ export class Bridge {
       );
       Metrics.matrixAppserviceDecryptionFailed.inc();
     });
+
+    this.as.on(
+      "previewUrl.query",
+      (
+        { url, userId }: { url: string; userId?: string },
+        callback: (statusCode: number, data: any) => void,
+      ) => {
+        log.debug(`Got request to preview ${url} (for ${userId}`);
+        if (!userId) {
+          return callback(
+            400,
+            new ApiError(
+              "user_id value must be provided",
+              ErrCode.ForbiddenUser,
+            ).jsonBody,
+          );
+        }
+
+        if (url.startsWith("https://github.com")) {
+          if (!this.github) {
+            return callback(
+              400,
+              new ApiError(
+                "Service is not configured with GitHub",
+                ErrCode.DisabledFeature,
+              ).jsonBody,
+            );
+          }
+          return this.github
+            .handleURLPreview(new URL(url), new UserID(userId))
+            .then((response) => {
+              callback(200, response);
+            })
+            .catch((ex) => {
+              log.warn(`Failed to preview ${url} (for ${userId})`, ex);
+              if (ex instanceof ApiError) {
+                callback(ex.statusCode, ex.jsonBody);
+              } else {
+                return callback(
+                  500,
+                  new ApiError("Unknown error", ErrCode.Unknown).jsonBody,
+                );
+              }
+            });
+        } else {
+          return callback(
+            404,
+            new ApiError("Unsupported URL", ErrCode.NotFound).jsonBody,
+          );
+        }
+      },
+    );
 
     this.queue.subscribe("response.matrix.message");
     this.queue.subscribe("notifications.user.events");
