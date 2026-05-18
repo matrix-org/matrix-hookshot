@@ -1,27 +1,33 @@
 name: Helm Chart - Validate
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - changelog.d/**'
   pull_request:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - changelog.d/**'
 
   workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   lint-helm:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Lint Helm
-        uses: WyriHaximus/github-action-helm3@v3
+        uses: WyriHaximus/github-action-helm3@fc4ba26e75cf5d08182c6ce3b72623c8bfd7272b # v3
         with:
           exec: helm lint ./helm/hookshot/
 
       - name: Validate
-        uses: nlamirault/helm-kubeconform-action@v0.2.0
+        uses: nlamirault/helm-kubeconform-action@d29c4d227a42190dae7b25e668a267539d68a6ce # v0.2.0
         with:
           charts: ./helm/

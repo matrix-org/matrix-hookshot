@@ -2,21 +2,26 @@ name: Newsfile
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
   merge_group:
+
+permissions: {}
 
 jobs:
   changelog:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # No newsfile required for dependabot
     if: ${{ github.actor != 'dependabot[bot]' && github.actor != 'renovate[bot]' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with: # Needed for comparison
           fetch-depth: 0
-      - uses: actions/setup-python@v6
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
-          python-version: '3.14'
+          python-version: "3.14"
       - run: pip install towncrier~=25.8.0
       - name: ":newspaper: Newsfile"
         run: python3 -m towncrier.check --compare-with=origin/main

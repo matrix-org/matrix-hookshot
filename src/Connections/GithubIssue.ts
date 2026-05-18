@@ -26,6 +26,7 @@ import {
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitHub } from "../config/sections";
+import { getStringHeader } from "../util/axios";
 
 export interface GitHubIssueConnectionState {
   org: string;
@@ -158,10 +159,9 @@ export class GitHubIssueConnection
           responseType: "arraybuffer",
         });
         log.info(`uploading ${profile.data.avatar_url}`);
-        const contentType: string = res.headers["content-type"];
         const mxcUrl = await opts.as.botClient.uploadContent(
           Buffer.from(res.data as ArrayBuffer),
-          contentType,
+          getStringHeader(res.headers["Content-Type"]),
           `avatar_${profile.data.id}.png`,
         );
         avatarUrl = {

@@ -1,0 +1,1 @@
+Images will no longer be pushed to `halfshot/matrix-hookshot` on DockerHub. Users should migrate to `ghcr.io/matrix-org/matrix-hookshot`.

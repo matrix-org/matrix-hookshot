@@ -11,6 +11,7 @@ import {
   IssuesGetResponseData,
 } from "./github/Types";
 import { IGitLabWebhookNoteEvent } from "./gitlab/WebhookTypes";
+import { getStringHeader } from "./util/axios";
 
 const REGEX_MENTION = /(^|\s)(@[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38})(\s|$)/gi;
 const REGEX_MATRIX_MENTION =
@@ -181,15 +182,11 @@ export class CommentProcessor {
           responseType: "arraybuffer",
         });
         const imageData = data;
-        const contentType =
-          headers["content-type"] ||
-          (await mime).default.getType(rawUrl) ||
-          "application/octet-stream";
         let url;
         if (convertToMxc) {
           url = await this.as.botIntent.underlyingClient.uploadContent(
             imageData,
-            contentType,
+            getStringHeader(headers["Content-Type"]),
           );
         } else if (rawUrl.startsWith("mxc://")) {
           const mxcParts = rawUrl.substr("mxc://".length).split("/");
