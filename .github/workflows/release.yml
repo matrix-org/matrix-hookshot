@@ -25,5 +25,5 @@ jobs:
           gh release create "${REF_NAME}" \
               --repo="$GITHUB_REPOSITORY" \
               --title="$RELEASE_NAME" \
-              --notes-file="next-changelog.txt"
+              --notes-file="next-changelog.txt" \
               --draft
