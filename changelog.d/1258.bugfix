@@ -1,1 +1,0 @@
-Fix Matrix reply messages being skipped if the reply message could not be read.

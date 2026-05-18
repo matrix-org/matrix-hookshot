@@ -1,3 +1,20 @@
+# 7.3.3 (2026-05-18)
+
+## Bugfixes
+
+- Fix Matrix reply messages being skipped if the reply message could not be read. ([\#1258](https://github.com/matrix-org/matrix-hookshot/issues/1258))
+- Fix a bug where a webhook URL could be randomly regenerated on startup if storage is not available. ([\#1273](https://github.com/matrix-org/matrix-hookshot/issues/1273))
+
+## Deprecations and Removals
+
+- Images will no longer be pushed to `halfshot/matrix-hookshot` on DockerHub. Users should migrate to `ghcr.io/matrix-org/matrix-hookshot`. ([\#1272](https://github.com/matrix-org/matrix-hookshot/issues/1272))
+
+## Internal Changes
+
+- Harden GitHub actions. ([\#1244](https://github.com/matrix-org/matrix-hookshot/issues/1244))
+- Fix a typo in documentation (Redis port) ([\#1246](https://github.com/matrix-org/matrix-hookshot/issues/1246))
+
+
 # 7.3.2 (2026-01-30)
 
 ## Features
