@@ -3,7 +3,7 @@ name: Newsfile
 on:
   pull_request:
     branches: [main]
-    types: [labeled]
+    types: [opened, synchronize, reopened, labeled]
 
 permissions: {}
 
