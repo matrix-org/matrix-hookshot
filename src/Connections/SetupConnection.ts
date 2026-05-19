@@ -398,7 +398,7 @@ export class SetupConnection extends CommandConnection {
 
     await this.checkUserPermissions(
       userId,
-      "webhooks",
+      GitHubRepoConnection.ServiceCategory,
       GitHubRepoConnection.CanonicalEventType,
     );
 
@@ -545,7 +545,7 @@ export class SetupConnection extends CommandConnection {
 
     await this.checkUserPermissions(
       userId,
-      "webhooks",
+      GitHubRepoConnection.ServiceCategory,
       GitHubRepoConnection.CanonicalEventType,
     );
 
