@@ -1,0 +1,2 @@
+Fix a bug where hookshot would require both "webhooks" and "generic" service permissions to manage webhooks. This has now been corrected so that all
+webhook commands require "generic" service permissions. "webhooks" will continue to work, but may be removed at a future date.

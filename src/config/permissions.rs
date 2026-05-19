@@ -41,13 +41,22 @@ impl BridgePermissions {
     #[napi(constructor)]
     pub fn new(config: Vec<BridgeConfigActorPermission>) -> Self {
         let mut room_membership = HashMap::new();
-        for entry in config.iter() {
+        let mut new_config = config.clone();
+        for entry in new_config.iter_mut() {
+            for perm in entry.services.iter_mut() {
+                // This is fixing a legacy mistake in that we used "webhooks"
+                // and "generic" interchangeably.
+                if perm.service.clone().is_some_and(|s| s == "webhooks") {
+                    perm.service = Some("generic".to_string())
+                }
+            }
             if entry.actor.starts_with('!') {
                 room_membership.insert(entry.actor.clone(), HashSet::new());
             }
         }
+
         BridgePermissions {
-            config,
+            config: new_config,
             room_membership,
         }
     }

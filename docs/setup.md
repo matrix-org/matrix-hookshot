@@ -121,7 +121,7 @@ Each permission set can have a service. The `service` field can be:
 - `jira`
 - `feed`
 - `figma`
-- `webhooks`
+- `generic` (**NOTE**: This was incorrectly documented as `webhooks`. Either will work, but please migrate to `generic`. ).
 - `openproject`
 - `challengehound`
 - `*`, for any service.
