@@ -13,7 +13,7 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     # No newsfile required for tasks
-    if: ${{ contains( github.event.pull_request.labels.*.name, 'T-Task') }}
+    if: ${{ !contains( github.event.pull_request.labels.*.name, 'T-Task') }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with: # Needed for comparison
