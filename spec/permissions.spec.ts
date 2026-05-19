@@ -3,20 +3,21 @@ import { describe, test, beforeAll, afterAll, expect } from "vitest";
 import { MessageEventContent } from "matrix-bot-sdk";
 
 describe("Permissions test", () => {
-  let testEnv!: E2ETestEnv<"denied_user" | "allowed_user">;
+  let testEnv!: E2ETestEnv<"denied_user" | "allowed_user" | "legacy_user">;
 
   beforeAll(async () => {
     testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["denied_user", "allowed_user"],
+      matrixLocalparts: ["denied_user", "allowed_user", "legacy_user"],
       permissionsRoom: {
         members: ["allowed_user"],
         permissions: [
           {
             level: "manageConnections",
-            service: "webhooks",
+            service: "generic",
           },
         ],
       },
+
       e2eClientOpts: {
         autoAcceptInvite: true,
       },
@@ -35,6 +36,17 @@ describe("Permissions test", () => {
           enabled: true,
           urlPrefix: `http://localhost`,
         },
+        permissions: [
+          {
+            actor: "legacy_user",
+            services: [
+              {
+                service: "webhooks",
+                level: "manageConnections",
+              },
+            ],
+          },
+        ],
       },
     });
     await testEnv.setUp();
@@ -76,7 +88,7 @@ describe("Permissions test", () => {
     });
     await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
 
-    // Try to create a GitHub connection, should fail.
+    // Try to create a GitLab connection, should fail.
     const msgGitLab = user.waitForRoomEvent<MessageEventContent>({
       eventType: "m.room.message",
       sender: testEnv.botMxid,
@@ -91,25 +103,28 @@ describe("Permissions test", () => {
     );
   });
 
-  test("should allow users with permission to use a service", async () => {
-    const user = testEnv.getUser("allowed_user");
-    const roomId = await user.createRoom({
-      name: "Test room",
-      invite: [testEnv.botMxid],
-    });
-    await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
-    await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
+  test.each(["allowed_user", "legacy_user"] as ["allowed_user", "legacy_user"])(
+    "should allow users with permission to use a service (%s)",
+    async (localpart) => {
+      const user = testEnv.getUser(localpart);
+      const roomId = await user.createRoom({
+        name: "Test room",
+        invite: [testEnv.botMxid],
+      });
+      await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
+      await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
 
-    const msgWebhooks = user.waitForRoomEvent<MessageEventContent>({
-      eventType: "m.room.message",
-      sender: testEnv.botMxid,
-      roomId,
-    });
-    await user.sendText(roomId, "!hookshot webhook test");
-    expect((await msgWebhooks).data.content.body).to.include(
-      "Room configured to bridge webhooks. See admin room for secret url.",
-    );
-  });
+      const msgWebhooks = user.waitForRoomEvent<MessageEventContent>({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId,
+      });
+      await user.sendText(roomId, "!hookshot webhook test");
+      expect((await msgWebhooks).data.content.body).to.include(
+        "Room configured to bridge webhooks. See admin room for secret url.",
+      );
+    },
+  );
 
   test("should allow users with permission to use a service in a v12 room", async () => {
     const user = testEnv.getUser("allowed_user");

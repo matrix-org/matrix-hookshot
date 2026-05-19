@@ -200,6 +200,22 @@ describe("Config/BridgePermissions", () => {
       expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
         .to.be.false;
     });
+
+    it("handles legacy 'webhooks' config field", () => {
+      const bridgePermissions = new BridgePermissions([
+        {
+          actor: "@foo:bar",
+          services: [{ service: "webhooks", level: "manageConnections" }],
+        },
+      ]);
+      expect(
+        bridgePermissions.checkAction(
+          "@foo:bar",
+          "generic",
+          "manageConnections",
+        ),
+      ).to.be.true;
+    });
   });
 
   describe("permissionsCheckActionAny", () => {

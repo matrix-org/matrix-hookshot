@@ -398,8 +398,8 @@ export class SetupConnection extends CommandConnection {
 
     await this.checkUserPermissions(
       userId,
-      "webhooks",
-      GitHubRepoConnection.CanonicalEventType,
+      GenericHookConnection.ServiceCategory,
+      GenericHookConnection.CanonicalEventType,
     );
 
     if (!name || name.length < 3 || name.length > 64) {
@@ -545,8 +545,8 @@ export class SetupConnection extends CommandConnection {
 
     await this.checkUserPermissions(
       userId,
-      "webhooks",
-      GitHubRepoConnection.CanonicalEventType,
+      GenericHookConnection.ServiceCategory,
+      GenericHookConnection.CanonicalEventType,
     );
 
     const { connection } = await OutboundHookConnection.provisionConnection(
