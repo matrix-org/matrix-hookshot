@@ -11,6 +11,8 @@ import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
 import { ConnectionType } from "./type";
+import axios from "axios";
+import { getStringHeader } from "../util/axios";
 const log = new Logger("FeedConnection");
 const md = new markdown({
   html: true,
@@ -44,10 +46,11 @@ export type FeedResponseItem = GetConnectionsResponseItem<
 
 const MAX_LAST_RESULT_ITEMS = 5;
 const VALIDATION_FETCH_TIMEOUT_S = 5;
-const MAX_SUMMARY_LENGTH = 512;
+const MAX_SUMMARY_LENGTH = 8192;
 const MAX_TEMPLATE_LENGTH = 1024;
 const SEND_EVENT_MAX_ATTEMPTS = 5;
 const SEND_EVENT_INTERVAL_MS = 5000;
+const IMG_SRC_REGEX = /(<img\b[^>]*\bsrc=["'])([^"']+)(["'][^>]*>)/gi;
 
 const DEFAULT_TEMPLATE = "New post in $FEEDNAME";
 const DEFAULT_TEMPLATE_WITH_CONTENT = "New post in $FEEDNAME: $LINK";
@@ -212,6 +215,52 @@ export class FeedConnection extends BaseConnection implements IConnection {
     });
   }
 
+  private async uploadImageToMxc(url: string): Promise<string | null> {
+    try {
+      const { data, headers } = await axios.get(url, {
+        responseType: "arraybuffer",
+      });
+      return await this.intent.underlyingClient.uploadContent(
+        Buffer.from(data as ArrayBuffer),
+        getStringHeader(headers["Content-Type"] ?? headers["content-type"]),
+      );
+    } catch (ex) {
+      log.warn(`Failed to upload feed summary image ${url}`, ex);
+      return null;
+    }
+  }
+
+  private async convertSummaryImagesToMxc(summary: string): Promise<string> {
+    let convertedSummary = summary;
+    const uploadedUrls = new Map<string, string>();
+
+    for (const match of summary.matchAll(IMG_SRC_REGEX)) {
+      const [fullMatch, prefix, src, suffix] = match;
+      if (!src || !fullMatch || !prefix || !suffix) {
+        continue;
+      }
+      if (!src.startsWith("http://") && !src.startsWith("https://")) {
+        continue;
+      }
+
+      let mxcUrl = uploadedUrls.get(src);
+      if (!mxcUrl) {
+        mxcUrl = await this.uploadImageToMxc(src) || undefined;
+      }
+      if (!mxcUrl) {
+        continue;
+      }
+
+      uploadedUrls.set(src, mxcUrl);
+      convertedSummary = convertedSummary.replace(
+        fullMatch,
+        `${prefix}${mxcUrl}${suffix}`,
+      );
+    }
+
+    return convertedSummary;
+  }
+
   private hasError = false;
   private readonly lastResults = new Array<LastResultOk | LastResultFail>();
 
@@ -246,6 +295,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     // so confine to a maximum size.
 
     if (entry.summary) {
+      entry.summary = await this.convertSummaryImagesToMxc(entry.summary);
       if (entry.summary.length > MAX_SUMMARY_LENGTH) {
         entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
       }
@@ -268,7 +318,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     const content = {
       msgtype: "m.notice",
       format: "org.matrix.custom.html",
-      formatted_body: md.renderInline(message),
+      formatted_body: md.render(message),
       body: message,
       external_url: entry.link ?? undefined,
       "uk.half-shot.matrix-hookshot.feeds.item": entry,

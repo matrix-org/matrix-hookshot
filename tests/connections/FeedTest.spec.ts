@@ -4,6 +4,7 @@ import { FeedEntry } from "../../src/feeds/FeedReader";
 import { IntentMock } from "../utils/IntentMock";
 import { randomUUID } from "crypto";
 import { expect } from "chai";
+import axios from "axios";
 
 const ROOM_ID = "!foo:bar";
 const FEED_URL = "https://example.com/feed.xml";
@@ -141,5 +142,56 @@ describe("FeedConnection", () => {
     expect(matrixEvt.content.body).to.equal(
       'Test feed <p> Some HTML with  which should be ignored and an <img src="mxc://fibble/fobble"> </p>',
     );
+  });
+
+  it("will render block html in the formatted summary", async () => {
+    const [connection, intent] = createFeed({
+      template: `$SUMMARY`,
+    });
+    await connection.handleFeedEntry({
+      ...FEED_ENTRY_DEFAULTS,
+      summary:
+        "<ul><li><a href='https://example.com/1'>One</a></li><li><a href='https://example.com/2'>Two</a></li></ul>",
+    });
+    const matrixEvt = intent.sentEvents[0];
+    expect(matrixEvt).to.not.be.undefined;
+    expect(matrixEvt.roomId).to.equal(ROOM_ID);
+    expect(matrixEvt.content.body).to.equal(
+      '<ul><li><a href="https://example.com/1">One</a></li><li><a href="https://example.com/2">Two</a></li></ul>',
+    );
+    expect(matrixEvt.content.formatted_body).to.include("<ul>");
+    expect(matrixEvt.content.formatted_body).to.include("<li>");
+  });
+
+  it("will upload summary images and replace them with mxc urls", async () => {
+    const [connection, intent] = createFeed({
+      template: `$SUMMARY`,
+    });
+    const axiosGet = axios.get;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (axios.get as any) = async () => ({
+      data: Buffer.from("fake-image"),
+      headers: {
+        "content-type": "image/jpeg",
+      },
+    });
+    try {
+      await connection.handleFeedEntry({
+        ...FEED_ENTRY_DEFAULTS,
+        summary:
+          '<div><a href="https://example.com/comic"><img src="https://example.com/image.jpg"></a></div>',
+      });
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (axios.get as any) = axiosGet;
+    }
+
+    const matrixEvt = intent.sentEvents[0];
+    expect(matrixEvt).to.not.be.undefined;
+    expect(matrixEvt.content.body).to.equal(
+      '<div><a href="https://example.com/comic"><img src="mxc://upload/1"></a></div>',
+    );
+    expect(matrixEvt.content.formatted_body).to.include('src="mxc://upload/1"');
+    expect(intent.underlyingClient.uploadedContent).to.have.lengthOf(1);
   });
 });

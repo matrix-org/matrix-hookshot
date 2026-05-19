@@ -10,6 +10,11 @@ export class MatrixClientMock {
   // map room Id → user Ids
   private joinedMembers: Map<string, string[]> = new Map();
   public readonly roomAccountData: Map<string, string> = new Map();
+  public readonly uploadedContent: Array<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data: any;
+    contentType?: string;
+  }> = [];
 
   async setDisplayName() {
     return;
@@ -62,6 +67,12 @@ export class MatrixClientMock {
     value: string,
   ): Promise<void> {
     this.roomAccountData.set(roomId + key, value);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async uploadContent(data: any, contentType?: string): Promise<string> {
+    this.uploadedContent.push({ data, contentType });
+    return `mxc://upload/${this.uploadedContent.length}`;
   }
 }
 
