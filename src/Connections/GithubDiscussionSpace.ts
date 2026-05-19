@@ -111,7 +111,7 @@ export class GitHubDiscussionSpace
           responseType: "arraybuffer",
         });
         log.info(`uploading ${profile.data.avatar_url}`);
-        const contentType: string = res.headers["content-type"];
+        const contentType = res.headers["Content-Type"] as string;
         const mxcUrl = await opts.as.botClient.uploadContent(
           Buffer.from(res.data as ArrayBuffer),
           contentType,

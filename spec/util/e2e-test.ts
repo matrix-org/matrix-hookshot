@@ -435,6 +435,21 @@ export class E2ETestEnv<ML extends string = string> {
         },
       ];
     }
+
+    if (providedConfig?.permissions) {
+      permissions.push(
+        ...providedConfig.permissions.map((perm) => {
+          if (matrixLocalparts?.includes(perm.actor as ML)) {
+            return {
+              actor: `@${perm.actor}:${homeserver.domain}`,
+              services: perm.services,
+            };
+          }
+          return perm;
+        }),
+      );
+    }
+
     const config = new BridgeConfig({
       bridge: {
         domain: homeserver.domain,
@@ -466,8 +481,8 @@ export class E2ETestEnv<ML extends string = string> {
           }
         : undefined),
       cache: cacheConfig,
-      permissions,
       ...providedConfig,
+      permissions: permissions,
       connections: opts.config?.connections?.map((c) => ({
         ...c,
         roomId: connectionRooms[c.roomId],

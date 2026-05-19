@@ -1,6 +1,7 @@
 import { Logger } from "matrix-appservice-bridge";
 import { Appservice, Intent, MatrixClient, UserID } from "matrix-bot-sdk";
 import axios from "axios";
+import { getStringHeader } from "./util/axios";
 
 const log = new Logger("IntentUtils");
 
@@ -85,12 +86,9 @@ export async function getIntentForUser(
       responseType: "arraybuffer",
     });
     log.info(`Uploading ${user.avatarUrl}`);
-    // This does exist, but headers is silly and doesn't have content-type.
-    // tslint:disable-next-line: no-any
-    const contentType = buffer.headers["content-type"];
     const mxc = await intent.underlyingClient.uploadContent(
       Buffer.from(buffer.data as ArrayBuffer),
-      contentType,
+      getStringHeader(buffer.headers["Content-Type"]),
     );
     await intent.underlyingClient.setAvatarUrl(mxc);
   }

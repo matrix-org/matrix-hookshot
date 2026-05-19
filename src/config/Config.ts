@@ -154,7 +154,7 @@ export class BridgeConfig {
   @configKey("Basic homeserver configuration")
   public readonly bridge: BridgeConfigBridge;
   @configKey(
-    `Cache options for large scale deployments. 
+    `Cache options for large scale deployments.
     For encryption to work, this must be configured.`,
     true,
   )
@@ -347,6 +347,14 @@ export class BridgeConfig {
     if (!configData.permissions) {
       log.warn(
         `You have not configured any permissions for the bridge, which by default means all users on ${this.bridge.domain} have admin levels of control. Please adjust your config.`,
+      );
+    } else if (
+      configData.permissions.some((rule) =>
+        rule.services.some((s) => s.service === "webhooks"),
+      )
+    ) {
+      log.warn(
+        `You have at least one permission rule with a service of "webhooks". This will continue to work, but should be renamed to "generic". Please adjust your config.`,
       );
     }
 

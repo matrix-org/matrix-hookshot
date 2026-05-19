@@ -34,7 +34,11 @@ NODE_ENV=production yarn start
 
 ## Installation via Docker
 
-To get started quickly, you can use the Docker image [`halfshot/matrix-hookshot`](https://hub.docker.com/r/halfshot/matrix-hookshot).
+<section class="notice">
+    The docker image was previously available at docker.io under <code>halfshot/matrix-hookshot</code>, but this is no longer maintained. Please update to use the image below.
+</section>
+
+To get started quickly, you can use the Docker image [`ghcr.io/matrix-org/matrix-hookshot`](https://github.com/matrix-org/matrix-hookshot/pkgs/container/matrix-hookshot).
 
 ```bash
 docker run \
@@ -44,7 +48,7 @@ docker run \
     -p 9000:9000 \ # Webhook port
     -p 9002:9002 \ # Metrics port
     -v /etc/matrix-hookshot:/data \
-    halfshot/matrix-hookshot:latest
+    ghcr.io/matrix-org/matrix-hookshot:latest
 ```
 
 Where `/etc/matrix-hookshot` would contain the configuration files `config.yml` and `registration.yml`. The `passKey` file should also be stored alongside these files. In your config, you should use the path `/data/passkey.pem`.
@@ -63,7 +67,7 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 You should read and fill this in as the bridge will not start without a complete config.
 
 You may validate your config without starting the service by running `yarn validate-config`.
-For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml halfshot/matrix-hookshot node config/Config.js /config.yml`
+For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml ghcr.io/matrix-org/matrix-hookshot node config/Config.js /config.yml`
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
 
@@ -117,7 +121,7 @@ Each permission set can have a service. The `service` field can be:
 - `jira`
 - `feed`
 - `figma`
-- `webhooks`
+- `generic` (**NOTE**: This was incorrectly documented as `webhooks`. Either will work, but please migrate to `generic`. ).
 - `openproject`
 - `challengehound`
 - `*`, for any service.
@@ -259,7 +263,7 @@ To enable, simply set:
 
 ```yaml
 cache:
-  redisUri: "redis://redis-host:3679"
+  redisUri: "redis://redis-host:6379"
 ```
 
 ### Services configuration

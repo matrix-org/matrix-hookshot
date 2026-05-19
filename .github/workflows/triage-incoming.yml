@@ -4,11 +4,13 @@ on:
   issues:
     types: [opened]
 
+permissions: {}
+
 jobs:
   triage:
-    uses: matrix-org/backend-meta/.github/workflows/triage-incoming.yml@v2
-    with: 
-      project_id: 'PVT_kwDOAIB0Bs4AG0bY'
+    uses: matrix-org/backend-meta/.github/workflows/triage-incoming.yml@18beaf3c8e536108bd04d18e6c3dc40ba3931e28 # v2
+    with:
+      project_id: "PVT_kwDOAIB0Bs4AG0bY"
       content_id: ${{ github.event.issue.node_id }}
-    secrets: 
+    secrets:
       github_access_token: ${{ secrets.ELEMENT_BOT_TOKEN }}
