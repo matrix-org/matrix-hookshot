@@ -62,3 +62,14 @@ may include any of the following tokens:
 If not specified, the default template is `New post in $FEEDNAME: $LINK`.
 
 The template can also be given as an argument when adding the feed to a room, e.g. `!hookshot feed <URL> <LABEL> <TEMPLATE>`. If the template contains spaces, it can be quoted using double quotes.
+
+### Summary image uploads
+
+By default, Hookshot does **not** upload remote images found in feed summaries. This avoids fetching and reposting third-party media unless you explicitly enable it.
+
+To enable or disable summary image uploads for a specific feed:
+
+- `!hookshot feed upload-images <URL> on`
+- `!hookshot feed upload-images <URL> off`
+
+This setting is per-feed and only affects `<img>` tags in `$SUMMARY` content.

@@ -65,6 +65,31 @@ export class SetupConnection extends CommandConnection {
     return this.intent.underlyingClient;
   }
 
+  private parseEnabledState(
+    value: string,
+    feature: string,
+  ): boolean {
+    const normalized = value.trim().toLowerCase();
+    if (
+      ["true", "on", "yes", "1", "enable", "enabled"].includes(
+        normalized,
+      )
+    ) {
+      return true;
+    }
+    if (
+      ["false", "off", "no", "0", "disable", "disabled"].includes(
+        normalized,
+      )
+    ) {
+      return false;
+    }
+    throw new CommandError(
+      `Invalid ${feature} state`,
+      `Expected one of: true/false, on/off, yes/no, enable/disable`,
+    );
+  }
+
   protected validateConnectionState(content: unknown) {
     log.warn("SetupConnection has no state to be validated");
     return content as IConnectionState;
@@ -668,6 +693,61 @@ export class SetupConnection extends CommandConnection {
     return this.client.sendHtmlNotice(
       this.roomId,
       md.renderInline(`Room configured to bridge \`${url}\``),
+    );
+  }
+
+  @botCommand("feed upload-images", {
+    help: "Enable or disable uploading summary images for a feed.",
+    requiredArgs: ["url", "enabled"],
+    includeUserId: true,
+    category: FeedConnection.ServiceCategory,
+  })
+  public async onFeedUploadImages(
+    userId: string,
+    url: string,
+    enabled: string,
+  ) {
+    await this.checkUserPermissions(
+      userId,
+      FeedConnection.ServiceCategory,
+      FeedConnection.CanonicalEventType,
+    );
+
+    const event = await this.client
+      .getRoomStateEvent(this.roomId, FeedConnection.CanonicalEventType, url)
+      .catch((err: any) => {
+        if (err.body.errcode === "M_NOT_FOUND") {
+          return null; // not an error to us
+        }
+        throw err;
+      });
+    if (!event || Object.keys(event).length === 0) {
+      throw new CommandError(
+        "Invalid feed URL",
+        `Feed "${url}" is not currently bridged to this room`,
+      );
+    }
+
+    const uploadSummaryImages = this.parseEnabledState(
+      enabled,
+      "upload-images",
+    );
+    const state = FeedConnection.validateState(event);
+    await this.client.sendStateEvent(
+      this.roomId,
+      FeedConnection.CanonicalEventType,
+      url,
+      {
+        ...state,
+        uploadSummaryImages,
+      },
+    );
+
+    return this.client.sendHtmlNotice(
+      this.roomId,
+      md.renderInline(
+        `Summary image uploads are now ${uploadSummaryImages ? "enabled" : "disabled"} for \`${url}\``,
+      ),
     );
   }
 

@@ -66,6 +66,9 @@ const ConnectionConfiguration: FunctionComponent<
   const [notifyOnFailure, setNotifyOnFailure] = useState<boolean>(
     existingConnection?.config.notifyOnFailure ?? false,
   );
+  const [uploadSummaryImages, setUploadSummaryImages] = useState<boolean>(
+    existingConnection?.config.uploadSummaryImages ?? false,
+  );
 
   const handleSave = useCallback(
     (evt: Event) => {
@@ -81,6 +84,7 @@ const ConnectionConfiguration: FunctionComponent<
           template:
             templateRef.current?.value || existingConnection?.config.template,
           notifyOnFailure,
+          uploadSummaryImages,
         });
       }
     },
@@ -91,6 +95,7 @@ const ConnectionConfiguration: FunctionComponent<
       labelRef,
       templateRef,
       notifyOnFailure,
+      uploadSummaryImages,
       existingConnection,
     ],
   );
@@ -153,6 +158,18 @@ const ConnectionConfiguration: FunctionComponent<
           </a>{" "}
           for help writing templates.{" "}
         </p>
+      </InputField>
+      <InputField
+        visible={onlyVisibleOnExistingConnection}
+        label="Upload summary images"
+        noPadding={true}
+      >
+        <input
+          disabled={!canSave}
+          type="checkbox"
+          checked={uploadSummaryImages}
+          onChange={useCallback(() => setUploadSummaryImages((v) => !v), [])}
+        />
       </InputField>
       <ButtonSet>
         {canSave && (

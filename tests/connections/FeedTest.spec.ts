@@ -33,6 +33,7 @@ function createFeed(
       label: undefined,
       template: undefined,
       notifyOnFailure: undefined,
+      uploadSummaryImages: undefined,
       url: FEED_URL,
       ...state,
     },
@@ -166,6 +167,7 @@ describe("FeedConnection", () => {
   it("will upload summary images and replace them with mxc urls", async () => {
     const [connection, intent] = createFeed({
       template: `$SUMMARY`,
+      uploadSummaryImages: true,
     });
     const axiosGet = axios.get;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,6 +194,68 @@ describe("FeedConnection", () => {
       '<div><a href="https://example.com/comic"><img src="mxc://upload/1"></a></div>',
     );
     expect(matrixEvt.content.formatted_body).to.include('src="mxc://upload/1"');
+    expect(intent.underlyingClient.uploadedContent).to.have.lengthOf(1);
+  });
+
+  it("will not upload summary images when uploadSummaryImages is disabled", async () => {
+    const [connection, intent] = createFeed({
+      template: `$SUMMARY`,
+      uploadSummaryImages: false,
+    });
+    const axiosGet = axios.get;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (axios.get as any) = async () => ({
+      data: Buffer.from("fake-image"),
+      headers: {
+        "content-type": "image/jpeg",
+      },
+    });
+    try {
+      await connection.handleFeedEntry({
+        ...FEED_ENTRY_DEFAULTS,
+        summary: '<div><img src="https://example.com/image.jpg"></div>',
+      });
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (axios.get as any) = axiosGet;
+    }
+
+    const matrixEvt = intent.sentEvents[0];
+    expect(matrixEvt).to.not.be.undefined;
+    expect(matrixEvt.content.body).to.equal("New post in Test feed: [Foo](foo/bar)");
+    expect(intent.underlyingClient.uploadedContent).to.have.lengthOf(0);
+  });
+
+  it("will update uploadSummaryImages when state is updated", async () => {
+    const [connection, intent] = createFeed({
+      template: `$SUMMARY`,
+      uploadSummaryImages: false,
+    });
+    await connection.onStateUpdate({
+      content: {
+        url: FEED_URL,
+        template: "$SUMMARY",
+        uploadSummaryImages: true,
+      },
+    } as any);
+    const axiosGet = axios.get;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (axios.get as any) = async () => ({
+      data: Buffer.from("fake-image"),
+      headers: {
+        "content-type": "image/jpeg",
+      },
+    });
+    try {
+      await connection.handleFeedEntry({
+        ...FEED_ENTRY_DEFAULTS,
+        summary: '<div><img src="https://example.com/image.jpg"></div>',
+      });
+    } finally {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (axios.get as any) = axiosGet;
+    }
+
     expect(intent.underlyingClient.uploadedContent).to.have.lengthOf(1);
   });
 

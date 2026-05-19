@@ -7,6 +7,7 @@ import { BaseConnection } from "./BaseConnection";
 import markdown from "markdown-it";
 import { Connection, ProvisionConnectionOpts } from "./IConnection";
 import { GetConnectionsResponseItem } from "../widgets/Api";
+import { MatrixEvent } from "../MatrixEvent";
 import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
@@ -33,6 +34,7 @@ export interface FeedConnectionState extends IConnectionState {
   label: string | undefined;
   template: string | undefined;
   notifyOnFailure: boolean | undefined;
+  uploadSummaryImages: boolean | undefined;
 }
 
 export interface FeedConnectionSecrets {
@@ -124,11 +126,22 @@ export class FeedConnection extends BaseConnection implements IConnection {
       throw new ApiError("notifyOnFailure must be a boolean", ErrCode.BadValue);
     }
 
+    if (
+      typeof data.uploadSummaryImages !== "undefined" &&
+      typeof data.uploadSummaryImages !== "boolean"
+    ) {
+      throw new ApiError(
+        "uploadSummaryImages must be a boolean",
+        ErrCode.BadValue,
+      );
+    }
+
     return {
       url,
       label: data.label,
       template: data.template,
       notifyOnFailure: data.notifyOnFailure,
+      uploadSummaryImages: data.uploadSummaryImages,
     };
   }
 
@@ -179,6 +192,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         label: this.state.label,
         template: this.state.template,
         notifyOnFailure: this.state.notifyOnFailure,
+        uploadSummaryImages: this.state.uploadSummaryImages,
       },
       secrets: {
         lastResults: this.lastResults,
@@ -271,6 +285,19 @@ export class FeedConnection extends BaseConnection implements IConnection {
     return this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
   }
 
+  private templateResultIsEmpty(message: string): boolean {
+    const trimmed = message.trim();
+    if (!trimmed) {
+      return true;
+    }
+    const hasInlineImage = /<img\b/i.test(trimmed);
+    if (hasInlineImage) {
+      return false;
+    }
+    const textOnly = trimmed.replace(/<[^>]*>/g, "").trim();
+    return textOnly.length === 0;
+  }
+
   private hasError = false;
   private readonly lastResults = new Array<LastResultOk | LastResultFail>();
 
@@ -300,12 +327,20 @@ export class FeedConnection extends BaseConnection implements IConnection {
     );
   }
 
+  public async onStateUpdate(stateEv: MatrixEvent<unknown>) {
+    this.state = FeedConnection.validateState(
+      stateEv.content as Record<string, unknown>,
+    );
+  }
+
   public async handleFeedEntry(entry: FeedEntry): Promise<void> {
     // This might be massive and cause us to fail to send the message
     // so confine to a maximum size.
 
     if (entry.summary) {
-      entry.summary = await this.convertSummaryImagesToMxc(entry.summary);
+      if (this.state.uploadSummaryImages) {
+        entry.summary = await this.convertSummaryImagesToMxc(entry.summary);
+      }
       if (entry.summary.length > MAX_SUMMARY_LENGTH) {
         entry.summary = entry.summary.substring(0, MAX_SUMMARY_LENGTH) + "…";
       }
@@ -315,7 +350,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     let message: string;
     if (this.state.template) {
       message = this.templateFeedEntry(this.state.template, entry);
-      if (message.trim() === "") {
+      if (this.templateResultIsEmpty(message)) {
         log.info(
           `Template for ${this.feedUrl} rendered empty, falling back to default template`,
         );
