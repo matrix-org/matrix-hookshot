@@ -33,6 +33,7 @@ enum DecryptError {
 }
 
 #[napi]
+#[derive(Clone)]
 pub enum Algo {
     RSAOAEP,
     RSAPKCS1v15,
@@ -95,7 +96,7 @@ impl JsTokenEncryption {
         let mut result = String::new();
 
         for v in parts {
-            match self.decrypt_value(v, algo) {
+            match self.decrypt_value(v, algo.clone()) {
                 Ok(new_value) => {
                     result += &new_value;
                     Ok(())
