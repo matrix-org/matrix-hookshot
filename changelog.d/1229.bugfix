@@ -1,0 +1,1 @@
+Statically configured generic webhook connections no longer error when configuring JS transformation functions.
