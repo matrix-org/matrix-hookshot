@@ -37,7 +37,7 @@ jobs:
           echo "hookshot_version=$(cat package.json | yq .version)" >> "$GITHUB_OUTPUT"
 
       - name: Set chart appVersion to current package.json version
-        uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
+        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
         env:
           VERSION: "${{steps.get_hookshot_version.outputs.hookshot_version}}"
         with:
@@ -45,7 +45,7 @@ jobs:
             yq -i '.appVersion="$VERSION"' helm/hookshot/Chart.yaml
 
       - name: Set values hookshot config to current config.sample.yml contents
-        uses: mikefarah/yq@065b200af9851db0d5132f50bc10b1406ea5c0a8 # v4.50.1
+        uses: mikefarah/yq@751d8ad57b84f1794661bc70c0afb92a22ad7b3c # v4.53.2
         with:
           cmd: |
             yq -i eval-all 'select(fileIndex==0).hookshot.config = select(fileIndex==1) | select(fileIndex==0)' helm/hookshot/values.yaml config.sample.yml
