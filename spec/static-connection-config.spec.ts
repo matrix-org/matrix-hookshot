@@ -17,11 +17,11 @@ import {
 async function createTestEnvironment(
   connections: BridgeConfigRoot["connections"],
 ): Promise<E2ETestEnv> {
-  const webhooksPort = 9500 + E2ETestEnv.workerId;
   const testEnv = await E2ETestEnv.createTestEnv({
     matrixLocalparts: ["user"],
     staticConnectionRooms: {
-      "my-room": { members: ["user"] },
+      "room-basic": { members: ["user"] },
+      "room-func": { members: ["user"] },
     },
     config: {
       generic: {
@@ -50,28 +50,66 @@ async function createTestEnvironment(
 describe("Statically configured connection", () => {
   let testEnv: E2ETestEnv;
 
-  beforeAll(async () => {}, E2ESetupTestTimeout);
+  beforeAll(async () => {
+    const webhooksPort = 9500 + E2ETestEnv.workerId;
+    testEnv = await E2ETestEnv.createTestEnv({
+      matrixLocalparts: ["user"],
+      staticConnectionRooms: {
+        "room-basic": { members: ["user"] },
+        "room-func": { members: ["user"] },
+      },
+      config: {
+        generic: {
+          enabled: true,
+          // Prefer to wait for complete as it reduces the concurrency of the test.
+          waitForComplete: true,
+          urlPrefix: `http://localhost:${webhooksPort}`,
+          payloadSizeLimit: "10mb",
+          allowJsTransformationFunctions: true,
+        },
+        connections: [
+          {
+            roomId: "room-basic",
+            stateKey: "foo",
+            connectionType: GenericHookConnection.CanonicalEventType,
+            state: {
+              name: "My hook",
+            } satisfies GenericHookConnectionState,
+          },
+          // This is not great, but our test files seem to complain unless we have one env per file..
+          {
+            roomId: "room-func",
+            stateKey: "foo",
+            connectionType: GenericHookConnection.CanonicalEventType,
+            state: {
+              name: "My hook",
+              transformationFunction: `result = {
+        plain: "Hello world",
+        version: "v2",
+      };`,
+            } satisfies GenericHookConnectionState,
+          },
+        ],
+        listeners: [
+          {
+            port: webhooksPort,
+            bindAddress: "0.0.0.0",
+            // Bind to the SAME listener to ensure we don't have conflicts.
+            resources: ["webhooks"],
+          },
+        ],
+      },
+    });
+    await testEnv.setUp();
+  }, E2ESetupTestTimeout);
 
-  afterAll(() => {});
-
-  afterEach(() => {
-    vitest.useRealTimers();
+  afterAll(() => {
     return testEnv?.tearDown();
   });
 
   test("can configure a basic webhook.", async () => {
-    testEnv = await createTestEnvironment([
-      {
-        roomId: "my-room",
-        stateKey: "foo",
-        connectionType: GenericHookConnection.CanonicalEventType,
-        state: {
-          name: "My hook",
-        } satisfies GenericHookConnectionState,
-      },
-    ]);
     const user = testEnv.getUser("user");
-    const roomId = testEnv.connectionRooms["my-room"];
+    const roomId = testEnv.connectionRooms["room-basic"];
     await user.joinRoom(roomId);
     const url = new URL(
       testEnv.opts.config?.generic?.urlPrefix! + "/webhook/foo",
@@ -99,22 +137,8 @@ describe("Statically configured connection", () => {
   });
 
   test("can configure a webhook with transformation functions", async () => {
-    testEnv = await createTestEnvironment([
-      {
-        roomId: "my-room",
-        stateKey: "foo",
-        connectionType: GenericHookConnection.CanonicalEventType,
-        state: {
-          name: "My hook",
-          transformationFunction: `result = {
-    plain: "Hello world",
-    version: "v2",
-  };`,
-        } satisfies GenericHookConnectionState,
-      },
-    ]);
     const user = testEnv.getUser("user");
-    const roomId = testEnv.connectionRooms["my-room"];
+    const roomId = testEnv.connectionRooms["room-func"];
     await user.joinRoom(roomId);
     const url = new URL(
       testEnv.opts.config?.generic?.urlPrefix! + "/webhook/foo",
@@ -135,7 +159,9 @@ describe("Statically configured connection", () => {
     expect((await expectedMsg).data.content).toEqual({
       msgtype: "m.notice",
       body: "Hello world",
-      "uk.half-shot.hookshot.webhook_data": {},
+      format: "org.matrix.custom.html",
+      formatted_body: "<p>Hello world</p>",
+      "uk.half-shot.hookshot.webhook_data": "{}",
     });
   });
 });
