@@ -1,8 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
+  "extends": ["config:recommended"],
+  "labels": ["T-Task"],
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
