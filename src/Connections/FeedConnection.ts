@@ -261,6 +261,16 @@ export class FeedConnection extends BaseConnection implements IConnection {
     return convertedSummary;
   }
 
+  private templateDefaultFeedEntry(entry: FeedEntry): string {
+    if (entry.link) {
+      return this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_CONTENT, entry);
+    }
+    if (entry.title) {
+      return this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_ONLY_TITLE, entry);
+    }
+    return this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
+  }
+
   private hasError = false;
   private readonly lastResults = new Array<LastResultOk | LastResultFail>();
 
@@ -305,12 +315,14 @@ export class FeedConnection extends BaseConnection implements IConnection {
     let message: string;
     if (this.state.template) {
       message = this.templateFeedEntry(this.state.template, entry);
-    } else if (entry.link) {
-      message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_CONTENT, entry);
-    } else if (entry.title) {
-      message = this.templateFeedEntry(DEFAULT_TEMPLATE_WITH_ONLY_TITLE, entry);
+      if (message.trim() === "") {
+        log.info(
+          `Template for ${this.feedUrl} rendered empty, falling back to default template`,
+        );
+        message = this.templateDefaultFeedEntry(entry);
+      }
     } else {
-      message = this.templateFeedEntry(DEFAULT_TEMPLATE, entry);
+      message = this.templateDefaultFeedEntry(entry);
     }
 
     // We want to retry these sends, because sometimes the network / HS

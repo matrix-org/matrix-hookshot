@@ -194,4 +194,36 @@ describe("FeedConnection", () => {
     expect(matrixEvt.content.formatted_body).to.include('src="mxc://upload/1"');
     expect(intent.underlyingClient.uploadedContent).to.have.lengthOf(1);
   });
+
+  it("will fallback to default template when configured template is empty", async () => {
+    const [connection, intent] = createFeed({
+      template: `$SUMMARY`,
+    });
+    await connection.handleFeedEntry({
+      ...FEED_ENTRY_DEFAULTS,
+      summary: null,
+    });
+
+    const matrixEvt = intent.sentEvents[0];
+    expect(matrixEvt).to.not.be.undefined;
+    expect(matrixEvt.content.body).to.equal("New post in Test feed: [Foo](foo/bar)");
+    expect(matrixEvt.content.formatted_body).to.include(
+      '<a href="foo/bar">Foo</a>',
+    );
+  });
+
+  it("will fallback to title template when link is missing", async () => {
+    const [connection, intent] = createFeed({
+      template: `$SUMMARY`,
+    });
+    await connection.handleFeedEntry({
+      ...FEED_ENTRY_DEFAULTS,
+      summary: null,
+      link: null,
+    });
+
+    const matrixEvt = intent.sentEvents[0];
+    expect(matrixEvt).to.not.be.undefined;
+    expect(matrixEvt.content.body).to.equal("New post in Test feed: Foo");
+  });
 });
