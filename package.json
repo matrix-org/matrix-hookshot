@@ -49,7 +49,7 @@
     "@octokit/webhooks": "^12.0.10",
     "@sentry/node": "^7.52.1",
     "@vector-im/compound-design-tokens": "^2.0.1",
-    "@vector-im/compound-web": "^7.3.0",
+    "@vector-im/compound-web": "^9.0.0",
     "ajv": "^8.11.0",
     "axios": "^1.12.0",
     "clsx": "^2.1.1",
