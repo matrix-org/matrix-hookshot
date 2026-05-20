@@ -26,6 +26,7 @@ export interface BridgeGenericWebhooksConfigYAML {
   requireExpiryTime?: boolean;
   includeHookBody?: boolean;
   payloadSizeLimit?: string | number;
+  displaynameSuffix?: string;
 }
 
 export class BridgeConfigGenericWebhooks {
@@ -53,6 +54,12 @@ export class BridgeConfigGenericWebhooks {
     true,
   )
   public readonly payloadSizeLimit: number | string;
+
+  @configKey(
+    "Suffix appended to webhook display names. Set to an empty string to use the connection name as-is. Defaults to ' (Webhook)'.",
+    true,
+  )
+  public readonly displaynameSuffix: string;
 
   constructor(yaml: BridgeGenericWebhooksConfigYAML) {
     // Note, we previously ignored `enabled`. For backwards compat, assume it's true if not defined.
@@ -108,6 +115,7 @@ export class BridgeConfigGenericWebhooks {
       );
     }
     this.userIdPrefix = yaml.userIdPrefix;
+    this.displaynameSuffix = yaml.displaynameSuffix ?? " (Webhook)";
     this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
     this.waitForComplete = yaml.waitForComplete;
     this.maxExpiryTime = yaml.maxExpiryTime;
@@ -126,6 +134,7 @@ export class BridgeConfigGenericWebhooks {
       waitForComplete: this.waitForComplete,
       maxExpiryTime: await this.maxExpiryTimeMs,
       requireExpiryTime: this.requireExpiryTime,
+      displaynameSuffix: this.displaynameSuffix,
     }))();
   }
 }
