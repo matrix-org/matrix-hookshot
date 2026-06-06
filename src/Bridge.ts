@@ -1246,23 +1246,32 @@ export class Bridge {
     roomId: string,
     event: MatrixEvent<MatrixMemberContent>,
   ) {
+    log.debug(
+      `Got invite roomId=${roomId} from=${event.sender} to=${event.state_key}`,
+    );
     if (this.as.isNamespacedUser(event.sender)) {
+      log.debug(
+        `Rejecting invite as sender is in our namespace`,
+      );
       /* Do not handle invites from our users */
       return;
     }
     const invitedUserId = event.state_key;
     if (!invitedUserId) {
+      log.debug(
+        `Rejecting invite state key was empty!`,
+      );
       return;
     }
     log.info(
-      `Got invite roomId=${roomId} from=${event.sender} to=${invitedUserId}`,
+      `Processing invite from ${event.sender} to ${roomId} for ${invitedUserId}`,
     );
 
     const botUser = this.botUsersManager.getBotUser(invitedUserId);
     if (!botUser) {
       // We got an invite but it's not a configured bot user, must be for a ghost user
       log.debug(
-        `Rejecting invite to room ${roomId} for ghost user ${invitedUserId}`,
+        `Rejecting invite to room ${roomId} for non-bot user ${invitedUserId}`,
       );
       const client = this.as.getIntentForUserId(invitedUserId).underlyingClient;
       return client.leaveRoom(roomId, "Bridge does not support DMing ghosts.");
