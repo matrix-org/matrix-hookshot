@@ -785,6 +785,9 @@ export class GenericHookConnection
           ...(content.mentions
             ? { "m.mentions": content.mentions }
             : undefined),
+          ...(content.hints?.showUrlPreviews === false
+            ? { "com.beeper.linkpreviews": [] }
+            : undefined),
           ...(content.html ? { format: "org.matrix.custom.html" } : undefined),
           ...(safeData
             ? { "uk.half-shot.hookshot.webhook_data": safeData }

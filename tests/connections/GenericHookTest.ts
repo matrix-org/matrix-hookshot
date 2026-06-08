@@ -18,7 +18,10 @@ import { MemoryStorageProvider } from "../../src/stores/MemoryStorageProvider";
 import { BridgeConfig } from "../../src/config/Config";
 import { ProvisionConnectionOpts } from "../../src/Connections";
 import { add } from "date-fns";
-import { WebhookTransformer } from "../../src/generic/WebhookTransformer";
+import {
+  FunctionResultObject,
+  WebhookTransformer,
+} from "../../src/generic/WebhookTransformer";
 
 const ROOM_ID = "!foo:bar";
 
@@ -299,6 +302,40 @@ describe("GenericHookConnection", () => {
           room: true,
           user_ids: ["@foo:bar"],
         },
+        "uk.half-shot.hookshot.webhook_data": {},
+      },
+      type: "m.room.message",
+    });
+  });
+
+  it("will handle a hook event with url preview hints", async () => {
+    const webhookData = {};
+    const [connection, mq] = createGenericHook(
+      {
+        name: "test",
+        transformationFunction: `result = ${JSON.stringify({
+          version: "v2",
+          hints: {
+            showUrlPreviews: false,
+          },
+          plain: "hello world",
+        } satisfies FunctionResultObject)}`,
+      },
+      {
+        allowJsTransformationFunctions: true,
+      },
+    );
+    const messagePromise = handleMessage(mq);
+    await connection.onGenericHook(webhookData);
+    expect(await messagePromise).to.deep.equal({
+      roomId: ROOM_ID,
+      sender: connection.getUserId(),
+      content: {
+        body: "hello world",
+        format: "org.matrix.custom.html",
+        formatted_body: "<p>hello world</p>",
+        msgtype: "m.notice",
+        "com.beeper.linkpreviews": [],
         "uk.half-shot.hookshot.webhook_data": {},
       },
       type: "m.room.message",

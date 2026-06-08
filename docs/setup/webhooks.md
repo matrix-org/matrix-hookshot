@@ -170,7 +170,7 @@ for a more precise error.
 
 The `v2` api expects an object to be returned from the `result` variable.
 
-```json5
+```jsonc
 {
   "version": "v2" // The version of the schema being returned from the function. This is always "v2".
   "empty": true|false, // Should the webhook be ignored and no output returned. The default is false (plain must be provided).
@@ -180,6 +180,9 @@ The `v2` api expects an object to be returned from the `result` variable.
   "mentions": { // Explicitly mention these users, see https://spec.matrix.org/latest/client-server-api/#user-and-room-mentions
     "room": true,
     "user_ids": ["@foo:bar"]
+  },
+  "hints": {
+      "showUrlPreviews": false, // Set to false to disable URL previews for this message, or true to allow receiving clients to generate some.
   },
   "webhookResponse": { // Optional response to send to the webhook requestor. All fields are optional. Defaults listed.
     "body": "{ \"ok\": true }",

@@ -11,14 +11,17 @@ interface Mentions {
   room?: boolean;
 }
 
-interface FunctionResultObject {
-  version: string;
+export interface FunctionResultObject {
+  version: "v2";
   plain?: string;
   html?: string;
   msgtype?: string;
   empty?: boolean;
   webhookResponse?: ExecuteResultWebhookResponse;
   mentions?: Mentions;
+  hints?: {
+    showUrlPreviews?: boolean;
+  };
 }
 
 export interface ExecuteResultWebhookResponse {
@@ -32,6 +35,9 @@ export interface ExecuteResultContent {
   html?: string;
   msgtype?: string;
   mentions?: Mentions;
+  hints?: {
+    showUrlPreviews?: boolean;
+  };
 }
 
 export interface ExecuteResult {
@@ -196,12 +202,28 @@ export class WebhookTransformer {
       };
     }
 
+    if (transformationResult.hints) {
+      if (
+        transformationResult.hints.showUrlPreviews !== undefined &&
+        typeof transformationResult.hints.showUrlPreviews !== "boolean"
+      ) {
+        throw Error(
+          "Result returned from transformation provided an invalid hints.showUrlPreviews",
+        );
+      }
+      // Sanitise
+      transformationResult.hints = {
+        showUrlPreviews: transformationResult.hints.showUrlPreviews,
+      };
+    }
+
     return {
       content: {
         plain: transformationResult.plain,
         html: transformationResult.html,
         msgtype: transformationResult.msgtype,
         mentions: transformationResult.mentions,
+        hints: transformationResult.hints,
       },
       webhookResponse: transformationResult.webhookResponse,
     };
