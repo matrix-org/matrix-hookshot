@@ -6,7 +6,7 @@ import {
   HelpFunction,
 } from "../BotCommands";
 import { CommentProcessor } from "../CommentProcessor";
-import { FormatUtil, IMinimalPR, LooseMinimalGitHubRepo } from "../FormatUtil";
+import { FormatUtil, LooseMinimalGitHubRepo } from "../FormatUtil";
 import { Octokit } from "@octokit/rest";
 import {
   Connection,
@@ -568,7 +568,7 @@ export class GitHubRepoConnection
         stateEventKey,
         github,
         config.github,
-        config.messages,
+        config.messaging,
       ),
     };
   }
@@ -603,7 +603,7 @@ export class GitHubRepoConnection
       state.stateKey,
       github,
       config.github,
-      config.messages,
+      config.messaging,
     );
   }
 

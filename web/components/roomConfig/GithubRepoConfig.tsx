@@ -115,6 +115,7 @@ const ConnectionConfiguration: FunctionComponent<
         onSave({
           ...state,
           enableHooks: enabledHooks as any[],
+          showUrlPreviews,
           commandPrefix:
             commandPrefixRef.current?.value ||
             commandPrefixRef.current?.placeholder,
@@ -123,6 +124,7 @@ const ConnectionConfiguration: FunctionComponent<
     },
     [
       enabledHooks,
+      showUrlPreviews,
       canEdit,
       existingConnection,
       connectionState,

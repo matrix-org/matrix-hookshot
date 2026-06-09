@@ -223,7 +223,7 @@ export class OpenProjectConnection
       validData.url,
       tokenStore,
       storage,
-      config.messages,
+      config.messaging,
     );
     await intent.underlyingClient.sendStateEvent(
       roomId,
@@ -261,7 +261,7 @@ export class OpenProjectConnection
       state.stateKey,
       tokenStore,
       storage,
-      config.messages,
+      config.messaging,
     );
   }
 

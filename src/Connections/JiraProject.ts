@@ -206,7 +206,7 @@ export class JiraProjectConnection
       validData,
       validData.url,
       tokenStore,
-      config.messages,
+      config.messaging,
     );
     // Fetch the project's id now, to support events that identify projects by id instead of url
     if (
@@ -249,7 +249,7 @@ export class JiraProjectConnection
       connectionConfig,
       state.stateKey,
       tokenStore,
-      config.messages,
+      config.messaging,
     );
   }
 

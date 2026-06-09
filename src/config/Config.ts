@@ -233,7 +233,7 @@ export class BridgeConfig {
   public readonly connections: BridgeConfigConnectionConfig[];
 
   @configKey("Message defaults", true)
-  public readonly messages: BridgeConfigMessaging;
+  public readonly messaging: BridgeConfigMessaging;
 
   constructor(
     configData: BridgeConfigRoot,
@@ -244,7 +244,7 @@ export class BridgeConfig {
     };
     this.bridge = configData.bridge;
     assert.ok(this.bridge);
-    this.messages = new BridgeConfigMessaging(configData.messaging);
+    this.messaging = new BridgeConfigMessaging(configData.messaging);
     this.github =
       configData.github && new BridgeConfigGitHub(configData.github);
     if (this.github?.auth && env?.["GITHUB_PRIVATE_KEY_FILE"]) {

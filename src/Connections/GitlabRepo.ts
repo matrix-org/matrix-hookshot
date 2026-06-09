@@ -277,7 +277,7 @@ export class GitLabRepoConnection
       tokenStore,
       instance,
       storage,
-      config.messages,
+      config.messaging,
     );
 
     const discussionThreads = await storage.getGitlabDiscussionThreads(
@@ -378,7 +378,7 @@ export class GitLabRepoConnection
       tokenStore,
       instance,
       storage,
-      config.messages,
+      config.messaging,
     );
 
     const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);

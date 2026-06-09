@@ -41,6 +41,8 @@ export class BridgeConfigMessaging {
       hints["com.beeper.linkpreviews"] = [];
     }
 
+    console.log({ hints }, messageConfig, this.allowUrlPreviews);
+
     return {
       ...eventContent,
       ...hints,

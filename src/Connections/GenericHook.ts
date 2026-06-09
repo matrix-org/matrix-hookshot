@@ -328,7 +328,7 @@ export class GenericHookConnection
         as,
         intent,
         storage,
-        config.messages,
+        config.messaging,
         true,
       );
     }
@@ -371,7 +371,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
-      config.messages,
+      config.messaging,
       false,
     );
   }
@@ -438,7 +438,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
-      config.messages,
+      config.messaging,
       false,
     );
     return {
@@ -522,17 +522,6 @@ export class GenericHookConnection
     return this.state.expirationDate
       ? new Date(this.state.expirationDate)
       : undefined;
-  }
-
-  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
-    const content = this.msgConfig.formatMatrixMessage({
-      msgtype: "m.notice",
-      body,
-      formatted_body: md.renderInline(body),
-      format: "org.matrix.custom.html",
-      ...extraContent,
-    });
-    return this.intent.sendEvent(this.roomId, content);
   }
 
   /**
@@ -619,12 +608,15 @@ export class GenericHookConnection
       );
       if (error) {
         const errorPrefix = "Could not compile transformation function:";
-        await this.intent.sendEvent(this.roomId, {
-          msgtype: "m.text",
-          body: errorPrefix + "\n\n```json\n\n" + error + "\n\n```",
-          formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${error}</code></pre></p>`,
-          format: "org.matrix.custom.html",
-        });
+        await this.intent.sendEvent(
+          this.roomId,
+          this.msgConfig.formatMatrixMessage({
+            msgtype: "m.text",
+            body: errorPrefix + "\n\n```json\n\n" + error + "\n\n```",
+            formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${error}</code></pre></p>`,
+            format: "org.matrix.custom.html",
+          }),
+        );
       } else {
         this.webhookTransformer = new WebhookTransformer(
           validatedConfig.transformationFunction,
@@ -794,21 +786,23 @@ export class GenericHookConnection
 
       await this.messageClient.sendMatrixMessage(
         this.roomId,
-        {
-          msgtype: content.msgtype || "m.notice",
-          body: content.plain,
-          ...(content.html ? { formatted_body: content.html } : undefined),
-          ...(content.mentions
-            ? { "m.mentions": content.mentions }
-            : undefined),
-          ...(content.hints?.showUrlPreviews === false
-            ? { "com.beeper.linkpreviews": [] }
-            : undefined),
-          ...(content.html ? { format: "org.matrix.custom.html" } : undefined),
-          ...(safeData
-            ? { "uk.half-shot.hookshot.webhook_data": safeData }
-            : undefined),
-        },
+        this.msgConfig.formatMatrixMessage(
+          {
+            msgtype: content.msgtype || "m.notice",
+            body: content.plain,
+            ...(content.html ? { formatted_body: content.html } : undefined),
+            ...(content.mentions
+              ? { "m.mentions": content.mentions }
+              : undefined),
+            ...(content.html
+              ? { format: "org.matrix.custom.html" }
+              : undefined),
+            ...(safeData
+              ? { "uk.half-shot.hookshot.webhook_data": safeData }
+              : undefined),
+          },
+          { allowUrlPreviews: content.hints?.showUrlPreviews },
+        ),
         "m.room.message",
         sender,
       );

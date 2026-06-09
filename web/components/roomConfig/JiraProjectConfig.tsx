@@ -27,6 +27,9 @@ const ConnectionConfiguration: FunctionComponent<
   const [allowedEvents, setAllowedEvents] = useState<string[]>(
     existingConnection?.config.events || ["issue_created"],
   );
+  const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
+    existingConnection?.config.showUrlPreviews ?? true,
+  );
   const api = useContext(BridgeContext).bridgeApi;
 
   const toggleEvent = useCallback((evt: Event) => {
@@ -55,6 +58,7 @@ const ConnectionConfiguration: FunctionComponent<
         onSave({
           ...state,
           events: allowedEvents as any[],
+          showUrlPreviews,
           commandPrefix:
             commandPrefixRef.current?.value ||
             commandPrefixRef.current?.placeholder,
@@ -66,6 +70,7 @@ const ConnectionConfiguration: FunctionComponent<
       existingConnection,
       newConnectionState,
       allowedEvents,
+      showUrlPreviews,
       commandPrefixRef,
       onSave,
     ],
@@ -145,6 +150,18 @@ const ConnectionConfiguration: FunctionComponent<
           type="text"
           value={existingConnection?.config.commandPrefix}
           placeholder="!jira"
+        />
+      </InputField>
+      <InputField
+        visible={!!existingConnection}
+        label="Show URL previews on messages (requires supporting client)"
+        noPadding={true}
+      >
+        <input
+          disabled={!canEdit}
+          type="checkbox"
+          checked={showUrlPreviews}
+          onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
         />
       </InputField>
       <InputField

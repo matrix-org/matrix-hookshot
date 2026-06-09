@@ -74,7 +74,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
       event.stateKey,
       event.content,
       intent,
-      config.messages,
+      config.messaging,
     );
   }
 
@@ -164,7 +164,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
       state.url,
       state,
       intent,
-      config.messages,
+      config.messaging,
     );
     await intent.underlyingClient.sendStateEvent(
       roomId,

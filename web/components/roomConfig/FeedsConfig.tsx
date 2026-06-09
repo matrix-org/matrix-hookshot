@@ -95,6 +95,7 @@ const ConnectionConfiguration: FunctionComponent<
       labelRef,
       templateRef,
       notifyOnFailure,
+      showUrlPreviews,
       existingConnection,
     ],
   );
@@ -166,7 +167,7 @@ const ConnectionConfiguration: FunctionComponent<
         <input
           disabled={!canSave}
           type="checkbox"
-          checked={notifyOnFailure}
+          checked={showUrlPreviews}
           onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
         />
       </InputField>
