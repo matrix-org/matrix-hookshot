@@ -40,6 +40,7 @@ import {
   OpenProjectServiceConfig,
 } from "../Connections";
 import { ConnectionType } from "../Connections/type";
+import { BridgeConfigMessaging } from "./sections/Messages";
 
 const log = new Logger("Config");
 
@@ -125,7 +126,7 @@ export interface BridgeConfigRoot {
   bridge: BridgeConfigBridge;
   cache?: BridgeConfigCache;
   /**
-   * @deprecated Old, unsupported encryption propety.
+   * @deprecated Old, unsupported encryption property.
    */
   experimentalEncryption?: never;
   encryption?: BridgeConfigEncryption;
@@ -148,6 +149,7 @@ export interface BridgeConfigRoot {
   widgets?: BridgeWidgetConfigYAML;
   challengeHound?: BridgeConfigChallengeHound;
   connections?: BridgeConfigConnectionConfig[];
+  messaging?: BridgeConfigMessaging;
 }
 
 export class BridgeConfig {
@@ -230,6 +232,9 @@ export class BridgeConfig {
   @configKey("Static connections that may be configured by an admin", true)
   public readonly connections: BridgeConfigConnectionConfig[];
 
+  @configKey("Message defaults", true)
+  public readonly messages: BridgeConfigMessaging;
+
   constructor(
     configData: BridgeConfigRoot,
     env?: { [key: string]: string | undefined },
@@ -239,6 +244,7 @@ export class BridgeConfig {
     };
     this.bridge = configData.bridge;
     assert.ok(this.bridge);
+    this.messages = new BridgeConfigMessaging(configData.messaging);
     this.github =
       configData.github && new BridgeConfigGitHub(configData.github);
     if (this.github?.auth && env?.["GITHUB_PRIVATE_KEY_FILE"]) {

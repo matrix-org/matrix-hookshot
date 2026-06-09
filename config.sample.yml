@@ -208,5 +208,11 @@ listeners:
 #    state:
 #      name: My static hook
 
+#messages:
+#  # (Optional) Message defaults
+#  allowUrlPreviews:
+#    # (Optional) Allow clients to generate their own URL previews from Hookshot messages. On by default
+#    true
+
 
 

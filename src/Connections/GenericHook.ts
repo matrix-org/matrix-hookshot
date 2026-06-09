@@ -19,6 +19,7 @@ import {
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
+import { BridgeConfigMessaging } from "../config/sections/Messages";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from "node:crypto";
 import { GenericWebhookEventResult } from "../generic/Types";
@@ -327,6 +328,7 @@ export class GenericHookConnection
         as,
         intent,
         storage,
+        config.messages,
         true,
       );
     }
@@ -369,6 +371,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      config.messages,
       false,
     );
   }
@@ -435,6 +438,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      config.messages,
       false,
     );
     return {
@@ -500,6 +504,7 @@ export class GenericHookConnection
     private readonly as: Appservice,
     private readonly intent: Intent,
     private readonly storage: IBridgeStorageProvider,
+    private readonly msgConfig: BridgeConfigMessaging,
     public readonly isStatic = false,
   ) {
     super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
@@ -517,6 +522,17 @@ export class GenericHookConnection
     return this.state.expirationDate
       ? new Date(this.state.expirationDate)
       : undefined;
+  }
+
+  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
+    const content = this.msgConfig.formatMatrixMessage({
+      msgtype: "m.notice",
+      body,
+      formatted_body: md.renderInline(body),
+      format: "org.matrix.custom.html",
+      ...extraContent,
+    });
+    return this.intent.sendEvent(this.roomId, content);
   }
 
   /**

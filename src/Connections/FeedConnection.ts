@@ -11,6 +11,7 @@ import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
 import { ConnectionType } from "./type";
+import { BridgeConfigMessaging } from "../config/sections/Messages";
 const log = new Logger("FeedConnection");
 const md = new markdown({
   html: true,
@@ -31,6 +32,7 @@ export interface FeedConnectionState extends IConnectionState {
   label: string | undefined;
   template: string | undefined;
   notifyOnFailure: boolean | undefined;
+  showUrlPreviews: boolean | undefined;
 }
 
 export interface FeedConnectionSecrets {
@@ -67,7 +69,13 @@ export class FeedConnection extends BaseConnection implements IConnection {
     if (!config.feeds?.enabled) {
       throw Error("RSS/Atom feeds are not configured");
     }
-    return new FeedConnection(roomId, event.stateKey, event.content, intent);
+    return new FeedConnection(
+      roomId,
+      event.stateKey,
+      event.content,
+      intent,
+      config.messages,
+    );
   }
 
   static async validateUrl(url: string): Promise<void> {
@@ -91,7 +99,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
   }
 
   static validateState(
-    data: Record<string, unknown> = {},
+    data: Partial<Record<keyof FeedConnectionState, unknown>> = {},
   ): FeedConnectionState {
     const url = data.url;
     if (typeof url !== "string") {
@@ -99,6 +107,12 @@ export class FeedConnection extends BaseConnection implements IConnection {
     }
     if (typeof data.label !== "undefined" && typeof data.label !== "string") {
       throw new ApiError("Label must be a string", ErrCode.BadValue);
+    }
+    if (
+      typeof data.showUrlPreviews !== "undefined" &&
+      typeof data.showUrlPreviews !== "boolean"
+    ) {
+      throw new ApiError("showUrlPreviews must be a string", ErrCode.BadValue);
     }
 
     if (typeof data.template !== "undefined") {
@@ -126,6 +140,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
       label: data.label,
       template: data.template,
       notifyOnFailure: data.notifyOnFailure,
+      showUrlPreviews: data.showUrlPreviews,
     };
   }
 
@@ -144,7 +159,13 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
     const state = this.validateState(data);
     await FeedConnection.validateUrl(state.url);
-    const connection = new FeedConnection(roomId, state.url, state, intent);
+    const connection = new FeedConnection(
+      roomId,
+      state.url,
+      state,
+      intent,
+      config.messages,
+    );
     await intent.underlyingClient.sendStateEvent(
       roomId,
       FeedConnection.CanonicalEventType,
@@ -176,6 +197,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
         label: this.state.label,
         template: this.state.template,
         notifyOnFailure: this.state.notifyOnFailure,
+        showUrlPreviews: this.state.showUrlPreviews,
       },
       secrets: {
         lastResults: this.lastResults,
@@ -224,6 +246,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
     stateKey: string,
     private state: FeedConnectionState,
     private readonly intent: Intent,
+    private readonly msgConfig: BridgeConfigMessaging,
   ) {
     super(roomId, stateKey, FeedConnection.CanonicalEventType);
     log.info(
@@ -265,14 +288,14 @@ export class FeedConnection extends BaseConnection implements IConnection {
 
     // We want to retry these sends, because sometimes the network / HS
     // craps out.
-    const content = {
+    const content = this.msgConfig.formatMatrixMessage({
       msgtype: "m.notice",
       format: "org.matrix.custom.html",
       formatted_body: md.renderInline(message),
       body: message,
       external_url: entry.link ?? undefined,
       "uk.half-shot.matrix-hookshot.feeds.item": entry,
-    };
+    });
     await retry(
       () => this.intent.sendEvent(this.roomId, content),
       SEND_EVENT_MAX_ATTEMPTS,

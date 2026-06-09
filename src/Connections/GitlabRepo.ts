@@ -40,6 +40,7 @@ import { GitLabGrantChecker } from "../gitlab/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitLab, GitLabInstance } from "../config/sections";
+import { BridgeConfigMessaging } from "../config/sections/Messages";
 import { getStringHeader } from "../util/axios";
 
 export interface GitLabRepoConnectionState extends IConnectionState {
@@ -55,6 +56,7 @@ export interface GitLabRepoConnectionState extends IConnectionState {
   pushTagsRegex?: string;
   includingLabels?: string[];
   excludingLabels?: string[];
+  showUrlPreviews?: boolean;
 }
 
 interface ConnectionStateValidated extends GitLabRepoConnectionState {
@@ -172,6 +174,10 @@ const ConnectionStateSchema = {
       type: "boolean",
       nullable: true,
     },
+    showUrlPreviews: {
+      type: "boolean",
+      nullable: true,
+    },
   },
   required: ["instance", "path"],
   additionalProperties: true,
@@ -271,6 +277,7 @@ export class GitLabRepoConnection
       tokenStore,
       instance,
       storage,
+      config.messages,
     );
 
     const discussionThreads = await storage.getGitlabDiscussionThreads(
@@ -371,6 +378,7 @@ export class GitLabRepoConnection
       tokenStore,
       instance,
       storage,
+      config.messages,
     );
 
     const existingConnections = getAllConnectionsOfType(GitLabRepoConnection);
@@ -573,6 +581,7 @@ export class GitLabRepoConnection
     private readonly tokenStore: UserTokenStore,
     private readonly instance: GitLabInstance,
     private readonly storage: IBridgeStorageProvider,
+    private readonly msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -592,6 +601,20 @@ export class GitLabRepoConnection
     }
     this.hookFilter = new HookFilter(state.enableHooks ?? DefaultHooks);
     this.commentDebounceMs = config.commentDebounceMs;
+  }
+
+  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
+    const content = this.msgConfig.formatMatrixMessage(
+      {
+        msgtype: "m.notice",
+        body,
+        formatted_body: md.renderInline(body),
+        format: "org.matrix.custom.html",
+        ...extraContent,
+      },
+      { allowUrlPreviews: this.state.showUrlPreviews },
+    );
+    return this.intent.sendEvent(this.roomId, content);
   }
 
   public get path() {

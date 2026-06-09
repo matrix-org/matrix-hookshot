@@ -266,6 +266,16 @@ cache:
   redisUri: "redis://redis-host:6379"
 ```
 
+### Messaging defaults
+
+Hookshot allows you to configure global overrides for certain message features. This is useful
+if you have a configuration you'd like to apply every room.
+
+```yaml
+messaging:
+    allowUrlPreviews: true
+```
+
 ### Services configuration
 
 You will need to configure some services. Each service has its own documentation file inside the setup subdirectory.

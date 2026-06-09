@@ -22,6 +22,7 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
 import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
+import { BridgeConfigMessaging } from "../config/sections/Messages";
 import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
@@ -65,6 +66,7 @@ export interface OpenProjectConnectionState extends IConnectionState {
    */
   url: string;
   events: OpenProjectEventsNames[];
+  showUrlPreviews?: boolean;
 }
 
 export type OpenProjectResponseItem =
@@ -221,6 +223,7 @@ export class OpenProjectConnection
       validData.url,
       tokenStore,
       storage,
+      config.messages,
     );
     await intent.underlyingClient.sendStateEvent(
       roomId,
@@ -258,6 +261,7 @@ export class OpenProjectConnection
       state.stateKey,
       tokenStore,
       storage,
+      config.messages,
     );
   }
 
@@ -321,6 +325,7 @@ export class OpenProjectConnection
     stateKey: string,
     private readonly tokenStore: UserTokenStore,
     private readonly storage: IBridgeStorageProvider,
+    private readonly msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -337,6 +342,20 @@ export class OpenProjectConnection
     this.grantChecker = new OpenProjectGrantChecker(as, tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
+  }
+
+  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
+    const content = this.msgConfig.formatMatrixMessage(
+      {
+        msgtype: "m.notice",
+        body,
+        formatted_body: md.renderInline(body),
+        format: "org.matrix.custom.html",
+        ...extraContent,
+      },
+      { allowUrlPreviews: this.state.showUrlPreviews },
+    );
+    return this.intent.sendEvent(this.roomId, content);
   }
 
   public isInterestedInStateEvent(eventType: string, stateKey: string) {
