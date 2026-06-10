@@ -95,6 +95,7 @@ export interface GenericHookServiceConfig {
   waitForComplete?: boolean;
   maxExpiryTime?: number;
   requireExpiryTime: boolean;
+  displaynameSuffix?: string;
 }
 
 const log = new Logger("GenericHookConnection");
@@ -578,7 +579,8 @@ export class GenericHookConnection
     ) {
       return;
     }
-    const expectedDisplayname = `${this.state.name} (Webhook)`;
+    const suffix = this.config.displaynameSuffix ?? " (Webhook)";
+    const expectedDisplayname = `${this.state.name}${suffix}`;
 
     try {
       if (this.cachedDisplayname !== expectedDisplayname) {
@@ -592,7 +594,7 @@ export class GenericHookConnection
     }
     if (this.cachedDisplayname !== expectedDisplayname) {
       await intent.underlyingClient.setDisplayName(
-        `${this.state.name} (Webhook)`,
+        expectedDisplayname,
       );
       this.cachedDisplayname = expectedDisplayname;
     }
