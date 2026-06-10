@@ -20,11 +20,7 @@ WORKDIR /src
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
-<<<<<<< HEAD
 RUN pnpm install --frozen-lockfile --ignore-scripts
-=======
-RUN pnpm install --frozen-lockfile --ignore-scripts --network-timeout 600000
->>>>>>> 6b93eb47 (Migrate Dockerfile)
 
 COPY . ./
 
