@@ -1,3 +1,18 @@
+# 7.4.0 (2026-06-10)
+
+## Features
+
+- You can now add hints to Hookshot messages to disable URL previews on clients. Uses [MSC4095](https://github.com/matrix-org/matrix-spec-proposals/pull/4095).
+
+  See https://matrix-org.github.io/matrix-hookshot/latest/setup.html#messaging-defaults and https://matrix-org.github.io/matrix-hookshot/latest/setup/webhooks.html#v2-api ([\#1304](https://github.com/matrix-org/matrix-hookshot/issues/1304))
+
+## Bugfixes
+
+- Statically configured generic webhook connections no longer error when configuring JS transformation functions. ([\#1229](https://github.com/matrix-org/matrix-hookshot/issues/1229))
+- Fix a bug where hookshot would require both "webhooks" and "generic" service permissions to manage webhooks. This has now been corrected so that all
+  webhook commands require "generic" service permissions. "webhooks" will continue to work, but may be removed at a future date. ([\#1281](https://github.com/matrix-org/matrix-hookshot/issues/1281))
+
+
 # 7.3.3 (2026-05-18)
 
 ## Bugfixes
