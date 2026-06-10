@@ -1,6 +1,6 @@
 import { Logger } from "matrix-appservice-bridge";
 import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
-import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
+import { BridgeConfig } from "../config/Config";
 import { FormatUtil } from "../FormatUtil";
 
 const GRANT_ACCOUNT_DATA_KEY = "uk.half-shot.matrix-hookshot.grant";

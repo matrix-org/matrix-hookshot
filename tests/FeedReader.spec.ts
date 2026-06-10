@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, afterAll, expect } from "vitest";
 import EventEmitter from "events";
 import { BridgeConfigFeeds } from "../src/config/sections/Feeds";
 import { ConnectionManager } from "../src/ConnectionManager";
@@ -78,8 +78,7 @@ async function constructFeedReader(
   // Ensure we don't initial sync by storing a guid.
   await storage.storeFeedGuids(feedUrl, "-test-guid-");
   const feedReader = new FeedReader(config, cm, mq, storage);
-  // eslint-disable-next-line mocha/no-top-level-hooks
-  after(() => httpServer.close());
+  afterAll(() => httpServer.close());
   return { config, cm, events, feedReader, feedUrl, httpServer, storage };
 }
 
@@ -104,10 +103,10 @@ describe("FeedReader", () => {
 
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
-    expect(events).to.have.lengthOf(1);
+    expect(events).toHaveLength(1);
 
-    expect(events[0].data.feed.title).to.equal(null);
-    expect(events[0].data.title).to.equal(null);
+    expect(events[0].data.feed.title).toBe(null);
+    expect(events[0].data.title).toBe(null);
   });
 
   it("should handle RSS 2.0 feeds", async () => {
@@ -139,16 +138,16 @@ describe("FeedReader", () => {
 
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
-    expect(events).to.have.lengthOf(1);
+    expect(events).toHaveLength(1);
 
-    expect(events[0].data.feed.title).to.equal("RSS Title");
-    expect(events[0].data.author).to.equal("John Doe");
-    expect(events[0].data.title).to.equal("Example entry");
-    expect(events[0].data.summary).to.equal(
+    expect(events[0].data.feed.title).toBe("RSS Title");
+    expect(events[0].data.author).toBe("John Doe");
+    expect(events[0].data.title).toBe("Example entry");
+    expect(events[0].data.summary).toBe(
       "Here is some text containing an interesting description.",
     );
-    expect(events[0].data.link).to.equal("http://www.example.com/blog/post/1");
-    expect(events[0].data.pubdate).to.equal("Sun, 6 Sep 2009 16:20:00 +0000");
+    expect(events[0].data.link).toBe("http://www.example.com/blog/post/1");
+    expect(events[0].data.pubdate).toBe("Sun, 6 Sep 2009 16:20:00 +0000");
   });
 
   it("should handle RSS feeds with a permalink url", async () => {
@@ -179,16 +178,16 @@ describe("FeedReader", () => {
 
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
-    expect(events).to.have.lengthOf(1);
+    expect(events).toHaveLength(1);
 
-    expect(events[0].data.feed.title).to.equal("RSS Title");
-    expect(events[0].data.author).to.equal("John Doe");
-    expect(events[0].data.title).to.equal("Example entry");
-    expect(events[0].data.summary).to.equal(
+    expect(events[0].data.feed.title).toBe("RSS Title");
+    expect(events[0].data.author).toBe("John Doe");
+    expect(events[0].data.title).toBe("Example entry");
+    expect(events[0].data.summary).toBe(
       "Here is some text containing an interesting description.",
     );
-    expect(events[0].data.link).to.equal("http://www.example.com/blog/post/1");
-    expect(events[0].data.pubdate).to.equal("Sun, 6 Sep 2009 16:20:00 +0000");
+    expect(events[0].data.link).toBe("http://www.example.com/blog/post/1");
+    expect(events[0].data.pubdate).toBe("Sun, 6 Sep 2009 16:20:00 +0000");
   });
 
   it("should handle Atom feeds", async () => {
@@ -197,7 +196,7 @@ describe("FeedReader", () => {
       data: `
             <?xml version="1.0" encoding="utf-8"?>
             <feed xmlns="http://www.w3.org/2005/Atom">
-            
+
               <title>Example Feed</title>
               <link href="http://example.org/"/>
               <updated>2003-12-13T18:30:02Z</updated>
@@ -205,7 +204,7 @@ describe("FeedReader", () => {
                 <name>John Doe</name>
               </author>
               <id>urn:uuid:60a76c80-d399-11d9-b93C-0003939e0af6</id>
-            
+
               <entry>
                 <author>
                     <name>John Doe</name>
@@ -216,23 +215,21 @@ describe("FeedReader", () => {
                 <updated>2003-12-13T18:30:02Z</updated>
                 <summary>Some text.</summary>
               </entry>
-            
+
             </feed>
         `,
     }));
 
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
-    expect(events).to.have.lengthOf(1);
+    expect(events).toHaveLength(1);
 
-    expect(events[0].data.feed.title).to.equal("Example Feed");
-    expect(events[0].data.title).to.equal("Atom-Powered Robots Run Amok");
-    expect(events[0].data.author).to.equal("John Doe");
-    expect(events[0].data.summary).to.equal("Some text.");
-    expect(events[0].data.link).to.equal(
-      "http://example.org/2003/12/13/atom03",
-    );
-    expect(events[0].data.pubdate).to.equal("Sat, 13 Dec 2003 18:30:02 +0000");
+    expect(events[0].data.feed.title).toBe("Example Feed");
+    expect(events[0].data.title).toBe("Atom-Powered Robots Run Amok");
+    expect(events[0].data.author).toBe("John Doe");
+    expect(events[0].data.summary).toBe("Some text.");
+    expect(events[0].data.link).toBe("http://example.org/2003/12/13/atom03");
+    expect(events[0].data.pubdate).toBe("Sat, 13 Dec 2003 18:30:02 +0000");
   });
 
   it("should not duplicate feed entries", async () => {
@@ -259,7 +256,7 @@ describe("FeedReader", () => {
     await feedReader.pollFeed(feedUrl);
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
-    expect(events).to.have.lengthOf(1);
+    expect(events).toHaveLength(1);
   });
 
   it("should always hash to the same value for Atom feeds", async () => {
@@ -281,7 +278,7 @@ describe("FeedReader", () => {
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
     const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
-    expect(items).to.deep.equal(expectedHash);
+    expect(items).toEqual(expectedHash);
   });
 
   it("should always hash to the same value for RSS feeds", async () => {
@@ -317,6 +314,6 @@ describe("FeedReader", () => {
     await feedReader.pollFeed(feedUrl);
     feedReader.stop();
     const items = await storage.hasSeenFeedGuids(feedUrl, ...expectedHash);
-    expect(items).to.deep.equal(expectedHash);
+    expect(items).toEqual(expectedHash);
   });
 });

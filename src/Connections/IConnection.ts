@@ -8,7 +8,8 @@ import {
   RoomEvent,
   StateEvent,
 } from "matrix-bot-sdk";
-import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
+import { BridgeConfig } from "../config/Config";
+import type { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { CommentProcessor } from "../CommentProcessor";
 import { MessageSenderClient } from "../MatrixSender";

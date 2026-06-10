@@ -9,7 +9,8 @@ import { NotificationWatcherTask } from "./NotificationWatcherTask";
 import { GitHubWatcher } from "./GitHubWatcher";
 import { GitHubUserNotification } from "../github/Types";
 import { GitLabWatcher } from "./GitLabWatcher";
-import { BridgeConfig, BridgePermissionLevel } from "../config/Config";
+import { BridgeConfig } from "../config/Config";
+import { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import Metrics from "../Metrics";
 export interface UserNotificationsEvent {
   roomId: string;

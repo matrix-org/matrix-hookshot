@@ -14,7 +14,7 @@ import {
   OutboundHookConnection,
 } from ".";
 import { CommandError } from "../Errors";
-import { BridgePermissionLevel } from "../config/Config";
+import { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import markdown from "markdown-it";
 import { FigmaFileConnection } from "./FigmaFileConnection";
 import { FeedConnection, FeedConnectionState } from "./FeedConnection";

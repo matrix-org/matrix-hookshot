@@ -1,4 +1,4 @@
-import { assert, expect } from "chai";
+import { describe, it, beforeAll, expect } from "vitest";
 import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
 import {
   BridgeConfigGenericWebhooks,
@@ -41,7 +41,7 @@ async function testSimpleWebhook(
   const webhookData = { simple: testValue };
   const messagePromise = handleMessage(mq);
   await connection.onGenericHook(webhookData);
-  expect(await messagePromise).to.deep.equal({
+  expect(await messagePromise).toEqual({
     roomId: ROOM_ID,
     sender: connection.getUserId(),
     content: {
@@ -114,7 +114,7 @@ function handleMessage(mq: LocalMQ): Promise<IMatrixSendMessage> {
 }
 
 describe("GenericHookConnection", () => {
-  before(async () => {
+  beforeAll(async () => {
     await WebhookTransformer.initialiseQuickJS();
   });
 
@@ -128,7 +128,7 @@ describe("GenericHookConnection", () => {
     const [connection, mq] = createGenericHook();
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -147,7 +147,7 @@ describe("GenericHookConnection", () => {
     const [connection, mq] = createGenericHook();
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -167,7 +167,7 @@ describe("GenericHookConnection", () => {
     const [connection, mq] = createGenericHook();
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -189,7 +189,7 @@ describe("GenericHookConnection", () => {
     const [connection, mq] = createGenericHook();
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -208,7 +208,7 @@ describe("GenericHookConnection", () => {
     const [connection, mq] = createGenericHook();
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -236,7 +236,7 @@ describe("GenericHookConnection", () => {
     );
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -264,7 +264,7 @@ describe("GenericHookConnection", () => {
     );
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -292,7 +292,7 @@ describe("GenericHookConnection", () => {
     );
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -357,7 +357,7 @@ describe("GenericHookConnection", () => {
     );
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -385,7 +385,7 @@ describe("GenericHookConnection", () => {
     );
     const messagePromise = handleMessage(mq);
     await connection.onGenericHook(webhookData);
-    expect(await messagePromise).to.deep.equal({
+    expect(await messagePromise).toEqual({
       roomId: ROOM_ID,
       sender: connection.getUserId(),
       content: {
@@ -405,11 +405,11 @@ describe("GenericHookConnection", () => {
     let messagePromise = handleMessage(mq);
     await connection.onGenericHook({ simple: 1.2345 });
     let message = await messagePromise;
-    expect(message.roomId).to.equal(ROOM_ID);
-    expect(message.sender).to.equal(connection.getUserId());
-    expect(message.content["uk.half-shot.hookshot.webhook_data"]).to.deep.equal(
-      { simple: "1.2345" },
-    );
+    expect(message.roomId).toBe(ROOM_ID);
+    expect(message.sender).toBe(connection.getUserId());
+    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual({
+      simple: "1.2345",
+    });
 
     messagePromise = handleMessage(mq);
     await connection.onGenericHook({
@@ -422,11 +422,11 @@ describe("GenericHookConnection", () => {
       },
     });
     message = await messagePromise;
-    expect(message.roomId).to.equal(ROOM_ID);
-    expect(message.sender).to.equal(connection.getUserId());
-    expect(message.content["uk.half-shot.hookshot.webhook_data"]).to.deep.equal(
-      { a: { deep: { object: { containing: "1.2345" } } } },
-    );
+    expect(message.roomId).toBe(ROOM_ID);
+    expect(message.sender).toBe(connection.getUserId());
+    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual({
+      a: { deep: { object: { containing: "1.2345" } } },
+    });
 
     messagePromise = handleMessage(mq);
     await connection.onGenericHook({
@@ -434,14 +434,12 @@ describe("GenericHookConnection", () => {
       floats: true,
     });
     message = await messagePromise;
-    expect(message.roomId).to.equal(ROOM_ID);
-    expect(message.sender).to.equal(connection.getUserId());
-    expect(message.content["uk.half-shot.hookshot.webhook_data"]).to.deep.equal(
-      {
-        an_array_of: ["1.2345", "6.789"],
-        floats: true,
-      },
-    );
+    expect(message.roomId).toBe(ROOM_ID);
+    expect(message.sender).toBe(connection.getUserId());
+    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual({
+      an_array_of: ["1.2345", "6.789"],
+      floats: true,
+    });
   });
 
   it("should handle simple hook events with user Id prefix", async () => {
@@ -466,7 +464,7 @@ describe("GenericHookConnection", () => {
       if (hasInvited) {
         return roomId;
       }
-      expect(roomId).to.equal(ROOM_ID);
+      expect(roomId).toBe(ROOM_ID);
       throw new MatrixError(
         { errcode: "M_FORBIDDEN", error: "Test forced error" },
         401,
@@ -479,15 +477,15 @@ describe("GenericHookConnection", () => {
       userId: string,
       roomId: string,
     ) => {
-      expect(userId).to.equal(senderUserId);
-      expect(roomId).to.equal(ROOM_ID);
+      expect(userId).toBe(senderUserId);
+      expect(roomId).toBe(ROOM_ID);
       hasInvited = true;
     };
 
     // regression test covering https://github.com/matrix-org/matrix-hookshot/issues/625
     await testSimpleWebhook(connection, mq, "data1");
     // Only pass if we've actually bothered to invite the bot.
-    expect(hasInvited).to.be.true;
+    expect(hasInvited).toBe(true);
   });
 
   it("should fail a message if a bot cannot join a room", async () => {
@@ -509,7 +507,7 @@ describe("GenericHookConnection", () => {
       // regression test covering https://github.com/matrix-org/matrix-hookshot/issues/625
       await testSimpleWebhook(connection, mq, "data1");
     } catch (ex) {
-      expect(ex.message).to.contain(
+      expect(ex.message).toContain(
         `Could not ensure that ${senderUserId} is in ${ROOM_ID}`,
       );
     }
@@ -532,7 +530,7 @@ describe("GenericHookConnection", () => {
           name: "beep",
           expirationDate,
         }),
-      ).to.throw("'expirationDate' must be a non-empty string");
+      ).toThrow("'expirationDate' must be a non-empty string");
     }
     for (const expirationDate of [
       "no",
@@ -548,7 +546,7 @@ describe("GenericHookConnection", () => {
           name: "beep",
           expirationDate,
         }),
-      ).to.throw("'expirationDate' must be a valid date");
+      ).toThrow("'expirationDate' must be a valid date");
     }
   });
 
@@ -572,9 +570,9 @@ describe("GenericHookConnection", () => {
           storage: new MemoryStorageProvider(),
         } as unknown as ProvisionConnectionOpts,
       );
-      assert.fail("Expected function to throw");
+      throw new Error("Expected function to throw");
     } catch (ex) {
-      expect(ex.message).to.contain(
+      expect(ex.message).toContain(
         "Expiration date must at least be a hour in the future",
       );
     }
@@ -606,9 +604,9 @@ describe("GenericHookConnection", () => {
           storage: new MemoryStorageProvider(),
         } as unknown as ProvisionConnectionOpts,
       );
-      assert.fail("Expected function to throw");
+      throw new Error("Expected function to throw");
     } catch (ex) {
-      expect(ex.message).to.contain(
+      expect(ex.message).toContain(
         "Expiration date cannot exceed the configured max expiry time",
       );
     }
@@ -637,9 +635,9 @@ describe("GenericHookConnection", () => {
           storage: new MemoryStorageProvider(),
         } as unknown as ProvisionConnectionOpts,
       );
-      assert.fail("Expected function to throw");
+      throw new Error("Expected function to throw");
     } catch (ex) {
-      expect(ex.message).to.contain("Expiration date must be set");
+      expect(ex.message).toContain("Expiration date must be set");
     }
   });
 
@@ -654,7 +652,7 @@ describe("GenericHookConnection", () => {
     const [connection] = createGenericHook({
       expirationDate: new Date().toISOString(),
     });
-    expect(await connection.onGenericHook({ test: "value" })).to.deep.equal({
+    expect(await connection.onGenericHook({ test: "value" })).toEqual({
       error: "This hook has expired",
       statusCode: 404,
       successful: false,

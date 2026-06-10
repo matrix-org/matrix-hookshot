@@ -4,7 +4,7 @@ import { CommandError, TokenError, TokenErrorCode } from "../Errors";
 import { GithubInstance } from "./GithubInstance";
 import { GitHubOAuthToken } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
-import { BridgePermissionLevel } from "../config/Config";
+import { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import { ConnectionType } from "../Connections/type";
 
 const log = new Logger("GitHubBotCommands");

@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, beforeEach, expect } from "vitest";
 import { BridgeConfig } from "../../src/config/Config";
 import { DefaultConfigRoot } from "../../src/config/Defaults";
 import { FormatUtil } from "../../src/FormatUtil";
@@ -29,19 +29,16 @@ async function doesAssert(
     await checker.assertConnectionGranted(roomId, connectionId, sender);
     throw Error(`Expected ${roomId}/${connectionId} to have thrown an error`);
   } catch (ex) {
-    expect(ex).instanceOf(
-      GrantRejectedError,
+    expect(
+      ex,
       "Error thrown, but was not a grant rejected error",
-    );
-    expect(ex.roomId).to.equal(
-      roomId,
-      "Grant rejected, but roomId didn't match",
-    );
+    ).toBeInstanceOf(GrantRejectedError);
+    expect(ex.roomId, "Grant rejected, but roomId didn't match").toBe(roomId);
     // connectionIds are always hashed
-    expect(ex.connectionId).to.equal(
-      FormatUtil.hashId(connectionId),
+    expect(
+      ex.connectionId,
       "Grant rejected, but connectionId didn't match",
-    );
+    ).toBe(FormatUtil.hashId(connectionId));
     return true;
   }
 }

@@ -1,6 +1,6 @@
+import { describe, it, expect } from "vitest";
 import { IntentMock, MatrixClientMock } from "./utils/IntentMock";
 import { ensureUserIsInRoom } from "../src/IntentUtils";
-import { expect } from "chai";
 import { MatrixError } from "matrix-bot-sdk";
 
 const ROOM_ID = "!foo:bar";
@@ -21,12 +21,11 @@ describe("IntentUtils", () => {
       const targetIntent = IntentMock.create(SENDER_USER_ID);
       const matrixClient = MatrixClientMock.create();
       let hasInvited = false;
-      // This should fail the first time, then pass once we've tried to invite the user
       targetIntent.ensureJoined = (roomId: string) => {
         if (hasInvited) {
           return;
         }
-        expect(roomId).to.equal(ROOM_ID);
+        expect(roomId).toBe(ROOM_ID);
         throw new MatrixError(
           { errcode: "M_FORBIDDEN", error: "Test forced error" },
           401,
@@ -34,23 +33,20 @@ describe("IntentUtils", () => {
         );
       };
 
-      // This should invite the puppet user.
       matrixClient.inviteUser = (userId: string, roomId: string) => {
-        expect(userId).to.equal(SENDER_USER_ID);
-        expect(roomId).to.equal(ROOM_ID);
+        expect(userId).toBe(SENDER_USER_ID);
+        expect(roomId).toBe(ROOM_ID);
         hasInvited = true;
       };
 
       ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);
-      // Only pass if we've actually bothered to invite the bot.
-      expect(hasInvited).to.be.true;
+      expect(hasInvited).toBe(true);
     });
 
-    it("invites the user to the room and handles the failure", () => {
+    it("invites the user to the room and handles the failure", async () => {
       const targetIntent = IntentMock.create(SENDER_USER_ID);
       const matrixClient = MatrixClientMock.create();
 
-      // This should fail the first time, then pass once we've tried to invite the user
       targetIntent.ensureJoined = () => {
         throw new MatrixError(
           { errcode: "FORCED_FAILURE", error: "Test forced error" },
@@ -58,13 +54,11 @@ describe("IntentUtils", () => {
           {},
         );
       };
-      try {
-        ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);
-      } catch (ex) {
-        expect(ex.message).to.contain(
-          `Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`,
-        );
-      }
+      await expect(
+        ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID),
+      ).rejects.toThrow(
+        `Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`,
+      );
     });
   });
 });

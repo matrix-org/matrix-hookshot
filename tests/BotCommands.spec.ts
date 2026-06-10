@@ -1,11 +1,11 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import {
   botCommand,
   BotCommands,
   compileBotCommands,
   handleCommand,
 } from "../src/BotCommands";
-import { BridgePermissionLevel } from "../src/config/Config";
+import { BridgePermissionLevel } from "../src/config/BridgePermissionLevel";
 import { RoomEvent } from "matrix-bot-sdk";
 import { Category } from "../src/AdminRoomCommandHandler";
 
@@ -30,7 +30,7 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.false;
+      expect(outcome.handled).toBe(false);
     });
 
     it("should handle a simple command", async () => {
@@ -51,8 +51,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.true;
-      expect(wasCalled).to.be.true;
+      expect(outcome.handled).toBe(true);
+      expect(wasCalled).toBe(true);
     });
 
     it("should handle a simple with spaces", async () => {
@@ -73,8 +73,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.true;
-      expect(wasCalled).to.be.true;
+      expect(outcome.handled).toBe(true);
+      expect(wasCalled).toBe(true);
     });
 
     it("should handle a command with arguments", async () => {
@@ -88,7 +88,7 @@ describe("BotCommands", () => {
             help: "Some help text",
             fn: async (...unexpectedArgs: unknown[]) => {
               wasCalled = true;
-              expect(unexpectedArgs).to.equal(["hi", "there", "true", "123"]);
+              expect(unexpectedArgs).toBe(["hi", "there", "true", "123"]);
               return undefined;
             },
           },
@@ -96,8 +96,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.true;
-      expect(wasCalled).to.be.true;
+      expect(outcome.handled).toBe(true);
+      expect(wasCalled).toBe(true);
     });
 
     it("should handle a command with a userId", async () => {
@@ -112,8 +112,8 @@ describe("BotCommands", () => {
             includeUserId: true,
             fn: async (userId: unknown, ...unexpectedArgs: unknown[]) => {
               wasCalled = true;
-              expect(userId).to.equal(USER_ID);
-              expect(unexpectedArgs).to.equal(["hi"]);
+              expect(userId).toBe(USER_ID);
+              expect(unexpectedArgs).toBe(["hi"]);
               return undefined;
             },
           },
@@ -121,8 +121,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.true;
-      expect(wasCalled).to.be.true;
+      expect(outcome.handled).toBe(true);
+      expect(wasCalled).toBe(true);
     });
 
     it("should handle a command with a reply", async () => {
@@ -138,8 +138,8 @@ describe("BotCommands", () => {
             includeReply: true,
             fn: async (reply: unknown, ...unexpectedArgs: unknown[]) => {
               wasCalled = true;
-              expect(reply).to.equal(fakeReply);
-              expect(unexpectedArgs).to.equal(["hi"]);
+              expect(reply).toBe(fakeReply);
+              expect(unexpectedArgs).toBe(["hi"]);
               return undefined;
             },
           },
@@ -147,8 +147,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.true;
-      expect(wasCalled).to.be.true;
+      expect(outcome.handled).toBe(true);
+      expect(wasCalled).toBe(true);
     });
 
     it("should ignore a command if it does not expect a reply and one was provided", async () => {
@@ -169,8 +169,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.false;
-      expect(wasCalled).to.be.false;
+      expect(outcome.handled).toBe(false);
+      expect(wasCalled).toBe(false);
     });
 
     it("should handle a command with a userId and reply", async () => {
@@ -190,9 +190,9 @@ describe("BotCommands", () => {
               ...unexpectedArgs: unknown[]
             ) => {
               wasCalled = true;
-              expect(userId).to.equal(USER_ID);
-              expect(reply).to.equal(fakeReply);
-              expect(unexpectedArgs).to.equal(["hi"]);
+              expect(userId).toBe(USER_ID);
+              expect(reply).toBe(fakeReply);
+              expect(unexpectedArgs).toBe(["hi"]);
               return undefined;
             },
           },
@@ -200,8 +200,8 @@ describe("BotCommands", () => {
         null,
         () => true,
       );
-      expect(outcome.handled).to.be.true;
-      expect(wasCalled).to.be.true;
+      expect(outcome.handled).toBe(true);
+      expect(wasCalled).toBe(true);
     });
 
     it("should handle a simple command using a prefix", async () => {
@@ -224,7 +224,7 @@ describe("BotCommands", () => {
             "my-prefix",
           )
         ).handled,
-      ).to.be.false;
+      ).toBe(false);
       expect(
         (
           await handleCommand(
@@ -238,7 +238,7 @@ describe("BotCommands", () => {
             "my-prefix",
           )
         ).handled,
-      ).to.be.true;
+      ).toBe(true);
     });
 
     it("should handle a simple command using a global prefix", async () => {
@@ -270,7 +270,7 @@ describe("BotCommands", () => {
             "glob-prefix",
           )
         ).handled,
-      ).to.be.false;
+      ).toBe(false);
       expect(
         (
           await handleCommand(
@@ -284,7 +284,7 @@ describe("BotCommands", () => {
             "glob-prefix",
           )
         ).handled,
-      ).to.be.true;
+      ).toBe(true);
     });
 
     it("should reject a command with too few arguments", async () => {
@@ -306,11 +306,9 @@ describe("BotCommands", () => {
           undefined,
           "my-prefix",
         );
-      expect(await handle("my-prefix simple")).to.haveOwnProperty("humanError");
-      expect(await handle("my-prefix simple 1")).to.haveOwnProperty(
-        "humanError",
-      );
-      expect(await handle("my-prefix simple 1 2")).not.to.haveOwnProperty(
+      expect(await handle("my-prefix simple")).toHaveProperty("humanError");
+      expect(await handle("my-prefix simple 1")).toHaveProperty("humanError");
+      expect(await handle("my-prefix simple 1 2")).not.toHaveProperty(
         "humanError",
       );
     });
@@ -332,16 +330,14 @@ describe("BotCommands", () => {
           command,
           null,
           (service, level) => {
-            expect(service).to.equal("my-service");
-            expect(level).to.equal(BridgePermissionLevel.admin);
+            expect(service).toBe("my-service");
+            expect(level).toBe(BridgePermissionLevel.admin);
             return allowPermission;
           },
           undefined,
         );
-      expect(await handle("adminCommand", false)).to.haveOwnProperty(
-        "humanError",
-      );
-      expect(await handle("adminCommand", true)).not.to.haveOwnProperty(
+      expect(await handle("adminCommand", false)).toHaveProperty("humanError");
+      expect(await handle("adminCommand", true)).not.toHaveProperty(
         "humanError",
       );
     });
@@ -361,7 +357,7 @@ describe("BotCommands", () => {
         public async myTestCommandWithArgs() {}
       }
       const output = compileBotCommands(TestBotCommands.prototype as any);
-      expect(output.helpMessage()).to.deep.equal({
+      expect(output.helpMessage()).toEqual({
         body: " - `command` - a simple bit of help text\n - `command two <withargs> [optionalArgs]` - a simple bit of help text\n",
         format: "org.matrix.custom.html",
         formatted_body:
@@ -379,7 +375,7 @@ describe("BotCommands", () => {
       }
       expect(() =>
         compileBotCommands(TestBotCommands.prototype as any),
-      ).to.throw("Two commands cannot share the same prefix");
+      ).toThrow("Two commands cannot share the same prefix");
     });
 
     it("can dynamically switch off categories", () => {
@@ -394,19 +390,17 @@ describe("BotCommands", () => {
       }
       const output = compileBotCommands(TestBotCommands.prototype as any);
       // By default show all
-      expect(output.helpMessage("!test-prefix ").body).to.equal(
+      expect(output.helpMessage("!test-prefix ").body).toBe(
         " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // Or when specified
-      expect(
-        output.helpMessage("!test-prefix ", [Category.Widget]).body,
-      ).to.equal(
+      expect(output.helpMessage("!test-prefix ", [Category.Widget]).body).toBe(
         " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // But not when unspecified
-      expect(
-        output.helpMessage("!test-prefix ", ["unrelated-cat"]).body,
-      ).to.equal(" - `!test-prefix command` - a simple bit of help text\n");
+      expect(output.helpMessage("!test-prefix ", ["unrelated-cat"]).body).toBe(
+        " - `!test-prefix command` - a simple bit of help text\n",
+      );
     });
   });
 });
