@@ -20,7 +20,7 @@ WORKDIR /src
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
-RUN pnpm install --frozen-lockfile --ignore-scripts --network-timeout 600000
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY . ./
 
@@ -39,7 +39,7 @@ COPY --from=builder /cache/pnpm-store /cache/pnpm-store
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
 
-RUN pnpm install --frozen-lockfile --prod --offline --network-timeout 600000 && pnpm store prune
+RUN NODE_ENV=production pnpm install --frozen-lockfile --ignore-scripts && pnpm store prune
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
