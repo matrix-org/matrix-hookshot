@@ -1,6 +1,6 @@
+import { describe, it, beforeAll, expect } from "vitest";
 import { Algo, TokenEncryption } from "../../src/libRs";
 import { RSAKeyPairOptions, generateKeyPair, publicEncrypt } from "node:crypto";
-import { expect } from "chai";
 
 describe("TokenEncryption", () => {
   let keyPromise: Promise<Buffer>;
@@ -23,7 +23,7 @@ describe("TokenEncryption", () => {
     return tokenParts;
   }
 
-  before("generate RSA key", () => {
+  beforeAll(() => {
     // Generate this once since it will take an age.
     keyPromise = new Promise<Buffer>((resolve, reject) =>
       generateKeyPair(
@@ -78,14 +78,14 @@ describe("TokenEncryption", () => {
   it("should be able to encrypt a string into a single part", async () => {
     const tokenEncryption = await createTokenEncryption();
     const result = tokenEncryption.encrypt("hello world");
-    expect(result).to.have.lengthOf(1);
+    expect(result).toHaveLength(1);
   });
 
   it("should be able to decrypt from a single part into a string", async () => {
     const tokenEncryption = await createTokenEncryption();
     const value = tokenEncryption.encrypt("hello world");
     const result = tokenEncryption.decrypt(value, Algo.RSAPKCS1v15);
-    expect(result).to.equal("hello world");
+    expect(result).toBe("hello world");
   });
 
   it("should be able to decrypt from many parts into string", async () => {
@@ -94,21 +94,21 @@ describe("TokenEncryption", () => {
       " should end up as multiple encrypted values in base64.";
     const tokenEncryption = await createTokenEncryption();
     const value = tokenEncryption.encrypt(plaintext);
-    expect(value).to.have.lengthOf(2);
+    expect(value).toHaveLength(2);
     const result = tokenEncryption.decrypt(value, Algo.RSAPKCS1v15);
-    expect(result).to.equal(plaintext);
+    expect(result).toBe(plaintext);
   });
 
   it("should support pkcs1 format keys", async () => {
     const tokenEncryption = new TokenEncryption(await keyPromisePKCS1);
     const result = tokenEncryption.encrypt("hello world");
-    expect(result).to.have.lengthOf(1);
+    expect(result).toHaveLength(1);
   });
 
   it("should be to decrypt a string from the old crypto implementation", async () => {
     const legacyString = await legacyEncryptFunction("hello world");
     const tokenEncryption = await createTokenEncryption();
-    expect(tokenEncryption.decrypt(legacyString, Algo.RSAOAEP)).to.equal(
+    expect(tokenEncryption.decrypt(legacyString, Algo.RSAOAEP)).toBe(
       "hello world",
     );
   });

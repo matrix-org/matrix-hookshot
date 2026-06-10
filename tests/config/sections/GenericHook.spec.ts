@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { BridgeConfigGenericWebhooks } from "../../../src/config/sections/GenericHooks";
 
 describe("config/sections/GenericHooks", () => {
@@ -19,7 +19,7 @@ describe("config/sections/GenericHooks", () => {
             urlPrefix: "https://example.org/foo",
             payloadSizeLimit: -1,
           }),
-      ).to.throw();
+      ).toThrow();
     });
 
     it("throws with a NaN integer", () => {
@@ -30,7 +30,7 @@ describe("config/sections/GenericHooks", () => {
             urlPrefix: "https://example.org/foo",
             payloadSizeLimit: NaN,
           }),
-      ).to.throw();
+      ).toThrow();
     });
 
     it("throws with a float", () => {
@@ -41,7 +41,7 @@ describe("config/sections/GenericHooks", () => {
             urlPrefix: "https://example.org/foo",
             payloadSizeLimit: 50.5,
           }),
-      ).to.throw();
+      ).toThrow();
     });
 
     for (const payloadSizeLimit of ["1mb", "1kb", "1gb"]) {

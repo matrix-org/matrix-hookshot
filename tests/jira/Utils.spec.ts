@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import {
   generateJiraWebLinkFromIssue,
   generateJiraWebLinkFromVersion,
@@ -12,7 +12,7 @@ describe("Jira", () => {
           self: "https://my-test-jira/",
           key: "TEST-111",
         }),
-      ).to.equal("https://my-test-jira/browse/TEST-111");
+      ).toBe("https://my-test-jira/browse/TEST-111");
     });
 
     it("processes a jira issue into a URL with a port", () => {
@@ -21,7 +21,7 @@ describe("Jira", () => {
           self: "https://my-test-jira:9995/",
           key: "TEST-111",
         }),
-      ).to.equal("https://my-test-jira:9995/browse/TEST-111");
+      ).toBe("https://my-test-jira:9995/browse/TEST-111");
     });
 
     it("processes a jira issue into a URL with a port and a version", () => {
@@ -33,7 +33,7 @@ describe("Jira", () => {
           projectId: "TEST-111",
           id: "v1.0.0",
         }),
-      ).to.equal("https://my-test-jira:9995/projects/TEST-111/versions/v1.0.0");
+      ).toBe("https://my-test-jira:9995/projects/TEST-111/versions/v1.0.0");
     });
   });
 });

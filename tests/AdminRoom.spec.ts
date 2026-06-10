@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { AdminRoom } from "../src/AdminRoom";
 import { DefaultConfig } from "../src/config/Defaults";
 import { ConnectionManager } from "../src/ConnectionManager";
@@ -34,8 +34,8 @@ describe("AdminRoom", () => {
   it("will present help text", async () => {
     const [adminRoom, intent] = createAdminRoom();
     await adminRoom.handleCommand("$foo:bar", "help");
-    expect(intent.sentEvents).to.have.lengthOf(1);
-    expect(intent.sentEvents[0]).to.deep.equal({
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(intent.sentEvents[0]).toEqual({
       roomId: ROOM_ID,
       content: AdminRoom.helpMessage(undefined, [
         ConnectionType.Github,

@@ -1,9 +1,9 @@
+import { describe, it, expect } from "vitest";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { FeedConnection, FeedConnectionState } from "../../src/Connections";
 import { FeedEntry } from "../../src/feeds/FeedReader";
 import { IntentMock } from "../utils/IntentMock";
 import { randomUUID } from "crypto";
-import { expect } from "chai";
 import { BridgeConfigMessaging } from "../../src/config/sections";
 
 const ROOM_ID = "!foo:bar";
@@ -49,10 +49,10 @@ describe("FeedConnection", () => {
       ...FEED_ENTRY_DEFAULTS,
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.external_url).to.equal(FEED_ENTRY_DEFAULTS.link);
-    expect(matrixEvt.content.body).to.equal(
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.external_url).toBe(FEED_ENTRY_DEFAULTS.link);
+    expect(matrixEvt.content.body).toBe(
       "New post in Test feed: [Foo](foo/bar)",
     );
   });
@@ -65,10 +65,10 @@ describe("FeedConnection", () => {
       link: null,
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.external_url).to.be.undefined;
-    expect(matrixEvt.content.body).to.equal("New post in Test feed");
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.external_url).toBeUndefined();
+    expect(matrixEvt.content.body).toBe("New post in Test feed");
   });
 
   it("will handle simple feed message with a missing title ", async () => {
@@ -78,9 +78,9 @@ describe("FeedConnection", () => {
       title: null,
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.body).to.equal(
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.body).toBe(
       "New post in Test feed: [foo/bar](foo/bar)",
     );
   });
@@ -92,9 +92,9 @@ describe("FeedConnection", () => {
       link: null,
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.body).to.equal("New post in Test feed: Foo");
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.body).toBe("New post in Test feed: Foo");
   });
 
   it("will handle simple feed message with all the template options possible ", async () => {
@@ -105,9 +105,9 @@ describe("FeedConnection", () => {
       ...FEED_ENTRY_DEFAULTS,
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.body).to.equal(
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.body).toBe(
       "Test feed https://example.com/feed.xml Test feed Foo [Foo](foo/bar) Me! today! fibble fobble",
     );
   });
@@ -122,9 +122,9 @@ describe("FeedConnection", () => {
         "<p> Some HTML with <disallowed-elements> which should be ignored </disallowed-elements> and an <img src='mxc://fibble/fobble'></img> </p>",
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.body).to.equal(
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.body).toBe(
       'Test feed <p> Some HTML with  which should be ignored  and an <img src="mxc://fibble/fobble"> </p>',
     );
   });
@@ -139,9 +139,9 @@ describe("FeedConnection", () => {
         "<p> Some HTML with <disallowed-elements> which should be ignored and an <img src='mxc://fibble/fobble'></img> </p>",
     });
     const matrixEvt = intent.sentEvents[0];
-    expect(matrixEvt).to.not.be.undefined;
-    expect(matrixEvt.roomId).to.equal(ROOM_ID);
-    expect(matrixEvt.content.body).to.equal(
+    expect(matrixEvt).toBeDefined();
+    expect(matrixEvt.roomId).toBe(ROOM_ID);
+    expect(matrixEvt.content.body).toBe(
       'Test feed <p> Some HTML with  which should be ignored and an <img src="mxc://fibble/fobble"> </p>',
     );
   });

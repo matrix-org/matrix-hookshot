@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { createMessageQueue } from "../../src/messageQueue";
 import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
@@ -6,7 +7,6 @@ import {
   GitLabRepoConnection,
   GitLabRepoConnectionState,
 } from "../../src/Connections";
-import { expect } from "chai";
 import { BridgeConfigGitLab } from "../../src/config/sections/Gitlab";
 import { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
 import { IntentMock } from "../utils/IntentMock";
@@ -157,7 +157,7 @@ describe("GitLabRepoConnection", () => {
         } as GitLabRepoConnectionState as unknown as Record<string, unknown>,
         true,
       );
-      expect(state.enableHooks).to.not.contain("merge_request");
+      expect(state.enableHooks).not.toContain("merge_request");
     });
 
     it("will disallow invalid state", () => {
@@ -262,7 +262,7 @@ describe("GitLabRepoConnection", () => {
         },
       } as never);
       await waitForDebouncing();
-      expect(intent.sentEvents.length).to.equal(1);
+      expect(intent.sentEvents.length).toBe(1);
       intent.expectEventMatches(
         (ev: any) => ev.content.body.includes("with 2 comments"),
         "one event sent for both comments",
@@ -276,7 +276,7 @@ describe("GitLabRepoConnection", () => {
       await waitForDebouncing();
       await connection.onMergeRequestCommentCreated(GITLAB_MR_COMMENT);
       await waitForDebouncing();
-      expect(intent.sentEvents.length).to.equal(2);
+      expect(intent.sentEvents.length).toBe(2);
       intent.expectEventMatches(
         (ev: any) => ev.content["m.relates_to"].event_id === "event_0",
         "one event sent for both comments",
@@ -301,7 +301,7 @@ describe("GitLabRepoConnection", () => {
         },
       } as never);
       await waitForDebouncing();
-      expect(intent.sentEvents.length).to.equal(1);
+      expect(intent.sentEvents.length).toBe(1);
 
       await connection.onMergeRequestCommentCreated({
         ...GITLAB_MR_COMMENT,
@@ -311,7 +311,7 @@ describe("GitLabRepoConnection", () => {
         },
       } as never);
       await waitForDebouncing();
-      expect(intent.sentEvents.length).to.equal(2);
+      expect(intent.sentEvents.length).toBe(2);
       intent.expectEventMatches(
         (ev: any) => ev.content["m.relates_to"].event_id === "event_0",
         "disc1 reply goes to existing thread",
@@ -326,7 +326,7 @@ describe("GitLabRepoConnection", () => {
         },
       } as never);
       await waitForDebouncing();
-      expect(intent.sentEvents.length).to.equal(3);
+      expect(intent.sentEvents.length).toBe(3);
       intent.expectEventMatches(
         (ev: any) => ev.content["m.relates_to"].event_id === "event_0",
         "disc2 reply also goes to existing thread",

@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import {
   GitHubRepoConnection,
   GitHubRepoConnectionState,
@@ -8,7 +9,6 @@ import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { DefaultConfig } from "../../src/config/Defaults";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { ApiError, ErrCode, ValidatorApiError } from "../../src/api";
-import { expect } from "chai";
 import { IntentMock } from "../utils/IntentMock";
 
 const ROOM_ID = "!foo:bar";
@@ -109,7 +109,7 @@ describe("GitHubRepoConnection", () => {
         } as GitHubRepoConnectionState as unknown as Record<string, unknown>,
         true,
       );
-      expect(state.enableHooks).to.not.contain("issue");
+      expect(state.enableHooks).not.toContain("issue");
     });
 
     it("will disallow invalid state", () => {

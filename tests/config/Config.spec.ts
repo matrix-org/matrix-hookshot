@@ -1,6 +1,6 @@
+import { describe, it, expect } from "vitest";
 import { BridgeConfig } from "../../src/config/Config";
 import { DefaultConfigRoot } from "../../src/config/Defaults";
-import { expect } from "chai";
 import { ConnectionType } from "../../src/Connections/type";
 
 const minimalConfig = {
@@ -18,8 +18,8 @@ describe("Config/BridgeConfig", () => {
           monolithic: true,
         },
       });
-      expect(config.queue).to.be.undefined;
-      expect(config.cache?.redisUri).to.equal("redis://localhost:6379");
+      expect(config.queue).toBeUndefined();
+      expect(config.cache?.redisUri).toBe("redis://localhost:6379");
     });
 
     it("with a host parameter", () => {
@@ -30,8 +30,8 @@ describe("Config/BridgeConfig", () => {
           host: "bark",
         },
       });
-      expect(config.queue).to.be.undefined;
-      expect(config.cache?.redisUri).to.equal("redis://bark:6379");
+      expect(config.queue).toBeUndefined();
+      expect(config.cache?.redisUri).toBe("redis://bark:6379");
     });
 
     it("with a port parameter", () => {
@@ -42,8 +42,8 @@ describe("Config/BridgeConfig", () => {
           port: 6379,
         },
       });
-      expect(config.queue).to.be.undefined;
-      expect(config.cache?.redisUri).to.equal("redis://localhost:6379");
+      expect(config.queue).toBeUndefined();
+      expect(config.cache?.redisUri).toBe("redis://localhost:6379");
     });
 
     it("with a host and port parameter", () => {
@@ -55,8 +55,8 @@ describe("Config/BridgeConfig", () => {
           port: 6379,
         },
       });
-      expect(config.queue).to.be.undefined;
-      expect(config.cache?.redisUri).to.equal("redis://bark:6379");
+      expect(config.queue).toBeUndefined();
+      expect(config.cache?.redisUri).toBe("redis://bark:6379");
     });
 
     it("with monolithic disabled", () => {
@@ -67,10 +67,10 @@ describe("Config/BridgeConfig", () => {
           monolithic: false,
         },
       });
-      expect(config.queue).to.deep.equal({
+      expect(config.queue).toEqual({
         monolithic: false,
       });
-      expect(config.cache?.redisUri).to.equal("redis://localhost:6379");
+      expect(config.cache?.redisUri).toBe("redis://localhost:6379");
     });
   });
 
@@ -84,10 +84,10 @@ describe("Config/BridgeConfig", () => {
         },
         cache: undefined,
       });
-      expect(config.queue).to.deep.equal({
+      expect(config.queue).toEqual({
         redisUri: "redis://localhost:6379",
       });
-      expect(config.cache).to.be.undefined;
+      expect(config.cache).toBeUndefined();
     });
   });
 
@@ -100,10 +100,10 @@ describe("Config/BridgeConfig", () => {
         },
         queue: undefined,
       });
-      expect(config.cache).to.deep.equal({
+      expect(config.cache).toEqual({
         redisUri: "redis://localhost:6379",
       });
-      expect(config.queue).to.be.undefined;
+      expect(config.queue).toBeUndefined();
     });
   });
 
@@ -115,7 +115,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.ChallengeHound),
-      ).to.deep.equal({});
+      ).toEqual({});
     });
 
     it("for Feeds", async () => {
@@ -125,7 +125,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.Feeds),
-      ).to.deep.equal({ pollIntervalSeconds: 150 });
+      ).toEqual({ pollIntervalSeconds: 150 });
     });
 
     it("for Figma", async () => {
@@ -140,7 +140,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.Figma),
-      ).to.deep.equal({});
+      ).toEqual({});
     });
 
     it("for Generic (inbound)", async () => {
@@ -156,7 +156,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.Generic),
-      ).to.deep.equal({
+      ).toEqual({
         requireExpiryTime: true,
         maxExpiryTime: 15000,
         allowJsTransformationFunctions: true,
@@ -179,7 +179,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.GenericOutbound),
-      ).to.deep.equal({});
+      ).toEqual({});
     });
 
     it("for Github", async () => {
@@ -198,7 +198,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.Github),
-      ).to.deep.equal({
+      ).toEqual({
         userIdPrefix: "_foobar_",
         newInstallationUrl: undefined,
       });
@@ -221,7 +221,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.Gitlab),
-      ).to.deep.equal({
+      ).toEqual({
         userIdPrefix: "_foobar_",
       });
     });
@@ -237,7 +237,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.Jira),
-      ).to.deep.equal({});
+      ).toEqual({});
     });
 
     it("for OpenProject", async () => {
@@ -252,7 +252,7 @@ describe("Config/BridgeConfig", () => {
       });
       expect(
         await config.getPublicConfigForService(ConnectionType.OpenProject),
-      ).to.deep.equal({ baseUrl: "https://example.org/" });
+      ).toEqual({ baseUrl: "https://example.org/" });
     });
   });
 });

@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { expect } from "vitest";
 import { MatrixError } from "matrix-bot-sdk";
 import { MatrixCapabilities } from "matrix-bot-sdk/lib/models/Capabilities";
 export class MatrixClientMock {
@@ -95,7 +95,7 @@ export class IntentMock {
   }
 
   expectNoEvent() {
-    expect(this.sentEvents, "Expected no events to be sent.").to.be.empty;
+    expect(this.sentEvents, "Expected no events to be sent.").toHaveLength(0);
   }
 
   expectEventBodyContains(matcher: string | RegExp, eventIndex?: number) {
@@ -103,18 +103,18 @@ export class IntentMock {
       expect(
         this.sentEvents[eventIndex],
         `Expected event ${eventIndex} to exist`,
-      ).to.not.be.undefined;
+      ).toBeDefined();
       const body = this.sentEvents[eventIndex].content.body;
       expect(
-        body.includes(matcher),
+        body.includes(matcher as string),
         `Expected event body ${eventIndex} to match '${matcher}'.\nMessage was: '${body}'`,
-      ).to.be.true;
+      ).toBe(true);
       return;
     }
     expect(
-      !!this.sentEvents.find((ev) => ev.content.body.includes(matcher)),
+      !!this.sentEvents.find((ev) => ev.content.body.includes(matcher as string)),
       `Expected any event body to match '${matcher}'`,
-    ).to.be.true;
+    ).toBe(true);
   }
 
   expectEventMatches(
@@ -126,14 +126,14 @@ export class IntentMock {
       expect(
         this.sentEvents[eventIndex],
         `Expected event ${eventIndex} to exist`,
-      ).to.not.be.undefined;
-      expect(matcher(this.sentEvents[eventIndex]), description).to.be.true;
+      ).toBeDefined();
+      expect(matcher(this.sentEvents[eventIndex]), description).toBe(true);
       return;
     }
     expect(
       this.sentEvents.some((ev) => matcher(ev)),
       description,
-    ).to.be.true;
+    ).toBe(true);
   }
 
   async ensureJoined() {

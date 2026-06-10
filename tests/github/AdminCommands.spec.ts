@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { GithubInstance } from "../../src/github/GithubInstance";
 import { GITHUB_CLOUD_URL } from "../../src/github/GithubInstance";
 
@@ -11,7 +11,7 @@ describe("GitHub", () => {
           client_id: "123",
           redirect_uri: "456",
         }),
-      ).equals(
+      ).toBe(
         "https://github.com/login/oauth/authorize?state=my_state&client_id=123&redirect_uri=456",
       );
     });
@@ -27,7 +27,7 @@ describe("GitHub", () => {
             redirect_uri: "456",
           },
         ),
-      ).equals(
+      ).toBe(
         "https://mygithuburl.com/foo/bar/login/oauth/authorize?state=my_state&client_id=123&redirect_uri=456",
       );
     });
@@ -41,7 +41,7 @@ describe("GitHub", () => {
           redirect_uri: "456",
           state: "my_state",
         }),
-      ).equals(
+      ).toBe(
         "https://github.com/login/oauth/access_token?client_id=123&client_secret=the-secret&code=the-code&redirect_uri=456&state=my_state",
       );
     });
@@ -59,7 +59,7 @@ describe("GitHub", () => {
             state: "my_state",
           },
         ),
-      ).equals(
+      ).toBe(
         "https://mygithuburl.com/foo/bar/login/oauth/access_token?client_id=123&client_secret=the-secret&code=the-code&redirect_uri=456&state=my_state",
       );
     });

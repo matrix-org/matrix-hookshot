@@ -1,5 +1,5 @@
+import { describe, it, expect } from "vitest";
 import { BridgePermissions } from "../../src/libRs";
-import { expect } from "chai";
 
 function genBridgePermissions(actor: string, service: string, level: string) {
   return new BridgePermissions([
@@ -21,7 +21,7 @@ describe("Config/BridgePermissions", () => {
       const bridgePermissions = new BridgePermissions([]);
       expect(
         bridgePermissions.checkAction("@foo:bar", "empty-service", "commands"),
-      ).to.be.false;
+      ).toBe(false);
     });
 
     it("will return false for an insufficent level", () => {
@@ -36,7 +36,7 @@ describe("Config/BridgePermissions", () => {
           "my-service",
           "notifications",
         ),
-      ).to.be.false;
+      ).toBe(false);
     });
 
     it("will return false if the there are no matching services", () => {
@@ -47,7 +47,7 @@ describe("Config/BridgePermissions", () => {
       );
       expect(
         bridgePermissions.checkAction("@foo:bar", "other-service", "login"),
-      ).to.be.false;
+      ).toBe(false);
     });
 
     it("will return false if the target does not match", () => {
@@ -56,8 +56,7 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:baz", "my-service", "login"))
-        .to.be.false;
+      expect(bridgePermissions.checkAction("@foo:baz", "my-service", "login")).toBe(false);
     });
 
     it("will return true if there is a matching level and service", () => {
@@ -66,8 +65,7 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.true;
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
     });
 
     it("will return true for a matching actor domain", () => {
@@ -76,8 +74,7 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.true;
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
     });
 
     it("handles domain actors with ports", () => {
@@ -92,10 +89,10 @@ describe("Config/BridgePermissions", () => {
           "my-service",
           "login",
         ),
-      ).to.be.false;
+      ).toBe(false);
       expect(
         bridgePermissionNoPort.checkAction("@foo:bar", "my-service", "login"),
-      ).to.be.true;
+      ).toBe(true);
       const bridgePermissionWithPort = genBridgePermissions(
         "bar:9999",
         "my-service",
@@ -107,24 +104,24 @@ describe("Config/BridgePermissions", () => {
           "my-service",
           "login",
         ),
-      ).to.be.true;
+      ).toBe(true);
       expect(
         bridgePermissionWithPort.checkAction(
           "@foo:bar:999",
           "my-service",
           "login",
         ),
-      ).to.be.false;
+      ).toBe(false);
       expect(
         bridgePermissionWithPort.checkAction(
           "@foo:bar:",
           "my-service",
           "login",
         ),
-      ).to.be.false;
+      ).toBe(false);
       expect(
         bridgePermissionWithPort.checkAction("@foo:bar", "my-service", "login"),
-      ).to.be.false;
+      ).toBe(false);
     });
 
     it("will return true for a wildcard actor", () => {
@@ -133,14 +130,12 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.true;
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
     });
 
     it("will return true for a wildcard service", () => {
       const bridgePermissions = genBridgePermissions("@foo:bar", "*", "login");
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.true;
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
     });
 
     it("will return false if a user is not present in a room", () => {
@@ -149,8 +144,7 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.false;
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(false);
     });
 
     it("will return true if a user is present in a room", () => {
@@ -160,8 +154,7 @@ describe("Config/BridgePermissions", () => {
         "login",
       );
       bridgePermissions.addMemberToCache("!foo:bar", "@foo:bar");
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.true;
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
     });
 
     it("will fall through and return true for multiple permission sets", () => {
@@ -196,9 +189,8 @@ describe("Config/BridgePermissions", () => {
       ]);
       expect(
         bridgePermissions.checkAction("@foo:bar", "my-service", "commands"),
-      ).to.be.true;
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login"))
-        .to.be.false;
+      ).toBe(true);
+      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(false);
     });
 
     it("handles legacy 'webhooks' config field", () => {
@@ -214,15 +206,14 @@ describe("Config/BridgePermissions", () => {
           "generic",
           "manageConnections",
         ),
-      ).to.be.true;
+      ).toBe(true);
     });
   });
 
   describe("permissionsCheckActionAny", () => {
     it("will return false for an empty actor set", () => {
       const bridgePermissions = new BridgePermissions([]);
-      expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).to.be
-        .false;
+      expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).toBe(false);
     });
 
     it(`will return false for a service with an insufficent level`, () => {
@@ -231,7 +222,7 @@ describe("Config/BridgePermissions", () => {
         "fake-service",
         "commands",
       );
-      expect(bridgePermissions.checkActionAny("@foo:bar", "login")).to.be.false;
+      expect(bridgePermissions.checkActionAny("@foo:bar", "login")).toBe(false);
     });
     for (const actor of ["@foo:bar", "bar", "*"]) {
       it(`will return true for a service defintion of '${actor}' that has a sufficent level`, () => {
@@ -240,8 +231,7 @@ describe("Config/BridgePermissions", () => {
           "fake-service",
           "commands",
         );
-        expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).to.be
-          .true;
+        expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).toBe(true);
       });
     }
   });
