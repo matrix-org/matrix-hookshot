@@ -19,6 +19,7 @@ import {
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
+import { BridgeConfigMessaging } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from "node:crypto";
 import { GenericWebhookEventResult } from "../generic/Types";
@@ -327,6 +328,7 @@ export class GenericHookConnection
         as,
         intent,
         storage,
+        config.messaging,
         true,
       );
     }
@@ -369,6 +371,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      config.messaging,
       false,
     );
   }
@@ -435,6 +438,7 @@ export class GenericHookConnection
       as,
       intent,
       storage,
+      config.messaging,
       false,
     );
     return {
@@ -500,6 +504,7 @@ export class GenericHookConnection
     private readonly as: Appservice,
     private readonly intent: Intent,
     private readonly storage: IBridgeStorageProvider,
+    private readonly msgConfig: BridgeConfigMessaging,
     public readonly isStatic = false,
   ) {
     super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
@@ -603,12 +608,15 @@ export class GenericHookConnection
       );
       if (error) {
         const errorPrefix = "Could not compile transformation function:";
-        await this.intent.sendEvent(this.roomId, {
-          msgtype: "m.text",
-          body: errorPrefix + "\n\n```json\n\n" + error + "\n\n```",
-          formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${error}</code></pre></p>`,
-          format: "org.matrix.custom.html",
-        });
+        await this.intent.sendEvent(
+          this.roomId,
+          this.msgConfig.formatMatrixMessage({
+            msgtype: "m.text",
+            body: errorPrefix + "\n\n```json\n\n" + error + "\n\n```",
+            formatted_body: `<p>${errorPrefix}</p><p><pre><code class=\\"language-json\\">${error}</code></pre></p>`,
+            format: "org.matrix.custom.html",
+          }),
+        );
       } else {
         this.webhookTransformer = new WebhookTransformer(
           validatedConfig.transformationFunction,
@@ -778,18 +786,23 @@ export class GenericHookConnection
 
       await this.messageClient.sendMatrixMessage(
         this.roomId,
-        {
-          msgtype: content.msgtype || "m.notice",
-          body: content.plain,
-          ...(content.html ? { formatted_body: content.html } : undefined),
-          ...(content.mentions
-            ? { "m.mentions": content.mentions }
-            : undefined),
-          ...(content.html ? { format: "org.matrix.custom.html" } : undefined),
-          ...(safeData
-            ? { "uk.half-shot.hookshot.webhook_data": safeData }
-            : undefined),
-        },
+        this.msgConfig.formatMatrixMessage(
+          {
+            msgtype: content.msgtype || "m.notice",
+            body: content.plain,
+            ...(content.html ? { formatted_body: content.html } : undefined),
+            ...(content.mentions
+              ? { "m.mentions": content.mentions }
+              : undefined),
+            ...(content.html
+              ? { format: "org.matrix.custom.html" }
+              : undefined),
+            ...(safeData
+              ? { "uk.half-shot.hookshot.webhook_data": safeData }
+              : undefined),
+          },
+          { allowUrlPreviews: content.hints?.showUrlPreviews },
+        ),
         "m.room.message",
         sender,
       );

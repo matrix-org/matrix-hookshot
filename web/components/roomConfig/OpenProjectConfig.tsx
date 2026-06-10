@@ -83,6 +83,9 @@ const ExistingConnectionConfig: FunctionComponent<{
   const [allowedEvents, setAllowedEvents] = useState<string[]>(
     connection.config.events,
   );
+  const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
+    connection.config.showUrlPreviews ?? true,
+  );
 
   const handleSave = useCallback(
     (evt: Event) => {
@@ -93,12 +96,13 @@ const ExistingConnectionConfig: FunctionComponent<{
       onSave({
         ...connection.config,
         events: allowedEvents as any[],
+        showUrlPreviews,
         commandPrefix:
           commandPrefixRef.current?.value ||
           commandPrefixRef.current?.placeholder,
       });
     },
-    [connection, allowedEvents, commandPrefixRef, onSave],
+    [connection, allowedEvents, showUrlPreviews, commandPrefixRef, onSave],
   );
 
   return (
@@ -109,6 +113,17 @@ const ExistingConnectionConfig: FunctionComponent<{
           type="text"
           value={connection.config.commandPrefix}
           placeholder="!openproject"
+        />
+      </InputField>
+      <InputField
+        label="Show URL previews on messages (requires supporting client)"
+        noPadding={true}
+      >
+        <input
+          disabled={!connection.canEdit}
+          type="checkbox"
+          checked={showUrlPreviews}
+          onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
         />
       </InputField>
       <EventHookList

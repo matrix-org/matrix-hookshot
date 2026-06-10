@@ -26,6 +26,9 @@ const ConnectionConfiguration: FunctionComponent<
   const [enabledHooks, setEnabledHooks] = useState<string[]>(
     existingConnection?.config.enableHooks || [],
   );
+  const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
+    existingConnection?.config.showUrlPreviews ?? true,
+  );
   const api = useContext(BridgeContext).bridgeApi;
 
   const toggleEnabledHook = useCallback((evt: any) => {
@@ -60,6 +63,7 @@ const ConnectionConfiguration: FunctionComponent<
           ...state,
           enableHooks: enabledHooks as any[],
           includeCommentBody: includeBodyRef.current?.checked,
+          showUrlPreviews,
           commandPrefix:
             commandPrefixRef.current?.value ||
             commandPrefixRef.current?.placeholder,
@@ -72,6 +76,7 @@ const ConnectionConfiguration: FunctionComponent<
       existingConnection,
       newConnectionState,
       enabledHooks,
+      showUrlPreviews,
       commandPrefixRef,
       onSave,
     ],
@@ -187,6 +192,18 @@ const ConnectionConfiguration: FunctionComponent<
           disabled={!canEdit}
           type="checkbox"
           checked={!!existingConnection?.config.includeCommentBody}
+        />
+      </InputField>
+      <InputField
+        visible={!!existingConnection}
+        label="Show URL previews on messages (requires supporting client)"
+        noPadding={true}
+      >
+        <input
+          disabled={!canEdit}
+          type="checkbox"
+          checked={showUrlPreviews}
+          onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
         />
       </InputField>
       <InputField

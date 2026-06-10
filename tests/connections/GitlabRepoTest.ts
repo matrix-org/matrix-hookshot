@@ -16,6 +16,7 @@ import {
   IGitlabUser,
   IGitLabWebhookNoteEvent,
 } from "../../src/gitlab/WebhookTypes";
+import { DefaultConfig } from "../../src/config/Defaults";
 
 const ROOM_ID = "!foo:bar";
 
@@ -110,6 +111,7 @@ function createConnection(
       setGitlabDiscussionThreads: () => Promise.resolve(),
       getGitlabDiscussionThreads: () => Promise.resolve([]),
     } as unknown as IBridgeStorageProvider,
+    DefaultConfig.messaging,
   );
   return { connection, intent };
 }

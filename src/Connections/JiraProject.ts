@@ -33,6 +33,7 @@ import { JiraGrantChecker } from "../jira/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigJira } from "../config/sections";
+import { BridgeConfigMessaging } from "../config/sections";
 
 type JiraAllowedEventsNames =
   | "issue_created"
@@ -54,6 +55,7 @@ export interface JiraProjectConnectionState extends IConnectionState {
   id?: string;
   url: string;
   events?: JiraAllowedEventsNames[];
+  showUrlPreviews?: boolean;
 }
 
 export interface JiraProjectConnectionInstanceTarget {
@@ -204,6 +206,7 @@ export class JiraProjectConnection
       validData,
       validData.url,
       tokenStore,
+      config.messaging,
     );
     // Fetch the project's id now, to support events that identify projects by id instead of url
     if (
@@ -246,6 +249,7 @@ export class JiraProjectConnection
       connectionConfig,
       state.stateKey,
       tokenStore,
+      config.messaging,
     );
   }
 
@@ -318,6 +322,7 @@ export class JiraProjectConnection
     state: JiraProjectConnectionState,
     stateKey: string,
     private readonly tokenStore: UserTokenStore,
+    private readonly msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -339,6 +344,20 @@ export class JiraProjectConnection
       throw Error("State is missing both id and url, cannot create connection");
     }
     this.grantChecker = new JiraGrantChecker(as, tokenStore);
+  }
+
+  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
+    const content = this.msgConfig.formatMatrixMessage(
+      {
+        msgtype: "m.notice",
+        body,
+        formatted_body: md.renderInline(body),
+        format: "org.matrix.custom.html",
+        ...extraContent,
+      },
+      { allowUrlPreviews: this.state.showUrlPreviews },
+    );
+    return this.intent.sendEvent(this.roomId, content);
   }
 
   public isInterestedInStateEvent(eventType: string, stateKey: string) {

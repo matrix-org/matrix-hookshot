@@ -1,10 +1,4 @@
-import {
-  Appservice,
-  Intent,
-  IRichReplyMetadata,
-  RoomEvent,
-  StateEvent,
-} from "matrix-bot-sdk";
+import { Appservice, Intent, RoomEvent, StateEvent } from "matrix-bot-sdk";
 import {
   BotCommands,
   botCommand,
@@ -74,6 +68,7 @@ import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitHub } from "../config/sections";
 import { getStringHeader } from "../util/axios";
+import { BridgeConfigMessaging } from "../config/sections";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();
@@ -113,6 +108,7 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     includingWorkflows?: string[];
     excludingWorkflows?: string[];
   };
+  showUrlPreviews?: boolean;
 }
 
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
@@ -252,6 +248,10 @@ const ConnectionStateSchema = {
       maxLength: 24,
     },
     showIssueRoomLink: {
+      type: "boolean",
+      nullable: true,
+    },
+    showUrlPreviews: {
       type: "boolean",
       nullable: true,
     },
@@ -568,6 +568,7 @@ export class GitHubRepoConnection
         stateEventKey,
         github,
         config.github,
+        config.messaging,
       ),
     };
   }
@@ -602,6 +603,7 @@ export class GitHubRepoConnection
       state.stateKey,
       github,
       config.github,
+      config.messaging,
     );
   }
 
@@ -708,6 +710,7 @@ export class GitHubRepoConnection
     stateKey: string,
     private readonly githubInstance: GithubInstance,
     private readonly config: BridgeConfigGitHub,
+    private readonly msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -783,6 +786,22 @@ export class GitHubRepoConnection
     );
   }
 
+  public sendEvent(body: string, extraContent: any = {}) {
+    const content = this.msgConfig.formatMatrixMessage(
+      {
+        msgtype: "m.notice",
+        body,
+        formatted_body: md.renderInline(body),
+        format: "org.matrix.custom.html",
+        ...extraContent,
+      },
+      {
+        allowUrlPreviews: this.state.showUrlPreviews,
+      },
+    );
+    return this.intent.sendEvent(this.roomId, content);
+  }
+
   public async handleIssueHotlink(
     ev: MatrixEvent<MatrixMessageContent>,
   ): Promise<boolean> {
@@ -840,15 +859,11 @@ export class GitHubRepoConnection
         message += ` [Issue Room](https://matrix.to/#/${this.as.getAlias(GitHubIssueConnection.generateAliasLocalpart(this.org, this.repo, issue.number))})`;
       }
       const content = emojify(message);
-      await this.intent.sendEvent(this.roomId, {
-        msgtype: "m.notice",
-        body: content,
-        formatted_body: md.renderInline(content),
-        format: "org.matrix.custom.html",
-        ...(issue.repository
-          ? FormatUtil.getPartialBodyForGithubIssue(issue.repository, issue)
-          : {}),
-      });
+      await this.sendEvent(
+        content,
+        issue.repository &&
+          FormatUtil.getPartialBodyForGithubIssue(issue.repository, issue),
+      );
       return true;
     }
     return false;
@@ -903,14 +918,7 @@ export class GitHubRepoConnection
               },
             },
           );
-          await this.intent.underlyingClient.sendEvent(
-            this.roomId,
-            "m.room.message",
-            {
-              msgtype: "m.notice",
-              body: `Failed to submit review: ${ex.message}`,
-            },
-          );
+          await this.sendEvent(`Failed to submit review: ${ex.message}`);
         }
         return true;
       }
@@ -1066,10 +1074,8 @@ export class GitHubRepoConnection
       const workflowNames = workflows.data.workflows
         .map((w) => w.name)
         .join(", ");
-      await this.intent.sendText(
-        this.roomId,
+      await this.sendEvent(
         `Could not find a workflow by the name of "${name}". The workflows on this repository are ${workflowNames}.`,
-        "m.notice",
       );
       return;
     }
@@ -1108,7 +1114,7 @@ export class GitHubRepoConnection
       throw ex;
     }
 
-    await this.intent.sendText(this.roomId, `Workflow started.`, "m.notice");
+    await this.sendEvent(`Workflow started.`);
   }
 
   public async onIssueCreated(event: IssuesOpenedEvent) {
@@ -1157,17 +1163,26 @@ export class GitHubRepoConnection
         color: l.color || undefined,
       })),
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body:
-        content +
-        (labels.plain.length > 0 ? ` with labels ${labels.plain}` : ""),
-      formatted_body:
-        md.renderInline(content) +
-        (labels.html.length > 0 ? ` with labels ${labels.html}` : ""),
-      format: "org.matrix.custom.html",
-      ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
-    });
+    await this.intent.sendEvent(
+      this.roomId,
+      this.msgConfig.formatMatrixMessage(
+        {
+          msgtype: "m.notice",
+          body:
+            content +
+            (labels.plain.length > 0 ? ` with labels ${labels.plain}` : ""),
+          formatted_body:
+            md.renderInline(content) +
+            (labels.html.length > 0 ? ` with labels ${labels.html}` : ""),
+          format: "org.matrix.custom.html",
+          ...FormatUtil.getPartialBodyForGithubIssue(
+            event.repository,
+            event.issue,
+          ),
+        },
+        { allowUrlPreviews: this.state.showUrlPreviews },
+      ),
+    );
   }
 
   public async onIssueCommentCreated(event: IssueCommentCreatedEvent) {
@@ -1187,11 +1202,7 @@ export class GitHubRepoConnection
       event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) +
       (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
 
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: message,
-      formatted_body: md.renderInline(message),
-      format: "org.matrix.custom.html",
+    await this.sendEvent(message, {
       ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
       external_url: event.issue.html_url,
     });
@@ -1252,11 +1263,7 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} **${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emojify(event.issue.title)}"${withComment}`,
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
+    await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
     });
   }
@@ -1279,11 +1286,7 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} **${event.sender.login}** edited issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emojify(event.issue.title)}"`,
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
+    await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
     });
   }
@@ -1335,18 +1338,24 @@ export class GitHubRepoConnection
         `${icon} **${event.sender.login}** labeled issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emojify(event.issue.title)}"`,
       );
       this.intent
-        .sendEvent(this.roomId, {
-          msgtype: "m.notice",
-          body: content + (plain.length > 0 ? ` with labels ${plain}` : ""),
-          formatted_body:
-            md.renderInline(content) +
-            (html.length > 0 ? ` with labels ${html}` : ""),
-          format: "org.matrix.custom.html",
-          ...FormatUtil.getPartialBodyForGithubIssue(
-            event.repository,
-            event.issue,
+        .sendEvent(
+          this.roomId,
+          this.msgConfig.formatMatrixMessage(
+            {
+              msgtype: "m.notice",
+              body: content + (plain.length > 0 ? ` with labels ${plain}` : ""),
+              formatted_body:
+                md.renderInline(content) +
+                (html.length > 0 ? ` with labels ${html}` : ""),
+              format: "org.matrix.custom.html",
+              ...FormatUtil.getPartialBodyForGithubIssue(
+                event.repository,
+                event.issue,
+              ),
+            },
+            { allowUrlPreviews: this.state.showUrlPreviews },
           ),
-        })
+        )
         .catch((ex) => {
           log.error("Failed to send onIssueLabeled message", ex);
         });
@@ -1416,26 +1425,32 @@ export class GitHubRepoConnection
         color: l.color || undefined,
       })),
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body:
-        content +
-        (labels.plain.length > 0 ? ` with labels ${labels}` : "") +
-        diffContent,
-      formatted_body:
-        md.renderInline(content) +
-        (labels.html.length > 0 ? ` with labels ${labels.html}` : "") +
-        diffContentHtml,
-      format: "org.matrix.custom.html",
-      ...FormatUtil.getPartialBodyForGithubIssue(
-        event.repository,
-        event.pull_request,
+    await this.intent.sendEvent(
+      this.roomId,
+      this.msgConfig.formatMatrixMessage(
+        {
+          msgtype: "m.notice",
+          body:
+            content +
+            (labels.plain.length > 0 ? ` with labels ${labels}` : "") +
+            diffContent,
+          formatted_body:
+            md.renderInline(content) +
+            (labels.html.length > 0 ? ` with labels ${labels.html}` : "") +
+            diffContentHtml,
+          format: "org.matrix.custom.html",
+          ...FormatUtil.getPartialBodyForGithubIssue(
+            event.repository,
+            event.pull_request,
+          ),
+          ...FormatUtil.getPartialBodyForGitHubPR(
+            event.repository,
+            event.pull_request,
+          ),
+        },
+        { allowUrlPreviews: this.state.showUrlPreviews },
       ),
-      ...FormatUtil.getPartialBodyForGitHubPR(
-        event.repository,
-        event.pull_request,
-      ),
-    });
+    );
   }
 
   public async onPRReadyForReview(event: PullRequestReadyForReviewEvent) {
@@ -1462,12 +1477,7 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} **${event.sender.login}** has marked [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) as ready to review "${event.pull_request.title}"`,
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      // TODO: Fix types.
+    await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubIssue(
         event.repository,
         event.pull_request,
@@ -1505,12 +1515,7 @@ export class GitHubRepoConnection
     const content = emojify(
       `${emojiForReview} **${event.sender.login}** ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`,
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      // TODO: Fix types.
+    await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubIssue(
         event.repository,
         event.pull_request,
@@ -1568,12 +1573,7 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} **${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`,
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      // TODO: Fix types.
+    await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubIssue(
         event.repository,
         event.pull_request,
@@ -1606,12 +1606,7 @@ export class GitHubRepoConnection
     if (event.release.body) {
       content += `\n\n${event.release.body}`;
     }
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onReleaseDrafted(event: ReleaseCreatedEvent) {
@@ -1640,12 +1635,7 @@ export class GitHubRepoConnection
     if (event.release.body) {
       content += `\n\n${event.release.body}`;
     }
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onWorkflowCompleted(event: WorkflowRunCompletedEvent) {
@@ -1689,12 +1679,7 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} Workflow **${event.workflow.name}** [${WORKFLOW_CONCLUSION_TO_NOTICE[workflowRun.conclusion]}](${workflowRun.html_url}) for ${orgRepoName} on branch \`${workflowRun.head_branch}\``,
     );
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onEvent(evt: MatrixEvent<unknown>) {
@@ -1769,7 +1754,7 @@ export class GitHubRepoConnection
     }
 
     const content = `**${event.sender.login}** pushed [${event.commits.length} commit${event.commits.length === 1 ? "" : "s"}](${event.compare}) to \`${event.ref}\` for ${event.repository.full_name}`;
-    const eventContent: IPushEventContent = {
+    await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubRepo(event.repository),
       external_url: event.compare,
       "uk.half-shot.matrix-hookshot.github.push": {
@@ -1778,12 +1763,7 @@ export class GitHubRepoConnection
         ref: event.ref,
         base_ref: event.base_ref,
       },
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    };
-    await this.intent.sendEvent(this.roomId, eventContent);
+    });
   }
 
   public toString() {

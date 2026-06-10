@@ -66,6 +66,9 @@ const ConnectionConfiguration: FunctionComponent<
   const [notifyOnFailure, setNotifyOnFailure] = useState<boolean>(
     existingConnection?.config.notifyOnFailure ?? false,
   );
+  const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
+    existingConnection?.config.showUrlPreviews ?? true,
+  );
 
   const handleSave = useCallback(
     (evt: Event) => {
@@ -81,6 +84,7 @@ const ConnectionConfiguration: FunctionComponent<
           template:
             templateRef.current?.value || existingConnection?.config.template,
           notifyOnFailure,
+          showUrlPreviews,
         });
       }
     },
@@ -91,6 +95,7 @@ const ConnectionConfiguration: FunctionComponent<
       labelRef,
       templateRef,
       notifyOnFailure,
+      showUrlPreviews,
       existingConnection,
     ],
   );
@@ -153,6 +158,18 @@ const ConnectionConfiguration: FunctionComponent<
           </a>{" "}
           for help writing templates.{" "}
         </p>
+      </InputField>
+      <InputField
+        visible={onlyVisibleOnExistingConnection}
+        label="Show URL previews on messages (requires supporting client)"
+        noPadding={true}
+      >
+        <input
+          disabled={!canSave}
+          type="checkbox"
+          checked={showUrlPreviews}
+          onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
+        />
       </InputField>
       <ButtonSet>
         {canSave && (

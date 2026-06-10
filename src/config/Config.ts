@@ -24,6 +24,8 @@ import {
   BridgeConfigFeeds,
   BridgeConfigFeedsYAML,
   BridgeConfigEncryption,
+  BridgeConfigMessaging,
+  BridgeConfigMessagingYAML,
   BridgeOpenProjectConfig,
   BridgeOpenProjectConfigYAML,
   BridgeConfigJira,
@@ -125,7 +127,7 @@ export interface BridgeConfigRoot {
   bridge: BridgeConfigBridge;
   cache?: BridgeConfigCache;
   /**
-   * @deprecated Old, unsupported encryption propety.
+   * @deprecated Old, unsupported encryption property.
    */
   experimentalEncryption?: never;
   encryption?: BridgeConfigEncryption;
@@ -148,6 +150,7 @@ export interface BridgeConfigRoot {
   widgets?: BridgeWidgetConfigYAML;
   challengeHound?: BridgeConfigChallengeHound;
   connections?: BridgeConfigConnectionConfig[];
+  messaging?: BridgeConfigMessagingYAML;
 }
 
 export class BridgeConfig {
@@ -230,6 +233,9 @@ export class BridgeConfig {
   @configKey("Static connections that may be configured by an admin", true)
   public readonly connections: BridgeConfigConnectionConfig[];
 
+  @configKey("Message defaults", true)
+  public readonly messaging: BridgeConfigMessaging;
+
   constructor(
     configData: BridgeConfigRoot,
     env?: { [key: string]: string | undefined },
@@ -239,6 +245,7 @@ export class BridgeConfig {
     };
     this.bridge = configData.bridge;
     assert.ok(this.bridge);
+    this.messaging = new BridgeConfigMessaging(configData.messaging);
     this.github =
       configData.github && new BridgeConfigGitHub(configData.github);
     if (this.github?.auth && env?.["GITHUB_PRIVATE_KEY_FILE"]) {
