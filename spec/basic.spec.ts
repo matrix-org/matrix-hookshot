@@ -1,7 +1,6 @@
 import { MessageEventContent } from "matrix-bot-sdk";
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { expect } from "chai";
-import { describe, test, beforeEach, afterEach } from "vitest";
+import { expect, describe, test, beforeEach, afterEach } from "vitest";
 
 describe("Basic test setup", () => {
   let testEnv: E2ETestEnv;

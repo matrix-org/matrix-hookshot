@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { describe, it, expect } from "vitest";
 import { BridgeConfigMessaging } from "../../../src/config/sections";
 
 describe("config/sections/Messaging", () => {
