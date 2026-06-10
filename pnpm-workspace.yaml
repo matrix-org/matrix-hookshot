@@ -1,0 +1,7 @@
+allowBuilds:
+  "@matrix-org/matrix-sdk-crypto-nodejs": true
+  '@parcel/watcher': false
+  cpu-features: true
+  esbuild: true
+  protobufjs: true
+  ssh2: true
