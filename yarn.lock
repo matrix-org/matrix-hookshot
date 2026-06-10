@@ -2767,10 +2767,10 @@
     "@uiw/codemirror-extensions-basic-setup" "4.25.7"
     codemirror "^6.0.0"
 
-"@vector-im/compound-design-tokens@^2.0.1":
-  version "2.1.1"
-  resolved "https://registry.yarnpkg.com/@vector-im/compound-design-tokens/-/compound-design-tokens-2.1.1.tgz#d6175a99fe4b97688464126f255386990f3048d6"
-  integrity sha512-QnUi2K14D9KTXxcLQKUU3V75cforZLMwhaaJDNftT8F5mG86950hAM+qhgDNEpEU+pkTffQj0/g/5859YmqWzQ==
+"@vector-im/compound-design-tokens@^10.0.0":
+  version "10.2.2"
+  resolved "https://registry.yarnpkg.com/@vector-im/compound-design-tokens/-/compound-design-tokens-10.2.2.tgz#da86161d6591aa91757f6dd37ed97376c38f9680"
+  integrity sha512-kncYroDEwyvvk4K4E67ExP4RYp9NEineD1tB38KeJwTmOvcrPtGjWyBAyJgOGeRuc7G5edNLkWnAbvk5yZJ+5w==
 
 "@vector-im/compound-web@^7.3.0":
   version "7.4.0"
