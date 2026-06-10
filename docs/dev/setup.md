@@ -9,7 +9,7 @@ If you are less familar, then we have a [Docker Compose](https://docs.docker.com
 
 Follow the [local install process](https://matrix-org.github.io/matrix-hookshot/latest/setup.html#local-installation), and the [configuration guide](https://matrix-org.github.io/matrix-hookshot/latest/setup.html#configuration).
 
-Once that's done, make changes at will and simply run `yarn build` and then `yarn start` to run your new changes.
+Once that's done, make changes at will and simply run `pnpm run build` and then `pnpm start` to run your new changes.
 
 Keep in mind that the widgets feature does federated lookups, which do not work well over HTTP / `localhost`. To get around this, include the follwing
 in your config file:

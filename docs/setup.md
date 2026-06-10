@@ -23,13 +23,13 @@ To clone and install, run:
 ```bash
 git clone https://github.com/matrix-org/matrix-hookshot.git
 cd matrix-hookshot
-yarn # or npm i
+pnpm install
 ```
 
 Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development`, depending if you want [better performance or more verbose logging](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production), and then running it:
 
 ```bash
-NODE_ENV=production yarn start
+NODE_ENV=production pnpm start
 ```
 
 ## Installation via Docker
@@ -66,7 +66,7 @@ Copy the `config.sample.yml` to a new file `config.yml`. The sample config is al
 
 You should read and fill this in as the bridge will not start without a complete config.
 
-You may validate your config without starting the service by running `yarn validate-config`.
+You may validate your config without starting the service by running `pnpm validate-config`.
 For Docker you can run `docker run --rm -v /absolute-path-to/config.yml:/config.yml ghcr.io/matrix-org/matrix-hookshot node config/Config.js /config.yml`
 
 Copy `registration.sample.yml` into `registration.yml` and fill in:
