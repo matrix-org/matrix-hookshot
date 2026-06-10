@@ -2,6 +2,7 @@ import { assert, expect } from "chai";
 import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
 import {
   BridgeConfigGenericWebhooks,
+  BridgeConfigMessaging,
   BridgeGenericWebhooksConfigYAML,
 } from "../../src/config/sections";
 import {
@@ -93,6 +94,7 @@ function createGenericHook(
     as,
     intent,
     storage,
+    new BridgeConfigMessaging(),
   );
   return [connection, mq, as, intent];
 }

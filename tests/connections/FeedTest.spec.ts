@@ -4,6 +4,7 @@ import { FeedEntry } from "../../src/feeds/FeedReader";
 import { IntentMock } from "../utils/IntentMock";
 import { randomUUID } from "crypto";
 import { expect } from "chai";
+import { BridgeConfigMessaging } from "../../src/config/sections";
 
 const ROOM_ID = "!foo:bar";
 const FEED_URL = "https://example.com/feed.xml";
@@ -32,10 +33,12 @@ function createFeed(
       label: undefined,
       template: undefined,
       notifyOnFailure: undefined,
+      showUrlPreviews: undefined,
       url: FEED_URL,
       ...state,
     },
     intent,
+    new BridgeConfigMessaging(),
   );
   return [connection, intent];
 }

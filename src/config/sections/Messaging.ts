@@ -6,7 +6,7 @@ export interface BridgeConfigMessagingYAML {
 }
 
 interface MessageHints {
-  ["com.beeper.linkpreviews"]?: unknown[];
+  ["com.beeper.linkpreviews"]?: [];
 }
 
 export class BridgeConfigMessaging {

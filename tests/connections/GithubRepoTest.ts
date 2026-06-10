@@ -69,6 +69,7 @@ function createConnection(
     githubInstance,
     // Default config always contains GitHub
     DefaultConfig.github!,
+    DefaultConfig.messaging,
   );
   return { connection, intent: intent as IntentMock };
 }

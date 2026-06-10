@@ -273,7 +273,7 @@ if you have a configuration you'd like to apply every room.
 
 ```yaml
 messaging:
-    allowUrlPreviews: true
+  allowUrlPreviews: true
 ```
 
 ### Services configuration
