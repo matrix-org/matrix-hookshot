@@ -1,7 +1,7 @@
 import { ConfigError } from "../../Errors";
 import { configKey } from "../Decorators";
 
-interface BridgeConfigMessagingYAML {
+export interface BridgeConfigMessagingYAML {
   allowUrlPreviews?: boolean;
 }
 
@@ -40,8 +40,6 @@ export class BridgeConfigMessaging {
     if (!(messageConfig.allowUrlPreviews ?? this.allowUrlPreviews)) {
       hints["com.beeper.linkpreviews"] = [];
     }
-
-    console.log({ hints }, messageConfig, this.allowUrlPreviews);
 
     return {
       ...eventContent,

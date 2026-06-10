@@ -19,7 +19,7 @@ import {
 import { ApiError, ErrCode } from "../api";
 import { BaseConnection, removeConnectionState } from "./BaseConnection";
 import { BridgeConfigGenericWebhooks } from "../config/sections";
-import { BridgeConfigMessaging } from "../config/sections/Messages";
+import { BridgeConfigMessaging } from "../config/sections";
 import { ensureUserIsInRoom } from "../IntentUtils";
 import { randomUUID } from "node:crypto";
 import { GenericWebhookEventResult } from "../generic/Types";

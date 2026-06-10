@@ -9,3 +9,4 @@ export * from "./OpenProject";
 export * from "./Encryption";
 export * from "./Gitlab";
 export * from "./GitHub";
+export * from "./Messaging";

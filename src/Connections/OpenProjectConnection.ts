@@ -22,7 +22,7 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
 import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
-import { BridgeConfigMessaging } from "../config/sections/Messages";
+import { BridgeConfigMessaging } from "../config/sections";
 import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,

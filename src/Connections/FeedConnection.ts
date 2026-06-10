@@ -11,7 +11,7 @@ import { readFeed, sanitizeHtml } from "../libRs";
 import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
 import { ConnectionType } from "./type";
-import { BridgeConfigMessaging } from "../config/sections/Messages";
+import { BridgeConfigMessaging } from "../config/sections";
 const log = new Logger("FeedConnection");
 const md = new markdown({
   html: true,

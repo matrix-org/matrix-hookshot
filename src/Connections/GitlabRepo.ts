@@ -40,7 +40,7 @@ import { GitLabGrantChecker } from "../gitlab/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitLab, GitLabInstance } from "../config/sections";
-import { BridgeConfigMessaging } from "../config/sections/Messages";
+import { BridgeConfigMessaging } from "../config/sections";
 import { getStringHeader } from "../util/axios";
 
 export interface GitLabRepoConnectionState extends IConnectionState {

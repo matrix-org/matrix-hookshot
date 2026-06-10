@@ -33,7 +33,7 @@ import { JiraGrantChecker } from "../jira/GrantChecker";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigJira } from "../config/sections";
-import { BridgeConfigMessaging } from "../config/sections/Messages";
+import { BridgeConfigMessaging } from "../config/sections";
 
 type JiraAllowedEventsNames =
   | "issue_created"

@@ -68,7 +68,7 @@ import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { ConnectionType } from "./type";
 import { BridgeConfigGitHub } from "../config/sections";
 import { getStringHeader } from "../util/axios";
-import { BridgeConfigMessaging } from "../config/sections/Messages";
+import { BridgeConfigMessaging } from "../config/sections";
 
 const log = new Logger("GitHubRepoConnection");
 const md = new markdown();

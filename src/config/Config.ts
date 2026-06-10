@@ -24,6 +24,8 @@ import {
   BridgeConfigFeeds,
   BridgeConfigFeedsYAML,
   BridgeConfigEncryption,
+  BridgeConfigMessaging,
+  BridgeConfigMessagingYAML,
   BridgeOpenProjectConfig,
   BridgeOpenProjectConfigYAML,
   BridgeConfigJira,
@@ -40,7 +42,6 @@ import {
   OpenProjectServiceConfig,
 } from "../Connections";
 import { ConnectionType } from "../Connections/type";
-import { BridgeConfigMessaging } from "./sections/Messages";
 
 const log = new Logger("Config");
 
@@ -149,7 +150,7 @@ export interface BridgeConfigRoot {
   widgets?: BridgeWidgetConfigYAML;
   challengeHound?: BridgeConfigChallengeHound;
   connections?: BridgeConfigConnectionConfig[];
-  messaging?: BridgeConfigMessaging;
+  messaging?: BridgeConfigMessagingYAML;
 }
 
 export class BridgeConfig {
