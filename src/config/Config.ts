@@ -37,7 +37,7 @@ import {
   BridgeConfigConnectionConfig,
   validateConnectionConfig,
 } from "./sections";
-import {
+import type {
   GenericHookServiceConfig,
   OpenProjectServiceConfig,
 } from "../Connections";
@@ -54,13 +54,8 @@ export const ValidLogLevelStrings = [
 ].map((l) => l.toLowerCase());
 
 // Maps to permission_level_to_int in permissions.rs
-export enum BridgePermissionLevel {
-  "commands" = 1,
-  login = 2,
-  notifications = 3,
-  manageConnections = 4,
-  admin = 5,
-}
+import { BridgePermissionLevel } from "./BridgePermissionLevel";
+export { BridgePermissionLevel };
 
 export interface BridgeConfigFigma {
   publicUrl: string;

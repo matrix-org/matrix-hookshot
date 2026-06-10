@@ -10,7 +10,8 @@ import {
   BotCommands,
   HelpFunction,
 } from "./BotCommands";
-import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
+import { BridgeConfig } from "./config/Config";
+import { BridgePermissionLevel } from "./config/BridgePermissionLevel";
 import {
   BridgeRoomState,
   BridgeRoomStateGitHub,

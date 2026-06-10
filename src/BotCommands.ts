@@ -1,9 +1,9 @@
 import markdown from "markdown-it";
 import { ApiError } from "./api";
 import { CommandError } from "./Errors";
-import { MatrixEvent, MatrixMessageContent } from "./MatrixEvent";
-import { BridgePermissionLevel } from "./config/Config";
-import { PermissionCheckFn } from "./Connections";
+import { MatrixMessageContent } from "./MatrixEvent";
+import { BridgePermissionLevel } from "./config/BridgePermissionLevel";
+import type { PermissionCheckFn } from "./Connections";
 import { RoomEvent } from "matrix-bot-sdk";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { Category } from "./AdminRoomCommandHandler";

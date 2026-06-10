@@ -1,5 +1,5 @@
 import { Appservice } from "matrix-bot-sdk";
-import { GitHubRepoConnection } from "../Connections";
+import { GitHubRepoConnection } from "../Connections/GithubRepo";
 import { GrantChecker } from "../grants/GrantCheck";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";

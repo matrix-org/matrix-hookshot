@@ -4,7 +4,8 @@
 
 import { Appservice, Intent, MatrixError, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
-import { BridgeConfig, BridgePermissionLevel } from "./config/Config";
+import { BridgeConfig } from "./config/Config";
+import { BridgePermissionLevel } from "./config/BridgePermissionLevel";
 import { CommentProcessor } from "./CommentProcessor";
 import {
   ConnectionDeclaration,
