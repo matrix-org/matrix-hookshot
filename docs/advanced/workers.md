@@ -24,12 +24,12 @@ cache:
 Note that if [encryption](./encryption.md) is enabled, you MUST enable the `cache` config but NOT the `queue` config. Workers require persistent
 storage in Redis, but cannot make use of worker-mode queues.
 
-Once that is done, you can simply start the processes by name using yarn:
+Once that is done, you can simply start the processes by name using pnpm:
 
 ```
-yarn start:webhooks
-yarn start:matrixsender
-yarn start:app
+pnpm start:webhooks
+pnpm start:matrixsender
+pnpm start:app
 ```
 
 Be aware that you will need to start all worker types when running in worker mode, as the service does not allow a hybrid worker approach.
