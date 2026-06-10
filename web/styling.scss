@@ -1,3 +1,6 @@
+@import url("@vector-im/compound-design-tokens/assets/web/css/compound-design-tokens.css") layer(compound);
+@import url("@vector-im/compound-web");
+
 :root {
   --background-color: #ffffff;
   --foreground-color: #17191c;
