@@ -1,8 +1,6 @@
-import mocha from "eslint-plugin-mocha";
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import react from "eslint-plugin-react";
-import chai from "eslint-plugin-chai-expect";
 
 export default [
     {
@@ -33,22 +31,16 @@ export default [
             extends: [
                 eslint.configs.recommended,
                 ...tseslint.configs.recommended,
-                mocha.configs.flat.recommended,
-                chai.configs["recommended-flat"],
             ],
             rules: {
                 "@typescript-eslint/explicit-module-boundary-types": "off",
                 "@typescript-eslint/no-explicit-any": "warn",
                 "@typescript-eslint/no-unused-vars": "warn",
-                // Chai assertions don't call functions
-                "@typescript-eslint/no-unused-expressions": "off",
                 camelcase: ["error", {
                     properties: "never",
                     ignoreDestructuring: true,
                 }],
                 "no-console": "error",
-                // Needs a refactor
-                "mocha/no-mocha-arrows": "off",
             },
         },
     ),
