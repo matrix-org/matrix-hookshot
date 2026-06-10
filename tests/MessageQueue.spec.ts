@@ -5,24 +5,25 @@ const mq = createMessageQueue();
 
 describe("MessageQueueTest", () => {
   describe("LocalMq", () => {
-    it("should be able to push an event, and listen for it", () => new Promise<void>((resolve) => {
-      mq.subscribe("fakeevent");
-      mq.on("fakeevent", (msg) => {
-        expect(msg).toEqual({
+    it("should be able to push an event, and listen for it", () =>
+      new Promise<void>((resolve) => {
+        mq.subscribe("fakeevent");
+        mq.on("fakeevent", (msg) => {
+          expect(msg).toEqual({
+            sender: "foo",
+            eventName: "fakeevent",
+            messageId: "foooo",
+            data: 51,
+          });
+          resolve();
+        });
+        mq.push<number>({
           sender: "foo",
           eventName: "fakeevent",
           messageId: "foooo",
           data: 51,
         });
-        resolve();
-      });
-      mq.push<number>({
-        sender: "foo",
-        eventName: "fakeevent",
-        messageId: "foooo",
-        data: 51,
-      });
-    }));
+      }));
 
     it("should be able to push an event, and respond to it", async () => {
       mq.subscribe("fakeevent2");

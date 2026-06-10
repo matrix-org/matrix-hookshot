@@ -394,15 +394,13 @@ describe("BotCommands", () => {
         " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // Or when specified
-      expect(
-        output.helpMessage("!test-prefix ", [Category.Widget]).body,
-      ).toBe(
+      expect(output.helpMessage("!test-prefix ", [Category.Widget]).body).toBe(
         " - `!test-prefix command` - a simple bit of help text\n### Widget\n - `!test-prefix command two` - more text\n",
       );
       // But not when unspecified
-      expect(
-        output.helpMessage("!test-prefix ", ["unrelated-cat"]).body,
-      ).toBe(" - `!test-prefix command` - a simple bit of help text\n");
+      expect(output.helpMessage("!test-prefix ", ["unrelated-cat"]).body).toBe(
+        " - `!test-prefix command` - a simple bit of help text\n",
+      );
     });
   });
 });

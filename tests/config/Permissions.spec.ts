@@ -56,7 +56,9 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:baz", "my-service", "login")).toBe(false);
+      expect(
+        bridgePermissions.checkAction("@foo:baz", "my-service", "login"),
+      ).toBe(false);
     });
 
     it("will return true if there is a matching level and service", () => {
@@ -65,7 +67,9 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(true);
     });
 
     it("will return true for a matching actor domain", () => {
@@ -74,7 +78,9 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(true);
     });
 
     it("handles domain actors with ports", () => {
@@ -130,12 +136,16 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(true);
     });
 
     it("will return true for a wildcard service", () => {
       const bridgePermissions = genBridgePermissions("@foo:bar", "*", "login");
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(true);
     });
 
     it("will return false if a user is not present in a room", () => {
@@ -144,7 +154,9 @@ describe("Config/BridgePermissions", () => {
         "my-service",
         "login",
       );
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(false);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(false);
     });
 
     it("will return true if a user is present in a room", () => {
@@ -154,7 +166,9 @@ describe("Config/BridgePermissions", () => {
         "login",
       );
       bridgePermissions.addMemberToCache("!foo:bar", "@foo:bar");
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(true);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(true);
     });
 
     it("will fall through and return true for multiple permission sets", () => {
@@ -190,7 +204,9 @@ describe("Config/BridgePermissions", () => {
       expect(
         bridgePermissions.checkAction("@foo:bar", "my-service", "commands"),
       ).toBe(true);
-      expect(bridgePermissions.checkAction("@foo:bar", "my-service", "login")).toBe(false);
+      expect(
+        bridgePermissions.checkAction("@foo:bar", "my-service", "login"),
+      ).toBe(false);
     });
 
     it("handles legacy 'webhooks' config field", () => {
@@ -213,7 +229,9 @@ describe("Config/BridgePermissions", () => {
   describe("permissionsCheckActionAny", () => {
     it("will return false for an empty actor set", () => {
       const bridgePermissions = new BridgePermissions([]);
-      expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).toBe(false);
+      expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).toBe(
+        false,
+      );
     });
 
     it(`will return false for a service with an insufficent level`, () => {
@@ -231,7 +249,9 @@ describe("Config/BridgePermissions", () => {
           "fake-service",
           "commands",
         );
-        expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).toBe(true);
+        expect(bridgePermissions.checkActionAny("@foo:bar", "commands")).toBe(
+          true,
+        );
       });
     }
   });

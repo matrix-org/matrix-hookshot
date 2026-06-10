@@ -112,7 +112,9 @@ export class IntentMock {
       return;
     }
     expect(
-      !!this.sentEvents.find((ev) => ev.content.body.includes(matcher as string)),
+      !!this.sentEvents.find((ev) =>
+        ev.content.body.includes(matcher as string),
+      ),
       `Expected any event body to match '${matcher}'`,
     ).toBe(true);
   }

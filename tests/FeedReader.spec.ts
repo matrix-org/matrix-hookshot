@@ -228,9 +228,7 @@ describe("FeedReader", () => {
     expect(events[0].data.title).toBe("Atom-Powered Robots Run Amok");
     expect(events[0].data.author).toBe("John Doe");
     expect(events[0].data.summary).toBe("Some text.");
-    expect(events[0].data.link).toBe(
-      "http://example.org/2003/12/13/atom03",
-    );
+    expect(events[0].data.link).toBe("http://example.org/2003/12/13/atom03");
     expect(events[0].data.pubdate).toBe("Sat, 13 Dec 2003 18:30:02 +0000");
   });
 

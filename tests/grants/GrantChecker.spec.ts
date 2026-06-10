@@ -29,12 +29,16 @@ async function doesAssert(
     await checker.assertConnectionGranted(roomId, connectionId, sender);
     throw Error(`Expected ${roomId}/${connectionId} to have thrown an error`);
   } catch (ex) {
-    expect(ex, "Error thrown, but was not a grant rejected error").toBeInstanceOf(GrantRejectedError);
+    expect(
+      ex,
+      "Error thrown, but was not a grant rejected error",
+    ).toBeInstanceOf(GrantRejectedError);
     expect(ex.roomId, "Grant rejected, but roomId didn't match").toBe(roomId);
     // connectionIds are always hashed
-    expect(ex.connectionId, "Grant rejected, but connectionId didn't match").toBe(
-      FormatUtil.hashId(connectionId),
-    );
+    expect(
+      ex.connectionId,
+      "Grant rejected, but connectionId didn't match",
+    ).toBe(FormatUtil.hashId(connectionId));
     return true;
   }
 }

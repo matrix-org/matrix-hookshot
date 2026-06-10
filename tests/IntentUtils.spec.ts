@@ -55,8 +55,10 @@ describe("IntentUtils", () => {
         );
       };
       await expect(
-        ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID)
-      ).rejects.toThrow(`Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`);
+        ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID),
+      ).rejects.toThrow(
+        `Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`,
+      );
     });
   });
 });

@@ -99,12 +99,12 @@ describe("FormatUtilTest", () => {
   });
 
   it("should correctly format many simple labels", () => {
-    expect(
-      FormatUtil.formatLabels([{ name: "foo" }, { name: "bar" }]),
-    ).toEqual({
-      plain: "foo, bar",
-      html: "<span>foo</span> <span>bar</span>",
-    });
+    expect(FormatUtil.formatLabels([{ name: "foo" }, { name: "bar" }])).toEqual(
+      {
+        plain: "foo, bar",
+        html: "<span>foo</span> <span>bar</span>",
+      },
+    );
   });
 
   it("should correctly format one detailed label", () => {
@@ -133,9 +133,7 @@ describe("FormatUtilTest", () => {
   });
 
   it("should correctly format a JIRA issue", () => {
-    expect(
-      FormatUtil.getPartialBodyForJiraIssue(SIMPLE_JIRA_ISSUE),
-    ).toEqual({
+    expect(FormatUtil.getPartialBodyForJiraIssue(SIMPLE_JIRA_ISSUE)).toEqual({
       external_url: "http://example-api.url.com/browse/TEST-001",
       "uk.half-shot.matrix-hookshot.jira.issue": {
         api_url: "http://example-api.url.com/issue-url",

@@ -407,9 +407,9 @@ describe("GenericHookConnection", () => {
     let message = await messagePromise;
     expect(message.roomId).toBe(ROOM_ID);
     expect(message.sender).toBe(connection.getUserId());
-    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual(
-      { simple: "1.2345" },
-    );
+    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual({
+      simple: "1.2345",
+    });
 
     messagePromise = handleMessage(mq);
     await connection.onGenericHook({
@@ -424,9 +424,9 @@ describe("GenericHookConnection", () => {
     message = await messagePromise;
     expect(message.roomId).toBe(ROOM_ID);
     expect(message.sender).toBe(connection.getUserId());
-    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual(
-      { a: { deep: { object: { containing: "1.2345" } } } },
-    );
+    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual({
+      a: { deep: { object: { containing: "1.2345" } } },
+    });
 
     messagePromise = handleMessage(mq);
     await connection.onGenericHook({
@@ -436,12 +436,10 @@ describe("GenericHookConnection", () => {
     message = await messagePromise;
     expect(message.roomId).toBe(ROOM_ID);
     expect(message.sender).toBe(connection.getUserId());
-    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual(
-      {
-        an_array_of: ["1.2345", "6.789"],
-        floats: true,
-      },
-    );
+    expect(message.content["uk.half-shot.hookshot.webhook_data"]).toEqual({
+      an_array_of: ["1.2345", "6.789"],
+      floats: true,
+    });
   });
 
   it("should handle simple hook events with user Id prefix", async () => {

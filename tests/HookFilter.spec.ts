@@ -23,7 +23,11 @@ describe("HookFilter", () => {
 
   describe("convertIgnoredHooksToEnabledHooks", () => {
     it("should correctly provide a list of default hooks", () => {
-      const result = HookFilter.convertIgnoredHooksToEnabledHooks([], [], DEFAULT_SET);
+      const result = HookFilter.convertIgnoredHooksToEnabledHooks(
+        [],
+        [],
+        DEFAULT_SET,
+      );
       expect(result).toEqual(expect.arrayContaining(DEFAULT_SET));
       expect(result).toHaveLength(DEFAULT_SET.length);
     });
