@@ -17,13 +17,14 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 
 WORKDIR /src
 
-COPY package.json yarn.lock ./
-RUN yarn config set yarn-offline-mirror /cache/yarn
-RUN yarn --ignore-scripts --pure-lockfile --network-timeout 600000
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable pnpm
+RUN pnpm config set store-dir /cache/pnpm-store
+RUN pnpm install --frozen-lockfile --ignore-scripts --network-timeout 600000
 
 COPY . ./
 
-RUN yarn build
+RUN pnpm run build
 
 
 # Stage 1: The actual container
@@ -33,11 +34,12 @@ WORKDIR /bin/matrix-hookshot
 
 RUN apt-get update && apt-get install -y openssl ca-certificates
 
-COPY --from=builder /src/yarn.lock /src/package.json ./
-COPY --from=builder /cache/yarn /cache/yarn
-RUN yarn config set yarn-offline-mirror /cache/yarn
+COPY --from=builder /src/pnpm-lock.yaml /src/package.json ./
+COPY --from=builder /cache/pnpm-store /cache/pnpm-store
+RUN corepack enable pnpm
+RUN pnpm config set store-dir /cache/pnpm-store
 
-RUN yarn --network-timeout 600000 --production --pure-lockfile && yarn cache clean
+RUN pnpm install --frozen-lockfile --prod --offline --network-timeout 600000 && pnpm store prune
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
