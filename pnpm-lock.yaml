@@ -345,7 +345,7 @@ importers:
         version: 5.2.8
       '@napi-rs/cli':
         specifier: ^3
-        version: 3.7.0(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)(@types/node@22.19.20)(node-addon-api@7.1.1)
+        version: 3.7.1(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)(@types/node@22.19.20)(node-addon-api@7.1.1)
       '@octokit/openapi-types':
         specifier: ^27.0.0
         version: 27.0.0
@@ -1059,8 +1059,8 @@ packages:
     resolution: {integrity: sha512-+qqgpn39XFSbsD0dFjssGO9vHEP7sTyfs8yTpt8vuqWpUpF20QMwpCZi0jpYw7GxjErNTsMshopuo8677DfGEA==}
     engines: {node: '>= 22'}
 
-  '@napi-rs/cli@3.7.0':
-    resolution: {integrity: sha512-3d3+rmxlOIV/G1zPWeX4PCxuYnhcCQM2BvY9rtimC8RO0dFR9gtYP+Grov+WoduZtfWRj5N1XvytWeRxxCk5zw==}
+  '@napi-rs/cli@3.7.1':
+    resolution: {integrity: sha512-7FkcxJ70SqpsYnyjaYwLVpkP3Xoyd8YkT5g7DevuEvSY7mzpLSva8oSQNENHiQ1T0GMLnae1X46KmiNIu5OXDw==}
     engines: {node: '>= 16'}
     hasBin: true
     peerDependencies:
@@ -1321,8 +1321,8 @@ packages:
     resolution: {integrity: sha512-7cmzIu+Vbupriudo7UudoMRH2OA3cTw67vva8MxeoAe5S7vPFI7z0vp0pMXiA25S8IUJefImQ90FeJjl8fjEaQ==}
     engines: {node: '>= 10'}
 
-  '@napi-rs/wasm-runtime@1.1.4':
-    resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
+  '@napi-rs/wasm-runtime@1.1.5':
+    resolution: {integrity: sha512-AWPoBRJ9tsnVhor4sjO7rkni+7p+2IAEFj6cx06UgP10jkQHqay/36uRV/bFkgrh18D9vb4cr8Q0Pthskgzy+Q==}
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
@@ -4683,6 +4683,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  semver@7.8.4:
+    resolution: {integrity: sha512-rUCObTnP32Q08R2uuIrt7r9PlEonuTmtuXYcW6s5kjdlj3xbnwe+21yXptAUYcMAABLkYYTtnmzb3w3EDZfueA==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   send@0.19.2:
     resolution: {integrity: sha512-VMbMxbDeehAxpOtWJXlcUS5E8iXh6QmN+BkRX1GARS3wRaXEEgzCcB10gTQazO42tpNIya8xIyNx8fll1OFPrg==}
     engines: {node: '>= 0.8.0'}
@@ -5966,7 +5971,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.7.0(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)(@types/node@22.19.20)(node-addon-api@7.1.1)':
+  '@napi-rs/cli@3.7.1(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)(@types/node@22.19.20)(node-addon-api@7.1.1)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@22.19.20)
       '@napi-rs/cross-toolchain': 1.0.3(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
@@ -5978,7 +5983,7 @@ snapshots:
       es-toolkit: 1.47.0
       js-yaml: 4.2.0
       obug: 2.1.2
-      semver: 7.8.3
+      semver: 7.8.4
       typanion: 3.14.0
     optionalDependencies:
       '@emnapi/runtime': 1.11.0
@@ -6049,7 +6054,7 @@ snapshots:
 
   '@napi-rs/lzma-wasm32-wasi@1.4.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
+      '@napi-rs/wasm-runtime': 1.1.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -6125,7 +6130,7 @@ snapshots:
 
   '@napi-rs/tar-wasm32-wasi@1.1.0(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
+      '@napi-rs/wasm-runtime': 1.1.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -6162,7 +6167,7 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
+  '@napi-rs/wasm-runtime@1.1.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
     dependencies:
       '@emnapi/core': 1.11.0
       '@emnapi/runtime': 1.11.0
@@ -6198,7 +6203,7 @@ snapshots:
 
   '@napi-rs/wasm-tools-wasm32-wasi@1.0.1(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)':
     dependencies:
-      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
+      '@napi-rs/wasm-runtime': 1.1.5(@emnapi/core@1.11.0)(@emnapi/runtime@1.11.0)
     transitivePeerDependencies:
       - '@emnapi/core'
       - '@emnapi/runtime'
@@ -9754,6 +9759,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.8.3: {}
+
+  semver@7.8.4: {}
 
   send@0.19.2:
     dependencies:
