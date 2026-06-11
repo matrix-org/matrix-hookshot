@@ -17,10 +17,10 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 
 WORKDIR /src
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile
 
 COPY . ./
 
@@ -34,12 +34,12 @@ WORKDIR /bin/matrix-hookshot
 
 RUN apt-get update && apt-get install -y openssl ca-certificates
 
-COPY --from=builder /src/pnpm-lock.yaml /src/package.json ./
+COPY --from=builder /src/pnpm-lock.yaml /src/package.json /src/pnpm-workspace.yaml ./
 COPY --from=builder /cache/pnpm-store /cache/pnpm-store
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
 
-RUN NODE_ENV=production pnpm install --frozen-lockfile --ignore-scripts && pnpm store prune
+RUN NODE_ENV=production pnpm install --frozen-lockfile && pnpm store prune
 
 COPY --from=builder /src/lib ./
 COPY --from=builder /src/public ./public
