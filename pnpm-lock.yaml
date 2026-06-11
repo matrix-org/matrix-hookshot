@@ -295,8 +295,8 @@ importers:
         specifier: ^15.1.0
         version: 15.1.3
       quickjs-emscripten:
-        specifier: ^0.31.0
-        version: 0.31.0
+        specifier: ^0.32.0
+        version: 0.32.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -1003,20 +1003,20 @@ packages:
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
     engines: {node: '>=12'}
 
-  '@jitl/quickjs-ffi-types@0.31.0':
-    resolution: {integrity: sha512-1yrgvXlmXH2oNj3eFTrkwacGJbmM0crwipA3ohCrjv52gBeDaD7PsTvFYinlAnqU8iPME3LGP437yk05a2oejw==}
+  '@jitl/quickjs-ffi-types@0.32.0':
+    resolution: {integrity: sha512-v9T+GQpmk43VDJ7d72sf0Nexhk+ArvtUihW27dy7lqAl0zBObFKtSBBIm5RBjwIhE8VwsPPm9PNuvPvNqLWUEg==}
 
-  '@jitl/quickjs-wasmfile-debug-asyncify@0.31.0':
-    resolution: {integrity: sha512-YkdzQdr1uaftFhgEnTRjTTZHk2SFZdpWO7XhOmRVbi6CEVsH9g5oNF8Ta1q3OuSJHRwwT8YsuR1YzEiEIJEk6w==}
+  '@jitl/quickjs-wasmfile-debug-asyncify@0.32.0':
+    resolution: {integrity: sha512-EX8zbXwGqCgAE764M+qvkHtyXDi/FUoMBea0JnES7vCM3P7a2+EOZOjGv85wtZ2sJhI1oJ+nekmqpOODFDY+hw==}
 
-  '@jitl/quickjs-wasmfile-debug-sync@0.31.0':
-    resolution: {integrity: sha512-8XvloaaWBONqcHXYs5tWOjdhQVxzULilIfB2hvZfS6S+fI4m2+lFiwQy7xeP8ExHmiZ7D8gZGChNkdLgjGfknw==}
+  '@jitl/quickjs-wasmfile-debug-sync@0.32.0':
+    resolution: {integrity: sha512-LeYWrPGC1uNCTBWvibo3ZLJj0CSVNYUXvJpXMCmuQ5Sap2cCACc3uvGvYV4homHHBAzfw5akoTqMMS4YFRtw+Q==}
 
-  '@jitl/quickjs-wasmfile-release-asyncify@0.31.0':
-    resolution: {integrity: sha512-uz0BbQYTxNsFkvkurd7vk2dOg57ElTBLCuvNtRl4rgrtbC++NIndD5qv2+AXb6yXDD3Uy1O2PCwmoaH0eXgEOg==}
+  '@jitl/quickjs-wasmfile-release-asyncify@0.32.0':
+    resolution: {integrity: sha512-3oSwPfja12ICz4aIblB58cuY8JlEq5Txt8Cut4VLo+LH47QN+mzCnSgnbB03hWzg1LBcc+VyyI9UOag7a1NF+Q==}
 
-  '@jitl/quickjs-wasmfile-release-sync@0.31.0':
-    resolution: {integrity: sha512-hYduecOByj9AsAfsJhZh5nA6exokmuFC8cls39+lYmTCGY51bgjJJJwReEu7Ff7vBWaQCL6TeDdVlnp2WYz0jw==}
+  '@jitl/quickjs-wasmfile-release-sync@0.32.0':
+    resolution: {integrity: sha512-BKNDI/TPBfGlLNGYpLrhcDGXmIk4xHm4MRAisOBnOzpXVn9HZWsfmMAc9WMBrAHjvvds6HOikKeaOBKdPdpVrg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -4485,11 +4485,11 @@ packages:
   querystringify@2.2.0:
     resolution: {integrity: sha512-FIqgj2EUvTa7R50u0rGsyTftzjYmv/a3hO345bZNrqabNqjtgiDMgmo4mkUjd+nzU5oF3dClKqFIPUKybUyqoQ==}
 
-  quickjs-emscripten-core@0.31.0:
-    resolution: {integrity: sha512-oQz8p0SiKDBc1TC7ZBK2fr0GoSHZKA0jZIeXxsnCyCs4y32FStzCW4d1h6E1sE0uHDMbGITbk2zhNaytaoJwXQ==}
+  quickjs-emscripten-core@0.32.0:
+    resolution: {integrity: sha512-QFnPfjFey8EqknSrSxe1hZrf1/8z7/6s1QzGOmKo6++02r7QRRX7ZoyNaZh7JuVjWsVW87KnQrbZqnHkOAzUyg==}
 
-  quickjs-emscripten@0.31.0:
-    resolution: {integrity: sha512-K7Yt78aRPLjPcqv3fIuLW1jW3pvwO21B9pmFOolsjM/57ZhdVXBr51GqJpalgBlkPu9foAvhEAuuQPnvIGvLvQ==}
+  quickjs-emscripten@0.32.0:
+    resolution: {integrity: sha512-So0Sqw869y/S2oE3Nuc0uT3Dhqgvsj8FSrwBdsuTosVsG8ME5/OcudU1GxsrIFdFABgy17GHnTVO9TYV/bLQcA==}
     engines: {node: '>=16.0.0'}
 
   range-parser@1.2.1:
@@ -5897,23 +5897,23 @@ snapshots:
       wrap-ansi: 8.1.0
       wrap-ansi-cjs: wrap-ansi@7.0.0
 
-  '@jitl/quickjs-ffi-types@0.31.0': {}
+  '@jitl/quickjs-ffi-types@0.32.0': {}
 
-  '@jitl/quickjs-wasmfile-debug-asyncify@0.31.0':
+  '@jitl/quickjs-wasmfile-debug-asyncify@0.32.0':
     dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
+      '@jitl/quickjs-ffi-types': 0.32.0
 
-  '@jitl/quickjs-wasmfile-debug-sync@0.31.0':
+  '@jitl/quickjs-wasmfile-debug-sync@0.32.0':
     dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
+      '@jitl/quickjs-ffi-types': 0.32.0
 
-  '@jitl/quickjs-wasmfile-release-asyncify@0.31.0':
+  '@jitl/quickjs-wasmfile-release-asyncify@0.32.0':
     dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
+      '@jitl/quickjs-ffi-types': 0.32.0
 
-  '@jitl/quickjs-wasmfile-release-sync@0.31.0':
+  '@jitl/quickjs-wasmfile-release-sync@0.32.0':
     dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
+      '@jitl/quickjs-ffi-types': 0.32.0
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -9498,17 +9498,17 @@ snapshots:
 
   querystringify@2.2.0: {}
 
-  quickjs-emscripten-core@0.31.0:
+  quickjs-emscripten-core@0.32.0:
     dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
+      '@jitl/quickjs-ffi-types': 0.32.0
 
-  quickjs-emscripten@0.31.0:
+  quickjs-emscripten@0.32.0:
     dependencies:
-      '@jitl/quickjs-wasmfile-debug-asyncify': 0.31.0
-      '@jitl/quickjs-wasmfile-debug-sync': 0.31.0
-      '@jitl/quickjs-wasmfile-release-asyncify': 0.31.0
-      '@jitl/quickjs-wasmfile-release-sync': 0.31.0
-      quickjs-emscripten-core: 0.31.0
+      '@jitl/quickjs-wasmfile-debug-asyncify': 0.32.0
+      '@jitl/quickjs-wasmfile-debug-sync': 0.32.0
+      '@jitl/quickjs-wasmfile-release-asyncify': 0.32.0
+      '@jitl/quickjs-wasmfile-release-sync': 0.32.0
+      quickjs-emscripten-core: 0.32.0
 
   range-parser@1.2.1: {}
 
