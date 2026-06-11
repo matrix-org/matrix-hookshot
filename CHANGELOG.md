@@ -1,3 +1,15 @@
+# 7.4.1 (2026-06-11)
+
+## Bugfixes
+
+- Fix some messages from GitHub/GitLab ending up on one line. ([\#1324](https://github.com/matrix-org/matrix-hookshot/issues/1324))
+
+## Internal Changes
+
+- Migrate the project to pnpm. ([\#1308](https://github.com/matrix-org/matrix-hookshot/issues/1308))
+- Migrate unit tests to vitest. ([\#1311](https://github.com/matrix-org/matrix-hookshot/issues/1311))
+
+
 # 7.4.0 (2026-06-10)
 
 ## Features
