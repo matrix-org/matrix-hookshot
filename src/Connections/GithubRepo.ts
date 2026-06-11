@@ -108,7 +108,6 @@ export interface GitHubRepoConnectionOptions extends IConnectionState {
     includingWorkflows?: string[];
     excludingWorkflows?: string[];
   };
-  showUrlPreviews?: boolean;
 }
 
 export interface GitHubRepoConnectionState extends GitHubRepoConnectionOptions {
@@ -786,22 +785,6 @@ export class GitHubRepoConnection
     );
   }
 
-  public sendEvent(body: string, extraContent: any = {}) {
-    const content = this.msgConfig.formatMatrixMessage(
-      {
-        msgtype: "m.notice",
-        body,
-        formatted_body: md.renderInline(body),
-        format: "org.matrix.custom.html",
-        ...extraContent,
-      },
-      {
-        allowUrlPreviews: this.state.showUrlPreviews,
-      },
-    );
-    return this.intent.sendEvent(this.roomId, content);
-  }
-
   public async handleIssueHotlink(
     ev: MatrixEvent<MatrixMessageContent>,
   ): Promise<boolean> {
@@ -1432,7 +1415,7 @@ export class GitHubRepoConnection
           msgtype: "m.notice",
           body:
             content +
-            (labels.plain.length > 0 ? ` with labels ${labels}` : "") +
+            (labels.plain.length > 0 ? ` with labels ${labels.plain}` : "") +
             diffContent,
           formatted_body:
             md.renderInline(content) +
@@ -1493,7 +1476,7 @@ export class GitHubRepoConnection
       return;
     }
     log.info(
-      `onPRReadyForReview ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`,
+      `onPRReviewed ${this.roomId} ${this.org}/${this.repo} #${event.pull_request.number}`,
     );
     if (!event.pull_request) {
       throw Error("No pull_request content!");

@@ -1,15 +1,20 @@
 import { expect } from "vitest";
 import { MatrixError } from "matrix-bot-sdk";
 import { MatrixCapabilities } from "matrix-bot-sdk/lib/models/Capabilities";
+
+type SentEvent = { roomId: string; content: Record<string, any> };
+
 export class MatrixClientMock {
   static create() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return new this() as any;
+    return new this([]) as any;
   }
 
   // map room Id → user Ids
   private joinedMembers: Map<string, string[]> = new Map();
   public readonly roomAccountData: Map<string, string> = new Map();
+
+  constructor(private readonly sentEvents: SentEvent[]) {}
 
   async setDisplayName() {
     return;
@@ -63,11 +68,23 @@ export class MatrixClientMock {
   ): Promise<void> {
     this.roomAccountData.set(roomId + key, value);
   }
+
+  async sendMessage(
+    roomId: string,
+    content: Record<string, unknown>,
+  ): Promise<string> {
+    this.sentEvents?.push({ roomId, content });
+    return `event_${this.sentEvents.length - 1}`;
+  }
+
+  async sendStateEvent(): Promise<string> {
+    return `$state_event_sent`;
+  }
 }
 
 export class IntentMock {
-  public readonly underlyingClient = new MatrixClientMock();
-  public sentEvents: { roomId: string; content: any }[] = [];
+  public sentEvents: SentEvent[] = [];
+  public readonly underlyingClient = new MatrixClientMock(this.sentEvents);
 
   constructor(readonly userId: string) {}
 
@@ -86,12 +103,8 @@ export class IntentMock {
     });
   }
 
-  sendEvent(roomId: string, content: any): Promise<string> {
-    this.sentEvents.push({
-      roomId,
-      content,
-    });
-    return Promise.resolve(`event_${this.sentEvents.length - 1}`);
+  sendEvent(roomId: string, content: Record<string, unknown>): Promise<string> {
+    return this.underlyingClient.sendMessage(roomId, content);
   }
 
   expectNoEvent() {
@@ -120,7 +133,7 @@ export class IntentMock {
   }
 
   expectEventMatches(
-    matcher: (content: any) => boolean,
+    matcher: (content: SentEvent) => boolean,
     description: string,
     eventIndex?: number,
   ) {

@@ -14,7 +14,6 @@ import {
   UserID,
 } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import markdownit from "markdown-it";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
 import { MatrixMessageContent } from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
@@ -66,7 +65,6 @@ export interface OpenProjectConnectionState extends IConnectionState {
    */
   url: string;
   events: OpenProjectEventsNames[];
-  showUrlPreviews?: boolean;
 }
 
 export type OpenProjectResponseItem =
@@ -136,7 +134,6 @@ function validateOpenProjectConnectionState(
 }
 
 const log = new Logger("OpenProjectConnection");
-const md = new markdownit();
 
 /**
  * Handles rooms connected to a Jira project.
@@ -325,7 +322,7 @@ export class OpenProjectConnection
     stateKey: string,
     private readonly tokenStore: UserTokenStore,
     private readonly storage: IBridgeStorageProvider,
-    private readonly msgConfig: BridgeConfigMessaging,
+    msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -333,6 +330,7 @@ export class OpenProjectConnection
       OpenProjectConnection.CanonicalEventType,
       state,
       intent.underlyingClient,
+      msgConfig,
       OpenProjectConnection.botCommands,
       OpenProjectConnection.helpMessage,
       ["openproject"],
@@ -342,20 +340,6 @@ export class OpenProjectConnection
     this.grantChecker = new OpenProjectGrantChecker(as, tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
-  }
-
-  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
-    const content = this.msgConfig.formatMatrixMessage(
-      {
-        msgtype: "m.notice",
-        body,
-        formatted_body: md.renderInline(body),
-        format: "org.matrix.custom.html",
-        ...extraContent,
-      },
-      { allowUrlPreviews: this.state.showUrlPreviews },
-    );
-    return this.intent.sendEvent(this.roomId, content);
   }
 
   public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -398,13 +382,7 @@ export class OpenProjectConnection
       this.config.baseURL,
     );
     const content = `${creator.name} created a new work package [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      ...extraData,
-    });
+    await this.sendEvent(content, extraData);
     await this.storage.setOpenProjectWorkPackageState(
       workPackageToCacheState(data.work_package),
       data.work_package.id,
@@ -459,13 +437,8 @@ export class OpenProjectConnection
     }
     const content = `**${creator.name}** ${changeStatement} for [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
 
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content + (postfix ? postfix : ""),
-      formatted_body:
-        md.renderInline(content) + (postfix ? md.render(postfix) : ""),
-      format: "org.matrix.custom.html",
-      ...extraData,
+    await this.sendEvent(content + (postfix ?? ""), extraData, {
+      inline: false,
     });
   }
 
@@ -568,13 +541,7 @@ export class OpenProjectConnection
       this.config.baseURL,
     );
     const content = `${workPackage._embedded.author.name} created a new work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      ...extraData,
-    });
+    await this.sendEvent(content, extraData);
   }
 
   @botCommand("close", {
@@ -651,13 +618,7 @@ export class OpenProjectConnection
       this.config.baseURL,
     );
     const content = `${workPackage._embedded.author.name} closed work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      ...extraData,
-    });
+    await this.sendEvent(content, extraData);
   }
 
   @botCommand("priority", {

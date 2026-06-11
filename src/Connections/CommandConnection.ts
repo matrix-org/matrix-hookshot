@@ -15,6 +15,9 @@ import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { BridgeConfigMessaging } from "../config/sections";
+import markdownit from "markdown-it";
+const md = markdownit();
 const log = new Logger("CommandConnection");
 
 /**
@@ -32,6 +35,7 @@ export abstract class CommandConnection<
     canonicalStateType: string,
     protected state: ValidatedStateType,
     private readonly botClient: MatrixClient,
+    protected readonly msgConfig: BridgeConfigMessaging,
     private readonly botCommands: BotCommands,
     private readonly helpMessage: HelpFunction,
     protected readonly helpCategories: string[],
@@ -118,5 +122,25 @@ export abstract class CommandConnection<
         this.includeTitlesInHelp,
       ),
     );
+  }
+
+  protected sendEvent(
+    body: string,
+    extraContent: any = {},
+    opts = { inline: true },
+  ) {
+    const content = this.msgConfig.formatMatrixMessage(
+      {
+        msgtype: "m.notice",
+        body,
+        formatted_body: opts.inline ? md.renderInline(body) : md.render(body),
+        format: "org.matrix.custom.html",
+        ...extraContent,
+      },
+      {
+        allowUrlPreviews: this.state.showUrlPreviews,
+      },
+    );
+    return this.botClient.sendMessage(this.roomId, content);
   }
 }

@@ -2,7 +2,6 @@ import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Appservice, Intent, StateEvent } from "matrix-bot-sdk";
 import { BotCommands, botCommand, compileBotCommands } from "../BotCommands";
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
-import markdown from "markdown-it";
 import { Logger } from "matrix-appservice-bridge";
 import {
   IGitlabMergeRequest,
@@ -56,7 +55,6 @@ export interface GitLabRepoConnectionState extends IConnectionState {
   pushTagsRegex?: string;
   includingLabels?: string[];
   excludingLabels?: string[];
-  showUrlPreviews?: boolean;
 }
 
 interface ConnectionStateValidated extends GitLabRepoConnectionState {
@@ -79,8 +77,6 @@ export type GitLabRepoConnectionTarget =
   | GitLabRepoConnectionProjectTarget;
 
 const log = new Logger("GitLabRepoConnection");
-const md = new markdown();
-
 const PUSH_MAX_COMMITS = 5;
 
 export type GitLabRepoResponseItem =
@@ -581,7 +577,7 @@ export class GitLabRepoConnection
     private readonly tokenStore: UserTokenStore,
     private readonly instance: GitLabInstance,
     private readonly storage: IBridgeStorageProvider,
-    private readonly msgConfig: BridgeConfigMessaging,
+    msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -589,6 +585,7 @@ export class GitLabRepoConnection
       GitLabRepoConnection.CanonicalEventType,
       state,
       intent.underlyingClient,
+      msgConfig,
       GitLabRepoConnection.botCommands,
       GitLabRepoConnection.helpMessage,
       ["gitlab"],
@@ -601,20 +598,6 @@ export class GitLabRepoConnection
     }
     this.hookFilter = new HookFilter(state.enableHooks ?? DefaultHooks);
     this.commentDebounceMs = config.commentDebounceMs;
-  }
-
-  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
-    const content = this.msgConfig.formatMatrixMessage(
-      {
-        msgtype: "m.notice",
-        body,
-        formatted_body: md.renderInline(body),
-        format: "org.matrix.custom.html",
-        ...extraContent,
-      },
-      { allowUrlPreviews: this.state.showUrlPreviews },
-    );
-    return this.intent.sendEvent(this.roomId, content);
   }
 
   public get path() {
@@ -705,12 +688,7 @@ export class GitLabRepoConnection
     });
 
     const content = `Created issue #${res.iid}: [${res.web_url}](${res.web_url})`;
-    return this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    return this.sendEvent(content);
   }
 
   @botCommand(
@@ -736,12 +714,7 @@ export class GitLabRepoConnection
     });
 
     const content = `Created confidential issue #${res.iid}: [${res.web_url}](${res.web_url})`;
-    return this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    return this.sendEvent(content);
   }
 
   @botCommand("close", "Close an issue", ["number"], ["comment"], true)
@@ -777,12 +750,7 @@ export class GitLabRepoConnection
     this.validateMREvent(event);
     const orgRepoName = event.project.path_with_namespace;
     const content = `**${event.user.username}** opened a new MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onMergeRequestReopened(event: IGitLabWebhookMREvent) {
@@ -798,12 +766,7 @@ export class GitLabRepoConnection
     this.validateMREvent(event);
     const orgRepoName = event.project.path_with_namespace;
     const content = `**${event.user.username}** reopened MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onMergeRequestClosed(event: IGitLabWebhookMREvent) {
@@ -819,12 +782,7 @@ export class GitLabRepoConnection
     this.validateMREvent(event);
     const orgRepoName = event.project.path_with_namespace;
     const content = `**${event.user.username}** closed MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onMergeRequestMerged(event: IGitLabWebhookMREvent) {
@@ -840,12 +798,7 @@ export class GitLabRepoConnection
     this.validateMREvent(event);
     const orgRepoName = event.project.path_with_namespace;
     const content = `**${event.user.username}** merged MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}): "${event.object_attributes.title}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onMergeRequestUpdate(event: IGitLabWebhookMREvent) {
@@ -875,12 +828,7 @@ export class GitLabRepoConnection
       // Back to draft.
       content = `**${event.user.username}** marked MR [${orgRepoName}!${event.object_attributes.iid}](${event.object_attributes.url}) as draft "${event.object_attributes.title}" `;
     }
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onGitLabTagPush(event: IGitLabWebhookTagPushEvent) {
@@ -896,12 +844,7 @@ export class GitLabRepoConnection
     }
     const url = `${event.project.homepage}/-/tree/${tagname}`;
     const content = `**${event.user_name}** pushed tag [\`${tagname}\`](${url}) for ${event.project.path_with_namespace}`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onGitLabPush(event: IGitLabWebhookPushEvent) {
@@ -945,12 +888,7 @@ export class GitLabRepoConnection
       }
     }
 
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content, {}, { inline: false });
   }
 
   public async onWikiPageEvent(data: IGitLabWebhookWikiPageEvent) {
@@ -972,29 +910,19 @@ export class GitLabRepoConnection
     const message = attributes.message && ` "${attributes.message}"`;
 
     const content = `**${data.user.username}** ${statement} "[${attributes.title}](${attributes.url})" for ${data.project.path_with_namespace} ${message}`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   public async onRelease(data: IGitLabWebhookReleaseEvent) {
     if (this.hookFilter.shouldSkip("release", "release.created")) {
       return;
     }
-    log.info(`onReleaseCreated ${this.roomId} ${this.toString()} ${data.tag}`);
+    log.info(`onRelease ${this.roomId} ${this.toString()} ${data.tag}`);
     const orgRepoName = data.project.path_with_namespace;
     const content = `**${data.commit.author.name}** 🪄 released [${data.name}](${data.url}) for ${orgRepoName}
 
 ${data.description}`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content, {}, { inline: false });
   }
 
   private async renderDebouncedMergeRequest(
@@ -1041,7 +969,7 @@ ${data.description}`;
     if (result.approved === true) {
       action = "✅ approved";
     } else if (result.approved === false) {
-      action = "🔴 unapproved";
+      action = "🔴 requested changes";
     }
 
     const target = relation
@@ -1049,26 +977,16 @@ ${data.description}`;
       : ` MR [${orgRepoName}!${mergeRequest.iid}](${mergeRequest.url}): "${mergeRequest.title}"`;
     let content = `**${result.author}** ${action}${target} ${comments}`;
 
-    let formatted = "";
     if (result.commentNotes) {
       content += "\n\n> " + result.commentNotes.join("\n\n> ");
-      formatted = md.render(content);
-    } else {
-      formatted = md.renderInline(content);
     }
 
-    const eventPromise = this.intent
-      .sendEvent(this.roomId, {
-        msgtype: "m.notice",
-        body: content,
-        formatted_body: formatted,
-        format: "org.matrix.custom.html",
-        ...relation,
-      })
-      .catch((ex) => {
-        log.error("Failed to send MR review message", ex);
-        return undefined;
-      });
+    const eventPromise = this.sendEvent(content, relation, {
+      inline: !result.commentNotes,
+    }).catch((ex) => {
+      log.error("Failed to send MR review message", ex);
+      return undefined;
+    });
 
     for (const discussionId of result.discussions) {
       if (!this.discussionThreads.has(discussionId)) {
@@ -1149,7 +1067,7 @@ ${data.description}`;
       return;
     }
     log.info(
-      `onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} !${event.object_attributes.iid}`,
+      `onMergeRequestReviewed ${this.roomId} ${event.project.path_with_namespace} !${event.object_attributes.iid}`,
     );
     this.validateMREvent(event);
     this.debounceMergeRequestReview(
@@ -1174,9 +1092,10 @@ ${data.description}`;
     ) {
       return;
     }
+    const orgRepoName = event.project.path_with_namespace;
 
     log.info(
-      `onMergeRequestReviewed ${this.roomId} ${this.instance}/${this.path} !${event.object_attributes.iid}`,
+      `onMergeRequestIndividualReview ${this.roomId} ${orgRepoName} !${event.object_attributes.iid}`,
     );
     this.validateMREvent(event);
     this.debounceMergeRequestReview(
@@ -1206,7 +1125,7 @@ ${data.description}`;
       return;
     }
     log.info(
-      `onCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`,
+      `onMergeRequestCommentCreated ${this.roomId} ${this.toString()} !${event.merge_request?.iid} ${event.object_attributes.id}`,
     );
 
     this.debounceMergeRequestReview(
