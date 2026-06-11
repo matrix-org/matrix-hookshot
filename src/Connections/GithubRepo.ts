@@ -709,7 +709,7 @@ export class GitHubRepoConnection
     stateKey: string,
     private readonly githubInstance: GithubInstance,
     private readonly config: BridgeConfigGitHub,
-    private readonly msgConfig: BridgeConfigMessaging,
+    msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -717,6 +717,7 @@ export class GitHubRepoConnection
       GitHubRepoConnection.CanonicalEventType,
       state,
       intent.underlyingClient,
+      msgConfig,
       GitHubRepoConnection.botCommands,
       GitHubRepoConnection.helpMessage,
       ["github"],
