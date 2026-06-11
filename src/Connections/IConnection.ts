@@ -26,6 +26,7 @@ export type PermissionCheckFn = (
 export interface IConnectionState {
   priority?: number;
   commandPrefix?: string;
+  showUrlPreviews?: boolean;
 }
 
 export interface IConnection {

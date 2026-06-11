@@ -101,22 +101,20 @@ export interface IGitLabWebhookPushEvent {
   user_email: string;
   project: IGitlabProject;
   repository: IGitlabRepository;
-  commits: [
-    {
-      id: string;
-      message: string;
-      title: string;
-      timestamp: string;
-      url: string;
-      author: {
-        name: string;
-        email: string;
-      };
-      added: string[];
-      modified: string[];
-      removed: string[];
-    },
-  ];
+  commits: {
+    id: string;
+    message: string;
+    title: string;
+    timestamp: string;
+    url: string;
+    author: {
+      name: string;
+      email: string;
+    };
+    added: string[];
+    modified: string[];
+    removed: string[];
+  }[];
   total_commits_count: number;
 }
 

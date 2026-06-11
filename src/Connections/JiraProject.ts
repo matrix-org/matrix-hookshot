@@ -13,7 +13,6 @@ import {
   JiraVersionEvent,
 } from "../jira/WebhookTypes";
 import { FormatUtil } from "../FormatUtil";
-import markdownit from "markdown-it";
 import {
   generateJiraWebLinkFromIssue,
   generateJiraWebLinkFromVersion,
@@ -55,7 +54,6 @@ export interface JiraProjectConnectionState extends IConnectionState {
   id?: string;
   url: string;
   events?: JiraAllowedEventsNames[];
-  showUrlPreviews?: boolean;
 }
 
 export interface JiraProjectConnectionInstanceTarget {
@@ -81,7 +79,6 @@ export type JiraProjectResponseItem =
   GetConnectionsResponseItem<JiraProjectConnectionState>;
 
 const log = new Logger("JiraProjectConnection");
-const md = new markdownit();
 
 /**
  * Handles rooms connected to a Jira project.
@@ -322,7 +319,7 @@ export class JiraProjectConnection
     state: JiraProjectConnectionState,
     stateKey: string,
     private readonly tokenStore: UserTokenStore,
-    private readonly msgConfig: BridgeConfigMessaging,
+    msgConfig: BridgeConfigMessaging,
   ) {
     super(
       roomId,
@@ -330,6 +327,7 @@ export class JiraProjectConnection
       JiraProjectConnection.CanonicalEventType,
       state,
       intent.underlyingClient,
+      msgConfig,
       JiraProjectConnection.botCommands,
       JiraProjectConnection.helpMessage,
       ["jira"],
@@ -344,20 +342,6 @@ export class JiraProjectConnection
       throw Error("State is missing both id and url, cannot create connection");
     }
     this.grantChecker = new JiraGrantChecker(as, tokenStore);
-  }
-
-  private sendEvent(body: string, extraContent: Record<string, unknown> = {}) {
-    const content = this.msgConfig.formatMatrixMessage(
-      {
-        msgtype: "m.notice",
-        body,
-        formatted_body: md.renderInline(body),
-        format: "org.matrix.custom.html",
-        ...extraContent,
-      },
-      { allowUrlPreviews: this.state.showUrlPreviews },
-    );
-    return this.intent.sendEvent(this.roomId, content);
   }
 
   public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -398,13 +382,10 @@ export class JiraProjectConnection
     }
     const url = generateJiraWebLinkFromIssue(data.issue);
     const content = `${creator.displayName} created a new JIRA issue [${data.issue.key}](${url}): "${data.issue.fields.summary}"`;
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      ...FormatUtil.getPartialBodyForJiraIssue(data.issue),
-    });
+    await this.sendEvent(
+      content,
+      FormatUtil.getPartialBodyForJiraIssue(data.issue),
+    );
   }
 
   public static getProvisionerDetails(botUserId: string) {
@@ -531,13 +512,11 @@ export class JiraProjectConnection
       content += `\n - ` + changes.join(`\n  - `);
     }
 
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-      ...FormatUtil.getPartialBodyForJiraIssue(data.issue),
-    });
+    await this.sendEvent(
+      content,
+      FormatUtil.getPartialBodyForJiraIssue(data.issue),
+      { inline: false },
+    );
   }
 
   public async onJiraVersionEvent(data: JiraVersionEvent) {
@@ -559,12 +538,7 @@ export class JiraProjectConnection
         : "") +
       `: [${data.version.name}](${url}) (_${data.version.description}_)`;
 
-    await this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.renderInline(content),
-      format: "org.matrix.custom.html",
-    });
+    await this.sendEvent(content);
   }
 
   private async getUserClientForProject(userId: string) {
@@ -657,12 +631,7 @@ export class JiraProjectConnection
       key: result.key as string,
     });
     const content = `Created JIRA issue ${result.key}: [${link}](${link})`;
-    return this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    return this.sendEvent(content);
   }
 
   @botCommand("issue-types", "Get issue types for this project", [], [], true)
@@ -681,12 +650,7 @@ export class JiraProjectConnection
     }
 
     const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(", ")}`;
-    return this.intent.sendEvent(this.roomId, {
-      msgtype: "m.notice",
-      body: content,
-      formatted_body: md.render(content),
-      format: "org.matrix.custom.html",
-    });
+    return this.sendEvent(content);
   }
 
   @botCommand(
