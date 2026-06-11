@@ -1,3 +1,10 @@
+# 7.4.2 (2026-06-11)
+
+## Bugfixes
+
+- Fix Hookshot not starting due to a module error. ([\#1328](https://github.com/matrix-org/matrix-hookshot/issues/1328))
+
+
 # 7.4.1 (2026-06-11)
 
 ## Bugfixes
