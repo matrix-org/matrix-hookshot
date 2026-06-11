@@ -24,6 +24,7 @@ To clone and install, run:
 git clone https://github.com/matrix-org/matrix-hookshot.git
 cd matrix-hookshot
 pnpm install
+pnpm build
 ```
 
 Starting the bridge (after configuring it), is a matter of setting the `NODE_ENV` environment variable to `production` or `development`, depending if you want [better performance or more verbose logging](https://expressjs.com/en/advanced/best-practice-performance.html#set-node_env-to-production), and then running it:

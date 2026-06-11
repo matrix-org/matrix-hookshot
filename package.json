@@ -24,7 +24,6 @@
     "clean:app:rs": "rimraf src/libRs.d.ts target/",
     "clean:docs": "mdbook clean",
     "clean": "scripts/clean.sh",
-    "prepare": "pnpm run build",
     "start": "node --require source-map-support/register lib/App/BridgeApp.js",
     "start:app": "node --require source-map-support/register lib/App/BridgeApp.js",
     "start:webhooks": "node --require source-map-support/register lib/App/GithubWebhookApp.js",
