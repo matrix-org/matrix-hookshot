@@ -1057,7 +1057,7 @@ dependencies = [
 
 [[package]]
 name = "matrix-hookshot"
-version = "7.4.0"
+version = "7.4.2"
 dependencies = [
  "atom_syndication",
  "base64ct",
@@ -1067,7 +1067,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
- "rand 0.8.5",
+ "rand 0.9.2",
  "reqwest",
  "rgb",
  "rsa",
