@@ -85,6 +85,23 @@ jobs:
           images: |
             ghcr.io/matrix-org/matrix-hookshot
 
+      - name: Build Docker image for smoke test
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          push: false
+          load: true
+          tags: matrix-hookshot:smoke-test
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Smoke test Docker image
+        run: |
+          printf '{}\n' > /tmp/hookshot-config.yml
+          output=$(timeout 10 docker run --rm \
+            -v /tmp/hookshot-config.yml:/data/config.yml:ro \
+            matrix-hookshot:smoke-test 2>&1 || true)
+          echo "$output"
+          echo "$output" | grep -q "Loading config from"
+
       - name: Build and push Docker images
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
