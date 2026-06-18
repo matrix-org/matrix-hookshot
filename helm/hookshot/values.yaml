@@ -101,6 +101,8 @@ tolerations: []
 # -- Affinity settings for deployment
 affinity: {}
 hookshot:
+  # -- Name of existing config Secret with valid Hookshot configuration
+  existingConfigSecretName:
   # -- Name of existing ConfigMap with valid Hookshot configuration
   existingConfigMap:
   # -- Raw Hookshot configuration. Gets templated into a YAML file and then loaded unless an existingConfigMap is specified.
