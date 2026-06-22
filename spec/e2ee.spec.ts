@@ -1,6 +1,6 @@
 import { MessageEventContent } from "matrix-bot-sdk";
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, test, beforeEach, afterEach } from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { describe } from "vitest";
 
 const CryptoRoomState = [
   {
@@ -12,23 +12,12 @@ const CryptoRoomState = [
   },
 ];
 
+const test = baseTest.override("testEnvOpts", {
+  enableE2EE: true,
+});
+
 describe("End-2-End Encryption support", () => {
-  let testEnv: E2ETestEnv;
-
-  beforeEach(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      enableE2EE: true,
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
-
-  afterEach(() => {
-    return testEnv?.tearDown();
-  });
-
-  test("should be able to send the help command", async () => {
-    const user = testEnv.getUser("user");
+  test("should be able to send the help command", async ({ testEnv, user }) => {
     const testRoomId = await user.createRoom({
       name: "Test room",
       invite: [testEnv.botMxid],
@@ -43,8 +32,11 @@ describe("End-2-End Encryption support", () => {
       roomId: testRoomId,
     });
   });
-  test("should send notices in an encrypted format", async () => {
-    const user = testEnv.getUser("user");
+
+  test("should send notices in an encrypted format", async ({
+    testEnv,
+    user,
+  }) => {
     const testRoomId = await user.createRoom({
       name: "Test room",
       invite: [testEnv.botMxid],
@@ -77,14 +69,12 @@ describe("End-2-End Encryption support", () => {
       body: "Hello world!",
     });
 
-    // Send a webhook
     await fetch(webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: "Hello world!" }),
     });
 
-    // And await the notice.
     await webhookNotice;
   });
 });

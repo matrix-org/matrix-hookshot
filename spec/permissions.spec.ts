@@ -1,62 +1,54 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, test, beforeAll, afterAll, expect } from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { describe, expect } from "vitest";
 import { MessageEventContent } from "matrix-bot-sdk";
 
-describe("Permissions test", () => {
-  let testEnv!: E2ETestEnv<"denied_user" | "allowed_user" | "legacy_user">;
-
-  beforeAll(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["denied_user", "allowed_user", "legacy_user"],
-      permissionsRoom: {
-        members: ["allowed_user"],
-        permissions: [
+const test = baseTest.override("testEnvOpts", {
+  matrixLocalparts: ["denied_user", "allowed_user", "legacy_user"],
+  permissionsRoom: {
+    members: ["allowed_user"],
+    permissions: [
+      {
+        level: "manageConnections",
+        service: "generic",
+      },
+    ],
+  },
+  e2eClientOpts: {
+    autoAcceptInvite: true,
+  },
+  config: {
+    gitlab: {
+      instances: {
+        test: {
+          url: "https://example.org/foo/bar",
+        },
+      },
+      webhook: {
+        secret: "foo!",
+      },
+    },
+    generic: {
+      enabled: true,
+      urlPrefix: `http://localhost`,
+    },
+    permissions: [
+      {
+        actor: "legacy_user",
+        services: [
           {
+            service: "webhooks",
             level: "manageConnections",
-            service: "generic",
           },
         ],
       },
+    ],
+  },
+});
 
-      e2eClientOpts: {
-        autoAcceptInvite: true,
-      },
-      config: {
-        gitlab: {
-          instances: {
-            test: {
-              url: "https://example.org/foo/bar",
-            },
-          },
-          webhook: {
-            secret: "foo!",
-          },
-        },
-        generic: {
-          enabled: true,
-          urlPrefix: `http://localhost`,
-        },
-        permissions: [
-          {
-            actor: "legacy_user",
-            services: [
-              {
-                service: "webhooks",
-                level: "manageConnections",
-              },
-            ],
-          },
-        ],
-      },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
-
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
-  test("should only allow users in the permissions room", async () => {
+describe("Permissions test", () => {
+  test("should only allow users in the permissions room", async ({
+    testEnv,
+  }) => {
     const deniedUser = testEnv.getUser("denied_user");
     const allowedUser = testEnv.getUser("allowed_user");
 
@@ -80,7 +72,9 @@ describe("Permissions test", () => {
     await deniedUser.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
   });
 
-  test("should disallow users without permission to use a service", async () => {
+  test("should disallow users without permission to use a service", async ({
+    testEnv,
+  }) => {
     const user = testEnv.getUser("allowed_user");
     const roomId = await user.createRoom({
       name: "Test room",
@@ -103,9 +97,10 @@ describe("Permissions test", () => {
     );
   });
 
-  test.each(["allowed_user", "legacy_user"] as ["allowed_user", "legacy_user"])(
-    "should allow users with permission to use a service (%s)",
-    async (localpart) => {
+  for (const localpart of ["allowed_user", "legacy_user"] as const) {
+    test(`should allow users with permission to use a service (${localpart})`, async ({
+      testEnv,
+    }) => {
       const user = testEnv.getUser(localpart);
       const roomId = await user.createRoom({
         name: "Test room",
@@ -123,10 +118,12 @@ describe("Permissions test", () => {
       expect((await msgWebhooks).data.content.body).to.include(
         "Room configured to bridge webhooks. See admin room for secret url.",
       );
-    },
-  );
+    });
+  }
 
-  test("should allow users with permission to use a service in a v12 room", async () => {
+  test("should allow users with permission to use a service in a v12 room", async ({
+    testEnv,
+  }) => {
     const user = testEnv.getUser("allowed_user");
     const roomId = await user.createRoom({
       name: "Test room",

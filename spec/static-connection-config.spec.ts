@@ -1,114 +1,53 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import {
-  describe,
-  test,
-  beforeAll,
-  afterAll,
-  afterEach,
-  expect,
-  vitest,
-} from "vitest";
-import { BridgeConfigRoot } from "../src/config/Config";
+import { test as baseTest } from "./util/fixtures";
+import { describe, expect } from "vitest";
+import type { BridgeConfigRoot } from "../src/config/Config";
 import {
   GenericHookConnection,
-  GenericHookConnectionState,
+  type GenericHookConnectionState,
 } from "../src/Connections";
 
-async function createTestEnvironment(
-  connections: BridgeConfigRoot["connections"],
-): Promise<E2ETestEnv> {
-  const testEnv = await E2ETestEnv.createTestEnv({
-    matrixLocalparts: ["user"],
-    staticConnectionRooms: {
-      "room-basic": { members: ["user"] },
-      "room-func": { members: ["user"] },
+const test = baseTest.override("testEnvOpts", ({ webhooksPort }) => ({
+  staticConnectionRooms: {
+    "room-basic": { members: ["user"] },
+    "room-func": { members: ["user"] },
+  },
+  config: {
+    generic: {
+      enabled: true,
+      // Prefer to wait for complete as it reduces the concurrency of the test.
+      waitForComplete: true,
+      urlPrefix: `http://localhost:${webhooksPort}`,
+      payloadSizeLimit: "10mb",
+      allowJsTransformationFunctions: true,
     },
-    config: {
-      generic: {
-        enabled: true,
-        // Prefer to wait for complete as it reduces the concurrency of the test.
-        waitForComplete: true,
-        urlPrefix: `http://localhost:${webhooksPort}`,
-        payloadSizeLimit: "10mb",
-        allowJsTransformationFunctions: true,
+    connections: [
+      {
+        roomId: "room-basic",
+        stateKey: "foo",
+        connectionType: GenericHookConnection.CanonicalEventType,
+        state: {
+          name: "My hook",
+        } satisfies GenericHookConnectionState,
       },
-      connections,
-      listeners: [
-        {
-          port: webhooksPort,
-          bindAddress: "0.0.0.0",
-          // Bind to the SAME listener to ensure we don't have conflicts.
-          resources: ["webhooks"],
-        },
-      ],
-    },
-  });
-  await testEnv.setUp();
-  return testEnv;
-}
+      // This is not great, but our test files seem to complain unless we have one env per file..
+      {
+        roomId: "room-func",
+        stateKey: "foo",
+        connectionType: GenericHookConnection.CanonicalEventType,
+        state: {
+          name: "My hook",
+          transformationFunction: `result = {
+    plain: "Hello world",
+    version: "v2",
+  };`,
+        } satisfies GenericHookConnectionState,
+      },
+    ] as BridgeConfigRoot["connections"],
+  },
+}));
 
 describe("Statically configured connection", () => {
-  let testEnv: E2ETestEnv;
-
-  beforeAll(async () => {
-    const webhooksPort = 9500 + E2ETestEnv.workerId;
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      staticConnectionRooms: {
-        "room-basic": { members: ["user"] },
-        "room-func": { members: ["user"] },
-      },
-      config: {
-        generic: {
-          enabled: true,
-          // Prefer to wait for complete as it reduces the concurrency of the test.
-          waitForComplete: true,
-          urlPrefix: `http://localhost:${webhooksPort}`,
-          payloadSizeLimit: "10mb",
-          allowJsTransformationFunctions: true,
-        },
-        connections: [
-          {
-            roomId: "room-basic",
-            stateKey: "foo",
-            connectionType: GenericHookConnection.CanonicalEventType,
-            state: {
-              name: "My hook",
-            } satisfies GenericHookConnectionState,
-          },
-          // This is not great, but our test files seem to complain unless we have one env per file..
-          {
-            roomId: "room-func",
-            stateKey: "foo",
-            connectionType: GenericHookConnection.CanonicalEventType,
-            state: {
-              name: "My hook",
-              transformationFunction: `result = {
-        plain: "Hello world",
-        version: "v2",
-      };`,
-            } satisfies GenericHookConnectionState,
-          },
-        ],
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks"],
-          },
-        ],
-      },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
-
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
-  test("can configure a basic webhook.", async () => {
-    const user = testEnv.getUser("user");
+  test("can configure a basic webhook.", async ({ testEnv, user }) => {
     const roomId = testEnv.connectionRooms["room-basic"];
     await user.joinRoom(roomId);
     const url = new URL(
@@ -136,8 +75,10 @@ describe("Statically configured connection", () => {
     });
   });
 
-  test("can configure a webhook with transformation functions", async () => {
-    const user = testEnv.getUser("user");
+  test("can configure a webhook with transformation functions", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = testEnv.connectionRooms["room-func"];
     await user.joinRoom(roomId);
     const url = new URL(
