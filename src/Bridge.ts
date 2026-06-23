@@ -483,7 +483,7 @@ export class Bridge {
           data.repository.owner.login,
           data.repository.name,
         ),
-      (c, data) => c.onReleaseCreated(data),
+      (c, data) => c.onReleasePublished(data),
     );
 
     this.bindHandlerToQueue<

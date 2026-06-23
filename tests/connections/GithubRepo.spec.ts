@@ -492,10 +492,10 @@ describe("GitHubRepoConnection", () => {
     });
   });
 
-  describe("onReleaseCreated", () => {
+  describe("onReleasePublished", () => {
     it("will handle a published release", async () => {
       const { connection, intent } = createConnection();
-      await connection.onReleaseCreated({
+      await connection.onReleasePublished({
         action: "published",
         release: {
           name: "v1.0.0",
