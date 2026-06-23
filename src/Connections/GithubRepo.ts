@@ -1186,10 +1186,17 @@ export class GitHubRepoConnection
       event.comment.body.substring(0, TRUNCATE_COMMENT_SIZE) +
       (event.comment.body.length > TRUNCATE_COMMENT_SIZE ? "…" : "");
 
-    await this.sendEvent(message, {
-      ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
-      external_url: event.issue.html_url,
-    });
+    await this.sendEvent(
+      message,
+      {
+        ...FormatUtil.getPartialBodyForGithubIssue(
+          event.repository,
+          event.issue,
+        ),
+        external_url: event.issue.html_url,
+      },
+      { inline: false },
+    );
   }
 
   public async onIssueStateChange(
@@ -1247,9 +1254,16 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} **${event.sender.login}** ${state} issue [${orgRepoName}#${event.issue.number}](${event.issue.html_url}): "${emojify(event.issue.title)}"${withComment}`,
     );
-    await this.sendEvent(content, {
-      ...FormatUtil.getPartialBodyForGithubIssue(event.repository, event.issue),
-    });
+    await this.sendEvent(
+      content,
+      {
+        ...FormatUtil.getPartialBodyForGithubIssue(
+          event.repository,
+          event.issue,
+        ),
+      },
+      { inline: false },
+    );
   }
 
   public async onIssueEdited(event: IssuesEditedEvent) {
@@ -1557,15 +1571,19 @@ export class GitHubRepoConnection
     const content = emojify(
       `${icon} **${event.sender.login}** ${verb} PR [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}): "${event.pull_request.title}"${withComment}`,
     );
-    await this.sendEvent(content, {
-      ...FormatUtil.getPartialBodyForGithubIssue(
-        event.repository,
-        event.pull_request,
-      ),
-    });
+    await this.sendEvent(
+      content,
+      {
+        ...FormatUtil.getPartialBodyForGithubIssue(
+          event.repository,
+          event.pull_request,
+        ),
+      },
+      { inline: false },
+    );
   }
 
-  public async onReleaseCreated(event: ReleasePublishedEvent) {
+  public async onReleasePublished(event: ReleasePublishedEvent) {
     // This checks `release.created` despite the function being called onReleasePublished
     // because historically release.created used to refer to all releases (rather than just published ones).
     // This is now considered an *unsafe* default, so hookshot now treats release.created
@@ -1574,7 +1592,7 @@ export class GitHubRepoConnection
       return;
     }
     log.info(
-      `onReleaseCreated ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`,
+      `onReleasePublished ${this.roomId} ${this.org}/${this.repo} #${event.release.tag_name}`,
     );
     if (!event.release) {
       throw Error("No release content!");
@@ -1590,7 +1608,7 @@ export class GitHubRepoConnection
     if (event.release.body) {
       content += `\n\n${event.release.body}`;
     }
-    await this.sendEvent(content);
+    await this.sendEvent(content, {}, { inline: false });
   }
 
   public async onReleaseDrafted(event: ReleaseCreatedEvent) {
@@ -1619,7 +1637,7 @@ export class GitHubRepoConnection
     if (event.release.body) {
       content += `\n\n${event.release.body}`;
     }
-    await this.sendEvent(content);
+    await this.sendEvent(content, {}, { inline: false });
   }
 
   public async onWorkflowCompleted(event: WorkflowRunCompletedEvent) {
