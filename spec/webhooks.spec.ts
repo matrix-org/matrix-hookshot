@@ -1,17 +1,6 @@
-import {
-  E2ESetupTestTimeout,
-  E2ETestEnv,
-  E2ETestMatrixClient,
-} from "./util/e2e-test";
-import {
-  describe,
-  test,
-  beforeAll,
-  afterAll,
-  afterEach,
-  beforeEach,
-  expect,
-} from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { E2ETestMatrixClient } from "./util/e2e-test";
+import { describe, expect, afterEach } from "vitest";
 import { OutboundHookConnection } from "../src/Connections";
 import { TextualMessageEventContent } from "matrix-bot-sdk";
 import { IncomingHttpHeaders, Server, createServer } from "http";
@@ -110,32 +99,18 @@ function awaitOutboundWebhook(server: Server): Promise<{
   });
 }
 
-describe("OutboundHooks", () => {
-  let testEnv: E2ETestEnv;
-  let server: Server;
+const test = baseTest.override("testEnvOpts", ({ webhooksPort }) => ({
+  config: {
+    generic: {
+      enabled: true,
+      outbound: true,
+      urlPrefix: `http://localhost:${webhooksPort}`,
+    },
+  },
+}));
 
-  beforeAll(async () => {
-    const webhooksPort = 9500 + E2ETestEnv.workerId;
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        generic: {
-          enabled: true,
-          outbound: true,
-          urlPrefix: `http://localhost:${webhooksPort}`,
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks"],
-          },
-        ],
-      },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
+describe("OutboundHooks", () => {
+  let server: Server;
 
   afterEach(() => {
     try {
@@ -145,12 +120,10 @@ describe("OutboundHooks", () => {
     }
   });
 
-  afterAll(async () => {
-    await testEnv?.tearDown();
-  });
-
-  test("should be able to create a new webhook and push an event.", async () => {
-    const user = testEnv.getUser("user");
+  test("should be able to create a new webhook and push an event.", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     server = await createHttpServer();
     const gotWebhookRequest = awaitOutboundWebhook(server);
@@ -184,17 +157,14 @@ describe("OutboundHooks", () => {
     expect(media).toBeUndefined();
   });
 
-  test("should be able to create a new webhook and push a media attachment.", async () => {
-    const user = testEnv.getUser("user");
+  test("should be able to create a new webhook and push a media attachment.", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     server = await createHttpServer();
     const gotWebhookRequest = awaitOutboundWebhook(server);
-    const token = await createOutboundConnection(
-      user,
-      testEnv.botMxid,
-      roomId,
-      server,
-    );
+    await createOutboundConnection(user, testEnv.botMxid, roomId, server);
 
     const mxcUrl = await user.uploadContent(
       TEST_FILE,
@@ -217,45 +187,4 @@ describe("OutboundHooks", () => {
     expect(media.info.filename).toEqual("matrix.svg");
     expect(media.file).toEqual(TEST_FILE);
   });
-
-  // TODO: This requires us to support Redis in test conditions, as encryption is not possible
-  // in hookshot without it at the moment.
-
-  // it.only('should be able to create a new webhook and push an encrypted media attachment.', async () => {
-  //     const user = testEnv.getUser('user');
-  //     const roomId = await user.createRoom({ name: 'My Test Webhooks room', initial_state: [{
-  //         content: {
-  //             "algorithm": "m.megolm.v1.aes-sha2"
-  //         },
-  //         state_key: "",
-  //         type: "m.room.encryption"
-  //     }]});
-  //     await createOutboundConnection(user, testEnv.botMxid, roomId);
-  //     const gotWebhookRequest = awaitOutboundWebhook();
-
-  //     const encrypted = await user.crypto.encryptMedia(Buffer.from(TEST_FILE));
-  //     const mxc = await user.uploadContent(TEST_FILE);
-  //     await  user.sendMessage(roomId, {
-  //         msgtype: "m.image",
-  //         body: "matrix.svg",
-  //         info: {
-  //             mimetype: "image/svg+xml",
-  //         },
-  //         file: {
-  //             url: mxc,
-  //             ...encrypted.file,
-  //         },
-  //     });
-
-  //     const { headers, files } = await gotWebhookRequest;
-  //     const [event, media] = files;
-  //     expect(event.info.mimeType).toEqual('application/json');
-  //     expect(event.info.filename).toEqual('event_data.json');
-  //     const eventJson = JSON.parse(event.file.toString('utf-8'));
-  //     expect(eventJson.content.body).toEqual('matrix.svg');
-
-  //     expect(media.info.mimeType).toEqual('image/svg+xml');
-  //     expect(media.info.filename).toEqual('matrix.svg');
-  //     expect(media.file).toEqual(TEST_FILE);
-  // });
 });

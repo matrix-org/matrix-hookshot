@@ -1,57 +1,42 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import {
-  describe,
-  test,
-  beforeAll,
-  afterAll,
-  afterEach,
-  expect,
-  vitest,
-} from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { describe, expect, afterEach, vitest } from "vitest";
 import { GenericHookConnection } from "../src/Connections";
 import { add } from "date-fns/add";
 import { createInboundConnection } from "./util/helpers";
 
-describe("Inbound (Generic) Webhooks", () => {
-  let testEnv: E2ETestEnv;
-
-  beforeAll(async () => {
-    const webhooksPort = 9500 + E2ETestEnv.workerId;
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        generic: {
-          enabled: true,
-          // Prefer to wait for complete as it reduces the concurrency of the test.
-          waitForComplete: true,
-          urlPrefix: `http://localhost:${webhooksPort}/customprefix/webhook`,
-          payloadSizeLimit: "10mb",
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks"],
-            // Test that custom prefixes work
-            prefix: "/customprefix",
-          },
-        ],
+const test = baseTest
+  .override("enableWidgets", () => false)
+  .override("listenerConfig", ({ webhooksPort }) => [
+    {
+      port: webhooksPort,
+      bindAddress: "0.0.0.0",
+      // Bind to the SAME listener to ensure we don't have conflicts.
+      resources: ["webhooks"],
+      // Test that custom prefixes work
+      prefix: "/customprefix",
+    },
+  ])
+  .override("testEnvOpts", ({ webhooksPort }) => ({
+    config: {
+      generic: {
+        enabled: true,
+        // Prefer to wait for complete as it reduces the concurrency of the test.
+        waitForComplete: true,
+        urlPrefix: `http://localhost:${webhooksPort}/customprefix/webhook`,
+        payloadSizeLimit: "10mb",
       },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
+    },
+  }));
 
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
+describe("Inbound (Generic) Webhooks", () => {
   afterEach(() => {
     vitest.useRealTimers();
   });
 
-  test("should be able to create a new webhook and handle an incoming request.", async () => {
-    const user = testEnv.getUser("user");
+  test("should be able to create a new webhook and handle an incoming request.", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     const okMsg = user.waitForRoomEvent({
       eventType: "m.room.message",
@@ -83,9 +68,11 @@ describe("Inbound (Generic) Webhooks", () => {
     });
   });
 
-  test("should be able to create a new expiring webhook and handle valid requests.", async () => {
+  test("should be able to create a new expiring webhook and handle valid requests.", async ({
+    testEnv,
+    user,
+  }) => {
     vitest.useFakeTimers();
-    const user = testEnv.getUser("user");
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     const okMsg = user.waitForRoomEvent({
       eventType: "m.room.message",
@@ -131,8 +118,11 @@ describe("Inbound (Generic) Webhooks", () => {
       error: "This hook has expired",
     });
   });
-  test("should allow disabling hook data in matrix events.", async () => {
-    const user = testEnv.getUser("user");
+
+  test("should allow disabling hook data in matrix events.", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     const okMsg = user.waitForRoomEvent({
       eventType: "m.room.message",
@@ -174,8 +164,10 @@ describe("Inbound (Generic) Webhooks", () => {
     ).toBeUndefined();
   });
 
-  test("should handle an incoming request with a larger body", async () => {
-    const user = testEnv.getUser("user");
+  test("should handle an incoming request with a larger body", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     const okMsg = user.waitForRoomEvent({
       eventType: "m.room.message",
