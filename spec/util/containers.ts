@@ -230,9 +230,7 @@ export async function createContainers(
       users: [{ regex: "@hookshot_.*:hookshot", exclusive: false }],
       aliases: [],
     },
-    "de.sorunome.msc2409.push_ephemeral": true,
-    push_ephemeral: true,
-    "org.matrix.msc3202": true,
+    receive_ephemeral: true,
   };
 
   const container = await new SynapseContainer(name, { crypto })
