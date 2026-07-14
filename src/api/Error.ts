@@ -105,13 +105,9 @@ export class ApiError extends Error implements IApiError {
 export class ValidatorApiError extends ApiError {
   constructor(errors?: ErrorObject[] | null) {
     if (!errors) {
-      throw Error(
-        "ValidatorApiError thrown but no errors were found. This is possibly a bug.",
-      );
+      throw Error("ValidatorApiError thrown but no errors were found. This is possibly a bug.");
     }
-    const errorStrings = errors
-      .map((e) => `${e.instancePath}: ${e.message}`)
-      .join(", ");
+    const errorStrings = errors.map((e) => `${e.instancePath}: ${e.message}`).join(", ");
     super(`Failed to validate: ${errorStrings}`, ErrCode.BadValue, -1, {
       validationErrors: errors.map((e) => ({
         message: e.message,
@@ -121,8 +117,13 @@ export class ValidatorApiError extends ApiError {
   }
 }
 
+/**
+ * Wraps an async Express request handler so a rejected promise (including
+ * a thrown `ApiError`) is forwarded to `next(err)` instead of becoming an
+ * unhandled rejection.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function wrapAsync<T extends (...args: any[]) => any>(fn: T): T {
+export function wrapAsyncRequestHandler<T extends (...args: any[]) => any>(fn: T): T {
   return ((req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   }) as T;

@@ -2,7 +2,7 @@ import { Request, Response, Router, json } from "express";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { MessageQueue } from "../messageQueue";
 import { OpenProjectWebhookPayload } from "./Types";
-import { ApiError, ErrCode, wrapAsync } from "../api";
+import { ApiError, ErrCode, wrapAsyncRequestHandler } from "../api";
 import { createHmac } from "node:crypto";
 import { Logger } from "matrix-appservice-bridge";
 import { OAuthRequest, OAuthRequestResult } from "../tokens/Oauth";
@@ -95,7 +95,7 @@ export class OpenProjectWebhooksRouter {
     const router = Router();
     router.use(json({ verify: this.verifyWebhookRequest.bind(this) }));
     router.post("/webhook", this.onWebhook.bind(this));
-    router.get("/oauth", wrapAsync(this.onOAuth.bind(this)));
+    router.get("/oauth", wrapAsyncRequestHandler(this.onOAuth.bind(this)));
     return router;
   }
 }

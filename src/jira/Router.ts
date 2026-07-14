@@ -2,7 +2,7 @@ import { MessageQueue } from "../messageQueue";
 import { Router, Request, Response, NextFunction, json } from "express";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
-import { ApiError, ErrCode, wrapAsync } from "../api";
+import { ApiError, ErrCode, wrapAsyncRequestHandler } from "../api";
 import { JiraOAuthRequestOnPrem } from "./OAuth";
 import { HookshotJiraApi } from "./Client";
 import { createHmac } from "node:crypto";
@@ -195,7 +195,11 @@ export class JiraWebhooksRouter {
 
   public getRouter() {
     const router = Router();
-    router.get("/oauth", json(), wrapAsync(this.onOAuth.bind(this)));
+    router.get(
+      "/oauth",
+      json(),
+      wrapAsyncRequestHandler(this.onOAuth.bind(this)),
+    );
     router.post(
       "/webhook",
       json({ verify: this.verifyWebhookRequest.bind(this) }),
@@ -227,11 +231,14 @@ export class JiraProvisionerRouter {
 
   public getRouter() {
     const router = Router();
-    router.get("/oauth", wrapAsync(this.onOAuth.bind(this)));
-    router.get("/account", wrapAsync(this.onGetAccount.bind(this)));
+    router.get("/oauth", wrapAsyncRequestHandler(this.onOAuth.bind(this)));
+    router.get(
+      "/account",
+      wrapAsyncRequestHandler(this.onGetAccount.bind(this)),
+    );
     router.get(
       "/instances/:instanceName/projects",
-      wrapAsync(this.onGetInstanceProjects.bind(this)),
+      wrapAsyncRequestHandler(this.onGetInstanceProjects.bind(this)),
     );
     return router;
   }
