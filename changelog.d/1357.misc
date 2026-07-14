@@ -1,0 +1,1 @@
+Fix e2e tests to use the modern `receive_ephemeral` registration field instead of legacy MSC ephemeral-event flags.
