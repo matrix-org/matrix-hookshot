@@ -382,24 +382,25 @@ export class E2ETestEnv<ML extends string = string> {
       };
     }
 
-    const registration: IAppserviceRegistration = {
-      id: "hookshot",
-      url: null,
-      as_token: homeserver.asToken,
-      hs_token: homeserver.hsToken,
-      sender_localpart: "hookshot",
-      namespaces: {
-        users: [
-          {
-            regex: `@hookshot:${homeserver.domain}`,
-            exclusive: true,
-          },
-        ],
-        rooms: [],
-        aliases: [],
-      },
-      receive_ephemeral: true,
-    } as any;
+    const registration: IAppserviceRegistration & { receive_ephemeral: true } =
+      {
+        id: "hookshot",
+        url: null,
+        as_token: homeserver.asToken,
+        hs_token: homeserver.hsToken,
+        sender_localpart: "hookshot",
+        namespaces: {
+          users: [
+            {
+              regex: `@hookshot:${homeserver.domain}`,
+              exclusive: true,
+            },
+          ],
+          rooms: [],
+          aliases: [],
+        },
+        receive_ephemeral: true,
+      };
 
     const connectionRooms: Record<string, string> = {};
 
