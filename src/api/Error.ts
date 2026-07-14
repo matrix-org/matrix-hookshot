@@ -121,6 +121,13 @@ export class ValidatorApiError extends ApiError {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function wrapAsync<T extends (...args: any[]) => any>(fn: T): T {
+  return ((req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  }) as T;
+}
+
 export function errorMiddleware(log: Logger) {
   return (err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (!err) {

@@ -1,6 +1,6 @@
 import { Request, Response, Router, json } from "express";
 import { MessageQueue } from "../messageQueue";
-import { ApiError, ErrCode } from "../api";
+import { ApiError, ErrCode, wrapAsync } from "../api";
 import { Logger } from "matrix-appservice-bridge";
 import { OAuthRequest } from "../tokens/Oauth";
 import {
@@ -291,7 +291,7 @@ export class GitHubWebhooksRouter {
 
   public getRouter() {
     const router = Router();
-    router.get("/oauth", this.onGetOAuth.bind(this));
+    router.get("/oauth", wrapAsync(this.onGetOAuth.bind(this)));
     router.use(json({ verify: this.verifyRequest.bind(this) }));
     router.post("/webhook", this.onWebhook.bind(this));
     return router;
