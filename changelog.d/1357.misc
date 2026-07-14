@@ -1,1 +1,2 @@
-Fix e2e tests to use the modern `receive_ephemeral` registration field instead of legacy MSC ephemeral-event flags.
+Use the `receive_ephemeral` registration field instead of legacy MSC ephemeral-event flags. Please ensure your
+registration file is updated to match the new format.
