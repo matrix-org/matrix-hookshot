@@ -398,8 +398,8 @@ export class E2ETestEnv<ML extends string = string> {
         rooms: [],
         aliases: [],
       },
-      "de.sorunome.msc2409.push_ephemeral": true,
-    };
+      receive_ephemeral: true,
+    } as any;
 
     const connectionRooms: Record<string, string> = {};
 
