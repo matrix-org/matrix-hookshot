@@ -1,2 +1,0 @@
-Use the `receive_ephemeral` registration field instead of legacy MSC ephemeral-event flags. Please ensure your
-registration file is updated to match the new format.

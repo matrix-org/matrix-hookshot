@@ -1,3 +1,17 @@
+# 7.4.3 (2026-07-15)
+
+## Bugfixes
+
+- Fix GitHub messages still being inlined incorrectly in some cases. ([\#1347](https://github.com/matrix-org/matrix-hookshot/issues/1347))
+- Fix requests to `GET /oauth` endpoints (jira, github, openproject) throwing an error when required query parameters are missing. ([\#1356](https://github.com/matrix-org/matrix-hookshot/issues/1356))
+
+## Internal Changes
+
+- Add a smoke test in CI for the built Docker images. ([\#1334](https://github.com/matrix-org/matrix-hookshot/issues/1334))
+- Use the `receive_ephemeral` registration field instead of legacy MSC ephemeral-event flags. Please ensure your
+  registration file is updated to match the new format. ([\#1357](https://github.com/matrix-org/matrix-hookshot/issues/1357))
+
+
 # 7.4.2 (2026-06-11)
 
 ## Bugfixes
