@@ -336,7 +336,7 @@ importers:
         version: 6.2.5
       '@eslint/eslintrc':
         specifier: ^3.2.0
-        version: 3.3.5
+        version: 3.3.6
       '@eslint/js':
         specifier: ^9.15.0
         version: 9.39.4
@@ -787,8 +787,8 @@ packages:
     resolution: {integrity: sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@eslint/eslintrc@3.3.5':
-    resolution: {integrity: sha512-4IlJx0X0qftVsN5E+/vGujTRIFtwuLbNsVUe7TO6zYPDR1O6nFwvwhIKEKSrl6dZchmYBITazxKoUYOjdtjlRg==}
+  '@eslint/eslintrc@3.3.6':
+    resolution: {integrity: sha512-l2Ul9PrHsPCKcEY/ac7VgFj9D80C7S68sOKc618SyHDPK36s1XcFebXY0iTzUVn4Yq+YbwvSnDmCz9yxjX+QrA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/js@9.39.4':
@@ -2591,6 +2591,11 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  acorn@8.17.0:
+    resolution: {integrity: sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
   agent-base@6.0.2:
     resolution: {integrity: sha512-RZNwNclF7+MS/8bDg70amg32dyeZGZxiDuQmZxKLAlQjr3jGyLx+4Kkk58UO7D2QdgFIQCovuSuZESne6RG6XQ==}
     engines: {node: '>= 6.0.0'}
@@ -2824,14 +2829,14 @@ packages:
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
-  brace-expansion@1.1.15:
-    resolution: {integrity: sha512-EwOCDEex4quD37XhqM3omwtMoJjr//isUZz1JopUNWms+4Z2ViyM/k1YIRePpoVNnQhENnxtFjLaxNHrT7xIUg==}
+  brace-expansion@1.1.16:
+    resolution: {integrity: sha512-IDw48K2/2kRkg9LdJxurvq3lV3aBgq0REY89duEqFRthjlPdXHKMj7EnQOXVckxzgisinf3nHfrcE2FufFLXMw==}
 
-  brace-expansion@2.1.1:
-    resolution: {integrity: sha512-WR1cURNjuvBLMZBMbqM0UoE+WAfdUcEV1ccD8PVBVOI+Z3ND4+SZbN8RsfT2bMuG1qwz5RFvPukSZm5fF2D5eA==}
+  brace-expansion@2.1.2:
+    resolution: {integrity: sha512-w5JZcKgdhDOgOwm8H+KgbosopHMuGcl6qbulwjtz3SM7I7P3yW1eAjzMPLrIE+NQ9vjgANKHWeMHnrT0OXW1oA==}
 
-  brace-expansion@5.0.6:
-    resolution: {integrity: sha512-kLpxurY4Z4r9sgMsyG0Z9uzsBlgiU/EFKhj/h91/8yHu0edo7XuixOIH3VcJ8kkxs6/jPzoI6U9Vj3WqbMQ94g==}
+  brace-expansion@5.0.7:
+    resolution: {integrity: sha512-7oFy703dxfY3/NLxC1fh2SUCQ0H9rmAY+5EpDVfXjUTTs+HEwR2nYaqLv+GWcTsumwxPfiz6CzCNkwXwBUwqCA==}
     engines: {node: 18 || 20 || >=22}
 
   braces@3.0.3:
@@ -3689,8 +3694,8 @@ packages:
     resolution: {integrity: sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==}
     engines: {node: '>= 4'}
 
-  ignore@7.0.5:
-    resolution: {integrity: sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg==}
+  ignore@7.0.6:
+    resolution: {integrity: sha512-BAg6QkE8W+TuQLrrw0Ugr7HegXduRuuj8/ti2kSOc+jz1dmx8/WNcjr6XGnq5YpDWxFwwaavqD0+jIUOKelTsw==}
     engines: {node: '>= 4'}
 
   immediate@3.0.6:
@@ -3907,6 +3912,10 @@ packages:
 
   js-yaml@4.2.0:
     resolution: {integrity: sha512-ePWsvanv0DWuDRsW8dnt+R4jQ31SCRCQ7hhNcPXZPsoBZiemuZNYGf7adZdqX2D86j6rvKp3RpCxVTSb8WQlOw==}
+    hasBin: true
+
+  js-yaml@4.3.0:
+    resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
     hasBin: true
 
   jsbn@0.1.1:
@@ -5546,7 +5555,7 @@ snapshots:
 
   '@codemirror/search@6.7.0':
     dependencies:
-      '@codemirror/state': 6.6.0
+      '@codemirror/state': 6.7.1
       '@codemirror/view': 6.43.1
       crelt: 1.0.7
 
@@ -5561,7 +5570,7 @@ snapshots:
   '@codemirror/theme-one-dark@6.1.3':
     dependencies:
       '@codemirror/language': 6.12.3
-      '@codemirror/state': 6.6.0
+      '@codemirror/state': 6.7.1
       '@codemirror/view': 6.43.1
       '@lezer/highlight': 1.2.3
 
@@ -5701,7 +5710,7 @@ snapshots:
     dependencies:
       '@types/json-schema': 7.0.15
 
-  '@eslint/eslintrc@3.3.5':
+  '@eslint/eslintrc@3.3.6':
     dependencies:
       ajv: 6.15.0
       debug: 4.4.3
@@ -5709,7 +5718,7 @@ snapshots:
       globals: 14.0.0
       ignore: 5.3.2
       import-fresh: 3.3.1
-      js-yaml: 4.2.0
+      js-yaml: 4.3.0
       minimatch: 3.1.5
       strip-json-comments: 3.1.1
     transitivePeerDependencies:
@@ -7154,7 +7163,7 @@ snapshots:
       '@typescript-eslint/utils': 8.61.1(eslint@9.39.4)(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 8.61.1
       eslint: 9.39.4
-      ignore: 7.0.5
+      ignore: 7.0.6
       natural-compare: 1.4.0
       ts-api-utils: 2.5.0(typescript@5.9.3)
       typescript: 5.9.3
@@ -7403,15 +7412,17 @@ snapshots:
       mime-types: 2.1.35
       negotiator: 0.6.3
 
-  acorn-jsx@5.3.2(acorn@8.16.0):
+  acorn-jsx@5.3.2(acorn@8.17.0):
     dependencies:
-      acorn: 8.16.0
+      acorn: 8.17.0
 
   acorn-walk@8.3.5:
     dependencies:
       acorn: 8.16.0
 
   acorn@8.16.0: {}
+
+  acorn@8.17.0: {}
 
   agent-base@6.0.2:
     dependencies:
@@ -7678,16 +7689,16 @@ snapshots:
 
   boolbase@1.0.0: {}
 
-  brace-expansion@1.1.15:
+  brace-expansion@1.1.16:
     dependencies:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@2.1.1:
+  brace-expansion@2.1.2:
     dependencies:
       balanced-match: 1.0.2
 
-  brace-expansion@5.0.6:
+  brace-expansion@5.0.7:
     dependencies:
       balanced-match: 4.0.4
 
@@ -7799,7 +7810,7 @@ snapshots:
       '@codemirror/language': 6.12.3
       '@codemirror/lint': 6.9.7
       '@codemirror/search': 6.7.0
-      '@codemirror/state': 6.6.0
+      '@codemirror/state': 6.7.1
       '@codemirror/view': 6.43.1
 
   color-convert@2.0.1:
@@ -8250,7 +8261,7 @@ snapshots:
       '@eslint/config-array': 0.21.2
       '@eslint/config-helpers': 0.4.2
       '@eslint/core': 0.17.0
-      '@eslint/eslintrc': 3.3.5
+      '@eslint/eslintrc': 3.3.6
       '@eslint/js': 9.39.4
       '@eslint/plugin-kit': 0.4.1
       '@humanfs/node': 0.16.8
@@ -8284,8 +8295,8 @@ snapshots:
 
   espree@10.4.0:
     dependencies:
-      acorn: 8.16.0
-      acorn-jsx: 5.3.2(acorn@8.16.0)
+      acorn: 8.17.0
+      acorn-jsx: 5.3.2(acorn@8.17.0)
       eslint-visitor-keys: 4.2.1
 
   esquery@1.7.0:
@@ -8685,7 +8696,7 @@ snapshots:
 
   ignore@5.3.2: {}
 
-  ignore@7.0.5: {}
+  ignore@7.0.6: {}
 
   immediate@3.0.6: {}
 
@@ -8912,6 +8923,10 @@ snapshots:
   js-tokens@4.0.0: {}
 
   js-yaml@4.2.0:
+    dependencies:
+      argparse: 2.0.1
+
+  js-yaml@4.3.0:
     dependencies:
       argparse: 2.0.1
 
@@ -9170,19 +9185,19 @@ snapshots:
 
   minimatch@10.2.5:
     dependencies:
-      brace-expansion: 5.0.6
+      brace-expansion: 5.0.7
 
   minimatch@3.1.5:
     dependencies:
-      brace-expansion: 1.1.15
+      brace-expansion: 1.1.16
 
   minimatch@5.1.9:
     dependencies:
-      brace-expansion: 2.1.1
+      brace-expansion: 2.1.2
 
   minimatch@9.0.9:
     dependencies:
-      brace-expansion: 2.1.1
+      brace-expansion: 2.1.2
 
   minimist@1.2.8: {}
 
