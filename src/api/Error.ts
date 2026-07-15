@@ -121,6 +121,20 @@ export class ValidatorApiError extends ApiError {
   }
 }
 
+/**
+ * Wraps an async Express request handler so a rejected promise (including
+ * a thrown `ApiError`) is forwarded to `next(err)` instead of becoming an
+ * unhandled rejection.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function wrapAsyncRequestHandler<T extends (...args: any[]) => any>(
+  fn: T,
+): T {
+  return ((req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  }) as T;
+}
+
 export function errorMiddleware(log: Logger) {
   return (err: unknown, req: Request, res: Response, next: NextFunction) => {
     if (!err) {

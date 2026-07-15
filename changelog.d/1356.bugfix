@@ -1,0 +1,1 @@
+Fix requests to `GET /oauth` endpoints (jira, github, openproject) throwing an error when required query parameters are missing.
