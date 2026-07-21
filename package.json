@@ -83,7 +83,7 @@
     "yaml": "^2.3.4"
   },
   "devDependencies": {
-    "@babel/core": "^7.26.9",
+    "@babel/core": "^8.0.0",
     "@codemirror/lang-javascript": "^6.0.2",
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.15.0",
