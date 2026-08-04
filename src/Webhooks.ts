@@ -14,6 +14,15 @@ import { GitLabWebhooksRouter } from "./gitlab/Router";
 
 const log = new Logger("Webhooks");
 
+// Matches a v4 UUID, used as the hookId for generic webhooks and thus
+// sensitive (it acts as a bearer secret in the URL).
+const HOOK_ID_PATH_SEGMENT =
+  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
+function redactWebhookPath(path: string): string {
+  return path.replace(HOOK_ID_PATH_SEGMENT, ":hookId");
+}
+
 export class Webhooks extends EventEmitter {
   public readonly expressRouter = Router();
   private readonly queue: MessageQueue;
@@ -23,7 +32,10 @@ export class Webhooks extends EventEmitter {
   constructor(private config: BridgeConfig) {
     super();
     this.expressRouter.use((req, _res, next) => {
-      Metrics.webhooksHttpRequest.inc({ path: req.path, method: req.method });
+      Metrics.webhooksHttpRequest.inc({
+        path: redactWebhookPath(req.path),
+        method: req.method,
+      });
       next();
     });
 
