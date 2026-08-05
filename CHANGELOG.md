@@ -1,3 +1,10 @@
+# 7.4.4 (2026-08-05)
+
+## Bugfixes
+
+- Do not log webhook URLs to prometheus metrics. Fixes GHSA-5c49-6fvm-2xvc. ([\#1365](https://github.com/matrix-org/matrix-hookshot/issues/1365))
+
+
 # 7.4.3 (2026-07-15)
 
 ## Bugfixes

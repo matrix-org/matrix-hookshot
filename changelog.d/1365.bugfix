@@ -1,1 +1,0 @@
-Do not log webhook URLs to prometheus metrics. Fixes GHSA-5c49-6fvm-2xvc.
