@@ -3,6 +3,7 @@
 - [ℹ️ Hookshot](./hookshot.md)
 - [⚙️ Setup](./setup.md)
   - [📃 Sample Configuration](./setup/sample-configuration.md)
+  - [☸️ Helm](./helm.md)
   - [Feeds](./setup/feeds.md)
   - [Figma](./setup/figma.md)
   - [GitHub](./setup/github.md)
