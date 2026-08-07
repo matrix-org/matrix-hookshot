@@ -1,0 +1,1 @@
+Helm Chart - Minor tidy up of ingress configuration and explicit default configuration in values.yaml, no longer requires setting the port in ingress as well as services
