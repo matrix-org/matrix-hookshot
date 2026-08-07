@@ -309,9 +309,12 @@ export class E2ETestMatrixClient extends MatrixClient {
 
 export class E2ETestEnv<ML extends string = string> {
   static get workerId() {
+    if (typeof process.env.VITEST_WORKER_ID !== "string") {
+      throw Error("process.env.VITEST_WORKER_ID was not provided");
+    }
     const workerId = parseInt(process.env.VITEST_WORKER_ID);
     if (isNaN(workerId)) {
-      throw Error("WorkerID is invalid");
+      throw Error("process.env.VITEST_WORKER_ID is invalid");
     }
     return workerId;
   }

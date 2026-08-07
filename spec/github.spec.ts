@@ -1,5 +1,6 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, test, beforeAll, afterAll, expect } from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { E2ETestEnv } from "./util/e2e-test";
+import { describe, expect } from "vitest";
 
 import { createHmac, randomUUID } from "crypto";
 import {
@@ -7,20 +8,14 @@ import {
   GitHubRepoConnectionState,
 } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
-import { getBridgeApi } from "./util/bridge-api";
-import { Server, createServer } from "http";
+import { createServer } from "http";
 import { waitFor } from "./util/helpers";
 
-describe("GitHub", () => {
-  let testEnv: E2ETestEnv;
-  let githubServer: Server;
-  const webhooksPort = 9500 + E2ETestEnv.workerId;
-  const githubPort = 9700 + E2ETestEnv.workerId;
-
-  beforeAll(async () => {
-    // Fake out enough of a GitHub API to get past startup. Later
-    // tests might make more use of this.
-    githubServer = createServer((req, res) => {
+const test = baseTest
+  .override("testHttpServer", ({ webhooksPort }, { onCleanup }) => {
+    const githubPort = webhooksPort + 200;
+    // Fake out enough of a GitHub API to get past startup.
+    const githubServer = createServer((req, res) => {
       if (req.method === "GET" && req.url === "/api/v3/app") {
         res.writeHead(200, undefined, { "content-type": "application/json" });
         res.write(JSON.stringify({}));
@@ -36,54 +31,40 @@ describe("GitHub", () => {
       }
       res.end();
     }).listen(githubPort);
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        github: {
-          webhook: {
-            secret: randomUUID(),
-          },
-          oauth: {
-            client_id: "GITHUB_ID",
-            client_secret: "GITHUB_SECRET",
-            redirect_uri: "http://example.org/redirectme",
-          },
-          // So we can mock out the URL
-          enterpriseUrl: `http://localhost:${githubPort}`,
-          auth: {
-            privateKeyFile: "replaced",
-            id: "1234",
-          },
-        },
-        widgets: {
-          publicUrl: `http://localhost:${webhooksPort}`,
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks", "widgets"],
-          },
-        ],
-      },
+    onCleanup(async () => {
+      githubServer.close();
     });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
+    return githubPort;
+  })
+  .override("testEnvOpts", async ({ testHttpServer }, { onCleanup }) => ({
+    config: {
+      github: {
+        webhook: {
+          secret: randomUUID(),
+        },
+        oauth: {
+          client_id: "GITHUB_ID",
+          client_secret: "GITHUB_SECRET",
+          redirect_uri: "http://example.org/redirectme",
+        },
+        // So we can mock out the URL
+        enterpriseUrl: `http://localhost:${testHttpServer}`,
+        auth: {
+          privateKeyFile: "replaced",
+          id: "1234",
+        },
+      },
+    },
+  }));
 
-  afterAll(() => {
-    githubServer?.close();
-    return testEnv?.tearDown();
-  });
-
-  test.each(["/", "/github/webhook"])(
-    "should be able to handle a GitHub event  (on path %s)",
-    async (path) => {
-      const user = testEnv.getUser("user");
-      const bridgeApi = await getBridgeApi(
-        testEnv.opts.config?.widgets?.publicUrl!,
-        user,
-      );
+describe("GitHub", () => {
+  for (const path of ["/", "/github/webhook"]) {
+    test(`should be able to handle a GitHub event  (on path ${path})`, async ({
+      testEnv,
+      user,
+      bridgeApi,
+      webhooksPort,
+    }) => {
       const testRoomId = await user.createRoom({
         name: "Test room",
         invite: [testEnv.botMxid],
@@ -171,16 +152,17 @@ describe("GitHub", () => {
       expect(body).toContain("**alice** opened a new PR");
       expect(body).toContain("https://github.com/my-org/my-repo/pulls/1");
       expect(body).toContain("My test pull request");
-    },
-  );
+    });
+  }
 
-  test.each(["/oauth", "/github/oauth"])(
-    "should redirect invalid oauth requests to oauth.html",
-    async (path) => {
+  for (const path of ["/oauth", "/github/oauth"]) {
+    test(`should redirect invalid oauth requests to oauth.html  (on path ${path})`, async ({
+      webhooksPort,
+    }) => {
       // This simply tests that oauth requests do not end up being ignored.
       const req = await fetch(`http://localhost:${webhooksPort}${path}`);
       expect(req.url.startsWith(`http://localhost:${webhooksPort}/oauth.html`))
         .to.be.true;
-    },
-  );
+    });
+  }
 });

@@ -1,21 +1,12 @@
 import { MessageEventContent } from "matrix-bot-sdk";
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { expect, describe, test, beforeEach, afterEach } from "vitest";
+import { test } from "./util/fixtures";
+import { expect, describe } from "vitest";
 
 describe("Basic test setup", () => {
-  let testEnv: E2ETestEnv;
-
-  beforeEach(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({ matrixLocalparts: ["user"] });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
-
-  afterEach(() => {
-    return testEnv?.tearDown();
-  });
-
-  test("should be able to invite the bot to a room", async () => {
-    const user = testEnv.getUser("user");
+  test("should be able to invite the bot to a room", async ({
+    testEnv,
+    user,
+  }) => {
     const roomId = await user.createRoom({
       name: "Test room",
       invite: [testEnv.botMxid],

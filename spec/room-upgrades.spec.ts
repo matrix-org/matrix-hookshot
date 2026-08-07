@@ -1,50 +1,24 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, test, beforeAll, afterAll, expect } from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { describe, expect } from "vitest";
 import { createInboundConnection, waitFor } from "./util/helpers";
-import { getBridgeApi } from "./util/bridge-api";
+
+const test = baseTest
+  .override("enableWidgets", true)
+  .override("testEnvOpts", ({ webhooksPort }) => ({
+    config: {
+      generic: {
+        enabled: true,
+        waitForComplete: true,
+        urlPrefix: `http://localhost:${webhooksPort}`,
+      },
+    },
+  }));
 
 describe("Room Upgrades", () => {
-  let testEnv: E2ETestEnv;
-
-  beforeAll(async () => {
-    const webhooksPort = 9500 + E2ETestEnv.workerId;
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        generic: {
-          enabled: true,
-          // Prefer to wait for complete as it reduces the concurrency of the test.
-          waitForComplete: true,
-          urlPrefix: `http://localhost:${webhooksPort}`,
-        },
-        widgets: {
-          publicUrl: `http://localhost:${webhooksPort}`,
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            resources: ["webhooks", "widgets"],
-          },
-        ],
-      },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
-
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
   test(
     "should be able to create a new generic webhook, upgrade the room, and have the state carry over.",
     { timeout: 25000 },
-    async () => {
-      const user = testEnv.getUser("user");
-      const bridgeApi = await getBridgeApi(
-        testEnv.opts.config?.widgets?.publicUrl!,
-        user,
-      );
+    async ({ testEnv, user, bridgeApi }) => {
       const previousRoomId = await user.createRoom({
         name: "My Test Webhooks room",
       });

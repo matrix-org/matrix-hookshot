@@ -11,6 +11,7 @@ export default defineConfig({
     typecheck: {
       enabled: true,
     },
+    hookTimeout: 60000,
     retry: process.env.CI ? 3 : 1,
     include: ['spec/*.spec.ts'],
   },

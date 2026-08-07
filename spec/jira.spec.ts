@@ -1,5 +1,6 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, expect, beforeAll, afterAll, test } from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { E2ETestEnv } from "./util/e2e-test";
+import { describe, expect } from "vitest";
 import { createHmac, randomUUID } from "crypto";
 import {
   JiraProjectConnection,
@@ -7,7 +8,6 @@ import {
 } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
 import { JiraGrantChecker } from "../src/jira/GrantChecker";
-import { getBridgeApi } from "./util/bridge-api";
 import { waitFor } from "./util/helpers";
 
 const JIRA_PAYLOAD = {
@@ -80,47 +80,24 @@ const JIRA_PAYLOAD = {
   },
 };
 
-describe("JIRA", () => {
-  let testEnv: E2ETestEnv;
-  const webhooksPort = 9500 + E2ETestEnv.workerId;
-
-  beforeAll(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        jira: {
-          webhook: {
-            secret: randomUUID(),
-          },
-        },
-        widgets: {
-          publicUrl: `http://localhost:${webhooksPort}`,
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks", "widgets"],
-          },
-        ],
+const test = baseTest.override("testEnvOpts", {
+  config: {
+    jira: {
+      webhook: {
+        secret: randomUUID(),
       },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
+    },
+  },
+});
 
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
-  test.each(["/", "/jira/webhook"])(
-    "should be able to handle a JIRA event (on path %s)",
-    async (path) => {
-      const user = testEnv.getUser("user");
-      const bridgeApi = await getBridgeApi(
-        testEnv.opts.config?.widgets?.publicUrl!,
-        user,
-      );
+describe("JIRA", () => {
+  for (const path of ["/", "/jira/webhook"]) {
+    test(`should be able to handle a JIRA event (on path ${path})`, async ({
+      testEnv,
+      user,
+      bridgeApi,
+      webhooksPort,
+    }) => {
       const testRoomId = await user.createRoom({
         name: "Test room",
         invite: [testEnv.botMxid],
@@ -185,6 +162,6 @@ describe("JIRA", () => {
       expect(body).toContain(
         'Test User created a new JIRA issue [TP-8](https://example.org/browse/TP-8): "Test issue"',
       );
-    },
-  );
+    });
+  }
 });

@@ -1,18 +1,18 @@
-import {
+import type {
   BridgeRoomState,
   GetAuthPollResponse,
   GetAuthResponse,
   GetConnectionsForServiceResponse,
 } from "../src/widgets/BridgeWidgetInterface";
-import { GetConnectionsResponseItem } from "../src/provisioning/api";
-import {
+import type { GetConnectionsResponseItem } from "../src/widgets/Api";
+import type {
   ExchangeOpenAPIRequestBody,
   ExchangeOpenAPIResponseBody,
 } from "matrix-appservice-bridge";
 import { WidgetApi } from "matrix-widget-api";
 import { ApiError } from "../src/api";
 import { FunctionComponent } from "preact";
-import { IConnectionState } from "../src/Connections";
+import type { IConnectionState } from "../src/Connections";
 export class BridgeAPIError extends Error {
   constructor(
     msg: string,

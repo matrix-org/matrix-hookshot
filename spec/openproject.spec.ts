@@ -1,8 +1,7 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, expect, beforeAll, afterAll, test } from "vitest";
+import { test as baseTest } from "./util/fixtures";
+import { describe, expect } from "vitest";
 import { createHmac, randomUUID } from "crypto";
 import { MessageEventContent } from "matrix-bot-sdk";
-import { getBridgeApi } from "./util/bridge-api";
 import { waitFor } from "./util/helpers";
 import {
   OpenProjectConnection,
@@ -308,46 +307,24 @@ const OPEN_PROJECT_PAYLOAD = {
   },
 };
 
-describe("OpenProject", () => {
-  let testEnv: E2ETestEnv;
-  const webhooksPort = 9500 + E2ETestEnv.workerId;
-
-  beforeAll(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        openProject: {
-          webhook: {
-            secret: randomUUID(),
-          },
-          baseUrl: "http://mytestproject.com/",
-        },
-        widgets: {
-          publicUrl: `http://localhost:${webhooksPort}`,
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks", "widgets"],
-          },
-        ],
+const test = baseTest.override("testEnvOpts", {
+  config: {
+    openProject: {
+      webhook: {
+        secret: randomUUID(),
       },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
+      baseUrl: "http://mytestproject.com/",
+    },
+  },
+});
 
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
-  test("should be able to handle a OpenProject event", async () => {
-    const user = testEnv.getUser("user");
-    const bridgeApi = await getBridgeApi(
-      testEnv.opts.config?.widgets?.publicUrl!,
-      user,
-    );
+describe("OpenProject", () => {
+  test("should be able to handle a OpenProject event", async ({
+    testEnv,
+    webhooksPort,
+    user,
+    bridgeApi,
+  }) => {
     const testRoomId = await user.createRoom({
       name: "Test room",
       invite: [testEnv.botMxid],

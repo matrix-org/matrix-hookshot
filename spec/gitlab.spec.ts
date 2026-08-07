@@ -1,62 +1,39 @@
-import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, test, beforeAll, afterAll, expect } from "vitest";
-
-import { createHmac, randomUUID } from "crypto";
+import { test as baseTest } from "./util/fixtures";
+import { E2ETestEnv } from "./util/e2e-test";
+import { describe, expect } from "vitest";
+import { randomUUID } from "crypto";
 import {
   GitLabRepoConnection,
   GitLabRepoConnectionState,
 } from "../src/Connections";
 import { MessageEventContent } from "matrix-bot-sdk";
-import { getBridgeApi } from "./util/bridge-api";
 import { waitFor } from "./util/helpers";
 import { IGitLabWebhookMREvent } from "../src/gitlab/WebhookTypes";
 
-describe("GitLab", () => {
-  let testEnv: E2ETestEnv;
-  const webhooksPort = 9500 + E2ETestEnv.workerId;
+const webhooksPort = 9500 + E2ETestEnv.workerId;
 
-  beforeAll(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
-      config: {
-        gitlab: {
-          webhook: {
-            secret: randomUUID(),
-          },
-          instances: {
-            "example.org": {
-              url: "http://gitlab.example.org",
-            },
-          },
-        },
-        widgets: {
-          publicUrl: `http://localhost:${webhooksPort}`,
-        },
-        listeners: [
-          {
-            port: webhooksPort,
-            bindAddress: "0.0.0.0",
-            // Bind to the SAME listener to ensure we don't have conflicts.
-            resources: ["webhooks", "widgets"],
-          },
-        ],
+const test = baseTest.override("testEnvOpts", {
+  config: {
+    gitlab: {
+      webhook: {
+        secret: randomUUID(),
       },
-    });
-    await testEnv.setUp();
-  }, E2ESetupTestTimeout);
+      instances: {
+        "example.org": {
+          url: "http://gitlab.example.org",
+        },
+      },
+    },
+  },
+});
 
-  afterAll(() => {
-    return testEnv?.tearDown();
-  });
-
-  test.each(["/", "/gitlab/webhook"])(
-    "should be able to handle a GitLab event (on path %s)",
-    async (path) => {
-      const user = testEnv.getUser("user");
-      const bridgeApi = await getBridgeApi(
-        testEnv.opts.config?.widgets?.publicUrl!,
-        user,
-      );
+describe("GitLab", () => {
+  for (const path of ["/", "/gitlab/webhook"]) {
+    test(`should be able to handle a GitLab event (on path ${path})`, async ({
+      testEnv,
+      user,
+      bridgeApi,
+    }) => {
       const testRoomId = await user.createRoom({
         name: "Test room",
         invite: [testEnv.botMxid],
@@ -141,6 +118,6 @@ describe("GitLab", () => {
         "https://gilab.example.org/my-project/-/merge_requests/1",
       );
       expect(body).toContain("My test MR");
-    },
-  );
+    });
+  }
 });
