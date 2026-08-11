@@ -7,19 +7,19 @@ then
     exit 1
 fi
 
-VERSION=`jq -r .version <(git show :package.json)`
+VERSION=`jq -r .version package.json`
 
 function parseCargoVersion {
     awk '$1 == "version" {gsub("\"", "", $3); print $3}' $1
 }
-CARGO_TOML_VERSION=`parseCargoVersion <(git show :Cargo.toml)`
+CARGO_TOML_VERSION=`parseCargoVersion Cargo.toml`
 if [[ $VERSION != $CARGO_TOML_VERSION ]]; then
     echo "Node & Rust package versions do not match." >&2
     echo "Node version (package.json): ${VERSION}" >&2
     echo "Rust version (Cargo.toml): ${CARGO_TOML_VERSION}" >&2
     exit 2
 fi
-CARGO_LOCK_VERSION=`parseCargoVersion <(grep -A1 matrix-hookshot <(git show :Cargo.lock))`
+CARGO_LOCK_VERSION=`parseCargoVersion <(grep -A1 matrix-hookshot Cargo.lock)`
 if [[ $CARGO_TOML_VERSION != $CARGO_LOCK_VERSION ]]; then
     echo "Rust package version does not match the lockfile." >&2
     echo "Rust version (Cargo.toml): ${CARGO_TOML_VERSION}" >&2
@@ -40,11 +40,22 @@ if [ $(git tag -l "$TAG") ]; then
     exit 5
 fi
 
+GIT_STATUS=$(git status --porcelain | grep -vE 'package.json|Cargo.(lock|toml)')
+if [[ -n $GIT_STATUS ]]; then
+    echo "Uncommitted changes:"
+    echo $GIT_STATUS
+    read -p "Continue anyways? [y/N] " prompt
+    if [[ $prompt != "y" && $prompt != "Y" && $prompt != "yes" && $prompt != "Yes" ]]
+    then
+        exit 0
+    fi
+fi
+
 echo "Drafting a new release"
 towncrier build --draft --version $VERSION> draft-release.txt
 cat draft-release.txt
 
-read -p "Happy with the changelog? <y/N> " prompt
+read -p "Happy with the changelog? [y/N] " prompt
 if [[ $prompt != "y" && $prompt != "Y" && $prompt != "yes" && $prompt != "Yes" ]]
 then
   rm draft-release.txt
@@ -53,7 +64,7 @@ fi
 
 echo "Committing version"
 towncrier build --version $VERSION
-git commit CHANGELOG.md changelog.d/ package.json -m $TAG
+git commit CHANGELOG.md changelog.d/ package.json Cargo.toml Cargo.lock -m $TAG
 
 echo "Proceeding to generate tags"
 git tag -F draft-release.txt -s $TAG
