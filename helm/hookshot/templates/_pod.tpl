@@ -43,9 +43,10 @@ containers:
 {{- toYaml .Values.containerSecurityContext | nindent 6 }}
 {{- end }}
     volumeMounts:
-{{- if or (and (not .Values.hookshot.existingConfigMap) (.Values.hookshot.config)) (.Values.hookshot.existingConfigMap) }}
       - name: config
         mountPath: "/data"
+{{- if .Values.extraContainerVolumeMounts }}
+{{ tpl (toYaml .Values.extraContainerVolumeMounts) . | indent 6 }}
 {{- end }}
     ports:
       - name: webhook
@@ -108,9 +109,15 @@ tolerations:
 {{ toYaml . | indent 2 }}
 {{- end }}
 volumes:
+{{- if .Values.hookshot.existingConfigSecretName }}
+  - name: config
+    secret:
+      secretName: {{ .Values.hookshot.existingConfigSecretName }}
+{{- else }}
   - name: config
     configMap:
       name: {{ template "hookshot.configMapName" . }}
+{{- end }}
 {{- $root := . }}
 {{- range .Values.extraConfigmapMounts }}
   - name: {{ tpl .name $root }}

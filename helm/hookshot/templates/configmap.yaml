@@ -1,5 +1,5 @@
 ---
-{{- if not .Values.hookshot.existingConfigMap }}
+{{- if not (or .Values.hookshot.existingConfigMap .Values.hookshot.existingConfigSecretName) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
