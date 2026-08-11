@@ -105,6 +105,7 @@ You'll need to configure your Ingress connectivity according to your environment
 | podSecurityContext | object | `{}` | Pod security context settings |
 | replicaCount | int | `1` | Number of replicas to deploy. Consequences of using multiple Hookshot replicas currently unknown. |
 | resources | object | `{}` | Pod resource requests / limits |
+| persistence | object | `{}` | Config for persistent encryption store in /persistent |
 | securityContext | object | `{}` | Security context settings |
 | service.annotations | object | `{}` | Extra annotations for service |
 | service.appservice.port | int | `9002` | Appservice port as configured in container |
