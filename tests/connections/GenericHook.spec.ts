@@ -1,4 +1,4 @@
-import { describe, it, beforeAll, expect } from "vitest";
+import { describe, it, beforeAll, expect, vi } from "vitest";
 import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
 import {
   BridgeConfigGenericWebhooks,
@@ -449,6 +449,38 @@ describe("GenericHookConnection", () => {
     await testSimpleWebhook(connection, mq, "data1");
     // regression test covering https://github.com/matrix-org/matrix-hookshot/issues/625
     await testSimpleWebhook(connection, mq, "data2");
+  });
+
+  it("should suffix the displayname of a webhook user with ' (Webhook)' by default", async () => {
+    const [connection, , as] = createGenericHook(undefined, {
+      userIdPrefix: "_webhooks_",
+    });
+    const intent = as.getIntentForUserId(connection.getUserId());
+    const setDisplayName = vi.spyOn(intent.underlyingClient, "setDisplayName");
+    await connection.ensureDisplayname(intent);
+    expect(setDisplayName).toHaveBeenCalledWith("some-name (Webhook)");
+  });
+
+  it("should suffix the displayname of a webhook user with a configured suffix", async () => {
+    const [connection, , as] = createGenericHook(undefined, {
+      userIdPrefix: "_webhooks_",
+      displaynameSuffix: " [alerts]",
+    });
+    const intent = as.getIntentForUserId(connection.getUserId());
+    const setDisplayName = vi.spyOn(intent.underlyingClient, "setDisplayName");
+    await connection.ensureDisplayname(intent);
+    expect(setDisplayName).toHaveBeenCalledWith("some-name [alerts]");
+  });
+
+  it("should not suffix the displayname of a webhook user when the suffix is empty", async () => {
+    const [connection, , as] = createGenericHook(undefined, {
+      userIdPrefix: "_webhooks_",
+      displaynameSuffix: "",
+    });
+    const intent = as.getIntentForUserId(connection.getUserId());
+    const setDisplayName = vi.spyOn(intent.underlyingClient, "setDisplayName");
+    await connection.ensureDisplayname(intent);
+    expect(setDisplayName).toHaveBeenCalledWith("some-name");
   });
 
   it("should invite a configured puppet to the room if it's unable to join", async () => {

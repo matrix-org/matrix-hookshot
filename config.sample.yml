@@ -112,6 +112,9 @@ listeners:
 #  outbound: false
 #  urlPrefix: https://example.com/webhook/
 #  userIdPrefix: _webhooks_
+#  displaynameSuffix:
+#    # (Optional) The suffix to append to the displayname of a webhook user. Set to an empty string to use the webhook name unmodified.
+#    " (Webhook)"
 #  allowJsTransformationFunctions: false
 #  waitForComplete: false
 #  enableHttpGet: false
