@@ -20,6 +20,10 @@ export class MatrixClientMock {
     return;
   }
 
+  async getUserProfile(): Promise<{ displayname?: string }> {
+    return {};
+  }
+
   async getCapabilities(): Promise<MatrixCapabilities> {
     return {
       "m.set_displayname": {
