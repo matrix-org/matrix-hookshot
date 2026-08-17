@@ -17,6 +17,7 @@ export interface BridgeGenericWebhooksConfigYAML {
   enabled: boolean;
   urlPrefix: string;
   userIdPrefix?: string;
+  displaynameSuffix?: string;
   allowJsTransformationFunctions?: boolean;
   waitForComplete?: boolean;
   enableHttpGet?: boolean;
@@ -37,6 +38,13 @@ export class BridgeConfigGenericWebhooks {
   public readonly urlPrefix: () => string;
 
   public readonly userIdPrefix?: string;
+
+  @configKey(
+    "The suffix to append to the displayname of a webhook user. Set to an empty string to use the webhook name unmodified.",
+    true,
+  )
+  public readonly displaynameSuffix: string;
+
   public readonly allowJsTransformationFunctions?: boolean;
   public readonly waitForComplete?: boolean;
   public readonly enableHttpGet: boolean;
@@ -108,6 +116,7 @@ export class BridgeConfigGenericWebhooks {
       );
     }
     this.userIdPrefix = yaml.userIdPrefix;
+    this.displaynameSuffix = yaml.displaynameSuffix ?? " (Webhook)";
     this.allowJsTransformationFunctions = yaml.allowJsTransformationFunctions;
     this.waitForComplete = yaml.waitForComplete;
     this.maxExpiryTime = yaml.maxExpiryTime;
