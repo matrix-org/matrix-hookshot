@@ -274,7 +274,7 @@ importers:
         specifier: npm:@vector-im/matrix-bot-sdk@0.10.0-element.0
         version: '@vector-im/matrix-bot-sdk@0.10.0-element.0'
       matrix-widget-api:
-        specifier: ^1.10.0
+        specifier: ^1.14.0
         version: 1.17.0
       micromatch:
         specifier: ^4.0.8
