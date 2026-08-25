@@ -10,7 +10,7 @@
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "build:web": "vite build",
@@ -93,7 +93,7 @@
     "@preact/preset-vite": "^2.9.1",
     "@rollup/plugin-alias": "^6.0.0",
     "@testcontainers/redis": "^10.25.0",
-    "@tsconfig/node22": "^22",
+    "@tsconfig/node24": "^24",
     "@types/ajv": "^1.0.0",
     "@types/busboy": "^1.5.4",
     "@types/chai": "^4.2.22",
@@ -103,7 +103,7 @@
     "@types/markdown-it": "^13.0.7",
     "@types/micromatch": "^4.0.1",
     "@types/mime": "^3.0.4",
-    "@types/node": "^22",
+    "@types/node": "^24",
     "@types/xml2js": "^0.4.11",
     "@uiw/react-codemirror": "^4.12.3",
     "busboy": "^1.6.0",
