@@ -54,16 +54,16 @@ pub fn string_to_algo(algo_str: String) -> Result<Algo, Error> {
 impl TokenEncryption {
     pub fn new(private_key_data: Vec<u8>) -> Result<Self, TokenEncryptionError> {
         let data = String::from_utf8(private_key_data).map_err(TokenEncryptionError::FromUtf8)?;
-        let private_key: RsaPrivateKey;
-        if data.starts_with("-----BEGIN PRIVATE KEY-----") {
-            private_key = RsaPrivateKey::from_pkcs8_pem(data.as_str())
-                .map_err(TokenEncryptionError::PrivateKey8)?;
+
+        let private_key: RsaPrivateKey = if data.starts_with("-----BEGIN PRIVATE KEY-----") {
+            RsaPrivateKey::from_pkcs8_pem(data.as_str())
+                .map_err(TokenEncryptionError::PrivateKey8)?
         } else if data.starts_with("-----BEGIN RSA PRIVATE KEY-----") {
-            private_key = RsaPrivateKey::from_pkcs1_pem(data.as_str())
-                .map_err(TokenEncryptionError::PrivateKey1)?;
+            RsaPrivateKey::from_pkcs1_pem(data.as_str())
+                .map_err(TokenEncryptionError::PrivateKey1)?
         } else {
             return Err(TokenEncryptionError::UnknownFormat);
-        }
+        };
         let public_key = private_key.to_public_key();
         Ok(TokenEncryption {
             private_key,
