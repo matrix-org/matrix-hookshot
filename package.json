@@ -10,7 +10,7 @@
     "name": "matrix-hookshot-rs"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   },
   "scripts": {
     "build:web": "vite build",
@@ -61,9 +61,9 @@
     "ioredis": "^5.6.1",
     "jira-client": "^8.2.2",
     "markdown-it": "^14.0.0",
-    "matrix-appservice-bridge": "^11.2.0",
-    "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@0.8.0-element.3",
-    "matrix-widget-api": "^1.10.0",
+    "matrix-appservice-bridge": "^12.0.0",
+    "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@0.10.0-element.0",
+    "matrix-widget-api": "^1.14.0",
     "micromatch": "^4.0.8",
     "mime": "^4.0.4",
     "node-emoji": "^2.1.3",
@@ -93,7 +93,7 @@
     "@preact/preset-vite": "^2.9.1",
     "@rollup/plugin-alias": "^6.0.0",
     "@testcontainers/redis": "^10.25.0",
-    "@tsconfig/node22": "^22",
+    "@tsconfig/node24": "^24",
     "@types/ajv": "^1.0.0",
     "@types/busboy": "^1.5.4",
     "@types/chai": "^4.2.22",
@@ -103,7 +103,7 @@
     "@types/markdown-it": "^13.0.7",
     "@types/micromatch": "^4.0.1",
     "@types/mime": "^3.0.4",
-    "@types/node": "^22",
+    "@types/node": "^24",
     "@types/xml2js": "^0.4.11",
     "@uiw/react-codemirror": "^4.12.3",
     "busboy": "^1.6.0",

@@ -1,7 +1,9 @@
+ARG NODE_VERSION=24
+
 # Stage 0: Build the thing
 # Need debian based image to build the native rust module
 # as musl doesn't support cdylib
-FROM node:22-slim AS builder
+FROM node:${NODE_VERSION}-slim AS builder
 
 # Needed in order to build rust FFI bindings.
 RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config pkg-config libssl-dev
@@ -28,7 +30,7 @@ RUN pnpm run build
 
 
 # Stage 1: The actual container
-FROM node:22-slim
+FROM node:${NODE_VERSION}-slim
 
 WORKDIR /bin/matrix-hookshot
 
