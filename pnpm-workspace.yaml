@@ -1,3 +1,6 @@
+packages:
+  - "modules/*/*"
+
 allowBuilds:
   "@matrix-org/matrix-sdk-crypto-nodejs": true
   '@parcel/watcher': false
