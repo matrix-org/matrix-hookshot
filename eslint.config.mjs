@@ -71,4 +71,28 @@ export default [
             },
         },
     ),
+    ...tseslint.config(
+        {
+            settings: {
+                react: {
+                    version: "19",
+                }
+            },
+            files:  ["modules/**/*.ts", "modules/**/*.tsx"],
+            extends: [
+                eslint.configs.recommended,
+                ...tseslint.configs.recommended,
+                react.configs.flat.recommended,
+                react.configs.flat['jsx-runtime'],
+            ],
+            rules: {
+                "no-console": "off",
+                "@typescript-eslint/no-explicit-any": "warn",
+                "@typescript-eslint/no-unused-vars": "error",
+                "react/react-in-jsx-scope": "off",
+                "react/jsx-uses-react": "error",
+                "react/prop-types": "off",
+            },
+        },
+    ),
 ];

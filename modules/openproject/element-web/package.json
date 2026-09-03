@@ -1,0 +1,25 @@
+{
+  "name": "openproject-plugin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "license": "SEE LICENSE IN README.md",
+  "scripts": {
+    "prepare": "vite build",
+    "lint:types": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@element-hq/element-web-module-api": "^1.0.0",
+    "@vector-im/compound-design-tokens": "^10.2.2",
+    "@vector-im/compound-web": "^9.4.1",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@vitejs/plugin-react": "^5.0.4",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rollup-plugin-external-globals": "^0.13.0",
+    "styled-components": "^6.1.18",
+    "typescript": "^5.7.2",
+    "vite": "^7.0.0"
+  }
+}
