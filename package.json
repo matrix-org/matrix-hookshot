@@ -102,7 +102,7 @@
     "@types/jira-client": "^7.1.0",
     "@types/markdown-it": "^13.0.7",
     "@types/micromatch": "^4.0.1",
-    "@types/mime": "^3.0.4",
+    "@types/mime": "^4.0.0",
     "@types/node": "^22",
     "@types/xml2js": "^0.4.11",
     "@uiw/react-codemirror": "^4.12.3",
