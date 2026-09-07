@@ -1,1 +1,1 @@
-Add an intial implementation of an OpenProject element-web plugin module.
+Add an initial implementation of an OpenProject element-web plugin module.
