@@ -109,10 +109,12 @@ describe("Permissions test", () => {
       const user = testEnv.getUser(localpart);
       const roomId = await user.createRoom({
         name: "Test room",
-        invite: [testEnv.botMxid],
       });
+      // Register the waiter before the bot can possibly join.
+      const join = user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
+      await user.inviteUser(testEnv.botMxid, roomId);
       await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
-      await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
+      await join;
 
       const msgWebhooks = user.waitForRoomEvent<MessageEventContent>({
         eventType: "m.room.message",
@@ -130,11 +132,13 @@ describe("Permissions test", () => {
     const user = testEnv.getUser("allowed_user");
     const roomId = await user.createRoom({
       name: "Test room",
-      invite: [testEnv.botMxid],
       room_version: "12",
     });
+    // Register the waiter before the bot can possibly join.
+    const join = user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
+    await user.inviteUser(testEnv.botMxid, roomId);
     await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
-    await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId });
+    await join;
 
     const msgWebhooks = user.waitForRoomEvent<MessageEventContent>({
       eventType: "m.room.message",
