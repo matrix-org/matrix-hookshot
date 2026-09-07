@@ -4,16 +4,18 @@ import { E2ETestMatrixClient } from "./e2e-test";
 
 export async function waitFor(
   condition: () => Promise<boolean>,
-  delay = 100,
-  maxRetries = 10,
+  delay = 250,
+  maxRetries = 40,
 ) {
-  let retries = 0;
-  while (!(await condition()) && retries++ < maxRetries) {
-    await new Promise((r) => setTimeout(r, delay));
+  for (let retries = 0; retries <= maxRetries; retries++) {
+    if (await condition()) {
+      return;
+    }
+    if (retries < maxRetries) {
+      await new Promise((r) => setTimeout(r, delay));
+    }
   }
-  if (retries === maxRetries) {
-    throw Error("Hit retry limit");
-  }
+  throw Error("Hit retry limit");
 }
 
 export async function createInboundConnection(

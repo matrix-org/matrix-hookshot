@@ -350,13 +350,18 @@ describe("OpenProject", () => {
     );
     const testRoomId = await user.createRoom({
       name: "Test room",
-      invite: [testEnv.botMxid],
     });
+    // Register the waiter before the bot can possibly join.
+    const join = user.waitForRoomJoin({
+      sender: testEnv.botMxid,
+      roomId: testRoomId,
+    });
+    await user.inviteUser(testEnv.botMxid, testRoomId);
     await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
     const openProjectId =
       OPEN_PROJECT_PAYLOAD.work_package._embedded.project.id;
     // Pre-grant connection to allow us to bypass the oauth dance.
-    await user.waitForRoomJoin({ sender: testEnv.botMxid, roomId: testRoomId });
+    await join;
 
     // "Create" a JIRA connection.
     const url = `http://mytestproject.com/projects/${openProjectId}`;

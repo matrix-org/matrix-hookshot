@@ -1,4 +1,7 @@
 {
     "default_hs_url": "http://localhost:8008",
-    "showLabsSettings": true
+    "showLabsSettings": true,
+    "modules": [
+        "http://localhost:9001/widgetapi/v1/static/modules/openproject/element-web/index.js"
+    ]
 }

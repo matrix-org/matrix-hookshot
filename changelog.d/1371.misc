@@ -1,0 +1,1 @@
+Apply Rust clippy suggestion to resolve a needless late initialization.

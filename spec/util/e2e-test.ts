@@ -16,9 +16,37 @@ import {
   BridgeConfigServicePermission,
 } from "../../src/libRs";
 import { TestContainers } from "testcontainers";
+import { EventEmitter } from "node:events";
 
 const WAIT_EVENT_TIMEOUT = 20000;
 export const E2ESetupTestTimeout = 60000;
+
+/**
+ * Emitter types that `waitForEvent` can be asked to wait on, and which are
+ * therefore buffered so that a waiter registered *after* the event arrived can
+ * still see it.
+ */
+const BUFFERED_EMITTER_TYPES = [
+  "room.event",
+  "room.decrypted_event",
+  "room.invite",
+];
+
+/**
+ * How many events to keep for replay. These clients only live for the duration
+ * of a spec file, so this is plenty.
+ */
+const EVENT_BUFFER_SIZE = 512;
+
+interface BufferedEvent {
+  emitterType: string;
+  args: unknown[];
+  /**
+   * Set once a waiter has matched this event, so that a later waiter with the
+   * same filter waits for a *new* event rather than rematching this one.
+   */
+  consumed: boolean;
+}
 
 interface Opts<ML extends string> {
   matrixLocalparts?: ML[];
@@ -54,11 +82,32 @@ export interface E2ETestMatrixClientOpts {
 }
 
 export class E2ETestMatrixClient extends MatrixClient {
+  private readonly eventBuffer: BufferedEvent[] = [];
+  private readonly bufferSignal = new EventEmitter();
+
   constructor(
     private e2eOpts: E2ETestMatrixClientOpts,
     ...args: ConstructorParameters<typeof MatrixClient>
   ) {
     super(...args);
+    // These clients start syncing as soon as they are created, so an event can
+    // easily be emitted before the test body has had a chance to register a
+    // waiter for it. Buffer anything we might wait on, and have `waitForEvent`
+    // replay the buffer before falling back to waiting for new events.
+    this.bufferSignal.setMaxListeners(0);
+    for (const emitterType of BUFFERED_EMITTER_TYPES) {
+      this.on(emitterType, (...eventArgs: unknown[]) => {
+        this.eventBuffer.push({
+          emitterType,
+          args: eventArgs,
+          consumed: false,
+        });
+        while (this.eventBuffer.length > EVENT_BUFFER_SIZE) {
+          this.eventBuffer.shift();
+        }
+        this.bufferSignal.emit("event");
+      });
+    }
     if (e2eOpts.autoAcceptInvite) {
       this.on("room.invite", (eventRoomId: string) => {
         this.joinRoom(eventRoomId);
@@ -283,26 +332,52 @@ export class E2ETestMatrixClient extends MatrixClient {
   }
 
   public async waitForEvent<T>(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     emitterType: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     filterFn: (...args: any[]) => T | undefined,
     timeoutMsg: string,
   ): Promise<T> {
-    return new Promise((resolve, reject) => {
+    if (!BUFFERED_EMITTER_TYPES.includes(emitterType)) {
+      throw Error(`${emitterType} is not buffered, cannot wait for it`);
+    }
+    // Scan the buffer for a matching event that hasn't been claimed by another
+    // waiter yet. All matching (live or replayed) happens here, so that an
+    // event can only ever satisfy a single waiter.
+    const matchBuffer = (): T | undefined => {
+      for (const entry of this.eventBuffer) {
+        if (entry.consumed || entry.emitterType !== emitterType) {
+          continue;
+        }
+        const data = filterFn(...entry.args);
+        if (data) {
+          entry.consumed = true;
+          return data;
+        }
+      }
+      return undefined;
+    };
+
+    const buffered = matchBuffer();
+    if (buffered) {
+      return buffered;
+    }
+
+    return new Promise<T>((resolve, reject) => {
       // eslint-disable-next-line prefer-const
       let timer: NodeJS.Timeout;
-      const fn = (...args: unknown[]) => {
-        const data = filterFn(...args);
+      const fn = () => {
+        const data = matchBuffer();
         if (data) {
           clearTimeout(timer);
+          this.bufferSignal.removeListener("event", fn);
           resolve(data);
         }
       };
       timer = setTimeout(() => {
-        this.removeListener(emitterType, fn);
+        this.bufferSignal.removeListener("event", fn);
         reject(new Error(timeoutMsg));
       }, WAIT_EVENT_TIMEOUT);
-      this.on(emitterType, fn);
+      this.bufferSignal.on("event", fn);
     });
   }
 }
