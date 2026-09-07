@@ -5,6 +5,8 @@ set -e
 
 echo "Cleaning web"
 pnpm run clean:web
+echo "Cleaning modules"
+pnpm run clean:modules
 echo "Cleaning Typescript layer"
 pnpm run clean:app
 echo "Cleaning Rust layer"

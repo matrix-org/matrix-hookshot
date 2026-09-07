@@ -18,6 +18,7 @@ ENV CARGO_NET_GIT_FETCH_WITH_CLI=$CARGO_NET_GIT_FETCH_WITH_CLI
 WORKDIR /src
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY modules ./modules
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
 RUN pnpm install --frozen-lockfile
