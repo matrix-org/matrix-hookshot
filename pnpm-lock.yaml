@@ -208,9 +208,6 @@ catalogs:
     '@types/node':
       specifier: ^22
       version: 22.20.1
-    '@vector-im/compound-design-tokens':
-      specifier: ^10.2.2
-      version: 10.2.2
     '@vector-im/compound-web':
       specifier: ^9.4.1
       version: 9.8.0
@@ -245,10 +242,10 @@ importers:
         version: 7.120.4
       '@vector-im/compound-design-tokens':
         specifier: 'catalog:'
-        version: 10.2.2(@types/react@19.2.18)(react@19.2.7)
+        version: 10.2.4(@types/react@19.2.18)(react@19.2.7)
       '@vector-im/compound-web':
         specifier: 'catalog:'
-        version: 9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.2(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       ajv:
         specifier: ^8.11.0
         version: 8.20.0
@@ -477,10 +474,10 @@ importers:
         version: 19.2.18
       '@vector-im/compound-design-tokens':
         specifier: 'catalog:'
-        version: 10.2.2(@types/react@19.2.18)(react@19.2.7)
+        version: 10.2.4(@types/react@19.2.18)(react@19.2.7)
       '@vector-im/compound-web':
         specifier: 'catalog:'
-        version: 9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.2(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@vitejs/plugin-react':
         specifier: ^5.0.4
         version: 5.2.0(vite@7.3.5(@types/node@22.20.1)(sass@1.101.0)(yaml@2.9.0))
@@ -2636,13 +2633,19 @@ packages:
       react: '>=17.0.0'
       react-dom: '>=17.0.0'
 
-  '@vector-im/compound-design-tokens@10.2.2':
-    resolution: {integrity: sha512-kncYroDEwyvvk4K4E67ExP4RYp9NEineD1tB38KeJwTmOvcrPtGjWyBAyJgOGeRuc7G5edNLkWnAbvk5yZJ+5w==}
+  '@vector-im/compound-design-tokens@10.2.4':
+    resolution: {integrity: sha512-2aCjhSvJxktPWnvh5s9Xdc0Rd76AfHqbDbN4QjOxo2VIac6zYdLyQbxMUQ5ZeoR9G3vAxILd0H1UvApRfMilpQ==}
     peerDependencies:
+      '@adobe/leonardo-contrast-colors': ^1.0.0
       '@types/react': '*'
+      chroma-js: ^3.0.0
       react: ^17 || ^18 || ^19.0.0
     peerDependenciesMeta:
+      '@adobe/leonardo-contrast-colors':
+        optional: true
       '@types/react':
+        optional: true
+      chroma-js:
         optional: true
       react:
         optional: true
@@ -7635,12 +7638,12 @@ snapshots:
       - '@codemirror/lint'
       - '@codemirror/search'
 
-  '@vector-im/compound-design-tokens@10.2.2(@types/react@19.2.18)(react@19.2.7)':
+  '@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7)':
     optionalDependencies:
       '@types/react': 19.2.18
       react: 19.2.7
 
-  '@vector-im/compound-web@9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.2(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@vector-im/compound-web@9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@floating-ui/react': 0.27.20(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@floating-ui/react-dom': 2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -7652,7 +7655,7 @@ snapshots:
       '@radix-ui/react-progress': 1.1.12(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-separator': 1.1.11(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@radix-ui/react-slot': 1.3.0(@types/react@19.2.18)(react@19.2.7)
-      '@vector-im/compound-design-tokens': 10.2.2(@types/react@19.2.18)(react@19.2.7)
+      '@vector-im/compound-design-tokens': 10.2.4(@types/react@19.2.18)(react@19.2.7)
       classnames: 2.5.1
       react: 19.2.7
       vaul: 1.1.2(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
