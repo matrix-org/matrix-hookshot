@@ -4,10 +4,12 @@ import { safeColor } from "./validation";
 import { WorkPackageStatusIndicator } from "./WorkPackageStyles";
 
 export function WorkPackageStatus({ status }: { status: OpenProjectStatus }) {
+  const safeStatusColor = safeColor(status.color);
+
   return (
     <span>
       <WorkPackageStatusIndicator
-        style={{ background: safeColor(status.color) }}
+        {...(safeStatusColor ? { style: { background: safeStatusColor } } : {})}
       />
       {status.name}
     </span>

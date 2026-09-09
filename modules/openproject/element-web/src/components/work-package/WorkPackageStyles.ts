@@ -14,6 +14,7 @@ export const WorkPackageStatusIndicator = styled.div`
   height: 0.9em;
   display: inline-block;
   margin-right: var(--cpd-space-1x);
+  background: var(--cpd-color-border-interactive-primary);
 `;
 
 export const WorkPackageRow = styled.div`
