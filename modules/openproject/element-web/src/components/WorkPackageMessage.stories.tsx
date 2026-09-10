@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  assignee,
   changedDescriptionDetails,
   changedWorkPackage,
   completeWorkPackage,
@@ -54,7 +55,7 @@ export const ChangedAssigneeTakesPrecedence: Story = {
     data: {
       "org.matrix.matrix-hookshot.openproject.work_package": changedWorkPackage,
       "org.matrix.matrix-hookshot.openproject.work_package.changed": {
-        assignee: 2,
+        assignee,
         status: { name: "New", color: "#6b7280" },
       },
     },

@@ -31,10 +31,10 @@ export interface OpenProjectWorkPackageContent {
 export interface OpenProjectWorkPackageChanges {
   subject?: string;
   description?: OpenProjectDescription;
-  assignee?: number;
+  assignee?: OpenProjectPerson;
   status?: OpenProjectStatus;
-  type?: number;
-  responsible?: number;
+  type?: OpenProjectStatus;
+  responsible?: OpenProjectPerson;
   priority?: OpenProjectStatus;
   percentageDone?: number | null;
   dueDate?: string | null;

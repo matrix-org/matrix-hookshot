@@ -230,7 +230,12 @@ describe("OpenProject changed-work-package renderer", () => {
   it.each([
     {
       name: "assignee",
-      changes: { assignee: 11 },
+      changes: {
+        assignee: {
+          name: "Grace Hopper",
+          url: "https://openproject.example/users/2",
+        },
+      },
       overrides: {},
       expectedText: "Assignee changed to Alice",
     },
@@ -260,7 +265,12 @@ describe("OpenProject changed-work-package renderer", () => {
     },
     {
       name: "responsible user",
-      changes: { responsible: 12 },
+      changes: {
+        responsible: {
+          name: "Alan Turing",
+          url: "https://openproject.example/users/3",
+        },
+      },
       overrides: {
         responsible: {
           name: "Bob",
@@ -283,7 +293,9 @@ describe("OpenProject changed-work-package renderer", () => {
     },
     {
       name: "type",
-      changes: { type: 2 },
+      changes: {
+        type: { name: "Old task type", color: "#6B7280" },
+      },
       overrides: { type: { name: "Task", color: "#1A67A3" } },
       expectedText: "Type changed to Task",
     },
@@ -299,13 +311,23 @@ describe("OpenProject changed-work-package renderer", () => {
   it.each([
     {
       name: "an assignee",
-      changes: { assignee: 11 },
+      changes: {
+        assignee: {
+          name: "Grace Hopper",
+          url: "https://openproject.example/users/2",
+        },
+      },
       overrides: { assignee: undefined },
       expectedText: "Assignee changed to Nobody",
     },
     {
       name: "a responsible user",
-      changes: { responsible: 12 },
+      changes: {
+        responsible: {
+          name: "Alan Turing",
+          url: "https://openproject.example/users/3",
+        },
+      },
       overrides: { responsible: undefined },
       expectedText: "Updated accountable person to Nobody",
     },
@@ -338,7 +360,10 @@ describe("OpenProject changed-work-package renderer", () => {
 
   it("documents that the current renderer gives assignee changes precedence", () => {
     const text = renderChangedDetails({
-      assignee: 11,
+      assignee: {
+        name: "Grace Hopper",
+        url: "https://openproject.example/users/2",
+      },
       subject: "Previous subject",
     });
 

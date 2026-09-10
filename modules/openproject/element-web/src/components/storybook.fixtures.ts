@@ -89,11 +89,11 @@ export const changedDescriptionDetails: OpenProjectWorkPackageChanges = {
 };
 
 export const changedAssigneeDetails: OpenProjectWorkPackageChanges = {
-  assignee: 2,
+  assignee,
 };
 
 export const changedResponsibleDetails: OpenProjectWorkPackageChanges = {
-  responsible: 3,
+  responsible,
 };
 
 export const changedPriorityDetails: OpenProjectWorkPackageChanges = {
@@ -113,7 +113,7 @@ export const changedSubjectDetails: OpenProjectWorkPackageChanges = {
 };
 
 export const changedTypeDetails: OpenProjectWorkPackageChanges = {
-  type: 1,
+  type,
 };
 
 export const clearedOptionalValuesWorkPackage: OpenProjectWorkPackageContent = {
@@ -124,8 +124,8 @@ export const clearedOptionalValuesWorkPackage: OpenProjectWorkPackageContent = {
 };
 
 export const clearedOptionalValuesDetails: OpenProjectWorkPackageChanges = {
-  assignee: 2,
-  responsible: 3,
+  assignee,
+  responsible,
   priority,
   percentageDone: 40,
   dueDate: "2026-10-01",

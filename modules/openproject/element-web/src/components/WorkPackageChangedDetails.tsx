@@ -62,7 +62,8 @@ export function WorkPackageChangedDetails({
   } else if (changes.priority !== undefined) {
     innerContent = (
       <WorkPackageChangedText>
-        Priority changed from <strong>{changes.priority.name}</strong> to{" "}
+        Priority changed from{" "}
+        <strong>{changes.priority?.name ?? "None"}</strong> to{" "}
         <strong>{workPackage.priority?.name ?? "None"}</strong>
       </WorkPackageChangedText>
     );
