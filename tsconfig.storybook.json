@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node", "react", "react-dom"]
+  },
+  "include": [
+    ".storybook/**/*.ts",
+    ".storybook/**/*.tsx",
+    "modules/**/*.ts",
+    "modules/**/*.tsx",
+    "web/**/*.stories.ts",
+    "web/**/*.stories.tsx",
+    "web/**/*.stories.mdx"
+  ],
+  "exclude": ["node_modules", "lib", "public"]
+}
