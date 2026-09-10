@@ -10,9 +10,11 @@ import { WorkPackageStatus } from "./WorkPackageStatus";
 export function WorkPackageChangedDetails({
   workPackage,
   changes,
+  descriptionAsDetails = false,
 }: {
   workPackage: OpenProjectWorkPackageContent;
   changes: OpenProjectWorkPackageChanges;
+  descriptionAsDetails?: boolean;
 }) {
   let innerContent = null;
   if (changes.assignee !== undefined) {
@@ -28,7 +30,7 @@ export function WorkPackageChangedDetails({
         <span>Description changed</span>
         <WorkPackageDescription
           description={workPackage.description}
-          asDetails
+          asDetails={descriptionAsDetails}
         />
       </WorkPackageChangedText>
     );

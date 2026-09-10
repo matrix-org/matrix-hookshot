@@ -2,16 +2,16 @@ import * as React from "react";
 import type {
   OpenProjectContent,
   OpenProjectWorkPackageContent,
-} from "./work-package/types";
-import { WorkPackageActions } from "./work-package/WorkPackageActions";
-import { WorkPackageChangedDetails } from "./work-package/WorkPackageChangedDetails";
-import { WorkPackageDescription } from "./work-package/WorkPackageDescription";
-import { WorkPackageLayout } from "./work-package/WorkPackageLayout";
-import { WorkPackageLink } from "./work-package/WorkPackageLink";
-import { WorkPackageMetadata } from "./work-package/WorkPackageMetadata";
-import { WorkPackageTitle } from "./work-package/WorkPackageTitle";
+} from "./types";
+import { WorkPackageActions } from "./WorkPackageActions";
+import { WorkPackageChangedDetails } from "./WorkPackageChangedDetails";
+import { WorkPackageDescription } from "./WorkPackageDescription";
+import { WorkPackageLayout } from "./WorkPackageLayout";
+import { WorkPackageLink } from "./WorkPackageLink";
+import { WorkPackageMetadata } from "./WorkPackageMetadata";
+import { WorkPackageTitle } from "./WorkPackageTitle";
 
-export type { OpenProjectContent } from "./work-package/types";
+export type { OpenProjectContent } from "./types";
 
 function WorkPackageHeader({
   workPackage,
@@ -30,7 +30,7 @@ function WorkPackageHeader({
   );
 }
 
-export function OpenProjectEventWidgetChanged({
+export function WorkPackageUpdatedMessage({
   data,
 }: {
   data: OpenProjectContent;
@@ -51,13 +51,18 @@ export function OpenProjectEventWidgetChanged({
         <WorkPackageChangedDetails
           workPackage={workPackage}
           changes={changes}
+          descriptionAsDetails
         />
       </WorkPackageLayout>
     </div>
   );
 }
 
-export function OpenProjectEventWidget({ data }: { data: OpenProjectContent }) {
+export function WorkPackageCreatedMessage({
+  data,
+}: {
+  data: OpenProjectContent;
+}) {
   const workPackage =
     data["org.matrix.matrix-hookshot.openproject.work_package"];
   if (!workPackage) {

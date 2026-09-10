@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import HookshotOpenProjectModule from "../../../modules/openproject/element-web/src";
 import {
-  OpenProjectEventWidget,
-  OpenProjectEventWidgetChanged,
-} from "../../../modules/openproject/element-web/src/components/OpenProject";
+  WorkPackageCreatedMessage,
+  WorkPackageUpdatedMessage,
+} from "../../../modules/openproject/element-web/src/components/WorkPackageMessage";
 import {
   OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
   OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT,
@@ -69,8 +69,8 @@ describe("OpenProject Element Web module", () => {
       mxEvent: SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT,
     });
 
-    expect(baseElement.type).toBe(OpenProjectEventWidget);
-    expect(updateElement.type).toBe(OpenProjectEventWidget);
-    expect(changedElement.type).toBe(OpenProjectEventWidgetChanged);
+    expect(baseElement.type).toBe(WorkPackageCreatedMessage);
+    expect(updateElement.type).toBe(WorkPackageCreatedMessage);
+    expect(changedElement.type).toBe(WorkPackageUpdatedMessage);
   });
 });

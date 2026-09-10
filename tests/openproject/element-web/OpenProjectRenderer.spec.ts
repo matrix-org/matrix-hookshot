@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { type OpenProjectContent } from "../../../modules/openproject/element-web/src/components/OpenProject";
-import { WorkPackageActions } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageActions";
-import { WorkPackageChangedDetails } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageChangedDetails";
-import { WorkPackageDescription } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageDescription";
-import { WorkPackageLayout } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageLayout";
-import { WorkPackageLink } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageLink";
-import { WorkPackageStatus } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageStatus";
-import { WorkPackageTitle } from "../../../modules/openproject/element-web/src/components/work-package/WorkPackageTitle";
+import { type OpenProjectContent } from "../../../modules/openproject/element-web/src/components/WorkPackageMessage";
+import { WorkPackageActions } from "../../../modules/openproject/element-web/src/components/WorkPackageActions";
+import { WorkPackageChangedDetails } from "../../../modules/openproject/element-web/src/components/WorkPackageChangedDetails";
+import { WorkPackageDescription } from "../../../modules/openproject/element-web/src/components/WorkPackageDescription";
+import { WorkPackageLayout } from "../../../modules/openproject/element-web/src/components/WorkPackageLayout";
+import { WorkPackageLink } from "../../../modules/openproject/element-web/src/components/WorkPackageLink";
+import { WorkPackageStatus } from "../../../modules/openproject/element-web/src/components/WorkPackageStatus";
+import { WorkPackageTitle } from "../../../modules/openproject/element-web/src/components/WorkPackageTitle";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
-} from "../../../modules/openproject/element-web/src/components/work-package/types";
+} from "../../../modules/openproject/element-web/src/components/types";
 import { formatWorkPackageForMatrix } from "../../../src/openproject/Format";
 import { BASE_URL, WORK_PACKAGE } from "../WorkPackageFixtures";
 
