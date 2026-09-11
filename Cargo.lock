@@ -40,14 +40,14 @@ checksum = "5f093eed78becd229346bf859eec0aa4dd7ddde0757287b2b4107a1f09c80002"
 
 [[package]]
 name = "atom_syndication"
-version = "0.12.8"
+version = "0.12.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39d8b8ef99e33deb2a51504888222225797f48bace2f0cab01975746a39c05bb"
+checksum = "d48d93a31c932d58b9fd68664a904ae5b74bea37f06c5f68d5bec92f0cdd106d"
 dependencies = [
  "chrono",
  "derive_builder",
  "diligent-date-parser",
- "quick-xml",
+ "quick-xml 0.41.0",
 ]
 
 [[package]]
@@ -1501,6 +1501,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-xml"
+version = "0.41.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
+dependencies = [
+ "encoding_rs",
+ "memchr",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1758,7 +1768,7 @@ checksum = "d0e38781082c53bdde56e6081698c06831f69a27eac2593ed6b6cb2511424ad5"
 dependencies = [
  "atom_syndication",
  "derive_builder",
- "quick-xml",
+ "quick-xml 0.39.4",
 ]
 
 [[package]]
