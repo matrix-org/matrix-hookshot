@@ -1,4 +1,5 @@
 import { Request, Response, Router, json } from "express";
+import { createHmac, timingSafeEqual } from "crypto";
 import { MessageQueue } from "../messageQueue";
 import { ApiError, ErrCode, wrapAsyncRequestHandler } from "../api";
 import { Logger } from "matrix-appservice-bridge";
@@ -83,16 +84,30 @@ export class GitHubWebhooksRouter {
         ErrCode.BadValue,
       );
     }
+    const signature = req.headers["x-hub-signature-256"];
     try {
       const jsonStr = buffer.toString(encoding);
+      const expectedSignature =
+        "sha256=" +
+        createHmac("sha256", this.config.webhook.secret)
+          .update(jsonStr)
+          .digest("hex");
+      const expected = Buffer.from(expectedSignature);
+      const actual = Buffer.from(signature);
+      if (
+        expected.length !== actual.length ||
+        !timingSafeEqual(expected, actual)
+      ) {
+        throw new Error("Signature did not match");
+      }
       req.github = {
         payload: jsonStr,
-        signature: req.headers["x-hub-signature-256"],
+        signature,
       };
     } catch (ex) {
-      log.warn("GitHub signature could not be decoded", ex);
+      log.warn("GitHub signature could not be verified", ex);
       throw new ApiError(
-        "Could not handle GitHub request. Signature could not be decoded",
+        "Could not handle GitHub request. Signature could not be verified",
         ErrCode.BadValue,
       );
     }
