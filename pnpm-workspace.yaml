@@ -10,7 +10,7 @@ catalog:
 
 allowBuilds:
   "@matrix-org/matrix-sdk-crypto-nodejs": true
-  '@parcel/watcher': false
+  "@parcel/watcher": false
   cpu-features: true
   esbuild: true
   protobufjs: true
