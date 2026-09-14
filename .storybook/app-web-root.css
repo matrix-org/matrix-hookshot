@@ -2,6 +2,9 @@
  * Match the Element Web application shell without importing its component
  * styles. This keeps stories focused on the component under test while still
  * allowing their typography and root defaults to match the real application.
+ *
+ * As defined in the web shared components package, this is the root CSS for the Element Web application.
+ * @link https://github.com/element-hq/element-web/blob/develop/packages/shared-components/.storybook/app-web-root.css
  */
 @layer app-web {
   :root[data-storybook-root-css="app-web"] {
