@@ -7,10 +7,20 @@ export function WorkPackageTitle({
   workPackage,
 }: {
   workPackage: OpenProjectWorkPackageContent;
-}) {
+  }) {
+  const refLink = safeUrl(workPackage.url);
+  
+  if (refLink){
+    return (
+      <WorkPackageTitleLink href={refLink}>
+        #{workPackage.id} {workPackage.subject}
+      </WorkPackageTitleLink>
+    );
+  }
+
   return (
-    <WorkPackageTitleLink href={safeUrl(workPackage.url)}>
+    <span>
       #{workPackage.id} {workPackage.subject}
-    </WorkPackageTitleLink>
+    </span>
   );
 }

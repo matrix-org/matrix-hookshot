@@ -1,34 +1,15 @@
 import * as React from "react";
-import type {
-  OpenProjectContent,
-  OpenProjectWorkPackageContent,
-} from "./types";
+import type { OpenProjectContent } from "./types";
 import { WorkPackageActions } from "./WorkPackageActions";
 import { WorkPackageChangedDetails } from "./WorkPackageChangedDetails";
 import { WorkPackageDescription } from "./WorkPackageDescription";
+import { WorkPackageHeader } from "./WorkPackageHeader";
 import { WorkPackageLayout } from "./WorkPackageLayout";
-import { WorkPackageLink } from "./WorkPackageLink";
 import { WorkPackageMetadata } from "./WorkPackageMetadata";
 import { WorkPackageTitle } from "./WorkPackageTitle";
+import { WorkPackageMessage } from "./WorkPackageStyles";
 
 export type { OpenProjectContent } from "./types";
-
-function WorkPackageHeader({
-  workPackage,
-  action,
-}: {
-  workPackage: OpenProjectWorkPackageContent;
-  action: "created" | "updated";
-}) {
-  return (
-    <span>
-      Work package{" "}
-      <WorkPackageLink url={workPackage.url}>{workPackage.id}</WorkPackageLink>{" "}
-      {action}
-      {action === "created" ? ` by ${workPackage.author.name}` : null}
-    </span>
-  );
-}
 
 export function WorkPackageUpdatedMessage({
   data,
@@ -44,7 +25,7 @@ export function WorkPackageUpdatedMessage({
   }
 
   return (
-    <div>
+    <WorkPackageMessage>
       <WorkPackageHeader workPackage={workPackage} action="updated" />
       <WorkPackageLayout borderColor={workPackage.type.color}>
         <WorkPackageTitle workPackage={workPackage} />
@@ -54,7 +35,7 @@ export function WorkPackageUpdatedMessage({
           descriptionAsDetails
         />
       </WorkPackageLayout>
-    </div>
+    </WorkPackageMessage>
   );
 }
 
@@ -70,7 +51,7 @@ export function WorkPackageCreatedMessage({
   }
 
   return (
-    <div>
+    <WorkPackageMessage>
       <WorkPackageHeader workPackage={workPackage} action="created" />
       <WorkPackageLayout borderColor={workPackage.type.color}>
         <WorkPackageTitle workPackage={workPackage} />
@@ -78,6 +59,6 @@ export function WorkPackageCreatedMessage({
         <WorkPackageMetadata workPackage={workPackage} />
         <WorkPackageActions url={workPackage.url} />
       </WorkPackageLayout>
-    </div>
+    </WorkPackageMessage>
   );
 }

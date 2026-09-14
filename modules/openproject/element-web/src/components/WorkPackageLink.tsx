@@ -8,5 +8,11 @@ export function WorkPackageLink({
   url: unknown;
   children: React.ReactNode;
 }) {
-  return <a href={safeUrl(url)}>{children}</a>;
+  const refLink = safeUrl(url);
+
+  if (refLink) {
+    return <a href={refLink}>{children}</a>;
+  }
+
+  return <span>{children}</span>;
 }

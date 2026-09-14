@@ -1,5 +1,11 @@
 import { styled } from "styled-components";
 
+export const WorkPackageMessage = styled.div`
+  a, a:visited{
+    color: var(--cpd-color-text-link-external);
+  }
+`;
+
 export const WorkPackageRoot = styled.div`
   margin-top: var(--cpd-space-1x);
   margin-bottom: var(--cpd-space-1x);

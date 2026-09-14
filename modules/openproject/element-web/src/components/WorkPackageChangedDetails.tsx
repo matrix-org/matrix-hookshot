@@ -25,15 +25,27 @@ export function WorkPackageChangedDetails({
       </WorkPackageChangedText>
     );
   } else if (changes.description !== undefined) {
-    innerContent = (
-      <WorkPackageChangedText>
-        <span>Description changed</span>
-        <WorkPackageDescription
-          description={workPackage.description}
-          asDetails={descriptionAsDetails}
-        />
-      </WorkPackageChangedText>
-    );
+    if (descriptionAsDetails) {
+      innerContent = (
+        <WorkPackageChangedText>
+          <details>
+            <summary>Description changed</summary>
+            <WorkPackageDescription
+              description={workPackage.description}
+            />
+          </details>
+        </WorkPackageChangedText>
+      );
+    } else {
+      innerContent = (
+        <WorkPackageChangedText>
+          <span>Description changed</span>
+          <WorkPackageDescription
+            description={workPackage.description}
+          />
+        </WorkPackageChangedText>
+      );
+    }
   } else if (changes.dueDate !== undefined) {
     innerContent = (
       <WorkPackageChangedText>

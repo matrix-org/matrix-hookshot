@@ -6,7 +6,6 @@ import {
   changedWorkPackage,
   completeWorkPackage,
   createdContent,
-  clearedOptionalValuesWorkPackage,
   describedContent,
   untrustedWorkPackage,
 } from "./storybook.fixtures";
@@ -37,15 +36,6 @@ export const CreatedWithAllMetadata: Story = {
     data: {
       "org.matrix.matrix-hookshot.openproject.work_package":
         completeWorkPackage,
-    },
-  },
-};
-
-export const CreatedWithClearedOptionalValues: Story = {
-  args: {
-    data: {
-      "org.matrix.matrix-hookshot.openproject.work_package":
-        clearedOptionalValuesWorkPackage,
     },
   },
 };

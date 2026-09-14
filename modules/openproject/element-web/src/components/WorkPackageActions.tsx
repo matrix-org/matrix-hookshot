@@ -4,17 +4,23 @@ import PopOutIcon from "@vector-im/compound-design-tokens/assets/web/icons/pop-o
 import { safeUrl } from "./validation";
 
 export function WorkPackageActions({ url }: { url: unknown }) {
-  return (
-    <Button
-      Icon={PopOutIcon}
-      as="a"
-      size="md"
-      kind="secondary"
-      href={safeUrl(url)}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      View package
-    </Button>
-  );
+  const refLink = safeUrl(url);
+
+  if (refLink) {
+    return (
+      <Button
+        Icon={PopOutIcon}
+        as="a"
+        size="md"
+        kind="secondary"
+        href={refLink}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        View package
+      </Button>
+    );
+  }
+
+  return null;
 }
