@@ -42,7 +42,7 @@
     "lint:rs": "cargo fmt --all -- --check && cargo clippy -- -Dwarnings",
     "lint:rs:apply": "cargo clippy --fix && cargo fmt --all",
     "lint:storybook": "tsc --project tsconfig.storybook.json --noEmit",
-    "storybook": "storybook dev -p 6006",
+    "storybook": "storybook dev -p 9006",
     "generate-default-config": "ts-node src/config/Defaults.ts --config > config.sample.yml",
     "validate-config": "ts-node src/config/Config.ts"
   },
