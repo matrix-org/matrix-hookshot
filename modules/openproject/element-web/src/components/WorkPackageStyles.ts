@@ -1,7 +1,8 @@
 import { styled } from "styled-components";
 
 export const WorkPackageMessage = styled.div`
-  a, a:visited{
+  a,
+  a:visited {
     color: var(--cpd-color-text-link-external);
   }
 `;

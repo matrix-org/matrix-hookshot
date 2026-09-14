@@ -30,9 +30,7 @@ export function WorkPackageChangedDetails({
         <WorkPackageChangedText>
           <details>
             <summary>Description changed</summary>
-            <WorkPackageDescription
-              description={workPackage.description}
-            />
+            <WorkPackageDescription description={workPackage.description} />
           </details>
         </WorkPackageChangedText>
       );
@@ -40,9 +38,7 @@ export function WorkPackageChangedDetails({
       innerContent = (
         <WorkPackageChangedText>
           <span>Description changed</span>
-          <WorkPackageDescription
-            description={workPackage.description}
-          />
+          <WorkPackageDescription description={workPackage.description} />
         </WorkPackageChangedText>
       );
     }
