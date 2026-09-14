@@ -1,15 +1,17 @@
 {
-  "name": "openproject-plugin",
+  "name": "openproject-module",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "license": "SEE LICENSE IN README.md",
   "scripts": {
     "prepare": "vite build",
-    "lint:types": "tsc --noEmit"
+    "lint:types": "tsc --noEmit",
+    "test": "vitest --config vitest.config.ts run"
   },
   "devDependencies": {
     "@element-hq/element-web-module-api": "^1.0.0",
+    "@element-hq/element-web-shared-utils": "^0.1.0",
     "@vector-im/compound-design-tokens": "catalog:",
     "@vector-im/compound-web": "catalog:",
     "@types/node": "catalog:",
@@ -20,6 +22,7 @@
     "rollup-plugin-external-globals": "^0.13.0",
     "styled-components": "^6.1.18",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -7,10 +7,11 @@ catalog:
   "@vector-im/compound-web": ^9.4.1
   typescript: ^5.7.2
   vite: ^7.0.0
+  vitest: ^4.1.8
 
 allowBuilds:
   "@matrix-org/matrix-sdk-crypto-nodejs": true
-  '@parcel/watcher': false
+  "@parcel/watcher": false
   cpu-features: true
   esbuild: true
   protobufjs: true

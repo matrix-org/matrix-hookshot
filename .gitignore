@@ -4,6 +4,7 @@ node_modules/
 registration.yml
 tsconfig.tsbuildinfo
 public/
+storybook-static/
 
 .idea
 # Added by cargo

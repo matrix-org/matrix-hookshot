@@ -308,6 +308,28 @@ const OPEN_PROJECT_PAYLOAD = {
   },
 };
 
+async function sendOpenProjectWebhook(
+  payload: unknown,
+  secret: string,
+  port: number,
+) {
+  const webhookPayload = JSON.stringify(payload);
+  const signature = createHmac("sha1", secret)
+    .update(webhookPayload)
+    .digest("hex");
+  const req = await fetch(`http://localhost:${port}/openproject/webhook`, {
+    method: "POST",
+    headers: {
+      "X-Op-Signature": `sha1=${signature}`,
+      "Content-Type": "application/json",
+    },
+    body: webhookPayload,
+  });
+
+  expect(req.status).toBe(200);
+  expect(await req.text()).toBe("OK");
+}
+
 describe("OpenProject", () => {
   let testEnv: E2ETestEnv;
   const webhooksPort = 9500 + E2ETestEnv.workerId;
@@ -386,33 +408,89 @@ describe("OpenProject", () => {
       roomId: testRoomId,
     });
 
-    const webhookPayload = JSON.stringify(OPEN_PROJECT_PAYLOAD);
-
-    const hmac = createHmac(
-      "sha1",
+    await sendOpenProjectWebhook(
+      OPEN_PROJECT_PAYLOAD,
       testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
     );
-    hmac.write(webhookPayload);
-    hmac.end();
-
-    const req = await fetch(
-      `http://localhost:${webhooksPort}/openproject/webhook`,
-      {
-        method: "POST",
-        headers: {
-          "X-Op-Signature": `sha1=${hmac.read().toString("hex")}`,
-          "Content-Type": "application/json",
-        },
-        body: webhookPayload,
-      },
-    );
-    expect(req.status).toBe(200);
-    expect(await req.text()).toBe("OK");
 
     // And await the notice.
     const { body } = (await webhookNotice).data.content;
     expect(body).toContain(
       'OpenProject Admin created a new work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133"',
+    );
+  });
+
+  test("should be able to handle a representative OpenProject update", async () => {
+    const user = testEnv.getUser("user");
+    const bridgeApi = await getBridgeApi(
+      testEnv.opts.config?.widgets?.publicUrl!,
+      user,
+    );
+    const testRoomId = await user.createRoom({
+      name: "Test update room",
+    });
+    // Register the waiter before the bot can possibly join.
+    const join = user.waitForRoomJoin({
+      sender: testEnv.botMxid,
+      roomId: testRoomId,
+    });
+    await user.inviteUser(testEnv.botMxid, testRoomId);
+    await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+    const openProjectId =
+      OPEN_PROJECT_PAYLOAD.work_package._embedded.project.id;
+    await join;
+
+    const url = `http://mytestproject.com/projects/${openProjectId}`;
+    await testEnv.app.appservice.botClient.sendStateEvent(
+      testRoomId,
+      OpenProjectConnection.CanonicalEventType,
+      url,
+      {
+        url,
+        events: ["work_package:created", "work_package:subject_changed"],
+      } satisfies OpenProjectConnectionState,
+    );
+
+    await waitFor(
+      async () =>
+        (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+    );
+
+    const creationNotice = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: testRoomId,
+    });
+    await sendOpenProjectWebhook(
+      OPEN_PROJECT_PAYLOAD,
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    await creationNotice;
+
+    const updateNotice = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: testRoomId,
+    });
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        action: "work_package:updated",
+        work_package: {
+          ...OPEN_PROJECT_PAYLOAD.work_package,
+          subject: "updated test 133",
+          updatedAt: "2025-05-08T13:20:12.309Z",
+        },
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+
+    const { body } = (await updateNotice).data.content;
+    expect(body).toContain(
+      '**OpenProject Admin** updated the subject for [50](http://mytestproject.com/projects/demo-project/work_packages/50): "updated test 133"',
     );
   });
 });
