@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import HookshotOpenProjectModule from "../../../modules/openproject/element-web/src";
+import HookshotOpenProjectModule from "../src";
 import {
   WorkPackageCreatedMessage,
   WorkPackageUpdatedMessage,
-} from "../../../modules/openproject/element-web/src/components/WorkPackageMessage";
+} from "../src/components/WorkPackageMessage";
 import {
   OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
   OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT,
   SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT,
-} from "./OpenProjectEventFixtures";
+} from "./fixtures/OpenProjectEventFixtures";
 
 const WORK_PACKAGE_KEY = "org.matrix.matrix-hookshot.openproject.work_package";
 

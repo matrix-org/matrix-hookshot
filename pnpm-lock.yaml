@@ -220,6 +220,9 @@ catalogs:
     vite:
       specifier: ^7.0.0
       version: 7.3.6
+    vitest:
+      specifier: ^4.1.8
+      version: 4.1.9
 
 importers:
 
@@ -488,7 +491,7 @@ importers:
         specifier: 'catalog:'
         version: 7.3.6(@types/node@22.20.2)(sass@1.101.0)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.8
+        specifier: 'catalog:'
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.2)(@vitest/coverage-v8@4.1.9)(vite@7.3.6(@types/node@22.20.2)(sass@1.101.0)(yaml@2.9.0))
 
   modules/openproject/element-web:
@@ -532,6 +535,9 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 7.3.6(@types/node@22.20.2)(sass@1.101.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@22.20.2)(@vitest/coverage-v8@4.1.9)(vite@7.3.6(@types/node@22.20.2)(sass@1.101.0)(yaml@2.9.0))
 
 packages:
 

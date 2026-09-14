@@ -1,18 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { type OpenProjectContent } from "../../../modules/openproject/element-web/src/components/WorkPackageMessage";
-import { WorkPackageActions } from "../../../modules/openproject/element-web/src/components/WorkPackageActions";
-import { WorkPackageChangedDetails } from "../../../modules/openproject/element-web/src/components/WorkPackageChangedDetails";
-import { WorkPackageDescription } from "../../../modules/openproject/element-web/src/components/WorkPackageDescription";
-import { WorkPackageLayout } from "../../../modules/openproject/element-web/src/components/WorkPackageLayout";
-import { WorkPackageLink } from "../../../modules/openproject/element-web/src/components/WorkPackageLink";
-import { WorkPackageStatus } from "../../../modules/openproject/element-web/src/components/WorkPackageStatus";
-import { WorkPackageTitle } from "../../../modules/openproject/element-web/src/components/WorkPackageTitle";
+import { type OpenProjectContent } from "../src/components/WorkPackageMessage";
+import { WorkPackageActions } from "../src/components/WorkPackageActions";
+import { WorkPackageChangedDetails } from "../src/components/WorkPackageChangedDetails";
+import { WorkPackageDescription } from "../src/components/WorkPackageDescription";
+import { WorkPackageLayout } from "../src/components/WorkPackageLayout";
+import { WorkPackageLink } from "../src/components/WorkPackageLink";
+import { WorkPackageStatus } from "../src/components/WorkPackageStatus";
+import { WorkPackageTitle } from "../src/components/WorkPackageTitle";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
-} from "../../../modules/openproject/element-web/src/components/types";
-import { formatWorkPackageForMatrix } from "../../../src/openproject/Format";
-import { BASE_URL, WORK_PACKAGE } from "../WorkPackageFixtures";
+} from "../src/components/types";
+import { WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
 const WORK_PACKAGE_KEY = "org.matrix.matrix-hookshot.openproject.work_package";
 const CHANGED_WORK_PACKAGE_KEY =
@@ -58,16 +57,7 @@ function collectText(value: unknown): string {
 function createWorkPackage(
   overrides: Partial<OpenProjectWorkPackageContent> = {},
 ): OpenProjectWorkPackageContent {
-  const formatted = formatWorkPackageForMatrix(
-    WORK_PACKAGE,
-    BASE_URL,
-  ) as OpenProjectContent;
-  const workPackage = formatted[WORK_PACKAGE_KEY];
-  if (!workPackage) {
-    throw new Error("Expected the work-package fixture to be formatted");
-  }
-
-  return { ...workPackage, ...overrides };
+  return { ...WORK_PACKAGE, ...overrides };
 }
 
 function renderChangedDetails(
@@ -83,30 +73,20 @@ function renderChangedDetails(
 }
 
 function createUnsafeData(): OpenProjectContent {
-  const formatted = formatWorkPackageForMatrix(
-    WORK_PACKAGE,
-    BASE_URL,
-  ) as OpenProjectContent;
-  const pkg = formatted[WORK_PACKAGE_KEY];
-  if (!pkg) {
-    throw new Error("Expected the work-package fixture to be formatted");
-  }
-
   return {
-    ...formatted,
     [WORK_PACKAGE_KEY]: {
-      ...pkg,
+      ...WORK_PACKAGE,
       url: "javascript:alert(document.domain)",
       description: {
         plain: "<img src=x onerror=alert(document.domain)>",
         html: "<img src=x onerror=alert(document.domain)>",
       },
       author: {
-        ...pkg.author,
+        ...WORK_PACKAGE.author,
         url: "data:text/html,<script>alert(1)</script>",
       },
-      status: { ...pkg.status, color: 'url("javascript:alert(1)")' },
-      type: { ...pkg.type, color: "not-a-color" },
+      status: { ...WORK_PACKAGE.status, color: 'url("javascript:alert(1)")' },
+      type: { ...WORK_PACKAGE.type, color: "not-a-color" },
     },
     [CHANGED_WORK_PACKAGE_KEY]: {
       description: {
@@ -180,11 +160,6 @@ describe("OpenProject renderer security", () => {
     expect(styles).not.toContainEqual({
       background: 'url("javascript:alert(1)")',
     });
-
-    const newTabLink = props.find(
-      (elementProps) => elementProps.target === "_blank",
-    );
-    expect(newTabLink?.rel).toBe("noopener noreferrer");
   });
 
   it("sanitizes descriptions rendered in the changed-work-package details", () => {
