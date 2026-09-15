@@ -1,1 +1,1 @@
-Add build and publish to netlify workflows for the storybook.
+Add build workflow for the storybook.
