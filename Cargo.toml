@@ -24,6 +24,6 @@ reqwest = "0.13.0"
 rand = "0.8.5"
 rsa = { version = "0.9.6", features = ["sha2"] }
 base64ct = { version = "1.6.0", features = ["alloc"] }
-sha1 = "0.10.6"
+sha1 = "0.11.0"
 [build-dependencies]
 napi-build = "2"
