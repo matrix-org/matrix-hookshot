@@ -12,7 +12,7 @@ import {
 } from "./components/WorkPackageMessage";
 
 class HookshotOpenProjectModule implements Module {
-  public static readonly moduleApiVersion = "^1.0.0";
+  public static readonly moduleApiVersion = "^2.0.0";
 
   public constructor(private readonly api: Api) {}
 
