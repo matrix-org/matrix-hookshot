@@ -395,20 +395,8 @@ export class OpenProjectConnection
     log.info(
       `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
     );
-    await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
-    );
 
-    const creator = data.work_package._embedded.author;
-    if (!creator) {
-      throw Error("No creator field");
-    }
-    const extraData = formatWorkPackageForMatrix(
-      data.work_package,
-      this.config.baseURL,
-    );
-    const oldChanges = await this.storage.getOpenProjectWorkPackageState(
+    const previousState = await this.storage.getOpenProjectWorkPackageState(
       data.work_package._embedded.project.id,
       data.work_package.id,
     );
@@ -417,8 +405,9 @@ export class OpenProjectConnection
     let changeStatement = "updated work package";
     let postfix;
     let hookEvent: OpenProjectEventsNames = "work_package:updated";
-    if (oldChanges) {
-      const diffSet = formatWorkPackageDiff(oldChanges, data.work_package);
+    let diffSet: ReturnType<typeof formatWorkPackageDiff> | undefined;
+    if (previousState) {
+      diffSet = formatWorkPackageDiff(previousState, data.work_package);
       if (diffSet) {
         hookEvent = diffSet.eventKind;
         postfix = diffSet.postfix;
@@ -427,14 +416,29 @@ export class OpenProjectConnection
         } else {
           postfix = `  - ${diffSet.changes.join("\n  - ")}`;
         }
-      } else {
-        // Changes were not understood, skip.
-        return;
       }
     }
+
+    await this.storage.setOpenProjectWorkPackageState(
+      workPackageToCacheState(data.work_package),
+      data.work_package.id,
+    );
+
+    if (previousState && !diffSet) {
+      return;
+    }
+
     if (!this.isInterestedInHookEvent(hookEvent ?? "work_package:updated")) {
       return;
     }
+    const creator = data.work_package._embedded.author;
+    if (!creator) {
+      throw Error("No creator field");
+    }
+    const extraData = formatWorkPackageForMatrix(
+      data.work_package,
+      this.config.baseURL,
+    );
     const content = `**${creator.name}** ${changeStatement} for [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
 
     await this.sendEvent(content + (postfix ?? ""), extraData, {

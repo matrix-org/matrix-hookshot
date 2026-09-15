@@ -1,0 +1,17 @@
+@import url("@vector-im/compound-design-tokens/assets/web/css/compound-design-tokens.css");
+@import url("@vector-im/compound-web");
+
+:root {
+  font-family: var(--cpd-font-family-sans);
+}
+
+body {
+  margin: 0;
+  color: var(--cpd-color-text-primary);
+  background: var(--cpd-color-bg-canvas-default);
+}
+
+.docs-story {
+  color: var(--cpd-color-text-primary);
+  background: var(--cpd-color-bg-canvas-default);
+}

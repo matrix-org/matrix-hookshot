@@ -6,10 +6,10 @@ import type {
   ModuleFactory,
 } from "@element-hq/element-web-module-api";
 import {
-  OpenProjectEventWidget,
-  OpenProjectEventWidgetChanged,
+  WorkPackageCreatedMessage,
+  WorkPackageUpdatedMessage,
   type OpenProjectContent,
-} from "./components/OpenProject";
+} from "./components/WorkPackageMessage";
 
 class HookshotOpenProjectModule implements Module {
   public static readonly moduleApiVersion = "^1.0.0";
@@ -35,12 +35,12 @@ class HookshotOpenProjectModule implements Module {
           content["org.matrix.matrix-hookshot.openproject.work_package.changed"]
         ) {
           return (
-            <OpenProjectEventWidgetChanged
-              data={content as OpenProjectContent}
-            />
+            <WorkPackageUpdatedMessage data={content as OpenProjectContent} />
           );
         }
-        return <OpenProjectEventWidget data={content as OpenProjectContent} />;
+        return (
+          <WorkPackageCreatedMessage data={content as OpenProjectContent} />
+        );
       },
       { allowEditingEvent: false },
     );
