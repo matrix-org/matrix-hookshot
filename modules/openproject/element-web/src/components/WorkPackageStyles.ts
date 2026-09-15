@@ -4,6 +4,7 @@ export const WorkPackageMessage = styled.div`
   a,
   a:visited {
     color: var(--cpd-color-text-link-external);
+    text-decoration: none;
   }
 `;
 
