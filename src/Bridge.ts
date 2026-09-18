@@ -110,6 +110,7 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
+import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 
 const log = new Logger("Bridge");
 
@@ -1143,6 +1144,13 @@ export class Bridge {
         this.tokenStore,
         this.github,
       );
+    }
+    if (
+      this.config.listeners.some((listener) =>
+        listener.resources.includes("modules"),
+      )
+    ) {
+      this.listener.bindResource("modules", elementWebModuleRouter);
     }
     if (this.config.metrics?.enabled) {
       this.listener.bindResource("metrics", Metrics.expressRouter);
