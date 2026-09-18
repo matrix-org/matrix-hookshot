@@ -19,10 +19,11 @@ passFile:
   ./passkey.pem
 listeners:
   # HTTP Listener configuration.
-  # Bind resource endpoints to ports and addresses.
+  # Bind selected resource endpoints to ports and addresses.
   # 'port' must be specified. Each listener must listen on a unique port.
   # 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
-  # 'resources' may be any of webhooks, widgets, metrics
+  # 'resources' selects which Hookshot HTTP routes are exposed on this listener.
+  # Available resources: webhooks, widgets, modules, metrics.
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
@@ -35,6 +36,7 @@ listeners:
     bindAddress: 0.0.0.0
     resources:
       - widgets
+      - modules
 
 #cache:
 #  # (Optional) Cache options for large scale deployments.
@@ -213,6 +215,3 @@ listeners:
 #  allowUrlPreviews:
 #    # (Optional) Allow clients to generate their own URL previews from Hookshot messages. On by default
 #    true
-
-
-

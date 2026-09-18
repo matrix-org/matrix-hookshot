@@ -18,6 +18,7 @@ listeners:
     resources:
       - widgets
       - webhooks
+      - modules
 
 cache:
   redisUri: redis://valkey:6379
