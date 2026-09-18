@@ -161,7 +161,7 @@ export const DefaultConfigRoot: BridgeConfigRoot = {
     {
       port: 9002,
       bindAddress: "0.0.0.0",
-      resources: ["widgets"],
+      resources: ["widgets", "modules"],
     },
   ],
   sentry: {

@@ -23,7 +23,7 @@ listeners:
   # 'port' must be specified. Each listener must listen on a unique port.
   # 'bindAddress' will default to '127.0.0.1' if not specified, which may not be suited to Docker environments.
   # 'resources' selects which Hookshot HTTP routes are exposed on this listener.
-  # Available resources: webhooks, widgets, modules, metrics.
+  # Available resources: webhooks, widgets, modules, metrics
   - port: 9000
     bindAddress: 0.0.0.0
     resources:
@@ -215,3 +215,6 @@ listeners:
 #  allowUrlPreviews:
 #    # (Optional) Allow clients to generate their own URL previews from Hookshot messages. On by default
 #    true
+
+
+
