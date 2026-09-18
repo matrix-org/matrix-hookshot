@@ -25,6 +25,10 @@ function createModuleRegistration() {
 }
 
 describe("OpenProject Element Web module", () => {
+  it("advertises compatibility with Element Web module API v2 only", () => {
+    expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.0.0");
+  });
+
   it("registers a non-editable message renderer", async () => {
     const { registerMessageRenderer, load } = createModuleRegistration();
 

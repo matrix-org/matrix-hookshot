@@ -162,7 +162,7 @@ describe("OpenProject renderer security", () => {
     });
   });
 
-  it("sanitizes descriptions rendered in the changed-work-package details", () => {
+  it("sanitizes descriptions used in changed-work-package details", () => {
     const data = createUnsafeData();
     const workPackage = data[WORK_PACKAGE_KEY];
     if (!workPackage) {
@@ -171,7 +171,6 @@ describe("OpenProject renderer security", () => {
     const props = collectElementProps(
       WorkPackageDescription({
         description: workPackage.description,
-        asDetails: true,
       }),
     );
 

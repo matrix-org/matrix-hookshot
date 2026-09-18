@@ -10,8 +10,8 @@
     "test": "vitest --config vitest.config.ts run"
   },
   "devDependencies": {
-    "@element-hq/element-web-module-api": "^1.0.0",
-    "@element-hq/element-web-shared-utils": "^0.1.0",
+    "@element-hq/element-web-module-api": "2.0.0",
+    "@element-hq/element-web-shared-utils": "0.1.0",
     "@vector-im/compound-design-tokens": "catalog:",
     "@vector-im/compound-web": "catalog:",
     "@types/node": "catalog:",

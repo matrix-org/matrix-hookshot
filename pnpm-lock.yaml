@@ -497,10 +497,10 @@ importers:
   modules/openproject/element-web:
     devDependencies:
       '@element-hq/element-web-module-api':
-        specifier: ^1.0.0
-        version: 1.17.0(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(matrix-widget-api@1.17.0)(react@19.2.7)
+        specifier: 2.0.0
+        version: 2.0.0(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(matrix-widget-api@1.17.0)(react@19.2.7)
       '@element-hq/element-web-shared-utils':
-        specifier: ^0.1.0
+        specifier: 0.1.0
         version: 0.1.0
       '@types/node':
         specifier: 'catalog:'
@@ -728,19 +728,16 @@ packages:
   '@dabh/diagnostics@2.0.8':
     resolution: {integrity: sha512-R4MSXTVnuMzGD7bzHdW2ZhhdPC/igELENcq5IjEverBvq5hn1SXCWcsi6eSsdWP0/Ur+SItRRjAktmdoX/8R/Q==}
 
-  '@element-hq/element-web-module-api@1.17.0':
-    resolution: {integrity: sha512-rZHZJ2w/vl664Ge7fHOUa/b19t2VUYqKs1rQ+RH3SJg5IGx2Yc2kYQYWy9CWooTMtAMiVkDFy8gTBflKJDawfg==}
+  '@element-hq/element-web-module-api@2.0.0':
+    resolution: {integrity: sha512-QW/WkcLGv38hiEiP8BgsmqYN7ekl2z9MgHFZhMWstKCYYqpbYxb+brUhjR1j07490YDtGpN4wCnCRlrcvOOQpA==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
-      '@matrix-org/react-sdk-module-api': '*'
       '@types/react': '*'
       '@types/react-dom': '*'
       matrix-web-i18n: '*'
       matrix-widget-api: '*'
       react: ^19
     peerDependenciesMeta:
-      '@matrix-org/react-sdk-module-api':
-        optional: true
       matrix-web-i18n:
         optional: true
       matrix-widget-api:
@@ -6523,7 +6520,7 @@ snapshots:
       enabled: 2.0.0
       kuler: 2.0.0
 
-  '@element-hq/element-web-module-api@1.17.0(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(matrix-widget-api@1.17.0)(react@19.2.7)':
+  '@element-hq/element-web-module-api@2.0.0(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(matrix-widget-api@1.17.0)(react@19.2.7)':
     dependencies:
       '@types/react': 19.2.18
       '@types/react-dom': 19.2.5(@types/react@19.2.18)
@@ -8666,7 +8663,7 @@ snapshots:
       postgres: 3.4.9
       request: 2.88.2
       request-promise: 4.2.6(request@2.88.2)
-      sanitize-html: 2.17.4
+      sanitize-html: 2.17.7
     transitivePeerDependencies:
       - supports-color
 
