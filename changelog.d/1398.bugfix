@@ -1,0 +1,1 @@
+Update matrix-bot-sdk to 0.10.1-element.0, which sends the stable `device_id` parameter for impersonated intents. Fixes crypto setup failing against Synapse 1.161.0+, which dropped the deprecated `org.matrix.msc3202.device_id` parameter.
