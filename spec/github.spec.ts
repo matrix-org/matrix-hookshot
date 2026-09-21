@@ -86,13 +86,15 @@ describe("GitHub", () => {
       );
       const testRoomId = await user.createRoom({
         name: "Test room",
-        invite: [testEnv.botMxid],
       });
-      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
-      await user.waitForRoomJoin({
+      // Register the waiter before the bot can possibly join.
+      const join = user.waitForRoomJoin({
         sender: testEnv.botMxid,
         roomId: testRoomId,
       });
+      await user.inviteUser(testEnv.botMxid, testRoomId);
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      await join;
       // Now hack in a GitHub connection.
       await testEnv.app.appservice.botClient.sendStateEvent(
         testRoomId,

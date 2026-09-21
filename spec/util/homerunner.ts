@@ -7,6 +7,7 @@ import { createHash, createHmac } from "crypto";
 import { E2ETestMatrixClient, E2ETestMatrixClientOpts } from "./e2e-test";
 import path from "node:path";
 import { createContainers, TestContainerNetwork } from "./containers";
+import { createServer } from "node:net";
 
 export interface TestHomeServer {
   url: string;
@@ -27,14 +28,48 @@ export interface TestHomeServer {
 // This is slightly hacky as it should ensure we never use the same port twice.
 let incrementalPort = 1;
 
+// Keep well below net.ipv4.ip_local_port_range (32768-60999) so that outbound
+// sockets from testcontainers / the synapse clients can never transiently steal
+// the port we're about to bind the appservice to. Must also not overlap the
+// `9500 + workerId` webhook listener band.
+const APPSERVICE_PORT_BASE = 20000;
+const APPSERVICE_PORT_ATTEMPTS = 20;
+
+function isPortFree(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => server.close(() => resolve(true)));
+    server.listen(port, "0.0.0.0");
+  });
+}
+
+/**
+ * Pick a port for the appservice to bind to. matrix-bot-sdk's
+ * `Appservice.begin()` has no `error` handler on its `listen()` call, so an
+ * EADDRINUSE there escapes as an uncaught exception and `begin()` never
+ * settles. Probe first so a residual collision just costs us another port.
+ */
+async function allocateAppservicePort(workerId: number): Promise<number> {
+  // The worker ID is provided to ensure that across different worker processes we still have a unique port.
+  for (let attempt = 0; attempt < APPSERVICE_PORT_ATTEMPTS; attempt++) {
+    const port = APPSERVICE_PORT_BASE + workerId * 100 + incrementalPort++;
+    if (await isPortFree(port)) {
+      return port;
+    }
+  }
+  throw Error(
+    `Could not find a free appservice port for worker ${workerId} after ${APPSERVICE_PORT_ATTEMPTS} attempts`,
+  );
+}
+
 export async function createHS(
   localparts: string[] = [],
   clientOpts: E2ETestMatrixClientOpts,
   workerId: number,
   cryptoRootPath?: string,
 ): Promise<TestHomeServer> {
-  // The worker ID is provided to ensure that across different worker processes we still have a unique port.
-  const appPort = 49600 + workerId * 100 + incrementalPort++;
+  const appPort = await allocateAppservicePort(workerId);
   const containers = await createContainers("hookshot", appPort);
 
   // Create users

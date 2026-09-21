@@ -123,15 +123,17 @@ describe("JIRA", () => {
       );
       const testRoomId = await user.createRoom({
         name: "Test room",
-        invite: [testEnv.botMxid],
       });
-      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
-      const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
-      // Pre-grant connection to allow us to bypass the oauth dance.
-      await user.waitForRoomJoin({
+      // Register the waiter before the bot can possibly join.
+      const join = user.waitForRoomJoin({
         sender: testEnv.botMxid,
         roomId: testRoomId,
       });
+      await user.inviteUser(testEnv.botMxid, testRoomId);
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
+      // Pre-grant connection to allow us to bypass the oauth dance.
+      await join;
       const granter = new JiraGrantChecker(testEnv.app.appservice, null as any);
       await granter.grantConnection(testRoomId, {
         url: jiraURL,

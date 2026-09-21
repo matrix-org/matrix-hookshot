@@ -9,3 +9,5 @@ echo "Building Typescript layer"
 pnpm run build:app
 echo "Building web"
 pnpm run build:web
+echo "Building modules"
+pnpm run build:modules

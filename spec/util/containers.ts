@@ -147,7 +147,22 @@ export class SynapseContainer extends GenericContainer {
       rc_invites: {
         per_room: rc,
         per_user: rc,
+        // `per_issuer` defaults to 0.3/s with a burst of 10. Specs create a
+        // room per test and invite the bot from the same user each time, so
+        // the burst is exhausted part-way through a file and every subsequent
+        // createRoom is rejected with a ~20s retry_after_ms.
+        per_issuer: rc,
       },
+      rc_third_party_invite: rc,
+      rc_registration_token_validity: rc,
+      // Defaults to 0.1/s with a burst of 1.
+      rc_presence: {
+        set_presence: rc,
+      },
+      // Relevant to the encrypted specs: /keys/query and /keys/claim.
+      rc_key_requests: rc,
+      rc_media_create: rc,
+      rc_delayed_event_mgmt: rc,
       federation_rr_transactions_per_room_per_second: 9999,
       experimental_features: {
         msc2409_to_device_messages_enabled: true,
