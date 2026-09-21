@@ -7,11 +7,7 @@ import { LayoutView } from "./LayoutView";
 import { TitleView } from "./TitleView";
 import { MessageCard } from "./styles";
 
-export function UpdatedView({
-  vm,
-}: {
-  vm: UpdatedViewModel;
-}) {
+export function UpdatedView({ vm }: { vm: UpdatedViewModel }) {
   const snapshot = useViewModel(vm);
   if (!snapshot) {
     return null;

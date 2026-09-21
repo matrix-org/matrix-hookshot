@@ -51,7 +51,9 @@ describe("UpdatedMessageViewModel", () => {
   });
 
   it("returns null when changed data is missing", () => {
-    expect(new UpdatedMessageViewModel(createContent()).getSnapshot()).toBeNull();
+    expect(
+      new UpdatedMessageViewModel(createContent()).getSnapshot(),
+    ).toBeNull();
   });
 
   it("creates an updated view model when changed data exists", () => {

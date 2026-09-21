@@ -9,11 +9,7 @@ import { MetadataView } from "./MetadataView";
 import { TitleView } from "./TitleView";
 import { MessageCard } from "./styles";
 
-export function CreatedView({
-  vm,
-}: {
-  vm: CreatedViewModel;
-}) {
+export function CreatedView({ vm }: { vm: CreatedViewModel }) {
   const snapshot = useViewModel(vm);
   if (!snapshot) {
     return null;
