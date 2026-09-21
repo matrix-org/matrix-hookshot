@@ -1,5 +1,11 @@
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { type OpenProjectContent } from "../src/components/WorkPackageMessage";
+import {
+  type OpenProjectContent,
+  WorkPackageCreatedMessage,
+  WorkPackageUpdatedMessage,
+} from "../src/components/WorkPackageMessage";
 import { WorkPackageActions } from "../src/components/WorkPackageActions";
 import { WorkPackageChangedDetails } from "../src/components/WorkPackageChangedDetails";
 import { WorkPackageDescription } from "../src/components/WorkPackageDescription";
@@ -231,6 +237,43 @@ describe("OpenProject renderer security", () => {
         (elementProps) => elementProps.children === "<b>Plain fallback</b>",
       ),
     ).toBe(true);
+  });
+});
+
+describe("OpenProject public message renderers", () => {
+  it("renders a created message through the view-model boundary", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(WorkPackageCreatedMessage, {
+        data: { [WORK_PACKAGE_KEY]: WORK_PACKAGE },
+      }),
+    );
+
+    expect(markup).toContain("Work package");
+    expect(markup).toContain("created by OpenProject Admin");
+    expect(markup).toContain(`#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}`);
+    expect(markup).toContain(`href="${WORK_PACKAGE.url}"`);
+  });
+
+  it("renders an updated message through the view-model boundary", () => {
+    const workPackage = createWorkPackage({
+      status: { name: "In progress", color: "#1098AD" },
+    });
+    const markup = renderToStaticMarkup(
+      React.createElement(WorkPackageUpdatedMessage, {
+        data: {
+          [WORK_PACKAGE_KEY]: workPackage,
+          [CHANGED_WORK_PACKAGE_KEY]: {
+            status: { name: "New", color: "#D9D9D9" },
+          },
+        },
+      }),
+    );
+
+    expect(markup).toContain("Work package");
+    expect(markup).toContain("updated");
+    expect(markup).toContain("Status changed from");
+    expect(markup).toContain("New");
+    expect(markup).toContain("In progress");
   });
 });
 
