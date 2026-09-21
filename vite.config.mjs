@@ -3,9 +3,15 @@ import preact from '@preact/preset-vite'
 import { resolve } from 'path'
 import alias from '@rollup/plugin-alias'
 
+// Storybook uses the React renderer, while the application uses Preact as its
+// React-compatible runtime. The Preact preset also aliases React imports and
+// rewrites JSX, so loading it for Storybook makes React-only dependencies such
+// as web-shared-components run against the wrong runtime.
+const isStorybook = process.argv.some((argument) => argument.includes('storybook'))
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [preact()],
+  plugins: isStorybook ? [] : [preact()],
   root: 'web',
   base: '',
   optimizeDeps: {
@@ -19,16 +25,18 @@ export default defineConfig({
         main: resolve('web', 'index.html'),
         oauth: resolve('web', 'oauth.html'),
       },
-      plugins: [
-        alias({
-          entries: [
-            { find: 'react', replacement: 'preact/compat' },
-            { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
-            { find: 'react-dom', replacement: 'preact/compat' },
-            { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' }
+      plugins: isStorybook
+        ? []
+        : [
+            alias({
+              entries: [
+                { find: 'react', replacement: 'preact/compat' },
+                { find: 'react-dom/test-utils', replacement: 'preact/test-utils' },
+                { find: 'react-dom', replacement: 'preact/compat' },
+                { find: 'react/jsx-runtime', replacement: 'preact/jsx-runtime' }
+              ]
+            })
           ]
-        })
-      ]
     },
     emptyOutDir: true,
   },
