@@ -3,7 +3,6 @@ import { MockViewModel } from "@element-hq/web-shared-components";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { UpdatedView } from "./UpdatedView";
 import {
-  assignee,
   changedDescriptionDetails,
   changedWorkPackage,
   changedContent,
