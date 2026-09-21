@@ -1,18 +1,15 @@
 import * as React from "react";
-import type { OpenProjectWorkPackageContent } from "../models/OpenProjectMatrixEventContent";
-import { safeUrl } from "../utils/validation";
+import type { WorkPackageViewModel } from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageTitleLink } from "./WorkPackageStyles";
 
 export function WorkPackageTitle({
   workPackage,
 }: {
-  workPackage: OpenProjectWorkPackageContent;
+  workPackage: WorkPackageViewModel;
 }) {
-  const refLink = safeUrl(workPackage.url);
-
-  if (refLink) {
+  if (workPackage.url) {
     return (
-      <WorkPackageTitleLink href={refLink}>
+      <WorkPackageTitleLink href={workPackage.url}>
         #{workPackage.id} {workPackage.subject}
       </WorkPackageTitleLink>
     );

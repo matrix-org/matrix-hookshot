@@ -1,5 +1,4 @@
 import * as React from "react";
-import { safeColor } from "../utils/validation";
 import {
   WorkPackageBorder,
   WorkPackageRoot,
@@ -10,15 +9,13 @@ export function WorkPackageLayout({
   borderColor,
   children,
 }: {
-  borderColor: unknown;
+  borderColor?: string;
   children: React.ReactNode;
 }) {
-  const safeBorderColor = safeColor(borderColor);
-
   return (
     <WorkPackageWrapper>
       <WorkPackageBorder
-        {...(safeBorderColor ? { style: { background: safeBorderColor } } : {})}
+        {...(borderColor ? { style: { background: borderColor } } : {})}
       />
       <WorkPackageRoot>{children}</WorkPackageRoot>
     </WorkPackageWrapper>

@@ -1,5 +1,11 @@
 import * as React from "react";
 import type { OpenProjectContent } from "../models/OpenProjectMatrixEventContent";
+import {
+  createCreatedWorkPackageMessageViewModel,
+  createUpdatedWorkPackageMessageViewModel,
+  type WorkPackageCreatedMessageViewModel,
+  type WorkPackageUpdatedMessageViewModel,
+} from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageActions } from "./WorkPackageActions";
 import { WorkPackageChangedDetails } from "./WorkPackageChangedDetails";
 import { WorkPackageDescription } from "./WorkPackageDescription";
@@ -11,32 +17,62 @@ import { WorkPackageMessage } from "./WorkPackageStyles";
 
 export type { OpenProjectContent } from "../models/OpenProjectMatrixEventContent";
 
+function WorkPackageUpdatedMessageView({
+  viewModel,
+}: {
+  viewModel: WorkPackageUpdatedMessageViewModel;
+}) {
+  return (
+    <WorkPackageMessage>
+      <WorkPackageHeader
+        workPackage={viewModel.workPackage}
+        header={viewModel.header}
+      />
+      <WorkPackageLayout borderColor={viewModel.workPackage.type.color}>
+        <WorkPackageTitle workPackage={viewModel.workPackage} />
+        {viewModel.changedDetail ? (
+          <WorkPackageChangedDetails
+            detail={viewModel.changedDetail}
+            descriptionAsDetails
+          />
+        ) : null}
+      </WorkPackageLayout>
+    </WorkPackageMessage>
+  );
+}
+
+function WorkPackageCreatedMessageView({
+  viewModel,
+}: {
+  viewModel: WorkPackageCreatedMessageViewModel;
+}) {
+  return (
+    <WorkPackageMessage>
+      <WorkPackageHeader
+        workPackage={viewModel.workPackage}
+        header={viewModel.header}
+      />
+      <WorkPackageLayout borderColor={viewModel.workPackage.type.color}>
+        <WorkPackageTitle workPackage={viewModel.workPackage} />
+        <WorkPackageDescription
+          description={viewModel.workPackage.description}
+        />
+        <WorkPackageMetadata workPackage={viewModel.workPackage} />
+        <WorkPackageActions url={viewModel.workPackage.url} />
+      </WorkPackageLayout>
+    </WorkPackageMessage>
+  );
+}
+
 export function WorkPackageUpdatedMessage({
   data,
 }: {
   data: OpenProjectContent;
 }) {
-  const workPackage =
-    data["org.matrix.matrix-hookshot.openproject.work_package"];
-  const changes =
-    data["org.matrix.matrix-hookshot.openproject.work_package.changed"];
-  if (!workPackage || !changes) {
-    return null;
-  }
-
-  return (
-    <WorkPackageMessage>
-      <WorkPackageHeader workPackage={workPackage} action="updated" />
-      <WorkPackageLayout borderColor={workPackage.type.color}>
-        <WorkPackageTitle workPackage={workPackage} />
-        <WorkPackageChangedDetails
-          workPackage={workPackage}
-          changes={changes}
-          descriptionAsDetails
-        />
-      </WorkPackageLayout>
-    </WorkPackageMessage>
-  );
+  const viewModel = createUpdatedWorkPackageMessageViewModel(data);
+  return viewModel ? (
+    <WorkPackageUpdatedMessageView viewModel={viewModel} />
+  ) : null;
 }
 
 export function WorkPackageCreatedMessage({
@@ -44,21 +80,8 @@ export function WorkPackageCreatedMessage({
 }: {
   data: OpenProjectContent;
 }) {
-  const workPackage =
-    data["org.matrix.matrix-hookshot.openproject.work_package"];
-  if (!workPackage) {
-    return null;
-  }
-
-  return (
-    <WorkPackageMessage>
-      <WorkPackageHeader workPackage={workPackage} action="created" />
-      <WorkPackageLayout borderColor={workPackage.type.color}>
-        <WorkPackageTitle workPackage={workPackage} />
-        <WorkPackageDescription description={workPackage.description} />
-        <WorkPackageMetadata workPackage={workPackage} />
-        <WorkPackageActions url={workPackage.url} />
-      </WorkPackageLayout>
-    </WorkPackageMessage>
-  );
+  const viewModel = createCreatedWorkPackageMessageViewModel(data);
+  return viewModel ? (
+    <WorkPackageCreatedMessageView viewModel={viewModel} />
+  ) : null;
 }

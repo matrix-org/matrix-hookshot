@@ -1,15 +1,16 @@
 import * as React from "react";
-import type { OpenProjectStatus } from "../models/OpenProjectMatrixEventContent";
-import { safeColor } from "../utils/validation";
+import type { WorkPackageNamedColourViewModel } from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageStatusIndicator } from "./WorkPackageStyles";
 
-export function WorkPackageStatus({ status }: { status: OpenProjectStatus }) {
-  const safeStatusColor = safeColor(status.color);
-
+export function WorkPackageStatus({
+  status,
+}: {
+  status: WorkPackageNamedColourViewModel;
+}) {
   return (
     <span>
       <WorkPackageStatusIndicator
-        {...(safeStatusColor ? { style: { background: safeStatusColor } } : {})}
+        {...(status.color ? { style: { background: status.color } } : {})}
       />
       {status.name}
     </span>

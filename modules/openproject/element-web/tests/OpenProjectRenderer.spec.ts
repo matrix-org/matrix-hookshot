@@ -7,6 +7,10 @@ import { WorkPackageLayout } from "../src/components/WorkPackageLayout";
 import { WorkPackageLink } from "../src/components/WorkPackageLink";
 import { WorkPackageStatus } from "../src/components/WorkPackageStatus";
 import { WorkPackageTitle } from "../src/components/WorkPackageTitle";
+import {
+  createCreatedWorkPackageMessageViewModel,
+  createUpdatedWorkPackageMessageViewModel,
+} from "../src/viewmodels/WorkPackageMessageViewModel";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
@@ -60,14 +64,33 @@ function createWorkPackage(
   return { ...WORK_PACKAGE, ...overrides };
 }
 
+function createCreatedViewModel(
+  overrides: Partial<OpenProjectWorkPackageContent> = {},
+) {
+  const viewModel = createCreatedWorkPackageMessageViewModel({
+    [WORK_PACKAGE_KEY]: createWorkPackage(overrides),
+  });
+  if (!viewModel) {
+    throw new Error("Expected fixture to create a work-package view model");
+  }
+  return viewModel;
+}
+
 function renderChangedDetails(
   changes: OpenProjectWorkPackageChanges,
   overrides: Partial<OpenProjectWorkPackageContent> = {},
 ): string {
+  const viewModel = createUpdatedWorkPackageMessageViewModel({
+    [WORK_PACKAGE_KEY]: createWorkPackage(overrides),
+    [CHANGED_WORK_PACKAGE_KEY]: changes,
+  });
+  if (!viewModel?.changedDetail) {
+    throw new Error("Expected fixture to create changed work-package details");
+  }
+
   return collectText(
     WorkPackageChangedDetails({
-      workPackage: createWorkPackage(overrides),
-      changes,
+      detail: viewModel.changedDetail,
     }),
   );
 }
@@ -102,12 +125,15 @@ function createUnsafeData(): OpenProjectContent {
 
 describe("OpenProject renderer security", () => {
   it("renders available descriptions as sanitized HTML", () => {
+    const viewModel = createCreatedViewModel({
+      description: {
+        plain: "Fallback description",
+        html: "<p><strong>Rendered description</strong></p>",
+      },
+    });
     const props = collectElementProps(
       WorkPackageDescription({
-        description: {
-          plain: "Fallback description",
-          html: "<p><strong>Rendered description</strong></p>",
-        },
+        description: viewModel.workPackage.description,
       }),
     );
     const htmlProps = props.find(
@@ -121,10 +147,13 @@ describe("OpenProject renderer security", () => {
 
   it("sanitizes descriptions and rejects unsafe links and colors", () => {
     const data = createUnsafeData();
-    const workPackage = data[WORK_PACKAGE_KEY];
-    if (!workPackage) {
-      throw new Error("Expected the unsafe fixture to contain a work package");
+    const viewModel = createCreatedWorkPackageMessageViewModel(data);
+    if (!viewModel) {
+      throw new Error(
+        "Expected unsafe fixture to create a work-package view model",
+      );
     }
+    const { workPackage } = viewModel;
     const props = [
       ...collectElementProps(
         WorkPackageDescription({ description: workPackage.description }),
@@ -164,13 +193,15 @@ describe("OpenProject renderer security", () => {
 
   it("sanitizes descriptions used in changed-work-package details", () => {
     const data = createUnsafeData();
-    const workPackage = data[WORK_PACKAGE_KEY];
-    if (!workPackage) {
-      throw new Error("Expected the unsafe fixture to contain a work package");
+    const viewModel = createCreatedWorkPackageMessageViewModel(data);
+    if (!viewModel) {
+      throw new Error(
+        "Expected unsafe fixture to create a work-package view model",
+      );
     }
     const props = collectElementProps(
       WorkPackageDescription({
-        description: workPackage.description,
+        description: viewModel.workPackage.description,
       }),
     );
 
@@ -183,9 +214,12 @@ describe("OpenProject renderer security", () => {
   });
 
   it("renders the plain description as text when HTML is unavailable", () => {
+    const viewModel = createCreatedViewModel({
+      description: { plain: "<b>Plain fallback</b>" },
+    });
     const props = collectElementProps(
       WorkPackageDescription({
-        description: { plain: "<b>Plain fallback</b>" },
+        description: viewModel.workPackage.description,
       }),
     );
 

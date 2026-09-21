@@ -1,20 +1,23 @@
 import * as React from "react";
-import type { OpenProjectWorkPackageContent } from "../models/OpenProjectMatrixEventContent";
+import type {
+  WorkPackageHeaderViewModel,
+  WorkPackageViewModel,
+} from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageLink } from "./WorkPackageLink";
 
 export function WorkPackageHeader({
   workPackage,
-  action,
+  header,
 }: {
-  workPackage: OpenProjectWorkPackageContent;
-  action: "created" | "updated";
+  workPackage: WorkPackageViewModel;
+  header: WorkPackageHeaderViewModel;
 }) {
   return (
     <span>
       Work package{" "}
       <WorkPackageLink url={workPackage.url}>{workPackage.id}</WorkPackageLink>{" "}
-      {action}
-      {action === "created" ? ` by ${workPackage.author.name}` : null}
+      {header.action}
+      {header.authorName ? ` by ${header.authorName}` : null}
     </span>
   );
 }

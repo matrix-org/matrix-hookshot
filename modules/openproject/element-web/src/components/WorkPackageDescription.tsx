@@ -1,19 +1,16 @@
 import * as React from "react";
-import type { OpenProjectDescription } from "../models/OpenProjectMatrixEventContent";
+import type { WorkPackageDescriptionViewModel } from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageDescriptionText } from "./WorkPackageStyles";
-import { safeHtml } from "../utils/validation";
 
 export function WorkPackageDescription({
   description,
 }: {
-  description: OpenProjectDescription;
+  description: WorkPackageDescriptionViewModel;
 }) {
-  const descriptionHtml = safeHtml(description.html);
-
-  if (descriptionHtml) {
+  if (description.html) {
     return (
       <WorkPackageDescriptionText
-        dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+        dangerouslySetInnerHTML={{ __html: description.html }}
       />
     );
   }

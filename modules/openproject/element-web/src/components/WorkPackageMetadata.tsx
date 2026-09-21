@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { OpenProjectWorkPackageContent } from "../models/OpenProjectMatrixEventContent";
+import type { WorkPackageViewModel } from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageLink } from "./WorkPackageLink";
 import { WorkPackageRow } from "./WorkPackageStyles";
 import { WorkPackageStatus } from "./WorkPackageStatus";
@@ -7,7 +7,7 @@ import { WorkPackageStatus } from "./WorkPackageStatus";
 export function WorkPackageMetadata({
   workPackage,
 }: {
-  workPackage: OpenProjectWorkPackageContent;
+  workPackage: WorkPackageViewModel;
 }) {
   return (
     <WorkPackageRow>

@@ -1,4 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import type {
+  OpenProjectWorkPackageChanges,
+  OpenProjectWorkPackageContent,
+} from "../models/OpenProjectMatrixEventContent";
+import { createUpdatedWorkPackageMessageViewModel } from "../viewmodels/WorkPackageMessageViewModel";
 import { WorkPackageChangedDetails } from "./WorkPackageChangedDetails";
 import {
   changedAssigneeDetails,
@@ -15,6 +20,20 @@ import {
   clearedOptionalValuesWorkPackage,
 } from "./storybook.fixtures";
 
+function createChangedDetail(
+  workPackage: OpenProjectWorkPackageContent,
+  changes: OpenProjectWorkPackageChanges,
+) {
+  const viewModel = createUpdatedWorkPackageMessageViewModel({
+    "org.matrix.matrix-hookshot.openproject.work_package": workPackage,
+    "org.matrix.matrix-hookshot.openproject.work_package.changed": changes,
+  });
+  if (!viewModel?.changedDetail) {
+    throw new Error("Expected story fixture to contain a changed field");
+  }
+  return viewModel.changedDetail;
+}
+
 const meta = {
   title: "OpenProject/Changes",
   component: WorkPackageChangedDetails,
@@ -25,54 +44,63 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Status: Story = {
-  args: { workPackage: changedWorkPackage, changes: changedStatusDetails },
+  args: {
+    detail: createChangedDetail(changedWorkPackage, changedStatusDetails),
+  },
 };
 
 export const Description: Story = {
   args: {
-    workPackage: changedWorkPackage,
-    changes: changedDescriptionDetails,
+    detail: createChangedDetail(changedWorkPackage, changedDescriptionDetails),
     descriptionAsDetails: false,
   },
 };
 
 export const Assignee: Story = {
-  args: { workPackage: changedWorkPackage, changes: changedAssigneeDetails },
+  args: {
+    detail: createChangedDetail(changedWorkPackage, changedAssigneeDetails),
+  },
 };
 
 export const Responsible: Story = {
   args: {
-    workPackage: changedWorkPackage,
-    changes: changedResponsibleDetails,
+    detail: createChangedDetail(changedWorkPackage, changedResponsibleDetails),
   },
 };
 
 export const Priority: Story = {
-  args: { workPackage: changedWorkPackage, changes: changedPriorityDetails },
+  args: {
+    detail: createChangedDetail(changedWorkPackage, changedPriorityDetails),
+  },
 };
 
 export const DueDate: Story = {
-  args: { workPackage: changedWorkPackage, changes: changedDueDateDetails },
+  args: {
+    detail: createChangedDetail(changedWorkPackage, changedDueDateDetails),
+  },
 };
 
 export const PercentageComplete: Story = {
   args: {
-    workPackage: changedWorkPackage,
-    changes: changedPercentageDetails,
+    detail: createChangedDetail(changedWorkPackage, changedPercentageDetails),
   },
 };
 
 export const Subject: Story = {
-  args: { workPackage: changedWorkPackage, changes: changedSubjectDetails },
+  args: {
+    detail: createChangedDetail(changedWorkPackage, changedSubjectDetails),
+  },
 };
 
 export const Type: Story = {
-  args: { workPackage: changedWorkPackage, changes: changedTypeDetails },
+  args: { detail: createChangedDetail(changedWorkPackage, changedTypeDetails) },
 };
 
 export const ClearedOptionalValues: Story = {
   args: {
-    workPackage: clearedOptionalValuesWorkPackage,
-    changes: clearedOptionalValuesDetails,
+    detail: createChangedDetail(
+      clearedOptionalValuesWorkPackage,
+      clearedOptionalValuesDetails,
+    ),
   },
 };

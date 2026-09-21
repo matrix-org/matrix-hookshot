@@ -23,6 +23,11 @@ export interface WorkPackageDescriptionViewModel {
   readonly html?: string;
 }
 
+export interface WorkPackageHeaderViewModel {
+  readonly action: "created" | "updated";
+  readonly authorName?: string;
+}
+
 export interface WorkPackageViewModel {
   readonly id: number;
   readonly subject: string;
@@ -60,7 +65,7 @@ export type WorkPackageChangedDetailViewModel =
   | { readonly kind: "responsible"; readonly currentName: string }
   | {
       readonly kind: "status";
-      readonly previous: WorkPackageNamedColourViewModel | undefined;
+      readonly previous: WorkPackageNamedColourViewModel;
       readonly current: WorkPackageNamedColourViewModel;
     }
   | { readonly kind: "subject" }
@@ -68,10 +73,7 @@ export type WorkPackageChangedDetailViewModel =
 
 interface WorkPackageMessageBaseViewModel {
   readonly workPackage: WorkPackageViewModel;
-  readonly header: {
-    readonly action: "created" | "updated";
-    readonly authorName?: string;
-  };
+  readonly header: WorkPackageHeaderViewModel;
 }
 
 export interface WorkPackageCreatedMessageViewModel extends WorkPackageMessageBaseViewModel {
@@ -170,9 +172,7 @@ function createChangedDetailViewModel(
   if (changes.status !== undefined) {
     return {
       kind: "status",
-      previous: changes.status
-        ? createNamedColourViewModel(changes.status)
-        : undefined,
+      previous: createNamedColourViewModel(changes.status),
       current: workPackage.status,
     };
   }
