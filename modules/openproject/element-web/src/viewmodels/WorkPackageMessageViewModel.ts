@@ -85,10 +85,6 @@ export interface WorkPackageUpdatedMessageViewModel extends WorkPackageMessageBa
   readonly changedDetail?: WorkPackageChangedDetailViewModel;
 }
 
-export type WorkPackageMessageViewModel =
-  | WorkPackageCreatedMessageViewModel
-  | WorkPackageUpdatedMessageViewModel;
-
 function createPersonViewModel(
   person: OpenProjectPerson,
 ): WorkPackagePersonViewModel {
@@ -220,12 +216,4 @@ export function createUpdatedWorkPackageMessageViewModel(
     header: { action: "updated" },
     changedDetail: createChangedDetailViewModel(workPackage, changes),
   };
-}
-
-export function createWorkPackageMessageViewModel(
-  data: OpenProjectContent,
-): WorkPackageMessageViewModel | null {
-  return data["org.matrix.matrix-hookshot.openproject.work_package.changed"]
-    ? createUpdatedWorkPackageMessageViewModel(data)
-    : createCreatedWorkPackageMessageViewModel(data);
 }

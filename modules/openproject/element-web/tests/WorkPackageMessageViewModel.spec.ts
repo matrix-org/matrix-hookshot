@@ -3,7 +3,6 @@ import type { OpenProjectContent } from "../src/models/OpenProjectMatrixEventCon
 import {
   createCreatedWorkPackageMessageViewModel,
   createUpdatedWorkPackageMessageViewModel,
-  createWorkPackageMessageViewModel,
 } from "../src/viewmodels/WorkPackageMessageViewModel";
 import { WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
@@ -106,13 +105,16 @@ describe("WorkPackageMessageViewModel", () => {
     });
   });
 
-  it("returns null for an incomplete message and selects an updated message when changed data exists", () => {
+  it("returns null for incomplete messages", () => {
     expect(createCreatedWorkPackageMessageViewModel({})).toBeNull();
     expect(
       createUpdatedWorkPackageMessageViewModel(createContent()),
     ).toBeNull();
+  });
+
+  it("creates an updated view model when changed data exists", () => {
     expect(
-      createWorkPackageMessageViewModel(
+      createUpdatedWorkPackageMessageViewModel(
         createContent({
           [CHANGED_WORK_PACKAGE_KEY]: { subject: "Previous subject" },
         }),
