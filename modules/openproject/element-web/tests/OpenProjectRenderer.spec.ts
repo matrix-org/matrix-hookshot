@@ -10,7 +10,7 @@ import { WorkPackageTitle } from "../src/components/WorkPackageTitle";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
-} from "../src/components/types";
+} from "../src/models/OpenProjectMatrixEventContent";
 import { WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
 const WORK_PACKAGE_KEY = "org.matrix.matrix-hookshot.openproject.work_package";

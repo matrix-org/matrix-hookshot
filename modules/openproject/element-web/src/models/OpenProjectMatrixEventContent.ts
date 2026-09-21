@@ -1,3 +1,10 @@
+/**
+ * The Matrix event DTOs emitted by Hookshot for OpenProject work packages.
+ *
+ * These deliberately model the event payload rather than the presentation of
+ * that payload. The view model is responsible for deriving safe, renderable
+ * values from them.
+ */
 export interface OpenProjectDescription {
   plain: string;
   html?: string;

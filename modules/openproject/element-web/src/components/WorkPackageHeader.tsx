@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { OpenProjectWorkPackageContent } from "./types";
+import type { OpenProjectWorkPackageContent } from "../models/OpenProjectMatrixEventContent";
 import { WorkPackageLink } from "./WorkPackageLink";
 
 export function WorkPackageHeader({

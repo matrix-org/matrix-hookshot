@@ -5,7 +5,7 @@ import type {
   OpenProjectStatus,
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
-} from "./types";
+} from "../models/OpenProjectMatrixEventContent";
 
 export const author: OpenProjectPerson = {
   name: "Ada Lovelace",

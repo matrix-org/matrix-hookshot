@@ -1,7 +1,7 @@
 import * as React from "react";
-import type { OpenProjectDescription } from "./types";
+import type { OpenProjectDescription } from "../models/OpenProjectMatrixEventContent";
 import { WorkPackageDescriptionText } from "./WorkPackageStyles";
-import { safeHtml } from "./validation";
+import { safeHtml } from "../utils/validation";
 
 export function WorkPackageDescription({
   description,

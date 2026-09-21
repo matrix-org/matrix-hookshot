@@ -2,7 +2,7 @@ import * as React from "react";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
-} from "./types";
+} from "../models/OpenProjectMatrixEventContent";
 import { WorkPackageDescription } from "./WorkPackageDescription";
 import { WorkPackageChangedText } from "./WorkPackageStyles";
 import { WorkPackageStatus } from "./WorkPackageStatus";

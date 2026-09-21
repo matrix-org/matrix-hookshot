@@ -1,5 +1,5 @@
 import * as React from "react";
-import { safeUrl } from "./validation";
+import { safeUrl } from "../utils/validation";
 
 export function WorkPackageLink({
   url,

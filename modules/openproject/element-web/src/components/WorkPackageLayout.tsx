@@ -1,5 +1,5 @@
 import * as React from "react";
-import { safeColor } from "./validation";
+import { safeColor } from "../utils/validation";
 import {
   WorkPackageBorder,
   WorkPackageRoot,

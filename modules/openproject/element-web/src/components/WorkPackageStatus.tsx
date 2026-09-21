@@ -1,6 +1,6 @@
 import * as React from "react";
-import type { OpenProjectStatus } from "./types";
-import { safeColor } from "./validation";
+import type { OpenProjectStatus } from "../models/OpenProjectMatrixEventContent";
+import { safeColor } from "../utils/validation";
 import { WorkPackageStatusIndicator } from "./WorkPackageStyles";
 
 export function WorkPackageStatus({ status }: { status: OpenProjectStatus }) {

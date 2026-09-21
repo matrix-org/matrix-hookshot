@@ -1,6 +1,6 @@
 import * as React from "react";
-import type { OpenProjectWorkPackageContent } from "./types";
-import { safeUrl } from "./validation";
+import type { OpenProjectWorkPackageContent } from "../models/OpenProjectMatrixEventContent";
+import { safeUrl } from "../utils/validation";
 import { WorkPackageTitleLink } from "./WorkPackageStyles";
 
 export function WorkPackageTitle({

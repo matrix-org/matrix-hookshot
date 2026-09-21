@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { OpenProjectContent } from "./types";
+import type { OpenProjectContent } from "../models/OpenProjectMatrixEventContent";
 import { WorkPackageActions } from "./WorkPackageActions";
 import { WorkPackageChangedDetails } from "./WorkPackageChangedDetails";
 import { WorkPackageDescription } from "./WorkPackageDescription";
@@ -9,7 +9,7 @@ import { WorkPackageMetadata } from "./WorkPackageMetadata";
 import { WorkPackageTitle } from "./WorkPackageTitle";
 import { WorkPackageMessage } from "./WorkPackageStyles";
 
-export type { OpenProjectContent } from "./types";
+export type { OpenProjectContent } from "../models/OpenProjectMatrixEventContent";
 
 export function WorkPackageUpdatedMessage({
   data,
