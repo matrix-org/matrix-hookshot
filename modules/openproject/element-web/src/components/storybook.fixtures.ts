@@ -6,6 +6,7 @@ import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
 } from "../models/OpenProjectMatrixEventContent";
+import { createUpdatedWorkPackageMessageViewModel } from "../viewmodels/WorkPackageMessageViewModel";
 
 export const author: OpenProjectPerson = {
   name: "Ada Lovelace",
@@ -156,3 +157,17 @@ export const changedContent: OpenProjectContent = {
   "org.matrix.matrix-hookshot.openproject.work_package.changed":
     changedStatusDetails,
 };
+
+export function createWorkPackageChangedDetail(
+  workPackage: OpenProjectWorkPackageContent,
+  changes: OpenProjectWorkPackageChanges,
+) {
+  const viewModel = createUpdatedWorkPackageMessageViewModel({
+    "org.matrix.matrix-hookshot.openproject.work_package": workPackage,
+    "org.matrix.matrix-hookshot.openproject.work_package.changed": changes,
+  });
+  if (!viewModel?.changedDetail) {
+    throw new Error("Expected story fixture to contain a changed field");
+  }
+  return viewModel.changedDetail;
+}
