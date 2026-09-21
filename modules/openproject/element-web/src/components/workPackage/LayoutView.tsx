@@ -3,9 +3,9 @@ import {
   WorkPackageBorder,
   WorkPackageRoot,
   WorkPackageWrapper,
-} from "./WorkPackageStyles";
+} from "./styles";
 
-export function WorkPackageLayout({
+export function LayoutView({
   borderColor,
   children,
 }: {

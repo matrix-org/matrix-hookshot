@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import HookshotOpenProjectModule from "../src";
-import {
-  WorkPackageCreatedMessage,
-  WorkPackageUpdatedMessage,
-} from "../src/components/WorkPackageMessage";
+import { OpenProjectMessageRenderer } from "../src/OpenProjectMessageRenderer";
 import {
   OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
   OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT,
@@ -73,8 +71,13 @@ describe("OpenProject Element Web module", () => {
       mxEvent: SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT,
     });
 
-    expect(baseElement.type).toBe(WorkPackageCreatedMessage);
-    expect(updateElement.type).toBe(WorkPackageCreatedMessage);
-    expect(changedElement.type).toBe(WorkPackageUpdatedMessage);
+    expect(baseElement.type).toBe(OpenProjectMessageRenderer);
+    expect(updateElement.type).toBe(OpenProjectMessageRenderer);
+    expect(changedElement.type).toBe(OpenProjectMessageRenderer);
+
+    expect(renderToStaticMarkup(baseElement)).toContain("created");
+    expect(renderToStaticMarkup(updateElement)).toContain("created");
+    expect(renderToStaticMarkup(changedElement)).toContain("updated");
+    expect(renderToStaticMarkup(changedElement)).toContain("Subject changed");
   });
 });

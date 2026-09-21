@@ -1,21 +1,21 @@
 import * as React from "react";
-import type { WorkPackageChangedDetailViewModel } from "../viewmodels/WorkPackageMessageViewModel";
-import { WorkPackageDescription } from "./WorkPackageDescription";
-import { WorkPackageChangedText } from "./WorkPackageStyles";
-import { WorkPackageStatus } from "./WorkPackageStatus";
+import type { ChangeViewModel } from "../../viewmodels/workPackage/ChangeViewModel";
+import { DescriptionView } from "./DescriptionView";
+import { StatusView } from "./StatusView";
+import { WorkPackageChangedText } from "./styles";
 
-export function WorkPackageChangedDetails({
-  detail,
+export function ChangedDetailsView({
+  change,
   descriptionAsDetails = false,
 }: {
-  detail: WorkPackageChangedDetailViewModel;
+  change: ChangeViewModel;
   descriptionAsDetails?: boolean;
 }) {
-  switch (detail.kind) {
+  switch (change.kind) {
     case "assignee":
       return (
         <WorkPackageChangedText>
-          Assignee changed to <strong>{detail.currentName}</strong>
+          Assignee changed to <strong>{change.currentName}</strong>
         </WorkPackageChangedText>
       );
     case "description":
@@ -24,7 +24,7 @@ export function WorkPackageChangedDetails({
           <WorkPackageChangedText>
             <details>
               <summary>Description changed</summary>
-              <WorkPackageDescription description={detail.description} />
+              <DescriptionView {...change.description} />
             </details>
           </WorkPackageChangedText>
         );
@@ -32,28 +32,28 @@ export function WorkPackageChangedDetails({
       return (
         <WorkPackageChangedText>
           <span>Description changed</span>
-          <WorkPackageDescription description={detail.description} />
+          <DescriptionView {...change.description} />
         </WorkPackageChangedText>
       );
     case "dueDate":
       return (
         <WorkPackageChangedText>
-          {detail.currentValue === null
+          {change.currentValue === null
             ? "Due date removed"
             : [
                 "Due date changed to ",
-                <strong key="due-date">{detail.currentValue}</strong>,
+                <strong key="due-date">{change.currentValue}</strong>,
               ]}
         </WorkPackageChangedText>
       );
     case "percentageDone":
       return (
         <WorkPackageChangedText>
-          {detail.currentValue === null
+          {change.currentValue === null
             ? "Work completion percentage removed"
             : [
                 "Work package is now ",
-                <strong key="percentage-done">{detail.currentValue}</strong>,
+                <strong key="percentage-done">{change.currentValue}</strong>,
                 "% complete",
               ]}
         </WorkPackageChangedText>
@@ -61,21 +61,21 @@ export function WorkPackageChangedDetails({
     case "priority":
       return (
         <WorkPackageChangedText>
-          Priority changed from <strong>{detail.previousName}</strong> to{" "}
-          <strong>{detail.currentName}</strong>
+          Priority changed from <strong>{change.previousName}</strong> to{" "}
+          <strong>{change.currentName}</strong>
         </WorkPackageChangedText>
       );
     case "responsible":
       return (
         <WorkPackageChangedText>
-          Updated accountable person to <strong>{detail.currentName}</strong>
+          Updated accountable person to <strong>{change.currentName}</strong>
         </WorkPackageChangedText>
       );
     case "status":
       return (
         <WorkPackageChangedText>
-          Status changed from <WorkPackageStatus status={detail.previous} /> to{" "}
-          <WorkPackageStatus status={detail.current} />
+          Status changed from <StatusView {...change.previous} /> to{" "}
+          <StatusView {...change.current} />
         </WorkPackageChangedText>
       );
     case "subject":
@@ -83,7 +83,7 @@ export function WorkPackageChangedDetails({
     case "type":
       return (
         <WorkPackageChangedText>
-          Type changed to <strong>{detail.currentName}</strong>
+          Type changed to <strong>{change.currentName}</strong>
         </WorkPackageChangedText>
       );
   }

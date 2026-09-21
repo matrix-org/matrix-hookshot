@@ -1,22 +1,20 @@
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import {
-  type OpenProjectContent,
-  WorkPackageCreatedMessage,
-  WorkPackageUpdatedMessage,
-} from "../src/components/WorkPackageMessage";
-import { WorkPackageActions } from "../src/components/WorkPackageActions";
-import { WorkPackageChangedDetails } from "../src/components/WorkPackageChangedDetails";
-import { WorkPackageDescription } from "../src/components/WorkPackageDescription";
-import { WorkPackageLayout } from "../src/components/WorkPackageLayout";
-import { WorkPackageLink } from "../src/components/WorkPackageLink";
-import { WorkPackageStatus } from "../src/components/WorkPackageStatus";
-import { WorkPackageTitle } from "../src/components/WorkPackageTitle";
-import {
-  createCreatedWorkPackageMessageViewModel,
-  createUpdatedWorkPackageMessageViewModel,
-} from "../src/viewmodels/WorkPackageMessageViewModel";
+import { MockViewModel } from "@element-hq/web-shared-components";
+import { OpenProjectMessageRenderer } from "../src/OpenProjectMessageRenderer";
+import { CreatedView } from "../src/components/workPackage/CreatedView";
+import { UpdatedView } from "../src/components/workPackage/UpdatedView";
+import type { OpenProjectContent } from "../src/models/OpenProjectMatrixEventContent";
+import { ActionsView } from "../src/components/workPackage/ActionsView";
+import { ChangedDetailsView } from "../src/components/workPackage/ChangedDetailsView";
+import { DescriptionView } from "../src/components/workPackage/DescriptionView";
+import { LayoutView } from "../src/components/workPackage/LayoutView";
+import { LinkView } from "../src/components/workPackage/LinkView";
+import { StatusView } from "../src/components/workPackage/StatusView";
+import { TitleView } from "../src/components/workPackage/TitleView";
+import { CreatedMessageViewModel } from "../src/viewmodels/workPackage/CreatedMessageViewModel";
+import { UpdatedMessageViewModel } from "../src/viewmodels/workPackage/UpdatedMessageViewModel";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
@@ -73,9 +71,9 @@ function createWorkPackage(
 function createCreatedViewModel(
   overrides: Partial<OpenProjectWorkPackageContent> = {},
 ) {
-  const viewModel = createCreatedWorkPackageMessageViewModel({
+  const viewModel = new CreatedMessageViewModel({
     [WORK_PACKAGE_KEY]: createWorkPackage(overrides),
-  });
+  }).getSnapshot();
   if (!viewModel) {
     throw new Error("Expected fixture to create a work-package view model");
   }
@@ -86,17 +84,17 @@ function renderChangedDetails(
   changes: OpenProjectWorkPackageChanges,
   overrides: Partial<OpenProjectWorkPackageContent> = {},
 ): string {
-  const viewModel = createUpdatedWorkPackageMessageViewModel({
+  const viewModel = new UpdatedMessageViewModel({
     [WORK_PACKAGE_KEY]: createWorkPackage(overrides),
     [CHANGED_WORK_PACKAGE_KEY]: changes,
-  });
+  }).getSnapshot();
   if (!viewModel?.changedDetail) {
     throw new Error("Expected fixture to create changed work-package details");
   }
 
   return collectText(
-    WorkPackageChangedDetails({
-      detail: viewModel.changedDetail,
+    ChangedDetailsView({
+      change: viewModel.changedDetail,
     }),
   );
 }
@@ -138,9 +136,7 @@ describe("OpenProject renderer security", () => {
       },
     });
     const props = collectElementProps(
-      WorkPackageDescription({
-        description: viewModel.workPackage.description,
-      }),
+      DescriptionView({ ...viewModel.workPackage.description }),
     );
     const htmlProps = props.find(
       (elementProps) => "dangerouslySetInnerHTML" in elementProps,
@@ -153,7 +149,7 @@ describe("OpenProject renderer security", () => {
 
   it("sanitizes descriptions and rejects unsafe links and colors", () => {
     const data = createUnsafeData();
-    const viewModel = createCreatedWorkPackageMessageViewModel(data);
+    const viewModel = new CreatedMessageViewModel(data).getSnapshot();
     if (!viewModel) {
       throw new Error(
         "Expected unsafe fixture to create a work-package view model",
@@ -161,21 +157,23 @@ describe("OpenProject renderer security", () => {
     }
     const { workPackage } = viewModel;
     const props = [
+      ...collectElementProps(DescriptionView({ ...workPackage.description })),
+      ...collectElementProps(LinkView({ url: workPackage.url, children: 50 })),
       ...collectElementProps(
-        WorkPackageDescription({ description: workPackage.description }),
+        TitleView({
+          id: workPackage.id,
+          subject: workPackage.subject,
+          url: workPackage.url,
+        }),
       ),
       ...collectElementProps(
-        WorkPackageLink({ url: workPackage.url, children: 50 }),
-      ),
-      ...collectElementProps(WorkPackageTitle({ workPackage })),
-      ...collectElementProps(
-        WorkPackageLayout({
+        LayoutView({
           borderColor: workPackage.type.color,
           children: null,
         }),
       ),
-      ...collectElementProps(WorkPackageStatus({ status: workPackage.status })),
-      ...collectElementProps(WorkPackageActions({ url: workPackage.url })),
+      ...collectElementProps(StatusView({ ...workPackage.status })),
+      ...collectElementProps(ActionsView({ url: workPackage.url })),
     ];
     const hrefs = props
       .filter((elementProps) => "href" in elementProps)
@@ -199,16 +197,14 @@ describe("OpenProject renderer security", () => {
 
   it("sanitizes descriptions used in changed-work-package details", () => {
     const data = createUnsafeData();
-    const viewModel = createCreatedWorkPackageMessageViewModel(data);
+    const viewModel = new CreatedMessageViewModel(data).getSnapshot();
     if (!viewModel) {
       throw new Error(
         "Expected unsafe fixture to create a work-package view model",
       );
     }
     const props = collectElementProps(
-      WorkPackageDescription({
-        description: viewModel.workPackage.description,
-      }),
+      DescriptionView({ ...viewModel.workPackage.description }),
     );
 
     const descriptionProps = props.find(
@@ -224,9 +220,7 @@ describe("OpenProject renderer security", () => {
       description: { plain: "<b>Plain fallback</b>" },
     });
     const props = collectElementProps(
-      WorkPackageDescription({
-        description: viewModel.workPackage.description,
-      }),
+      DescriptionView({ ...viewModel.workPackage.description }),
     );
 
     expect(
@@ -241,9 +235,60 @@ describe("OpenProject renderer security", () => {
 });
 
 describe("OpenProject public message renderers", () => {
+  it("renders CreatedView from a view-model snapshot", () => {
+    const snapshot = new CreatedMessageViewModel({
+      [WORK_PACKAGE_KEY]: WORK_PACKAGE,
+    }).getSnapshot();
+
+    const markup = renderToStaticMarkup(
+      React.createElement(CreatedView, {
+        vm: new MockViewModel(snapshot),
+      }),
+    );
+
+    expect(markup).toContain("created by OpenProject Admin");
+    expect(markup).toContain(`#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}`);
+  });
+
+  it("renders no markup for a null CreatedView snapshot", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(CreatedView, {
+        vm: new MockViewModel(null),
+      }),
+    );
+
+    expect(markup).toBe("");
+  });
+
+  it("renders UpdatedView from a view-model snapshot", () => {
+    const snapshot = new UpdatedMessageViewModel({
+      [WORK_PACKAGE_KEY]: WORK_PACKAGE,
+      [CHANGED_WORK_PACKAGE_KEY]: { subject: "Previous subject" },
+    }).getSnapshot();
+
+    const markup = renderToStaticMarkup(
+      React.createElement(UpdatedView, {
+        vm: new MockViewModel(snapshot),
+      }),
+    );
+
+    expect(markup).toContain("updated");
+    expect(markup).toContain("Subject changed");
+  });
+
+  it("renders no markup for a null UpdatedView snapshot", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(UpdatedView, {
+        vm: new MockViewModel(null),
+      }),
+    );
+
+    expect(markup).toBe("");
+  });
+
   it("renders a created message through the view-model boundary", () => {
     const markup = renderToStaticMarkup(
-      React.createElement(WorkPackageCreatedMessage, {
+      React.createElement(OpenProjectMessageRenderer, {
         data: { [WORK_PACKAGE_KEY]: WORK_PACKAGE },
       }),
     );
@@ -259,7 +304,7 @@ describe("OpenProject public message renderers", () => {
       status: { name: "In progress", color: "#1098AD" },
     });
     const markup = renderToStaticMarkup(
-      React.createElement(WorkPackageUpdatedMessage, {
+      React.createElement(OpenProjectMessageRenderer, {
         data: {
           [WORK_PACKAGE_KEY]: workPackage,
           [CHANGED_WORK_PACKAGE_KEY]: {

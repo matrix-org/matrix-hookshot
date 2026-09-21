@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { WorkPackageChangedDetails } from "./WorkPackageChangedDetails";
+import { ChangedDetailsView } from "./ChangedDetailsView";
 import {
   changedAssigneeDetails,
   changedDescriptionDetails,
@@ -14,20 +14,20 @@ import {
   clearedOptionalValuesDetails,
   clearedOptionalValuesWorkPackage,
   createWorkPackageChangedDetail,
-} from "./storybook.fixtures";
+} from "../../../storybook/fixtures";
 
 const meta = {
-  title: "OpenProject/Changes",
-  component: WorkPackageChangedDetails,
+  title: "OpenProject/Work package/Changes",
+  component: ChangedDetailsView,
   tags: ["autodocs"],
-} satisfies Meta<typeof WorkPackageChangedDetails>;
+} satisfies Meta<typeof ChangedDetailsView>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Status: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedStatusDetails,
     ),
@@ -36,7 +36,7 @@ export const Status: Story = {
 
 export const Description: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedDescriptionDetails,
     ),
@@ -46,7 +46,7 @@ export const Description: Story = {
 
 export const Assignee: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedAssigneeDetails,
     ),
@@ -55,7 +55,7 @@ export const Assignee: Story = {
 
 export const Responsible: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedResponsibleDetails,
     ),
@@ -64,7 +64,7 @@ export const Responsible: Story = {
 
 export const Priority: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedPriorityDetails,
     ),
@@ -73,7 +73,7 @@ export const Priority: Story = {
 
 export const DueDate: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedDueDateDetails,
     ),
@@ -82,7 +82,7 @@ export const DueDate: Story = {
 
 export const PercentageComplete: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedPercentageDetails,
     ),
@@ -91,7 +91,7 @@ export const PercentageComplete: Story = {
 
 export const Subject: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedSubjectDetails,
     ),
@@ -100,7 +100,7 @@ export const Subject: Story = {
 
 export const Type: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       changedWorkPackage,
       changedTypeDetails,
     ),
@@ -109,7 +109,7 @@ export const Type: Story = {
 
 export const ClearedOptionalValues: Story = {
   args: {
-    detail: createWorkPackageChangedDetail(
+    change: createWorkPackageChangedDetail(
       clearedOptionalValuesWorkPackage,
       clearedOptionalValuesDetails,
     ),

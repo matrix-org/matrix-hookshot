@@ -2,7 +2,7 @@ import * as React from "react";
 import { Button } from "@vector-im/compound-web";
 import PopOutIcon from "@vector-im/compound-design-tokens/assets/web/icons/pop-out";
 
-export function WorkPackageActions({ url }: { url?: string }) {
+export function ActionsView({ url }: { url?: string }) {
   if (url) {
     return (
       <Button
