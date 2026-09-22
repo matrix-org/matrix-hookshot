@@ -1,13 +1,13 @@
 import type { OpenProjectWorkPackageChanges } from "../../models/OpenProjectMatrixEventContent";
-import type { DescriptionViewModel } from "./DescriptionViewModel";
-import { createLabelViewModel, type LabelViewModel } from "./LabelViewModel";
-import type { DetailsViewModel } from "./DetailsViewModel";
+import type { DescriptionSnapshot } from "./DescriptionSnapshot";
+import { createLabelSnapshot, type LabelSnapshot } from "./LabelSnapshot";
+import type { DetailsSnapshot } from "./DetailsSnapshot";
 
-export type ChangeViewModel =
+export type ChangeSnapshot =
   | { readonly kind: "assignee"; readonly currentName: string }
   | {
       readonly kind: "description";
-      readonly description: DescriptionViewModel;
+      readonly description: DescriptionSnapshot;
     }
   | {
       readonly kind: "dueDate";
@@ -25,8 +25,8 @@ export type ChangeViewModel =
   | { readonly kind: "responsible"; readonly currentName: string }
   | {
       readonly kind: "status";
-      readonly previous: LabelViewModel;
-      readonly current: LabelViewModel;
+      readonly previous: LabelSnapshot;
+      readonly current: LabelSnapshot;
     }
   | { readonly kind: "subject" }
   | { readonly kind: "type"; readonly currentName: string };
@@ -36,10 +36,10 @@ export type ChangeViewModel =
  * renderer. Rendering every changed field is intentionally a future
  * behavioural change, not part of this refactor.
  */
-export function createChangeViewModel(
-  workPackage: DetailsViewModel,
+export function createChangeSnapshot(
+  workPackage: DetailsSnapshot,
   changes: OpenProjectWorkPackageChanges,
-): ChangeViewModel | undefined {
+): ChangeSnapshot | undefined {
   if (changes.assignee !== undefined) {
     return {
       kind: "assignee",
@@ -71,7 +71,7 @@ export function createChangeViewModel(
   if (changes.status !== undefined) {
     return {
       kind: "status",
-      previous: createLabelViewModel(changes.status),
+      previous: createLabelSnapshot(changes.status),
       current: workPackage.status,
     };
   }

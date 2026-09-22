@@ -13,21 +13,21 @@ export function UpdatedView({ vm }: { vm: UpdatedViewModel }) {
     return null;
   }
 
-  const { workPackage, header } = snapshot;
+  const { details, header } = snapshot;
 
   return (
     <MessageCard>
       <HeaderView
-        id={workPackage.id}
-        url={workPackage.url}
+        id={details.id}
+        url={details.url}
         action={header.action}
         authorName={header.authorName}
       />
-      <LayoutView borderColor={workPackage.type.color}>
+      <LayoutView borderColor={details.type.color}>
         <TitleView
-          id={workPackage.id}
-          subject={workPackage.subject}
-          url={workPackage.url}
+          id={details.id}
+          subject={details.subject}
+          url={details.url}
         />
         {snapshot.changedDetail ? (
           <ChangedDetailsView

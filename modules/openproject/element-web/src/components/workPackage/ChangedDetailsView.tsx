@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { ChangeViewModel } from "../../viewmodels/workPackage/ChangeViewModel";
+import type { ChangeSnapshot } from "../../viewmodels/workPackage/ChangeSnapshot";
 import { DescriptionView } from "./DescriptionView";
 import { StatusView } from "./StatusView";
 import { WorkPackageChangedText } from "./styles";
@@ -8,7 +8,7 @@ export function ChangedDetailsView({
   change,
   descriptionAsDetails = false,
 }: {
-  change: ChangeViewModel;
+  change: ChangeSnapshot;
   descriptionAsDetails?: boolean;
 }) {
   switch (change.kind) {

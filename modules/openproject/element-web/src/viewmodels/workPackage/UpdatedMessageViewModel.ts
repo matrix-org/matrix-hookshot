@@ -3,21 +3,17 @@ import {
   type ViewModel,
 } from "@element-hq/web-shared-components";
 import type { OpenProjectContent } from "../../models/OpenProjectMatrixEventContent";
-import { createChangeViewModel } from "./ChangeViewModel";
-import {
-  createDetailsViewModel,
-  type DetailsViewModel,
-} from "./DetailsViewModel";
-import type { ChangeViewModel } from "./ChangeViewModel";
+import { createChangeSnapshot, type ChangeSnapshot } from "./ChangeSnapshot";
+import { createDetailsSnapshot, type DetailsSnapshot } from "./DetailsSnapshot";
 
 export interface UpdatedViewSnapshot {
   readonly kind: "updated";
-  readonly workPackage: DetailsViewModel;
+  readonly details: DetailsSnapshot;
   readonly header: {
     readonly action: "updated";
     readonly authorName?: string;
   };
-  readonly changedDetail?: ChangeViewModel;
+  readonly changedDetail?: ChangeSnapshot;
 }
 
 export type UpdatedViewModel = ViewModel<UpdatedViewSnapshot | null>;
@@ -33,12 +29,12 @@ function createUpdatedViewSnapshot(
     return null;
   }
 
-  const workPackage = createDetailsViewModel(rawWorkPackage);
+  const details = createDetailsSnapshot(rawWorkPackage);
   return {
     kind: "updated",
-    workPackage,
+    details,
     header: { action: "updated" },
-    changedDetail: createChangeViewModel(workPackage, changes),
+    changedDetail: createChangeSnapshot(details, changes),
   };
 }
 

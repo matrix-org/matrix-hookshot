@@ -128,6 +128,19 @@ function createUnsafeData(): OpenProjectContent {
 }
 
 describe("OpenProject renderer security", () => {
+  it("opens work-package links safely in a new tab", () => {
+    expect(
+      LinkView({
+        url: "https://openproject.example/work_packages/50",
+        children: 50,
+      }).props,
+    ).toMatchObject({
+      href: "https://openproject.example/work_packages/50",
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+  });
+
   it("renders available descriptions as sanitized HTML", () => {
     const viewModel = createCreatedViewModel({
       description: {
@@ -136,7 +149,7 @@ describe("OpenProject renderer security", () => {
       },
     });
     const props = collectElementProps(
-      DescriptionView({ ...viewModel.workPackage.description }),
+      DescriptionView({ ...viewModel.details.description }),
     );
     const htmlProps = props.find(
       (elementProps) => "dangerouslySetInnerHTML" in elementProps,
@@ -155,25 +168,25 @@ describe("OpenProject renderer security", () => {
         "Expected unsafe fixture to create a work-package view model",
       );
     }
-    const { workPackage } = viewModel;
+    const { details } = viewModel;
     const props = [
-      ...collectElementProps(DescriptionView({ ...workPackage.description })),
-      ...collectElementProps(LinkView({ url: workPackage.url, children: 50 })),
+      ...collectElementProps(DescriptionView({ ...details.description })),
+      ...collectElementProps(LinkView({ url: details.url, children: 50 })),
       ...collectElementProps(
         TitleView({
-          id: workPackage.id,
-          subject: workPackage.subject,
-          url: workPackage.url,
+          id: details.id,
+          subject: details.subject,
+          url: details.url,
         }),
       ),
       ...collectElementProps(
         LayoutView({
-          borderColor: workPackage.type.color,
+          borderColor: details.type.color,
           children: null,
         }),
       ),
-      ...collectElementProps(StatusView({ ...workPackage.status })),
-      ...collectElementProps(ActionsView({ url: workPackage.url })),
+      ...collectElementProps(StatusView({ ...details.status })),
+      ...collectElementProps(ActionsView({ url: details.url })),
     ];
     const hrefs = props
       .filter((elementProps) => "href" in elementProps)
@@ -204,7 +217,7 @@ describe("OpenProject renderer security", () => {
       );
     }
     const props = collectElementProps(
-      DescriptionView({ ...viewModel.workPackage.description }),
+      DescriptionView({ ...viewModel.details.description }),
     );
 
     const descriptionProps = props.find(
@@ -220,7 +233,7 @@ describe("OpenProject renderer security", () => {
       description: { plain: "<b>Plain fallback</b>" },
     });
     const props = collectElementProps(
-      DescriptionView({ ...viewModel.workPackage.description }),
+      DescriptionView({ ...viewModel.details.description }),
     );
 
     expect(

@@ -15,32 +15,32 @@ export function CreatedView({ vm }: { vm: CreatedViewModel }) {
     return null;
   }
 
-  const { workPackage, header } = snapshot;
+  const { details, header } = snapshot;
 
   return (
     <MessageCard>
       <HeaderView
-        id={workPackage.id}
-        url={workPackage.url}
+        id={details.id}
+        url={details.url}
         action={header.action}
         authorName={header.authorName}
       />
-      <LayoutView borderColor={workPackage.type.color}>
+      <LayoutView borderColor={details.type.color}>
         <TitleView
-          id={workPackage.id}
-          subject={workPackage.subject}
-          url={workPackage.url}
+          id={details.id}
+          subject={details.subject}
+          url={details.url}
         />
-        <DescriptionView {...workPackage.description} />
+        <DescriptionView {...details.description} />
         <MetadataView
-          statusName={workPackage.status.name}
-          statusColor={workPackage.status.color}
-          typeName={workPackage.type.name}
-          assigneeName={workPackage.assignee?.name}
-          authorName={workPackage.author.name}
-          authorUrl={workPackage.author.url}
+          statusName={details.status.name}
+          statusColor={details.status.color}
+          typeName={details.type.name}
+          assigneeName={details.assignee?.name}
+          authorName={details.author.name}
+          authorUrl={details.author.url}
         />
-        <ActionsView url={workPackage.url} />
+        <ActionsView url={details.url} />
       </LayoutView>
     </MessageCard>
   );

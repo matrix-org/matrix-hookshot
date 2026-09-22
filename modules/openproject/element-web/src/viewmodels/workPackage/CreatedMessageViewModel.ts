@@ -3,14 +3,11 @@ import {
   type ViewModel,
 } from "@element-hq/web-shared-components";
 import type { OpenProjectContent } from "../../models/OpenProjectMatrixEventContent";
-import {
-  createDetailsViewModel,
-  type DetailsViewModel,
-} from "./DetailsViewModel";
+import { createDetailsSnapshot, type DetailsSnapshot } from "./DetailsSnapshot";
 
 export interface CreatedViewSnapshot {
   readonly kind: "created";
-  readonly workPackage: DetailsViewModel;
+  readonly details: DetailsSnapshot;
   readonly header: {
     readonly action: "created";
     readonly authorName?: string;
@@ -28,11 +25,11 @@ function createCreatedViewSnapshot(
     return null;
   }
 
-  const workPackage = createDetailsViewModel(rawWorkPackage);
+  const details = createDetailsSnapshot(rawWorkPackage);
   return {
     kind: "created",
-    workPackage,
-    header: { action: "created", authorName: workPackage.author.name },
+    details,
+    header: { action: "created", authorName: details.author.name },
   };
 }
 
