@@ -44,6 +44,17 @@ function collectElementProps(value: unknown): ElementProps[] {
   return [elementProps, ...collectElementProps(elementProps.children)];
 }
 
+function renderedDescriptionHtml(html: string): string | undefined {
+  const props = collectElementProps(
+    DescriptionView({ plain: "Plain fallback", html }),
+  );
+  const htmlProps = props.find(
+    (elementProps) => "dangerouslySetInnerHTML" in elementProps,
+  );
+  return (htmlProps?.dangerouslySetInnerHTML as { __html?: string } | undefined)
+    ?.__html;
+}
+
 function collectText(value: unknown): string {
   if (typeof value === "string" || typeof value === "number") {
     return String(value);
@@ -141,6 +152,67 @@ describe("OpenProject renderer security", () => {
     });
   });
 
+  it("allows HTTP URLs in links", () => {
+    expect(
+      LinkView({
+        url: "http://openproject.example/work_packages/50",
+        children: 50,
+      }).props.href,
+    ).toBe("http://openproject.example/work_packages/50");
+  });
+
+  it("rejects unsafe URLs in links", () => {
+    expect(
+      LinkView({ url: "javascript:alert(1)", children: 50 }).props.href,
+    ).toBeUndefined();
+  });
+
+  it("rejects unsafe URLs in work-package titles", () => {
+    const props = collectElementProps(
+      TitleView({ id: 50, subject: "Unsafe", url: "data:text/html,unsafe" }),
+    );
+
+    expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
+  });
+
+  it("rejects malformed URLs in work-package actions", () => {
+    const props = collectElementProps(ActionsView({ url: "not a URL" }));
+
+    expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
+  });
+
+  it("renders valid status colors", () => {
+    const props = collectElementProps(
+      StatusView({ name: "Open", color: "#Ab12Cd" }),
+    );
+
+    expect(props).toContainEqual({ style: { background: "#Ab12Cd" } });
+  });
+
+  it("rejects invalid status colors", () => {
+    const props = collectElementProps(
+      StatusView({ name: "Open", color: "rgb(0, 0, 0)" }),
+    );
+
+    expect(props.some((elementProps) => "style" in elementProps)).toBe(false);
+  });
+
+  it("renders valid work-package border colors", () => {
+    const props = collectElementProps(
+      LayoutView({ borderColor: "#Ab12Cd", children: null }),
+    );
+
+    expect(props).toContainEqual({ style: { background: "#Ab12Cd" } });
+  });
+
+  it("rejects invalid work-package border colors", () => {
+    const props = collectElementProps(
+      LayoutView({ borderColor: 'url("javascript:alert(1)")', children: null }),
+    );
+
+    expect(props.some((elementProps) => "style" in elementProps)).toBe(false);
+  });
+
   it("renders available descriptions as sanitized HTML", () => {
     const viewModel = createCreatedViewModel({
       description: {
@@ -158,6 +230,44 @@ describe("OpenProject renderer security", () => {
     expect(htmlProps?.dangerouslySetInnerHTML).toEqual({
       __html: "<p><strong>Rendered description</strong></p>",
     });
+  });
+
+  it("removes scripts from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml(
+        "<script>alert(1)</script><strong>Safe text</strong>",
+      ),
+    ).toBe("<strong>Safe text</strong>");
+  });
+
+  it("removes unsafe link URLs from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml('<a href="javascript:alert(1)">Unsafe link</a>'),
+    ).toBe("<a>Unsafe link</a>");
+  });
+
+  it("removes inline styles from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml('<p style="color:red">Styled text</p>'),
+    ).toBe("<p>Styled text</p>");
+  });
+
+  it("removes untrusted images and event handlers from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml(
+        '<img src="https://example.test/image.png"><img src="x" onerror="alert(1)">',
+      ),
+    ).toBe("<img /><img />");
+  });
+
+  it("retains safe formatting and links in HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml(
+        '<a href="https://example.test/path">Safe link</a><strong>Safe text</strong>',
+      ),
+    ).toBe(
+      '<a href="https://example.test/path" target="_blank" rel="noreferrer noopener">Safe link</a><strong>Safe text</strong>',
+    );
   });
 
   it("sanitizes descriptions and rejects unsafe links and colors", () => {

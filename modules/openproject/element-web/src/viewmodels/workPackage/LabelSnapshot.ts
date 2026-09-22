@@ -1,5 +1,4 @@
 import type { OpenProjectStatus } from "../../models/OpenProjectMatrixEventContent";
-import { safeColor } from "../../utils/validation";
 
 export interface LabelSnapshot {
   readonly name: string;
@@ -7,5 +6,5 @@ export interface LabelSnapshot {
 }
 
 export function createLabelSnapshot(label: OpenProjectStatus): LabelSnapshot {
-  return { name: label.name, color: safeColor(label.color) };
+  return { name: label.name, color: label.color };
 }

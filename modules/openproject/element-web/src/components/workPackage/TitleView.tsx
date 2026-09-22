@@ -1,4 +1,5 @@
 import * as React from "react";
+import { safeUrl } from "../../utils/validation";
 import { TitleLink } from "./styles";
 
 export function TitleView({
@@ -10,9 +11,11 @@ export function TitleView({
   subject: string;
   url?: string;
 }) {
-  if (url) {
+  // `url` originates in untrusted event content and is sanitised here
+  const sanitizedUrl = safeUrl(url);
+  if (sanitizedUrl) {
     return (
-      <TitleLink href={url}>
+      <TitleLink href={sanitizedUrl}>
         #{id} {subject}
       </TitleLink>
     );

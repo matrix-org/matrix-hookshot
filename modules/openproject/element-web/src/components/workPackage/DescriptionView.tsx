@@ -1,13 +1,15 @@
 import * as React from "react";
 import type { DescriptionSnapshot } from "../../viewmodels/workPackage/DescriptionSnapshot";
+import { safeHtml } from "../../utils/validation";
 import { DescriptionText } from "./styles";
 
 export function DescriptionView({ plain, html }: DescriptionSnapshot) {
-  if (html) {
-    // HTML is sanitised from untrusted event content by `safeHtml` when the
-    // DescriptionSnapshot is created. Rendering it preserves OpenProject's
-    // formatted descriptions; the sanitisation is covered by renderer tests.
-    return <DescriptionText dangerouslySetInnerHTML={{ __html: html }} />;
+  // `html` originates in untrusted event content and is sanitised here
+  const sanitizedHtml = safeHtml(html);
+  if (sanitizedHtml) {
+    return (
+      <DescriptionText dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+    );
   }
 
   if (!plain) {

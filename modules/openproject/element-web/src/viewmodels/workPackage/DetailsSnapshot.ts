@@ -2,7 +2,6 @@ import type {
   OpenProjectPerson,
   OpenProjectWorkPackageContent,
 } from "../../models/OpenProjectMatrixEventContent";
-import { safeUrl } from "../../utils/validation";
 import {
   createDescriptionSnapshot,
   type DescriptionSnapshot,
@@ -30,7 +29,7 @@ export interface DetailsSnapshot {
 }
 
 function createPersonSnapshot(person: OpenProjectPerson): PersonSnapshot {
-  return { name: person.name, url: safeUrl(person.url) };
+  return { name: person.name, url: person.url };
 }
 
 export function createDetailsSnapshot(
@@ -39,7 +38,7 @@ export function createDetailsSnapshot(
   return {
     id: workPackage.id,
     subject: workPackage.subject,
-    url: safeUrl(workPackage.url),
+    url: workPackage.url,
     description: createDescriptionSnapshot(workPackage.description),
     author: createPersonSnapshot(workPackage.author),
     responsible: workPackage.responsible

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { safeUrl } from "../../utils/validation";
 
 export function LinkView({
   url,
@@ -7,9 +8,11 @@ export function LinkView({
   url?: string;
   children: React.ReactNode;
 }) {
-  if (url) {
+  // `url` originates in untrusted event content and is sanitised here
+  const sanitizedUrl = safeUrl(url);
+  if (sanitizedUrl) {
     return (
-      <a href={url} target="_blank" rel="noopener noreferrer">
+      <a href={sanitizedUrl} target="_blank" rel="noopener noreferrer">
         {children}
       </a>
     );

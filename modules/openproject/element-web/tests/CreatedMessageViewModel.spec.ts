@@ -9,17 +9,6 @@ function createContent(overrides: OpenProjectContent = {}): OpenProjectContent {
   return { [WORK_PACKAGE_KEY]: WORK_PACKAGE, ...overrides };
 }
 
-function createDescriptionSnapshot(html: string) {
-  return new CreatedMessageViewModel(
-    createContent({
-      [WORK_PACKAGE_KEY]: {
-        ...WORK_PACKAGE,
-        description: { plain: "Plain fallback", html },
-      },
-    }),
-  ).getSnapshot()?.details.description;
-}
-
 describe("CreatedMessageViewModel", () => {
   it("exposes a snapshot for a created work package", () => {
     const viewModel = new CreatedMessageViewModel(createContent());
@@ -40,53 +29,15 @@ describe("CreatedMessageViewModel", () => {
           name: WORK_PACKAGE.status.name,
           color: WORK_PACKAGE.status.color,
         },
-        type: { name: WORK_PACKAGE.type.name, color: WORK_PACKAGE.type.color },
+        type: {
+          name: WORK_PACKAGE.type.name,
+          color: WORK_PACKAGE.type.color,
+        },
       },
     });
   });
 
-  it("removes scripts from HTML descriptions", () => {
-    expect(
-      createDescriptionSnapshot(
-        "<script>alert(1)</script><strong>Safe text</strong>",
-      ),
-    ).toEqual({ plain: "Plain fallback", html: "<strong>Safe text</strong>" });
-  });
-
-  it("removes unsafe link URLs from HTML descriptions", () => {
-    expect(
-      createDescriptionSnapshot(
-        '<a href="javascript:alert(1)">Unsafe link</a>',
-      ),
-    ).toEqual({ plain: "Plain fallback", html: "<a>Unsafe link</a>" });
-  });
-
-  it("removes inline styles from HTML descriptions", () => {
-    expect(
-      createDescriptionSnapshot('<p style="color:red">Styled text</p>'),
-    ).toEqual({ plain: "Plain fallback", html: "<p>Styled text</p>" });
-  });
-
-  it("removes untrusted images and event handlers from HTML descriptions", () => {
-    expect(
-      createDescriptionSnapshot(
-        '<img src="https://example.test/image.png"><img src="x" onerror="alert(1)">',
-      ),
-    ).toEqual({ plain: "Plain fallback", html: "<img /><img />" });
-  });
-
-  it("retains safe formatting and links in HTML descriptions", () => {
-    expect(
-      createDescriptionSnapshot(
-        '<a href="https://example.test/path">Safe link</a><strong>Safe text</strong>',
-      ),
-    ).toEqual({
-      plain: "Plain fallback",
-      html: '<a href="https://example.test/path" target="_blank" rel="noreferrer noopener">Safe link</a><strong>Safe text</strong>',
-    });
-  });
-
-  it("normalises unsafe URLs and colors before they reach a view", () => {
+  it("preserves presentation values for views to validate", () => {
     const viewModel = new CreatedMessageViewModel(
       createContent({
         [WORK_PACKAGE_KEY]: {
@@ -100,10 +51,10 @@ describe("CreatedMessageViewModel", () => {
     );
 
     expect(viewModel.getSnapshot()?.details).toMatchObject({
-      url: undefined,
-      author: { url: undefined },
-      status: { color: undefined },
-      type: { color: undefined },
+      url: "javascript:alert('unsafe')",
+      author: { url: "data:text/html,unsafe" },
+      status: { color: "rgb(0, 0, 0)" },
+      type: { color: "not-a-colour" },
     });
   });
 
