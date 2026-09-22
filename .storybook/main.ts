@@ -47,7 +47,7 @@ const config = {
       // Storybook runs in the browser, so provide the same static replacement
       // as the OpenProject module build.
       define: {
-        "process.env.NODE_ENV": JSON.stringify("development"),
+        "process.env.NODE_ENV": '"development"',
         process: { env: { NODE_ENV: "development" } },
       },
       css: {
