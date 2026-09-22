@@ -292,8 +292,8 @@ importers:
         specifier: ^12.0.0
         version: 12.0.0
       matrix-bot-sdk:
-        specifier: npm:@vector-im/matrix-bot-sdk@0.10.0-element.0
-        version: '@vector-im/matrix-bot-sdk@0.10.0-element.0'
+        specifier: npm:@vector-im/matrix-bot-sdk@0.10.1-element.0
+        version: '@vector-im/matrix-bot-sdk@0.10.1-element.0'
       matrix-widget-api:
         specifier: ^1.14.0
         version: 1.17.0
@@ -3067,6 +3067,10 @@ packages:
 
   '@vector-im/matrix-bot-sdk@0.10.0-element.0':
     resolution: {integrity: sha512-wVxmiiwEo6KNyfvhkWJulABJla7o99NVRkiJeBF3irCqr/mkY2V8fDh+aFE3TmaJT4CYq855cQjhvl+4QkkUeA==}
+    engines: {node: '>=24.0.0'}
+
+  '@vector-im/matrix-bot-sdk@0.10.1-element.0':
+    resolution: {integrity: sha512-hwYXJh+eTHoiIqzbWXx236FSIOr3qLEAcvGd/hUnqzLY6GaBxO5nKKefXhc3uTPlmfQrgRvdtoUiqH4HfWolgA==}
     engines: {node: '>=24.0.0'}
 
   '@vitejs/plugin-react@5.2.0':
@@ -8555,6 +8559,26 @@ snapshots:
       - react-dom
 
   '@vector-im/matrix-bot-sdk@0.10.0-element.0':
+    dependencies:
+      '@matrix-org/matrix-sdk-crypto-nodejs': 0.6.6
+      another-json: 0.2.0
+      async-lock: 1.4.1
+      chalk: 4.1.2
+      express: 4.22.2
+      glob-to-regexp: 0.4.1
+      hash.js: 1.1.7
+      html-to-text: 9.0.5
+      lowdb: 1.0.0
+      lru-cache: 10.4.3
+      mkdirp: 3.0.1
+      morgan: 1.11.0
+      postgres: 3.4.9
+      sanitize-html: 2.17.7
+      undici: 8.10.2
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vector-im/matrix-bot-sdk@0.10.1-element.0':
     dependencies:
       '@matrix-org/matrix-sdk-crypto-nodejs': 0.6.6
       another-json: 0.2.0

@@ -1,6 +1,6 @@
 {
   "name": "matrix-hookshot",
-  "version": "7.4.4",
+  "version": "7.5.0",
   "description": "A bridge between Matrix and multiple project management services, such as GitHub, GitLab and JIRA.",
   "main": "lib/app.js",
   "repository": "https://github.com/matrix-org/matrix-hookshot",
@@ -69,7 +69,7 @@
     "jira-client": "^8.2.2",
     "markdown-it": "^14.0.0",
     "matrix-appservice-bridge": "^12.0.0",
-    "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@0.10.0-element.0",
+    "matrix-bot-sdk": "npm:@vector-im/matrix-bot-sdk@0.10.1-element.0",
     "matrix-widget-api": "^1.14.0",
     "micromatch": "^4.0.8",
     "mime": "^4.0.4",
