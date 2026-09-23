@@ -292,8 +292,8 @@ importers:
         specifier: ^11.2.0
         version: 11.2.0(nedb@1.8.0)
       matrix-bot-sdk:
-        specifier: npm:@vector-im/matrix-bot-sdk@0.8.0-element.3
-        version: '@vector-im/matrix-bot-sdk@0.8.0-element.3'
+        specifier: npm:@vector-im/matrix-bot-sdk@0.10.1-element.0
+        version: '@vector-im/matrix-bot-sdk@0.10.1-element.0'
       matrix-widget-api:
         specifier: ^1.10.0
         version: 1.17.0
@@ -1297,6 +1297,9 @@ packages:
 
   '@matrix-org/spec@1.16.0':
     resolution: {integrity: sha512-xUKHkwGXXISMCfTrx6JW6uGEK5O8IeZVOjBm7FX1h/ihpK6l50nlSIMRYdtz4V6q3pvOVBOCft4hPYTJVeTZDA==}
+  '@matrix-org/matrix-sdk-crypto-nodejs@0.6.6':
+    resolution: {integrity: sha512-JlYSjq9Sm/0QoUXfk6C7JppsOG0ESY8BHEIaQgjQ8iQ0GkhvJrhPZbMJmd77/Bgeahd1GENf8896nauf4ximzQ==}
+    engines: {node: '>= 24'}
 
   '@mdx-js/react@3.1.1':
     resolution: {integrity: sha512-f++rKLQgUVYDAtECQ6fn/is15GkEH9+nZPM3MS0RcxVqoTfawHvDlSCH7JbMhAM6uJ32v3eXLvLmLvjGu7PTQw==}
@@ -3132,12 +3135,12 @@ packages:
       '@types/react':
         optional: true
 
+  '@vector-im/matrix-bot-sdk@0.10.1-element.0':
+    resolution: {integrity: sha512-hwYXJh+eTHoiIqzbWXx236FSIOr3qLEAcvGd/hUnqzLY6GaBxO5nKKefXhc3uTPlmfQrgRvdtoUiqH4HfWolgA==}
+    engines: {node: '>=24.0.0'}
+
   '@vector-im/matrix-bot-sdk@0.8.0-element.2':
     resolution: {integrity: sha512-Qasxj5w2a5jkEOz7fPcO+6nQkO7/TE3/XNZPxVnAo5rNrqAIsItXAwJU8vmrW2QRKWsCcDhT4ONgWOWz5e20MA==}
-    engines: {node: '>=22.0.0'}
-
-  '@vector-im/matrix-bot-sdk@0.8.0-element.3':
-    resolution: {integrity: sha512-2FFo/Kz2vTnOZDv59Q0s803LHf7KzuQ2EwOYYAtO0zUKJ8pV5CPsVC/IHyFb+Fsxl3R9XWFiX529yhslb4v9cQ==}
     engines: {node: '>=22.0.0'}
 
   '@vitejs/plugin-react@5.2.0':
@@ -3972,10 +3975,6 @@ packages:
     resolution: {integrity: sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==}
     engines: {node: '>=0.12'}
 
-  entities@7.0.1:
-    resolution: {integrity: sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==}
-    engines: {node: '>=0.12'}
-
   entities@8.1.0:
     resolution: {integrity: sha512-kxL7msIffSuh9aaFAMD7rxAIuTRMAHMeBtgHW2yUdWw732ZNh4MehkF2gdjvtdmikkaIP9bFDDJOPlsvm7avrA==}
     engines: {node: '>=20.19.0'}
@@ -4410,9 +4409,6 @@ packages:
 
   htmlencode@0.0.4:
     resolution: {integrity: sha512-0uDvNVpzj/E2TfvLLyyXhKBRvF1y84aZsyRxRXFsQobnHaL4pcaXk+Y9cnFlvnxrBLeXDNq/VJBD+ngdBgQG1w==}
-
-  htmlparser2@10.1.0:
-    resolution: {integrity: sha512-VTZkM9GWRAtEpveh7MSF6SjjrpNVNNVJfFup7xTY3UpFtm67foy9HDVXneLtFVt4pMz5kZtgNcvCniNFb1hlEQ==}
 
   htmlparser2@12.0.0:
     resolution: {integrity: sha512-Tz7u1i95/g2x2jz81+x0FBVhBhY5aRTvD3tXXdFaljuNdzDLJ8UGNRrTcj2cgQvAg3iW/h77Fz15nLW0L0CrZw==}
@@ -5615,9 +5611,6 @@ packages:
   safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  sanitize-html@2.17.4:
-    resolution: {integrity: sha512-2HW7v2ol/uAM7sX4hbD8Z59OGWmAPrvjL8E71UWlBcj6m+kcF6ilQBLny+cIgY214QJeJT5tQuxKKqX0SQqjGQ==}
-
   sanitize-html@2.17.7:
     resolution: {integrity: sha512-PGtEkc9cbnedU3s9TmzDbpsZ8w086g/0Q8k8/oIO1NLNU3i5k9yn835CrjJSajp1KMmkisbO1qPXxNKO3welAg==}
     engines: {node: '>=22.12.0'}
@@ -6097,6 +6090,10 @@ packages:
   undici@5.29.0:
     resolution: {integrity: sha512-raqeBD6NQK4SkWhQzeYKd1KmIG6dllBOTt55Rmkt4HtI9mwdWtJljnrXjAFUBLTSN67HWrOIZ3EPF4kjUw80Bg==}
     engines: {node: '>=14.0'}
+
+  undici@8.10.2:
+    resolution: {integrity: sha512-/y4/bH9YNU5hi9NIrpOuvGXFcxrj3CMrV+/AYpowAYTpHn8gX/XPFjNy766FPoYY0miQhdW977JFWKGNhBdwyQ==}
+    engines: {node: '>=22.19.0'}
 
   unicode-emoji-modifier-base@1.0.0:
     resolution: {integrity: sha512-yLSH4py7oFH3oG/9K+XWrz1pSi3dfUrWEnInbxMfArOfc1+33BlGPQtLsOYwvdMy11AwUBetYuaRxSPqgkq+8g==}
@@ -7240,6 +7237,12 @@ snapshots:
       - supports-color
 
   '@matrix-org/spec@1.16.0': {}
+  '@matrix-org/matrix-sdk-crypto-nodejs@0.6.6':
+    dependencies:
+      https-proxy-agent: 7.0.6
+      node-downloader-helper: 2.1.11
+    transitivePeerDependencies:
+      - supports-color
 
   '@mdx-js/react@3.1.1(@types/react@19.2.18)(react@19.2.7)':
     dependencies:
@@ -8911,6 +8914,26 @@ snapshots:
       - '@types/react-dom'
       - react-dom
 
+  '@vector-im/matrix-bot-sdk@0.10.1-element.0':
+    dependencies:
+      '@matrix-org/matrix-sdk-crypto-nodejs': 0.6.6
+      another-json: 0.2.0
+      async-lock: 1.4.1
+      chalk: 4.1.2
+      express: 4.22.2
+      glob-to-regexp: 0.4.1
+      hash.js: 1.1.7
+      html-to-text: 9.0.5
+      lowdb: 1.0.0
+      lru-cache: 10.4.3
+      mkdirp: 3.0.1
+      morgan: 1.11.0
+      postgres: 3.4.9
+      sanitize-html: 2.17.7
+      undici: 8.10.2
+    transitivePeerDependencies:
+      - supports-color
+
   '@vector-im/matrix-bot-sdk@0.8.0-element.2':
     dependencies:
       '@matrix-org/matrix-sdk-crypto-nodejs': 0.4.0
@@ -8932,30 +8955,6 @@ snapshots:
       request: 2.88.2
       request-promise: 4.2.6(request@2.88.2)
       sanitize-html: 2.17.7
-    transitivePeerDependencies:
-      - supports-color
-
-  '@vector-im/matrix-bot-sdk@0.8.0-element.3':
-    dependencies:
-      '@matrix-org/matrix-sdk-crypto-nodejs': 0.4.0
-      '@types/express': 4.17.25
-      '@types/request': 2.48.13
-      another-json: 0.2.0
-      async-lock: 1.4.1
-      chalk: 4.1.2
-      express: 4.22.2
-      glob-to-regexp: 0.4.1
-      hash.js: 1.1.7
-      html-to-text: 9.0.5
-      htmlencode: 0.0.4
-      lowdb: 1.0.0
-      lru-cache: 10.4.3
-      mkdirp: 3.0.1
-      morgan: 1.11.0
-      postgres: 3.4.9
-      request: 2.88.2
-      request-promise: 4.2.6(request@2.88.2)
-      sanitize-html: 2.17.4
     transitivePeerDependencies:
       - supports-color
 
@@ -9815,8 +9814,6 @@ snapshots:
 
   entities@4.5.0: {}
 
-  entities@7.0.1: {}
-
   entities@8.1.0: {}
 
   es-abstract@1.24.2:
@@ -10394,13 +10391,6 @@ snapshots:
       selderee: 0.11.0
 
   htmlencode@0.0.4: {}
-
-  htmlparser2@10.1.0:
-    dependencies:
-      domelementtype: 2.3.0
-      domhandler: 5.0.3
-      domutils: 3.2.2
-      entities: 7.0.1
 
   htmlparser2@12.0.0:
     dependencies:
@@ -11749,16 +11739,6 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sanitize-html@2.17.4:
-    dependencies:
-      deepmerge: 4.3.1
-      escape-string-regexp: 4.0.0
-      htmlparser2: 10.1.0
-      is-plain-object: 5.0.0
-      launder: 1.7.1
-      parse-srcset: 1.0.2
-      postcss: 8.5.28
-
   sanitize-html@2.17.7:
     dependencies:
       deepmerge: 4.3.1
@@ -12368,6 +12348,8 @@ snapshots:
   undici@5.29.0:
     dependencies:
       '@fastify/busboy': 2.1.1
+
+  undici@8.10.2: {}
 
   unicode-emoji-modifier-base@1.0.0: {}
 
