@@ -110,6 +110,7 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
+import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 
 const log = new Logger("Bridge");
@@ -124,6 +125,7 @@ export class Bridge {
   private adminRooms: Map<string, AdminRoom> = new Map();
   private feedReader?: FeedReader;
   private houndReader?: HoundReader;
+  private toDeviceReceiver?: HookshotToDeviceReceiver;
   private replyProcessor = new RichRepliesPreprocessor(true);
 
   private ready = false;
@@ -157,6 +159,7 @@ export class Bridge {
   public async stop() {
     this.feedReader?.stop();
     this.houndReader?.stop();
+    this.toDeviceReceiver?.stop();
     this.tokenStore.stop();
     this.as.stop();
     await this.queue.stop?.();
@@ -182,6 +185,23 @@ export class Bridge {
     }
 
     await this.botUsersManager.start();
+
+    // Service bots are the deployment-owned capability endpoints. Keep the
+    // first (highest-priority) bot for each service so a dedicated service bot
+    // takes precedence over the default Hookshot bot.
+    const capabilityBots = new Map<string, string>();
+    for (const botUser of this.botUsersManager.botUsers) {
+      for (const service of botUser.services) {
+        if (!capabilityBots.has(service)) {
+          capabilityBots.set(service, botUser.userId);
+        }
+      }
+    }
+    this.toDeviceReceiver = new HookshotToDeviceReceiver(
+      this.as,
+      capabilityBots,
+    );
+    this.toDeviceReceiver.start();
 
     await this.config.prefillMembershipCache(this.as.botClient);
 
