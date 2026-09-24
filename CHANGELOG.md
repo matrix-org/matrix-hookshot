@@ -1,3 +1,20 @@
+# 7.5.0 (2026-09-22)
+
+## Features
+
+- Add an initial implementation of an OpenProject element-web plugin module. ([\#1373](https://github.com/matrix-org/matrix-hookshot/issues/1373))
+- Stabilize the  implementation of the OpenProject element-web plugin module. ([\#1388](https://github.com/matrix-org/matrix-hookshot/issues/1388))
+- Add build workflow for the storybook. ([\#1397](https://github.com/matrix-org/matrix-hookshot/issues/1397))
+
+## Bugfixes
+
+- Update matrix-bot-sdk to 0.10.1-element.0, which sends the stable `device_id` parameter for impersonated intents. Fixes crypto setup failing against Synapse 1.161.0+, which dropped the deprecated `org.matrix.msc3202.device_id` parameter. ([\#1398](https://github.com/matrix-org/matrix-hookshot/issues/1398))
+
+## Internal Changes
+
+- Apply Rust clippy suggestion to resolve a needless late initialization. ([\#1371](https://github.com/matrix-org/matrix-hookshot/issues/1371))
+
+
 # 7.4.4 (2026-08-05)
 
 ## Bugfixes

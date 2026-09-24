@@ -74,6 +74,10 @@ async function start() {
       );
       await client.doRequest("POST", "/_matrix/client/v3/logout", {
         user_id: botUser.userId,
+        // Send both the stable and unstable device_id params, mirroring
+        // MatrixClient's own impersonation handling, for compatibility with
+        // homeservers old and new (see matrix-org/matrix-hookshot#1398).
+        device_id: deviceId,
         "org.matrix.msc3202.device_id": deviceId,
       });
       log.info(`Logged out crypto device for ${botUser.userId}`);
