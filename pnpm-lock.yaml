@@ -289,8 +289,8 @@ importers:
         specifier: ^14.0.0
         version: 14.2.0
       matrix-appservice-bridge:
-        specifier: ^12.0.0
-        version: 12.0.0
+        specifier: ^12.0.1
+        version: 12.0.1
       matrix-bot-sdk:
         specifier: npm:@vector-im/matrix-bot-sdk@0.10.1-element.0
         version: '@vector-im/matrix-bot-sdk@0.10.1-element.0'
@@ -3065,10 +3065,6 @@ packages:
       '@types/react':
         optional: true
 
-  '@vector-im/matrix-bot-sdk@0.10.0-element.0':
-    resolution: {integrity: sha512-wVxmiiwEo6KNyfvhkWJulABJla7o99NVRkiJeBF3irCqr/mkY2V8fDh+aFE3TmaJT4CYq855cQjhvl+4QkkUeA==}
-    engines: {node: '>=24.0.0'}
-
   '@vector-im/matrix-bot-sdk@0.10.1-element.0':
     resolution: {integrity: sha512-hwYXJh+eTHoiIqzbWXx236FSIOr3qLEAcvGd/hUnqzLY6GaBxO5nKKefXhc3uTPlmfQrgRvdtoUiqH4HfWolgA==}
     engines: {node: '>=24.0.0'}
@@ -4758,8 +4754,8 @@ packages:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
 
-  matrix-appservice-bridge@12.0.0:
-    resolution: {integrity: sha512-NYXLE6ZYUiCaYTV4briWVQV/AOzcbuzT5RvnFx48KWgUqC0RAPp6inj+1YPLML4Q/VwgUKyHYMtrmdfrZBbwYQ==}
+  matrix-appservice-bridge@12.0.1:
+    resolution: {integrity: sha512-qus2WHC1iieLrDAt3G7ZOan92MJugxTkcPw4Nsle/pA9an3XQNgZhpEC5U//naxoQdXrOJ4SySwN+xYYyk6jiA==}
     engines: {node: '>=24'}
 
   matrix-appservice@4.1.0:
@@ -8558,26 +8554,6 @@ snapshots:
       - '@types/react-dom'
       - react-dom
 
-  '@vector-im/matrix-bot-sdk@0.10.0-element.0':
-    dependencies:
-      '@matrix-org/matrix-sdk-crypto-nodejs': 0.6.6
-      another-json: 0.2.0
-      async-lock: 1.4.1
-      chalk: 4.1.2
-      express: 4.22.2
-      glob-to-regexp: 0.4.1
-      hash.js: 1.1.7
-      html-to-text: 9.0.5
-      lowdb: 1.0.0
-      lru-cache: 10.4.3
-      mkdirp: 3.0.1
-      morgan: 1.11.0
-      postgres: 3.4.9
-      sanitize-html: 2.17.7
-      undici: 8.10.2
-    transitivePeerDependencies:
-      - supports-color
-
   '@vector-im/matrix-bot-sdk@0.10.1-element.0':
     dependencies:
       '@matrix-org/matrix-sdk-crypto-nodejs': 0.6.6
@@ -10486,10 +10462,10 @@ snapshots:
 
   math-intrinsics@1.1.0: {}
 
-  matrix-appservice-bridge@12.0.0:
+  matrix-appservice-bridge@12.0.1:
     dependencies:
       '@alloc/quick-lru': 5.2.0
-      '@vector-im/matrix-bot-sdk': 0.10.0-element.0
+      '@vector-im/matrix-bot-sdk': 0.10.1-element.0
       chalk: 4.1.2
       express: 4.22.2
       express-rate-limit: 7.5.1(express@4.22.2)
