@@ -5,6 +5,7 @@ import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+  HookshotCapabilitiesProbeRequest,
   HookshotCapabilitiesProbeResponse,
   HookshotIntegrationId,
   isHookshotCapabilitiesProbeRequest,
@@ -18,6 +19,21 @@ const DEFAULT_DEDUPLICATION_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_MAX_DEDUPLICATION_ENTRIES = 10_000;
 const log = new Logger("HookshotToDeviceReceiver");
 
+export interface HookshotProbeContext {
+  sender: string;
+  recipientBotUserId: string;
+}
+
+export type HookshotProbeResponseState = Pick<
+  HookshotCapabilitiesProbeResponse,
+  "result" | "connection"
+>;
+
+export type HookshotProbeHandler = (
+  request: HookshotCapabilitiesProbeRequest,
+  context: HookshotProbeContext,
+) => Promise<HookshotProbeResponseState>;
+
 interface HookshotToDeviceEvent {
   type?: unknown;
   sender?: unknown;
@@ -30,6 +46,7 @@ export interface HookshotToDeviceReceiverOptions {
   deduplicationTtlMs?: number;
   maxDeduplicationEntries?: number;
   now?: () => number;
+  probeHandler?: HookshotProbeHandler;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,6 +80,7 @@ export class HookshotToDeviceReceiver {
   private readonly deduplicationTtlMs: number;
   private readonly maxDeduplicationEntries: number;
   private readonly now: () => number;
+  private readonly probeHandler?: HookshotProbeHandler;
   private started = false;
 
   private readonly onEphemeralEvent = (event: unknown): void => {
@@ -82,6 +100,7 @@ export class HookshotToDeviceReceiver {
     this.maxDeduplicationEntries =
       options.maxDeduplicationEntries ?? DEFAULT_MAX_DEDUPLICATION_ENTRIES;
     this.now = options.now ?? Date.now;
+    this.probeHandler = options.probeHandler;
 
     if (this.deduplicationTtlMs <= 0) {
       throw new Error("deduplicationTtlMs must be positive");
@@ -142,11 +161,17 @@ export class HookshotToDeviceReceiver {
 
     this.remember(deduplicationKey);
 
+    const responseState = this.probeHandler
+      ? await this.probeHandler(request, {
+          sender: event.sender,
+          recipientBotUserId: expectedBotUserId,
+        })
+      : { result: "unavailable" as const };
     const response: HookshotCapabilitiesProbeResponse = {
       v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
       request_id: request.request_id,
       integration_id: request.integration_id,
-      result: "unavailable",
+      ...responseState,
     };
 
     await this.appservice

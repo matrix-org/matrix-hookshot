@@ -112,6 +112,8 @@ import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
 import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
+import { createAuthenticatedProbeHandler } from "./AuthenticatedProbeHandler";
+import { assertUserPermissionsInRoom } from "./widgets/Api";
 
 const log = new Logger("Bridge");
 
@@ -200,6 +202,27 @@ export class Bridge {
     this.toDeviceReceiver = new HookshotToDeviceReceiver(
       this.as,
       capabilityBots,
+      {
+        probeHandler: createAuthenticatedProbeHandler({
+          getAnchorEvent: (roomId, eventId, recipientBotUserId) =>
+            this.as
+              .getIntentForUserId(recipientBotUserId)
+              .underlyingClient.getEvent(roomId, eventId),
+          assertRoomReadAccess: async (userId, roomId, recipientBotUserId) => {
+            await assertUserPermissionsInRoom(
+              userId,
+              roomId,
+              "read",
+              this.as.getIntentForUserId(recipientBotUserId),
+            );
+          },
+          getOpenProjectForUser: (userId) =>
+            this.tokenStore.getOpenProjectForUser(userId),
+          getOpenProjectConnections: (projectId) =>
+            this.connectionManager?.getConnectionsForOpenProject(projectId) ??
+            [],
+        }),
+      },
     );
     this.toDeviceReceiver.start();
 
