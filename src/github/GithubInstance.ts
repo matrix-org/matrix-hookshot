@@ -11,6 +11,9 @@ import {
 } from "./Types";
 import axios from "axios";
 import UserAgent from "../UserAgent";
+import { UserID } from "matrix-bot-sdk";
+import { UserTokenStore } from "../tokens/UserTokenStore";
+import { ApiError, ErrCode } from "../api";
 
 const log = new Logger("GithubInstance");
 
@@ -66,6 +69,7 @@ export class GithubInstance {
     private readonly appId: number | string,
     private readonly privateKey: string,
     private readonly baseUrl: URL,
+    private readonly tokenStore: UserTokenStore,
   ) {
     this.appId = parseInt(appId as string, 10);
   }
@@ -282,6 +286,55 @@ export class GithubInstance {
       `${rawUrl.endsWith("/") ? "" : "/"}` +
       `login/oauth/${action}?${q}`
     );
+  }
+
+  public async handleURLPreview(url: URL, userId: UserID): Promise<any> {
+    // Try to get some info for the user.
+    // TODO: Fallback to public access?
+    const octokit = await this.tokenStore.getOctokitForUser(userId.toString());
+    if (!octokit) {
+      throw new ApiError(
+        "User is not authenticated with GitHub",
+        ErrCode.ForbiddenUser,
+      );
+    }
+    // Attempt to parse what the URL is about..
+    const [_, owner, repo, type, number] = url.pathname.split("/");
+    if (owner && repo) {
+      if (type === "pull") {
+        const pull = await octokit.pulls.get({
+          owner,
+          repo,
+          pull_number: parseInt(number, 10),
+        });
+        if (pull.status === 200) {
+          return {
+            "og:title": `${pull.data.base.repo.name} | ${pull.data.title} by @${pull.data.user.login}`,
+            "og:description": pull.data.body,
+          };
+        } else {
+          throw new ApiError(
+            `Could not access pull request, status ${pull.status}`,
+            ErrCode.NotFound,
+          );
+        }
+      } else if (type === "issues") {
+        throw new ApiError(
+          `Could not access issue request, not implemented`,
+          ErrCode.NotFound,
+        );
+      } else {
+        throw new ApiError(
+          `URL not processable, unknown type ${type}`,
+          ErrCode.NotFound,
+        );
+      }
+    } else {
+      throw new ApiError(
+        `URL not processable, must be in the format of org/repo`,
+        ErrCode.NotFound,
+      );
+    }
   }
 }
 
