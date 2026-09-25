@@ -6,12 +6,10 @@ import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
-} from "../src/ToDeviceProtocol";
-import {
-  HookshotToDeviceReceiver,
   MATRIX_BOT_SDK_EDU_ANNOTATION,
   MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION,
-} from "../src/ToDeviceReceiver";
+} from "../src/ToDeviceProtocol";
+import { HookshotToDeviceReceiver } from "../src/ToDeviceReceiver";
 
 const sender = "@alice:example.org";
 const botUserId = "@hookshot:example.org";

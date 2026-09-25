@@ -9,11 +9,9 @@ import {
   HookshotCapabilitiesProbeResponse,
   HookshotIntegrationId,
   isHookshotCapabilitiesProbeRequest,
+  isMatrixUserId,
+  isToDeviceEvent,
 } from "./ToDeviceProtocol";
-
-/** Annotation added by matrix-bot-sdk to events received from the to-device EDU. */
-export const MATRIX_BOT_SDK_EDU_ANNOTATION = "io.t2bot.sdk.bot.type";
-export const MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION = "to_device";
 
 const DEFAULT_DEDUPLICATION_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_MAX_DEDUPLICATION_ENTRIES = 10_000;
@@ -34,38 +32,11 @@ export type HookshotProbeHandler = (
   context: HookshotProbeContext,
 ) => Promise<HookshotProbeResponseState>;
 
-interface HookshotToDeviceEvent {
-  type?: unknown;
-  sender?: unknown;
-  content?: unknown;
-  to_user_id?: unknown;
-  unsigned?: unknown;
-}
-
 export interface HookshotToDeviceReceiverOptions {
   deduplicationTtlMs?: number;
   maxDeduplicationEntries?: number;
   now?: () => number;
   probeHandler?: HookshotProbeHandler;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isMatrixUserId(value: unknown): value is string {
-  return typeof value === "string" && /^@[^:\s]+:[^\s]+$/u.test(value);
-}
-
-function isToDeviceEvent(event: unknown): event is HookshotToDeviceEvent {
-  if (!isRecord(event) || !isRecord(event.unsigned)) {
-    return false;
-  }
-
-  return (
-    event.unsigned[MATRIX_BOT_SDK_EDU_ANNOTATION] ===
-    MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION
-  );
 }
 
 /**
@@ -135,6 +106,15 @@ export class HookshotToDeviceReceiver {
       return;
     }
 
+    log.debug(
+      "Received to-device event type=" +
+        String(event.type) +
+        " from=" +
+        String(event.sender) +
+        " to=" +
+        String(event.to_user_id),
+    );
+
     if (event.type !== HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE) {
       return;
     }
@@ -156,10 +136,19 @@ export class HookshotToDeviceReceiver {
     this.pruneDeduplication();
     const deduplicationKey = `${event.sender}\u0000${request.integration_id}\u0000${request.request_id}`;
     if (this.deduplication.has(deduplicationKey)) {
+      log.debug(
+        "Ignoring duplicate to-device probe request_id=" + request.request_id,
+      );
       return;
     }
 
     this.remember(deduplicationKey);
+    log.debug(
+      "Accepted to-device probe integration=" +
+        request.integration_id +
+        " request_id=" +
+        request.request_id,
+    );
 
     const responseState = this.probeHandler
       ? await this.probeHandler(request, {
@@ -184,6 +173,15 @@ export class HookshotToDeviceReceiver {
           },
         },
       );
+
+    log.debug(
+      "Sent to-device response type=" +
+        HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE +
+        " to=" +
+        event.sender +
+        " request_id=" +
+        request.request_id,
+    );
   }
 
   private pruneDeduplication(): void {

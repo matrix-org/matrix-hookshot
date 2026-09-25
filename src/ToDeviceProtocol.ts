@@ -33,6 +33,18 @@ export interface HookshotCapabilitiesProbeResponse {
   connection?: "connected" | "not_connected";
 }
 
+/** Annotation added by matrix-bot-sdk to events received from a to-device EDU. */
+export const MATRIX_BOT_SDK_EDU_ANNOTATION = "io.t2bot.sdk.bot.type";
+export const MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION = "to_device";
+
+export interface HookshotToDeviceEvent {
+  type?: unknown;
+  sender?: unknown;
+  content?: unknown;
+  to_user_id?: unknown;
+  unsigned?: unknown;
+}
+
 const REQUEST_KEYS = [
   "v",
   "request_id",
@@ -50,8 +62,39 @@ const RESPONSE_KEYS = [
   "connection",
 ] as const;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function isMatrixUserId(value: unknown): value is string {
+  return typeof value === "string" && /^@[^:\s]+:[^\s]+$/u.test(value);
+}
+
+function isMatrixRoomId(value: unknown): value is string {
+  return (
+    isNonEmptyString(value) && value.startsWith("!") && value.includes(":")
+  );
+}
+
+function isMatrixEventId(value: unknown): value is string {
+  return isNonEmptyString(value) && value.startsWith("$");
+}
+
+function isTargetDeviceId(value: unknown): value is string {
+  return isNonEmptyString(value) && value !== "*";
+}
+
+export function isToDeviceEvent(
+  event: unknown,
+): event is HookshotToDeviceEvent {
+  if (!isRecord(event) || !isRecord(event.unsigned)) {
+    return false;
+  }
+
+  return (
+    event.unsigned[MATRIX_BOT_SDK_EDU_ANNOTATION] ===
+    MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION
+  );
 }
 
 function isIntegrationId(value: unknown): value is HookshotIntegrationId {
@@ -77,20 +120,6 @@ function isNonEmptyString(value: unknown, maxLength = 255): value is string {
     value.length <= maxLength &&
     !/[\p{Cc}\p{White_Space}]/u.test(value)
   );
-}
-
-function isMatrixRoomId(value: unknown): value is string {
-  return (
-    isNonEmptyString(value) && value.startsWith("!") && value.includes(":")
-  );
-}
-
-function isMatrixEventId(value: unknown): value is string {
-  return isNonEmptyString(value) && value.startsWith("$");
-}
-
-function isTargetDeviceId(value: unknown): value is string {
-  return isNonEmptyString(value) && value !== "*";
 }
 
 export function isHookshotCapabilitiesProbeRequest(

@@ -4,6 +4,8 @@ hs_token: aaaaaaaaaa # ..as can this
 namespaces:
   rooms: []
   users: # In the following, foobar is your homeserver's domain
+    - regex: "@hookshot:foobar"
+      exclusive: true
     - regex: "@_github_.*:foobar"
       exclusive: true
     - regex: "@_gitlab_.*:foobar"
