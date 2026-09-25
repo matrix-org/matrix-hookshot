@@ -202,8 +202,9 @@ You will need to configure some listeners to make the bridge functional.
 ```yaml
 listeners:
   # (Optional) HTTP Listener configuration.
-  # Bind resource endpoints to ports and addresses.
-  # 'resources' may be any of webhooks, widgets, metrics, provisioning
+  # Bind selected resource endpoints to ports and addresses.
+  # 'resources' selects which Hookshot HTTP routes are exposed on this listener.
+  # Available resources: webhooks, widgets, modules, metrics, provisioning.
   #
   - port: 9000
     bindAddress: 0.0.0.0
@@ -216,10 +217,25 @@ listeners:
     resources:
       - metrics
       - provisioning
+  - port: 9002
+    bindAddress: 0.0.0.0
+    resources:
+      - widgets
+      - modules
 ```
 
 At a minimum, you should bind the `webhooks` resource to a port and address. You can have multiple resources on the same
 port, or one on each. Each listener MUST listen on a unique port.
+
+The `modules` resource exposes the built Element Web module from Hookshot. It only
+controls which listener serves the module; Element Web must be configured separately
+with the module URL, for example:
+
+```json
+{
+  "modules": ["https://hookshot.example.org/modules/v2/static/openproject.js"]
+}
+```
 
 You will also need to make this port accessible to the internet so services like GitHub can reach the bridge. It
 is recommended to factor Hookshot into your load balancer configuration, but currently this process is left as an
@@ -246,6 +262,8 @@ In terms of API endpoints:
   - `/openproject` for OpenProject
   - `/figma` for Figma.
 - The `metrics` resource handles resources under `/metrics`.
+- The `modules` resource handles Element Web module artifacts under
+  `/modules/v2/static/...`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
 
