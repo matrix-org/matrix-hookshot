@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import externalGlobals from "rollup-plugin-external-globals";
+import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 
 export default defineConfig({
   build: {
@@ -25,6 +26,7 @@ export default defineConfig({
     // global React instance without a browser-resolved bare import for
     // react/jsx-runtime.
     react({ jsxRuntime: "classic" }),
+    cssInjectedByJsPlugin(),
     externalGlobals({
       // Reuse React from the Element Web host.
       react: "window.React",

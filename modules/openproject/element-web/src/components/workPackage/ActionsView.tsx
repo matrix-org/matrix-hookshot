@@ -12,7 +12,7 @@ export function ActionsView({ url }: { url?: string }) {
         Icon={PopOutIcon}
         as="a"
         size="md"
-        kind="secondary"
+        kind="primary"
         href={sanitizedUrl}
         target="_blank"
         rel="noopener noreferrer"

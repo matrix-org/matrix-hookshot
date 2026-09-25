@@ -2,7 +2,7 @@ import * as React from "react";
 import type { ChangeSnapshot } from "../../viewmodels/workPackage/ChangeSnapshot";
 import { DescriptionView } from "./DescriptionView";
 import { StatusView } from "./StatusView";
-import { WorkPackageChangedText } from "./styles";
+import styles from "./WorkPackage.module.css";
 
 export function ChangedDetailsView({
   change,
@@ -14,41 +14,41 @@ export function ChangedDetailsView({
   switch (change.kind) {
     case "assignee":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           Assignee changed to <strong>{change.currentName}</strong>
-        </WorkPackageChangedText>
+        </div>
       );
     case "description":
       if (descriptionAsDetails) {
         return (
-          <WorkPackageChangedText>
+          <div className={styles.changedDetailsText}>
             <details>
               <summary>Description changed</summary>
               <DescriptionView {...change.description} />
             </details>
-          </WorkPackageChangedText>
+          </div>
         );
       }
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           <span>Description changed</span>
           <DescriptionView {...change.description} />
-        </WorkPackageChangedText>
+        </div>
       );
     case "dueDate":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           {change.currentValue === null
             ? "Due date removed"
             : [
                 "Due date changed to ",
                 <strong key="due-date">{change.currentValue}</strong>,
               ]}
-        </WorkPackageChangedText>
+        </div>
       );
     case "percentageDone":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           {change.currentValue === null
             ? "Work completion percentage removed"
             : [
@@ -56,35 +56,35 @@ export function ChangedDetailsView({
                 <strong key="percentage-done">{change.currentValue}</strong>,
                 "% complete",
               ]}
-        </WorkPackageChangedText>
+        </div>
       );
     case "priority":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           Priority changed from <strong>{change.previousName}</strong> to{" "}
           <strong>{change.currentName}</strong>
-        </WorkPackageChangedText>
+        </div>
       );
     case "responsible":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           Updated accountable person to <strong>{change.currentName}</strong>
-        </WorkPackageChangedText>
+        </div>
       );
     case "status":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           Status changed from <StatusView {...change.previous} /> to{" "}
           <StatusView {...change.current} />
-        </WorkPackageChangedText>
+        </div>
       );
     case "subject":
-      return <WorkPackageChangedText>Subject changed</WorkPackageChangedText>;
+      return <div className={styles.changedDetailsText}>Subject changed</div>;
     case "type":
       return (
-        <WorkPackageChangedText>
+        <div className={styles.changedDetailsText}>
           Type changed to <strong>{change.currentName}</strong>
-        </WorkPackageChangedText>
+        </div>
       );
   }
 }
