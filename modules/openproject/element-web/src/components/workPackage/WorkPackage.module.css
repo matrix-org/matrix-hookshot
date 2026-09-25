@@ -1,0 +1,57 @@
+.link,
+.link:visited {
+  color: var(--cpd-color-text-link-external);
+  text-decoration: none;
+}
+
+.layoutRoot {
+  margin-top: var(--cpd-space-1x);
+  margin-bottom: var(--cpd-space-1x);
+  gap: var(--cpd-space-2x);
+  display: flex;
+  flex-direction: column;
+}
+
+.layoutBorder {
+  width: var(--cpd-space-0-5x);
+  height: auto;
+  border-radius: var(--cpd-space-1x);
+  background: var(--cpd-color-border-interactive-primary);
+}
+
+.layoutWrapper {
+  display: flex;
+  flex-direction: row;
+  gap: var(--cpd-space-3x);
+  margin-top: var(--cpd-space-2x);
+  margin-bottom: var(--cpd-space-2x);
+}
+.statusIndicator {
+  border-radius: 1em;
+  width: 0.9em;
+  height: 0.9em;
+  display: inline-block;
+  margin-right: var(--cpd-space-1x);
+  background: var(--cpd-color-border-interactive-primary);
+}
+
+.metadataRow {
+  gap: var(--cpd-space-4x);
+  display: flex;
+  flex-direction: row;
+  color: var(--cpd-color-text-secondary);
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
+.titleLink {
+  font-weight: var(--cpd-font-weight-semibold);
+}
+
+.descriptionText > p {
+  margin: 0;
+}
+
+.changedDetailsText {
+  color: var(--cpd-color-text-secondary);
+}

@@ -1,10 +1,6 @@
 import * as React from "react";
 import { safeColor } from "../../utils/validation";
-import {
-  WorkPackageBorder,
-  WorkPackageRoot,
-  WorkPackageWrapper,
-} from "./styles";
+import styles from "./WorkPackage.module.css";
 
 export function LayoutView({
   borderColor,
@@ -16,13 +12,14 @@ export function LayoutView({
   // `borderColor` originates in untrusted event content and is sanitised here
   const sanitizedBorderColor = safeColor(borderColor);
   return (
-    <WorkPackageWrapper>
-      <WorkPackageBorder
+    <div className={styles.layoutWrapper}>
+      <div
+        className={styles.layoutBorder}
         {...(sanitizedBorderColor
           ? { style: { background: sanitizedBorderColor } }
           : {})}
       />
-      <WorkPackageRoot>{children}</WorkPackageRoot>
-    </WorkPackageWrapper>
+      <div className={styles.layoutRoot}>{children}</div>
+    </div>
   );
 }

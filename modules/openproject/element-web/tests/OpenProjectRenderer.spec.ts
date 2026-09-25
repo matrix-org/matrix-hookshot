@@ -186,7 +186,11 @@ describe("OpenProject renderer security", () => {
       StatusView({ name: "Open", color: "#Ab12Cd" }),
     );
 
-    expect(props).toContainEqual({ style: { background: "#Ab12Cd" } });
+    expect(props).toContainEqual(
+      expect.objectContaining({
+        style: { background: "#Ab12Cd" },
+      }),
+    );
   });
 
   it("rejects invalid status colors", () => {
@@ -202,7 +206,11 @@ describe("OpenProject renderer security", () => {
       LayoutView({ borderColor: "#Ab12Cd", children: null }),
     );
 
-    expect(props).toContainEqual({ style: { background: "#Ab12Cd" } });
+    expect(props).toContainEqual(
+      expect.objectContaining({
+        style: { background: "#Ab12Cd" },
+      }),
+    );
   });
 
   it("rejects invalid work-package border colors", () => {

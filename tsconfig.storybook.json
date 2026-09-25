@@ -8,7 +8,7 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node", "react", "react-dom"]
+    "types": ["node", "react", "react-dom", "vite/client"]
   },
   "include": [
     ".storybook/**/*.ts",

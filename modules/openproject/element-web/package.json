@@ -21,7 +21,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "rollup-plugin-external-globals": "^0.13.0",
-    "styled-components": "^6.1.18",
+    "vite-plugin-css-injected-by-js": "^4.0.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

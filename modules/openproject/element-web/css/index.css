@@ -1,0 +1,7 @@
+@layer compound-tokens, compound-web, shared-components, app-web;
+
+@import "@vector-im/compound-design-tokens/assets/web/css/compound-design-tokens.css"
+  layer(compound-tokens);
+@import "@vector-im/compound-web/dist/style.css" layer(compound-web);
+@import "@element-hq/web-shared-components/dist/element-web-shared-components.css"
+  layer(shared-components);

@@ -5,7 +5,6 @@ import { ChangedDetailsView } from "./ChangedDetailsView";
 import { HeaderView } from "./HeaderView";
 import { LayoutView } from "./LayoutView";
 import { TitleView } from "./TitleView";
-import { MessageCard } from "./styles";
 
 export function UpdatedView({ vm }: { vm: UpdatedViewModel }) {
   const snapshot = useViewModel(vm);
@@ -16,7 +15,7 @@ export function UpdatedView({ vm }: { vm: UpdatedViewModel }) {
   const { details, header } = snapshot;
 
   return (
-    <MessageCard>
+    <div>
       <HeaderView
         id={details.id}
         url={details.url}
@@ -36,6 +35,6 @@ export function UpdatedView({ vm }: { vm: UpdatedViewModel }) {
           />
         ) : null}
       </LayoutView>
-    </MessageCard>
+    </div>
   );
 }
