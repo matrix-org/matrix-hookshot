@@ -1,6 +1,6 @@
 import { styled } from "styled-components";
 
-export const WorkPackageMessage = styled.div`
+export const MessageCard = styled.div`
   a,
   a:visited {
     color: var(--cpd-color-text-link-external);
@@ -16,7 +16,7 @@ export const WorkPackageRoot = styled.div`
   flex-direction: column;
 `;
 
-export const WorkPackageStatusIndicator = styled.div`
+export const StatusIndicator = styled.div`
   border-radius: 1em;
   width: 0.9em;
   height: 0.9em;
@@ -34,11 +34,11 @@ export const WorkPackageRow = styled.div`
   margin-bottom: auto;
 `;
 
-export const WorkPackageTitleLink = styled.a`
+export const TitleLink = styled.a`
   font-weight: var(--cpd-font-weight-semibold);
 `;
 
-export const WorkPackageDescriptionText = styled.div`
+export const DescriptionText = styled.div`
   > p {
     margin: 0;
   }

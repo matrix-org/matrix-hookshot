@@ -5,11 +5,8 @@ import type {
   Module,
   ModuleFactory,
 } from "@element-hq/element-web-module-api";
-import {
-  WorkPackageCreatedMessage,
-  WorkPackageUpdatedMessage,
-  type OpenProjectContent,
-} from "./components/WorkPackageMessage";
+import { OpenProjectMessageRenderer } from "./OpenProjectMessageRenderer";
+import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
 
 class HookshotOpenProjectModule implements Module {
   public static readonly moduleApiVersion = "^2.0.0";
@@ -31,15 +28,8 @@ class HookshotOpenProjectModule implements Module {
       shouldRender,
       (props) => {
         const content = props.mxEvent.content;
-        if (
-          content["org.matrix.matrix-hookshot.openproject.work_package.changed"]
-        ) {
-          return (
-            <WorkPackageUpdatedMessage data={content as OpenProjectContent} />
-          );
-        }
         return (
-          <WorkPackageCreatedMessage data={content as OpenProjectContent} />
+          <OpenProjectMessageRenderer data={content as OpenProjectContent} />
         );
       },
       { allowEditingEvent: false },
