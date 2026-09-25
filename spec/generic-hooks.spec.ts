@@ -84,7 +84,9 @@ describe("Inbound (Generic) Webhooks", () => {
   });
 
   test("should be able to create a new expiring webhook and handle valid requests.", async () => {
-    vitest.useFakeTimers();
+    // Only fake `Date`, things like undici require real timers to work
+    // which means we need to be precise.
+    vitest.useFakeTimers({ toFake: ["Date"] });
     const user = testEnv.getUser("user");
     const roomId = await user.createRoom({ name: "My Test Webhooks room" });
     const okMsg = user.waitForRoomEvent({

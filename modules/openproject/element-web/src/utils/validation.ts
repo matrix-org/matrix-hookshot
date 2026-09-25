@@ -1,5 +1,6 @@
 import { sanitizeHtml } from "@element-hq/element-web-shared-utils";
 
+/** Converts untrusted event values into the small set of values the view may render. */
 export function safeUrl(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
