@@ -1,7 +1,7 @@
 import * as React from "react";
 import { LinkView } from "./LinkView";
 import { StatusView } from "./StatusView";
-import { WorkPackageRow } from "./styles";
+import styles from "./WorkPackage.module.css";
 
 export function MetadataView({
   statusName,
@@ -19,13 +19,13 @@ export function MetadataView({
   authorUrl?: string;
 }) {
   return (
-    <WorkPackageRow>
+    <div className={styles.metadataRow}>
       <StatusView name={statusName} color={statusColor} />
       <span>{typeName}</span>
       {assigneeName ? <span>Assigned to {assigneeName}</span> : null}
       <span>
         Created by <LinkView url={authorUrl}>{authorName}</LinkView>
       </span>
-    </WorkPackageRow>
+    </div>
   );
 }
