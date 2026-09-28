@@ -24,6 +24,17 @@ function getElementConfig(api: Api): unknown {
   }
 }
 
+function getWorkPackageId(value: unknown): number | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const id = (value as { id?: unknown }).id;
+  return typeof id === "number" && Number.isSafeInteger(id) && id > 0
+    ? id
+    : undefined;
+}
+
 class HookshotOpenProjectModule implements Module {
   public static readonly moduleApiVersion = "^2.0.0";
 
@@ -35,10 +46,7 @@ class HookshotOpenProjectModule implements Module {
       getElementConfig(api),
     );
     this.capabilityClient = this.capabilityBotUserId
-      ? new OpenProjectCapabilityClient(
-          new HookshotToDeviceClient(),
-          this.capabilityBotUserId,
-        )
+      ? new OpenProjectCapabilityClient(new HookshotToDeviceClient())
       : undefined;
   }
 
@@ -65,11 +73,19 @@ class HookshotOpenProjectModule implements Module {
         );
         const capabilityClient = this.capabilityClient;
         const renderAnchor = capabilityClient !== undefined && isAnchor;
+        const workPackageId = getWorkPackageId(
+          content["org.matrix.matrix-hookshot.openproject.work_package"],
+        );
 
-        if (renderAnchor) {
+        if (renderAnchor && workPackageId !== undefined) {
           return (
             <OpenProjectAnchorRenderer
-              anchor={{ eventId: mxEvent.eventId, roomId: mxEvent.roomId }}
+              anchor={{
+                eventId: mxEvent.eventId,
+                roomId: mxEvent.roomId,
+                workPackageId,
+                recipientUserId: mxEvent.sender,
+              }}
               capabilityClient={capabilityClient}
               data={content as OpenProjectContent}
             />

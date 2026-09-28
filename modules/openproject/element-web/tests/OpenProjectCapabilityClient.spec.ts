@@ -3,15 +3,53 @@ import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
   OpenProjectCapabilityClient,
+  type OpenProjectAnchor,
   type OpenProjectProbeResponse,
 } from "../src/OpenProjectCapabilityClient";
-import type { HookshotToDeviceClient } from "../src/HookshotToDeviceClient";
+import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
 
 const botUserId = "@hookshot_openproject:example.org";
+const secondBotUserId = "@hookshot:example.org";
 const anchorContent = {
   "org.matrix.matrix-hookshot.openproject.schema_version": 1,
   "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
 };
+
+function createAnchor(
+  overrides: Partial<OpenProjectAnchor> = {},
+): OpenProjectAnchor {
+  return {
+    roomId: "!room:example.org",
+    eventId: "$anchor-without-server",
+    workPackageId: 41,
+    recipientUserId: botUserId,
+    ...overrides,
+  };
+}
+
+function createResponse(
+  result: OpenProjectProbeResponse["result"] = "ok",
+): OpenProjectProbeResponse {
+  return {
+    v: 1,
+    request_id: "request-1",
+    integration_id: "openproject",
+    result,
+  };
+}
+
+class FakeToDeviceClient {
+  public identity: MatrixSessionIdentity = {
+    userId: "@alice:example.org",
+    deviceId: "ALICEDEVICE",
+  };
+
+  public readonly request = vi.fn();
+
+  public getSessionIdentity(): MatrixSessionIdentity {
+    return Object.freeze({ ...this.identity });
+  }
+}
 
 describe("OpenProjectCapabilityClient", () => {
   it("reads only the deployment-configured OpenProject integration bot", () => {
@@ -54,27 +92,14 @@ describe("OpenProjectCapabilityClient", () => {
     ).toBe(false);
   });
 
-  it("sends an integration-neutral probe for the validated anchor", async () => {
-    const response: OpenProjectProbeResponse = {
-      v: 1,
-      request_id: "request-1",
-      integration_id: "openproject",
-      result: "ok",
-      connection: "connected",
-    };
-    const request = vi.fn().mockResolvedValue(response);
-    const client = new OpenProjectCapabilityClient(
-      { request } as unknown as HookshotToDeviceClient,
-      botUserId,
-    );
+  it("sends an integration-neutral probe with the validated anchor inputs", async () => {
+    const response = createResponse();
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request.mockResolvedValue(response);
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
 
-    await expect(
-      client.probe({
-        roomId: "!room:example.org",
-        eventId: "$anchor-without-server",
-      }),
-    ).resolves.toEqual(response);
-    expect(request).toHaveBeenCalledWith(
+    await expect(client.probe(createAnchor())).resolves.toEqual(response);
+    expect(toDeviceClient.request).toHaveBeenCalledWith(
       expect.objectContaining({
         recipientUserId: botUserId,
         requestType: "org.matrix.matrix-hookshot.capabilities.probe",
@@ -90,55 +115,132 @@ describe("OpenProjectCapabilityClient", () => {
     );
   });
 
-  it("coalesces repeated probes for the same anchor", async () => {
-    const response: OpenProjectProbeResponse = {
-      v: 1,
-      request_id: "request-1",
-      integration_id: "openproject",
-      result: "ok",
-    };
-    const request = vi.fn().mockResolvedValue(response);
-    const client = new OpenProjectCapabilityClient(
-      { request } as unknown as HookshotToDeviceClient,
-      botUserId,
-    );
-    const anchor = {
-      roomId: "!room:example.org",
-      eventId: "$anchor-without-server",
-    };
+  it("coalesces identical in-flight and fulfilled probes", async () => {
+    const response = createResponse();
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request.mockResolvedValue(response);
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
 
     const first = client.probe(anchor);
     const second = client.probe(anchor);
+    await expect(first).resolves.toEqual(response);
+    const third = client.probe(anchor);
 
     expect(second).toBe(first);
-    await expect(second).resolves.toEqual(response);
-    expect(request).toHaveBeenCalledOnce();
+    expect(third).toBe(first);
+    expect(toDeviceClient.request).toHaveBeenCalledOnce();
   });
 
-  it("allows an explicit retry after a failed or unavailable probe", async () => {
-    const response: OpenProjectProbeResponse = {
-      v: 1,
-      request_id: "request-2",
-      integration_id: "openproject",
-      result: "ok",
+  it("does not share entries between work packages or recipient bots", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request.mockResolvedValue(createResponse());
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+
+    await client.probe(createAnchor({ workPackageId: 41 }));
+    await client.probe(createAnchor({ workPackageId: 42 }));
+    await client.probe(createAnchor({ recipientUserId: secondBotUserId }));
+
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not retain rejected or unavailable probes", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request
+      .mockRejectedValueOnce(new Error("Hookshot unavailable"))
+      .mockResolvedValueOnce(createResponse("unavailable"))
+      .mockResolvedValueOnce(createResponse("ok"));
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
+
+    await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
+    await expect(client.probe(anchor)).resolves.toMatchObject({
+      result: "unavailable",
+    });
+    await expect(client.probe(anchor)).resolves.toMatchObject({ result: "ok" });
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
+  });
+
+  it("replaces an existing entry when force is true", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request.mockResolvedValue(createResponse());
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
+
+    const first = client.probe(anchor);
+    const forced = client.probe(anchor, { force: true });
+
+    expect(forced).not.toBe(first);
+    await expect(forced).resolves.toEqual(createResponse());
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears every cached result when the user changes", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request.mockResolvedValue(createResponse());
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
+
+    await client.probe(anchor);
+    toDeviceClient.identity = {
+      userId: "@bob:example.org",
+      deviceId: "BOBDEVICE",
     };
-    const request = vi
-      .fn()
+    await client.probe(anchor);
+
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears every cached result when only the device changes", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request.mockResolvedValue(createResponse());
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
+
+    await client.probe(anchor);
+    toDeviceClient.identity = {
+      userId: "@alice:example.org",
+      deviceId: "ALICESECONDDEVICE",
+    };
+    await client.probe(anchor);
+
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects a result that arrives after the session changes", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    let resolveRequest!: (response: OpenProjectProbeResponse) => void;
+    toDeviceClient.request.mockImplementation(
+      () =>
+        new Promise<OpenProjectProbeResponse>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const probe = client.probe(createAnchor());
+
+    toDeviceClient.identity = {
+      userId: "@bob:example.org",
+      deviceId: "BOBDEVICE",
+    };
+    resolveRequest(createResponse());
+
+    await expect(probe).rejects.toThrow("Matrix account changed");
+  });
+
+  it("allows an explicit retry after a failed probe", async () => {
+    const response = createResponse();
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request
       .mockRejectedValueOnce(new Error("Hookshot unavailable"))
       .mockResolvedValueOnce(response);
-    const client = new OpenProjectCapabilityClient(
-      { request } as unknown as HookshotToDeviceClient,
-      botUserId,
-    );
-    const anchor = {
-      roomId: "!room:example.org",
-      eventId: "$anchor-without-server",
-    };
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
 
     await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
     await expect(client.probe(anchor, { force: true })).resolves.toEqual(
       response,
     );
-    expect(request).toHaveBeenCalledTimes(2);
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
   });
 });

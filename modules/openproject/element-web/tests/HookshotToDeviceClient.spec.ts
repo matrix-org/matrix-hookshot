@@ -12,11 +12,17 @@ const responseType = "org.matrix.matrix-hookshot.openproject.probe.response";
 
 class FakeMatrixClient {
   public readonly sendToDevice = vi.fn().mockResolvedValue(undefined);
+  public userId = "@alice:example.org";
+  public deviceId = "ELEMENTDEVICE";
 
   private readonly listeners = new Set<(event: MatrixToDeviceEvent) => void>();
 
+  public getUserId(): string {
+    return this.userId;
+  }
+
   public getDeviceId(): string {
-    return "ELEMENTDEVICE";
+    return this.deviceId;
   }
 
   public on(
@@ -205,6 +211,46 @@ describe("HookshotToDeviceClient", () => {
 
     await expect(responsePromise).rejects.toThrow("Matrix account changed");
     expect(firstMatrixClient.listenerCount()).toBe(0);
+  });
+
+  it("rejects when the user or device changes on the same Matrix client", async () => {
+    const matrixClient = new FakeMatrixClient();
+    installMatrixClient(matrixClient as unknown as ElementMatrixClient);
+    const client = new HookshotToDeviceClient({
+      requestIdGenerator: () => "request-identity-change",
+    });
+    const responsePromise = client.request({
+      content: {},
+      recipientUserId,
+      requestType,
+      responseType,
+    });
+
+    matrixClient.userId = "@bob:example.org";
+    matrixClient.deviceId = "BOBDEVICE";
+    matrixClient.emit(
+      event({ content: { request_id: "request-identity-change" } }),
+    );
+
+    await expect(responsePromise).rejects.toThrow("Matrix account changed");
+  });
+
+  it("rejects when the Matrix session identity is unavailable", async () => {
+    const matrixClient = new FakeMatrixClient();
+    matrixClient.userId = "";
+    installMatrixClient(matrixClient as unknown as ElementMatrixClient);
+    const client = new HookshotToDeviceClient({
+      requestIdGenerator: () => "request-no-identity",
+    });
+
+    await expect(
+      client.request({
+        content: {},
+        recipientUserId,
+        requestType,
+        responseType,
+      }),
+    ).rejects.toThrow("no session identity");
   });
 
   it("does not access an Element access token", async () => {
