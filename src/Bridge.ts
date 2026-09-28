@@ -193,11 +193,13 @@ export class Bridge {
     // first (highest-priority) bot for each service so a dedicated service bot
     // takes precedence over the default Hookshot bot.
     const integrationBots = new Map<string, string>();
-    for (const botUser of this.botUsersManager.botUsers) {
-      for (const service of botUser.services) {
-        if (!integrationBots.has(service)) {
-          integrationBots.set(service, botUser.userId);
-        }
+    const services = new Set(
+      this.botUsersManager.botUsers.flatMap((botUser) => botUser.services),
+    );
+    for (const service of services) {
+      const botUser = this.botUsersManager.getIntegrationBotForService(service);
+      if (botUser) {
+        integrationBots.set(service, botUser.userId);
       }
     }
     await provisionToDeviceReceiverDevices(
@@ -1521,6 +1523,13 @@ export class Bridge {
                   this.connectionManager.getAllConnectionsOfType.bind(
                     this.connectionManager,
                   ),
+                getIntegrationBotForService:
+                  this.botUsersManager.getIntegrationBotForService.bind(
+                    this.botUsersManager,
+                  ),
+                isBotUserInRoom: this.botUsersManager.isBotUserInRoom.bind(
+                  this.botUsersManager,
+                ),
               },
               this.getOrCreateAdminRoom.bind(this),
               this.connectionManager.push.bind(this.connectionManager),

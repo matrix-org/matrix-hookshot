@@ -196,7 +196,15 @@ export class OpenProjectConnection
     roomId: string,
     userId: string,
     data: Record<string, unknown>,
-    { as, intent, tokenStore, config, storage }: ProvisionConnectionOpts,
+    {
+      as,
+      intent: requestedIntent,
+      tokenStore,
+      config,
+      storage,
+      getIntegrationBotForService,
+      isBotUserInRoom,
+    }: ProvisionConnectionOpts,
   ) {
     if (!config.openProject) {
       throw new ApiError(
@@ -208,6 +216,20 @@ export class OpenProjectConnection
       data,
       config.openProject.baseURL,
     );
+    const integrationBot = getIntegrationBotForService?.(
+      OpenProjectConnection.ServiceCategory,
+    );
+    const intent = integrationBot?.intent ?? requestedIntent;
+    if (
+      integrationBot &&
+      isBotUserInRoom &&
+      !isBotUserInRoom(roomId, integrationBot.userId)
+    ) {
+      throw new ApiError(
+        `The selected OpenProject bot ${integrationBot.userId} is not joined to this room`,
+        ErrCode.NotInRoom,
+      );
+    }
     log.info(
       `Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`,
     );
@@ -232,9 +254,12 @@ export class OpenProjectConnection
     log.info(
       `Created connection via provisionConnection ${connection.toString()}`,
     );
-    await new OpenProjectGrantChecker(as, tokenStore).grantConnection(roomId, {
-      url: validData.url,
-    });
+    await new OpenProjectGrantChecker(as, intent, tokenStore).grantConnection(
+      roomId,
+      {
+        url: validData.url,
+      },
+    );
     return { connection };
   }
 
@@ -312,6 +337,8 @@ export class OpenProjectConnection
 
   public readonly url: URL;
   public readonly projectId: number;
+  /** The bot whose intent handles this connection's Matrix traffic. */
+  public readonly botUserId: string;
   private readonly grantChecker: OpenProjectGrantChecker;
 
   constructor(
@@ -338,7 +365,8 @@ export class OpenProjectConnection
       "!openproject",
       "openproject",
     );
-    this.grantChecker = new OpenProjectGrantChecker(as, tokenStore);
+    this.botUserId = intent.userId;
+    this.grantChecker = new OpenProjectGrantChecker(as, intent, tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
   }

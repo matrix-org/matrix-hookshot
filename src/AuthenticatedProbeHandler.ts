@@ -30,7 +30,7 @@ export interface AuthenticatedProbeServices {
   getOpenProjectForUser: (userId: string) => Promise<unknown | null>;
   getOpenProjectConnections: (
     projectId: number,
-  ) => ReadonlyArray<{ roomId: string }>;
+  ) => ReadonlyArray<{ roomId: string; botUserId?: string }>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -105,7 +105,12 @@ export function createAuthenticatedProbeHandler(
     if (
       !services
         .getOpenProjectConnections(projectId)
-        .some((connection) => connection.roomId === request.room_id)
+        .some(
+          (connection) =>
+            connection.roomId === request.room_id &&
+            (connection.botUserId === undefined ||
+              connection.botUserId === context.recipientBotUserId),
+        )
     ) {
       return { result: "not_authorized" as const };
     }

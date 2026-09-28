@@ -143,6 +143,23 @@ describe("authenticated Hookshot probe", () => {
     expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
   });
 
+  it("rejects when the room connection belongs to another Hookshot bot", async () => {
+    const services = createServices({
+      getOpenProjectConnections: vi
+        .fn()
+        .mockReturnValue([
+          { roomId, botUserId: "@other-hookshot:example.org" },
+        ]),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+    expect(services.assertRoomReadAccess).not.toHaveBeenCalled();
+    expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
+  });
+
   it("does not handle another integration", async () => {
     const services = createServices();
     const handler = createAuthenticatedProbeHandler(services);

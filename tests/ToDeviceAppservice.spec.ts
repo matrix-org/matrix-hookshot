@@ -47,7 +47,6 @@ describe("real appservice to-device delivery", () => {
           aliases: [],
         },
         receive_ephemeral: true,
-        "io.element.msc4190": true,
       };
     const appservice = new Appservice({
       homeserverName: "example.org",
