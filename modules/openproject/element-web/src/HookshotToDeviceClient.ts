@@ -23,6 +23,7 @@ export interface MatrixToDeviceEvent {
 }
 
 export interface ElementMatrixClient {
+  getUserId(): string | null;
   getDeviceId(): string | null;
   sendToDevice(
     eventType: string,
@@ -37,6 +38,11 @@ export interface ElementMatrixClient {
     eventName: typeof TO_DEVICE_EVENT_NAME,
     listener: (event: MatrixToDeviceEvent) => void,
   ): void;
+}
+
+export interface MatrixSessionIdentity {
+  readonly userId: string;
+  readonly deviceId: string;
 }
 
 declare global {
@@ -70,6 +76,18 @@ function getTargetDeviceId(event: MatrixToDeviceEvent): string | undefined {
   return unsigned.device_id;
 }
 
+function getSessionIdentityForClient(
+  matrixClient: ElementMatrixClient,
+): MatrixSessionIdentity {
+  const userId = matrixClient.getUserId();
+  const deviceId = matrixClient.getDeviceId();
+  if (!userId || !deviceId) {
+    throw new Error("The Matrix client has no session identity");
+  }
+
+  return Object.freeze({ userId, deviceId });
+}
+
 /**
  * Matrix to-device adapter for the Element module.
  */
@@ -90,10 +108,7 @@ export class HookshotToDeviceClient {
     request: HookshotToDeviceRequest<TResponse>,
   ): Promise<TResponse> {
     const matrixClient = this.getMatrixClient();
-    const deviceId = matrixClient.getDeviceId();
-    if (!deviceId) {
-      throw new Error("The Matrix client has no device ID");
-    }
+    const sessionIdentity = getSessionIdentityForClient(matrixClient);
 
     const requestId = this.requestIdGenerator();
     if (!requestId) {
@@ -103,7 +118,7 @@ export class HookshotToDeviceClient {
     const content: Record<string, unknown> = {
       ...request.content,
       request_id: requestId,
-      requesting_device_id: deviceId,
+      requesting_device_id: sessionIdentity.deviceId,
     };
 
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -142,7 +157,10 @@ export class HookshotToDeviceClient {
       }
 
       const targetDeviceId = getTargetDeviceId(event);
-      if (targetDeviceId !== undefined && targetDeviceId !== deviceId) {
+      if (
+        targetDeviceId !== undefined &&
+        targetDeviceId !== sessionIdentity.deviceId
+      ) {
         return;
       }
 
@@ -153,6 +171,21 @@ export class HookshotToDeviceClient {
         currentClient = null;
       }
       if (currentClient !== matrixClient) {
+        settle(() => rejectResponse(new Error("Matrix account changed")));
+        return;
+      }
+
+      let currentIdentity: MatrixSessionIdentity;
+      try {
+        currentIdentity = getSessionIdentityForClient(currentClient);
+      } catch {
+        settle(() => rejectResponse(new Error("Matrix account changed")));
+        return;
+      }
+      if (
+        currentIdentity.userId !== sessionIdentity.userId ||
+        currentIdentity.deviceId !== sessionIdentity.deviceId
+      ) {
         settle(() => rejectResponse(new Error("Matrix account changed")));
         return;
       }
@@ -197,6 +230,10 @@ export class HookshotToDeviceClient {
     }
 
     return responsePromise;
+  }
+
+  public getSessionIdentity(): MatrixSessionIdentity {
+    return getSessionIdentityForClient(this.getMatrixClient());
   }
 
   private getMatrixClient(): ElementMatrixClient {

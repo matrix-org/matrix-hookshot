@@ -1,6 +1,7 @@
 import {
   HookshotToDeviceClient,
   type HookshotToDeviceRequest,
+  type MatrixSessionIdentity,
 } from "./HookshotToDeviceClient";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
@@ -17,8 +18,10 @@ export type OpenProjectProbeResult =
   | "unavailable";
 
 export interface OpenProjectAnchor {
-  roomId: string;
-  eventId: string;
+  readonly roomId: string;
+  readonly eventId: string;
+  readonly workPackageId: number;
+  readonly recipientUserId: string;
 }
 
 export interface OpenProjectProbeResponse {
@@ -32,9 +35,6 @@ export interface OpenProjectProbeResponse {
 export interface OpenProjectProbeOptions {
   readonly force?: boolean;
 }
-
-// Temporary probe lifecycle tracing. Remove once request flow debugging is complete.
-const PROBE_TRACE = "[OpenProjectCapabilityClient]";
 
 interface JsonRecord {
   [key: string]: unknown;
@@ -137,46 +137,43 @@ export function isOpenProjectAnchorForBot(
 }
 
 export class OpenProjectCapabilityClient {
-  private readonly probeCache = new Map<
-    string,
-    Promise<OpenProjectProbeResponse>
-  >();
+  private readonly probeCache = new Map<string, ProbeCacheEntry>();
+  private lastSessionIdentity: MatrixSessionIdentity | undefined;
 
-  public constructor(
-    private readonly toDeviceClient: HookshotToDeviceClient,
-    private readonly botUserId: string,
-  ) {}
+  public constructor(private readonly toDeviceClient: HookshotToDeviceClient) {}
 
   public probe(
     anchor: OpenProjectAnchor,
     options: OpenProjectProbeOptions = {},
   ): Promise<OpenProjectProbeResponse> {
-    console.log(`${PROBE_TRACE} probe requested`, {
-      anchor,
-      force: options.force === true,
-    });
+    let sessionIdentity: MatrixSessionIdentity;
+    try {
+      sessionIdentity = this.toDeviceClient.getSessionIdentity();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    this.observeSession(sessionIdentity);
 
-    if (!isMatrixRoomId(anchor.roomId) || !isMatrixEventId(anchor.eventId)) {
-      console.log(`${PROBE_TRACE} probe discarded: invalid anchor`, { anchor });
+    if (
+      !isMatrixRoomId(anchor.roomId) ||
+      !isMatrixEventId(anchor.eventId) ||
+      !Number.isSafeInteger(anchor.workPackageId) ||
+      anchor.workPackageId <= 0 ||
+      !isMatrixUserId(anchor.recipientUserId)
+    ) {
       return Promise.reject(new Error("Invalid OpenProject anchor"));
     }
 
-    const cacheKey = `${anchor.roomId}\u0000${anchor.eventId}`;
+    const cacheKey = this.createCacheKey(sessionIdentity, anchor);
     if (!options.force) {
-      const cachedProbe = this.probeCache.get(cacheKey);
-      if (cachedProbe) {
-        console.log(
-          `${PROBE_TRACE} probe discarded: reusing cached/in-flight request`,
-          { anchor },
-        );
-        return cachedProbe;
+      const cachedEntry = this.probeCache.get(cacheKey);
+      if (cachedEntry) {
+        return cachedEntry.promise;
       }
-    } else if (this.probeCache.has(cacheKey)) {
-      console.log(`${PROBE_TRACE} forcing a new probe`, { anchor });
     }
 
     const request: HookshotToDeviceRequest<OpenProjectProbeResponse> = {
-      recipientUserId: this.botUserId,
+      recipientUserId: anchor.recipientUserId,
       requestType: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
       responseType: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
       content: {
@@ -188,32 +185,79 @@ export class OpenProjectCapabilityClient {
       responseValidator: isOpenProjectProbeResponse,
     };
 
-    console.log(`${PROBE_TRACE} probe sent`, {
-      anchor,
-      requestType: request.requestType,
-      responseType: request.responseType,
-    });
+    let requestPromise: Promise<OpenProjectProbeResponse>;
+    try {
+      requestPromise = this.toDeviceClient.request(request);
+    } catch (error) {
+      requestPromise = Promise.reject(error);
+    }
 
-    const probe = this.toDeviceClient
-      .request(request)
-      .then((response) => {
-        console.log(`${PROBE_TRACE} probe answer`, {
-          anchor,
-          requestId: response.request_id,
-          result: response.result,
-        });
-        return response;
-      })
-      .catch((error) => {
-        console.log(`${PROBE_TRACE} probe failed`, { anchor, error });
-        // A failed request must not prevent a later explicit retry.
-        if (this.probeCache.get(cacheKey) === probe) {
-          this.probeCache.delete(cacheKey);
-        }
-        throw error;
-      });
+    const entry: ProbeCacheEntry = {
+      promise: requestPromise
+        .then((response) => {
+          this.assertSessionUnchanged(sessionIdentity);
+          if (response.result === "unavailable") {
+            this.removeEntry(cacheKey, entry);
+          }
+          return response;
+        })
+        .catch((error) => {
+          // A failed request must not prevent a later explicit retry.
+          this.removeEntry(cacheKey, entry);
+          throw error;
+        }),
+    };
 
-    this.probeCache.set(cacheKey, probe);
-    return probe;
+    this.probeCache.set(cacheKey, entry);
+    return entry.promise;
   }
+
+  private createCacheKey(
+    sessionIdentity: MatrixSessionIdentity,
+    anchor: OpenProjectAnchor,
+  ): string {
+    return JSON.stringify([
+      sessionIdentity.userId,
+      sessionIdentity.deviceId,
+      OPENPROJECT_INTEGRATION_ID,
+      anchor.recipientUserId,
+      anchor.roomId,
+      anchor.eventId,
+      anchor.workPackageId,
+    ]);
+  }
+
+  private observeSession(sessionIdentity: MatrixSessionIdentity): void {
+    if (
+      this.lastSessionIdentity &&
+      (this.lastSessionIdentity.userId !== sessionIdentity.userId ||
+        this.lastSessionIdentity.deviceId !== sessionIdentity.deviceId)
+    ) {
+      this.probeCache.clear();
+    }
+    this.lastSessionIdentity = sessionIdentity;
+  }
+
+  private assertSessionUnchanged(
+    requestSessionIdentity: MatrixSessionIdentity,
+  ): void {
+    const currentSessionIdentity = this.toDeviceClient.getSessionIdentity();
+    if (
+      currentSessionIdentity.userId !== requestSessionIdentity.userId ||
+      currentSessionIdentity.deviceId !== requestSessionIdentity.deviceId
+    ) {
+      this.observeSession(currentSessionIdentity);
+      throw new Error("Matrix account changed");
+    }
+  }
+
+  private removeEntry(cacheKey: string, entry: ProbeCacheEntry): void {
+    if (this.probeCache.get(cacheKey) === entry) {
+      this.probeCache.delete(cacheKey);
+    }
+  }
+}
+
+interface ProbeCacheEntry {
+  readonly promise: Promise<OpenProjectProbeResponse>;
 }
