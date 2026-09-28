@@ -6,7 +6,6 @@ export const HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
 export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
 
 const HOOKSHOT_EVENT_NAMESPACE = "org.matrix.matrix-hookshot";
-const ANCHOR_EVENT_KIND = "anchor";
 
 export type HookshotIntegrationId = string;
 
@@ -169,6 +168,8 @@ export function isHookshotCapabilitiesProbeResponse(
 export function isVersionedHookshotAnchorEventContent(
   value: unknown,
   integrationId: HookshotIntegrationId,
+  expectedSchemaVersion: number,
+  expectedEventKind: string,
 ): boolean {
   if (!isRecord(value) || !isIntegrationId(integrationId)) {
     return false;
@@ -176,8 +177,7 @@ export function isVersionedHookshotAnchorEventContent(
 
   const integrationNamespace = `${HOOKSHOT_EVENT_NAMESPACE}.${integrationId}`;
   return (
-    value[`${integrationNamespace}.schema_version`] ===
-      HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
-    value[`${integrationNamespace}.event_kind`] === ANCHOR_EVENT_KIND
+    value[`${integrationNamespace}.schema_version`] === expectedSchemaVersion &&
+    value[`${integrationNamespace}.event_kind`] === expectedEventKind
   );
 }

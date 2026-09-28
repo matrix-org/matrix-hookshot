@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../src/OpenProjectSchema";
 import { OPENPROJECT_WORK_PACKAGE_CREATED_EVENT } from "./fixtures/OpenProjectEventFixtures";
 
 const botUserId = "@hookshot_openproject:example.org";
@@ -13,8 +17,10 @@ function createMarkedAnchorEvent(sender = botUserId) {
     sender,
     content: {
       ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT.content,
-      "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-      "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
     },
   };
 }

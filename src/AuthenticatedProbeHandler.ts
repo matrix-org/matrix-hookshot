@@ -6,6 +6,10 @@ import type {
   HookshotProbeHandler,
   HookshotProbeContext,
 } from "./ToDeviceReceiver";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "./openproject/Schema";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 
@@ -60,7 +64,12 @@ function isValidAnchor(
   return (
     (event.room_id === undefined || event.room_id === request.room_id) &&
     event.sender === context.recipientBotUserId &&
-    isVersionedHookshotAnchorEventContent(event.content, request.integration_id)
+    isVersionedHookshotAnchorEventContent(
+      event.content,
+      request.integration_id,
+      OPENPROJECT_EVENT_SCHEMA_VERSION,
+      OPENPROJECT_ANCHOR_EVENT_KIND,
+    )
   );
 }
 

@@ -7,7 +7,7 @@ import type {
   OpenProjectCapabilityClient,
   OpenProjectProbeResult,
 } from "../../OpenProjectCapabilityClient";
-import type { OpenProjectContent } from "../../models/OpenProjectMatrixEventContent";
+import type { OpenProjectAnchorContent } from "../../models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot, type DetailsSnapshot } from "./DetailsSnapshot";
 
 export type AnchorProbeState =
@@ -37,11 +37,11 @@ export type AnchorViewModel = ViewModel<
 export interface AnchorMessageViewModelProps {
   readonly anchor: OpenProjectAnchor;
   readonly capabilityClient: OpenProjectCapabilityClient;
-  readonly data: OpenProjectContent;
+  readonly data: OpenProjectAnchorContent;
 }
 
 function createAnchorViewSnapshot(
-  data: OpenProjectContent,
+  data: OpenProjectAnchorContent,
 ): AnchorViewSnapshot | null {
   const rawWorkPackage =
     data["org.matrix.matrix-hookshot.openproject.work_package"];

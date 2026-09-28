@@ -5,6 +5,10 @@ import {
   isVersionedHookshotAnchorEventContent,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
 } from "../src/ToDeviceProtocol";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../src/openproject/Schema";
 
 const validRequest = {
   v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
@@ -142,25 +146,36 @@ describe("Hookshot Step 0 to-device protocol", () => {
       const integrationId = "openproject";
       const namespace = `org.matrix.matrix-hookshot.${integrationId}`;
       const anchor = {
-        [`${namespace}.schema_version`]: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
-        [`${namespace}.event_kind`]: "anchor",
+        [`${namespace}.schema_version`]: OPENPROJECT_EVENT_SCHEMA_VERSION,
+        [`${namespace}.event_kind`]: OPENPROJECT_ANCHOR_EVENT_KIND,
       };
 
-      expect(isVersionedHookshotAnchorEventContent(anchor, integrationId)).toBe(
-        true,
-      );
+      expect(
+        isVersionedHookshotAnchorEventContent(
+          anchor,
+          integrationId,
+          OPENPROJECT_EVENT_SCHEMA_VERSION,
+          OPENPROJECT_ANCHOR_EVENT_KIND,
+        ),
+      ).toBe(true);
     });
 
     it("does not accept an anchor marker for another integration", () => {
       const anchor = {
         "org.matrix.matrix-hookshot.github.schema_version":
-          HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
-        "org.matrix.matrix-hookshot.github.event_kind": "anchor",
+          OPENPROJECT_EVENT_SCHEMA_VERSION,
+        "org.matrix.matrix-hookshot.github.event_kind":
+          OPENPROJECT_ANCHOR_EVENT_KIND,
       };
 
-      expect(isVersionedHookshotAnchorEventContent(anchor, "openproject")).toBe(
-        false,
-      );
+      expect(
+        isVersionedHookshotAnchorEventContent(
+          anchor,
+          "openproject",
+          OPENPROJECT_EVENT_SCHEMA_VERSION,
+          OPENPROJECT_ANCHOR_EVENT_KIND,
+        ),
+      ).toBe(false);
     });
 
     it.each([
@@ -168,8 +183,10 @@ describe("Hookshot Step 0 to-device protocol", () => {
       [
         "the wrong schema version",
         {
-          "org.matrix.matrix-hookshot.openproject.schema_version": 2,
-          "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+          "org.matrix.matrix-hookshot.openproject.schema_version":
+            OPENPROJECT_EVENT_SCHEMA_VERSION + 1,
+          "org.matrix.matrix-hookshot.openproject.event_kind":
+            OPENPROJECT_ANCHOR_EVENT_KIND,
         },
         "openproject",
       ],
@@ -177,16 +194,21 @@ describe("Hookshot Step 0 to-device protocol", () => {
         "the wrong event kind",
         {
           "org.matrix.matrix-hookshot.openproject.schema_version":
-            HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            OPENPROJECT_EVENT_SCHEMA_VERSION,
           "org.matrix.matrix-hookshot.openproject.event_kind": "update",
         },
         "openproject",
       ],
       ["an invalid integration ID", {}, "https://example.org"],
     ])("rejects %s", (_description, value, integrationId) => {
-      expect(isVersionedHookshotAnchorEventContent(value, integrationId)).toBe(
-        false,
-      );
+      expect(
+        isVersionedHookshotAnchorEventContent(
+          value,
+          integrationId,
+          OPENPROJECT_EVENT_SCHEMA_VERSION,
+          OPENPROJECT_ANCHOR_EVENT_KIND,
+        ),
+      ).toBe(false);
     });
   });
 });
