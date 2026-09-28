@@ -47,6 +47,8 @@ export interface OpenProjectWorkPackageChanges {
 }
 
 export interface OpenProjectContent {
+  "org.matrix.matrix-hookshot.openproject.schema_version"?: number;
+  "org.matrix.matrix-hookshot.openproject.event_kind"?: string;
   "org.matrix.matrix-hookshot.openproject.work_package"?: OpenProjectWorkPackageContent;
   "org.matrix.matrix-hookshot.openproject.project"?: {
     id: number;

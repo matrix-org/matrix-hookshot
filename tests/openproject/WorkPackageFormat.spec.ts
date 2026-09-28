@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatWorkPackageAnchorForMatrix,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
 } from "../../src/openproject/Format";
@@ -84,6 +85,14 @@ describe("OpenProject Matrix formatter", () => {
       },
       external_url:
         "https://openproject.example/projects/demo-project/work_packages/50",
+    });
+  });
+
+  it("marks an initial full work-package event as a versioned anchor", () => {
+    expect(formatWorkPackageAnchorForMatrix(WORK_PACKAGE, BASE_URL)).toEqual({
+      ...formatWorkPackageForMatrix(WORK_PACKAGE, BASE_URL),
+      "org.matrix.matrix-hookshot.openproject.schema_version": 1,
+      "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
     });
   });
 });
