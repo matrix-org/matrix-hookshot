@@ -23,6 +23,7 @@ import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { BridgeConfigMessaging } from "../config/sections";
 import {
+  formatWorkPackageAnchorForMatrix,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   OpenProjectWorkPackageMatrixEvent,
@@ -377,7 +378,7 @@ export class OpenProjectConnection
     if (!creator) {
       throw Error("No creator field");
     }
-    const extraData = formatWorkPackageForMatrix(
+    const extraData = formatWorkPackageAnchorForMatrix(
       data.work_package,
       this.config.baseURL,
     );
@@ -540,7 +541,7 @@ export class OpenProjectConnection
       return;
     }
 
-    const extraData = formatWorkPackageForMatrix(
+    const extraData = formatWorkPackageAnchorForMatrix(
       workPackage,
       this.config.baseURL,
     );
