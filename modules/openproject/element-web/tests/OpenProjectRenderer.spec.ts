@@ -1,16 +1,24 @@
+import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { type OpenProjectContent } from "../src/components/WorkPackageMessage";
-import { WorkPackageActions } from "../src/components/WorkPackageActions";
-import { WorkPackageChangedDetails } from "../src/components/WorkPackageChangedDetails";
-import { WorkPackageDescription } from "../src/components/WorkPackageDescription";
-import { WorkPackageLayout } from "../src/components/WorkPackageLayout";
-import { WorkPackageLink } from "../src/components/WorkPackageLink";
-import { WorkPackageStatus } from "../src/components/WorkPackageStatus";
-import { WorkPackageTitle } from "../src/components/WorkPackageTitle";
+import { MockViewModel } from "@element-hq/web-shared-components";
+import { OpenProjectMessageRenderer } from "../src/OpenProjectMessageRenderer";
+import { CreatedView } from "../src/components/workPackage/CreatedView";
+import { UpdatedView } from "../src/components/workPackage/UpdatedView";
+import type { OpenProjectContent } from "../src/models/OpenProjectMatrixEventContent";
+import { ActionsView } from "../src/components/workPackage/ActionsView";
+import { ChangedDetailsView } from "../src/components/workPackage/ChangedDetailsView";
+import { DescriptionView } from "../src/components/workPackage/DescriptionView";
+import { LayoutView } from "../src/components/workPackage/LayoutView";
+import { LinkView } from "../src/components/workPackage/LinkView";
+import { StatusView } from "../src/components/workPackage/StatusView";
+import { TitleView } from "../src/components/workPackage/TitleView";
+import { CreatedMessageViewModel } from "../src/viewmodels/workPackage/CreatedMessageViewModel";
+import { UpdatedMessageViewModel } from "../src/viewmodels/workPackage/UpdatedMessageViewModel";
 import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
-} from "../src/components/types";
+} from "../src/models/OpenProjectMatrixEventContent";
 import { WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
 const WORK_PACKAGE_KEY = "org.matrix.matrix-hookshot.openproject.work_package";
@@ -34,6 +42,17 @@ function collectElementProps(value: unknown): ElementProps[] {
 
   const elementProps = props as ElementProps;
   return [elementProps, ...collectElementProps(elementProps.children)];
+}
+
+function renderedDescriptionHtml(html: string): string | undefined {
+  const props = collectElementProps(
+    DescriptionView({ plain: "Plain fallback", html }),
+  );
+  const htmlProps = props.find(
+    (elementProps) => "dangerouslySetInnerHTML" in elementProps,
+  );
+  return (htmlProps?.dangerouslySetInnerHTML as { __html?: string } | undefined)
+    ?.__html;
 }
 
 function collectText(value: unknown): string {
@@ -60,14 +79,33 @@ function createWorkPackage(
   return { ...WORK_PACKAGE, ...overrides };
 }
 
+function createCreatedViewModel(
+  overrides: Partial<OpenProjectWorkPackageContent> = {},
+) {
+  const viewModel = new CreatedMessageViewModel({
+    [WORK_PACKAGE_KEY]: createWorkPackage(overrides),
+  }).getSnapshot();
+  if (!viewModel) {
+    throw new Error("Expected fixture to create a work-package view model");
+  }
+  return viewModel;
+}
+
 function renderChangedDetails(
   changes: OpenProjectWorkPackageChanges,
   overrides: Partial<OpenProjectWorkPackageContent> = {},
 ): string {
+  const viewModel = new UpdatedMessageViewModel({
+    [WORK_PACKAGE_KEY]: createWorkPackage(overrides),
+    [CHANGED_WORK_PACKAGE_KEY]: changes,
+  }).getSnapshot();
+  if (!viewModel?.changedDetail) {
+    throw new Error("Expected fixture to create changed work-package details");
+  }
+
   return collectText(
-    WorkPackageChangedDetails({
-      workPackage: createWorkPackage(overrides),
-      changes,
+    ChangedDetailsView({
+      change: viewModel.changedDetail,
     }),
   );
 }
@@ -101,14 +139,89 @@ function createUnsafeData(): OpenProjectContent {
 }
 
 describe("OpenProject renderer security", () => {
-  it("renders available descriptions as sanitized HTML", () => {
+  it("opens work-package links safely in a new tab", () => {
+    expect(
+      LinkView({
+        url: "https://openproject.example/work_packages/50",
+        children: 50,
+      }).props,
+    ).toMatchObject({
+      href: "https://openproject.example/work_packages/50",
+      target: "_blank",
+      rel: "noopener noreferrer",
+    });
+  });
+
+  it("allows HTTP URLs in links", () => {
+    expect(
+      LinkView({
+        url: "http://openproject.example/work_packages/50",
+        children: 50,
+      }).props.href,
+    ).toBe("http://openproject.example/work_packages/50");
+  });
+
+  it("rejects unsafe URLs in links", () => {
+    expect(
+      LinkView({ url: "javascript:alert(1)", children: 50 }).props.href,
+    ).toBeUndefined();
+  });
+
+  it("rejects unsafe URLs in work-package titles", () => {
     const props = collectElementProps(
-      WorkPackageDescription({
-        description: {
-          plain: "Fallback description",
-          html: "<p><strong>Rendered description</strong></p>",
-        },
-      }),
+      TitleView({ id: 50, subject: "Unsafe", url: "data:text/html,unsafe" }),
+    );
+
+    expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
+  });
+
+  it("rejects malformed URLs in work-package actions", () => {
+    const props = collectElementProps(ActionsView({ url: "not a URL" }));
+
+    expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
+  });
+
+  it("renders valid status colors", () => {
+    const props = collectElementProps(
+      StatusView({ name: "Open", color: "#Ab12Cd" }),
+    );
+
+    expect(props).toContainEqual({ style: { background: "#Ab12Cd" } });
+  });
+
+  it("rejects invalid status colors", () => {
+    const props = collectElementProps(
+      StatusView({ name: "Open", color: "rgb(0, 0, 0)" }),
+    );
+
+    expect(props.some((elementProps) => "style" in elementProps)).toBe(false);
+  });
+
+  it("renders valid work-package border colors", () => {
+    const props = collectElementProps(
+      LayoutView({ borderColor: "#Ab12Cd", children: null }),
+    );
+
+    expect(props).toContainEqual({ style: { background: "#Ab12Cd" } });
+  });
+
+  it("rejects invalid work-package border colors", () => {
+    const props = collectElementProps(
+      LayoutView({ borderColor: 'url("javascript:alert(1)")', children: null }),
+    );
+
+    expect(props.some((elementProps) => "style" in elementProps)).toBe(false);
+  });
+
+  it("renders available descriptions as sanitized HTML", () => {
+    const viewModel = createCreatedViewModel({
+      description: {
+        plain: "Fallback description",
+        html: "<p><strong>Rendered description</strong></p>",
+      },
+    });
+    const props = collectElementProps(
+      DescriptionView({ ...viewModel.details.description }),
     );
     const htmlProps = props.find(
       (elementProps) => "dangerouslySetInnerHTML" in elementProps,
@@ -119,28 +232,71 @@ describe("OpenProject renderer security", () => {
     });
   });
 
+  it("removes scripts from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml(
+        "<script>alert(1)</script><strong>Safe text</strong>",
+      ),
+    ).toBe("<strong>Safe text</strong>");
+  });
+
+  it("removes unsafe link URLs from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml('<a href="javascript:alert(1)">Unsafe link</a>'),
+    ).toBe("<a>Unsafe link</a>");
+  });
+
+  it("removes inline styles from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml('<p style="color:red">Styled text</p>'),
+    ).toBe("<p>Styled text</p>");
+  });
+
+  it("removes untrusted images and event handlers from HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml(
+        '<img src="https://example.test/image.png"><img src="x" onerror="alert(1)">',
+      ),
+    ).toBe("<img /><img />");
+  });
+
+  it("retains safe formatting and links in HTML descriptions", () => {
+    expect(
+      renderedDescriptionHtml(
+        '<a href="https://example.test/path">Safe link</a><strong>Safe text</strong>',
+      ),
+    ).toBe(
+      '<a href="https://example.test/path" target="_blank" rel="noreferrer noopener">Safe link</a><strong>Safe text</strong>',
+    );
+  });
+
   it("sanitizes descriptions and rejects unsafe links and colors", () => {
     const data = createUnsafeData();
-    const workPackage = data[WORK_PACKAGE_KEY];
-    if (!workPackage) {
-      throw new Error("Expected the unsafe fixture to contain a work package");
+    const viewModel = new CreatedMessageViewModel(data).getSnapshot();
+    if (!viewModel) {
+      throw new Error(
+        "Expected unsafe fixture to create a work-package view model",
+      );
     }
+    const { details } = viewModel;
     const props = [
+      ...collectElementProps(DescriptionView({ ...details.description })),
+      ...collectElementProps(LinkView({ url: details.url, children: 50 })),
       ...collectElementProps(
-        WorkPackageDescription({ description: workPackage.description }),
+        TitleView({
+          id: details.id,
+          subject: details.subject,
+          url: details.url,
+        }),
       ),
       ...collectElementProps(
-        WorkPackageLink({ url: workPackage.url, children: 50 }),
-      ),
-      ...collectElementProps(WorkPackageTitle({ workPackage })),
-      ...collectElementProps(
-        WorkPackageLayout({
-          borderColor: workPackage.type.color,
+        LayoutView({
+          borderColor: details.type.color,
           children: null,
         }),
       ),
-      ...collectElementProps(WorkPackageStatus({ status: workPackage.status })),
-      ...collectElementProps(WorkPackageActions({ url: workPackage.url })),
+      ...collectElementProps(StatusView({ ...details.status })),
+      ...collectElementProps(ActionsView({ url: details.url })),
     ];
     const hrefs = props
       .filter((elementProps) => "href" in elementProps)
@@ -164,14 +320,14 @@ describe("OpenProject renderer security", () => {
 
   it("sanitizes descriptions used in changed-work-package details", () => {
     const data = createUnsafeData();
-    const workPackage = data[WORK_PACKAGE_KEY];
-    if (!workPackage) {
-      throw new Error("Expected the unsafe fixture to contain a work package");
+    const viewModel = new CreatedMessageViewModel(data).getSnapshot();
+    if (!viewModel) {
+      throw new Error(
+        "Expected unsafe fixture to create a work-package view model",
+      );
     }
     const props = collectElementProps(
-      WorkPackageDescription({
-        description: workPackage.description,
-      }),
+      DescriptionView({ ...viewModel.details.description }),
     );
 
     const descriptionProps = props.find(
@@ -183,10 +339,11 @@ describe("OpenProject renderer security", () => {
   });
 
   it("renders the plain description as text when HTML is unavailable", () => {
+    const viewModel = createCreatedViewModel({
+      description: { plain: "<b>Plain fallback</b>" },
+    });
     const props = collectElementProps(
-      WorkPackageDescription({
-        description: { plain: "<b>Plain fallback</b>" },
-      }),
+      DescriptionView({ ...viewModel.details.description }),
     );
 
     expect(
@@ -197,6 +354,94 @@ describe("OpenProject renderer security", () => {
         (elementProps) => elementProps.children === "<b>Plain fallback</b>",
       ),
     ).toBe(true);
+  });
+});
+
+describe("OpenProject public message renderers", () => {
+  it("renders CreatedView from a view-model snapshot", () => {
+    const snapshot = new CreatedMessageViewModel({
+      [WORK_PACKAGE_KEY]: WORK_PACKAGE,
+    }).getSnapshot();
+
+    const markup = renderToStaticMarkup(
+      React.createElement(CreatedView, {
+        vm: new MockViewModel(snapshot),
+      }),
+    );
+
+    expect(markup).toContain("created by OpenProject Admin");
+    expect(markup).toContain(`#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}`);
+  });
+
+  it("renders no markup for a null CreatedView snapshot", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(CreatedView, {
+        vm: new MockViewModel(null),
+      }),
+    );
+
+    expect(markup).toBe("");
+  });
+
+  it("renders UpdatedView from a view-model snapshot", () => {
+    const snapshot = new UpdatedMessageViewModel({
+      [WORK_PACKAGE_KEY]: WORK_PACKAGE,
+      [CHANGED_WORK_PACKAGE_KEY]: { subject: "Previous subject" },
+    }).getSnapshot();
+
+    const markup = renderToStaticMarkup(
+      React.createElement(UpdatedView, {
+        vm: new MockViewModel(snapshot),
+      }),
+    );
+
+    expect(markup).toContain("updated");
+    expect(markup).toContain("Subject changed");
+  });
+
+  it("renders no markup for a null UpdatedView snapshot", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(UpdatedView, {
+        vm: new MockViewModel(null),
+      }),
+    );
+
+    expect(markup).toBe("");
+  });
+
+  it("renders a created message through the view-model boundary", () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(OpenProjectMessageRenderer, {
+        data: { [WORK_PACKAGE_KEY]: WORK_PACKAGE },
+      }),
+    );
+
+    expect(markup).toContain("Work package");
+    expect(markup).toContain("created by OpenProject Admin");
+    expect(markup).toContain(`#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}`);
+    expect(markup).toContain(`href="${WORK_PACKAGE.url}"`);
+  });
+
+  it("renders an updated message through the view-model boundary", () => {
+    const workPackage = createWorkPackage({
+      status: { name: "In progress", color: "#1098AD" },
+    });
+    const markup = renderToStaticMarkup(
+      React.createElement(OpenProjectMessageRenderer, {
+        data: {
+          [WORK_PACKAGE_KEY]: workPackage,
+          [CHANGED_WORK_PACKAGE_KEY]: {
+            status: { name: "New", color: "#D9D9D9" },
+          },
+        },
+      }),
+    );
+
+    expect(markup).toContain("Work package");
+    expect(markup).toContain("updated");
+    expect(markup).toContain("Status changed from");
+    expect(markup).toContain("New");
+    expect(markup).toContain("In progress");
   });
 });
 
