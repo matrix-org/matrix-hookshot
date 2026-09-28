@@ -7,7 +7,6 @@ import { HeaderView } from "./HeaderView";
 import { LayoutView } from "./LayoutView";
 import { MetadataView } from "./MetadataView";
 import { TitleView } from "./TitleView";
-import { MessageCard } from "./styles";
 
 export function CreatedView({ vm }: { vm: CreatedViewModel }) {
   const snapshot = useViewModel(vm);
@@ -18,7 +17,7 @@ export function CreatedView({ vm }: { vm: CreatedViewModel }) {
   const { details, header } = snapshot;
 
   return (
-    <MessageCard>
+    <div>
       <HeaderView
         id={details.id}
         url={details.url}
@@ -42,6 +41,6 @@ export function CreatedView({ vm }: { vm: CreatedViewModel }) {
         />
         <ActionsView url={details.url} />
       </LayoutView>
-    </MessageCard>
+    </div>
   );
 }
