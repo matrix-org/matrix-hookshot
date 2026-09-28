@@ -1,0 +1,1 @@
+Refactor the OpenProject element-web plugin module to use CSS instead of the styled components package.
