@@ -1,5 +1,5 @@
 {
   "default_hs_url": "http://localhost:8008",
   "showLabsSettings": true,
-  "modules": ["http://localhost:9001/modules/v2/static/openproject.js"]
+  "modules": ["http://localhost:9001/modules/v1/static/openproject.js"]
 }

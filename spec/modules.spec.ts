@@ -8,7 +8,7 @@ describe("Element Web modules", () => {
   beforeAll(async () => {
     const modulePort = 9500 + E2ETestEnv.workerId;
     moduleUrl = new URL(
-      `http://localhost:${modulePort}/modules/v2/static/openproject.js`,
+      `http://localhost:${modulePort}/modules/v1/static/openproject.js`,
     );
     testEnv = await E2ETestEnv.createTestEnv({
       matrixLocalparts: ["user"],

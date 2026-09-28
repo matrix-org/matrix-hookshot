@@ -16,7 +16,7 @@ It is configured in
 and is loaded from:
 
 ```text
-/modules/v2/static/openproject.js
+/modules/v1/static/openproject.js
 ```
 
 ## Build and deployment

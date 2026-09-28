@@ -233,7 +233,7 @@ with the module URL, for example:
 
 ```json
 {
-  "modules": ["https://hookshot.example.org/modules/v2/static/openproject.js"]
+  "modules": ["https://hookshot.example.org/modules/v1/static/openproject.js"]
 }
 ```
 
@@ -263,7 +263,7 @@ In terms of API endpoints:
   - `/figma` for Figma.
 - The `metrics` resource handles resources under `/metrics`.
 - The `modules` resource handles Element Web module artifacts under
-  `/modules/v2/static/...`.
+  `/modules/v1/static/...`.
 - The `provisioning` resource handles resources under `/v1/...`.
 - The `widgets` resource handles resources under `/widgetapi/v1...`. This may only be bound to **one** listener at present.
 
