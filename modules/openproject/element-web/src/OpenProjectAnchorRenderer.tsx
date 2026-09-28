@@ -5,7 +5,7 @@ import type {
   OpenProjectCapabilityClient,
 } from "./OpenProjectCapabilityClient";
 import { AnchorView } from "./components/workPackage/AnchorView";
-import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
+import type { OpenProjectAnchorContent } from "./models/OpenProjectMatrixEventContent";
 import { AnchorMessageViewModel } from "./viewmodels/workPackage/AnchorMessageViewModel";
 
 export function OpenProjectAnchorRenderer({
@@ -15,7 +15,7 @@ export function OpenProjectAnchorRenderer({
 }: {
   anchor: OpenProjectAnchor;
   capabilityClient: OpenProjectCapabilityClient;
-  data: OpenProjectContent;
+  data: OpenProjectAnchorContent;
 }) {
   const vm = useCreateAutoDisposedViewModel(
     () => new AnchorMessageViewModel({ anchor, capabilityClient, data }),

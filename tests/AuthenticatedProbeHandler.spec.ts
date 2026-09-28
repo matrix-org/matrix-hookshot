@@ -5,6 +5,10 @@ import {
   HookshotCapabilitiesProbeRequest,
 } from "../src/ToDeviceProtocol";
 import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../src/openproject/Schema";
+import {
   AuthenticatedProbeServices,
   createAuthenticatedProbeHandler,
 } from "../src/AuthenticatedProbeHandler";
@@ -28,8 +32,9 @@ const validAnchor = {
   sender: botUserId,
   content: {
     "org.matrix.matrix-hookshot.openproject.schema_version":
-      HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
-    "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+      OPENPROJECT_EVENT_SCHEMA_VERSION,
+    "org.matrix.matrix-hookshot.openproject.event_kind":
+      OPENPROJECT_ANCHOR_EVENT_KIND,
     "org.matrix.matrix-hookshot.openproject.project": {
       id: 42,
     },

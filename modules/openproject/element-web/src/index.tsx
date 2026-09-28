@@ -13,7 +13,10 @@ import {
   OpenProjectCapabilityClient,
 } from "./OpenProjectCapabilityClient";
 import { OpenProjectMessageRenderer } from "./OpenProjectMessageRenderer";
-import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
+import type {
+  OpenProjectAnchorContent,
+  OpenProjectContent,
+} from "./models/OpenProjectMatrixEventContent";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 
 function getElementConfig(api: Api): unknown {
@@ -87,7 +90,7 @@ class HookshotOpenProjectModule implements Module {
                 recipientUserId: mxEvent.sender,
               }}
               capabilityClient={capabilityClient}
-              data={content as OpenProjectContent}
+              data={content as OpenProjectAnchorContent}
             />
           );
         }

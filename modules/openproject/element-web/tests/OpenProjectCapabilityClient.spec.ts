@@ -1,18 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   getOpenProjectCapabilityBot,
+  isOpenProjectAnchorContent,
   isOpenProjectAnchorForBot,
+  isOpenProjectProbeResponse,
   OpenProjectCapabilityClient,
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
 } from "../src/OpenProjectCapabilityClient";
 import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../src/OpenProjectSchema";
 
 const botUserId = "@hookshot_openproject:example.org";
 const secondBotUserId = "@hookshot:example.org";
 const anchorContent = {
-  "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-  "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+  "org.matrix.matrix-hookshot.openproject.schema_version":
+    OPENPROJECT_EVENT_SCHEMA_VERSION,
+  "org.matrix.matrix-hookshot.openproject.event_kind":
+    OPENPROJECT_ANCHOR_EVENT_KIND,
 };
 
 function createAnchor(
@@ -89,6 +97,24 @@ describe("OpenProjectCapabilityClient", () => {
         botUserId,
         botUserId,
       ),
+    ).toBe(false);
+  });
+
+  it("keeps event-schema validation separate from transport validation", () => {
+    expect(isOpenProjectAnchorContent(anchorContent)).toBe(true);
+    expect(
+      isOpenProjectAnchorContent({
+        ...anchorContent,
+        "org.matrix.matrix-hookshot.openproject.schema_version":
+          OPENPROJECT_EVENT_SCHEMA_VERSION + 1,
+      }),
+    ).toBe(false);
+
+    expect(
+      isOpenProjectProbeResponse({
+        ...createResponse(),
+        v: 2,
+      }),
     ).toBe(false);
   });
 

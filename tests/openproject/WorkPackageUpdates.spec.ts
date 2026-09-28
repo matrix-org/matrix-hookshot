@@ -8,6 +8,10 @@ import { workPackageToCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackageCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackage } from "../../src/openproject/Types";
 import type { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../../src/openproject/Schema";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
 const ROOM_ID = "!openproject:example.test";
@@ -84,8 +88,10 @@ describe("OpenProjectConnection work-package updates", () => {
 
     expect(intent.sentEvents).toHaveLength(1);
     expect(intent.sentEvents[0].content).toMatchObject({
-      "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-      "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
     });
   });
 
@@ -111,8 +117,10 @@ describe("OpenProjectConnection work-package updates", () => {
 
     expect(intent.sentEvents).toHaveLength(1);
     expect(intent.sentEvents[0].content).toMatchObject({
-      "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-      "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
     });
   });
 

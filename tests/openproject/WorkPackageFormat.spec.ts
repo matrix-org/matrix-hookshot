@@ -6,6 +6,10 @@ import {
 } from "../../src/openproject/Format";
 import { workPackageToCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackage } from "../../src/openproject/Types";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../../src/openproject/Schema";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
 type WorkPackageChanges = {
@@ -91,8 +95,10 @@ describe("OpenProject Matrix formatter", () => {
   it("marks an initial full work-package event as a versioned anchor", () => {
     expect(formatWorkPackageAnchorForMatrix(WORK_PACKAGE, BASE_URL)).toEqual({
       ...formatWorkPackageForMatrix(WORK_PACKAGE, BASE_URL),
-      "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-      "org.matrix.matrix-hookshot.openproject.event_kind": "anchor",
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
     });
   });
 });

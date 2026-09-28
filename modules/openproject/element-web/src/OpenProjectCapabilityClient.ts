@@ -3,6 +3,11 @@ import {
   type HookshotToDeviceRequest,
   type MatrixSessionIdentity,
 } from "./HookshotToDeviceClient";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "./OpenProjectSchema";
+import type { OpenProjectAnchorContent } from "./models/OpenProjectMatrixEventContent";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 export const OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE =
@@ -70,15 +75,18 @@ function isMatrixEventId(value: unknown): value is string {
   );
 }
 
-export function isOpenProjectAnchorContent(value: unknown): boolean {
+export function isOpenProjectAnchorContent(
+  value: unknown,
+): value is OpenProjectAnchorContent {
   if (!isRecord(value)) {
     return false;
   }
 
   return (
     value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
-      HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
-    value["org.matrix.matrix-hookshot.openproject.event_kind"] === "anchor"
+      OPENPROJECT_EVENT_SCHEMA_VERSION &&
+    value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+      OPENPROJECT_ANCHOR_EVENT_KIND
   );
 }
 
@@ -128,7 +136,7 @@ export function isOpenProjectAnchorForBot(
   content: unknown,
   sender: unknown,
   botUserId: string | undefined,
-): boolean {
+): content is OpenProjectAnchorContent {
   return (
     botUserId !== undefined &&
     sender === botUserId &&
