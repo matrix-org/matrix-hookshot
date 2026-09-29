@@ -1,4 +1,3 @@
-
 export const HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
 export const HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
