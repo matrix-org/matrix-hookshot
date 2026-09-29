@@ -1,0 +1,1 @@
+Fix the webhook transformation function editor failing to load with "Unrecognized extension value in extension set", caused by duplicate `@codemirror/state` / `@codemirror/view` versions in the web bundle.
