@@ -1,4 +1,4 @@
-import type { OpenProjectWorkPackageContent } from "../../src/components/types";
+import type { OpenProjectWorkPackageContent } from "../../src/models/OpenProjectMatrixEventContent";
 
 export const WORK_PACKAGE: OpenProjectWorkPackageContent = {
   id: 50,

@@ -8,6 +8,7 @@
     "module": "esnext",
     "lib": ["dom", "es2022", "esnext"],
     "moduleResolution": "bundler",
+    "types": ["vite/client"],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
