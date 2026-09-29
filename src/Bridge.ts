@@ -111,6 +111,7 @@ import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
 import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
+import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 
 const log = new Logger("Bridge");
@@ -189,17 +190,23 @@ export class Bridge {
     // Service bots are the deployment-owned capability endpoints. Keep the
     // first (highest-priority) bot for each service so a dedicated service bot
     // takes precedence over the default Hookshot bot.
-    const capabilityBots = new Map<string, string>();
+    const integrationBots = new Map<string, string>();
     for (const botUser of this.botUsersManager.botUsers) {
       for (const service of botUser.services) {
-        if (!capabilityBots.has(service)) {
-          capabilityBots.set(service, botUser.userId);
+        if (!integrationBots.has(service)) {
+          integrationBots.set(service, botUser.userId);
         }
       }
     }
+    await provisionToDeviceReceiverDevices(
+      this.as,
+      new Set(integrationBots.values()),
+      !!this.config.encryption,
+    );
+
     this.toDeviceReceiver = new HookshotToDeviceReceiver(
       this.as,
-      capabilityBots,
+      integrationBots,
     );
     this.toDeviceReceiver.start();
 

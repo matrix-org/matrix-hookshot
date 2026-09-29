@@ -63,7 +63,10 @@ export class HookshotToDeviceReceiver {
 
   constructor(
     private readonly appservice: Appservice,
-    private readonly capabilityBots: ReadonlyMap<HookshotIntegrationId, string>,
+    private readonly integrationBots: ReadonlyMap<
+      HookshotIntegrationId,
+      string
+    >,
     options: HookshotToDeviceReceiverOptions = {},
   ) {
     this.deduplicationTtlMs =
@@ -128,7 +131,7 @@ export class HookshotToDeviceReceiver {
       return;
     }
 
-    const expectedBotUserId = this.capabilityBots.get(request.integration_id);
+    const expectedBotUserId = this.integrationBots.get(request.integration_id);
     if (!expectedBotUserId || expectedBotUserId !== event.to_user_id) {
       return;
     }
