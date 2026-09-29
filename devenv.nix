@@ -18,7 +18,7 @@ in
   languages.typescript.enable = true;
   languages.javascript.yarn.enable = true;
   languages.javascript.enable = true;
-  languages.javascript.package = pkgs-upstream.nodejs_22;
+  languages.javascript.package = pkgs-upstream.nodejs_24;
   languages.rust.enable = true;
   languages.rust.channel = "stable";
 }
