@@ -1,20 +1,27 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatWorkPackageAnchorContent,
   formatWorkPackageAnchorForMatrix,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
+  formatWorkPackageFallback,
+  formatWorkPackageUpdateForMatrix,
 } from "../../src/openproject/Format";
 import { workPackageToCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackage } from "../../src/openproject/Types";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
+  OPENPROJECT_UPDATE_EVENT_KIND,
 } from "../../src/openproject/Schema";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
 type WorkPackageChanges = {
   subject?: string;
   description?: OpenProjectWorkPackage["description"];
+  date?: string | null;
   dueDate?: string | null;
   percentageDone?: number | null;
   assignee?: OpenProjectWorkPackage["_embedded"]["assignee"];
@@ -27,12 +34,19 @@ type WorkPackageChanges = {
 function workPackageWithChanges(
   changes: WorkPackageChanges,
 ): OpenProjectWorkPackage {
-  const { subject, description, dueDate, percentageDone, ...embeddedChanges } =
-    changes;
+  const {
+    subject,
+    description,
+    date,
+    dueDate,
+    percentageDone,
+    ...embeddedChanges
+  } = changes;
   return {
     ...WORK_PACKAGE,
     ...(subject === undefined ? {} : { subject }),
     ...(description === undefined ? {} : { description }),
+    ...(date === undefined ? {} : { date }),
     ...(dueDate === undefined ? {} : { dueDate }),
     ...(percentageDone === undefined ? {} : { percentageDone }),
     _embedded: {
@@ -73,9 +87,13 @@ describe("OpenProject Matrix formatter", () => {
           name: "Alice",
           url: "https://openproject.example/users/11",
         },
+        dueDate: null,
+        date: null,
+        deadline: null,
         status: {
           name: "New",
           color: "#D9D9D9",
+          isClosed: false,
         },
         type: {
           name: "Milestone",
@@ -99,7 +117,200 @@ describe("OpenProject Matrix formatter", () => {
         OPENPROJECT_EVENT_SCHEMA_VERSION,
       "org.matrix.matrix-hookshot.openproject.event_kind":
         OPENPROJECT_ANCHOR_EVENT_KIND,
+      "org.matrix.matrix-hookshot.openproject.anchor_state":
+        OPENPROJECT_ANCHOR_STATE_ACTIVE,
     });
+  });
+
+  it("normalizes an ordinary due date", () => {
+    const workPackage = workPackageWithChanges({
+      date: null,
+      dueDate: "2026-09-30",
+    });
+
+    expect(
+      formatWorkPackageForMatrix(workPackage, BASE_URL)[
+        "org.matrix.matrix-hookshot.openproject.work_package"
+      ],
+    ).toMatchObject({
+      dueDate: "2026-09-30",
+      date: null,
+      deadline: { date: "2026-09-30", label: "Due" },
+    });
+  });
+
+  it("normalizes a milestone date", () => {
+    const workPackage = workPackageWithChanges({
+      date: "2026-09-30",
+      dueDate: null,
+    });
+
+    expect(
+      formatWorkPackageForMatrix(workPackage, BASE_URL)[
+        "org.matrix.matrix-hookshot.openproject.work_package"
+      ],
+    ).toMatchObject({
+      dueDate: null,
+      date: "2026-09-30",
+      deadline: { date: "2026-09-30", label: "Date" },
+    });
+  });
+
+  it("includes the closed state in the snapshot", () => {
+    const workPackage = workPackageWithChanges({
+      status: { ...WORK_PACKAGE._embedded.status, isClosed: true },
+    });
+
+    expect(
+      formatWorkPackageForMatrix(workPackage, BASE_URL)[
+        "org.matrix.matrix-hookshot.openproject.work_package"
+      ].status.isClosed,
+    ).toBe(true);
+  });
+});
+
+describe("OpenProject fallback formatter", () => {
+  it("renders a complete assigned snapshot with a formatted due date", () => {
+    const workPackage = workPackageWithChanges({
+      date: null,
+      dueDate: "2026-09-30",
+    });
+
+    expect(formatWorkPackageFallback(workPackage, BASE_URL)).toBe(
+      [
+        "Build the bridge",
+        "Assignee: Alice",
+        "Due: 30 September 2026",
+        "Status: New",
+        "https://openproject.example/projects/demo-project/work_packages/50",
+      ].join("\n"),
+    );
+  });
+
+  it("renders unassigned milestones and inactive state", () => {
+    const workPackage = workPackageWithChanges({
+      assignee: undefined,
+      date: "2026-09-30",
+    });
+
+    const fallback = formatWorkPackageFallback(
+      workPackage,
+      BASE_URL,
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
+    expect(fallback).toContain("Assignee: Unassigned");
+    expect(fallback).toContain("Date: 30 September 2026");
+    expect(fallback).toContain("Timeline tracking: Removed");
+  });
+
+  it("renders an explicit no-date fallback", () => {
+    expect(formatWorkPackageFallback(WORK_PACKAGE, BASE_URL)).toContain(
+      "No due date",
+    );
+  });
+});
+
+describe("OpenProject versioned message content", () => {
+  it("builds complete active anchor content", () => {
+    const content = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL);
+
+    expect(content).toMatchObject({
+      msgtype: "m.notice",
+      body: expect.stringContaining("No due date"),
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
+      "org.matrix.matrix-hookshot.openproject.anchor_state":
+        OPENPROJECT_ANCHOR_STATE_ACTIVE,
+    });
+    expect(
+      content["org.matrix.matrix-hookshot.openproject.work_package"],
+    ).toMatchObject({
+      date: null,
+      dueDate: null,
+      deadline: null,
+      status: { isClosed: false },
+    });
+  });
+
+  it("builds a visibly inactive anchor content", () => {
+    const content = formatWorkPackageAnchorContent(
+      WORK_PACKAGE,
+      BASE_URL,
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
+
+    expect(content["org.matrix.matrix-hookshot.openproject.anchor_state"]).toBe(
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
+    expect(content.body).toContain("Timeline tracking: Removed");
+  });
+
+  it("builds a display-only update with actor attribution", () => {
+    const content = formatWorkPackageUpdateForMatrix(
+      WORK_PACKAGE,
+      BASE_URL,
+      ["updated the subject"],
+      { id: 12, name: "Webhook User" },
+    );
+
+    expect(content).toEqual({
+      msgtype: "m.notice",
+      body: `Webhook User updated the subject on work package #50: "Build the bridge"\nhttps://openproject.example/projects/demo-project/work_packages/50`,
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: 50,
+        subject: "Build the bridge",
+        url: "https://openproject.example/projects/demo-project/work_packages/50",
+      },
+      "org.matrix.matrix-hookshot.openproject.actor": {
+        id: 12,
+        name: "Webhook User",
+        url: "https://openproject.example/users/12",
+      },
+      "org.matrix.matrix-hookshot.openproject.changes": ["updated the subject"],
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_UPDATE_EVENT_KIND,
+    });
+  });
+
+  it("uses neutral attribution when the webhook has no actor", () => {
+    const content = formatWorkPackageUpdateForMatrix(WORK_PACKAGE, BASE_URL, [
+      "updated the subject",
+    ]);
+
+    expect(content.body).toMatch(/^Work package #50: updated the subject/);
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.actor",
+    );
+  });
+
+  it("summarizes additional changes in the fallback", () => {
+    const content = formatWorkPackageUpdateForMatrix(
+      WORK_PACKAGE,
+      BASE_URL,
+      ["assigned **Alice**", "updated the description", "changed the status"],
+      { id: 12, name: "Webhook User" },
+    );
+
+    expect(content.body).toContain(
+      "Webhook User assigned **Alice** and made 2 more updates on work package #50",
+    );
+  });
+
+  it("uses the singular form for one additional change", () => {
+    const content = formatWorkPackageUpdateForMatrix(
+      WORK_PACKAGE,
+      BASE_URL,
+      ["assigned **Alice**", "updated the description"],
+      { id: 12, name: "Webhook User" },
+    );
+
+    expect(content.body).toContain(
+      "Webhook User assigned **Alice** and made 1 more update on work package #50",
+    );
   });
 });
 

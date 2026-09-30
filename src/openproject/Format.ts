@@ -1,13 +1,80 @@
-import { OpenProjectEventsNames } from "../Connections/OpenProjectConnection";
-import {
-  OpenProjectWorkPackageCacheState,
-  workPackageToCacheState,
-} from "./State";
-import { OpenProjectWorkPackage } from "./Types";
+import type { OpenProjectEventsNames } from "../Connections/OpenProjectConnection";
+import type { OpenProjectWorkPackageCacheState } from "./State";
+import { workPackageToCacheState } from "./State";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
+  OPENPROJECT_UPDATE_EVENT_KIND,
+  type OpenProjectAnchorState,
 } from "./Schema";
+import type { OpenProjectWebhookActor, OpenProjectWorkPackage } from "./Types";
+
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+  year: "numeric",
+});
+
+export interface OpenProjectDeadline {
+  date: string;
+  label: "Due" | "Date";
+}
+
+function getWorkPackageUrl(pkg: OpenProjectWorkPackage, baseURL: URL): string {
+  return new URL(
+    baseURL.href +
+      `projects/${pkg._embedded.project.identifier}/work_packages/${pkg.id}`,
+    baseURL,
+  ).toString();
+}
+
+function formatDate(date: string): string {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? date : DATE_FORMATTER.format(parsed);
+}
+
+function getDeadline(pkg: OpenProjectWorkPackage): OpenProjectDeadline | null {
+  // OpenProject's `date` is the milestone date. Prefer it when present so a
+  // malformed payload containing both date fields still describes the
+  // milestone deadline correctly.
+  if (pkg.date !== null) {
+    return { date: pkg.date, label: "Date" };
+  }
+  if (pkg.dueDate !== null) {
+    return { date: pkg.dueDate, label: "Due" };
+  }
+  return null;
+}
+
+function getDeadlineFallback(deadline: OpenProjectDeadline | null): string {
+  return deadline
+    ? `${deadline.label}: ${formatDate(deadline.date)}`
+    : "No due date";
+}
+
+export function formatWorkPackageFallback(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+): string {
+  const deadline = getDeadline(pkg);
+  const lines = [
+    pkg.subject,
+    `Assignee: ${pkg._embedded.assignee?.name ?? "Unassigned"}`,
+    getDeadlineFallback(deadline),
+    `Status: ${pkg._embedded.status.name}`,
+    getWorkPackageUrl(pkg, baseURL),
+  ];
+
+  if (anchorState === OPENPROJECT_ANCHOR_STATE_INACTIVE) {
+    lines.push("Timeline tracking: Removed");
+  }
+
+  return lines.join("\n");
+}
 
 export interface OpenProjectWorkPackageMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.work_package": {
@@ -26,9 +93,13 @@ export interface OpenProjectWorkPackageMatrixEvent {
       name: string;
       url: string;
     };
+    dueDate: string | null;
+    date: string | null;
+    deadline: OpenProjectDeadline | null;
     status: {
       name: string;
       color: string;
+      isClosed: boolean;
     };
     type: {
       name: string;
@@ -46,17 +117,40 @@ export interface OpenProjectWorkPackageMatrixEvent {
 export interface OpenProjectWorkPackageAnchorMatrixEvent extends OpenProjectWorkPackageMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
+  "org.matrix.matrix-hookshot.openproject.anchor_state": OpenProjectAnchorState;
+}
+
+export interface OpenProjectWorkPackageUpdateMatrixEvent {
+  "org.matrix.matrix-hookshot.openproject.work_package": {
+    id: number;
+    subject: string;
+    url: string;
+  };
+  "org.matrix.matrix-hookshot.openproject.actor"?: {
+    id: number;
+    name: string;
+    url: string;
+  };
+  "org.matrix.matrix-hookshot.openproject.changes": string[];
+  "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
+  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_UPDATE_EVENT_KIND;
+}
+
+export interface OpenProjectAnchorMessageContent extends OpenProjectWorkPackageAnchorMatrixEvent {
+  msgtype: "m.notice";
+  body: string;
+}
+
+export interface OpenProjectUpdateMessageContent extends OpenProjectWorkPackageUpdateMatrixEvent {
+  msgtype: "m.notice";
+  body: string;
 }
 
 export function formatWorkPackageForMatrix(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
 ): OpenProjectWorkPackageMatrixEvent {
-  const url = new URL(
-    baseURL.href +
-      `projects/${pkg._embedded.project.identifier}/work_packages/${pkg.id}`,
-    baseURL,
-  ).toString();
+  const url = getWorkPackageUrl(pkg, baseURL);
   return {
     "org.matrix.matrix-hookshot.openproject.work_package": {
       id: pkg.id,
@@ -74,15 +168,19 @@ export function formatWorkPackageForMatrix(
         ).toString(),
       },
       assignee: pkg._embedded.assignee && {
-        name: pkg._embedded.assignee?.name,
+        name: pkg._embedded.assignee.name,
         url: new URL(
-          baseURL.href + `users/${pkg._embedded.assignee?.id}`,
+          baseURL.href + `users/${pkg._embedded.assignee.id}`,
           baseURL,
         ).toString(),
       },
+      dueDate: pkg.dueDate,
+      date: pkg.date,
+      deadline: getDeadline(pkg),
       status: {
         name: pkg._embedded.status.name,
         color: pkg._embedded.status.color,
+        isClosed: pkg._embedded.status.isClosed,
       },
       type: {
         name: pkg._embedded.type.name,
@@ -101,15 +199,10 @@ export function formatWorkPackageForMatrix(
   };
 }
 
-/**
- * Format the initial full work-package event as an actionable anchor.
- *
- * Existing update messages intentionally continue to use the unmarked base
- * formatter until the replacement/compact-update lifecycle is implemented.
- */
 export function formatWorkPackageAnchorForMatrix(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
+  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
 ): OpenProjectWorkPackageAnchorMatrixEvent {
   return {
     ...formatWorkPackageForMatrix(pkg, baseURL),
@@ -117,7 +210,76 @@ export function formatWorkPackageAnchorForMatrix(
       OPENPROJECT_EVENT_SCHEMA_VERSION,
     "org.matrix.matrix-hookshot.openproject.event_kind":
       OPENPROJECT_ANCHOR_EVENT_KIND,
+    "org.matrix.matrix-hookshot.openproject.anchor_state": anchorState,
   };
+}
+
+/**
+ * Build the complete content used for an anchor event or m.new_content.
+ * Matrix replacements do not merge content, so callers must use this whole
+ * object rather than only the structured snapshot.
+ */
+export function formatWorkPackageAnchorContent(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+): OpenProjectAnchorMessageContent {
+  return {
+    msgtype: "m.notice",
+    body: formatWorkPackageFallback(pkg, baseURL, anchorState),
+    ...formatWorkPackageAnchorForMatrix(pkg, baseURL, anchorState),
+  };
+}
+
+function formatUpdateFallback(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  changes: string[],
+  actor?: OpenProjectWebhookActor,
+): string {
+  const firstChange = changes[0] ?? "updated the work package";
+  const remainingChanges = changes.length - 1;
+  const remainingSummary =
+    remainingChanges > 0
+      ? ` and made ${remainingChanges} more ${remainingChanges === 1 ? "update" : "updates"}`
+      : "";
+  const changeSummary = `${firstChange}${remainingSummary}`;
+  const body = actor
+    ? `${actor.name} ${changeSummary} on work package #${pkg.id}: "${pkg.subject}"`
+    : `Work package #${pkg.id}: ${changeSummary} ("${pkg.subject}")`;
+  return `${body}\n${getWorkPackageUrl(pkg, baseURL)}`;
+}
+
+export function formatWorkPackageUpdateForMatrix(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  changes: string[],
+  actor?: OpenProjectWebhookActor,
+): OpenProjectUpdateMessageContent {
+  const content: OpenProjectUpdateMessageContent = {
+    msgtype: "m.notice",
+    body: formatUpdateFallback(pkg, baseURL, changes, actor),
+    "org.matrix.matrix-hookshot.openproject.work_package": {
+      id: pkg.id,
+      subject: pkg.subject,
+      url: getWorkPackageUrl(pkg, baseURL),
+    },
+    "org.matrix.matrix-hookshot.openproject.changes": changes,
+    "org.matrix.matrix-hookshot.openproject.schema_version":
+      OPENPROJECT_EVENT_SCHEMA_VERSION,
+    "org.matrix.matrix-hookshot.openproject.event_kind":
+      OPENPROJECT_UPDATE_EVENT_KIND,
+  };
+
+  if (actor) {
+    content["org.matrix.matrix-hookshot.openproject.actor"] = {
+      id: actor.id,
+      name: actor.name,
+      url: new URL(baseURL.href + `users/${actor.id}`, baseURL).toString(),
+    };
+  }
+
+  return content;
 }
 
 export function formatWorkPackageDiff(
@@ -187,7 +349,7 @@ export function formatWorkPackageDiff(
     );
   }
   if (old.subject !== current.subject) {
-    // Implictly named
+    // Implicitly named
     changes.push(`updated the subject`);
     eventKind = "work_package:subject_changed";
   }
