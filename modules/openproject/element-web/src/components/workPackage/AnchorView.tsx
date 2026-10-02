@@ -1,46 +1,12 @@
 import * as React from "react";
 import { useViewModel } from "@element-hq/web-shared-components";
-import { Button } from "@vector-im/compound-web";
-import type {
-  AnchorProbeState,
-  AnchorViewModel,
-} from "../../viewmodels/workPackage/AnchorMessageViewModel";
+import type { AnchorViewModel } from "../../viewmodels/workPackage/AnchorMessageViewModel";
 import { ActionsView } from "./ActionsView";
-import { DescriptionView } from "./DescriptionView";
 import { HeaderView } from "./HeaderView";
-import { LayoutView } from "./LayoutView";
 import { MetadataView } from "./MetadataView";
+import { ProbeStatusView } from "./ProbeStatusView";
 import { TitleView } from "./TitleView";
 import styles from "./WorkPackage.module.css";
-
-function ProbeStatus({
-  state,
-  onRetry,
-}: {
-  state: AnchorProbeState;
-  onRetry: () => void;
-}) {
-  if (state.kind === "loading") {
-    return <span aria-live="polite">Checking OpenProject actions…</span>;
-  }
-
-  if (state.kind === "result" && state.result === "ok") {
-    return <span aria-live="polite">OpenProject connection verified</span>;
-  }
-
-  if (state.kind === "result" && state.result === "not_connected") {
-    return <span aria-live="polite">OpenProject account not connected</span>;
-  }
-
-  return (
-    <span aria-live="polite" className={styles.probeStatus}>
-      OpenProject actions unavailable{" "}
-      <Button kind="secondary" size="md" onClick={onRetry}>
-        Retry
-      </Button>
-    </span>
-  );
-}
 
 export function AnchorView({ vm }: { vm: AnchorViewModel }) {
   const snapshot = useViewModel(vm);
@@ -48,36 +14,47 @@ export function AnchorView({ vm }: { vm: AnchorViewModel }) {
     return null;
   }
 
-  const { details, header } = snapshot;
+  const { details, anchor } = snapshot;
+
+  if (anchor?.state === "inactive") {
+    return (
+      <div className={styles.card}>
+        <div className={styles.detailsRow}>
+          <HeaderView
+            id={details.id}
+            url={details.url}
+            project={details.project}
+            action={anchor.state}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <HeaderView
-        id={details.id}
-        url={details.url}
-        action={header.action}
-        authorName={header.authorName}
-      />
-      <LayoutView borderColor={details.type.color}>
-        <TitleView
+    <div className={styles.card}>
+      <div className={styles.detailsRow}>
+        <HeaderView
           id={details.id}
-          subject={details.subject}
           url={details.url}
+          project={details.project}
+          isClosed={details.status.isClosed}
+          action={anchor.state}
         />
-        <DescriptionView {...details.description} />
+        <TitleView subject={details.subject} />
         <MetadataView
           statusName={details.status.name}
-          statusColor={details.status.color}
+          isClosed={details.status.isClosed}
           typeName={details.type.name}
           assigneeName={details.assignee?.name}
-          authorName={details.author.name}
-          authorUrl={details.author.url}
+          deadlineLabel={details.deadline?.label}
+          deadlineDate={details.deadline?.date}
         />
-        <div className={styles.actionsRow}>
-          <ActionsView url={details.url} />
-          <ProbeStatus state={snapshot.probe} onRetry={vm.retry} />
-        </div>
-      </LayoutView>
+      </div>
+      <div className={styles.actionsRow}>
+        <ActionsView url={details.url} />
+        <ProbeStatusView state={snapshot.probe} onRetry={vm.retry} />
+      </div>
     </div>
   );
 }

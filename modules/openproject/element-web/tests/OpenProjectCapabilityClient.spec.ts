@@ -3,7 +3,9 @@ import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorContent,
   isOpenProjectAnchorForBot,
+  isOpenProjectInactiveAnchorContent,
   isOpenProjectProbeResponse,
+  isOpenProjectUpdateContent,
   OpenProjectCapabilityClient,
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
@@ -11,7 +13,10 @@ import {
 import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
+  OPENPROJECT_UPDATE_EVENT_KIND,
 } from "../src/OpenProjectSchema";
 
 const botUserId = "@hookshot_openproject:example.org";
@@ -21,6 +26,8 @@ const anchorContent = {
     OPENPROJECT_EVENT_SCHEMA_VERSION,
   "org.matrix.matrix-hookshot.openproject.event_kind":
     OPENPROJECT_ANCHOR_EVENT_KIND,
+  "org.matrix.matrix-hookshot.openproject.anchor_state":
+    OPENPROJECT_ANCHOR_STATE_ACTIVE,
 };
 
 function createAnchor(
@@ -98,15 +105,44 @@ describe("OpenProjectCapabilityClient", () => {
         botUserId,
       ),
     ).toBe(false);
+
+    const inactiveAnchor = {
+      ...anchorContent,
+      "org.matrix.matrix-hookshot.openproject.anchor_state":
+        OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    };
+    expect(isOpenProjectInactiveAnchorContent(inactiveAnchor)).toBe(true);
+    expect(
+      isOpenProjectAnchorForBot(inactiveAnchor, botUserId, botUserId),
+    ).toBe(false);
+
+    expect(
+      isOpenProjectUpdateContent({
+        ...anchorContent,
+        "org.matrix.matrix-hookshot.openproject.event_kind":
+          OPENPROJECT_UPDATE_EVENT_KIND,
+      }),
+    ).toBe(true);
   });
 
   it("keeps event-schema validation separate from transport validation", () => {
     expect(isOpenProjectAnchorContent(anchorContent)).toBe(true);
+    const {
+      ["org.matrix.matrix-hookshot.openproject.anchor_state"]: _,
+      ...legacyAnchorContent
+    } = anchorContent;
+    expect(isOpenProjectAnchorContent(legacyAnchorContent)).toBe(false);
     expect(
       isOpenProjectAnchorContent({
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.schema_version":
           OPENPROJECT_EVENT_SCHEMA_VERSION + 1,
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectAnchorContent({
+        ...anchorContent,
+        "org.matrix.matrix-hookshot.openproject.anchor_state": "unknown",
       }),
     ).toBe(false);
 

@@ -10,14 +10,13 @@ import { HookshotToDeviceClient } from "./HookshotToDeviceClient";
 import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
+  isOpenProjectUpdateContent,
+  isOpenProjectAnchorContent,
   OpenProjectCapabilityClient,
 } from "./OpenProjectCapabilityClient";
-import { OpenProjectMessageRenderer } from "./OpenProjectMessageRenderer";
-import type {
-  OpenProjectAnchorContent,
-  OpenProjectContent,
-} from "./models/OpenProjectMatrixEventContent";
+import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
+import { OpenProjectUpdateRenderer } from "./OpenProjectUpdateRenderer";
 
 function getElementConfig(api: Api): unknown {
   try {
@@ -60,8 +59,10 @@ class HookshotOpenProjectModule implements Module {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      const content = mxEvent.content;
-      return !!content["org.matrix.matrix-hookshot.openproject.work_package"];
+      return (
+        isOpenProjectAnchorContent(mxEvent.content) ||
+        isOpenProjectUpdateContent(mxEvent.content)
+      );
     }
 
     this.api.customComponents.registerMessageRenderer(
@@ -69,33 +70,40 @@ class HookshotOpenProjectModule implements Module {
       (props) => {
         const mxEvent = props.mxEvent;
         const content = mxEvent.content;
+
+        if (isOpenProjectUpdateContent(content)) {
+          return <OpenProjectUpdateRenderer data={content} />;
+        }
+
         const isAnchor = isOpenProjectAnchorForBot(
           content,
           mxEvent.sender,
           this.capabilityBotUserId,
         );
         const capabilityClient = this.capabilityClient;
-        const renderAnchor = capabilityClient !== undefined && isAnchor;
         const workPackageId = getWorkPackageId(
           content["org.matrix.matrix-hookshot.openproject.work_package"],
         );
 
-        if (renderAnchor && workPackageId !== undefined) {
-          return (
-            <OpenProjectAnchorRenderer
-              anchor={{
-                eventId: mxEvent.eventId,
-                roomId: mxEvent.roomId,
-                workPackageId,
-                recipientUserId: mxEvent.sender,
-              }}
-              capabilityClient={capabilityClient}
-              data={content as OpenProjectAnchorContent}
-            />
-          );
-        }
         return (
-          <OpenProjectMessageRenderer data={content as OpenProjectContent} />
+          <OpenProjectAnchorRenderer
+            anchor={
+              workPackageId === undefined
+                ? undefined
+                : {
+                    eventId: mxEvent.eventId,
+                    roomId: mxEvent.roomId,
+                    workPackageId,
+                    recipientUserId: mxEvent.sender,
+                  }
+            }
+            capabilityClient={
+              isAnchor && workPackageId !== undefined
+                ? capabilityClient
+                : undefined
+            }
+            data={content as OpenProjectContent}
+          />
         );
       },
       { allowEditingEvent: false },

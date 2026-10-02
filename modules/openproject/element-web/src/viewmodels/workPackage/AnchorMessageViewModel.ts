@@ -2,26 +2,29 @@ import {
   BaseViewModel,
   type ViewModel,
 } from "@element-hq/web-shared-components";
-import type {
-  OpenProjectAnchor,
-  OpenProjectCapabilityClient,
-  OpenProjectProbeResult,
+import {
+  isOpenProjectAnchorContent,
+  type OpenProjectAnchor,
+  type OpenProjectCapabilityClient,
+  type OpenProjectProbeResult,
 } from "../../OpenProjectCapabilityClient";
-import type { OpenProjectAnchorContent } from "../../models/OpenProjectMatrixEventContent";
+import type { OpenProjectContent } from "../../models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot, type DetailsSnapshot } from "./DetailsSnapshot";
 
 export type AnchorProbeState =
   | { readonly kind: "loading" }
   | { readonly kind: "result"; readonly result: OpenProjectProbeResult }
-  | { readonly kind: "unavailable" };
+  | { readonly kind: "unavailable" }
+  | { readonly kind: "disabled" };
+
+export type AnchorState =
+  | { readonly state: "active" }
+  | { readonly state: "inactive" };
 
 export interface AnchorViewSnapshot {
   readonly kind: "anchor";
   readonly details: DetailsSnapshot;
-  readonly header: {
-    readonly action: "created";
-    readonly authorName?: string;
-  };
+  readonly anchor: AnchorState;
   readonly probe: AnchorProbeState;
 }
 
@@ -35,26 +38,35 @@ export type AnchorViewModel = ViewModel<
 >;
 
 export interface AnchorMessageViewModelProps {
-  readonly anchor: OpenProjectAnchor;
-  readonly capabilityClient: OpenProjectCapabilityClient;
-  readonly data: OpenProjectAnchorContent;
+  readonly anchor?: OpenProjectAnchor;
+  readonly capabilityClient?: OpenProjectCapabilityClient;
+  readonly data: OpenProjectContent;
 }
 
 function createAnchorViewSnapshot(
-  data: OpenProjectAnchorContent,
+  data: OpenProjectContent,
+  capabilityClient?: OpenProjectCapabilityClient,
 ): AnchorViewSnapshot | null {
-  const rawWorkPackage =
+  const workPackage =
     data["org.matrix.matrix-hookshot.openproject.work_package"];
-  if (!rawWorkPackage) {
+  const project = data["org.matrix.matrix-hookshot.openproject.project"];
+  if (!workPackage || !project) {
     return null;
   }
 
-  const details = createDetailsSnapshot(rawWorkPackage);
+  const details = createDetailsSnapshot({ workPackage, project });
+  const anchor: AnchorState = {
+    state: isOpenProjectAnchorContent(data)
+      ? data["org.matrix.matrix-hookshot.openproject.anchor_state"]
+      : "inactive",
+  };
+  const canProbe = anchor.state === "active" && capabilityClient !== undefined;
+
   return {
     kind: "anchor",
     details,
-    header: { action: "created", authorName: details.author.name },
-    probe: { kind: "loading" },
+    anchor,
+    probe: canProbe ? { kind: "loading" } : { kind: "disabled" },
   };
 }
 
@@ -65,14 +77,23 @@ export class AnchorMessageViewModel
   private probeAttempt = 0;
 
   public constructor(props: AnchorMessageViewModelProps) {
-    super(props, createAnchorViewSnapshot(props.data));
-    if (this.getSnapshot()) {
+    super(props, createAnchorViewSnapshot(props.data, props.capabilityClient));
+    if (
+      this.getSnapshot()?.anchor.state === "active" &&
+      props.capabilityClient &&
+      props.anchor
+    ) {
       void this.probe();
     }
   }
 
   public retry = (): void => {
-    if (!this.getSnapshot()) {
+    if (
+      !this.getSnapshot() ||
+      this.getSnapshot().anchor.state !== "active" ||
+      !this.props.capabilityClient ||
+      !this.props.anchor
+    ) {
       return;
     }
 
@@ -81,13 +102,22 @@ export class AnchorMessageViewModel
   };
 
   private async probe(force = false): Promise<void> {
+    if (
+      this.getSnapshot()?.anchor.state !== "active" ||
+      !this.props.capabilityClient ||
+      !this.props.anchor
+    ) {
+      return;
+    }
+
+    const anchor = this.props.anchor;
+
     const attempt = ++this.probeAttempt;
 
     try {
-      const response = await this.props.capabilityClient.probe(
-        this.props.anchor,
-        { force },
-      );
+      const response = await this.props.capabilityClient.probe(anchor, {
+        force,
+      });
       if (this.isCurrentAttempt(attempt)) {
         this.snapshot.merge({
           probe: { kind: "result", result: response.result },

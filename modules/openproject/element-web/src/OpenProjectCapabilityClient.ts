@@ -5,9 +5,17 @@ import {
 } from "./HookshotToDeviceClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
+  OPENPROJECT_UPDATE_EVENT_KIND,
 } from "./OpenProjectSchema";
-import type { OpenProjectAnchorContent } from "./models/OpenProjectMatrixEventContent";
+import type {
+  OpenProjectActiveAnchorContent,
+  OpenProjectAnchorContent,
+  OpenProjectInactiveAnchorContent,
+  OpenProjectUpdateContent,
+} from "./models/OpenProjectMatrixEventContent";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 export const OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE =
@@ -81,12 +89,50 @@ export function isOpenProjectAnchorContent(
   if (!isRecord(value)) {
     return false;
   }
+  return (
+    value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
+      OPENPROJECT_EVENT_SCHEMA_VERSION &&
+    value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+      OPENPROJECT_ANCHOR_EVENT_KIND &&
+    (value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE ||
+      value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+        OPENPROJECT_ANCHOR_STATE_INACTIVE)
+  );
+}
+
+export function isOpenProjectInactiveAnchorContent(
+  value: unknown,
+): value is OpenProjectInactiveAnchorContent {
+  return (
+    isOpenProjectAnchorContent(value) &&
+    value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_INACTIVE
+  );
+}
+
+export function isOpenProjectActiveAnchorContent(
+  value: unknown,
+): value is OpenProjectActiveAnchorContent {
+  return (
+    isOpenProjectAnchorContent(value) &&
+    value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE
+  );
+}
+
+export function isOpenProjectUpdateContent(
+  value: unknown,
+): value is OpenProjectUpdateContent {
+  if (!isRecord(value)) {
+    return false;
+  }
 
   return (
     value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
       OPENPROJECT_EVENT_SCHEMA_VERSION &&
     value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
-      OPENPROJECT_ANCHOR_EVENT_KIND
+      OPENPROJECT_UPDATE_EVENT_KIND
   );
 }
 
@@ -136,11 +182,11 @@ export function isOpenProjectAnchorForBot(
   content: unknown,
   sender: unknown,
   botUserId: string | undefined,
-): content is OpenProjectAnchorContent {
+): content is OpenProjectActiveAnchorContent {
   return (
     botUserId !== undefined &&
     sender === botUserId &&
-    isOpenProjectAnchorContent(content)
+    isOpenProjectActiveAnchorContent(content)
   );
 }
 
