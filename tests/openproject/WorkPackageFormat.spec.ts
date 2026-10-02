@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatWorkPackageAnchorContent,
   formatWorkPackageAnchorForMatrix,
+  formatWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   formatWorkPackageFallback,
@@ -245,6 +246,51 @@ describe("OpenProject versioned message content", () => {
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
     );
     expect(content.body).toContain("Timeline tracking: Removed");
+  });
+
+  it("builds a complete active anchor replacement", () => {
+    const content = formatWorkPackageAnchorReplacement(
+      "$original-anchor",
+      WORK_PACKAGE,
+      BASE_URL,
+    );
+    const newContent = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL);
+
+    expect(content).toEqual({
+      msgtype: "m.notice",
+      body: `* ${newContent.body}`,
+      "m.new_content": newContent,
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: "$original-anchor",
+      },
+    });
+  });
+
+  it("keeps inactive replacement content complete and marked inactive", () => {
+    const content = formatWorkPackageAnchorReplacement(
+      "$original-anchor",
+      WORK_PACKAGE,
+      BASE_URL,
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
+
+    expect(content["m.new_content"]).toMatchObject({
+      msgtype: "m.notice",
+      body: expect.stringContaining("Timeline tracking: Removed"),
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
+      "org.matrix.matrix-hookshot.openproject.anchor_state":
+        OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        date: null,
+        dueDate: null,
+        deadline: null,
+        status: { isClosed: false },
+      },
+    });
   });
 
   it("builds a display-only update with actor attribution", () => {

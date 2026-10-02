@@ -114,11 +114,21 @@ export interface OpenProjectWorkPackageMatrixEvent {
   external_url: string;
 }
 
-export interface OpenProjectWorkPackageAnchorMatrixEvent extends OpenProjectWorkPackageMatrixEvent {
+export interface OpenProjectActiveWorkPackageAnchorMatrixEvent extends OpenProjectWorkPackageMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
-  "org.matrix.matrix-hookshot.openproject.anchor_state": OpenProjectAnchorState;
+  "org.matrix.matrix-hookshot.openproject.anchor_state": typeof OPENPROJECT_ANCHOR_STATE_ACTIVE;
 }
+
+export interface OpenProjectInactiveWorkPackageAnchorMatrixEvent extends OpenProjectWorkPackageMatrixEvent {
+  "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
+  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
+  "org.matrix.matrix-hookshot.openproject.anchor_state": typeof OPENPROJECT_ANCHOR_STATE_INACTIVE;
+}
+
+export type OpenProjectWorkPackageAnchorMatrixEvent =
+  | OpenProjectActiveWorkPackageAnchorMatrixEvent
+  | OpenProjectInactiveWorkPackageAnchorMatrixEvent;
 
 export interface OpenProjectWorkPackageUpdateMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.work_package": {
@@ -136,9 +146,28 @@ export interface OpenProjectWorkPackageUpdateMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_UPDATE_EVENT_KIND;
 }
 
-export interface OpenProjectAnchorMessageContent extends OpenProjectWorkPackageAnchorMatrixEvent {
+export interface OpenProjectActiveAnchorMessageContent extends OpenProjectActiveWorkPackageAnchorMatrixEvent {
   msgtype: "m.notice";
   body: string;
+}
+
+export interface OpenProjectInactiveAnchorMessageContent extends OpenProjectInactiveWorkPackageAnchorMatrixEvent {
+  msgtype: "m.notice";
+  body: string;
+}
+
+export type OpenProjectAnchorMessageContent =
+  | OpenProjectActiveAnchorMessageContent
+  | OpenProjectInactiveAnchorMessageContent;
+
+export interface OpenProjectAnchorReplacementMessageContent {
+  msgtype: "m.notice";
+  body: string;
+  "m.new_content": OpenProjectAnchorMessageContent;
+  "m.relates_to": {
+    rel_type: "m.replace";
+    event_id: string;
+  };
 }
 
 export interface OpenProjectUpdateMessageContent extends OpenProjectWorkPackageUpdateMatrixEvent {
@@ -228,6 +257,25 @@ export function formatWorkPackageAnchorContent(
     msgtype: "m.notice",
     body: formatWorkPackageFallback(pkg, baseURL, anchorState),
     ...formatWorkPackageAnchorForMatrix(pkg, baseURL, anchorState),
+  };
+}
+
+export function formatWorkPackageAnchorReplacement(
+  anchorEventId: string,
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+): OpenProjectAnchorReplacementMessageContent {
+  const newContent = formatWorkPackageAnchorContent(pkg, baseURL, anchorState);
+
+  return {
+    msgtype: "m.notice",
+    body: `* ${newContent.body}`,
+    "m.new_content": newContent,
+    "m.relates_to": {
+      rel_type: "m.replace",
+      event_id: anchorEventId,
+    },
   };
 }
 
