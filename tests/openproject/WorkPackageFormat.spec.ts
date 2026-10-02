@@ -233,6 +233,26 @@ describe("OpenProject versioned message content", () => {
       deadline: null,
       status: { isClosed: false },
     });
+    // Keep the original snapshot fields available to existing consumers as
+    // the versioned event contract grows additively.
+    expect(content).toMatchObject({
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: WORK_PACKAGE.id,
+        subject: WORK_PACKAGE.subject,
+        description: {
+          plain: WORK_PACKAGE.description.raw,
+          html: WORK_PACKAGE.description.html,
+        },
+        author: { name: WORK_PACKAGE._embedded.author.name },
+        type: { name: WORK_PACKAGE._embedded.type.name },
+      },
+      "org.matrix.matrix-hookshot.openproject.project": {
+        id: WORK_PACKAGE._embedded.project.id,
+        name: WORK_PACKAGE._embedded.project.name,
+      },
+      external_url:
+        "https://openproject.example/projects/demo-project/work_packages/50",
+    });
   });
 
   it("builds a visibly inactive anchor content", () => {
@@ -268,6 +288,11 @@ describe("OpenProject versioned message content", () => {
   });
 
   it("keeps inactive replacement content complete and marked inactive", () => {
+    const inactiveContent = formatWorkPackageAnchorContent(
+      WORK_PACKAGE,
+      BASE_URL,
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
     const content = formatWorkPackageAnchorReplacement(
       "$original-anchor",
       WORK_PACKAGE,
@@ -275,22 +300,19 @@ describe("OpenProject versioned message content", () => {
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
     );
 
-    expect(content["m.new_content"]).toMatchObject({
+    expect(content).toMatchObject({
       msgtype: "m.notice",
-      body: expect.stringContaining("Timeline tracking: Removed"),
-      "org.matrix.matrix-hookshot.openproject.schema_version":
-        OPENPROJECT_EVENT_SCHEMA_VERSION,
-      "org.matrix.matrix-hookshot.openproject.event_kind":
-        OPENPROJECT_ANCHOR_EVENT_KIND,
-      "org.matrix.matrix-hookshot.openproject.anchor_state":
-        OPENPROJECT_ANCHOR_STATE_INACTIVE,
-      "org.matrix.matrix-hookshot.openproject.work_package": {
-        date: null,
-        dueDate: null,
-        deadline: null,
-        status: { isClosed: false },
+      body: `* ${inactiveContent.body}`,
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: "$original-anchor",
       },
     });
+    // Replacement content is a full event snapshot, not a partial patch.
+    expect(content["m.new_content"]).toEqual(inactiveContent);
+    expect(content["m.new_content"].body).toContain(
+      "Timeline tracking: Removed",
+    );
   });
 
   it("builds a display-only update with actor attribution", () => {
@@ -320,6 +342,11 @@ describe("OpenProject versioned message content", () => {
       "org.matrix.matrix-hookshot.openproject.event_kind":
         OPENPROJECT_UPDATE_EVENT_KIND,
     });
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_state",
+    );
+    expect(content).not.toHaveProperty("m.relates_to");
+    expect(content).not.toHaveProperty("m.new_content");
   });
 
   it("uses neutral attribution when the webhook has no actor", () => {
@@ -331,6 +358,13 @@ describe("OpenProject versioned message content", () => {
     expect(content).not.toHaveProperty(
       "org.matrix.matrix-hookshot.openproject.actor",
     );
+    expect(content.msgtype).toBe("m.notice");
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_state",
+    );
+    expect(content).not.toHaveProperty("m.relates_to");
+    expect(content).not.toHaveProperty("m.new_content");
+    expect(content).not.toHaveProperty("command");
   });
 
   it("summarizes additional changes in the fallback", () => {
