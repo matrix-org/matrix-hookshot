@@ -8,6 +8,7 @@ import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
 } from "../src/OpenProjectSchema";
 import { AnchorMessageViewModel } from "../src/viewmodels/workPackage/AnchorMessageViewModel";
+import { activeAnchorContent } from "./fixtures/OpenProjectContractFixtures";
 import { OPENPROJECT_WORK_PACKAGE_CREATED_EVENT } from "./fixtures/OpenProjectEventFixtures";
 
 const botUserId = "@hookshot_openproject:example.org";
@@ -18,13 +19,13 @@ function createMarkedAnchorEvent(
 ) {
   return {
     ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
-    eventId: "$openproject-anchor-41:example.org",
+    eventId: "$openproject-anchor-50:example.org",
     roomId: "!openproject:example.org",
     sender,
     content: {
-      ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT.content,
+      ...activeAnchorContent,
       "org.matrix.matrix-hookshot.openproject.work_package": {
-        ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT.content[
+        ...activeAnchorContent[
           "org.matrix.matrix-hookshot.openproject.work_package"
         ],
         subject,
@@ -82,7 +83,7 @@ describe("OpenProject marked anchor path", () => {
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     expect(rendered.props.capabilityClient).toBeUndefined();
     expect(rendered.props.anchor.eventId).toBe(
-      "$openproject-anchor-41:example.org",
+      "$openproject-anchor-50:example.org",
     );
   });
 
@@ -91,10 +92,11 @@ describe("OpenProject marked anchor path", () => {
     await load();
     const [shouldRender] = registerMessageRenderer.mock.calls[0];
     const event = createMarkedAnchorEvent();
-    const {
-      ["org.matrix.matrix-hookshot.openproject.snapshot_id"]: _,
-      ...contentWithoutSnapshotId
-    } = event.content;
+    const contentWithoutSnapshotId = { ...event.content };
+    Reflect.deleteProperty(
+      contentWithoutSnapshotId,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id",
+    );
 
     expect(
       shouldRender({
@@ -175,7 +177,7 @@ describe("OpenProject marked anchor path", () => {
 
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     expect(rendered.props.anchor.eventId).toBe(
-      "$openproject-anchor-41:example.org",
+      "$openproject-anchor-50:example.org",
     );
     expect(
       rendered.props.data["org.matrix.matrix-hookshot.openproject.work_package"]
@@ -197,7 +199,7 @@ describe("OpenProject marked anchor path", () => {
       anchor: {
         eventId: event.eventId,
         roomId: event.roomId,
-        workPackageId: 41,
+        workPackageId: 50,
         recipientUserId: botUserId,
       },
       capabilityClient: { probe } as never,
@@ -220,7 +222,7 @@ describe("OpenProject marked anchor path", () => {
       anchor: {
         eventId: event.eventId,
         roomId: event.roomId,
-        workPackageId: 41,
+        workPackageId: 50,
         recipientUserId: botUserId,
       },
       capabilityClient: { probe } as never,

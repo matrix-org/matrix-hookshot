@@ -4,11 +4,13 @@ import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
 import { OpenProjectUpdateRenderer } from "../src/OpenProjectUpdateRenderer";
 import {
-  OPENPROJECT_ANCHOR_EVENT_KIND,
-  OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_UPDATE_EVENT_KIND,
 } from "../src/OpenProjectSchema";
+import {
+  anchorEventId,
+  inactiveReplacement,
+} from "./fixtures/OpenProjectContractFixtures";
 import {
   OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
   OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT,
@@ -20,16 +22,9 @@ const WORK_PACKAGE_KEY = "org.matrix.matrix-hookshot.openproject.work_package";
 function createInactiveAnchorEvent() {
   return {
     ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
-    content: {
-      ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT.content,
-      "org.matrix.matrix-hookshot.openproject.schema_version":
-        OPENPROJECT_EVENT_SCHEMA_VERSION,
-      "org.matrix.matrix-hookshot.openproject.event_kind":
-        OPENPROJECT_ANCHOR_EVENT_KIND,
-      "org.matrix.matrix-hookshot.openproject.anchor_state":
-        OPENPROJECT_ANCHOR_STATE_INACTIVE,
-      "org.matrix.matrix-hookshot.openproject.snapshot_id": "inactive-snapshot",
-    },
+    eventId: anchorEventId,
+    roomId: "!openproject:example.org",
+    content: inactiveReplacement["m.new_content"],
   };
 }
 
@@ -123,7 +118,7 @@ describe("OpenProject Element Web module", () => {
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     const markup = renderToStaticMarkup(rendered);
     expect(markup).toContain("(removed from timeline)");
-    expect(markup).not.toContain("This is a task");
+    expect(markup).not.toContain("Build the updated bridge");
     expect(markup).not.toContain("View package");
   });
 

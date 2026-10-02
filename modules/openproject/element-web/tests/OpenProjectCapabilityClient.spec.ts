@@ -12,25 +12,15 @@ import {
 } from "../src/OpenProjectCapabilityClient";
 import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
 import {
-  OPENPROJECT_ANCHOR_EVENT_KIND,
-  OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_UPDATE_EVENT_KIND,
 } from "../src/OpenProjectSchema";
+import { activeAnchorContent } from "./fixtures/OpenProjectContractFixtures";
 
 const botUserId = "@hookshot_openproject:example.org";
 const secondBotUserId = "@hookshot:example.org";
-const anchorContent = {
-  "org.matrix.matrix-hookshot.openproject.work_package": { id: 41 },
-  "org.matrix.matrix-hookshot.openproject.schema_version":
-    OPENPROJECT_EVENT_SCHEMA_VERSION,
-  "org.matrix.matrix-hookshot.openproject.event_kind":
-    OPENPROJECT_ANCHOR_EVENT_KIND,
-  "org.matrix.matrix-hookshot.openproject.anchor_state":
-    OPENPROJECT_ANCHOR_STATE_ACTIVE,
-  "org.matrix.matrix-hookshot.openproject.snapshot_id": "test-snapshot-1",
-};
+const anchorContent = activeAnchorContent;
 
 function createAnchor(
   overrides: Partial<OpenProjectAnchor> = {},
@@ -128,16 +118,18 @@ describe("OpenProjectCapabilityClient", () => {
           subject: "Example",
           url: "https://openproject.example/work_packages/41",
         },
+        "org.matrix.matrix-hookshot.openproject.changes": [],
       }),
     ).toBe(true);
   });
 
   it("keeps event-schema validation separate from transport validation", () => {
     expect(isOpenProjectAnchorContent(anchorContent)).toBe(true);
-    const {
-      ["org.matrix.matrix-hookshot.openproject.anchor_state"]: _,
-      ...legacyAnchorContent
-    } = anchorContent;
+    const legacyAnchorContent = { ...anchorContent };
+    Reflect.deleteProperty(
+      legacyAnchorContent,
+      "org.matrix.matrix-hookshot.openproject.anchor_state",
+    );
     expect(isOpenProjectAnchorContent(legacyAnchorContent)).toBe(false);
     expect(
       isOpenProjectAnchorContent({
@@ -166,7 +158,6 @@ describe("OpenProjectCapabilityClient", () => {
         "org.matrix.matrix-hookshot.openproject.work_package": { id: 0 },
       }),
     ).toBe(false);
-
     expect(
       isOpenProjectProbeResponse({
         ...createResponse(),
