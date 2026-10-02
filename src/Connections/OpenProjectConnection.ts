@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   Connection,
   IConnection,
@@ -406,6 +407,7 @@ export class OpenProjectConnection
     const extraData = formatWorkPackageAnchorForMatrix(
       data.work_package,
       this.config.baseURL,
+      { snapshotId: randomUUID() },
     );
     await this.sendEvent(
       formatWorkPackageFallback(data.work_package, this.config.baseURL),
@@ -572,6 +574,7 @@ export class OpenProjectConnection
     const extraData = formatWorkPackageAnchorForMatrix(
       workPackage,
       this.config.baseURL,
+      { snapshotId: randomUUID() },
     );
     await this.sendEvent(
       formatWorkPackageFallback(workPackage, this.config.baseURL),
