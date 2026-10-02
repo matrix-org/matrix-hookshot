@@ -497,8 +497,8 @@ importers:
   modules/openproject/element-web:
     devDependencies:
       '@element-hq/element-web-module-api':
-        specifier: 2.0.0
-        version: 2.0.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)
+        specifier: 2.2.0
+        version: 2.2.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)
       '@element-hq/element-web-shared-utils':
         specifier: 0.1.0
         version: 0.1.0
@@ -775,8 +775,8 @@ packages:
       matrix-widget-api:
         optional: true
 
-  '@element-hq/element-web-module-api@2.0.0':
-    resolution: {integrity: sha512-QW/WkcLGv38hiEiP8BgsmqYN7ekl2z9MgHFZhMWstKCYYqpbYxb+brUhjR1j07490YDtGpN4wCnCRlrcvOOQpA==}
+  '@element-hq/element-web-module-api@2.2.0':
+    resolution: {integrity: sha512-xJzkMlM9av0e4xtOHZKjEQLTLsgELhsQGUlg5R2wfmderKlF71+Kf2B72dG8OsMfHeXwNc6pA4RTVAlzcvnrkQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@types/react': '*'
@@ -6664,7 +6664,7 @@ snapshots:
       matrix-web-i18n: 3.6.0
       matrix-widget-api: 1.17.0
 
-  '@element-hq/element-web-module-api@2.0.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)':
+  '@element-hq/element-web-module-api@2.2.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)':
     dependencies:
       '@types/react': 19.2.18
       '@types/react-dom': 19.3.0(@types/react@19.2.18)
