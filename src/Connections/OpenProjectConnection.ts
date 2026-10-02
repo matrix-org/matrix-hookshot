@@ -23,6 +23,7 @@ import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { BridgeConfigMessaging } from "../config/sections";
 import {
+  formatWorkPackageFallback,
   formatWorkPackageAnchorForMatrix,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
@@ -402,16 +403,15 @@ export class OpenProjectConnection
       `onWorkPackageCreated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
     );
 
-    const creator = data.work_package._embedded.author;
-    if (!creator) {
-      throw Error("No creator field");
-    }
     const extraData = formatWorkPackageAnchorForMatrix(
       data.work_package,
       this.config.baseURL,
     );
-    const content = `${creator.name} created a new work package [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
-    await this.sendEvent(content, extraData);
+    await this.sendEvent(
+      formatWorkPackageFallback(data.work_package, this.config.baseURL),
+      extraData,
+      { inline: false },
+    );
     await this.storage.setOpenProjectWorkPackageState(
       workPackageToCacheState(data.work_package),
       data.work_package.id,
@@ -573,8 +573,11 @@ export class OpenProjectConnection
       workPackage,
       this.config.baseURL,
     );
-    const content = `${workPackage._embedded.author.name} created a new work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
-    await this.sendEvent(content, extraData);
+    await this.sendEvent(
+      formatWorkPackageFallback(workPackage, this.config.baseURL),
+      extraData,
+      { inline: false },
+    );
   }
 
   @botCommand("close", {

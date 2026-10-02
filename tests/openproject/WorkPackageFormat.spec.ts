@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   formatWorkPackageAnchorContent,
   formatWorkPackageAnchorForMatrix,
+  formatWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   formatWorkPackageFallback,
@@ -170,24 +171,18 @@ describe("OpenProject Matrix formatter", () => {
 });
 
 describe("OpenProject fallback formatter", () => {
-  it("renders a complete assigned snapshot with a formatted due date", () => {
+  it("renders a one-line active fallback with the work package identity", () => {
     const workPackage = workPackageWithChanges({
       date: null,
       dueDate: "2026-09-30",
     });
 
     expect(formatWorkPackageFallback(workPackage, BASE_URL)).toBe(
-      [
-        "Build the bridge",
-        "Assignee: Alice",
-        "Due: 30 September 2026",
-        "Status: New",
-        "https://openproject.example/projects/demo-project/work_packages/50",
-      ].join("\n"),
+      'Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — added to the timeline',
     );
   });
 
-  it("renders unassigned milestones and inactive state", () => {
+  it("renders a one-line inactive fallback", () => {
     const workPackage = workPackageWithChanges({
       assignee: undefined,
       date: "2026-09-30",
@@ -198,14 +193,8 @@ describe("OpenProject fallback formatter", () => {
       BASE_URL,
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
     );
-    expect(fallback).toContain("Assignee: Unassigned");
-    expect(fallback).toContain("Date: 30 September 2026");
-    expect(fallback).toContain("Timeline tracking: Removed");
-  });
-
-  it("renders an explicit no-date fallback", () => {
-    expect(formatWorkPackageFallback(WORK_PACKAGE, BASE_URL)).toContain(
-      "No due date",
+    expect(fallback).toBe(
+      'Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — removed from the timeline',
     );
   });
 });
@@ -216,7 +205,7 @@ describe("OpenProject versioned message content", () => {
 
     expect(content).toMatchObject({
       msgtype: "m.notice",
-      body: expect.stringContaining("No due date"),
+      body: expect.stringContaining("added to the timeline"),
       "org.matrix.matrix-hookshot.openproject.schema_version":
         OPENPROJECT_EVENT_SCHEMA_VERSION,
       "org.matrix.matrix-hookshot.openproject.event_kind":
@@ -232,6 +221,26 @@ describe("OpenProject versioned message content", () => {
       deadline: null,
       status: { isClosed: false },
     });
+    // Keep the original snapshot fields available to existing consumers as
+    // the versioned event contract grows additively.
+    expect(content).toMatchObject({
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: WORK_PACKAGE.id,
+        subject: WORK_PACKAGE.subject,
+        description: {
+          plain: WORK_PACKAGE.description.raw,
+          html: WORK_PACKAGE.description.html,
+        },
+        author: { name: WORK_PACKAGE._embedded.author.name },
+        type: { name: WORK_PACKAGE._embedded.type.name },
+      },
+      "org.matrix.matrix-hookshot.openproject.project": {
+        id: WORK_PACKAGE._embedded.project.id,
+        name: WORK_PACKAGE._embedded.project.name,
+      },
+      external_url:
+        "https://openproject.example/projects/demo-project/work_packages/50",
+    });
   });
 
   it("builds a visibly inactive anchor content", () => {
@@ -244,7 +253,54 @@ describe("OpenProject versioned message content", () => {
     expect(content["org.matrix.matrix-hookshot.openproject.anchor_state"]).toBe(
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
     );
-    expect(content.body).toContain("Timeline tracking: Removed");
+    expect(content.body).toContain("removed from the timeline");
+  });
+
+  it("builds a complete active anchor replacement", () => {
+    const content = formatWorkPackageAnchorReplacement(
+      "$original-anchor",
+      WORK_PACKAGE,
+      BASE_URL,
+    );
+    const newContent = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL);
+
+    expect(content).toEqual({
+      msgtype: "m.notice",
+      body: `* ${newContent.body}`,
+      "m.new_content": newContent,
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: "$original-anchor",
+      },
+    });
+  });
+
+  it("keeps inactive replacement content complete and marked inactive", () => {
+    const inactiveContent = formatWorkPackageAnchorContent(
+      WORK_PACKAGE,
+      BASE_URL,
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
+    const content = formatWorkPackageAnchorReplacement(
+      "$original-anchor",
+      WORK_PACKAGE,
+      BASE_URL,
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    );
+
+    expect(content).toMatchObject({
+      msgtype: "m.notice",
+      body: `* ${inactiveContent.body}`,
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: "$original-anchor",
+      },
+    });
+    // Replacement content is a full event snapshot, not a partial patch.
+    expect(content["m.new_content"]).toEqual(inactiveContent);
+    expect(content["m.new_content"].body).toContain(
+      "removed from the timeline",
+    );
   });
 
   it("builds a display-only update with actor attribution", () => {
@@ -274,6 +330,11 @@ describe("OpenProject versioned message content", () => {
       "org.matrix.matrix-hookshot.openproject.event_kind":
         OPENPROJECT_UPDATE_EVENT_KIND,
     });
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_state",
+    );
+    expect(content).not.toHaveProperty("m.relates_to");
+    expect(content).not.toHaveProperty("m.new_content");
   });
 
   it("uses neutral attribution when the webhook has no actor", () => {
@@ -285,6 +346,13 @@ describe("OpenProject versioned message content", () => {
     expect(content).not.toHaveProperty(
       "org.matrix.matrix-hookshot.openproject.actor",
     );
+    expect(content.msgtype).toBe("m.notice");
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_state",
+    );
+    expect(content).not.toHaveProperty("m.relates_to");
+    expect(content).not.toHaveProperty("m.new_content");
+    expect(content).not.toHaveProperty("command");
   });
 
   it("summarizes additional changes in the fallback", () => {
