@@ -22,7 +22,5 @@ sender_localpart: hookshot
 url: "http://app:9993" # This should match the bridge.port in your config file
 rate_limited: false
 
-# If enabling encryption
-de.sorunome.msc2409.push_ephemeral: true
-push_ephemeral: true
-org.matrix.msc3202: true
+receive_ephemeral: true # Receive ephemeral events including presence, typing, receipts, and to-device messages.
+io.element.msc4190: true # Allow Hookshot to provision its persistent capability receiver device.
