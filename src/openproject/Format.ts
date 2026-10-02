@@ -11,13 +11,6 @@ import {
 } from "./Schema";
 import type { OpenProjectWebhookActor, OpenProjectWorkPackage } from "./Types";
 
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
-  year: "numeric",
-});
-
 export interface OpenProjectDeadline {
   date: string;
   label: "Due" | "Date";
@@ -31,28 +24,17 @@ function getWorkPackageUrl(pkg: OpenProjectWorkPackage, baseURL: URL): string {
   ).toString();
 }
 
-function formatDate(date: string): string {
-  const parsed = new Date(`${date}T00:00:00Z`);
-  return Number.isNaN(parsed.getTime()) ? date : DATE_FORMATTER.format(parsed);
-}
-
 function getDeadline(pkg: OpenProjectWorkPackage): OpenProjectDeadline | null {
   // OpenProject's `date` is the milestone date. Prefer it when present so a
   // malformed payload containing both date fields still describes the
   // milestone deadline correctly.
-  if (pkg.date !== null) {
+  if (pkg.date !== null && pkg.date !== undefined) {
     return { date: pkg.date, label: "Date" };
   }
-  if (pkg.dueDate !== null) {
+  if (pkg.dueDate !== null && pkg.dueDate !== undefined) {
     return { date: pkg.dueDate, label: "Due" };
   }
   return null;
-}
-
-function getDeadlineFallback(deadline: OpenProjectDeadline | null): string {
-  return deadline
-    ? `${deadline.label}: ${formatDate(deadline.date)}`
-    : "No due date";
 }
 
 export function formatWorkPackageFallback(
@@ -60,20 +42,12 @@ export function formatWorkPackageFallback(
   baseURL: URL,
   anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
 ): string {
-  const deadline = getDeadline(pkg);
-  const lines = [
-    pkg.subject,
-    `Assignee: ${pkg._embedded.assignee?.name ?? "Unassigned"}`,
-    getDeadlineFallback(deadline),
-    `Status: ${pkg._embedded.status.name}`,
-    getWorkPackageUrl(pkg, baseURL),
-  ];
+  const timelineState =
+    anchorState === OPENPROJECT_ANCHOR_STATE_INACTIVE
+      ? "removed from the timeline"
+      : "added to the timeline";
 
-  if (anchorState === OPENPROJECT_ANCHOR_STATE_INACTIVE) {
-    lines.push("Timeline tracking: Removed");
-  }
-
-  return lines.join("\n");
+  return `Work package [${pkg.id}](${getWorkPackageUrl(pkg, baseURL)}): "${pkg.subject}" — ${timelineState}`;
 }
 
 export interface OpenProjectWorkPackageMatrixEvent {

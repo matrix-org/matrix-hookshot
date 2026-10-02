@@ -171,24 +171,18 @@ describe("OpenProject Matrix formatter", () => {
 });
 
 describe("OpenProject fallback formatter", () => {
-  it("renders a complete assigned snapshot with a formatted due date", () => {
+  it("renders a one-line active fallback with the work package identity", () => {
     const workPackage = workPackageWithChanges({
       date: null,
       dueDate: "2026-09-30",
     });
 
     expect(formatWorkPackageFallback(workPackage, BASE_URL)).toBe(
-      [
-        "Build the bridge",
-        "Assignee: Alice",
-        "Due: 30 September 2026",
-        "Status: New",
-        "https://openproject.example/projects/demo-project/work_packages/50",
-      ].join("\n"),
+      'Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — added to the timeline',
     );
   });
 
-  it("renders unassigned milestones and inactive state", () => {
+  it("renders a one-line inactive fallback", () => {
     const workPackage = workPackageWithChanges({
       assignee: undefined,
       date: "2026-09-30",
@@ -199,14 +193,8 @@ describe("OpenProject fallback formatter", () => {
       BASE_URL,
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
     );
-    expect(fallback).toContain("Assignee: Unassigned");
-    expect(fallback).toContain("Date: 30 September 2026");
-    expect(fallback).toContain("Timeline tracking: Removed");
-  });
-
-  it("renders an explicit no-date fallback", () => {
-    expect(formatWorkPackageFallback(WORK_PACKAGE, BASE_URL)).toContain(
-      "No due date",
+    expect(fallback).toBe(
+      'Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — removed from the timeline',
     );
   });
 });
@@ -217,7 +205,7 @@ describe("OpenProject versioned message content", () => {
 
     expect(content).toMatchObject({
       msgtype: "m.notice",
-      body: expect.stringContaining("No due date"),
+      body: expect.stringContaining("added to the timeline"),
       "org.matrix.matrix-hookshot.openproject.schema_version":
         OPENPROJECT_EVENT_SCHEMA_VERSION,
       "org.matrix.matrix-hookshot.openproject.event_kind":
@@ -265,7 +253,7 @@ describe("OpenProject versioned message content", () => {
     expect(content["org.matrix.matrix-hookshot.openproject.anchor_state"]).toBe(
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
     );
-    expect(content.body).toContain("Timeline tracking: Removed");
+    expect(content.body).toContain("removed from the timeline");
   });
 
   it("builds a complete active anchor replacement", () => {
@@ -311,7 +299,7 @@ describe("OpenProject versioned message content", () => {
     // Replacement content is a full event snapshot, not a partial patch.
     expect(content["m.new_content"]).toEqual(inactiveContent);
     expect(content["m.new_content"].body).toContain(
-      "Timeline tracking: Removed",
+      "removed from the timeline",
     );
   });
 

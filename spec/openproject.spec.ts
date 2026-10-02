@@ -416,8 +416,8 @@ describe("OpenProject", () => {
 
     // And await the notice.
     const { body } = (await webhookNotice).data.content;
-    expect(body).toContain(
-      'OpenProject Admin created a new work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133"',
+    expect(body).toBe(
+      'Work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133" — added to the timeline',
     );
   });
 

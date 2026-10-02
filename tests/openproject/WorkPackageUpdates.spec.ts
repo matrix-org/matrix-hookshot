@@ -85,7 +85,7 @@ describe("OpenProjectConnection work-package updates", () => {
       "unassigned",
       {
         ...WORK_PACKAGE,
-        _embedded: { ...WORK_PACKAGE._embedded, assignee: null },
+        _embedded: { ...WORK_PACKAGE._embedded, assignee: undefined },
       },
     ],
   ] as const)(
@@ -100,9 +100,9 @@ describe("OpenProjectConnection work-package updates", () => {
 
       expect(intent.sentEvents).toHaveLength(1);
       expect(intent.sentEvents[0].content.body).toContain(
-        `Assignee: ${workPackage._embedded.assignee?.name ?? "Unassigned"}`,
+        "added to the timeline",
       );
-      expect(intent.sentEvents[0].content.body).toContain("No due date");
+      expect(intent.sentEvents[0].content.body).not.toContain("\n");
       expect(intent.sentEvents[0].content).toMatchObject({
         body: formatWorkPackageFallback(workPackage, BASE_URL),
         "org.matrix.matrix-hookshot.openproject.schema_version":
@@ -119,7 +119,7 @@ describe("OpenProjectConnection work-package updates", () => {
       "unassigned",
       {
         ...WORK_PACKAGE,
-        _embedded: { ...WORK_PACKAGE._embedded, assignee: null },
+        _embedded: { ...WORK_PACKAGE._embedded, assignee: undefined },
       },
     ],
   ] as const)(
@@ -146,9 +146,9 @@ describe("OpenProjectConnection work-package updates", () => {
 
       expect(intent.sentEvents).toHaveLength(1);
       expect(intent.sentEvents[0].content.body).toContain(
-        `Assignee: ${workPackage._embedded.assignee?.name ?? "Unassigned"}`,
+        "added to the timeline",
       );
-      expect(intent.sentEvents[0].content.body).toContain("No due date");
+      expect(intent.sentEvents[0].content.body).not.toContain("\n");
       expect(intent.sentEvents[0].content).toMatchObject({
         body: formatWorkPackageFallback(workPackage, BASE_URL),
         "org.matrix.matrix-hookshot.openproject.schema_version":
