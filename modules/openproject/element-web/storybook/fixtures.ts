@@ -2,11 +2,11 @@ import type {
   OpenProjectContent,
   OpenProjectDescription,
   OpenProjectPerson,
+  OpenProjectProjectContent,
   OpenProjectStatus,
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
 } from "../src/models/OpenProjectMatrixEventContent";
-import { UpdatedMessageViewModel } from "../src/viewmodels/workPackage/UpdatedMessageViewModel";
 
 export const author: OpenProjectPerson = {
   name: "Ada Lovelace",
@@ -21,6 +21,12 @@ export const assignee: OpenProjectPerson = {
 export const responsible: OpenProjectPerson = {
   name: "Alan Turing",
   url: "https://openproject.example/users/3",
+};
+
+export const project: OpenProjectProjectContent = {
+  id: 1,
+  name: "Northwind",
+  url: "https://openproject.example/projects/northwind",
 };
 
 export const status: OpenProjectStatus = {
@@ -50,7 +56,7 @@ export const description: OpenProjectDescription = {
 
 export const minimalWorkPackage: OpenProjectWorkPackageContent = {
   id: 57,
-  subject: "Add project overview",
+  subject: "Right-panel PDF viewer - decide download vs stream",
   description: { plain: "" },
   url: "https://openproject.example/work_packages/57",
   author,
@@ -139,35 +145,24 @@ export const untrustedWorkPackage: OpenProjectWorkPackageContent = {
     plain: "This remains plain text: <script>alert('unsafe')</script>",
     html: '<img src="x" onerror="alert(1)"><strong>Safe text</strong>',
   },
-  type: { name: "Untrusted type", color: "not-a-color" },
-  status: { name: "Untrusted status", color: "rgb(0, 0, 0)" },
+  type: { name: "Epic", color: "not-a-color" },
+  status: { name: "Not started", color: "rgb(0, 0, 0)" },
   author: { ...author, url: "data:text/html,unsafe" },
 };
 
 export const createdContent: OpenProjectContent = {
   "org.matrix.matrix-hookshot.openproject.work_package": minimalWorkPackage,
+  "org.matrix.matrix-hookshot.openproject.project": project,
 };
 
 export const describedContent: OpenProjectContent = {
   "org.matrix.matrix-hookshot.openproject.work_package": describedWorkPackage,
+  "org.matrix.matrix-hookshot.openproject.project": project,
 };
 
 export const changedContent: OpenProjectContent = {
   "org.matrix.matrix-hookshot.openproject.work_package": changedWorkPackage,
+  "org.matrix.matrix-hookshot.openproject.project": project,
   "org.matrix.matrix-hookshot.openproject.work_package.changed":
     changedStatusDetails,
 };
-
-export function createWorkPackageChangedDetail(
-  workPackage: OpenProjectWorkPackageContent,
-  changes: OpenProjectWorkPackageChanges,
-) {
-  const viewModel = new UpdatedMessageViewModel({
-    "org.matrix.matrix-hookshot.openproject.work_package": workPackage,
-    "org.matrix.matrix-hookshot.openproject.work_package.changed": changes,
-  }).getSnapshot();
-  if (!viewModel?.changedDetail) {
-    throw new Error("Expected story fixture to contain a changed field");
-  }
-  return viewModel.changedDetail;
-}

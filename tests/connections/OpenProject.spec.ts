@@ -73,6 +73,89 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  it("uses the deployment-selected bot when provisioning", async () => {
+    const appservice = AppserviceMock.create();
+    const requestedIntent = appservice.getIntentForUserId(
+      "@hookshot:example.test",
+    );
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+    const tokenStore = {
+      getOpenProjectForUser: async () => ({
+        getProject: async () => ({}),
+      }),
+    } as unknown as UserTokenStore;
+
+    const result = await OpenProjectConnection.provisionConnection(
+      ROOM_ID,
+      "@alice:example.test",
+      { url: PROJECT_URL },
+      {
+        as: appservice,
+        intent: requestedIntent,
+        config,
+        tokenStore,
+        commentProcessor: undefined as never,
+        messageClient: undefined as never,
+        storage: {} as InstantiateConnectionOpts["storage"],
+        getAllConnectionsOfType: () => [],
+        getIntegrationBotForService: () => ({
+          userId: selectedIntent.userId,
+          intent: selectedIntent,
+        }),
+        isBotUserInRoom: () => true,
+      },
+    );
+
+    expect(result.connection.botUserId).toBe(selectedIntent.userId);
+    expect(requestedIntent.sentEvents).toHaveLength(0);
+  });
+
+  it("rejects provisioning when the selected bot is not joined", async () => {
+    const appservice = AppserviceMock.create();
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+
+    await expect(
+      OpenProjectConnection.provisionConnection(
+        ROOM_ID,
+        "@alice:example.test",
+        { url: PROJECT_URL },
+        {
+          as: appservice,
+          intent: selectedIntent,
+          config,
+          tokenStore: {} as UserTokenStore,
+          commentProcessor: undefined as never,
+          messageClient: undefined as never,
+          storage: {} as InstantiateConnectionOpts["storage"],
+          getAllConnectionsOfType: () => [],
+          getIntegrationBotForService: () => ({
+            userId: selectedIntent.userId,
+            intent: selectedIntent,
+          }),
+          isBotUserInRoom: () => false,
+        },
+      ),
+    ).rejects.toMatchObject({ errcode: ErrCode.NotInRoom });
+  });
+
   describe("state validation", () => {
     it("accepts a complete state config", () => {
       const connection = createConnectionState({
