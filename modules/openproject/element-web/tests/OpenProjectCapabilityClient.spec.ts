@@ -22,12 +22,14 @@ import {
 const botUserId = "@hookshot_openproject:example.org";
 const secondBotUserId = "@hookshot:example.org";
 const anchorContent = {
+  "org.matrix.matrix-hookshot.openproject.work_package": { id: 41 },
   "org.matrix.matrix-hookshot.openproject.schema_version":
     OPENPROJECT_EVENT_SCHEMA_VERSION,
   "org.matrix.matrix-hookshot.openproject.event_kind":
     OPENPROJECT_ANCHOR_EVENT_KIND,
   "org.matrix.matrix-hookshot.openproject.anchor_state":
     OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  "org.matrix.matrix-hookshot.openproject.snapshot_id": "test-snapshot-1",
 };
 
 function createAnchor(
@@ -121,6 +123,11 @@ describe("OpenProjectCapabilityClient", () => {
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.event_kind":
           OPENPROJECT_UPDATE_EVENT_KIND,
+        "org.matrix.matrix-hookshot.openproject.work_package": {
+          id: 41,
+          subject: "Example",
+          url: "https://openproject.example/work_packages/41",
+        },
       }),
     ).toBe(true);
   });
@@ -143,6 +150,20 @@ describe("OpenProjectCapabilityClient", () => {
       isOpenProjectAnchorContent({
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.anchor_state": "unknown",
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectAnchorContent({
+        ...anchorContent,
+        "org.matrix.matrix-hookshot.openproject.work_package": { id: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectUpdateContent({
+        ...anchorContent,
+        "org.matrix.matrix-hookshot.openproject.event_kind":
+          OPENPROJECT_UPDATE_EVENT_KIND,
+        "org.matrix.matrix-hookshot.openproject.work_package": { id: 0 },
       }),
     ).toBe(false);
 

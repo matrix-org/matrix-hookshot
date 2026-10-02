@@ -35,6 +35,7 @@ function createMarkedAnchorEvent(
         OPENPROJECT_ANCHOR_EVENT_KIND,
       "org.matrix.matrix-hookshot.openproject.anchor_state":
         OPENPROJECT_ANCHOR_STATE_ACTIVE,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id": "snapshot-1",
     },
   };
 }
@@ -80,22 +81,61 @@ describe("OpenProject marked anchor path", () => {
 
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     expect(rendered.props.capabilityClient).toBeUndefined();
+    expect(rendered.props.anchor.eventId).toBe(
+      "$openproject-anchor-41:example.org",
+    );
   });
 
-  it("renders marked anchors without a capability client", async () => {
+  it("does not route versioned anchors without a valid snapshot ID", async () => {
     const { registerMessageRenderer, load } = createModuleRegistration();
     await load();
-    const [, render] = registerMessageRenderer.mock.calls[0];
+    const [shouldRender] = registerMessageRenderer.mock.calls[0];
     const event = createMarkedAnchorEvent();
     const {
-      ["org.matrix.matrix-hookshot.openproject.anchor_state"]: _,
-      ...legacyContent
+      ["org.matrix.matrix-hookshot.openproject.snapshot_id"]: _,
+      ...contentWithoutSnapshotId
     } = event.content;
 
-    const rendered = render({ mxEvent: { ...event, content: legacyContent } });
-
-    expect(rendered.type).toBe(OpenProjectAnchorRenderer);
-    expect(rendered.props.capabilityClient).toBeUndefined();
+    expect(
+      shouldRender({
+        mxEvent: { ...event, content: contentWithoutSnapshotId },
+      }),
+    ).toBe(false);
+    expect(
+      shouldRender({
+        mxEvent: {
+          ...event,
+          content: {
+            ...event.content,
+            "org.matrix.matrix-hookshot.openproject.work_package": undefined,
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      shouldRender({
+        mxEvent: {
+          ...event,
+          content: {
+            ...event.content,
+            "org.matrix.matrix-hookshot.openproject.snapshot_id": "   ",
+          },
+        },
+      }),
+    ).toBe(false);
+    expect(
+      shouldRender({
+        mxEvent: {
+          ...event,
+          content: {
+            ...event.content,
+            "org.matrix.matrix-hookshot.openproject.snapshot_id": "x".repeat(
+              256,
+            ),
+          },
+        },
+      }),
+    ).toBe(false);
   });
 
   it("passes the original event ID with effective replacement content", async () => {
@@ -105,6 +145,7 @@ describe("OpenProject marked anchor path", () => {
     const original = createMarkedAnchorEvent(botUserId, "This is a task");
     const effectiveContent = {
       ...original.content,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id": "snapshot-2",
       body: "This is an updated task from m.new_content",
       "org.matrix.matrix-hookshot.openproject.work_package": {
         ...original.content[
@@ -149,6 +190,7 @@ describe("OpenProject marked anchor path", () => {
       ...event.content,
       "org.matrix.matrix-hookshot.openproject.anchor_state":
         OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id": "snapshot-2",
     };
 
     const viewModel = new AnchorMessageViewModel({
@@ -165,5 +207,33 @@ describe("OpenProject marked anchor path", () => {
     expect(viewModel.getSnapshot()?.anchor.state).toBe("inactive");
     expect(viewModel.getSnapshot()?.probe).toEqual({ kind: "disabled" });
     expect(probe).not.toHaveBeenCalled();
+  });
+
+  it("ignores an active probe result after its view model is disposed", async () => {
+    let resolveProbe!: (response: { result: "ok" }) => void;
+    const pendingProbe = new Promise<{ result: "ok" }>((resolve) => {
+      resolveProbe = resolve;
+    });
+    const probe = vi.fn(() => pendingProbe);
+    const event = createMarkedAnchorEvent();
+    const viewModel = new AnchorMessageViewModel({
+      anchor: {
+        eventId: event.eventId,
+        roomId: event.roomId,
+        workPackageId: 41,
+        recipientUserId: botUserId,
+      },
+      capabilityClient: { probe } as never,
+      data: event.content,
+    });
+
+    expect(probe).toHaveBeenCalledOnce();
+    expect(viewModel.getSnapshot()?.probe).toEqual({ kind: "loading" });
+    viewModel.dispose();
+    resolveProbe({ result: "ok" });
+    await pendingProbe;
+    await Promise.resolve();
+
+    expect(viewModel.getSnapshot()?.probe).toEqual({ kind: "loading" });
   });
 });

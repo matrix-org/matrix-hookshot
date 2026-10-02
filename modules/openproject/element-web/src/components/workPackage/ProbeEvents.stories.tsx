@@ -30,6 +30,8 @@ const minimalAnchorContent = {
     OPENPROJECT_ANCHOR_EVENT_KIND,
   "org.matrix.matrix-hookshot.openproject.anchor_state":
     OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  "org.matrix.matrix-hookshot.openproject.snapshot_id":
+    "storybook-probe-minimal",
 } satisfies OpenProjectActiveAnchorContent;
 
 function ProbeEventStory({ probe }: { probe: AnchorProbeState }) {

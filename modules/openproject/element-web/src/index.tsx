@@ -26,17 +26,6 @@ function getElementConfig(api: Api): unknown {
   }
 }
 
-function getWorkPackageId(value: unknown): number | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-
-  const id = (value as { id?: unknown }).id;
-  return typeof id === "number" && Number.isSafeInteger(id) && id > 0
-    ? id
-    : undefined;
-}
-
 class HookshotOpenProjectModule implements Module {
   public static readonly moduleApiVersion = "^2.0.0";
 
@@ -75,33 +64,30 @@ class HookshotOpenProjectModule implements Module {
           return <OpenProjectUpdateRenderer data={content} />;
         }
 
-        const isAnchor = isOpenProjectAnchorForBot(
+        if (!isOpenProjectAnchorContent(content)) {
+          return <></>;
+        }
+
+        const isAnchorForBot = isOpenProjectAnchorForBot(
           content,
           mxEvent.sender,
           this.capabilityBotUserId,
         );
-        const capabilityClient = this.capabilityClient;
-        const workPackageId = getWorkPackageId(
-          content["org.matrix.matrix-hookshot.openproject.work_package"],
-        );
+        const capabilityClient = isAnchorForBot
+          ? this.capabilityClient
+          : undefined;
+        const workPackageId =
+          content["org.matrix.matrix-hookshot.openproject.work_package"].id;
 
         return (
           <OpenProjectAnchorRenderer
-            anchor={
-              workPackageId === undefined
-                ? undefined
-                : {
-                    eventId: mxEvent.eventId,
-                    roomId: mxEvent.roomId,
-                    workPackageId,
-                    recipientUserId: mxEvent.sender,
-                  }
-            }
-            capabilityClient={
-              isAnchor && workPackageId !== undefined
-                ? capabilityClient
-                : undefined
-            }
+            anchor={{
+              eventId: mxEvent.eventId,
+              roomId: mxEvent.roomId,
+              workPackageId,
+              recipientUserId: mxEvent.sender,
+            }}
+            capabilityClient={isAnchorForBot ? capabilityClient : undefined}
             data={content as OpenProjectContent}
           />
         );

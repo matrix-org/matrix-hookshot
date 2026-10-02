@@ -23,6 +23,7 @@ export const OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE =
 export const OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe_response";
 export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
+export const OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH = 255;
 
 export type OpenProjectProbeResult =
   | "ok"
@@ -57,6 +58,14 @@ function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function hasValidWorkPackageId(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const id = value.id;
+  return typeof id === "number" && Number.isSafeInteger(id) && id > 0;
+}
+
 function isMatrixUserId(value: unknown): value is string {
   return (
     typeof value === "string" &&
@@ -83,6 +92,16 @@ function isMatrixEventId(value: unknown): value is string {
   );
 }
 
+function isOpenProjectSnapshotId(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+  return (
+    value.trim().length > 0 &&
+    value.length <= OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH
+  );
+}
+
 export function isOpenProjectAnchorContent(
   value: unknown,
 ): value is OpenProjectAnchorContent {
@@ -94,6 +113,12 @@ export function isOpenProjectAnchorContent(
       OPENPROJECT_EVENT_SCHEMA_VERSION &&
     value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
       OPENPROJECT_ANCHOR_EVENT_KIND &&
+    hasValidWorkPackageId(
+      value["org.matrix.matrix-hookshot.openproject.work_package"],
+    ) &&
+    isOpenProjectSnapshotId(
+      value["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ) &&
     (value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
       OPENPROJECT_ANCHOR_STATE_ACTIVE ||
       value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
@@ -132,7 +157,10 @@ export function isOpenProjectUpdateContent(
     value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
       OPENPROJECT_EVENT_SCHEMA_VERSION &&
     value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
-      OPENPROJECT_UPDATE_EVENT_KIND
+      OPENPROJECT_UPDATE_EVENT_KIND &&
+    hasValidWorkPackageId(
+      value["org.matrix.matrix-hookshot.openproject.work_package"],
+    )
   );
 }
 

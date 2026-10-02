@@ -49,6 +49,8 @@ const activeMinimalContent = {
     OPENPROJECT_ANCHOR_EVENT_KIND,
   "org.matrix.matrix-hookshot.openproject.anchor_state":
     OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  "org.matrix.matrix-hookshot.openproject.snapshot_id":
+    "storybook-active-minimal",
 } satisfies OpenProjectActiveAnchorContent;
 
 const activeContent = {
