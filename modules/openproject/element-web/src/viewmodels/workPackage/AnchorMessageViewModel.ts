@@ -88,9 +88,9 @@ export class AnchorMessageViewModel
   }
 
   public retry = (): void => {
+    const snapshot = this.getSnapshot();
     if (
-      !this.getSnapshot() ||
-      this.getSnapshot().anchor.state !== "active" ||
+      snapshot?.anchor.state !== "active" ||
       !this.props.capabilityClient ||
       !this.props.anchor
     ) {
