@@ -3,6 +3,7 @@ import {
   formatWorkPackageAnchorContent,
   formatWorkPackageAnchorForMatrix,
   formatWorkPackageAnchorReplacement,
+  formatInactiveWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   formatWorkPackageFallback,
@@ -69,6 +70,9 @@ const RESPONSIBLE = {
   name: "Bob",
 } as NonNullable<OpenProjectWorkPackage["_embedded"]["responsible"]>;
 
+const SNAPSHOT_ID = "00000000-0000-4000-8000-000000000001";
+const NEXT_SNAPSHOT_ID = "00000000-0000-4000-8000-000000000002";
+
 describe("OpenProject Matrix formatter", () => {
   it("preserves the existing base work-package payload", () => {
     expect(formatWorkPackageForMatrix(WORK_PACKAGE, BASE_URL)).toEqual({
@@ -112,7 +116,11 @@ describe("OpenProject Matrix formatter", () => {
   });
 
   it("marks an initial full work-package event as a versioned anchor", () => {
-    expect(formatWorkPackageAnchorForMatrix(WORK_PACKAGE, BASE_URL)).toEqual({
+    expect(
+      formatWorkPackageAnchorForMatrix(WORK_PACKAGE, BASE_URL, {
+        snapshotId: SNAPSHOT_ID,
+      }),
+    ).toEqual({
       ...formatWorkPackageForMatrix(WORK_PACKAGE, BASE_URL),
       "org.matrix.matrix-hookshot.openproject.schema_version":
         OPENPROJECT_EVENT_SCHEMA_VERSION,
@@ -120,6 +128,7 @@ describe("OpenProject Matrix formatter", () => {
         OPENPROJECT_ANCHOR_EVENT_KIND,
       "org.matrix.matrix-hookshot.openproject.anchor_state":
         OPENPROJECT_ANCHOR_STATE_ACTIVE,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id": SNAPSHOT_ID,
     });
   });
 
@@ -201,7 +210,9 @@ describe("OpenProject fallback formatter", () => {
 
 describe("OpenProject versioned message content", () => {
   it("builds complete active anchor content", () => {
-    const content = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL);
+    const content = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL, {
+      snapshotId: SNAPSHOT_ID,
+    });
 
     expect(content).toMatchObject({
       msgtype: "m.notice",
@@ -212,6 +223,7 @@ describe("OpenProject versioned message content", () => {
         OPENPROJECT_ANCHOR_EVENT_KIND,
       "org.matrix.matrix-hookshot.openproject.anchor_state":
         OPENPROJECT_ANCHOR_STATE_ACTIVE,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id": SNAPSHOT_ID,
     });
     expect(
       content["org.matrix.matrix-hookshot.openproject.work_package"],
@@ -244,11 +256,10 @@ describe("OpenProject versioned message content", () => {
   });
 
   it("builds a visibly inactive anchor content", () => {
-    const content = formatWorkPackageAnchorContent(
-      WORK_PACKAGE,
-      BASE_URL,
-      OPENPROJECT_ANCHOR_STATE_INACTIVE,
-    );
+    const content = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL, {
+      snapshotId: SNAPSHOT_ID,
+      anchorState: OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    });
 
     expect(content["org.matrix.matrix-hookshot.openproject.anchor_state"]).toBe(
       OPENPROJECT_ANCHOR_STATE_INACTIVE,
@@ -261,8 +272,11 @@ describe("OpenProject versioned message content", () => {
       "$original-anchor",
       WORK_PACKAGE,
       BASE_URL,
+      { snapshotId: SNAPSHOT_ID },
     );
-    const newContent = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL);
+    const newContent = formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL, {
+      snapshotId: SNAPSHOT_ID,
+    });
 
     expect(content).toEqual({
       msgtype: "m.notice",
@@ -279,13 +293,19 @@ describe("OpenProject versioned message content", () => {
     const inactiveContent = formatWorkPackageAnchorContent(
       WORK_PACKAGE,
       BASE_URL,
-      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      {
+        snapshotId: NEXT_SNAPSHOT_ID,
+        anchorState: OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      },
     );
     const content = formatWorkPackageAnchorReplacement(
       "$original-anchor",
       WORK_PACKAGE,
       BASE_URL,
-      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      {
+        snapshotId: NEXT_SNAPSHOT_ID,
+        anchorState: OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      },
     );
 
     expect(content).toMatchObject({
@@ -298,8 +318,68 @@ describe("OpenProject versioned message content", () => {
     });
     // Replacement content is a full event snapshot, not a partial patch.
     expect(content["m.new_content"]).toEqual(inactiveContent);
+    expect(
+      content["m.new_content"][
+        "org.matrix.matrix-hookshot.openproject.snapshot_id"
+      ],
+    ).toBe(NEXT_SNAPSHOT_ID);
+    expect(
+      content["m.new_content"][
+        "org.matrix.matrix-hookshot.openproject.snapshot_id"
+      ],
+    ).not.toBe("$original-anchor");
     expect(content["m.new_content"].body).toContain(
       "removed from the timeline",
+    );
+  });
+
+  it("builds an inactive replacement from the last committed active snapshot", () => {
+    const activeWorkPackage = workPackageWithChanges({
+      status: { ...WORK_PACKAGE._embedded.status, name: "In progress" },
+    });
+    const lastActiveContent = formatWorkPackageAnchorContent(
+      activeWorkPackage,
+      BASE_URL,
+      { snapshotId: SNAPSHOT_ID },
+    );
+    const content = formatInactiveWorkPackageAnchorReplacement(
+      "$original-anchor",
+      lastActiveContent,
+      NEXT_SNAPSHOT_ID,
+    );
+    const inactiveContent = content["m.new_content"];
+
+    expect(content).toMatchObject({
+      msgtype: "m.notice",
+      body: `* Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — removed from the timeline`,
+      "m.relates_to": {
+        rel_type: "m.replace",
+        event_id: "$original-anchor",
+      },
+    });
+    expect(inactiveContent).toMatchObject({
+      msgtype: "m.notice",
+      body: 'Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — removed from the timeline',
+      "org.matrix.matrix-hookshot.openproject.anchor_state":
+        OPENPROJECT_ANCHOR_STATE_INACTIVE,
+      "org.matrix.matrix-hookshot.openproject.snapshot_id": NEXT_SNAPSHOT_ID,
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: 50,
+        subject: "Build the bridge",
+        status: { name: "In progress", isClosed: false },
+      },
+      external_url:
+        "https://openproject.example/projects/demo-project/work_packages/50",
+    });
+    expect(
+      inactiveContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ).not.toBe(SNAPSHOT_ID);
+    expect(
+      inactiveContent["org.matrix.matrix-hookshot.openproject.work_package"]
+        .url,
+    ).toBe(
+      lastActiveContent["org.matrix.matrix-hookshot.openproject.work_package"]
+        .url,
     );
   });
 

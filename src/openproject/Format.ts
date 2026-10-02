@@ -92,17 +92,24 @@ export interface OpenProjectActiveWorkPackageAnchorMatrixEvent extends OpenProje
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
   "org.matrix.matrix-hookshot.openproject.anchor_state": typeof OPENPROJECT_ANCHOR_STATE_ACTIVE;
+  "org.matrix.matrix-hookshot.openproject.snapshot_id": string;
 }
 
 export interface OpenProjectInactiveWorkPackageAnchorMatrixEvent extends OpenProjectWorkPackageMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
   "org.matrix.matrix-hookshot.openproject.anchor_state": typeof OPENPROJECT_ANCHOR_STATE_INACTIVE;
+  "org.matrix.matrix-hookshot.openproject.snapshot_id": string;
 }
 
 export type OpenProjectWorkPackageAnchorMatrixEvent =
   | OpenProjectActiveWorkPackageAnchorMatrixEvent
   | OpenProjectInactiveWorkPackageAnchorMatrixEvent;
+
+export interface OpenProjectAnchorFormatOptions {
+  snapshotId: string;
+  anchorState?: OpenProjectAnchorState;
+}
 
 export interface OpenProjectWorkPackageUpdateMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.work_package": {
@@ -205,7 +212,10 @@ export function formatWorkPackageForMatrix(
 export function formatWorkPackageAnchorForMatrix(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
-  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  {
+    snapshotId,
+    anchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  }: OpenProjectAnchorFormatOptions,
 ): OpenProjectWorkPackageAnchorMatrixEvent {
   return {
     ...formatWorkPackageForMatrix(pkg, baseURL),
@@ -214,6 +224,7 @@ export function formatWorkPackageAnchorForMatrix(
     "org.matrix.matrix-hookshot.openproject.event_kind":
       OPENPROJECT_ANCHOR_EVENT_KIND,
     "org.matrix.matrix-hookshot.openproject.anchor_state": anchorState,
+    "org.matrix.matrix-hookshot.openproject.snapshot_id": snapshotId,
   };
 }
 
@@ -225,12 +236,32 @@ export function formatWorkPackageAnchorForMatrix(
 export function formatWorkPackageAnchorContent(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
-  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  options: OpenProjectAnchorFormatOptions & {
+    anchorState?: typeof OPENPROJECT_ANCHOR_STATE_ACTIVE;
+  },
+): OpenProjectActiveAnchorMessageContent;
+export function formatWorkPackageAnchorContent(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  options: OpenProjectAnchorFormatOptions & {
+    anchorState: typeof OPENPROJECT_ANCHOR_STATE_INACTIVE;
+  },
+): OpenProjectInactiveAnchorMessageContent;
+export function formatWorkPackageAnchorContent(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  options: OpenProjectAnchorFormatOptions,
+): OpenProjectAnchorMessageContent;
+export function formatWorkPackageAnchorContent(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  options: OpenProjectAnchorFormatOptions,
 ): OpenProjectAnchorMessageContent {
+  const { anchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE } = options;
   return {
     msgtype: "m.notice",
     body: formatWorkPackageFallback(pkg, baseURL, anchorState),
-    ...formatWorkPackageAnchorForMatrix(pkg, baseURL, anchorState),
+    ...formatWorkPackageAnchorForMatrix(pkg, baseURL, options),
   };
 }
 
@@ -238,14 +269,45 @@ export function formatWorkPackageAnchorReplacement(
   anchorEventId: string,
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
-  anchorState: OpenProjectAnchorState = OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  options: OpenProjectAnchorFormatOptions,
 ): OpenProjectAnchorReplacementMessageContent {
-  const newContent = formatWorkPackageAnchorContent(pkg, baseURL, anchorState);
+  const newContent = formatWorkPackageAnchorContent(pkg, baseURL, options);
 
   return {
     msgtype: "m.notice",
     body: `* ${newContent.body}`,
     "m.new_content": newContent,
+    "m.relates_to": {
+      rel_type: "m.replace",
+      event_id: anchorEventId,
+    },
+  };
+}
+
+/**
+ * Build the final inactive replacement from the last committed active snapshot.
+ * Removal changes only the timeline state, fallback, and snapshot identity.
+ */
+export function formatInactiveWorkPackageAnchorReplacement(
+  anchorEventId: string,
+  lastActiveContent: OpenProjectActiveAnchorMessageContent,
+  snapshotId: string,
+): OpenProjectAnchorReplacementMessageContent {
+  const workPackage =
+    lastActiveContent["org.matrix.matrix-hookshot.openproject.work_package"];
+  const body = `Work package [${workPackage.id}](${workPackage.url}): "${workPackage.subject}" — removed from the timeline`;
+  const inactiveContent: OpenProjectInactiveAnchorMessageContent = {
+    ...lastActiveContent,
+    body,
+    "org.matrix.matrix-hookshot.openproject.anchor_state":
+      OPENPROJECT_ANCHOR_STATE_INACTIVE,
+    "org.matrix.matrix-hookshot.openproject.snapshot_id": snapshotId,
+  };
+
+  return {
+    msgtype: "m.notice",
+    body: `* ${body}`,
+    "m.new_content": inactiveContent,
     "m.relates_to": {
       rel_type: "m.replace",
       event_id: anchorEventId,
