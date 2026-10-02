@@ -220,6 +220,9 @@ catalogs:
     vite:
       specifier: ^7.0.0
       version: 7.3.6
+    vitest:
+      specifier: ^4.1.8
+      version: 4.1.11
 
 importers:
 
@@ -227,7 +230,7 @@ importers:
     dependencies:
       '@alloc/quick-lru':
         specifier: ^5.2.0
-        version: 5.2.0
+        version: 5.3.0
       '@octokit/auth-app':
         specifier: ^6.0.2
         version: 6.1.4
@@ -544,8 +547,8 @@ packages:
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
 
-  '@alloc/quick-lru@5.2.0':
-    resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
+  '@alloc/quick-lru@5.3.0':
+    resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==}
     engines: {node: '>=10'}
 
   '@babel/code-frame@7.29.7':
@@ -6338,7 +6341,7 @@ snapshots:
 
   '@adobe/css-tools@4.5.0': {}
 
-  '@alloc/quick-lru@5.2.0': {}
+  '@alloc/quick-lru@5.3.0': {}
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -11038,7 +11041,7 @@ snapshots:
 
   matrix-appservice-bridge@12.0.1:
     dependencies:
-      '@alloc/quick-lru': 5.2.0
+      '@alloc/quick-lru': 5.3.0
       '@vector-im/matrix-bot-sdk': 0.10.1-element.0
       chalk: 4.1.2
       express: 4.22.3
