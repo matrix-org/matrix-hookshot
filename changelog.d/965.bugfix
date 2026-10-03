@@ -1,0 +1,1 @@
+Fix GitHub/GitLab notifications failing to start, and the bridge crashing when toggling notifications, for users who have not yet received any notifications.
