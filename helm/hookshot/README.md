@@ -1,9 +1,13 @@
 # hookshot
 
+> **DEPRECATED** — This chart is no longer maintained. Please migrate to the
+> [ess-helm matrix-stack chart](https://github.com/element-hq/ess-helm).
+> See the [migration guide](../../docs/helm.md) for instructions.
+
 ![Version: 0.1.13](https://img.shields.io/badge/Version-0.1.13-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 3.2.0](https://img.shields.io/badge/AppVersion-3.2.0-informational?style=flat-square)
 Deploy a Matrix Hookshot instance to Kubernetes
 
-Status: Beta
+Status: **DEPRECATED**
 
 ## About
 
