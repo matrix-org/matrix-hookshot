@@ -177,8 +177,7 @@ const ConnectionConfiguration: FunctionComponent<
       {hasExpired && (
         <Alert type="critical" title="This Webhook has expired">
           This Webhook has expired and will no longer handle any incoming
-          requests. Please set a new expiry date or <strong>remove</strong> the
-          Webhook.
+          requests. Please set a new expiry date or remove the Webhook.
         </Alert>
       )}
       {willExpireSoon && (

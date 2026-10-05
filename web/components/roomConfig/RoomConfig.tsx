@@ -189,7 +189,7 @@ export const RoomConfig = function <
         {error && (
           <Alert
             type="critical"
-            text={error.header || error.isWarning ? "Warning" : "Error"}
+            title={error.header || (error.isWarning ? "Warning" : "Error")}
           >
             {error.message}
           </Alert>
