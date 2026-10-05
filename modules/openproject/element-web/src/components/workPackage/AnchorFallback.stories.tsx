@@ -1,6 +1,9 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { formatWorkPackageAnchorContent } from "../../../../../../src/openproject/Format";
+import {
+  formatWorkPackageAnchorContent,
+  type OpenProjectAnchorFormatOptions,
+} from "../../../../../../src/openproject/Format";
 import { OPENPROJECT_ANCHOR_STATE_INACTIVE } from "../../../../../../src/openproject/Schema";
 import {
   BASE_URL,
@@ -8,10 +11,14 @@ import {
 } from "../../../../../../tests/openproject/WorkPackageFixtures";
 
 function AnchorFallback({ inactive = false }: { inactive?: boolean }) {
+  const options: OpenProjectAnchorFormatOptions = {
+    snapshotId: "00000000-0000-4000-8000-000000000001",
+    ...(inactive ? { anchorState: OPENPROJECT_ANCHOR_STATE_INACTIVE } : {}),
+  };
   const { body } = formatWorkPackageAnchorContent(
     WORK_PACKAGE,
     BASE_URL,
-    inactive ? OPENPROJECT_ANCHOR_STATE_INACTIVE : undefined,
+    options,
   );
 
   return <pre>{body}</pre>;

@@ -35,24 +35,20 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const WithActor: Story = {
-  render: () => (
-    <UpdateFallback actor={ACTOR} changes={["updated the subject"]} />
-  ),
+  args: { actor: ACTOR, changes: ["updated the subject"] },
 };
 
 export const WithoutActor: Story = {
-  render: () => <UpdateFallback changes={["updated the subject"]} />,
+  args: { changes: ["updated the subject"] },
 };
 
 export const MultipleChanges: Story = {
-  render: () => (
-    <UpdateFallback
-      actor={ACTOR}
-      changes={[
-        "assigned **Alice**",
-        "updated the description",
-        "changed the status",
-      ]}
-    />
-  ),
+  args: {
+    actor: ACTOR,
+    changes: [
+      "assigned **Alice**",
+      "updated the description",
+      "changed the status",
+    ],
+  },
 };

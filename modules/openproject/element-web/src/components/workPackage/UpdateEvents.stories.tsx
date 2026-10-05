@@ -52,21 +52,21 @@ function UpdateEventStory({ data }: { data: OpenProjectUpdateContent }) {
 
 const meta = {
   title: "OpenProject/Work package/Update events",
-  component: UpdateView,
+  component: UpdateEventStory,
   tags: ["autodocs"],
-} satisfies Meta<typeof UpdateView>;
+} satisfies Meta<typeof UpdateEventStory>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const WithActor: Story = {
-  render: () => <UpdateEventStory data={updateWithActor} />,
+  args: { data: updateWithActor },
 };
 
 export const WithoutActor: Story = {
-  render: () => <UpdateEventStory data={updateWithoutActor} />,
+  args: { data: updateWithoutActor },
 };
 
 export const WithoutChanges: Story = {
-  render: () => <UpdateEventStory data={updateWithNoChanges} />,
+  args: { data: updateWithNoChanges },
 };

@@ -69,6 +69,7 @@ describe("OpenProject marked anchor path", () => {
     const rendered = render({ mxEvent: createMarkedAnchorEvent() });
 
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
+    expect(rendered.props.capabilityClient).toBeDefined();
   });
 
   it("does not probe a marked card from another sender", async () => {

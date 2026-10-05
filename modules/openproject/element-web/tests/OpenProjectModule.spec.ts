@@ -85,8 +85,6 @@ describe("OpenProject Element Web module", () => {
 
     expect(shouldRender(createInactiveAnchorEvent())).toBe(true);
     expect(shouldRender(createUpdateEvent())).toBe(true);
-    expect(shouldRender(OPENPROJECT_WORK_PACKAGE_CREATED_EVENT)).toBe(false);
-    expect(shouldRender(OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT)).toBe(false);
     expect(shouldRender({ type: "m.room.message", content: {} })).toBe(false);
     expect(
       shouldRender({

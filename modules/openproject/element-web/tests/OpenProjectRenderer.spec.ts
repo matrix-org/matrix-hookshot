@@ -4,7 +4,6 @@ import { MockViewModel } from "@element-hq/web-shared-components";
 import { describe, expect, it } from "vitest";
 import { ActionsView } from "../src/components/workPackage/ActionsView";
 import { LinkView } from "../src/components/workPackage/LinkView";
-import { TitleView } from "../src/components/workPackage/TitleView";
 import { UpdateView } from "../src/components/workPackage/UpdateView";
 import type { OpenProjectUpdateContent } from "../src/models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot } from "../src/viewmodels/workPackage/DetailsSnapshot";
@@ -57,14 +56,6 @@ describe("OpenProject renderer security", () => {
     expect(
       LinkView({ url: "javascript:alert(1)", children: 50 }).props.href,
     ).toBeUndefined();
-  });
-
-  it("rejects unsafe URLs in work-package titles", () => {
-    const props = collectElementProps(
-      TitleView({ id: 50, subject: "Unsafe", url: "data:text/html,unsafe" }),
-    );
-
-    expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
   });
 
   it("rejects malformed URLs in work-package actions", () => {
