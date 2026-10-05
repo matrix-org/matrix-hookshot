@@ -177,7 +177,12 @@ export default class App extends Component<Record<string, never>, IState> {
     let content;
 
     if (this.state.kind === "admin") {
-      content = <AdminSettings roomState={this.state.roomState} />;
+      content = (
+        <AdminSettings
+          roomState={this.state.roomState}
+          bridgeApi={this.state.bridgeApi}
+        />
+      );
     } else if (this.state.kind === "roomConfig") {
       content = (
         <RoomConfigView
