@@ -239,7 +239,6 @@ const ConnectionConfiguration: FunctionComponent<
       >
         <ToggleInput
           disabled={!canEdit}
-          type="checkbox"
           checked={transFnEnabled}
           onChange={useCallback(() => setTransFnEnabled((v) => !v), [])}
         />
@@ -252,7 +251,6 @@ const ConnectionConfiguration: FunctionComponent<
       >
         <ToggleInput
           disabled={!canEdit || serviceConfig.waitForComplete}
-          type="checkbox"
           checked={waitForComplete || serviceConfig.waitForComplete}
           onChange={useCallback(() => setWaitForComplete((v) => !v), [])}
         />
