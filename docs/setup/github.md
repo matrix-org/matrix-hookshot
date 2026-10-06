@@ -15,40 +15,30 @@ You **MUST** also provide a secret, which should match the `github.webhook.secre
 
 ### Permissions
 
-You will need to enable the following permissions:
+You will need to enable the following repository permissions:
 
-- Repository
-  - Actions (`read`)
-  - Contents (`read`)
-  - Discussions (`read & write`)
-  - Issues (`read & write`)
-  - Metadata
-  - Projects (`read & write`)
-  - Pull requests (`read & write`)
-- Organisation
-  - Team Discussions (`read & write`)
+- Actions (`read & write`), used to trigger workflows and to receive workflow run events.
+- Contents (`read`), required to receive push and release events.
+- Discussions (`read & write`), optional, only needed if you bridge GitHub Discussions.
+- Issues (`read & write`), used to create, edit, comment on, assign and react to issues.
+- Metadata (`read`), mandatory for all GitHub Apps.
+- Pull requests (`read & write`), used to submit pull request reviews.
+
+No organisation or account permissions are required.
 
 Hookshot handles the following webhook event types:
 
-- Commit comment
-- Create
-- Delete
-- Discussion
-- Discussion comment
+- Discussion (optional)
+- Discussion comment (optional)
 - Issue comment
 - Issues
-- Project
-- Project card
-- Project column
 - Pull request
 - Pull request review
-- Pull request review comment
 - Push
 - Release
-- Repository
 - Workflow run
 
-You can disable any of these to disable the events being handled in Hookshot.
+Hookshot ignores any other event types, so you do not need to subscribe to them. You can disable any of the above to disable the events being handled in Hookshot.
 
 Once you have set up your app, you can move onto configuring the bridge:
 
