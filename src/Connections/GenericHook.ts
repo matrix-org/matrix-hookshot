@@ -578,7 +578,7 @@ export class GenericHookConnection
     ) {
       return;
     }
-    const expectedDisplayname = `${this.state.name} (Webhook)`;
+    const expectedDisplayname = `${this.state.name}${this.config.displaynameSuffix}`;
 
     try {
       if (this.cachedDisplayname !== expectedDisplayname) {
@@ -591,9 +591,7 @@ export class GenericHookConnection
       this.cachedDisplayname = undefined;
     }
     if (this.cachedDisplayname !== expectedDisplayname) {
-      await intent.underlyingClient.setDisplayName(
-        `${this.state.name} (Webhook)`,
-      );
+      await intent.underlyingClient.setDisplayName(expectedDisplayname);
       this.cachedDisplayname = expectedDisplayname;
     }
   }
