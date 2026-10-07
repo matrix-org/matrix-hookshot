@@ -1500,18 +1500,24 @@ export class GitHubRepoConnection
       throw Error("No repository content!");
     }
     const orgRepoName = event.repository.full_name;
-    const emojiForReview = {
+    const reviewState = event.review.state.toLowerCase();
+
+    const emojiForReviewMap: Record<string, string> = {
       approved: "✅",
-      // This apparently fires each time someone comments on the PR, which is not helpful.
-      //    'commented': '🗨️',
+      commented: "💬",
       changes_requested: "🔴",
-    }[event.review.state.toLowerCase()];
+    };
+
+    const emojiForReview = emojiForReviewMap[reviewState];
     if (!emojiForReview) {
       // We don't recongnise this state, run away!
       return;
     }
+
     const content = emojify(
-      `${emojiForReview} **${event.sender.login}** ${event.review.state.toLowerCase()} [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`,
+      `${emojiForReview} **${event.sender.login}** ${
+        reviewState === "changes_requested" ? "requested changes" : reviewState
+      } [${orgRepoName}#${event.pull_request.number}](${event.pull_request.html_url}) "${event.pull_request.title}"`,
     );
     await this.sendEvent(content, {
       ...FormatUtil.getPartialBodyForGithubIssue(
