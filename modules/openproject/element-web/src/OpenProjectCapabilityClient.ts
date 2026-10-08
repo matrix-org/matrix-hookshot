@@ -13,6 +13,7 @@ import {
 import type {
   OpenProjectActiveAnchorContent,
   OpenProjectAnchorContent,
+  OpenProjectContent,
   OpenProjectInactiveAnchorContent,
   OpenProjectUpdateContent,
 } from "./models/OpenProjectMatrixEventContent";
@@ -99,6 +100,20 @@ function isOpenProjectSnapshotId(value: unknown): value is string {
   return (
     value.trim().length > 0 &&
     value.length <= OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH
+  );
+}
+
+export function isOpenProjectContent(
+  value: unknown,
+): value is OpenProjectContent {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    hasValidWorkPackageId(
+      value["org.matrix.matrix-hookshot.openproject.work_package"],
+    )
   );
 }
 

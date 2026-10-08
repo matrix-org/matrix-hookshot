@@ -1,12 +1,11 @@
 import * as React from "react";
 import { useCreateAutoDisposedViewModel } from "@element-hq/web-shared-components";
 import {
-  isOpenProjectAnchorContent,
   type OpenProjectAnchor,
   type OpenProjectCapabilityClient,
 } from "./OpenProjectCapabilityClient";
 import { AnchorView } from "./components/workPackage/AnchorView";
-import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
+import type { OpenProjectAnchorContent, OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
 import { AnchorMessageViewModel } from "./viewmodels/workPackage/AnchorMessageViewModel";
 
 export function OpenProjectAnchorRenderer({
@@ -16,11 +15,9 @@ export function OpenProjectAnchorRenderer({
 }: {
   anchor: OpenProjectAnchor;
   capabilityClient?: OpenProjectCapabilityClient;
-  data: OpenProjectContent;
+  data: OpenProjectAnchorContent;
 }) {
-  const snapshotId = isOpenProjectAnchorContent(data)
-    ? data["org.matrix.matrix-hookshot.openproject.snapshot_id"]
-    : "";
+  const snapshotId = data["org.matrix.matrix-hookshot.openproject.snapshot_id"];
 
   return (
     <React.Fragment key={anchor.eventId}>

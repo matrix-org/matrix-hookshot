@@ -13,8 +13,8 @@ import {
   isOpenProjectUpdateContent,
   isOpenProjectAnchorContent,
   OpenProjectCapabilityClient,
+  isOpenProjectContent,
 } from "./OpenProjectCapabilityClient";
-import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 import { OpenProjectUpdateRenderer } from "./OpenProjectUpdateRenderer";
 
@@ -41,32 +41,25 @@ class HookshotOpenProjectModule implements Module {
       : undefined;
   }
 
-  public async load(): Promise<void> {
-    function shouldRender(
+  public async load(): Promise<void> {  
+    function shouldRenderAnchor(
       mxEvent: CustomMessageComponentProps["mxEvent"],
     ): boolean {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      return (
-        isOpenProjectAnchorContent(mxEvent.content) ||
-        isOpenProjectUpdateContent(mxEvent.content)
-      );
+      return isOpenProjectAnchorContent(mxEvent.content)
     }
 
+    const anchorHints = { allowEditingEvent: false, renderSenderProfile: false };
+    
     this.api.customComponents.registerMessageRenderer(
-      shouldRender,
-      (props) => {
+      shouldRenderAnchor,
+      (props, originalComponentFn) => {
         const mxEvent = props.mxEvent;
         const content = mxEvent.content;
 
-        if (isOpenProjectUpdateContent(content)) {
-          return <OpenProjectUpdateRenderer data={content} />;
-        }
-
-        if (!isOpenProjectAnchorContent(content)) {
-          return <></>;
-        }
+        if (!isOpenProjectAnchorContent(content)) { return originalComponentFn!(); }
 
         const isAnchorForBot = isOpenProjectAnchorForBot(
           content,
@@ -76,6 +69,7 @@ class HookshotOpenProjectModule implements Module {
         const capabilityClient = isAnchorForBot
           ? this.capabilityClient
           : undefined;
+               
         const workPackageId =
           content["org.matrix.matrix-hookshot.openproject.work_package"].id;
 
@@ -88,11 +82,35 @@ class HookshotOpenProjectModule implements Module {
               recipientUserId: mxEvent.sender,
             }}
             capabilityClient={isAnchorForBot ? capabilityClient : undefined}
-            data={content as OpenProjectContent}
+            data={content}
           />
         );
       },
-      { allowEditingEvent: false },
+      anchorHints,
+    );
+    
+    function shouldRenderUpdate(
+      mxEvent: CustomMessageComponentProps["mxEvent"],
+    ): boolean {
+      if (mxEvent.type !== "m.room.message") {
+        return false;
+      }
+      // Use this renderer as fallback for all OpenProject content.
+      return isOpenProjectContent(mxEvent.content);
+    }
+
+    const updateHints = { allowEditingEvent: false, renderAsInformationalMessage: true };
+
+    this.api.customComponents.registerMessageRenderer(
+      shouldRenderUpdate,
+      (props, originalComponentFn) => {
+        const content = props.mxEvent.content;
+
+        if (!isOpenProjectUpdateContent(content)) { return originalComponentFn!(); }
+
+        return <OpenProjectUpdateRenderer data={content} />;
+      },
+      updateHints,
     );
   }
 }
