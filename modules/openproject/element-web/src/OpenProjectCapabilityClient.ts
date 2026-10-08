@@ -110,10 +110,8 @@ export function isOpenProjectContent(
     return false;
   }
 
-  return (
-    hasValidWorkPackageId(
-      value["org.matrix.matrix-hookshot.openproject.work_package"],
-    )
+  return hasValidWorkPackageId(
+    value["org.matrix.matrix-hookshot.openproject.work_package"],
   );
 }
 

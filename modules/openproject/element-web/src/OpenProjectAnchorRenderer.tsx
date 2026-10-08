@@ -5,7 +5,10 @@ import {
   type OpenProjectCapabilityClient,
 } from "./OpenProjectCapabilityClient";
 import { AnchorView } from "./components/workPackage/AnchorView";
-import type { OpenProjectAnchorContent, OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
+import type {
+  OpenProjectAnchorContent,
+  OpenProjectContent,
+} from "./models/OpenProjectMatrixEventContent";
 import { AnchorMessageViewModel } from "./viewmodels/workPackage/AnchorMessageViewModel";
 
 export function OpenProjectAnchorRenderer({
