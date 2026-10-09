@@ -4,7 +4,7 @@ import {
   GetAuthResponse,
   GetConnectionsForServiceResponse,
 } from "../src/widgets/BridgeWidgetInterface";
-import { GetConnectionsResponseItem } from "../src/provisioning/api";
+import { GetConnectionsResponseItem } from "../src/widgets/Api";
 import {
   ExchangeOpenAPIRequestBody,
   ExchangeOpenAPIResponseBody,
