@@ -110,6 +110,8 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
+import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
+import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 
 const log = new Logger("Bridge");
@@ -124,6 +126,7 @@ export class Bridge {
   private adminRooms: Map<string, AdminRoom> = new Map();
   private feedReader?: FeedReader;
   private houndReader?: HoundReader;
+  private toDeviceReceiver?: HookshotToDeviceReceiver;
   private replyProcessor = new RichRepliesPreprocessor(true);
 
   private ready = false;
@@ -157,6 +160,7 @@ export class Bridge {
   public async stop() {
     this.feedReader?.stop();
     this.houndReader?.stop();
+    this.toDeviceReceiver?.stop();
     this.tokenStore.stop();
     this.as.stop();
     await this.queue.stop?.();
@@ -182,6 +186,29 @@ export class Bridge {
     }
 
     await this.botUsersManager.start();
+
+    // Service bots are the deployment-owned capability endpoints. Keep the
+    // first (highest-priority) bot for each service so a dedicated service bot
+    // takes precedence over the default Hookshot bot.
+    const integrationBots = new Map<string, string>();
+    for (const botUser of this.botUsersManager.botUsers) {
+      for (const service of botUser.services) {
+        if (!integrationBots.has(service)) {
+          integrationBots.set(service, botUser.userId);
+        }
+      }
+    }
+    await provisionToDeviceReceiverDevices(
+      this.as,
+      new Set(integrationBots.values()),
+      !!this.config.encryption,
+    );
+
+    this.toDeviceReceiver = new HookshotToDeviceReceiver(
+      this.as,
+      integrationBots,
+    );
+    this.toDeviceReceiver.start();
 
     await this.config.prefillMembershipCache(this.as.botClient);
 
