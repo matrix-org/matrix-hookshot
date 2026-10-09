@@ -17,6 +17,7 @@ import {
 async function createTestEnvironment(
   connections: BridgeConfigRoot["connections"],
 ): Promise<E2ETestEnv> {
+  const webhooksPort = 9500 + E2ETestEnv.workerId;
   const testEnv = await E2ETestEnv.createTestEnv({
     matrixLocalparts: ["user"],
     staticConnectionRooms: {
