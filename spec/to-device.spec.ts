@@ -42,7 +42,10 @@ describe("Appservice to-device delivery", () => {
   let testEnv: E2ETestEnv;
 
   beforeEach(async () => {
-    testEnv = await E2ETestEnv.createTestEnv({ matrixLocalparts: ["user"] });
+    testEnv = await E2ETestEnv.createTestEnv({
+      matrixLocalparts: ["user"],
+      config: { toDevice: { receiver: { enabled: true } } },
+    });
     await testEnv.setUp();
   }, E2ESetupTestTimeout);
 
