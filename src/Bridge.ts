@@ -187,28 +187,9 @@ export class Bridge {
 
     await this.botUsersManager.start();
 
-    // Service bots are the deployment-owned capability endpoints. Keep the
-    // first (highest-priority) bot for each service so a dedicated service bot
-    // takes precedence over the default Hookshot bot.
-    const integrationBots = new Map<string, string>();
-    for (const botUser of this.botUsersManager.botUsers) {
-      for (const service of botUser.services) {
-        if (!integrationBots.has(service)) {
-          integrationBots.set(service, botUser.userId);
-        }
-      }
+    if (this.config.toDevice.receiver.enabled) {
+      await this.startToDeviceReceiver();
     }
-    await provisionToDeviceReceiverDevices(
-      this.as,
-      new Set(integrationBots.values()),
-      !!this.config.encryption,
-    );
-
-    this.toDeviceReceiver = new HookshotToDeviceReceiver(
-      this.as,
-      integrationBots,
-    );
-    this.toDeviceReceiver.start();
 
     await this.config.prefillMembershipCache(this.as.botClient);
 
@@ -2200,5 +2181,32 @@ export class Bridge {
           );
       }
     }
+  }
+
+  /**
+   * Service bots are the deployment-owned capability endpoints. Keeps the
+   * first (highest-priority) bot for each service so a dedicated service bot
+   * takes precedence over the default Hookshot bot.
+   */
+  private async startToDeviceReceiver() {
+    const integrationBots = new Map<string, string>();
+    for (const botUser of this.botUsersManager.botUsers) {
+      for (const service of botUser.services) {
+        if (!integrationBots.has(service)) {
+          integrationBots.set(service, botUser.userId);
+        }
+      }
+    }
+    await provisionToDeviceReceiverDevices(
+      this.as,
+      new Set(integrationBots.values()),
+      !!this.config.encryption,
+    );
+
+    this.toDeviceReceiver = new HookshotToDeviceReceiver(
+      this.as,
+      integrationBots,
+    );
+    this.toDeviceReceiver.start();
   }
 }
