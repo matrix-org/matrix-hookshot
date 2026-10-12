@@ -1,3 +1,8 @@
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../OpenProjectSchema";
+
 /**
  * The Matrix event DTOs emitted by Hookshot for OpenProject work packages.
  *
@@ -59,4 +64,9 @@ export interface OpenProjectContent {
     };
   };
   "org.matrix.matrix-hookshot.openproject.work_package.changed"?: OpenProjectWorkPackageChanges;
+}
+
+export interface OpenProjectAnchorContent extends OpenProjectContent {
+  "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
+  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
 }
