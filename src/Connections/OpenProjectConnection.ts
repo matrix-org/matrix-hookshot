@@ -488,6 +488,7 @@ export class OpenProjectConnection
   /** The bot whose intent handles this connection's Matrix traffic. */
   public readonly botUserId: string;
   private readonly grantChecker: OpenProjectGrantChecker;
+  private timelineRemoved = false;
 
   constructor(
     roomId: string,
@@ -541,67 +542,75 @@ export class OpenProjectConnection
     );
   }
 
+  private runTimelineTransition<T>(
+    workPackageId: number,
+    transition: () => Promise<T>,
+  ): Promise<T | undefined> {
+    if (this.timelineRemoved) {
+      return Promise.resolve(undefined);
+    }
+    return this.timelineManager.runTransition(
+      this.connectionId,
+      workPackageId,
+      transition,
+    );
+  }
+
   public async onWorkPackageCreated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
     const workPackage = data.work_package;
     try {
-      await this.timelineManager.runTransition(
-        this.connectionId,
-        workPackage.id,
-        async () => {
-          log.info(
-            `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
-          );
+      await this.runTimelineTransition(workPackage.id, async () => {
+        log.info(
+          `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
+        );
 
-          if (this.state.anchors.includes("work_package:created")) {
-            const existing = await this.storage.getOpenProjectAnchorState(
+        if (this.state.anchors.includes("work_package:created")) {
+          const existing = await this.storage.getOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+          );
+          if (!existing) {
+            const content = formatWorkPackageAnchorContent(
+              workPackage,
+              this.config.baseURL,
+              { snapshotId: randomUUID() },
+            );
+            const anchorEventId = await this.sendEvent(content.body, content, {
+              inline: false,
+            });
+            await this.storage.setOpenProjectAnchorState(
               this.connectionId,
               workPackage.id,
+              {
+                anchorEventId,
+                lockVersion: workPackage.lockVersion,
+                lastContent: content,
+              },
             );
-            if (!existing) {
-              const content = formatWorkPackageAnchorContent(
-                workPackage,
-                this.config.baseURL,
-                { snapshotId: randomUUID() },
-              );
-              const anchorEventId = await this.sendEvent(
-                content.body,
-                content,
-                { inline: false },
-              );
-              await this.storage.setOpenProjectAnchorState(
-                this.connectionId,
-                workPackage.id,
-                {
-                  anchorEventId,
-                  lockVersion: workPackage.lockVersion,
-                  lastContent: content,
-                },
-              );
-            } else if (workPackage.lockVersion > existing.lockVersion) {
-              const replacement = formatWorkPackageAnchorReplacement(
-                existing.anchorEventId,
-                workPackage,
-                this.config.baseURL,
-                { snapshotId: randomUUID() },
-              );
-              await this.sendEvent(replacement.body, replacement, {
-                inline: false,
-              });
-              await this.storage.setOpenProjectAnchorState(
-                this.connectionId,
-                workPackage.id,
-                {
-                  anchorEventId: existing.anchorEventId,
-                  lockVersion: workPackage.lockVersion,
-                  lastContent: replacement["m.new_content"],
-                },
-              );
-            }
+          } else if (workPackage.lockVersion > existing.lockVersion) {
+            const replacement = formatWorkPackageAnchorReplacement(
+              existing.anchorEventId,
+              workPackage,
+              this.config.baseURL,
+              { snapshotId: randomUUID() },
+            );
+            await this.sendEvent(replacement.body, replacement, {
+              inline: false,
+            });
+            await this.storage.setOpenProjectAnchorState(
+              this.connectionId,
+              workPackage.id,
+              {
+                anchorEventId: existing.anchorEventId,
+                lockVersion: workPackage.lockVersion,
+                lastContent: replacement["m.new_content"],
+              },
+            );
           }
-        },
-      );
+        }
+      });
     } catch (error) {
       log.warn(
         `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; activity notifications will continue`,
@@ -638,56 +647,52 @@ export class OpenProjectConnection
     );
 
     try {
-      await this.timelineManager.runTransition(
-        this.connectionId,
-        workPackage.id,
-        async () => {
-          const activeAnchor = await this.storage.getOpenProjectAnchorState(
+      await this.runTimelineTransition(workPackage.id, async () => {
+        const activeAnchor = await this.storage.getOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+        );
+        if (
+          !activeAnchor ||
+          workPackage.lockVersion <= activeAnchor.lockVersion
+        ) {
+          return;
+        }
+
+        const replacement = formatWorkPackageAnchorReplacement(
+          activeAnchor.anchorEventId,
+          workPackage,
+          this.config.baseURL,
+          { snapshotId: randomUUID() },
+        );
+        try {
+          await this.sendEvent(replacement.body, replacement, {
+            inline: false,
+          });
+        } catch (error) {
+          if (!isMissingAnchorError(error)) {
+            throw error;
+          }
+          await this.storage.deleteOpenProjectAnchorState(
             this.connectionId,
             workPackage.id,
           );
-          if (
-            !activeAnchor ||
-            workPackage.lockVersion <= activeAnchor.lockVersion
-          ) {
-            return;
-          }
-
-          const replacement = formatWorkPackageAnchorReplacement(
-            activeAnchor.anchorEventId,
-            workPackage,
-            this.config.baseURL,
-            { snapshotId: randomUUID() },
+          log.info(
+            `Removing missing OpenProject anchor ${activeAnchor.anchorEventId} for ${this.connectionId}/${workPackage.id}`,
           );
-          try {
-            await this.sendEvent(replacement.body, replacement, {
-              inline: false,
-            });
-          } catch (error) {
-            if (!isMissingAnchorError(error)) {
-              throw error;
-            }
-            await this.storage.deleteOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-            );
-            log.info(
-              `Removing missing OpenProject anchor ${activeAnchor.anchorEventId} for ${this.connectionId}/${workPackage.id}`,
-            );
-            return;
-          }
+          return;
+        }
 
-          await this.storage.setOpenProjectAnchorState(
-            this.connectionId,
-            workPackage.id,
-            {
-              anchorEventId: activeAnchor.anchorEventId,
-              lockVersion: workPackage.lockVersion,
-              lastContent: replacement["m.new_content"],
-            },
-          );
-        },
-      );
+        await this.storage.setOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+          {
+            anchorEventId: activeAnchor.anchorEventId,
+            lockVersion: workPackage.lockVersion,
+            lastContent: replacement["m.new_content"],
+          },
+        );
+      });
     } catch (error) {
       log.warn(
         `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; activity notifications will continue`,
@@ -797,37 +802,33 @@ export class OpenProjectConnection
       );
     }
 
-    await this.timelineManager.runTransition(
-      this.connectionId,
-      workPackage.id,
-      async () => {
-        const activeAnchor = await this.storage.getOpenProjectAnchorState(
-          this.connectionId,
-          workPackage.id,
-        );
-        if (activeAnchor) {
-          return;
-        }
+    await this.runTimelineTransition(workPackage.id, async () => {
+      const activeAnchor = await this.storage.getOpenProjectAnchorState(
+        this.connectionId,
+        workPackage.id,
+      );
+      if (activeAnchor) {
+        return;
+      }
 
-        const content = formatWorkPackageAnchorContent(
-          workPackage,
-          this.config.baseURL,
-          { snapshotId: randomUUID() },
-        );
-        const anchorEventId = await this.sendEvent(content.body, content, {
-          inline: false,
-        });
-        await this.storage.setOpenProjectAnchorState(
-          this.connectionId,
-          workPackage.id,
-          {
-            anchorEventId,
-            lockVersion: workPackage.lockVersion,
-            lastContent: content,
-          },
-        );
-      },
-    );
+      const content = formatWorkPackageAnchorContent(
+        workPackage,
+        this.config.baseURL,
+        { snapshotId: randomUUID() },
+      );
+      const anchorEventId = await this.sendEvent(content.body, content, {
+        inline: false,
+      });
+      await this.storage.setOpenProjectAnchorState(
+        this.connectionId,
+        workPackage.id,
+        {
+          anchorEventId,
+          lockVersion: workPackage.lockVersion,
+          lastContent: content,
+        },
+      );
+    });
   }
 
   /** Remove a work package's active anchor without changing its OpenProject status. */
@@ -837,38 +838,34 @@ export class OpenProjectConnection
   })
   public async commandTimelineRemove(workPackageIdArgument: string) {
     const workPackageId = parseWorkPackageId(workPackageIdArgument);
-    await this.timelineManager.runTransition(
-      this.connectionId,
-      workPackageId,
-      async () => {
-        const activeAnchor = await this.storage.getOpenProjectAnchorState(
-          this.connectionId,
-          workPackageId,
+    await this.runTimelineTransition(workPackageId, async () => {
+      const activeAnchor = await this.storage.getOpenProjectAnchorState(
+        this.connectionId,
+        workPackageId,
+      );
+      if (!activeAnchor) {
+        return;
+      }
+      if (!isValidAnchorStateForRemoval(activeAnchor, workPackageId)) {
+        throw new CommandError(
+          "Invalid stored timeline anchor",
+          "The stored timeline anchor is invalid and cannot be removed safely.",
         );
-        if (!activeAnchor) {
-          return;
-        }
-        if (!isValidAnchorStateForRemoval(activeAnchor, workPackageId)) {
-          throw new CommandError(
-            "Invalid stored timeline anchor",
-            "The stored timeline anchor is invalid and cannot be removed safely.",
-          );
-        }
+      }
 
-        const replacement = formatInactiveWorkPackageAnchorReplacement(
-          activeAnchor.anchorEventId,
-          activeAnchor.lastContent,
-          randomUUID(),
-        );
-        await this.sendEvent(replacement.body, replacement, {
-          inline: false,
-        });
-        await this.storage.deleteOpenProjectAnchorState(
-          this.connectionId,
-          workPackageId,
-        );
-      },
-    );
+      const replacement = formatInactiveWorkPackageAnchorReplacement(
+        activeAnchor.anchorEventId,
+        activeAnchor.lastContent,
+        randomUUID(),
+      );
+      await this.sendEvent(replacement.body, replacement, {
+        inline: false,
+      });
+      await this.storage.deleteOpenProjectAnchorState(
+        this.connectionId,
+        workPackageId,
+      );
+    });
   }
 
   @botCommand("create", {
@@ -1218,8 +1215,17 @@ export class OpenProjectConnection
     };
   }
 
+  /** Delete this connection's active anchors after its pending transitions. */
+  public async cleanupTimelineAnchors(): Promise<void> {
+    this.timelineRemoved = true;
+    await this.timelineManager.runConnectionTransition(this.connectionId, () =>
+      this.storage.deleteOpenProjectAnchorStates(this.connectionId),
+    );
+  }
+
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    await this.cleanupTimelineAnchors();
     await this.grantChecker.ungrantConnection(this.roomId, {
       url: this.state.url,
     });

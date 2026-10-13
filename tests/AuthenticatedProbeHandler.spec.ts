@@ -12,6 +12,7 @@ import {
   AuthenticatedProbeServices,
   createAuthenticatedProbeHandler,
 } from "../src/AuthenticatedProbeHandler";
+import type { OpenProjectAnchorState } from "../src/openproject/State";
 
 const sender = "@alice:example.org";
 const botUserId = "@hookshot:example.org";
@@ -38,8 +39,18 @@ const validAnchor = {
     "org.matrix.matrix-hookshot.openproject.project": {
       id: 42,
     },
+    "org.matrix.matrix-hookshot.openproject.work_package": {
+      id: 17,
+    },
+    "org.matrix.matrix-hookshot.openproject.anchor_state": "active",
   },
 };
+
+const activeAnchorState = {
+  anchorEventId,
+  lockVersion: 1,
+  lastContent: validAnchor.content,
+} as OpenProjectAnchorState;
 
 function createServices(
   overrides: Partial<AuthenticatedProbeServices> = {},
@@ -48,7 +59,10 @@ function createServices(
     getAnchorEvent: vi.fn().mockResolvedValue(validAnchor),
     assertRoomReadAccess: vi.fn().mockResolvedValue(undefined),
     getOpenProjectForUser: vi.fn().mockResolvedValue({}),
-    getOpenProjectConnections: vi.fn().mockReturnValue([{ roomId }]),
+    getOpenProjectConnections: vi
+      .fn()
+      .mockReturnValue([{ connectionId: "connection-1", roomId, botUserId }]),
+    getOpenProjectAnchorState: vi.fn().mockResolvedValue(activeAnchorState),
     ...overrides,
   };
 }
@@ -74,6 +88,10 @@ describe("authenticated Hookshot probe", () => {
     );
     expect(services.getOpenProjectForUser).toHaveBeenCalledWith(sender);
     expect(services.getOpenProjectConnections).toHaveBeenCalledWith(42);
+    expect(services.getOpenProjectAnchorState).toHaveBeenCalledWith(
+      "connection-1",
+      17,
+    );
   });
 
   it("reports not_connected without exposing token details", async () => {
@@ -148,13 +166,33 @@ describe("authenticated Hookshot probe", () => {
     expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
   });
 
+  it("rejects an inactive Matrix anchor even when stored state is stale", async () => {
+    const services = createServices({
+      getAnchorEvent: vi.fn().mockResolvedValue({
+        ...validAnchor,
+        content: {
+          ...validAnchor.content,
+          "org.matrix.matrix-hookshot.openproject.anchor_state": "inactive",
+        },
+      }),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+    expect(services.getOpenProjectAnchorState).not.toHaveBeenCalled();
+  });
+
   it("rejects when the room connection belongs to another Hookshot bot", async () => {
     const services = createServices({
-      getOpenProjectConnections: vi
-        .fn()
-        .mockReturnValue([
-          { roomId, botUserId: "@other-hookshot:example.org" },
-        ]),
+      getOpenProjectConnections: vi.fn().mockReturnValue([
+        {
+          connectionId: "c1",
+          roomId,
+          botUserId: "@other-hookshot:example.org",
+        },
+      ]),
     });
     const handler = createAuthenticatedProbeHandler(services);
 
@@ -163,6 +201,44 @@ describe("authenticated Hookshot probe", () => {
     ).resolves.toEqual({ result: "not_authorized" });
     expect(services.assertRoomReadAccess).not.toHaveBeenCalled();
     expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
+  });
+
+  const staleAnchorCases: Array<[string, OpenProjectAnchorState | null]> = [
+    ["missing active anchor", null],
+    [
+      "inactive stored anchor",
+      {
+        ...activeAnchorState,
+        lastContent: {
+          ...validAnchor.content,
+          "org.matrix.matrix-hookshot.openproject.anchor_state": "inactive",
+        } as unknown as OpenProjectAnchorState["lastContent"],
+      },
+    ],
+    ["historical anchor", { ...activeAnchorState, anchorEventId: "$old" }],
+    ["superseded anchor", { ...activeAnchorState, anchorEventId: "$new" }],
+    [
+      "stored content for another work package",
+      {
+        ...activeAnchorState,
+        lastContent: {
+          ...validAnchor.content,
+          "org.matrix.matrix-hookshot.openproject.work_package": { id: 18 },
+        } as OpenProjectAnchorState["lastContent"],
+      },
+    ],
+  ];
+
+  it.each(staleAnchorCases)("rejects an %s", async (_description, state) => {
+    const services = createServices({
+      getOpenProjectAnchorState: vi.fn().mockResolvedValue(state),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+    expect(services.assertRoomReadAccess).not.toHaveBeenCalled();
   });
 
   it("does not handle another integration", async () => {

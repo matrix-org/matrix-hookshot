@@ -30,6 +30,7 @@ const ALL_EVENTS: OpenProjectEventsNames[] = [
 function createConnectionState(
   state: Record<string, unknown> = {},
   intentOverride?: Intent,
+  storageOverride?: InstantiateConnectionOpts["storage"],
 ): OpenProjectConnection {
   const appservice = AppserviceMock.create();
   const intent =
@@ -60,7 +61,7 @@ function createConnectionState(
       tokenStore: {} as UserTokenStore,
       commentProcessor: undefined as never,
       messageClient: undefined as never,
-      storage: {} as InstantiateConnectionOpts["storage"],
+      storage: storageOverride ?? ({} as InstantiateConnectionOpts["storage"]),
     },
   );
 }
@@ -76,6 +77,19 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  it("deletes all active anchors during connection cleanup", async () => {
+    const storage = {
+      deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
+    } as unknown as InstantiateConnectionOpts["storage"];
+    const connection = createConnectionState({}, undefined, storage);
+
+    await connection.cleanupTimelineAnchors();
+
+    expect(storage.deleteOpenProjectAnchorStates).toHaveBeenCalledWith(
+      connection.connectionId,
+    );
+  });
+
   it("uses the deployment-selected bot when provisioning", async () => {
     const appservice = AppserviceMock.create();
     const requestedIntent = appservice.getIntentForUserId(

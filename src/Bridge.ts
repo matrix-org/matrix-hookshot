@@ -2237,8 +2237,16 @@ export class Bridge {
           getOpenProjectForUser: (userId) =>
             this.tokenStore.getOpenProjectForUser(userId),
           getOpenProjectConnections: (projectId) =>
-            this.connectionManager?.getConnectionsForOpenProject(projectId) ??
-            [],
+            (
+              this.connectionManager?.getConnectionsForOpenProject(projectId) ??
+              []
+            ).map((connection) => ({
+              connectionId: connection.connectionId,
+              roomId: connection.roomId,
+              botUserId: connection.botUserId,
+            })),
+          getOpenProjectAnchorState: (connectionId, workPackageId) =>
+            this.storage.getOpenProjectAnchorState(connectionId, workPackageId),
         }),
       },
     );

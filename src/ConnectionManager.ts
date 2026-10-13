@@ -813,8 +813,28 @@ export class ConnectionManager extends EventEmitter {
    */
   public async removeConnectionsForRoom(roomId: string) {
     log.info(`Removing all connections from ${roomId}`);
+    const removedConnections = this.connections.filter(
+      (connection) => connection.roomId === roomId,
+    );
     this.connections = this.connections.filter((c) => c.roomId !== roomId);
     Metrics.connections.set(this.connections.length);
+    await Promise.all(
+      removedConnections
+        .filter(
+          (connection): connection is OpenProjectConnection =>
+            connection instanceof OpenProjectConnection,
+        )
+        .map(async (connection) => {
+          try {
+            await connection.cleanupTimelineAnchors();
+          } catch (ex) {
+            log.error(
+              `Failed to clean up OpenProject timeline anchors for removed connection ${connection.connectionId}`,
+              ex,
+            );
+          }
+        }),
+    );
   }
 
   public registerProvisioningConnection(connType: {

@@ -8,8 +8,10 @@ import type {
 } from "./ToDeviceReceiver";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
 } from "./openproject/Schema";
+import type { OpenProjectAnchorState } from "./openproject/State";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 
@@ -32,9 +34,15 @@ export interface AuthenticatedProbeServices {
     recipientBotUserId: string,
   ) => Promise<void>;
   getOpenProjectForUser: (userId: string) => Promise<unknown | null>;
-  getOpenProjectConnections: (
-    projectId: number,
-  ) => ReadonlyArray<{ roomId: string; botUserId?: string }>;
+  getOpenProjectConnections: (projectId: number) => ReadonlyArray<{
+    connectionId: string;
+    roomId: string;
+    botUserId: string;
+  }>;
+  getOpenProjectAnchorState: (
+    connectionId: string,
+    workPackageId: number,
+  ) => Promise<OpenProjectAnchorState | null>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,6 +64,49 @@ function getOpenProjectProjectId(content: unknown): number | undefined {
     : undefined;
 }
 
+function getOpenProjectWorkPackageId(content: unknown): number | undefined {
+  if (!isRecord(content)) {
+    return undefined;
+  }
+
+  const workPackage =
+    content["org.matrix.matrix-hookshot.openproject.work_package"];
+  if (!isRecord(workPackage) || typeof workPackage.id !== "number") {
+    return undefined;
+  }
+
+  return Number.isSafeInteger(workPackage.id) && workPackage.id > 0
+    ? workPackage.id
+    : undefined;
+}
+
+function isCurrentActiveAnchor(
+  state: OpenProjectAnchorState | null,
+  eventId: string,
+  projectId: number,
+  workPackageId: number,
+): boolean {
+  if (
+    !state ||
+    state.anchorEventId !== eventId ||
+    !isRecord(state.lastContent)
+  ) {
+    return false;
+  }
+  const project =
+    state.lastContent["org.matrix.matrix-hookshot.openproject.project"];
+  const workPackage =
+    state.lastContent["org.matrix.matrix-hookshot.openproject.work_package"];
+  return (
+    state.lastContent["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
+    isRecord(project) &&
+    project.id === projectId &&
+    isRecord(workPackage) &&
+    workPackage.id === workPackageId
+  );
+}
+
 function isValidAnchor(
   event: AnchorEvent,
   request: HookshotCapabilitiesProbeRequest,
@@ -64,6 +115,9 @@ function isValidAnchor(
   return (
     (event.room_id === undefined || event.room_id === request.room_id) &&
     event.sender === context.recipientBotUserId &&
+    isRecord(event.content) &&
+    event.content["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
     isVersionedHookshotAnchorEventContent(
       event.content,
       request.integration_id,
@@ -107,20 +161,45 @@ export function createAuthenticatedProbeHandler(
     }
 
     const projectId = getOpenProjectProjectId(anchor.content);
-    if (projectId === undefined) {
+    const workPackageId = getOpenProjectWorkPackageId(anchor.content);
+    if (projectId === undefined || workPackageId === undefined) {
       return { result: "not_authorized" as const };
     }
 
-    if (
-      !services
-        .getOpenProjectConnections(projectId)
-        .some(
-          (connection) =>
-            connection.roomId === request.room_id &&
-            (connection.botUserId === undefined ||
-              connection.botUserId === context.recipientBotUserId),
-        )
-    ) {
+    const connections = services
+      .getOpenProjectConnections(projectId)
+      .filter(
+        (candidate) =>
+          candidate.roomId === request.room_id &&
+          candidate.botUserId === context.recipientBotUserId,
+      );
+    if (connections.length === 0) {
+      return { result: "not_authorized" as const };
+    }
+
+    let hasCurrentAnchor = false;
+    try {
+      for (const connection of connections) {
+        const activeAnchor = await services.getOpenProjectAnchorState(
+          connection.connectionId,
+          workPackageId,
+        );
+        if (
+          isCurrentActiveAnchor(
+            activeAnchor,
+            request.anchor_event_id,
+            projectId,
+            workPackageId,
+          )
+        ) {
+          hasCurrentAnchor = true;
+          break;
+        }
+      }
+    } catch {
+      return { result: "not_authorized" as const };
+    }
+    if (!hasCurrentAnchor) {
       return { result: "not_authorized" as const };
     }
 
