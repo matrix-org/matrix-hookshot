@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { StateEvent } from "matrix-bot-sdk";
+import { describe, expect, it, vi } from "vitest";
+import type { Intent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../../src/api";
 import type { BridgeConfig } from "../../src/config/Config";
 import { BridgeConfigMessaging } from "../../src/config/sections";
@@ -29,9 +29,12 @@ const ALL_EVENTS: OpenProjectEventsNames[] = [
 
 function createConnectionState(
   state: Record<string, unknown> = {},
+  intentOverride?: Intent,
 ): OpenProjectConnection {
   const appservice = AppserviceMock.create();
-  const intent = appservice.getIntentForUserId("@openproject:example.test");
+  const intent =
+    intentOverride ??
+    appservice.getIntentForUserId("@openproject:example.test");
   const config = {
     openProject: new BridgeOpenProjectConfig({
       baseUrl: BASE_URL.href,
@@ -117,6 +120,9 @@ describe("OpenProjectConnection", () => {
 
     expect(result.connection.botUserId).toBe(selectedIntent.userId);
     expect(requestedIntent.sentEvents).toHaveLength(0);
+    expect(result.connection.getProvisionerDetails().config.anchors).toEqual(
+      [],
+    );
   });
 
   it("rejects provisioning when the selected bot is not joined", async () => {
@@ -160,12 +166,16 @@ describe("OpenProjectConnection", () => {
     it("accepts a complete state config", () => {
       const connection = createConnectionState({
         events: ALL_EVENTS,
+        anchors: ["work_package:created"],
         commandPrefix: "!openproject",
         priority: 5,
       });
 
       expect(connection.projectId).toBe(1);
       expect(connection.priority).toBe(5);
+      expect(connection.getProvisionerDetails().config.anchors).toEqual([
+        "work_package:created",
+      ]);
       for (const event of ALL_EVENTS) {
         expect(connection.isInterestedInHookEvent(event)).toBe(true);
       }
@@ -183,6 +193,12 @@ describe("OpenProjectConnection", () => {
       expect(
         connection.isInterestedInHookEvent("work_package:subject_changed"),
       ).toBe(false);
+    });
+
+    it("normalizes legacy connections without anchors to an empty list", () => {
+      const connection = createConnectionState({ anchors: undefined });
+
+      expect(connection.getProvisionerDetails().config.anchors).toEqual([]);
     });
 
     it.each([
@@ -217,5 +233,37 @@ describe("OpenProjectConnection", () => {
     it("rejects an unsupported event name", () => {
       expectBadValue({ events: ["work_package:not_real"] });
     });
+
+    it.each([
+      ["an unsupported anchor event", ["work_package:updated"]],
+      ["a non-array anchor value", "work_package:created"],
+      ["a null anchor value", null],
+    ])("rejects %s", (_description, anchors) => {
+      expectBadValue({ anchors });
+    });
+  });
+
+  it("persists anchors when editing a connection", async () => {
+    const appservice = AppserviceMock.create();
+    const intent = appservice.getIntentForUserId("@openproject:example.test");
+    const connection = createConnectionState({ anchors: [] }, intent);
+    const sendStateEventSpy = vi
+      .spyOn(intent.underlyingClient, "sendStateEvent")
+      .mockResolvedValue("$state");
+
+    await connection.provisionerUpdateConfig("@alice:example.test", {
+      anchors: ["work_package:created"],
+    });
+
+    expect(sendStateEventSpy).toHaveBeenCalledWith(
+      ROOM_ID,
+      OpenProjectConnection.CanonicalEventType,
+      "state-key",
+      expect.objectContaining({ anchors: ["work_package:created"] }),
+    );
+    expect(connection.getProvisionerDetails().config.anchors).toEqual([
+      "work_package:created",
+    ]);
+    sendStateEventSpy.mockRestore();
   });
 });

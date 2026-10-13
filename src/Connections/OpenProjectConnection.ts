@@ -68,6 +68,7 @@ export interface OpenProjectConnectionState extends IConnectionState {
    */
   url: string;
   events: OpenProjectEventsNames[];
+  anchors: OpenProjectEventsNames[];
 }
 
 export type OpenProjectResponseItem =
@@ -125,7 +126,7 @@ function validateOpenProjectConnectionState(
       );
     }
   }
-  let { events } = state as Partial<OpenProjectConnectionState>;
+  let { events, anchors } = state as Partial<OpenProjectConnectionState>;
   events = events ?? ["work_package:created", "work_package:updated"];
   if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
     throw new ApiError(
@@ -133,7 +134,17 @@ function validateOpenProjectConnectionState(
       ErrCode.BadValue,
     );
   }
-  return { url, commandPrefix, events, priority };
+  anchors = anchors === undefined ? [] : anchors;
+  if (
+    !Array.isArray(anchors) ||
+    anchors.some((event) => event !== "work_package:created")
+  ) {
+    throw new ApiError(
+      "'anchors' can only contain work_package:created",
+      ErrCode.BadValue,
+    );
+  }
+  return { url, commandPrefix, events, anchors, priority };
 }
 
 const log = new Logger("OpenProjectConnection");
