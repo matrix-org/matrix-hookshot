@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { MatrixError } from "matrix-bot-sdk";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BridgeConfigMessaging } from "../../src/config/sections";
 import { BridgeOpenProjectConfig } from "../../src/config/sections/OpenProject";
@@ -37,6 +38,11 @@ class RecordingStorage {
   ) {
     this.operations.push("set-anchor");
     this.anchorState = state;
+  }
+
+  public async deleteOpenProjectAnchorState() {
+    this.operations.push("delete-anchor");
+    this.anchorState = null;
   }
 
   public async getOpenProjectWorkPackageState() {
@@ -206,6 +212,210 @@ describe("OpenProjectConnection work-package updates", () => {
     });
   });
 
+  it("replaces only a newer update on the original active anchor", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    const updatedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Updated title",
+    };
+
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    await connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage));
+
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(intent.sentEvents[1].content["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: "event_0",
+    });
+    expect(intent.sentEvents[1].content["m.new_content"]).toMatchObject({
+      body: formatWorkPackageFallback(updatedWorkPackage, BASE_URL),
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: updatedWorkPackage.id,
+        subject: updatedWorkPackage.subject,
+      },
+      "org.matrix.matrix-hookshot.openproject.anchor_state": "active",
+    });
+    expect(storage.anchorState).toMatchObject({
+      anchorEventId: "event_0",
+      lockVersion: updatedWorkPackage.lockVersion,
+      lastContent: intent.sentEvents[1].content["m.new_content"],
+    });
+  });
+
+  it("keeps the newest anchor revision when updates arrive out of order", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    const newestUpdate = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 2,
+      subject: "Newest title",
+    };
+    const lateOlderUpdate = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Older title delivered late",
+    };
+
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    await Promise.all([
+      connection.onWorkPackageUpdated(updatePayload(newestUpdate)),
+      connection.onWorkPackageUpdated(updatePayload(lateOlderUpdate)),
+    ]);
+
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(storage.anchorState).toMatchObject({
+      anchorEventId: "event_0",
+      lockVersion: newestUpdate.lockVersion,
+      lastContent: {
+        "org.matrix.matrix-hookshot.openproject.work_package": {
+          subject: newestUpdate.subject,
+        },
+      },
+    });
+  });
+
+  it("replaces a persisted anchor after the connection is reconstructed", async () => {
+    const storage = new RecordingStorage();
+    const original = createConnection(storage, [], undefined as never, [
+      "work_package:created",
+    ]);
+    await original.connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    const restarted = createConnection(storage, []);
+    const updatedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Updated after reconstruction",
+    };
+    await restarted.connection.onWorkPackageUpdated(
+      updatePayload(updatedWorkPackage),
+    );
+
+    expect(restarted.intent.sentEvents).toHaveLength(1);
+    expect(restarted.intent.sentEvents[0].content["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: "event_0",
+    });
+    expect(storage.anchorState?.lockVersion).toBe(
+      updatedWorkPackage.lockVersion,
+    );
+  });
+
+  it.each([
+    ["duplicate", WORK_PACKAGE.lockVersion],
+    ["older", WORK_PACKAGE.lockVersion - 1],
+  ])(
+    "does not replace an anchor for a %s update",
+    async (_label, lockVersion) => {
+      const storage = new RecordingStorage();
+      const { connection, intent } = createConnection(
+        storage,
+        [],
+        undefined as never,
+        ["work_package:created"],
+      );
+      const staleWorkPackage = {
+        ...WORK_PACKAGE,
+        lockVersion,
+        subject: "Stale title",
+      };
+
+      await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+      await connection.onWorkPackageUpdated(updatePayload(staleWorkPackage));
+
+      expect(intent.sentEvents).toHaveLength(1);
+      expect(storage.anchorState?.lockVersion).toBe(WORK_PACKAGE.lockVersion);
+    },
+  );
+
+  it("does not create an anchor for an update without an active record", async () => {
+    const storage = new RecordingStorage();
+    storage.cachedState = workPackageToCacheState(WORK_PACKAGE);
+    const { connection, intent } = createConnection(storage, [
+      "work_package:subject_changed",
+    ]);
+    const updatedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Activity without an anchor",
+    };
+
+    await connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage));
+
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(intent.sentEvents[0].content).not.toHaveProperty("m.relates_to");
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it("retains anchor state after a transient send failure and still sends activity", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      ["work_package:subject_changed"],
+      undefined as never,
+      ["work_package:created"],
+    );
+    const updatedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Updated with a transient failure",
+    };
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    const storedAnchor = storage.anchorState;
+    vi.spyOn(intent.underlyingClient, "sendMessage").mockRejectedValueOnce(
+      new Error("temporary Matrix failure"),
+    );
+
+    await connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage));
+
+    expect(storage.anchorState).toEqual(storedAnchor);
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(intent.sentEvents[1].content.body).toContain("updated the subject");
+    expect(intent.sentEvents[1].content).not.toHaveProperty("m.relates_to");
+  });
+
+  it("deletes an anchor after a definitive missing-anchor failure", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      ["work_package:subject_changed"],
+      undefined as never,
+      ["work_package:created"],
+    );
+    const updatedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Updated after the anchor was removed",
+    };
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    vi.spyOn(intent.underlyingClient, "sendMessage").mockRejectedValueOnce(
+      new MatrixError(
+        { errcode: "M_NOT_FOUND", error: "Anchor not found" },
+        404,
+        {},
+      ),
+    );
+
+    await connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage));
+
+    expect(storage.anchorState).toBeNull();
+    expect(storage.operations).toContain("delete-anchor");
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(intent.sentEvents[1].content.body).toContain("updated the subject");
+  });
+
   it.each([
     ["assigned", WORK_PACKAGE],
     [
@@ -265,7 +475,7 @@ describe("OpenProjectConnection work-package updates", () => {
 
     await connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage));
 
-    expect(storage.operations).toEqual(["get", "set"]);
+    expect(storage.operations).toEqual(["get-anchor", "get", "set"]);
     expect(intent.sentEvents).toHaveLength(1);
     expect(intent.sentEvents[0].content.body).toContain("updated the subject");
     expect(intent.sentEvents[0].content).not.toHaveProperty(
@@ -286,7 +496,7 @@ describe("OpenProjectConnection work-package updates", () => {
 
     await connection.onWorkPackageUpdated(updatePayload(WORK_PACKAGE));
 
-    expect(storage.operations).toEqual(["get", "set"]);
+    expect(storage.operations).toEqual(["get-anchor", "get", "set"]);
     expect(storage.cachedState).toEqual(workPackageToCacheState(WORK_PACKAGE));
     expect(intent.sentEvents).toHaveLength(0);
   });
@@ -297,7 +507,7 @@ describe("OpenProjectConnection work-package updates", () => {
 
     await connection.onWorkPackageUpdated(updatePayload(WORK_PACKAGE));
 
-    expect(storage.operations).toEqual(["get", "set"]);
+    expect(storage.operations).toEqual(["get-anchor", "get", "set"]);
     expect(intent.sentEvents).toHaveLength(1);
     expect(intent.sentEvents[0].content.body).toContain(
       "**OpenProject Admin** updated work package",
@@ -315,7 +525,7 @@ describe("OpenProjectConnection work-package updates", () => {
 
     await connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage));
 
-    expect(storage.operations).toEqual(["get", "set"]);
+    expect(storage.operations).toEqual(["get-anchor", "get", "set"]);
     expect(storage.cachedState).toEqual(
       workPackageToCacheState(updatedWorkPackage),
     );

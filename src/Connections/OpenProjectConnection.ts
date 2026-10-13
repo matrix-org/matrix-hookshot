@@ -9,6 +9,7 @@ import {
 import {
   Appservice,
   Intent,
+  MatrixError,
   MatrixEvent,
   MessageEventContent,
   StateEvent,
@@ -148,6 +149,10 @@ function validateOpenProjectConnectionState(
     );
   }
   return { url, commandPrefix, events, anchors, priority };
+}
+
+function isMissingAnchorError(error: unknown): error is MatrixError {
+  return error instanceof MatrixError && error.errcode === "M_NOT_FOUND";
 }
 
 const log = new Logger("OpenProjectConnection");
@@ -487,13 +492,72 @@ export class OpenProjectConnection
   public async onWorkPackageUpdated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
+    const workPackage = data.work_package;
     log.info(
-      `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
+      `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${workPackage.id}`,
     );
 
+    try {
+      await this.timelineManager.runTransition(
+        this.connectionId,
+        workPackage.id,
+        async () => {
+          const activeAnchor = await this.storage.getOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+          );
+          if (
+            !activeAnchor ||
+            workPackage.lockVersion <= activeAnchor.lockVersion
+          ) {
+            return;
+          }
+
+          const replacement = formatWorkPackageAnchorReplacement(
+            activeAnchor.anchorEventId,
+            workPackage,
+            this.config.baseURL,
+            { snapshotId: randomUUID() },
+          );
+          try {
+            await this.sendEvent(replacement.body, replacement, {
+              inline: false,
+            });
+          } catch (error) {
+            if (!isMissingAnchorError(error)) {
+              throw error;
+            }
+            await this.storage.deleteOpenProjectAnchorState(
+              this.connectionId,
+              workPackage.id,
+            );
+            log.info(
+              `Removing missing OpenProject anchor ${activeAnchor.anchorEventId} for ${this.connectionId}/${workPackage.id}`,
+            );
+            return;
+          }
+
+          await this.storage.setOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+            {
+              anchorEventId: activeAnchor.anchorEventId,
+              lockVersion: workPackage.lockVersion,
+              lastContent: replacement["m.new_content"],
+            },
+          );
+        },
+      );
+    } catch (error) {
+      log.warn(
+        `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; activity notifications will continue`,
+        error,
+      );
+    }
+
     const previousState = await this.storage.getOpenProjectWorkPackageState(
-      data.work_package._embedded.project.id,
-      data.work_package.id,
+      workPackage._embedded.project.id,
+      workPackage.id,
     );
 
     // Detect what changed.
@@ -502,7 +566,7 @@ export class OpenProjectConnection
     let hookEvent: OpenProjectEventsNames = "work_package:updated";
     let diffSet: ReturnType<typeof formatWorkPackageDiff> | undefined;
     if (previousState) {
-      diffSet = formatWorkPackageDiff(previousState, data.work_package);
+      diffSet = formatWorkPackageDiff(previousState, workPackage);
       if (diffSet) {
         hookEvent = diffSet.eventKind;
         postfix = diffSet.postfix;
@@ -515,8 +579,8 @@ export class OpenProjectConnection
     }
 
     await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
+      workPackageToCacheState(workPackage),
+      workPackage.id,
     );
 
     if (previousState && !diffSet) {
@@ -526,15 +590,15 @@ export class OpenProjectConnection
     if (!this.isInterestedInHookEvent(hookEvent ?? "work_package:updated")) {
       return;
     }
-    const creator = data.work_package._embedded.author;
+    const creator = workPackage._embedded.author;
     if (!creator) {
       throw Error("No creator field");
     }
     const extraData = formatWorkPackageForMatrix(
-      data.work_package,
+      workPackage,
       this.config.baseURL,
     );
-    const content = `**${creator.name}** ${changeStatement} for [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
+    const content = `**${creator.name}** ${changeStatement} for [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
 
     await this.sendEvent(content + (postfix ?? ""), extraData, {
       inline: false,
