@@ -1,4 +1,5 @@
-import { OpenProjectWorkPackage } from "./Types";
+import type { OpenProjectWorkPackage } from "./Types";
+import type { OpenProjectActiveAnchorMessageContent } from "./Format";
 
 export function workPackageToCacheState(
   pkg: OpenProjectWorkPackage,
@@ -32,4 +33,14 @@ export interface OpenProjectWorkPackageCacheState {
   date: string | null;
   dueDate: string | null;
   percentageDone: number | null;
+}
+
+/**
+ * The last successfully sent active timeline anchor for one connection and
+ * work package.
+ */
+export interface OpenProjectAnchorState {
+  anchorEventId: string;
+  lockVersion: number;
+  lastContent: OpenProjectActiveAnchorMessageContent;
 }
