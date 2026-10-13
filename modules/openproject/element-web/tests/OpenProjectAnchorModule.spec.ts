@@ -1,6 +1,11 @@
+// @vitest-environment happy-dom
+
+import * as React from "react";
+import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
+import type { OpenProjectAnchor } from "../src/OpenProjectCapabilityClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
@@ -8,10 +13,36 @@ import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
 } from "../src/OpenProjectSchema";
 import { AnchorMessageViewModel } from "../src/viewmodels/workPackage/AnchorMessageViewModel";
-import { activeAnchorContent } from "./fixtures/OpenProjectContractFixtures";
+import type { OpenProjectAnchorContent } from "../src/models/OpenProjectMatrixEventContent";
+import {
+  activeAnchorContent,
+  activeReplacement,
+  anchorEventId,
+  inactiveReplacement,
+} from "./fixtures/OpenProjectContractFixtures";
 import { OPENPROJECT_WORK_PACKAGE_CREATED_EVENT } from "./fixtures/OpenProjectEventFixtures";
 
 const botUserId = "@hookshot_openproject:example.org";
+
+const anchor: OpenProjectAnchor = {
+  eventId: anchorEventId,
+  roomId: "!openproject:example.org",
+  workPackageId: 50,
+  recipientUserId: botUserId,
+};
+
+function renderAnchor(
+  data: OpenProjectAnchorContent,
+  capabilityClient: NonNullable<
+    React.ComponentProps<typeof OpenProjectAnchorRenderer>["capabilityClient"]
+  >,
+) {
+  return React.createElement(OpenProjectAnchorRenderer, {
+    anchor,
+    capabilityClient,
+    data,
+  });
+}
 
 function createMarkedAnchorEvent(
   sender = botUserId,
@@ -99,43 +130,33 @@ describe("OpenProject marked anchor path", () => {
       "org.matrix.matrix-hookshot.openproject.snapshot_id",
     );
 
+    expect(shouldRender({ ...event, content: contentWithoutSnapshotId })).toBe(
+      false,
+    );
     expect(
       shouldRender({
-        mxEvent: { ...event, content: contentWithoutSnapshotId },
-      }),
-    ).toBe(false);
-    expect(
-      shouldRender({
-        mxEvent: {
-          ...event,
-          content: {
-            ...event.content,
-            "org.matrix.matrix-hookshot.openproject.work_package": undefined,
-          },
+        ...event,
+        content: {
+          ...event.content,
+          "org.matrix.matrix-hookshot.openproject.work_package": undefined,
         },
       }),
     ).toBe(false);
     expect(
       shouldRender({
-        mxEvent: {
-          ...event,
-          content: {
-            ...event.content,
-            "org.matrix.matrix-hookshot.openproject.snapshot_id": "   ",
-          },
+        ...event,
+        content: {
+          ...event.content,
+          "org.matrix.matrix-hookshot.openproject.snapshot_id": "   ",
         },
       }),
     ).toBe(false);
     expect(
       shouldRender({
-        mxEvent: {
-          ...event,
-          content: {
-            ...event.content,
-            "org.matrix.matrix-hookshot.openproject.snapshot_id": "x".repeat(
-              256,
-            ),
-          },
+        ...event,
+        content: {
+          ...event.content,
+          "org.matrix.matrix-hookshot.openproject.snapshot_id": "x".repeat(256),
         },
       }),
     ).toBe(false);
@@ -238,5 +259,49 @@ describe("OpenProject marked anchor path", () => {
     await Promise.resolve();
 
     expect(viewModel.getSnapshot()?.probe).toEqual({ kind: "loading" });
+  });
+
+  it("refreshes a mounted card for active and inactive replacement content", () => {
+    const originalSnapshotId =
+      activeAnchorContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
+    const activeContent = activeReplacement[
+      "m.new_content"
+    ] as OpenProjectAnchorContent;
+    const activeSnapshotId =
+      activeContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
+    const inactiveContent = inactiveReplacement[
+      "m.new_content"
+    ] as OpenProjectAnchorContent;
+    const inactiveSnapshotId =
+      inactiveContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
+    const probe = vi.fn(() => new Promise(() => {}));
+    const capabilityClient = { probe } as never;
+    const { rerender } = render(
+      renderAnchor(activeAnchorContent, capabilityClient),
+    );
+
+    expect(originalSnapshotId).toBe("00000000-0000-4000-8000-000000000001");
+    expect(screen.getByText("Build the bridge")).toBeTruthy();
+    expect(screen.getByText("New")).toBeTruthy();
+    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
+    expect(probe).toHaveBeenCalledOnce();
+
+    expect(activeSnapshotId).not.toBe(originalSnapshotId);
+    rerender(renderAnchor(activeContent, capabilityClient));
+    expect(screen.getByText("Build the updated bridge")).toBeTruthy();
+    expect(screen.getByText("Closed")).toBeTruthy();
+    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
+    expect(probe).toHaveBeenCalledTimes(2);
+
+    expect(inactiveSnapshotId).not.toBe(activeSnapshotId);
+    rerender(renderAnchor(inactiveContent, capabilityClient));
+    expect(screen.getByText(/removed from timeline/)).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Demo project · #50" }),
+    ).toBeTruthy();
+    expect(screen.queryByText("Build the updated bridge")).toBeNull();
+    expect(screen.queryByText("Checking OpenProject actions…")).toBeNull();
+    expect(screen.queryByRole("link", { name: "View package" })).toBeNull();
+    expect(probe).toHaveBeenCalledTimes(2);
   });
 });

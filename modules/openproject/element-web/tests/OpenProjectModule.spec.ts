@@ -17,8 +17,6 @@ import {
   SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT,
 } from "./fixtures/OpenProjectEventFixtures";
 
-const WORK_PACKAGE_KEY = "org.matrix.matrix-hookshot.openproject.work_package";
-
 function createInactiveAnchorEvent() {
   return {
     ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
@@ -28,7 +26,17 @@ function createInactiveAnchorEvent() {
   };
 }
 
-function createUpdateEvent() {
+function createUpdateEvent({
+  workPackageId = 41,
+  actorId = 7,
+  actorName = "OpenProject User",
+  includeActor = true,
+}: {
+  workPackageId?: number;
+  actorId?: number;
+  actorName?: string;
+  includeActor?: boolean;
+} = {}) {
   return {
     ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
     content: {
@@ -39,10 +47,18 @@ function createUpdateEvent() {
       "org.matrix.matrix-hookshot.openproject.event_kind":
         OPENPROJECT_UPDATE_EVENT_KIND,
       "org.matrix.matrix-hookshot.openproject.work_package": {
-        id: 41,
+        id: workPackageId,
         subject: "This is an updated task",
         url: "https://elementio-demo.openproject.com/projects/demo-project/work_packages/41",
       },
+      ...(includeActor
+        ? {
+            "org.matrix.matrix-hookshot.openproject.actor": {
+              id: actorId,
+              name: actorName,
+            },
+          }
+        : {}),
       "org.matrix.matrix-hookshot.openproject.changes": ["updated the subject"],
     },
   };
@@ -65,69 +81,126 @@ describe("OpenProject Element Web module", () => {
     expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.0.0");
   });
 
-  it("registers a non-editable message renderer", async () => {
+  it("registers separate anchor and update renderers with their hints", async () => {
     const { registerMessageRenderer, load } = createModuleRegistration();
 
     await load();
 
-    expect(registerMessageRenderer).toHaveBeenCalledOnce();
-    expect(registerMessageRenderer).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.any(Function),
-      { allowEditingEvent: false },
-    );
+    expect(registerMessageRenderer).toHaveBeenCalledTimes(2);
+    expect(registerMessageRenderer.mock.calls[0][2]).toEqual({
+      allowEditingEvent: false,
+      renderSenderProfile: false,
+    });
+    expect(registerMessageRenderer.mock.calls[1][2]).toMatchObject({
+      allowEditingEvent: false,
+      renderAsInfoMessage: true,
+      renderGroupSummary: {
+        getKey: expect.any(Function),
+        getSummary: expect.any(Function),
+      },
+    });
   });
 
-  it("only selects schema-marked OpenProject room messages", async () => {
+  it("selects only validated, versioned anchors and updates", async () => {
     const { registerMessageRenderer, load } = createModuleRegistration();
     await load();
-    const [shouldRender] = registerMessageRenderer.mock.calls[0];
+    const [shouldRenderAnchor] = registerMessageRenderer.mock.calls[0];
+    const [shouldRenderUpdate] = registerMessageRenderer.mock.calls[1];
+    const anchor = createInactiveAnchorEvent();
+    const malformedAnchor = {
+      ...anchor,
+      content: {
+        ...anchor.content,
+        "org.matrix.matrix-hookshot.openproject.snapshot_id": undefined,
+      },
+    };
+    const update = createUpdateEvent();
 
-    expect(shouldRender(createInactiveAnchorEvent())).toBe(true);
-    expect(shouldRender(createUpdateEvent())).toBe(true);
-    expect(shouldRender({ type: "m.room.message", content: {} })).toBe(false);
+    expect(shouldRenderAnchor(anchor)).toBe(true);
+    expect(shouldRenderUpdate(update)).toBe(true);
+    expect(shouldRenderAnchor(update)).toBe(false);
+    expect(shouldRenderUpdate(anchor)).toBe(false);
+    expect(shouldRenderAnchor(OPENPROJECT_WORK_PACKAGE_CREATED_EVENT)).toBe(
+      false,
+    );
+    expect(shouldRenderUpdate(OPENPROJECT_WORK_PACKAGE_CREATED_EVENT)).toBe(
+      false,
+    );
+    expect(shouldRenderAnchor(malformedAnchor)).toBe(false);
+    expect(shouldRenderUpdate(malformedAnchor)).toBe(false);
+    expect(shouldRenderUpdate({ type: "m.room.message", content: {} })).toBe(
+      false,
+    );
     expect(
-      shouldRender({
+      shouldRenderAnchor({
         type: "m.room.member",
-        content: { [WORK_PACKAGE_KEY]: {} },
+        content: anchor.content,
       }),
+    ).toBe(false);
+    expect(shouldRenderAnchor(OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT)).toBe(
+      false,
+    );
+    expect(shouldRenderUpdate(OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT)).toBe(
+      false,
+    );
+    expect(
+      shouldRenderUpdate(SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT),
     ).toBe(false);
   });
 
-  it("does not claim legacy work-package events", async () => {
+  it("renders only the event kind selected by each renderer", async () => {
     const { registerMessageRenderer, load } = createModuleRegistration();
     await load();
-    const [shouldRender] = registerMessageRenderer.mock.calls[0];
+    const [, renderAnchor] = registerMessageRenderer.mock.calls[0];
+    const [, renderUpdate] = registerMessageRenderer.mock.calls[1];
+    const fallback = vi.fn(() => "fallback");
 
-    expect(shouldRender(OPENPROJECT_WORK_PACKAGE_CREATED_EVENT)).toBe(false);
-    expect(shouldRender(OPENPROJECT_WORK_PACKAGE_UPDATED_EVENT)).toBe(false);
-    expect(shouldRender(SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT)).toBe(
-      false,
+    const anchorRendered = renderAnchor(
+      { mxEvent: createInactiveAnchorEvent() },
+      fallback,
     );
+    expect(anchorRendered.type).toBe(OpenProjectAnchorRenderer);
+    const anchorMarkup = renderToStaticMarkup(anchorRendered);
+    expect(anchorMarkup).toContain("(removed from timeline)");
+    expect(anchorMarkup).not.toContain("Build the updated bridge");
+    expect(anchorMarkup).not.toContain("View package");
+
+    const updateRendered = renderUpdate(
+      { mxEvent: createUpdateEvent() },
+      fallback,
+    );
+    expect(updateRendered.type).toBe(OpenProjectUpdateRenderer);
+    expect(updateRendered.props).not.toHaveProperty("capabilityClient");
+
+    expect(renderAnchor({ mxEvent: createUpdateEvent() }, fallback)).toBe(
+      "fallback",
+    );
+    expect(
+      renderUpdate({ mxEvent: createInactiveAnchorEvent() }, fallback),
+    ).toBe("fallback");
+    expect(fallback).toHaveBeenCalledTimes(2);
   });
 
-  it("renders inactive anchors as header-only cards", async () => {
+  it("groups updates by work package and actor and summarizes each group", async () => {
     const { registerMessageRenderer, load } = createModuleRegistration();
     await load();
-    const [, render] = registerMessageRenderer.mock.calls[0];
+    const hints = registerMessageRenderer.mock.calls[1][2];
+    const { getKey, getSummary } = hints.renderGroupSummary;
+    const firstUpdate = createUpdateEvent();
+    const sameGroupUpdate = createUpdateEvent();
+    const otherActorUpdate = createUpdateEvent({ actorId: 8 });
+    const otherWorkPackageUpdate = createUpdateEvent({ workPackageId: 42 });
+    const missingActorUpdate = createUpdateEvent({ includeActor: false });
 
-    const rendered = render({ mxEvent: createInactiveAnchorEvent() });
-
-    expect(rendered.type).toBe(OpenProjectAnchorRenderer);
-    const markup = renderToStaticMarkup(rendered);
-    expect(markup).toContain("(removed from timeline)");
-    expect(markup).not.toContain("Build the updated bridge");
-    expect(markup).not.toContain("View package");
-  });
-
-  it("renders update events without a capability renderer", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
-    await load();
-    const [, render] = registerMessageRenderer.mock.calls[0];
-
-    const rendered = render({ mxEvent: createUpdateEvent() });
-
-    expect(rendered.type).toBe(OpenProjectUpdateRenderer);
-    expect(rendered.props).not.toHaveProperty("capabilityClient");
+    expect(getKey(firstUpdate)).toBe(getKey(sameGroupUpdate));
+    expect(getKey(firstUpdate)).not.toBe(getKey(otherActorUpdate));
+    expect(getKey(firstUpdate)).not.toBe(getKey(otherWorkPackageUpdate));
+    expect(getKey(missingActorUpdate)).toContain("-41-");
+    expect(getSummary([firstUpdate, sameGroupUpdate])).toBe(
+      "OpenProject User made 2 changes to #41",
+    );
+    expect(getSummary([missingActorUpdate])).toBe(
+      "Someone made 1 change to #41",
+    );
   });
 });

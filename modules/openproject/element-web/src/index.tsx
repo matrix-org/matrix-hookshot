@@ -100,8 +100,7 @@ class HookshotOpenProjectModule implements Module {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      // Use this renderer as fallback for all OpenProject content.
-      return isOpenProjectContent(mxEvent.content) && !isOpenProjectAnchorContent(mxEvent.content);
+      return isOpenProjectUpdateContent(mxEvent.content);
     }
 
     const updateHints = {
