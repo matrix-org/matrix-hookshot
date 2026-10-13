@@ -26,12 +26,14 @@ import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { BridgeConfigMessaging } from "../config/sections";
 import {
   formatWorkPackageAnchorContent,
+  formatInactiveWorkPackageAnchorReplacement,
   formatWorkPackageFallback,
   formatWorkPackageAnchorForMatrix,
   formatWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   OpenProjectWorkPackageMatrixEvent,
+  type OpenProjectActiveAnchorMessageContent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
@@ -41,6 +43,12 @@ import { GetConnectionsResponseItem } from "../widgets/Api";
 import { CommandError, NotLoggedInError } from "../Errors";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../openproject/Schema";
+import type { OpenProjectAnchorState } from "../openproject/State";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -153,6 +161,117 @@ function validateOpenProjectConnectionState(
 
 function isMissingAnchorError(error: unknown): error is MatrixError {
   return error instanceof MatrixError && error.errcode === "M_NOT_FOUND";
+}
+
+function parseWorkPackageId(argument: string): number {
+  if (!/^\d+$/.test(argument)) {
+    throw new CommandError(
+      "Invalid work package ID",
+      "Work package ID must be a positive safe integer.",
+    );
+  }
+  const workPackageId = Number(argument);
+  if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
+    throw new CommandError(
+      "Invalid work package ID",
+      "Work package ID must be a positive safe integer.",
+    );
+  }
+  return workPackageId;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isActiveAnchorContent(
+  value: unknown,
+): value is OpenProjectActiveAnchorMessageContent {
+  if (!isRecord(value)) {
+    return false;
+  }
+  const workPackage = isRecord(
+    value["org.matrix.matrix-hookshot.openproject.work_package"],
+  )
+    ? value["org.matrix.matrix-hookshot.openproject.work_package"]
+    : undefined;
+  const project = isRecord(
+    value["org.matrix.matrix-hookshot.openproject.project"],
+  )
+    ? value["org.matrix.matrix-hookshot.openproject.project"]
+    : undefined;
+  const description = isRecord(workPackage?.description)
+    ? workPackage.description
+    : undefined;
+  const author = isRecord(workPackage?.author) ? workPackage.author : undefined;
+  const assignee = workPackage?.assignee;
+  const status = isRecord(workPackage?.status) ? workPackage.status : undefined;
+  const type = isRecord(workPackage?.type) ? workPackage.type : undefined;
+  const deadline = workPackage?.deadline;
+
+  return (
+    value.msgtype === "m.notice" &&
+    typeof value.body === "string" &&
+    value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
+      OPENPROJECT_EVENT_SCHEMA_VERSION &&
+    value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+      OPENPROJECT_ANCHOR_EVENT_KIND &&
+    value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
+    typeof value["org.matrix.matrix-hookshot.openproject.snapshot_id"] ===
+      "string" &&
+    typeof value.external_url === "string" &&
+    !!workPackage &&
+    Number.isSafeInteger(workPackage.id) &&
+    typeof workPackage.subject === "string" &&
+    typeof workPackage.url === "string" &&
+    !!description &&
+    typeof description.plain === "string" &&
+    (description.html === undefined || typeof description.html === "string") &&
+    !!author &&
+    typeof author.name === "string" &&
+    typeof author.url === "string" &&
+    (assignee === undefined ||
+      (isRecord(assignee) &&
+        typeof assignee.name === "string" &&
+        typeof assignee.url === "string")) &&
+    (workPackage.dueDate === null || typeof workPackage.dueDate === "string") &&
+    (workPackage.date === null || typeof workPackage.date === "string") &&
+    (deadline === null ||
+      (isRecord(deadline) &&
+        typeof deadline.date === "string" &&
+        (deadline.label === "Due" || deadline.label === "Date"))) &&
+    !!status &&
+    typeof status.name === "string" &&
+    typeof status.color === "string" &&
+    typeof status.isClosed === "boolean" &&
+    !!type &&
+    typeof type.name === "string" &&
+    typeof type.color === "string" &&
+    !!project &&
+    Number.isSafeInteger(project.id) &&
+    typeof project.name === "string" &&
+    typeof project.url === "string"
+  );
+}
+
+function isValidAnchorStateForRemoval(
+  value: unknown,
+  workPackageId: number,
+): value is OpenProjectAnchorState {
+  if (!isRecord(value) || !isActiveAnchorContent(value.lastContent)) {
+    return false;
+  }
+  const workPackage =
+    value.lastContent["org.matrix.matrix-hookshot.openproject.work_package"];
+  return (
+    typeof value.anchorEventId === "string" &&
+    value.anchorEventId.length > 0 &&
+    typeof value.lockVersion === "number" &&
+    Number.isSafeInteger(value.lockVersion) &&
+    value.lockVersion >= 0 &&
+    workPackage.id === workPackageId
+  );
 }
 
 const log = new Logger("OpenProjectConnection");
@@ -643,19 +762,7 @@ export class OpenProjectConnection
     userId: string,
     workPackageIdArgument: string,
   ) {
-    if (!/^\d+$/.test(workPackageIdArgument)) {
-      throw new CommandError(
-        "Invalid work package ID",
-        "Work package ID must be a positive safe integer.",
-      );
-    }
-    const workPackageId = Number(workPackageIdArgument);
-    if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
-      throw new CommandError(
-        "Invalid work package ID",
-        "Work package ID must be a positive safe integer.",
-      );
-    }
+    const workPackageId = parseWorkPackageId(workPackageIdArgument);
 
     const client = await this.tokenStore.getOpenProjectForUser(userId);
     if (!client) {
@@ -697,6 +804,47 @@ export class OpenProjectConnection
             lockVersion: workPackage.lockVersion,
             lastContent: content,
           },
+        );
+      },
+    );
+  }
+
+  /** Remove a work package's active anchor without changing its OpenProject status. */
+  @botCommand("timeline remove", {
+    help: "Remove a work package from the timeline",
+    requiredArgs: ["workPackageId"],
+  })
+  public async commandTimelineRemove(workPackageIdArgument: string) {
+    const workPackageId = parseWorkPackageId(workPackageIdArgument);
+    await this.timelineManager.runTransition(
+      this.connectionId,
+      workPackageId,
+      async () => {
+        const activeAnchor = await this.storage.getOpenProjectAnchorState(
+          this.connectionId,
+          workPackageId,
+        );
+        if (!activeAnchor) {
+          return;
+        }
+        if (!isValidAnchorStateForRemoval(activeAnchor, workPackageId)) {
+          throw new CommandError(
+            "Invalid stored timeline anchor",
+            "The stored timeline anchor is invalid and cannot be removed safely.",
+          );
+        }
+
+        const replacement = formatInactiveWorkPackageAnchorReplacement(
+          activeAnchor.anchorEventId,
+          activeAnchor.lastContent,
+          randomUUID(),
+        );
+        await this.sendEvent(replacement.body, replacement, {
+          inline: false,
+        });
+        await this.storage.deleteOpenProjectAnchorState(
+          this.connectionId,
+          workPackageId,
         );
       },
     );

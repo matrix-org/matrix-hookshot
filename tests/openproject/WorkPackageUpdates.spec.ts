@@ -568,6 +568,147 @@ describe("OpenProjectConnection work-package updates", () => {
     },
   );
 
+  it("removes an active anchor with complete inactive content", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    const originalSnapshotId =
+      intent.sentEvents[0].content[
+        "org.matrix.matrix-hookshot.openproject.snapshot_id"
+      ];
+
+    await connection.commandTimelineRemove(String(WORK_PACKAGE.id));
+
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(intent.sentEvents[1].content["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: "event_0",
+    });
+    const inactiveContent = intent.sentEvents[1].content[
+      "m.new_content"
+    ] as Record<string, unknown>;
+    expect(inactiveContent).toMatchObject({
+      "org.matrix.matrix-hookshot.openproject.anchor_state": "inactive",
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: WORK_PACKAGE.id,
+        subject: WORK_PACKAGE.subject,
+      },
+    });
+    expect(
+      inactiveContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ).not.toBe(originalSnapshotId);
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it("succeeds idempotently when no active anchor exists", async () => {
+    const storage = new RecordingStorage();
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn(),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore);
+
+    await connection.commandTimelineRemove(String(WORK_PACKAGE.id));
+
+    expect(tokenStore.getOpenProjectForUser).not.toHaveBeenCalled();
+    expect(intent.sentEvents).toHaveLength(0);
+  });
+
+  it("keeps the active record if the inactive replacement send fails", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    const storedAnchor = storage.anchorState;
+    vi.spyOn(intent.underlyingClient, "sendMessage").mockRejectedValueOnce(
+      new Error("Matrix unavailable"),
+    );
+
+    await expect(
+      connection.commandTimelineRemove(String(WORK_PACKAGE.id)),
+    ).rejects.toThrow("Matrix unavailable");
+
+    expect(storage.anchorState).toEqual(storedAnchor);
+    expect(intent.sentEvents).toHaveLength(1);
+  });
+
+  it("rejects malformed stored content without sending or deleting it", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    storage.anchorState = {
+      ...storage.anchorState!,
+      lastContent: {} as OpenProjectAnchorState["lastContent"],
+    };
+    const malformedState = storage.anchorState;
+
+    await expect(
+      connection.commandTimelineRemove(String(WORK_PACKAGE.id)),
+    ).rejects.toThrow("Invalid stored timeline anchor");
+
+    expect(storage.anchorState).toEqual(malformedState);
+    expect(intent.sentEvents).toHaveLength(1);
+  });
+
+  it("serializes concurrent timeline removals", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    await Promise.all([
+      connection.commandTimelineRemove(String(WORK_PACKAGE.id)),
+      connection.commandTimelineRemove(String(WORK_PACKAGE.id)),
+    ]);
+
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it("serializes removal before a later update without recreating the anchor", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    const updatedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Updated after removal",
+    };
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    await Promise.all([
+      connection.commandTimelineRemove(String(WORK_PACKAGE.id)),
+      connection.onWorkPackageUpdated(updatePayload(updatedWorkPackage)),
+    ]);
+
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(intent.sentEvents[1].content["m.new_content"]).toMatchObject({
+      "org.matrix.matrix-hookshot.openproject.anchor_state": "inactive",
+    });
+    expect(storage.anchorState).toBeNull();
+  });
+
   it.each([
     ["assigned", WORK_PACKAGE],
     [
