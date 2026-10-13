@@ -127,7 +127,7 @@ describe("OpenProjectConnection work-package updates", () => {
 
       await connection.onWorkPackageCreated(createPayload(workPackage));
 
-      expect(intent.sentEvents).toHaveLength(1);
+      expect(intent.sentEvents).toHaveLength(2);
       expect(intent.sentEvents[0].content.body).toContain(
         "added to the timeline",
       );
@@ -146,6 +146,12 @@ describe("OpenProjectConnection work-package updates", () => {
           body: formatWorkPackageFallback(workPackage, BASE_URL),
         },
       });
+      expect(intent.sentEvents[1].content.body).toContain(
+        "created work package",
+      );
+      expect(intent.sentEvents[1].content).not.toHaveProperty(
+        "org.matrix.matrix-hookshot.openproject.event_kind",
+      );
     },
   );
 
@@ -157,7 +163,72 @@ describe("OpenProjectConnection work-package updates", () => {
 
     await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
 
-    expect(intent.sentEvents).toHaveLength(0);
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(intent.sentEvents[0].content.body).toContain("created work package");
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it.each([
+    [false, false, 0, 0],
+    [false, true, 0, 1],
+    [true, false, 1, 0],
+    [true, true, 1, 1],
+  ])(
+    "keeps automatic creation %s independent from created activity %s",
+    async (
+      automaticCreation,
+      createdActivity,
+      expectedAnchors,
+      expectedActivity,
+    ) => {
+      const storage = new RecordingStorage();
+      const { connection, intent } = createConnection(
+        storage,
+        createdActivity ? ["work_package:created"] : [],
+        undefined as never,
+        automaticCreation ? ["work_package:created"] : [],
+      );
+
+      await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+      const sentEvents = intent.sentEvents as Array<{
+        content: { body: string; [key: string]: unknown };
+      }>;
+      const anchors = sentEvents.filter(
+        (event) =>
+          event.content["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+          OPENPROJECT_ANCHOR_EVENT_KIND,
+      );
+      const activity = sentEvents.filter(
+        (event) =>
+          event.content.body.includes("created work package") &&
+          !event.content["org.matrix.matrix-hookshot.openproject.event_kind"],
+      );
+      expect(anchors).toHaveLength(expectedAnchors);
+      expect(activity).toHaveLength(expectedActivity);
+      expect(storage.anchorState !== null).toBe(automaticCreation);
+    },
+  );
+
+  it("sends created activity when automatic anchor creation fails", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      ["work_package:created"],
+      undefined as never,
+      ["work_package:created"],
+    );
+    vi.spyOn(intent.underlyingClient, "sendMessage").mockRejectedValueOnce(
+      new Error("Matrix unavailable"),
+    );
+
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(intent.sentEvents[0].content.body).toContain("created work package");
+    expect(intent.sentEvents[0].content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.event_kind",
+    );
     expect(storage.anchorState).toBeNull();
   });
 
@@ -719,7 +790,7 @@ describe("OpenProjectConnection work-package updates", () => {
       },
     ],
   ] as const)(
-    "sends the complete %s create-command fallback as a versioned anchor",
+    "does not send a standalone %s create-command card",
     async (_label, workPackage) => {
       const storage = new RecordingStorage();
       const openProjectClient = {
@@ -740,20 +811,41 @@ describe("OpenProjectConnection work-package updates", () => {
         workPackage.subject,
       );
 
-      expect(intent.sentEvents).toHaveLength(1);
-      expect(intent.sentEvents[0].content.body).toContain(
-        "added to the timeline",
-      );
-      expect(intent.sentEvents[0].content.body).not.toContain("\n");
-      expect(intent.sentEvents[0].content).toMatchObject({
-        body: formatWorkPackageFallback(workPackage, BASE_URL),
-        "org.matrix.matrix-hookshot.openproject.schema_version":
-          OPENPROJECT_EVENT_SCHEMA_VERSION,
-        "org.matrix.matrix-hookshot.openproject.event_kind":
-          OPENPROJECT_ANCHOR_EVENT_KIND,
-      });
+      expect(intent.sentEvents).toHaveLength(0);
+      expect(storage.cachedState).toEqual(workPackageToCacheState(workPackage));
     },
   );
+
+  it("does not send a standalone card when closing a work package", async () => {
+    const storage = new RecordingStorage();
+    const openProjectClient = {
+      getStatuses: vi.fn().mockResolvedValue([
+        {
+          name: "Closed",
+          isClosed: true,
+          _links: { self: { href: "/statuses/5" } },
+        },
+      ]),
+      updateWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
+      addWorkPackageComment: vi.fn(),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore);
+
+    await connection.commandCloseWorkPackage(
+      "@alice:example.test",
+      undefined,
+      String(WORK_PACKAGE.id),
+    );
+
+    expect(openProjectClient.updateWorkPackage).toHaveBeenCalledWith(
+      WORK_PACKAGE.id,
+      { _links: { status: { href: "/statuses/5" } } },
+    );
+    expect(intent.sentEvents).toHaveLength(0);
+  });
 
   it("reads the previous state before writing the updated state", async () => {
     const storage = new RecordingStorage();

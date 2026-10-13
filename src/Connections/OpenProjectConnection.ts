@@ -27,8 +27,6 @@ import { BridgeConfigMessaging } from "../config/sections";
 import {
   formatWorkPackageAnchorContent,
   formatInactiveWorkPackageAnchorReplacement,
-  formatWorkPackageFallback,
-  formatWorkPackageAnchorForMatrix,
   formatWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
@@ -547,65 +545,88 @@ export class OpenProjectConnection
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
     const workPackage = data.work_package;
-    await this.timelineManager.runTransition(
-      this.connectionId,
-      workPackage.id,
-      async () => {
-        log.info(
-          `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
-        );
-
-        if (this.state.anchors.includes("work_package:created")) {
-          const existing = await this.storage.getOpenProjectAnchorState(
-            this.connectionId,
-            workPackage.id,
+    try {
+      await this.timelineManager.runTransition(
+        this.connectionId,
+        workPackage.id,
+        async () => {
+          log.info(
+            `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
           );
-          if (!existing) {
-            const content = formatWorkPackageAnchorContent(
-              workPackage,
-              this.config.baseURL,
-              { snapshotId: randomUUID() },
-            );
-            const anchorEventId = await this.sendEvent(content.body, content, {
-              inline: false,
-            });
-            await this.storage.setOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-              {
-                anchorEventId,
-                lockVersion: workPackage.lockVersion,
-                lastContent: content,
-              },
-            );
-          } else if (workPackage.lockVersion > existing.lockVersion) {
-            const replacement = formatWorkPackageAnchorReplacement(
-              existing.anchorEventId,
-              workPackage,
-              this.config.baseURL,
-              { snapshotId: randomUUID() },
-            );
-            await this.sendEvent(replacement.body, replacement, {
-              inline: false,
-            });
-            await this.storage.setOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-              {
-                anchorEventId: existing.anchorEventId,
-                lockVersion: workPackage.lockVersion,
-                lastContent: replacement["m.new_content"],
-              },
-            );
-          }
-        }
 
-        await this.storage.setOpenProjectWorkPackageState(
-          workPackageToCacheState(workPackage),
-          workPackage.id,
-        );
-      },
+          if (this.state.anchors.includes("work_package:created")) {
+            const existing = await this.storage.getOpenProjectAnchorState(
+              this.connectionId,
+              workPackage.id,
+            );
+            if (!existing) {
+              const content = formatWorkPackageAnchorContent(
+                workPackage,
+                this.config.baseURL,
+                { snapshotId: randomUUID() },
+              );
+              const anchorEventId = await this.sendEvent(
+                content.body,
+                content,
+                { inline: false },
+              );
+              await this.storage.setOpenProjectAnchorState(
+                this.connectionId,
+                workPackage.id,
+                {
+                  anchorEventId,
+                  lockVersion: workPackage.lockVersion,
+                  lastContent: content,
+                },
+              );
+            } else if (workPackage.lockVersion > existing.lockVersion) {
+              const replacement = formatWorkPackageAnchorReplacement(
+                existing.anchorEventId,
+                workPackage,
+                this.config.baseURL,
+                { snapshotId: randomUUID() },
+              );
+              await this.sendEvent(replacement.body, replacement, {
+                inline: false,
+              });
+              await this.storage.setOpenProjectAnchorState(
+                this.connectionId,
+                workPackage.id,
+                {
+                  anchorEventId: existing.anchorEventId,
+                  lockVersion: workPackage.lockVersion,
+                  lastContent: replacement["m.new_content"],
+                },
+              );
+            }
+          }
+        },
+      );
+    } catch (error) {
+      log.warn(
+        `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; activity notifications will continue`,
+        error,
+      );
+    }
+
+    await this.storage.setOpenProjectWorkPackageState(
+      workPackageToCacheState(workPackage),
+      workPackage.id,
     );
+
+    if (!this.isInterestedInHookEvent("work_package:created")) {
+      return;
+    }
+    const creator = workPackage._embedded.author;
+    if (!creator) {
+      throw Error("No creator field");
+    }
+    const extraData = formatWorkPackageForMatrix(
+      workPackage,
+      this.config.baseURL,
+    );
+    const content = `**${creator.name}** created work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
+    await this.sendEvent(content, extraData, { inline: false });
   }
 
   public async onWorkPackageUpdated(
@@ -911,21 +932,6 @@ export class OpenProjectConnection
       workPackageToCacheState(workPackage),
       workPackage.id,
     );
-    if (this.state.events.includes("work_package:created")) {
-      // Don't send an event if we're going to anyway.
-      return;
-    }
-
-    const extraData = formatWorkPackageAnchorForMatrix(
-      workPackage,
-      this.config.baseURL,
-      { snapshotId: randomUUID() },
-    );
-    await this.sendEvent(
-      formatWorkPackageFallback(workPackage, this.config.baseURL),
-      extraData,
-      { inline: false },
-    );
   }
 
   @botCommand("close", {
@@ -982,7 +988,7 @@ export class OpenProjectConnection
       );
     }
 
-    const workPackage = await client.updateWorkPackage(workPackageId, {
+    await client.updateWorkPackage(workPackageId, {
       _links: {
         status: {
           href: closedStatus?._links.self.href,
@@ -992,17 +998,6 @@ export class OpenProjectConnection
     if (finalComment) {
       await client.addWorkPackageComment(workPackageId, finalComment);
     }
-    if (this.state.events.includes("work_package:updated")) {
-      // Don't send an event if we're going to anyway.
-      return;
-    }
-
-    const extraData = formatWorkPackageForMatrix(
-      workPackage,
-      this.config.baseURL,
-    );
-    const content = `${workPackage._embedded.author.name} closed work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
-    await this.sendEvent(content, extraData);
   }
 
   @botCommand("priority", {
