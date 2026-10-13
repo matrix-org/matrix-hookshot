@@ -416,6 +416,158 @@ describe("OpenProjectConnection work-package updates", () => {
     expect(intent.sentEvents[1].content.body).toContain("updated the subject");
   });
 
+  it("adds a fetched work package and persists the sent anchor", async () => {
+    const storage = new RecordingStorage();
+    const openProjectClient = {
+      getWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore);
+
+    await connection.commandTimelineAdd(
+      "@alice:example.test",
+      String(WORK_PACKAGE.id),
+    );
+
+    expect(openProjectClient.getWorkPackage).toHaveBeenCalledWith(
+      WORK_PACKAGE.id,
+    );
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(intent.sentEvents[0].content).toMatchObject({
+      body: formatWorkPackageFallback(WORK_PACKAGE, BASE_URL),
+      "org.matrix.matrix-hookshot.openproject.anchor_state": "active",
+    });
+    expect(storage.anchorState).toMatchObject({
+      anchorEventId: "event_0",
+      lockVersion: WORK_PACKAGE.lockVersion,
+    });
+  });
+
+  it("returns successfully without sending when the package is already active", async () => {
+    const storage = new RecordingStorage();
+    const openProjectClient = {
+      getWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore, [
+      "work_package:created",
+    ]);
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    await connection.commandTimelineAdd(
+      "@alice:example.test",
+      String(WORK_PACKAGE.id),
+    );
+
+    expect(intent.sentEvents).toHaveLength(1);
+  });
+
+  it("rejects a work package from another project", async () => {
+    const storage = new RecordingStorage();
+    const otherProject = {
+      ...WORK_PACKAGE,
+      _embedded: {
+        ...WORK_PACKAGE._embedded,
+        project: { ...WORK_PACKAGE._embedded.project, id: 2 },
+      },
+    };
+    const openProjectClient = {
+      getWorkPackage: vi.fn().mockResolvedValue(otherProject),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore);
+
+    await expect(
+      connection.commandTimelineAdd(
+        "@alice:example.test",
+        String(WORK_PACKAGE.id),
+      ),
+    ).rejects.toThrow("another project");
+
+    expect(intent.sentEvents).toHaveLength(0);
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it("requires the sender's OpenProject OAuth connection", async () => {
+    const storage = new RecordingStorage();
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(null),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection } = createConnection(storage, [], tokenStore);
+
+    await expect(
+      connection.commandTimelineAdd(
+        "@alice:example.test",
+        String(WORK_PACKAGE.id),
+      ),
+    ).rejects.toThrow("not logged in");
+  });
+
+  it("does not send an anchor when fetching the package fails", async () => {
+    const storage = new RecordingStorage();
+    const openProjectClient = {
+      getWorkPackage: vi.fn().mockRejectedValue(new Error("OpenProject down")),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore);
+
+    await expect(
+      connection.commandTimelineAdd(
+        "@alice:example.test",
+        String(WORK_PACKAGE.id),
+      ),
+    ).rejects.toThrow("OpenProject down");
+
+    expect(intent.sentEvents).toHaveLength(0);
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it("serializes concurrent timeline adds", async () => {
+    const storage = new RecordingStorage();
+    const openProjectClient = {
+      getWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection, intent } = createConnection(storage, [], tokenStore);
+
+    await Promise.all([
+      connection.commandTimelineAdd(
+        "@alice:example.test",
+        String(WORK_PACKAGE.id),
+      ),
+      connection.commandTimelineAdd(
+        "@alice:example.test",
+        String(WORK_PACKAGE.id),
+      ),
+    ]);
+
+    expect(openProjectClient.getWorkPackage).toHaveBeenCalledTimes(2);
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(storage.anchorState?.anchorEventId).toBe("event_0");
+  });
+
+  it.each(["0", "-1", "1.5", "9007199254740992"])(
+    "rejects invalid work package ID %s",
+    async (workPackageId) => {
+      const storage = new RecordingStorage();
+      const { connection } = createConnection(storage);
+
+      await expect(
+        connection.commandTimelineAdd("@alice:example.test", workPackageId),
+      ).rejects.toThrow("Invalid work package ID");
+    },
+  );
+
   it.each([
     ["assigned", WORK_PACKAGE],
     [

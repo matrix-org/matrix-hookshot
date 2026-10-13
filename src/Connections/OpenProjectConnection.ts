@@ -633,6 +633,75 @@ export class OpenProjectConnection
       .id;
   }
 
+  /** Add the current OpenProject package as an active timeline anchor. */
+  @botCommand("timeline add", {
+    help: "Add a work package to the timeline",
+    requiredArgs: ["workPackageId"],
+    includeUserId: true,
+  })
+  public async commandTimelineAdd(
+    userId: string,
+    workPackageIdArgument: string,
+  ) {
+    if (!/^\d+$/.test(workPackageIdArgument)) {
+      throw new CommandError(
+        "Invalid work package ID",
+        "Work package ID must be a positive safe integer.",
+      );
+    }
+    const workPackageId = Number(workPackageIdArgument);
+    if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
+      throw new CommandError(
+        "Invalid work package ID",
+        "Work package ID must be a positive safe integer.",
+      );
+    }
+
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    const workPackage = await client.getWorkPackage(workPackageId);
+    if (workPackage._embedded.project.id !== this.projectId) {
+      throw new CommandError(
+        "Work package belongs to another project",
+        "This work package is not part of the project configured for this connection.",
+      );
+    }
+
+    await this.timelineManager.runTransition(
+      this.connectionId,
+      workPackage.id,
+      async () => {
+        const activeAnchor = await this.storage.getOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+        );
+        if (activeAnchor) {
+          return;
+        }
+
+        const content = formatWorkPackageAnchorContent(
+          workPackage,
+          this.config.baseURL,
+          { snapshotId: randomUUID() },
+        );
+        const anchorEventId = await this.sendEvent(content.body, content, {
+          inline: false,
+        });
+        await this.storage.setOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+          {
+            anchorEventId,
+            lockVersion: workPackage.lockVersion,
+            lastContent: content,
+          },
+        );
+      },
+    );
+  }
+
   @botCommand("create", {
     help: "Create a new work package",
     requiredArgs: ["type", "subject"],
