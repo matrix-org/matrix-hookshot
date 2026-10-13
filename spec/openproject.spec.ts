@@ -336,7 +336,12 @@ describe("OpenProject", () => {
 
   beforeAll(async () => {
     testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
+      matrixLocalparts: ["user", "denied_user"],
+      permissionsRoom: {
+        members: ["user"],
+        permissions: [{ service: "openproject", level: "commands" }],
+      },
+      e2eClientOpts: { autoAcceptInvite: true },
       config: {
         openProject: {
           webhook: {
@@ -394,6 +399,7 @@ describe("OpenProject", () => {
       {
         url,
         events: ["work_package:created", "work_package:updated"],
+        anchors: [],
       } satisfies OpenProjectConnectionState,
     );
 
@@ -449,6 +455,7 @@ describe("OpenProject", () => {
       {
         url,
         events: ["work_package:created", "work_package:subject_changed"],
+        anchors: [],
       } satisfies OpenProjectConnectionState,
     );
 
@@ -492,5 +499,165 @@ describe("OpenProject", () => {
     expect(body).toContain(
       '**OpenProject Admin** updated the subject for [50](http://mytestproject.com/projects/demo-project/work_packages/50): "updated test 133"',
     );
+  });
+
+  test("keeps one active anchor through update, remove, and re-add", async () => {
+    const user = testEnv.getUser("user");
+    const deniedUser = testEnv.getUser("denied_user");
+    const roomId = await user.createRoom({ name: "Timeline lifecycle room" });
+    const deniedJoined = deniedUser.waitForRoomJoin({
+      sender: await deniedUser.getUserId(),
+      roomId,
+    });
+    await user.inviteUser(await deniedUser.getUserId(), roomId);
+    await deniedJoined;
+    const botJoined = user.waitForRoomJoin({
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    await user.inviteUser(testEnv.botMxid, roomId);
+    await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
+    await botJoined;
+
+    const url = "http://mytestproject.com/projects/1";
+    await testEnv.app.appservice.botClient.sendStateEvent(
+      roomId,
+      OpenProjectConnection.CanonicalEventType,
+      url,
+      {
+        url,
+        events: ["work_package:created", "work_package:updated"],
+        anchors: ["work_package:created"],
+      } satisfies OpenProjectConnectionState,
+    );
+    const bridgeApi = await getBridgeApi(
+      testEnv.opts.config?.widgets?.publicUrl!,
+      user,
+    );
+    await waitFor(
+      async () => (await bridgeApi.getConnectionsForRoom(roomId)).length === 1,
+    );
+
+    const workPackageUrl =
+      "http://mytestproject.com/projects/demo-project/work_packages/50";
+    const created = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `Work package [50](${workPackageUrl}): "test 133" — added to the timeline`,
+    });
+    await sendOpenProjectWebhook(
+      OPEN_PROJECT_PAYLOAD,
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const originalAnchor = (await created).data;
+    const originalContent = originalAnchor.content as unknown as Record<
+      string,
+      unknown
+    >;
+    const initialSnapshotId =
+      originalContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
+    expect(
+      originalContent["org.matrix.matrix-hookshot.openproject.anchor_state"],
+    ).toBe("active");
+
+    const deniedCommand = deniedUser.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: "Failed to handle command: You do not have permission to use this command.",
+    });
+    await deniedUser.sendText(roomId, "!openproject timeline remove 50");
+    await deniedCommand;
+
+    const updatedPackage = {
+      ...OPEN_PROJECT_PAYLOAD.work_package,
+      lockVersion: 1,
+      subject: "updated test 133",
+      updatedAt: "2025-05-08T13:20:12.309Z",
+    };
+    const updatedAnchor = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `* Work package [50](${workPackageUrl}): "updated test 133" — added to the timeline`,
+    });
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        action: "work_package:updated",
+        work_package: updatedPackage,
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const activeReplacement = (await updatedAnchor).data
+      .content as unknown as Record<string, unknown>;
+    expect(activeReplacement["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: originalAnchor.event_id,
+    });
+    const activeContent = activeReplacement["m.new_content"] as Record<
+      string,
+      unknown
+    >;
+    expect(
+      activeContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ).not.toBe(initialSnapshotId);
+    expect(
+      (
+        activeContent[
+          "org.matrix.matrix-hookshot.openproject.work_package"
+        ] as Record<string, unknown>
+      ).subject,
+    ).toBe("updated test 133");
+
+    const removedAnchor = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `* Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
+    });
+    await user.sendText(roomId, "!openproject timeline remove 50");
+    const inactiveReplacement = (await removedAnchor).data
+      .content as unknown as Record<string, unknown>;
+    expect(inactiveReplacement["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: originalAnchor.event_id,
+    });
+    expect(
+      (inactiveReplacement["m.new_content"] as Record<string, unknown>)[
+        "org.matrix.matrix-hookshot.openproject.anchor_state"
+      ],
+    ).toBe("inactive");
+
+    const readded = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `Work package [50](${workPackageUrl}): "re-added test 133" — added to the timeline`,
+    });
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        work_package: {
+          ...updatedPackage,
+          lockVersion: 2,
+          subject: "re-added test 133",
+        },
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const newAnchor = (await readded).data;
+    expect(newAnchor.event_id).not.toBe(originalAnchor.event_id);
+    const newContent = newAnchor.content as unknown as Record<string, unknown>;
+    expect(
+      newContent["org.matrix.matrix-hookshot.openproject.anchor_state"],
+    ).toBe("active");
+    expect(
+      newContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ).not.toBe(initialSnapshotId);
   });
 });
