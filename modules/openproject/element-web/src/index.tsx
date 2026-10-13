@@ -101,12 +101,41 @@ class HookshotOpenProjectModule implements Module {
         return false;
       }
       // Use this renderer as fallback for all OpenProject content.
-      return isOpenProjectContent(mxEvent.content);
+      return isOpenProjectContent(mxEvent.content) && !isOpenProjectAnchorContent(mxEvent.content);
     }
 
     const updateHints = {
       allowEditingEvent: false,
-      renderAsInformationalMessage: true,
+      renderAsInfoMessage: true,
+      renderGroupSummary: {
+        getKey: (mxEvent: CustomMessageComponentProps["mxEvent"]) => {
+          const content = mxEvent.content;
+          if (!isOpenProjectContent(content)) {
+            return "OpenProjectUpdateContent";
+          }
+
+          const workPackageId =
+            content["org.matrix.matrix-hookshot.openproject.work_package"].id;
+          const actorId =
+            content["org.matrix.matrix-hookshot.openproject.actor"]?.id ?? "";
+          return `OpenProjectUpdateContent-${workPackageId}-${actorId}`;
+        },
+        getSummary: (
+          events: readonly CustomMessageComponentProps["mxEvent"][],
+        ) => {
+          const content = events[0]?.content;
+          if (!isOpenProjectContent(content)) {
+            return `${events.length} OpenProject change${events.length !== 1 ? "s" : ""}`;
+          }
+
+          const workPackage =
+            content["org.matrix.matrix-hookshot.openproject.work_package"];
+          const actor = content["org.matrix.matrix-hookshot.openproject.actor"];
+          const actorName =
+            typeof actor?.name === "string" ? actor.name : "Someone";
+          return `${actorName} made ${events.length} change${events.length !== 1 ? "s" : ""} to #${workPackage.id}`;
+        },
+      },
     };
 
     this.api.customComponents.registerMessageRenderer(
