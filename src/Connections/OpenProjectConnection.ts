@@ -24,14 +24,17 @@ import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { BridgeConfigMessaging } from "../config/sections";
 import {
+  formatWorkPackageAnchorContent,
   formatWorkPackageFallback,
   formatWorkPackageAnchorForMatrix,
+  formatWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   OpenProjectWorkPackageMatrixEvent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
+import { TimelineManager } from "../openproject/TimelineManager";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { CommandError, NotLoggedInError } from "../Errors";
@@ -217,6 +220,7 @@ export class OpenProjectConnection
       storage,
       getIntegrationBotForService,
       isBotUserInRoom,
+      timelineManager,
     }: ProvisionConnectionOpts,
   ) {
     if (!config.openProject) {
@@ -257,6 +261,7 @@ export class OpenProjectConnection
       tokenStore,
       storage,
       config.messaging,
+      timelineManager,
     );
     await intent.underlyingClient.sendStateEvent(
       roomId,
@@ -279,7 +284,14 @@ export class OpenProjectConnection
   static createConnectionForState(
     roomId: string,
     state: StateEvent<Record<string, unknown>>,
-    { config, as, intent, tokenStore, storage }: InstantiateConnectionOpts,
+    {
+      config,
+      as,
+      intent,
+      tokenStore,
+      storage,
+      timelineManager,
+    }: InstantiateConnectionOpts,
   ) {
     if (!config.openProject) {
       throw Error("OpenProject is not configured");
@@ -298,6 +310,7 @@ export class OpenProjectConnection
       tokenStore,
       storage,
       config.messaging,
+      timelineManager,
     );
   }
 
@@ -364,6 +377,7 @@ export class OpenProjectConnection
     private readonly tokenStore: UserTokenStore,
     private readonly storage: IBridgeStorageProvider,
     msgConfig: BridgeConfigMessaging,
+    private readonly timelineManager = new TimelineManager(),
   ) {
     super(
       roomId,
@@ -408,26 +422,65 @@ export class OpenProjectConnection
   public async onWorkPackageCreated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
-    if (!this.isInterestedInHookEvent("work_package:created")) {
-      return;
-    }
-    log.info(
-      `onWorkPackageCreated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
-    );
+    const workPackage = data.work_package;
+    await this.timelineManager.runTransition(
+      this.connectionId,
+      workPackage.id,
+      async () => {
+        log.info(
+          `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
+        );
 
-    const extraData = formatWorkPackageAnchorForMatrix(
-      data.work_package,
-      this.config.baseURL,
-      { snapshotId: randomUUID() },
-    );
-    await this.sendEvent(
-      formatWorkPackageFallback(data.work_package, this.config.baseURL),
-      extraData,
-      { inline: false },
-    );
-    await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
+        if (this.state.anchors.includes("work_package:created")) {
+          const existing = await this.storage.getOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+          );
+          if (!existing) {
+            const content = formatWorkPackageAnchorContent(
+              workPackage,
+              this.config.baseURL,
+              { snapshotId: randomUUID() },
+            );
+            const anchorEventId = await this.sendEvent(content.body, content, {
+              inline: false,
+            });
+            await this.storage.setOpenProjectAnchorState(
+              this.connectionId,
+              workPackage.id,
+              {
+                anchorEventId,
+                lockVersion: workPackage.lockVersion,
+                lastContent: content,
+              },
+            );
+          } else if (workPackage.lockVersion > existing.lockVersion) {
+            const replacement = formatWorkPackageAnchorReplacement(
+              existing.anchorEventId,
+              workPackage,
+              this.config.baseURL,
+              { snapshotId: randomUUID() },
+            );
+            await this.sendEvent(replacement.body, replacement, {
+              inline: false,
+            });
+            await this.storage.setOpenProjectAnchorState(
+              this.connectionId,
+              workPackage.id,
+              {
+                anchorEventId: existing.anchorEventId,
+                lockVersion: workPackage.lockVersion,
+                lastContent: replacement["m.new_content"],
+              },
+            );
+          }
+        }
+
+        await this.storage.setOpenProjectWorkPackageState(
+          workPackageToCacheState(workPackage),
+          workPackage.id,
+        );
+      },
     );
   }
 

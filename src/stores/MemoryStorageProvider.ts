@@ -254,10 +254,7 @@ export class MemoryStorageProvider
   ): Promise<OpenProjectAnchorState | null> {
     return (
       this.openProjectAnchorStates.get(
-        MemoryStorageProvider.openProjectAnchorKey(
-          connectionId,
-          workPackageId,
-        ),
+        MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
       ) ?? null
     );
   }
@@ -268,10 +265,7 @@ export class MemoryStorageProvider
     state: OpenProjectAnchorState,
   ): Promise<void> {
     this.openProjectAnchorStates.set(
-      MemoryStorageProvider.openProjectAnchorKey(
-        connectionId,
-        workPackageId,
-      ),
+      MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
       state,
     );
   }
@@ -281,10 +275,7 @@ export class MemoryStorageProvider
     workPackageId: number,
   ): Promise<void> {
     this.openProjectAnchorStates.delete(
-      MemoryStorageProvider.openProjectAnchorKey(
-        connectionId,
-        workPackageId,
-      ),
+      MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
     );
   }
 

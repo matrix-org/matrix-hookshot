@@ -1,13 +1,7 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../widgets/Api";
-import {
-  Appservice,
-  Intent,
-  IRichReplyMetadata,
-  RoomEvent,
-  StateEvent,
-} from "matrix-bot-sdk";
+import { Appservice, Intent, RoomEvent, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig } from "../config/Config";
 import type { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import { UserTokenStore } from "../tokens/UserTokenStore";
@@ -17,6 +11,7 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { ConnectionType } from "./type";
+import type { TimelineManager } from "../openproject/TimelineManager";
 
 export type PermissionCheckFn = (
   service: string,
@@ -155,6 +150,7 @@ export interface InstantiateConnectionOpts {
   commentProcessor: CommentProcessor;
   messageClient: MessageSenderClient;
   storage: IBridgeStorageProvider;
+  timelineManager?: TimelineManager;
   github?: GithubInstance;
   isStatic?: boolean;
 }

@@ -269,6 +269,26 @@ export function formatWorkPackageAnchorReplacement(
   anchorEventId: string,
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
+  options: OpenProjectAnchorFormatOptions & {
+    anchorState?: typeof OPENPROJECT_ANCHOR_STATE_ACTIVE;
+  },
+): OpenProjectAnchorReplacementMessageContent & {
+  "m.new_content": OpenProjectActiveAnchorMessageContent;
+};
+export function formatWorkPackageAnchorReplacement(
+  anchorEventId: string,
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+  options: OpenProjectAnchorFormatOptions & {
+    anchorState: typeof OPENPROJECT_ANCHOR_STATE_INACTIVE;
+  },
+): OpenProjectAnchorReplacementMessageContent & {
+  "m.new_content": OpenProjectInactiveAnchorMessageContent;
+};
+export function formatWorkPackageAnchorReplacement(
+  anchorEventId: string,
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
   options: OpenProjectAnchorFormatOptions,
 ): OpenProjectAnchorReplacementMessageContent {
   const newContent = formatWorkPackageAnchorContent(pkg, baseURL, options);

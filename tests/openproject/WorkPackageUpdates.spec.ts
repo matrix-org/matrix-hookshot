@@ -5,7 +5,10 @@ import { BridgeOpenProjectConfig } from "../../src/config/sections/OpenProject";
 import { OpenProjectConnection } from "../../src/Connections/OpenProjectConnection";
 import type { OpenProjectConnectionState } from "../../src/Connections/OpenProjectConnection";
 import { workPackageToCacheState } from "../../src/openproject/State";
-import type { OpenProjectWorkPackageCacheState } from "../../src/openproject/State";
+import type {
+  OpenProjectAnchorState,
+  OpenProjectWorkPackageCacheState,
+} from "../../src/openproject/State";
 import type { OpenProjectWorkPackage } from "../../src/openproject/Types";
 import type { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
 import {
@@ -19,7 +22,22 @@ const ROOM_ID = "!openproject:example.test";
 
 class RecordingStorage {
   public cachedState: OpenProjectWorkPackageCacheState | null = null;
+  public anchorState: OpenProjectAnchorState | null = null;
   public readonly operations: string[] = [];
+
+  public async getOpenProjectAnchorState() {
+    this.operations.push("get-anchor");
+    return this.anchorState;
+  }
+
+  public async setOpenProjectAnchorState(
+    _connectionId: string,
+    _workPackageId: number,
+    state: OpenProjectAnchorState,
+  ) {
+    this.operations.push("set-anchor");
+    this.anchorState = state;
+  }
 
   public async getOpenProjectWorkPackageState() {
     this.operations.push("get");
@@ -40,6 +58,7 @@ function createConnection(
   tokenStore: ConstructorParameters<
     typeof OpenProjectConnection
   >[6] = undefined as never,
+  anchors: OpenProjectConnectionState["anchors"] = [],
 ) {
   const appservice = AppserviceMock.create();
   const intent = appservice.getIntentForUserId("@openproject:example.test");
@@ -55,6 +74,7 @@ function createConnection(
     {
       url: `${BASE_URL}projects/1`,
       events,
+      anchors,
     },
     "state-key",
     tokenStore,
@@ -92,9 +112,12 @@ describe("OpenProjectConnection work-package updates", () => {
     "sends a complete %s creation fallback as a versioned anchor",
     async (_label, workPackage) => {
       const storage = new RecordingStorage();
-      const { connection, intent } = createConnection(storage, [
-        "work_package:created",
-      ]);
+      const { connection, intent } = createConnection(
+        storage,
+        ["work_package:created"],
+        undefined as never,
+        ["work_package:created"],
+      );
 
       await connection.onWorkPackageCreated(createPayload(workPackage));
 
@@ -110,8 +133,78 @@ describe("OpenProjectConnection work-package updates", () => {
         "org.matrix.matrix-hookshot.openproject.event_kind":
           OPENPROJECT_ANCHOR_EVENT_KIND,
       });
+      expect(storage.anchorState).toMatchObject({
+        anchorEventId: "event_0",
+        lockVersion: workPackage.lockVersion,
+        lastContent: {
+          body: formatWorkPackageFallback(workPackage, BASE_URL),
+        },
+      });
     },
   );
+
+  it("does not create an anchor when automatic creation is disabled", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(storage, [
+      "work_package:created",
+    ]);
+
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    expect(intent.sentEvents).toHaveLength(0);
+    expect(storage.anchorState).toBeNull();
+  });
+
+  it("serializes duplicate creates and creates only one anchor", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+
+    await Promise.all([
+      connection.onWorkPackageCreated(createPayload(WORK_PACKAGE)),
+      connection.onWorkPackageCreated(createPayload(WORK_PACKAGE)),
+    ]);
+
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(storage.anchorState?.anchorEventId).toBe("event_0");
+  });
+
+  it("revises an existing anchor for a newer created payload", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    const revisedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Revised title",
+    };
+
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    await connection.onWorkPackageCreated(createPayload(revisedWorkPackage));
+
+    expect(intent.sentEvents).toHaveLength(2);
+    expect(intent.sentEvents[1].content["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: "event_0",
+    });
+    expect(storage.anchorState).toMatchObject({
+      anchorEventId: "event_0",
+      lockVersion: revisedWorkPackage.lockVersion,
+      lastContent: {
+        "org.matrix.matrix-hookshot.openproject.work_package": {
+          subject: revisedWorkPackage.subject,
+        },
+      },
+    });
+  });
 
   it.each([
     ["assigned", WORK_PACKAGE],

@@ -115,6 +115,7 @@ import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 import { createAuthenticatedProbeHandler } from "./AuthenticatedProbeHandler";
 import { assertUserPermissionsInRoom } from "./widgets/Api";
+import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("Bridge");
 
@@ -130,6 +131,7 @@ export class Bridge {
   private houndReader?: HoundReader;
   private toDeviceReceiver?: HookshotToDeviceReceiver;
   private replyProcessor = new RichRepliesPreprocessor(true);
+  private readonly timelineManager = new TimelineManager();
 
   private ready = false;
 
@@ -217,6 +219,7 @@ export class Bridge {
       this.messageClient,
       this.storage,
       this.botUsersManager,
+      this.timelineManager,
       this.github,
     ));
 

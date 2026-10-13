@@ -39,6 +39,7 @@ import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { GitLabInstance } from "./config/sections";
+import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("ConnectionManager");
 
@@ -121,6 +122,7 @@ export class ConnectionManager extends EventEmitter {
     private readonly messageClient: MessageSenderClient,
     private readonly storage: IBridgeStorageProvider,
     private readonly botUsersManager: BotUsersManager,
+    private readonly timelineManager: TimelineManager,
     private readonly github?: GithubInstance,
   ) {
     super();
@@ -206,6 +208,7 @@ export class ConnectionManager extends EventEmitter {
           commentProcessor: this.commentProcessor,
           messageClient: this.messageClient,
           storage: this.storage,
+          timelineManager: this.timelineManager,
           github: this.github,
           getAllConnectionsOfType: this.getAllConnectionsOfType.bind(this),
           getIntegrationBotForService:
@@ -413,6 +416,7 @@ export class ConnectionManager extends EventEmitter {
           commentProcessor: this.commentProcessor,
           messageClient: this.messageClient,
           storage: this.storage,
+          timelineManager: this.timelineManager,
           github: this.github,
           isStatic,
         },
