@@ -283,6 +283,42 @@ describe("OpenProjectConnection work-package updates", () => {
     });
   });
 
+  it("revises an existing anchor after automatic creation is disabled", async () => {
+    const storage = new RecordingStorage();
+    const { connection: initialConnection } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    await initialConnection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+
+    const { connection, intent } = createConnection(storage, []);
+    const revisedWorkPackage = {
+      ...WORK_PACKAGE,
+      lockVersion: WORK_PACKAGE.lockVersion + 1,
+      subject: "Revised title",
+    };
+
+    await connection.onWorkPackageCreated(createPayload(revisedWorkPackage));
+    await connection.onWorkPackageCreated(createPayload(revisedWorkPackage));
+
+    expect(intent.sentEvents).toHaveLength(1);
+    expect(intent.sentEvents[0].content["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: "event_0",
+    });
+    expect(storage.anchorState).toMatchObject({
+      anchorEventId: "event_0",
+      lockVersion: revisedWorkPackage.lockVersion,
+      lastContent: {
+        "org.matrix.matrix-hookshot.openproject.work_package": {
+          subject: revisedWorkPackage.subject,
+        },
+      },
+    });
+  });
+
   it("replaces only a newer update on the original active anchor", async () => {
     const storage = new RecordingStorage();
     const { connection, intent } = createConnection(

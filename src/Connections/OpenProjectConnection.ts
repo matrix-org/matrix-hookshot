@@ -509,49 +509,47 @@ export class OpenProjectConnection
           `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
         );
 
-        if (this.state.anchors.includes("work_package:created")) {
-          const existing = await this.storage.getOpenProjectAnchorState(
+        const existing = await this.storage.getOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+        );
+        if (!existing && this.state.anchors.includes("work_package:created")) {
+          const content = formatWorkPackageAnchorContent(
+            workPackage,
+            this.config.baseURL,
+            { snapshotId: randomUUID() },
+          );
+          const anchorEventId = await this.sendEvent(content.body, content, {
+            inline: false,
+          });
+          await this.storage.setOpenProjectAnchorState(
             this.connectionId,
             workPackage.id,
+            {
+              anchorEventId,
+              lockVersion: workPackage.lockVersion,
+              lastContent: content,
+            },
           );
-          if (!existing) {
-            const content = formatWorkPackageAnchorContent(
-              workPackage,
-              this.config.baseURL,
-              { snapshotId: randomUUID() },
-            );
-            const anchorEventId = await this.sendEvent(content.body, content, {
-              inline: false,
-            });
-            await this.storage.setOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-              {
-                anchorEventId,
-                lockVersion: workPackage.lockVersion,
-                lastContent: content,
-              },
-            );
-          } else if (workPackage.lockVersion > existing.lockVersion) {
-            const replacement = formatWorkPackageAnchorReplacement(
-              existing.anchorEventId,
-              workPackage,
-              this.config.baseURL,
-              { snapshotId: randomUUID() },
-            );
-            await this.sendEvent(replacement.body, replacement, {
-              inline: false,
-            });
-            await this.storage.setOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-              {
-                anchorEventId: existing.anchorEventId,
-                lockVersion: workPackage.lockVersion,
-                lastContent: replacement["m.new_content"],
-              },
-            );
-          }
+        } else if (existing && workPackage.lockVersion > existing.lockVersion) {
+          const replacement = formatWorkPackageAnchorReplacement(
+            existing.anchorEventId,
+            workPackage,
+            this.config.baseURL,
+            { snapshotId: randomUUID() },
+          );
+          await this.sendEvent(replacement.body, replacement, {
+            inline: false,
+          });
+          await this.storage.setOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+            {
+              anchorEventId: existing.anchorEventId,
+              lockVersion: workPackage.lockVersion,
+              lastContent: replacement["m.new_content"],
+            },
+          );
         }
       });
     } catch (error) {
