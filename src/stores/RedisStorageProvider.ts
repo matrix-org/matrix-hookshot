@@ -1,5 +1,5 @@
 import { IssuesGetResponseData } from "../github/Types";
-import { Redis, default as redis } from "ioredis";
+import { Redis, default as redis, type ChainableCommander } from "ioredis";
 import { Logger } from "matrix-appservice-bridge";
 
 import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
@@ -411,6 +411,21 @@ export class RedisStorageProvider
     return `${OPENPROJECT_ANCHOR_KEY}${connectionId}:work_packages`;
   }
 
+  private static async execOpenProjectAnchorTransaction(
+    transaction: ChainableCommander,
+  ): Promise<void> {
+    // Redis EXEC may resolve with errors for individual commands.
+    const results = await transaction.exec();
+    if (results === null) {
+      throw new Error("OpenProject anchor transaction was aborted");
+    }
+    for (const [error] of results) {
+      if (error) {
+        throw error;
+      }
+    }
+  }
+
   public async getOpenProjectAnchorState(
     connectionId: string,
     workPackageId: number,
@@ -435,7 +450,7 @@ export class RedisStorageProvider
     const transaction = this.redis.multi();
     transaction.set(key, JSON.stringify(state));
     transaction.sadd(indexKey, String(workPackageId));
-    await transaction.exec();
+    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
   }
 
   public async deleteOpenProjectAnchorState(
@@ -450,7 +465,7 @@ export class RedisStorageProvider
       RedisStorageProvider.openProjectAnchorIndexKey(connectionId),
       String(workPackageId),
     );
-    await transaction.exec();
+    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
   }
 
   public async deleteOpenProjectAnchorStates(
@@ -469,6 +484,6 @@ export class RedisStorageProvider
       );
     }
     transaction.del(indexKey);
-    await transaction.exec();
+    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
   }
 }
