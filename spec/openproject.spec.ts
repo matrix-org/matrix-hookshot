@@ -8,6 +8,7 @@ import {
   OpenProjectConnection,
   OpenProjectConnectionState,
 } from "../src/Connections/OpenProjectConnection";
+import { OPENPROJECT_ANCHOR_EVENT_KIND } from "../src/openproject/Schema";
 
 const OPEN_PROJECT_PAYLOAD = {
   action: "work_package:created",
@@ -369,7 +370,7 @@ describe("OpenProject", () => {
     return testEnv?.tearDown();
   });
 
-  test("should be able to handle a OpenProject event", async () => {
+  test("creates an OpenProject anchor from a webhook", async () => {
     const user = testEnv.getUser("user");
     const bridgeApi = await getBridgeApi(
       testEnv.opts.config?.widgets?.publicUrl!,
@@ -390,7 +391,7 @@ describe("OpenProject", () => {
     // Pre-grant connection to allow us to bypass the oauth dance.
     await join;
 
-    // "Create" a JIRA connection.
+    // Create an OpenProject connection.
     const url = `http://mytestproject.com/projects/${openProjectId}`;
     await testEnv.app.appservice.botClient.sendStateEvent(
       testRoomId,
@@ -399,7 +400,7 @@ describe("OpenProject", () => {
       {
         url,
         events: ["work_package:created", "work_package:updated"],
-        anchors: [],
+        anchors: ["work_package:created"],
       } satisfies OpenProjectConnectionState,
     );
 
@@ -408,10 +409,13 @@ describe("OpenProject", () => {
         (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
     );
 
-    const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
+    const expectedBody =
+      'Work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133" — added to the timeline';
+    const webhookAnchor = user.waitForRoomEvent<MessageEventContent>({
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId: testRoomId,
+      body: expectedBody,
     });
 
     await sendOpenProjectWebhook(
@@ -420,10 +424,11 @@ describe("OpenProject", () => {
       webhooksPort,
     );
 
-    // And await the notice.
-    const { body } = (await webhookNotice).data.content;
-    expect(body).toBe(
-      'Work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133" — added to the timeline',
+    const content = (await webhookAnchor).data.content as MessageEventContent &
+      Record<string, unknown>;
+    expect(content.body).toBe(expectedBody);
+    expect(content["org.matrix.matrix-hookshot.openproject.event_kind"]).toBe(
+      OPENPROJECT_ANCHOR_EVENT_KIND,
     );
   });
 
