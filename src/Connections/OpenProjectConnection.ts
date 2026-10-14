@@ -1166,17 +1166,24 @@ export class OpenProjectConnection
 
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    const wasTimelineRemoved = this.timelineRemoved;
+    this.timelineRemoved = true;
+    try {
+      // Keep the active anchors and grant if Matrix cannot disable the connection.
+      await removeConnectionState(
+        this.intent.underlyingClient,
+        this.roomId,
+        this.stateKey,
+        OpenProjectConnection,
+      );
+    } catch (error) {
+      this.timelineRemoved = wasTimelineRemoved;
+      throw error;
+    }
     await this.cleanupTimelineAnchors();
     await this.grantChecker.ungrantConnection(this.roomId, {
       url: this.state.url,
     });
-    // Do a sanity check that the event exists.
-    await removeConnectionState(
-      this.intent.underlyingClient,
-      this.roomId,
-      this.stateKey,
-      OpenProjectConnection,
-    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

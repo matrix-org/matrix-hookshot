@@ -100,6 +100,53 @@ describe("OpenProjectConnection", () => {
     );
   });
 
+  it("retains a usable connection and its anchors when Matrix state removal fails", async () => {
+    const appservice = AppserviceMock.create();
+    const intent = appservice.getIntentForUserId("@openproject:example.test");
+    intent.underlyingClient.getRoomStateEventContent = vi
+      .fn()
+      .mockResolvedValue({});
+    const sendStateEvent = vi
+      .spyOn(intent.underlyingClient, "sendStateEvent")
+      .mockRejectedValueOnce(new Error("Matrix unavailable"));
+    const ungrant = vi.spyOn(intent.underlyingClient, "setRoomAccountData");
+    const storage = {
+      deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
+    } as unknown as InstantiateConnectionOpts["storage"];
+    const connection = createConnectionState({}, intent, storage);
+    const manager = new ConnectionManager(
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      storage,
+      undefined as never,
+      undefined as never,
+    );
+    manager.push(connection);
+
+    await expect(
+      manager.purgeConnection(ROOM_ID, connection.connectionId, false),
+    ).rejects.toThrow("Matrix unavailable");
+
+    expect(manager.getConnectionById(ROOM_ID, connection.connectionId)).toBe(
+      connection,
+    );
+    expect(connection.interestedInProject(1)).toBe(true);
+    expect(storage.deleteOpenProjectAnchorStates).not.toHaveBeenCalled();
+    expect(ungrant).not.toHaveBeenCalled();
+
+    await manager.purgeConnection(ROOM_ID, connection.connectionId, false);
+
+    expect(sendStateEvent).toHaveBeenCalledTimes(2);
+    expect(storage.deleteOpenProjectAnchorStates).toHaveBeenCalledOnce();
+    expect(ungrant).toHaveBeenCalledOnce();
+    expect(manager.getConnectionById(ROOM_ID, connection.connectionId)).toBe(
+      undefined,
+    );
+  });
+
   it("preserves active anchors when room connections are rebuilt", async () => {
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
@@ -130,7 +177,13 @@ describe("OpenProjectConnection", () => {
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockReturnValue(cleanup),
     } as unknown as InstantiateConnectionOpts["storage"];
-    const connection = createConnectionState({}, undefined, storage);
+    const intent = AppserviceMock.create().getIntentForUserId(
+      "@openproject:example.test",
+    );
+    intent.underlyingClient.getRoomStateEventContent = vi
+      .fn()
+      .mockResolvedValue({});
+    const connection = createConnectionState({}, intent, storage);
     const manager = new ConnectionManager(
       undefined as never,
       undefined as never,
