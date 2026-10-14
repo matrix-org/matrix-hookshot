@@ -5,7 +5,7 @@ import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
 import { OpenProjectUpdateRenderer } from "../src/OpenProjectUpdateRenderer";
 import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-  OPENPROJECT_UPDATE_EVENT_KIND,
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
 } from "../src/OpenProjectSchema";
 import {
   anchorEventId,
@@ -45,7 +45,7 @@ function createUpdateEvent({
       "org.matrix.matrix-hookshot.openproject.schema_version":
         OPENPROJECT_EVENT_SCHEMA_VERSION,
       "org.matrix.matrix-hookshot.openproject.event_kind":
-        OPENPROJECT_UPDATE_EVENT_KIND,
+        OPENPROJECT_ACTIVITY_EVENT_KIND,
       "org.matrix.matrix-hookshot.openproject.work_package": {
         id: workPackageId,
         subject: "This is an updated task",

@@ -6,7 +6,7 @@ import {
   formatInactiveWorkPackageAnchorReplacement,
   formatWorkPackageAnchorContent,
   formatWorkPackageAnchorReplacement,
-  formatWorkPackageUpdateForMatrix,
+  formatWorkPackageActivityForMatrix,
 } from "../../../../../src/openproject/Format";
 import {
   BASE_URL,
@@ -67,9 +67,9 @@ export const inactiveReplacement = formatInactiveWorkPackageAnchorReplacement(
   "00000000-0000-4000-8000-000000000003",
 );
 
-export const compactUpdateContent = formatWorkPackageUpdateForMatrix(
+export const compactUpdateContent = formatWorkPackageActivityForMatrix(
   updatedWorkPackage,
   BASE_URL,
   ["updated the subject"],
-  { id: 12, name: "Webhook actor" },
+  { actor: { id: 12, name: "Webhook actor" } },
 );

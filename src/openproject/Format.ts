@@ -6,7 +6,7 @@ import {
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-  OPENPROJECT_UPDATE_EVENT_KIND,
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
   type OpenProjectAnchorState,
 } from "./Schema";
 import type { OpenProjectWebhookActor, OpenProjectWorkPackage } from "./Types";
@@ -111,7 +111,7 @@ export interface OpenProjectAnchorFormatOptions {
   anchorState?: OpenProjectAnchorState;
 }
 
-export interface OpenProjectWorkPackageUpdateMatrixEvent {
+export interface OpenProjectWorkPackageActivityMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.work_package": {
     id: number;
     subject: string;
@@ -124,7 +124,8 @@ export interface OpenProjectWorkPackageUpdateMatrixEvent {
   };
   "org.matrix.matrix-hookshot.openproject.changes": string[];
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
-  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_UPDATE_EVENT_KIND;
+  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ACTIVITY_EVENT_KIND;
+  "org.matrix.matrix-hookshot.openproject.anchor_event_id"?: string;
 }
 
 export interface OpenProjectActiveAnchorMessageContent extends OpenProjectActiveWorkPackageAnchorMatrixEvent {
@@ -151,7 +152,7 @@ export interface OpenProjectAnchorReplacementMessageContent {
   };
 }
 
-export interface OpenProjectUpdateMessageContent extends OpenProjectWorkPackageUpdateMatrixEvent {
+export interface OpenProjectActivityMessageContent extends OpenProjectWorkPackageActivityMatrixEvent {
   msgtype: "m.notice";
   body: string;
 }
@@ -344,34 +345,46 @@ export function formatInactiveWorkPackageAnchorReplacement(
   };
 }
 
-function formatUpdateFallback(
+export interface OpenProjectActivityFormatOptions {
+  actor?: OpenProjectWebhookActor;
+  anchorEventId?: string;
+  created?: boolean;
+}
+
+function formatActivityFallback(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
   changes: string[],
-  actor?: OpenProjectWebhookActor,
+  { actor, created = false }: OpenProjectActivityFormatOptions,
 ): string {
-  const firstChange = changes[0] ?? "updated the work package";
+  const firstChange =
+    changes[0] ??
+    (created ? "created the work package" : "updated the work package");
   const remainingChanges = changes.length - 1;
   const remainingSummary =
     remainingChanges > 0
       ? ` and made ${remainingChanges} more ${remainingChanges === 1 ? "update" : "updates"}`
       : "";
   const changeSummary = `${firstChange}${remainingSummary}`;
-  const body = actor
-    ? `${actor.name} ${changeSummary} on work package #${pkg.id}: "${pkg.subject}"`
-    : `Work package #${pkg.id}: ${changeSummary} ("${pkg.subject}")`;
+  const body = created
+    ? actor
+      ? `${actor.name} created work package #${pkg.id}: "${pkg.subject}"`
+      : `Work package #${pkg.id} was created: "${pkg.subject}"`
+    : actor
+      ? `${actor.name} ${changeSummary} on work package #${pkg.id}: "${pkg.subject}"`
+      : `Work package #${pkg.id}: ${changeSummary} ("${pkg.subject}")`;
   return `${body}\n${getWorkPackageUrl(pkg, baseURL)}`;
 }
 
-export function formatWorkPackageUpdateForMatrix(
+export function formatWorkPackageActivityForMatrix(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
   changes: string[],
-  actor?: OpenProjectWebhookActor,
-): OpenProjectUpdateMessageContent {
-  const content: OpenProjectUpdateMessageContent = {
+  options: OpenProjectActivityFormatOptions = {},
+): OpenProjectActivityMessageContent {
+  const content: OpenProjectActivityMessageContent = {
     msgtype: "m.notice",
-    body: formatUpdateFallback(pkg, baseURL, changes, actor),
+    body: formatActivityFallback(pkg, baseURL, changes, options),
     "org.matrix.matrix-hookshot.openproject.work_package": {
       id: pkg.id,
       subject: pkg.subject,
@@ -381,15 +394,22 @@ export function formatWorkPackageUpdateForMatrix(
     "org.matrix.matrix-hookshot.openproject.schema_version":
       OPENPROJECT_EVENT_SCHEMA_VERSION,
     "org.matrix.matrix-hookshot.openproject.event_kind":
-      OPENPROJECT_UPDATE_EVENT_KIND,
+      OPENPROJECT_ACTIVITY_EVENT_KIND,
   };
 
-  if (actor) {
+  if (options.actor) {
     content["org.matrix.matrix-hookshot.openproject.actor"] = {
-      id: actor.id,
-      name: actor.name,
-      url: new URL(baseURL.href + `users/${actor.id}`, baseURL).toString(),
+      id: options.actor.id,
+      name: options.actor.name,
+      url: new URL(
+        baseURL.href + `users/${options.actor.id}`,
+        baseURL,
+      ).toString(),
     };
+  }
+  if (options.anchorEventId) {
+    content["org.matrix.matrix-hookshot.openproject.anchor_event_id"] =
+      options.anchorEventId;
   }
 
   return content;
@@ -399,13 +419,11 @@ export function formatWorkPackageDiff(
   old: OpenProjectWorkPackageCacheState,
   pkg: OpenProjectWorkPackage,
 ): {
+  categories: OpenProjectEventsNames[];
   changes: string[];
-  postfix?: string;
-  eventKind: OpenProjectEventsNames;
 } | null {
   const changes: string[] = [];
-  let postfix: undefined | string;
-  let eventKind: OpenProjectEventsNames = "work_package:updated";
+  const categories = new Set<OpenProjectEventsNames>();
   const current = workPackageToCacheState(pkg);
   // {user} {...changes} {issueUrl}
   if (old.assignee !== current.assignee) {
@@ -414,16 +432,23 @@ export function formatWorkPackageDiff(
     } else {
       changes.push(`removed assignee`);
     }
-    eventKind = "work_package:assignee_changed";
+    categories.add("work_package:assignee_changed");
   }
   if (old.description.raw !== current.description.raw) {
-    if (current.description) {
+    if (current.description.raw) {
       changes.push(`updated the description`);
-      postfix = current.description.raw;
     } else {
       changes.push(`removed the description`);
     }
-    eventKind = "work_package:description_changed";
+    categories.add("work_package:description_changed");
+  }
+  if (old.date !== current.date) {
+    if (current.date) {
+      changes.push(`set the date to \`${current.date}\``);
+    } else {
+      changes.push(`removed the date`);
+    }
+    categories.add("work_package:duedate_changed");
   }
   if (old.dueDate !== current.dueDate) {
     if (current.dueDate) {
@@ -431,22 +456,23 @@ export function formatWorkPackageDiff(
     } else {
       changes.push(`removed the due date`);
     }
-    eventKind = "work_package:duedate_changed";
+    categories.add("work_package:duedate_changed");
   }
   if (old.percentageDone !== current.percentageDone) {
-    if (current.percentageDone) {
+    if (current.percentageDone !== null) {
       changes.push(
         `set the work completed percentage to **${current.percentageDone}%**`,
       );
+    } else {
+      changes.push(`cleared the work completed percentage`);
     }
-    // No point sending anything about removal.
-    eventKind = "work_package:workpercent_changed";
+    categories.add("work_package:workpercent_changed");
   }
   if (old.priority?.id !== current.priority?.id) {
     changes.push(
       `changed the priority from **${old.priority?.name}** to **${current.priority?.name ?? "none"}**`,
     );
-    eventKind = "work_package:priority_changed";
+    categories.add("work_package:priority_changed");
   }
   if (old.responsible !== current.responsible) {
     if (current.responsible) {
@@ -454,20 +480,22 @@ export function formatWorkPackageDiff(
     } else {
       changes.push(`removed responsible user`);
     }
-    eventKind = "work_package:responsible_changed";
+    categories.add("work_package:responsible_changed");
   }
   if (old.status.id !== current.status.id) {
     changes.push(
       `changed the status from **${old.status?.name}** to **${current.status?.name ?? "none"}**`,
     );
+    categories.add("work_package:updated");
   }
   if (old.subject !== current.subject) {
     // Implicitly named
     changes.push(`updated the subject`);
-    eventKind = "work_package:subject_changed";
+    categories.add("work_package:subject_changed");
   }
   if (old.type !== current.type) {
-    changes.push(`changed the type to **${current.type}**`);
+    changes.push(`changed the type to **${pkg._embedded.type.name}**`);
+    categories.add("work_package:updated");
   }
 
   if (changes.length === 0) {
@@ -475,8 +503,7 @@ export function formatWorkPackageDiff(
     return null;
   }
   return {
+    categories: [...categories],
     changes,
-    postfix,
-    eventKind,
   };
 }

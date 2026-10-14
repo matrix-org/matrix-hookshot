@@ -14,7 +14,7 @@ import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
 import {
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-  OPENPROJECT_UPDATE_EVENT_KIND,
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
 } from "../src/OpenProjectSchema";
 import { activeAnchorContent } from "./fixtures/OpenProjectContractFixtures";
 
@@ -112,7 +112,7 @@ describe("OpenProjectCapabilityClient", () => {
       isOpenProjectUpdateContent({
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.event_kind":
-          OPENPROJECT_UPDATE_EVENT_KIND,
+          OPENPROJECT_ACTIVITY_EVENT_KIND,
         "org.matrix.matrix-hookshot.openproject.work_package": {
           id: 41,
           subject: "Example",
@@ -154,7 +154,7 @@ describe("OpenProjectCapabilityClient", () => {
       isOpenProjectUpdateContent({
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.event_kind":
-          OPENPROJECT_UPDATE_EVENT_KIND,
+          OPENPROJECT_ACTIVITY_EVENT_KIND,
         "org.matrix.matrix-hookshot.openproject.work_package": { id: 0 },
       }),
     ).toBe(false);

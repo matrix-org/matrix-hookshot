@@ -1,6 +1,6 @@
 import * as React from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { formatWorkPackageUpdateForMatrix } from "../../../../../../src/openproject/Format";
+import { formatWorkPackageActivityForMatrix } from "../../../../../../src/openproject/Format";
 import {
   BASE_URL,
   WORK_PACKAGE,
@@ -15,11 +15,11 @@ function UpdateFallback({
   actor?: typeof ACTOR;
   changes: string[];
 }) {
-  const { body } = formatWorkPackageUpdateForMatrix(
+  const { body } = formatWorkPackageActivityForMatrix(
     WORK_PACKAGE,
     BASE_URL,
     changes,
-    actor,
+    { actor },
   );
 
   return <pre>{body}</pre>;

@@ -649,13 +649,16 @@ export class OpenProjectConnection
     // Detect what changed.
     let changeStatement = "updated work package";
     let postfix;
-    let hookEvent: OpenProjectEventsNames = "work_package:updated";
+    let shouldSendActivity = this.isInterestedInHookEvent(
+      "work_package:updated",
+    );
     let diffSet: ReturnType<typeof formatWorkPackageDiff> | undefined;
     if (previousState) {
       diffSet = formatWorkPackageDiff(previousState, workPackage);
       if (diffSet) {
-        hookEvent = diffSet.eventKind;
-        postfix = diffSet.postfix;
+        shouldSendActivity = diffSet.categories.some((category) =>
+          this.isInterestedInHookEvent(category),
+        );
         if (diffSet.changes.length === 1) {
           changeStatement = diffSet.changes[0];
         } else {
@@ -673,7 +676,7 @@ export class OpenProjectConnection
       return;
     }
 
-    if (!this.isInterestedInHookEvent(hookEvent ?? "work_package:updated")) {
+    if (!shouldSendActivity) {
       return;
     }
     const creator = workPackage._embedded.author;

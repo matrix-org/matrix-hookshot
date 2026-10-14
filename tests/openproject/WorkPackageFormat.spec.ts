@@ -7,7 +7,7 @@ import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   formatWorkPackageFallback,
-  formatWorkPackageUpdateForMatrix,
+  formatWorkPackageActivityForMatrix,
 } from "../../src/openproject/Format";
 import { workPackageToCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackage } from "../../src/openproject/Types";
@@ -16,7 +16,7 @@ import {
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-  OPENPROJECT_UPDATE_EVENT_KIND,
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
 } from "../../src/openproject/Schema";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
@@ -405,11 +405,14 @@ describe("OpenProject versioned message content", () => {
   });
 
   it("builds a display-only update with actor attribution", () => {
-    const content = formatWorkPackageUpdateForMatrix(
+    const content = formatWorkPackageActivityForMatrix(
       WORK_PACKAGE,
       BASE_URL,
       ["updated the subject"],
-      { id: 12, name: "Webhook User" },
+      {
+        actor: { id: 12, name: "Webhook User" },
+        anchorEventId: "$original-anchor",
+      },
     );
 
     expect(content).toEqual({
@@ -429,7 +432,9 @@ describe("OpenProject versioned message content", () => {
       "org.matrix.matrix-hookshot.openproject.schema_version":
         OPENPROJECT_EVENT_SCHEMA_VERSION,
       "org.matrix.matrix-hookshot.openproject.event_kind":
-        OPENPROJECT_UPDATE_EVENT_KIND,
+        OPENPROJECT_ACTIVITY_EVENT_KIND,
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+        "$original-anchor",
     });
     expect(content).not.toHaveProperty(
       "org.matrix.matrix-hookshot.openproject.anchor_state",
@@ -439,7 +444,7 @@ describe("OpenProject versioned message content", () => {
   });
 
   it("uses neutral attribution when the webhook has no actor", () => {
-    const content = formatWorkPackageUpdateForMatrix(WORK_PACKAGE, BASE_URL, [
+    const content = formatWorkPackageActivityForMatrix(WORK_PACKAGE, BASE_URL, [
       "updated the subject",
     ]);
 
@@ -457,11 +462,11 @@ describe("OpenProject versioned message content", () => {
   });
 
   it("summarizes additional changes in the fallback", () => {
-    const content = formatWorkPackageUpdateForMatrix(
+    const content = formatWorkPackageActivityForMatrix(
       WORK_PACKAGE,
       BASE_URL,
       ["assigned **Alice**", "updated the description", "changed the status"],
-      { id: 12, name: "Webhook User" },
+      { actor: { id: 12, name: "Webhook User" } },
     );
 
     expect(content.body).toContain(
@@ -470,15 +475,37 @@ describe("OpenProject versioned message content", () => {
   });
 
   it("uses the singular form for one additional change", () => {
-    const content = formatWorkPackageUpdateForMatrix(
+    const content = formatWorkPackageActivityForMatrix(
       WORK_PACKAGE,
       BASE_URL,
       ["assigned **Alice**", "updated the description"],
-      { id: 12, name: "Webhook User" },
+      { actor: { id: 12, name: "Webhook User" } },
     );
 
     expect(content.body).toContain(
       "Webhook User assigned **Alice** and made 1 more update on work package #50",
+    );
+  });
+
+  it("formats a neutral creation fallback without the original author", () => {
+    const content = formatWorkPackageActivityForMatrix(
+      WORK_PACKAGE,
+      BASE_URL,
+      ["created the work package"],
+      { created: true },
+    );
+
+    expect(content.body).toBe(
+      'Work package #50 was created: "Build the bridge"\nhttps://openproject.example/projects/demo-project/work_packages/50',
+    );
+    expect(content["org.matrix.matrix-hookshot.openproject.changes"]).toEqual([
+      "created the work package",
+    ]);
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.actor",
+    );
+    expect(content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id",
     );
   });
 });
@@ -490,13 +517,13 @@ describe("OpenProject work-package diff formatter", () => {
       previous: workPackageWithChanges({ assignee: undefined }),
       current: WORK_PACKAGE,
       changes: ["assigned **Alice**"],
-      eventKind: "work_package:assignee_changed",
+      categories: ["work_package:assignee_changed"],
     },
     {
       name: "an assignee being removed",
       current: workPackageWithChanges({ assignee: undefined }),
       changes: ["removed assignee"],
-      eventKind: "work_package:assignee_changed",
+      categories: ["work_package:assignee_changed"],
     },
     {
       name: "the description changing",
@@ -508,27 +535,26 @@ describe("OpenProject work-package diff formatter", () => {
         },
       }),
       changes: ["updated the description"],
-      postfix: "The updated description",
-      eventKind: "work_package:description_changed",
+      categories: ["work_package:description_changed"],
     },
     {
       name: "a due date being set",
       current: workPackageWithChanges({ dueDate: "2025-06-01" }),
       changes: ["set the due date to `2025-06-01`"],
-      eventKind: "work_package:duedate_changed",
+      categories: ["work_package:duedate_changed"],
     },
     {
       name: "a due date being removed",
       previous: workPackageWithChanges({ dueDate: "2025-06-01" }),
       current: WORK_PACKAGE,
       changes: ["removed the due date"],
-      eventKind: "work_package:duedate_changed",
+      categories: ["work_package:duedate_changed"],
     },
     {
       name: "the percentage complete changing",
       current: workPackageWithChanges({ percentageDone: 50 }),
       changes: ["set the work completed percentage to **50%**"],
-      eventKind: "work_package:workpercent_changed",
+      categories: ["work_package:workpercent_changed"],
     },
     {
       name: "the priority changing",
@@ -536,20 +562,20 @@ describe("OpenProject work-package diff formatter", () => {
         priority: { ...WORK_PACKAGE._embedded.priority, id: 9, name: "High" },
       }),
       changes: ["changed the priority from **Normal** to **High**"],
-      eventKind: "work_package:priority_changed",
+      categories: ["work_package:priority_changed"],
     },
     {
       name: "a responsible user being added",
       current: workPackageWithChanges({ responsible: RESPONSIBLE }),
       changes: ["set Bob as responsible"],
-      eventKind: "work_package:responsible_changed",
+      categories: ["work_package:responsible_changed"],
     },
     {
       name: "a responsible user being removed",
       previous: workPackageWithChanges({ responsible: RESPONSIBLE }),
       current: WORK_PACKAGE,
       changes: ["removed responsible user"],
-      eventKind: "work_package:responsible_changed",
+      categories: ["work_package:responsible_changed"],
     },
     {
       name: "the status changing",
@@ -561,27 +587,97 @@ describe("OpenProject work-package diff formatter", () => {
         },
       }),
       changes: ["changed the status from **New** to **In progress**"],
-      eventKind: "work_package:updated",
+      categories: ["work_package:updated"],
     },
     {
       name: "the subject changing",
       current: workPackageWithChanges({ subject: "Build the better bridge" }),
       changes: ["updated the subject"],
-      eventKind: "work_package:subject_changed",
+      categories: ["work_package:subject_changed"],
     },
     {
       name: "the type changing",
       current: workPackageWithChanges({
         type: { ...WORK_PACKAGE._embedded.type, id: 3, name: "Task" },
       }),
-      changes: ["changed the type to **3**"],
-      eventKind: "work_package:updated",
+      changes: ["changed the type to **Task**"],
+      categories: ["work_package:updated"],
     },
-  ])("formats $name", ({ previous, current, changes, postfix, eventKind }) => {
+    {
+      name: "a milestone date being set",
+      current: workPackageWithChanges({ date: "2025-06-01" }),
+      changes: ["set the date to `2025-06-01`"],
+      categories: ["work_package:duedate_changed"],
+    },
+    {
+      name: "a milestone date being removed",
+      previous: workPackageWithChanges({ date: "2025-06-01" }),
+      current: WORK_PACKAGE,
+      changes: ["removed the date"],
+      categories: ["work_package:duedate_changed"],
+    },
+    {
+      name: "completion reaching zero",
+      previous: workPackageWithChanges({ percentageDone: 20 }),
+      current: workPackageWithChanges({ percentageDone: 0 }),
+      changes: ["set the work completed percentage to **0%**"],
+      categories: ["work_package:workpercent_changed"],
+    },
+    {
+      name: "completion being cleared",
+      previous: workPackageWithChanges({ percentageDone: 20 }),
+      current: WORK_PACKAGE,
+      changes: ["cleared the work completed percentage"],
+      categories: ["work_package:workpercent_changed"],
+    },
+    {
+      name: "a cleared description",
+      previous: workPackageWithChanges({
+        description: { ...WORK_PACKAGE.description, raw: "Previous text" },
+      }),
+      current: workPackageWithChanges({
+        description: { ...WORK_PACKAGE.description, raw: "" },
+      }),
+      changes: ["removed the description"],
+      categories: ["work_package:description_changed"],
+    },
+    {
+      name: "a mixed update containing every category",
+      previous: workPackageWithChanges({
+        assignee: undefined,
+        description: { ...WORK_PACKAGE.description, raw: "Old text" },
+        date: "2025-05-01",
+        percentageDone: 20,
+        status: { ...WORK_PACKAGE._embedded.status, id: 2, name: "Old status" },
+        type: { ...WORK_PACKAGE._embedded.type, id: 2, name: "Old type" },
+      }),
+      current: workPackageWithChanges({
+        description: { ...WORK_PACKAGE.description, raw: "" },
+        date: "2025-06-01",
+        percentageDone: 0,
+        status: { ...WORK_PACKAGE._embedded.status, id: 3, name: "New status" },
+        type: { ...WORK_PACKAGE._embedded.type, id: 4, name: "Task" },
+      }),
+      changes: [
+        "assigned **Alice**",
+        "removed the description",
+        "set the date to `2025-06-01`",
+        "set the work completed percentage to **0%**",
+        "changed the status from **Old status** to **New status**",
+        "changed the type to **Task**",
+      ],
+      categories: [
+        "work_package:assignee_changed",
+        "work_package:description_changed",
+        "work_package:duedate_changed",
+        "work_package:workpercent_changed",
+        "work_package:updated",
+      ],
+    },
+  ])("formats $name", ({ previous, current, changes, categories }) => {
     expect(diffFor(current, previous)).toEqual({
+      categories,
       changes,
-      postfix,
-      eventKind,
     });
   });
 

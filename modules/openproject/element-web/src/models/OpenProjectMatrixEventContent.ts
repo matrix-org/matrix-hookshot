@@ -3,7 +3,7 @@ import {
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-  OPENPROJECT_UPDATE_EVENT_KIND,
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
 } from "../OpenProjectSchema";
 
 /**
@@ -113,6 +113,7 @@ export type OpenProjectAnchorContent =
 
 export interface OpenProjectUpdateContent extends OpenProjectContent {
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
-  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_UPDATE_EVENT_KIND;
+  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ACTIVITY_EVENT_KIND;
   "org.matrix.matrix-hookshot.openproject.changes": string[];
+  "org.matrix.matrix-hookshot.openproject.anchor_event_id"?: string;
 }

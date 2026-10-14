@@ -8,7 +8,7 @@ import {
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-  OPENPROJECT_UPDATE_EVENT_KIND,
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
 } from "./OpenProjectSchema";
 import type {
   OpenProjectActiveAnchorContent,
@@ -170,7 +170,7 @@ export function isOpenProjectUpdateContent(
     value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
       OPENPROJECT_EVENT_SCHEMA_VERSION &&
     value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
-      OPENPROJECT_UPDATE_EVENT_KIND &&
+      OPENPROJECT_ACTIVITY_EVENT_KIND &&
     hasValidWorkPackageId(
       value["org.matrix.matrix-hookshot.openproject.work_package"],
     )
