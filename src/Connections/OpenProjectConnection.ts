@@ -422,10 +422,8 @@ export class OpenProjectConnection
   }
 
   public interestedInProject(project: number) {
-    if (this.projectId === project) {
-      return true;
-    }
-    return false;
+    // Removal stops timeline work before its storage cleanup can complete.
+    return !this.timelineRemoved && this.projectId === project;
   }
 
   public readonly url: URL;

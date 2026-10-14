@@ -5,8 +5,16 @@ import { TimelineManager } from "../../src/openproject/TimelineManager";
 describe("OpenProject timeline connection cleanup", () => {
   it("waits for pending anchors and blocks new transitions until cleanup ends", async () => {
     const manager = new TimelineManager();
+    let signalAnchorStarted!: () => void;
+    let signalCleanupStarted!: () => void;
     let finishAnchor!: () => void;
     let finishCleanup!: () => void;
+    const anchorStarted = new Promise<void>((resolve) => {
+      signalAnchorStarted = resolve;
+    });
+    const cleanupStarted = new Promise<void>((resolve) => {
+      signalCleanupStarted = resolve;
+    });
     const anchorFinished = new Promise<void>((resolve) => {
       finishAnchor = resolve;
     });
@@ -17,6 +25,7 @@ describe("OpenProject timeline connection cleanup", () => {
 
     const pendingAnchor = manager.runTransition("connection", 1, async () => {
       calls.push("anchor-started");
+      signalAnchorStarted();
       await anchorFinished;
       calls.push("anchor-finished");
     });
@@ -24,6 +33,7 @@ describe("OpenProject timeline connection cleanup", () => {
       "connection",
       async () => {
         calls.push("cleanup-started");
+        signalCleanupStarted();
         await cleanupFinished;
         calls.push("cleanup-finished");
       },
@@ -36,12 +46,12 @@ describe("OpenProject timeline connection cleanup", () => {
       },
     );
 
-    await Promise.resolve();
+    await anchorStarted;
     expect(calls).toEqual(["anchor-started"]);
 
     finishAnchor();
     await pendingAnchor;
-    await Promise.resolve();
+    await cleanupStarted;
     expect(calls).toEqual([
       "anchor-started",
       "anchor-finished",

@@ -11,6 +11,15 @@ import {
 import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { ConnectionManager } from "../../src/ConnectionManager";
+import { createAuthenticatedProbeHandler } from "../../src/AuthenticatedProbeHandler";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../../src/openproject/Schema";
+import {
+  HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+  type HookshotCapabilitiesProbeRequest,
+} from "../../src/ToDeviceProtocol";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BASE_URL } from "../openproject/WorkPackageFixtures";
 
@@ -111,6 +120,100 @@ describe("OpenProjectConnection", () => {
     await manager.removeConnectionsForRoom(ROOM_ID);
 
     expect(storage.deleteOpenProjectAnchorStates).not.toHaveBeenCalled();
+  });
+
+  it("denies probes for a disabled connection even when anchor cleanup fails", async () => {
+    let failCleanup!: (error: Error) => void;
+    const cleanup = new Promise<void>((_resolve, reject) => {
+      failCleanup = reject;
+    });
+    const storage = {
+      deleteOpenProjectAnchorStates: vi.fn().mockReturnValue(cleanup),
+    } as unknown as InstantiateConnectionOpts["storage"];
+    const connection = createConnectionState({}, undefined, storage);
+    const manager = new ConnectionManager(
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      storage,
+      undefined as never,
+      undefined as never,
+    );
+    manager.push(connection);
+
+    const anchorEventId = "$active-anchor";
+    const anchorContent = {
+      "org.matrix.matrix-hookshot.openproject.schema_version":
+        OPENPROJECT_EVENT_SCHEMA_VERSION,
+      "org.matrix.matrix-hookshot.openproject.event_kind":
+        OPENPROJECT_ANCHOR_EVENT_KIND,
+      "org.matrix.matrix-hookshot.openproject.anchor_state": "active",
+      "org.matrix.matrix-hookshot.openproject.project": { id: 1 },
+      "org.matrix.matrix-hookshot.openproject.work_package": { id: 50 },
+    };
+    const getOpenProjectAnchorState = vi.fn().mockResolvedValue({
+      anchorEventId,
+      lockVersion: 1,
+      lastContent: anchorContent,
+    });
+    const probe = createAuthenticatedProbeHandler({
+      getAnchorEvent: vi.fn().mockResolvedValue({
+        room_id: ROOM_ID,
+        sender: connection.botUserId,
+        content: anchorContent,
+      }),
+      getOpenProjectConnections: (projectId) =>
+        manager.getConnectionsForOpenProject(projectId).map((candidate) => ({
+          connectionId: candidate.connectionId,
+          roomId: candidate.roomId,
+          botUserId: candidate.botUserId,
+        })),
+      getOpenProjectAnchorState,
+      assertRoomReadAccess: vi.fn().mockResolvedValue(undefined),
+      getOpenProjectForUser: vi.fn().mockResolvedValue({}),
+    });
+    const request: HookshotCapabilitiesProbeRequest = {
+      v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+      request_id: "request-1",
+      requesting_device_id: "ELEMENTDEVICE",
+      integration_id: "openproject",
+      room_id: ROOM_ID,
+      anchor_event_id: anchorEventId,
+    };
+    const context = {
+      sender: "@alice:example.test",
+      recipientBotUserId: connection.botUserId,
+    };
+
+    await expect(probe(request, context)).resolves.toEqual({
+      result: "ok",
+      connection: "connected",
+    });
+
+    const pendingPurge = manager.purgeConnection(
+      ROOM_ID,
+      connection.connectionId,
+      false,
+    );
+    await vi.waitFor(() =>
+      expect(storage.deleteOpenProjectAnchorStates).toHaveBeenCalledOnce(),
+    );
+    await expect(probe(request, context)).resolves.toEqual({
+      result: "not_authorized",
+    });
+    expect(getOpenProjectAnchorState).toHaveBeenCalledTimes(1);
+
+    failCleanup(new Error("Redis unavailable"));
+    await expect(pendingPurge).rejects.toThrow("Redis unavailable");
+    expect(manager.getConnectionById(ROOM_ID, connection.connectionId)).toBe(
+      connection,
+    );
+    expect(manager.getConnectionsForOpenProject(1)).toEqual([]);
+    await expect(probe(request, context)).resolves.toEqual({
+      result: "not_authorized",
+    });
   });
 
   it("uses the deployment-selected bot when provisioning", async () => {
