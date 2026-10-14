@@ -340,7 +340,7 @@ describe("OpenProject", () => {
       matrixLocalparts: ["user", "denied_user"],
       permissionsRoom: {
         members: ["user"],
-        permissions: [{ service: "openproject", level: "commands" }],
+        permissions: [{ service: "openproject", level: "login" }],
       },
       e2eClientOpts: { autoAcceptInvite: true },
       config: {
