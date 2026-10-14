@@ -177,15 +177,17 @@ export function formatWorkPackageForMatrix(
           baseURL,
         ).toString(),
       },
-      assignee: pkg._embedded.assignee && {
-        name: pkg._embedded.assignee.name,
-        url: new URL(
-          baseURL.href + `users/${pkg._embedded.assignee.id}`,
-          baseURL,
-        ).toString(),
-      },
-      dueDate: pkg.dueDate,
-      date: pkg.date,
+      assignee: pkg._embedded.assignee
+        ? {
+            name: pkg._embedded.assignee.name,
+            url: new URL(
+              baseURL.href + `users/${pkg._embedded.assignee.id}`,
+              baseURL,
+            ).toString(),
+          }
+        : undefined,
+      dueDate: pkg.dueDate ?? null,
+      date: pkg.date ?? null,
       deadline: getDeadline(pkg),
       status: {
         name: pkg._embedded.status.name,
@@ -318,6 +320,13 @@ export function formatInactiveWorkPackageAnchorReplacement(
   const body = `Work package [${workPackage.id}](${workPackage.url}): "${workPackage.subject}" — removed from the timeline`;
   const inactiveContent: OpenProjectInactiveAnchorMessageContent = {
     ...lastActiveContent,
+    "org.matrix.matrix-hookshot.openproject.work_package": {
+      ...workPackage,
+      assignee: workPackage.assignee ?? undefined,
+      dueDate: workPackage.dueDate ?? null,
+      date: workPackage.date ?? null,
+      deadline: workPackage.deadline ?? null,
+    },
     body,
     "org.matrix.matrix-hookshot.openproject.anchor_state":
       OPENPROJECT_ANCHOR_STATE_INACTIVE,

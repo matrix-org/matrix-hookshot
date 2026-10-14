@@ -10,6 +10,7 @@ import {
 } from "../../src/Connections/OpenProjectConnection";
 import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
+import { ConnectionManager } from "../../src/ConnectionManager";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BASE_URL } from "../openproject/WorkPackageFixtures";
 
@@ -88,6 +89,28 @@ describe("OpenProjectConnection", () => {
     expect(storage.deleteOpenProjectAnchorStates).toHaveBeenCalledWith(
       connection.connectionId,
     );
+  });
+
+  it("preserves active anchors when room connections are rebuilt", async () => {
+    const storage = {
+      deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
+    } as unknown as InstantiateConnectionOpts["storage"];
+    const connection = createConnectionState({}, undefined, storage);
+    const manager = new ConnectionManager(
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      storage,
+      undefined as never,
+      undefined as never,
+    );
+    manager.push(connection);
+
+    await manager.removeConnectionsForRoom(ROOM_ID);
+
+    expect(storage.deleteOpenProjectAnchorStates).not.toHaveBeenCalled();
   });
 
   it("uses the deployment-selected bot when provisioning", async () => {

@@ -31,7 +31,6 @@ import {
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   OpenProjectWorkPackageMatrixEvent,
-  type OpenProjectActiveAnchorMessageContent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
@@ -182,93 +181,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function isActiveAnchorContent(
-  value: unknown,
-): value is OpenProjectActiveAnchorMessageContent {
-  if (!isRecord(value)) {
-    return false;
-  }
-  const workPackage = isRecord(
-    value["org.matrix.matrix-hookshot.openproject.work_package"],
-  )
-    ? value["org.matrix.matrix-hookshot.openproject.work_package"]
-    : undefined;
-  const project = isRecord(
-    value["org.matrix.matrix-hookshot.openproject.project"],
-  )
-    ? value["org.matrix.matrix-hookshot.openproject.project"]
-    : undefined;
-  const description = isRecord(workPackage?.description)
-    ? workPackage.description
-    : undefined;
-  const author = isRecord(workPackage?.author) ? workPackage.author : undefined;
-  const assignee = workPackage?.assignee;
-  const status = isRecord(workPackage?.status) ? workPackage.status : undefined;
-  const type = isRecord(workPackage?.type) ? workPackage.type : undefined;
-  const deadline = workPackage?.deadline;
-
-  return (
-    value.msgtype === "m.notice" &&
-    typeof value.body === "string" &&
-    value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
-      OPENPROJECT_EVENT_SCHEMA_VERSION &&
-    value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
-      OPENPROJECT_ANCHOR_EVENT_KIND &&
-    value["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
-      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
-    typeof value["org.matrix.matrix-hookshot.openproject.snapshot_id"] ===
-      "string" &&
-    typeof value.external_url === "string" &&
-    !!workPackage &&
-    Number.isSafeInteger(workPackage.id) &&
-    typeof workPackage.subject === "string" &&
-    typeof workPackage.url === "string" &&
-    !!description &&
-    typeof description.plain === "string" &&
-    (description.html === undefined || typeof description.html === "string") &&
-    !!author &&
-    typeof author.name === "string" &&
-    typeof author.url === "string" &&
-    (assignee === undefined ||
-      (isRecord(assignee) &&
-        typeof assignee.name === "string" &&
-        typeof assignee.url === "string")) &&
-    (workPackage.dueDate === null || typeof workPackage.dueDate === "string") &&
-    (workPackage.date === null || typeof workPackage.date === "string") &&
-    (deadline === null ||
-      (isRecord(deadline) &&
-        typeof deadline.date === "string" &&
-        (deadline.label === "Due" || deadline.label === "Date"))) &&
-    !!status &&
-    typeof status.name === "string" &&
-    typeof status.color === "string" &&
-    typeof status.isClosed === "boolean" &&
-    !!type &&
-    typeof type.name === "string" &&
-    typeof type.color === "string" &&
-    !!project &&
-    Number.isSafeInteger(project.id) &&
-    typeof project.name === "string" &&
-    typeof project.url === "string"
-  );
-}
-
 function isValidAnchorStateForRemoval(
   value: unknown,
   workPackageId: number,
 ): value is OpenProjectAnchorState {
-  if (!isRecord(value) || !isActiveAnchorContent(value.lastContent)) {
+  if (!isRecord(value) || !isRecord(value.lastContent)) {
     return false;
   }
+
+  const content = value.lastContent;
   const workPackage =
-    value.lastContent["org.matrix.matrix-hookshot.openproject.work_package"];
+    content["org.matrix.matrix-hookshot.openproject.work_package"];
+  // The snapshot is written by our formatter. Removal only reads these fields;
+  // leave optional display data untouched so API nulls do not block removal.
   return (
     typeof value.anchorEventId === "string" &&
     value.anchorEventId.length > 0 &&
     typeof value.lockVersion === "number" &&
     Number.isSafeInteger(value.lockVersion) &&
     value.lockVersion >= 0 &&
-    workPackage.id === workPackageId
+    content.msgtype === "m.notice" &&
+    typeof content.body === "string" &&
+    content["org.matrix.matrix-hookshot.openproject.schema_version"] ===
+      OPENPROJECT_EVENT_SCHEMA_VERSION &&
+    content["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+      OPENPROJECT_ANCHOR_EVENT_KIND &&
+    content["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
+    typeof content["org.matrix.matrix-hookshot.openproject.snapshot_id"] ===
+      "string" &&
+    isRecord(workPackage) &&
+    workPackage.id === workPackageId &&
+    typeof workPackage.subject === "string" &&
+    typeof workPackage.url === "string"
   );
 }
 

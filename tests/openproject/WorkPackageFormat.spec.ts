@@ -149,6 +149,27 @@ describe("OpenProject Matrix formatter", () => {
     });
   });
 
+  it("normalizes omitted dates and a null assignee in an anchor snapshot", () => {
+    const workPackage = {
+      ...WORK_PACKAGE,
+      date: undefined,
+      dueDate: undefined,
+      _embedded: {
+        ...WORK_PACKAGE._embedded,
+        assignee: null,
+      },
+    } as unknown as OpenProjectWorkPackage;
+
+    const snapshot = formatWorkPackageForMatrix(workPackage, BASE_URL)[
+      "org.matrix.matrix-hookshot.openproject.work_package"
+    ];
+
+    expect(snapshot.assignee).toBeUndefined();
+    expect(snapshot.date).toBeNull();
+    expect(snapshot.dueDate).toBeNull();
+    expect(snapshot.deadline).toBeNull();
+  });
+
   it("normalizes a milestone date", () => {
     const workPackage = workPackageWithChanges({
       date: "2026-09-30",

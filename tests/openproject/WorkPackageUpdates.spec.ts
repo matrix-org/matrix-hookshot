@@ -711,6 +711,49 @@ describe("OpenProjectConnection work-package updates", () => {
     expect(intent.sentEvents).toHaveLength(1);
   });
 
+  it("removes anchors with nullable optional content from OpenProject", async () => {
+    const storage = new RecordingStorage();
+    const { connection, intent } = createConnection(
+      storage,
+      [],
+      undefined as never,
+      ["work_package:created"],
+    );
+    await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
+    const activeState = storage.anchorState!;
+    const activeWorkPackage =
+      activeState.lastContent[
+        "org.matrix.matrix-hookshot.openproject.work_package"
+      ];
+    storage.anchorState = {
+      ...activeState,
+      lastContent: {
+        ...activeState.lastContent,
+        "org.matrix.matrix-hookshot.openproject.work_package": {
+          ...activeWorkPackage,
+          assignee: null,
+          dueDate: undefined,
+          date: undefined,
+          deadline: undefined,
+        },
+      } as unknown as OpenProjectAnchorState["lastContent"],
+    };
+
+    await connection.commandTimelineRemove(String(WORK_PACKAGE.id));
+
+    const inactiveContent = intent.sentEvents[1].content[
+      "m.new_content"
+    ] as Record<string, unknown>;
+    const inactiveWorkPackage = inactiveContent[
+      "org.matrix.matrix-hookshot.openproject.work_package"
+    ] as Record<string, unknown>;
+    expect(inactiveWorkPackage.assignee).toBeUndefined();
+    expect(inactiveWorkPackage.dueDate).toBeNull();
+    expect(inactiveWorkPackage.date).toBeNull();
+    expect(inactiveWorkPackage.deadline).toBeNull();
+    expect(storage.anchorState).toBeNull();
+  });
+
   it("rejects malformed stored content without sending or deleting it", async () => {
     const storage = new RecordingStorage();
     const { connection, intent } = createConnection(
