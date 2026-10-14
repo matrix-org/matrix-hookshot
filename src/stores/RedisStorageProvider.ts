@@ -38,7 +38,6 @@ const HOUND_EVENTS = "hound.events.";
 
 const GENERIC_HOOK_HAS_WARNED = "generichook.haswarned";
 
-const OPENPROJECT_WORKPACKAGE_KEY = "openproject.workpackagecache.";
 const OPENPROJECT_ANCHOR_KEY = "openproject.anchor.v1:";
 const OPENPROJECT_ACTIVITY_KEY = "openproject.activity.v1:";
 
@@ -382,23 +381,6 @@ export class RedisStorageProvider
       GENERIC_HOOK_HAS_WARNED,
       hookId,
     );
-  }
-
-  public async getOpenProjectWorkPackageState(
-    projectId: number,
-    id: number,
-  ): Promise<OpenProjectWorkPackageCacheState | null> {
-    const jsonStr = await this.redis.get(
-      `${OPENPROJECT_WORKPACKAGE_KEY}:${projectId}.${id}`,
-    );
-    return jsonStr && JSON.parse(jsonStr);
-  }
-  public async setOpenProjectWorkPackageState(
-    state: OpenProjectWorkPackageCacheState,
-    id: number,
-  ) {
-    const key = `${OPENPROJECT_WORKPACKAGE_KEY}:${state.project}.${id}`;
-    await this.redis.set(key, JSON.stringify(state));
   }
 
   private static openProjectActivityKey(

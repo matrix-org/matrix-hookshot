@@ -27,10 +27,6 @@ export class MemoryStorageProvider
   private houndActivityIds = new Map<string, Array<string>>();
   private houndActivityIdToEvent = new Map<string, string>();
   private hasGenericHookWarnedExpiry = new Set<string>();
-  private readonly openProjectWorkPackageState = new Map<
-    string,
-    OpenProjectWorkPackageCacheState
-  >();
   private readonly openProjectAnchorStates = new Map<
     string,
     OpenProjectAnchorState
@@ -226,23 +222,6 @@ export class MemoryStorageProvider
     hasWarned: boolean,
   ): Promise<void> {
     this.hasGenericHookWarnedExpiry[hasWarned ? "add" : "delete"](hookId);
-  }
-
-  public async getOpenProjectWorkPackageState(
-    projectId: number,
-    workPackageId: number,
-  ): Promise<OpenProjectWorkPackageCacheState | null> {
-    return (
-      this.openProjectWorkPackageState.get(`${projectId}:${workPackageId}`) ??
-      null
-    );
-  }
-
-  public async setOpenProjectWorkPackageState(
-    state: OpenProjectWorkPackageCacheState,
-    id: number,
-  ) {
-    this.openProjectWorkPackageState.set(`${state.project}:${id}`, state);
   }
 
   private static openProjectActivityKey(

@@ -99,14 +99,6 @@ export interface IBridgeStorageProvider
     hasWarned: boolean,
   ): Promise<void>;
 
-  getOpenProjectWorkPackageState(
-    projectId: number,
-    workPackageId: number,
-  ): Promise<OpenProjectWorkPackageCacheState | null>;
-  setOpenProjectWorkPackageState(
-    state: OpenProjectWorkPackageCacheState,
-    id: number,
-  ): Promise<void>;
   /** Read the Activity snapshot stored for this connection and package. */
   getOpenProjectActivityState(
     connectionId: string,
