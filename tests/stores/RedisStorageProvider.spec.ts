@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatWorkPackageAnchorContent } from "../../src/openproject/Format";
 import { RedisStorageProvider } from "../../src/stores/RedisStorageProvider";
+import { workPackageToCacheState } from "../../src/openproject/State";
 import { BASE_URL, WORK_PACKAGE } from "../openproject/WorkPackageFixtures";
 
 const redisMock = vi.hoisted(() => ({
@@ -196,5 +197,81 @@ describe("RedisStorageProvider OpenProject anchors", () => {
         createStoredAnchor("$anchor", 1),
       ),
     ).rejects.toThrow("transaction was aborted");
+  });
+});
+
+describe("RedisStorageProvider OpenProject Activity snapshots", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    redisMock.strings.clear();
+    redisMock.sets.clear();
+    redisMock.get.mockImplementation(
+      async (key: string) => redisMock.strings.get(key) ?? null,
+    );
+    redisMock.smembers.mockImplementation(async (key: string) => [
+      ...(redisMock.sets.get(key) ?? []),
+    ]);
+    redisMock.multi.mockImplementation(createTransaction);
+  });
+
+  it("stores independent connection snapshots across provider recreation and cleans up one connection", async () => {
+    const firstProvider = new RedisStorageProvider({
+      redisUri: "redis://unused",
+    });
+    const firstRoomState = workPackageToCacheState(WORK_PACKAGE);
+    const secondRoomState = {
+      ...firstRoomState,
+      lockVersion: firstRoomState.lockVersion + 1,
+    };
+    await firstProvider.setOpenProjectActivityState(
+      "connection-a",
+      WORK_PACKAGE.id,
+      firstRoomState,
+    );
+    await firstProvider.setOpenProjectActivityState(
+      "connection-b",
+      WORK_PACKAGE.id,
+      secondRoomState,
+    );
+
+    const recreatedProvider = new RedisStorageProvider({
+      redisUri: "redis://unused",
+    });
+    expect(
+      await recreatedProvider.getOpenProjectActivityState(
+        "connection-a",
+        WORK_PACKAGE.id,
+      ),
+    ).toEqual(firstRoomState);
+    expect(
+      await recreatedProvider.getOpenProjectActivityState(
+        "connection-b",
+        WORK_PACKAGE.id,
+      ),
+    ).toEqual(secondRoomState);
+
+    await recreatedProvider.deleteOpenProjectActivityStates("connection-a");
+    expect(
+      await firstProvider.getOpenProjectActivityState(
+        "connection-a",
+        WORK_PACKAGE.id,
+      ),
+    ).toBeNull();
+    expect(
+      await firstProvider.getOpenProjectActivityState(
+        "connection-b",
+        WORK_PACKAGE.id,
+      ),
+    ).toEqual(secondRoomState);
+    expect(
+      redisMock.strings.has(
+        `openproject.activity.v1:connection-a:${WORK_PACKAGE.id}`,
+      ),
+    ).toBe(false);
+    expect(
+      redisMock.strings.has(
+        `openproject.activity.v1:connection-b:${WORK_PACKAGE.id}`,
+      ),
+    ).toBe(true);
   });
 });

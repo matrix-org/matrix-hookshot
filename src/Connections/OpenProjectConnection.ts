@@ -267,7 +267,7 @@ export class OpenProjectConnection
       // Need to check that the user can access this.
       const project = await client.getProject(projectId);
       return project;
-    } catch (ex) {
+    } catch {
       throw new ApiError(
         "Requested project was not found",
         ErrCode.ForbiddenUser,
@@ -999,7 +999,7 @@ export class OpenProjectConnection
       );
     }
 
-    const workPackage = await client.updateWorkPackage(workPackageId, {
+    await client.updateWorkPackage(workPackageId, {
       _links: {
         priority: {
           href: priorityRef?._links.self.href,
@@ -1156,11 +1156,17 @@ export class OpenProjectConnection
     };
   }
 
-  /** Delete this connection's active anchors after its pending transitions. */
-  public async cleanupTimelineAnchors(): Promise<void> {
+  /** Delete this connection's anchors and activity snapshots after transitions. */
+  public async cleanupTimelineState(): Promise<void> {
     this.timelineRemoved = true;
-    await this.timelineManager.runConnectionTransition(this.connectionId, () =>
-      this.storage.deleteOpenProjectAnchorStates(this.connectionId),
+    await this.timelineManager.runConnectionTransition(
+      this.connectionId,
+      async () => {
+        await Promise.all([
+          this.storage.deleteOpenProjectAnchorStates(this.connectionId),
+          this.storage.deleteOpenProjectActivityStates(this.connectionId),
+        ]);
+      },
     );
   }
 
@@ -1180,7 +1186,7 @@ export class OpenProjectConnection
       this.timelineRemoved = wasTimelineRemoved;
       throw error;
     }
-    await this.cleanupTimelineAnchors();
+    await this.cleanupTimelineState();
     await this.grantChecker.ungrantConnection(this.roomId, {
       url: this.state.url,
     });

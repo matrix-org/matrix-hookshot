@@ -40,6 +40,7 @@ const GENERIC_HOOK_HAS_WARNED = "generichook.haswarned";
 
 const OPENPROJECT_WORKPACKAGE_KEY = "openproject.workpackagecache.";
 const OPENPROJECT_ANCHOR_KEY = "openproject.anchor.v1:";
+const OPENPROJECT_ACTIVITY_KEY = "openproject.activity.v1:";
 
 const log = new Logger("RedisASProvider");
 
@@ -400,6 +401,63 @@ export class RedisStorageProvider
     await this.redis.set(key, JSON.stringify(state));
   }
 
+  private static openProjectActivityKey(
+    connectionId: string,
+    workPackageId: number,
+  ): string {
+    return `${OPENPROJECT_ACTIVITY_KEY}${connectionId}:${workPackageId}`;
+  }
+
+  private static openProjectActivityIndexKey(connectionId: string): string {
+    return `${OPENPROJECT_ACTIVITY_KEY}${connectionId}:work_packages`;
+  }
+
+  public async getOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectWorkPackageCacheState | null> {
+    const jsonStr = await this.redis.get(
+      RedisStorageProvider.openProjectActivityKey(connectionId, workPackageId),
+    );
+    return jsonStr ? JSON.parse(jsonStr) : null;
+  }
+
+  public async setOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectWorkPackageCacheState,
+  ): Promise<void> {
+    const transaction = this.redis.multi();
+    transaction.set(
+      RedisStorageProvider.openProjectActivityKey(connectionId, workPackageId),
+      JSON.stringify(state),
+    );
+    transaction.sadd(
+      RedisStorageProvider.openProjectActivityIndexKey(connectionId),
+      String(workPackageId),
+    );
+    await RedisStorageProvider.execOpenProjectTransaction(transaction);
+  }
+
+  public async deleteOpenProjectActivityStates(
+    connectionId: string,
+  ): Promise<void> {
+    const indexKey =
+      RedisStorageProvider.openProjectActivityIndexKey(connectionId);
+    const workPackageIds = await this.redis.smembers(indexKey);
+    const transaction = this.redis.multi();
+    for (const workPackageId of workPackageIds) {
+      transaction.del(
+        RedisStorageProvider.openProjectActivityKey(
+          connectionId,
+          Number(workPackageId),
+        ),
+      );
+    }
+    transaction.del(indexKey);
+    await RedisStorageProvider.execOpenProjectTransaction(transaction);
+  }
+
   private static openProjectAnchorKey(
     connectionId: string,
     workPackageId: number,
@@ -411,7 +469,7 @@ export class RedisStorageProvider
     return `${OPENPROJECT_ANCHOR_KEY}${connectionId}:work_packages`;
   }
 
-  private static async execOpenProjectAnchorTransaction(
+  private static async execOpenProjectTransaction(
     transaction: ChainableCommander,
   ): Promise<void> {
     // Redis EXEC may resolve with errors for individual commands.
@@ -450,7 +508,7 @@ export class RedisStorageProvider
     const transaction = this.redis.multi();
     transaction.set(key, JSON.stringify(state));
     transaction.sadd(indexKey, String(workPackageId));
-    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
+    await RedisStorageProvider.execOpenProjectTransaction(transaction);
   }
 
   public async deleteOpenProjectAnchorState(
@@ -465,7 +523,7 @@ export class RedisStorageProvider
       RedisStorageProvider.openProjectAnchorIndexKey(connectionId),
       String(workPackageId),
     );
-    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
+    await RedisStorageProvider.execOpenProjectTransaction(transaction);
   }
 
   public async deleteOpenProjectAnchorStates(
@@ -484,6 +542,6 @@ export class RedisStorageProvider
       );
     }
     transaction.del(indexKey);
-    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
+    await RedisStorageProvider.execOpenProjectTransaction(transaction);
   }
 }

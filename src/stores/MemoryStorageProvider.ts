@@ -35,6 +35,10 @@ export class MemoryStorageProvider
     string,
     OpenProjectAnchorState
   >();
+  private readonly openProjectActivityStates = new Map<
+    string,
+    OpenProjectWorkPackageCacheState
+  >();
 
   constructor() {
     super();
@@ -239,6 +243,49 @@ export class MemoryStorageProvider
     id: number,
   ) {
     this.openProjectWorkPackageState.set(`${state.project}:${id}`, state);
+  }
+
+  private static openProjectActivityKey(
+    connectionId: string,
+    workPackageId: number,
+  ): string {
+    return `openproject.activity.v1:${connectionId}:${workPackageId}`;
+  }
+
+  public async getOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectWorkPackageCacheState | null> {
+    return (
+      this.openProjectActivityStates.get(
+        MemoryStorageProvider.openProjectActivityKey(
+          connectionId,
+          workPackageId,
+        ),
+      ) ?? null
+    );
+  }
+
+  public async setOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectWorkPackageCacheState,
+  ): Promise<void> {
+    this.openProjectActivityStates.set(
+      MemoryStorageProvider.openProjectActivityKey(connectionId, workPackageId),
+      state,
+    );
+  }
+
+  public async deleteOpenProjectActivityStates(
+    connectionId: string,
+  ): Promise<void> {
+    const prefix = `openproject.activity.v1:${connectionId}:`;
+    for (const key of this.openProjectActivityStates.keys()) {
+      if (key.startsWith(prefix)) {
+        this.openProjectActivityStates.delete(key);
+      }
+    }
   }
 
   private static openProjectAnchorKey(

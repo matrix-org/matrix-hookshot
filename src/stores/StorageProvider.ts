@@ -107,6 +107,19 @@ export interface IBridgeStorageProvider
     state: OpenProjectWorkPackageCacheState,
     id: number,
   ): Promise<void>;
+  /** Read the Activity snapshot stored for this connection and package. */
+  getOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectWorkPackageCacheState | null>;
+  /** Persist the Activity snapshot for this connection and package. */
+  setOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectWorkPackageCacheState,
+  ): Promise<void>;
+  /** Delete every Activity snapshot stored for this connection. */
+  deleteOpenProjectActivityStates(connectionId: string): Promise<void>;
   /** Read the active anchor stored for this connection and package. */
   getOpenProjectAnchorState(
     connectionId: string,

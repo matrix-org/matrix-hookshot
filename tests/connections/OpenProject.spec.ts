@@ -90,12 +90,16 @@ describe("OpenProjectConnection", () => {
   it("deletes all active anchors during connection cleanup", async () => {
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
+      deleteOpenProjectActivityStates: vi.fn().mockResolvedValue(undefined),
     } as unknown as InstantiateConnectionOpts["storage"];
     const connection = createConnectionState({}, undefined, storage);
 
-    await connection.cleanupTimelineAnchors();
+    await connection.cleanupTimelineState();
 
     expect(storage.deleteOpenProjectAnchorStates).toHaveBeenCalledWith(
+      connection.connectionId,
+    );
+    expect(storage.deleteOpenProjectActivityStates).toHaveBeenCalledWith(
       connection.connectionId,
     );
   });
@@ -112,6 +116,7 @@ describe("OpenProjectConnection", () => {
     const ungrant = vi.spyOn(intent.underlyingClient, "setRoomAccountData");
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
+      deleteOpenProjectActivityStates: vi.fn().mockResolvedValue(undefined),
     } as unknown as InstantiateConnectionOpts["storage"];
     const connection = createConnectionState({}, intent, storage);
     const manager = new ConnectionManager(
@@ -135,12 +140,14 @@ describe("OpenProjectConnection", () => {
     );
     expect(connection.interestedInProject(1)).toBe(true);
     expect(storage.deleteOpenProjectAnchorStates).not.toHaveBeenCalled();
+    expect(storage.deleteOpenProjectActivityStates).not.toHaveBeenCalled();
     expect(ungrant).not.toHaveBeenCalled();
 
     await manager.purgeConnection(ROOM_ID, connection.connectionId, false);
 
     expect(sendStateEvent).toHaveBeenCalledTimes(2);
     expect(storage.deleteOpenProjectAnchorStates).toHaveBeenCalledOnce();
+    expect(storage.deleteOpenProjectActivityStates).toHaveBeenCalledOnce();
     expect(ungrant).toHaveBeenCalledOnce();
     expect(manager.getConnectionById(ROOM_ID, connection.connectionId)).toBe(
       undefined,
@@ -150,6 +157,7 @@ describe("OpenProjectConnection", () => {
   it("preserves active anchors when room connections are rebuilt", async () => {
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),
+      deleteOpenProjectActivityStates: vi.fn().mockResolvedValue(undefined),
     } as unknown as InstantiateConnectionOpts["storage"];
     const connection = createConnectionState({}, undefined, storage);
     const manager = new ConnectionManager(
@@ -167,6 +175,7 @@ describe("OpenProjectConnection", () => {
     await manager.removeConnectionsForRoom(ROOM_ID);
 
     expect(storage.deleteOpenProjectAnchorStates).not.toHaveBeenCalled();
+    expect(storage.deleteOpenProjectActivityStates).not.toHaveBeenCalled();
   });
 
   it("denies probes for a disabled connection even when anchor cleanup fails", async () => {
@@ -176,6 +185,7 @@ describe("OpenProjectConnection", () => {
     });
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockReturnValue(cleanup),
+      deleteOpenProjectActivityStates: vi.fn().mockResolvedValue(undefined),
     } as unknown as InstantiateConnectionOpts["storage"];
     const intent = AppserviceMock.create().getIntentForUserId(
       "@openproject:example.test",
