@@ -92,6 +92,11 @@ describe("OpenProject Matrix formatter", () => {
           name: "Alice",
           url: "https://openproject.example/users/11",
         },
+        priority: {
+          name: "Normal",
+          color: "#74C0FC",
+        },
+        percentageDone: null,
         dueDate: null,
         date: null,
         deadline: null,
@@ -184,6 +189,30 @@ describe("OpenProject Matrix formatter", () => {
       dueDate: null,
       date: "2026-09-30",
       deadline: { date: "2026-09-30", label: "Date" },
+    });
+  });
+
+  it("includes responsibility, priority, and completion in the anchor snapshot", () => {
+    const workPackage = workPackageWithChanges({
+      percentageDone: 55,
+      priority: { ...WORK_PACKAGE._embedded.priority, id: 9, name: "High" },
+      responsible: RESPONSIBLE,
+    });
+
+    expect(
+      formatWorkPackageForMatrix(workPackage, BASE_URL)[
+        "org.matrix.matrix-hookshot.openproject.work_package"
+      ],
+    ).toMatchObject({
+      responsible: {
+        name: "Bob",
+        url: "https://openproject.example/users/12",
+      },
+      priority: {
+        name: "High",
+        color: WORK_PACKAGE._embedded.priority.color,
+      },
+      percentageDone: 55,
     });
   });
 
@@ -516,7 +545,7 @@ describe("OpenProject work-package diff formatter", () => {
       name: "an assignee being added",
       previous: workPackageWithChanges({ assignee: undefined }),
       current: WORK_PACKAGE,
-      changes: ["assigned **Alice**"],
+      changes: ["assigned <strong>Alice</strong>"],
       categories: ["work_package:assignee_changed"],
     },
     {
@@ -540,7 +569,7 @@ describe("OpenProject work-package diff formatter", () => {
     {
       name: "a due date being set",
       current: workPackageWithChanges({ dueDate: "2025-06-01" }),
-      changes: ["set the due date to `2025-06-01`"],
+      changes: ["set the due date to <strong>2025-06-01</strong>"],
       categories: ["work_package:duedate_changed"],
     },
     {
@@ -553,7 +582,7 @@ describe("OpenProject work-package diff formatter", () => {
     {
       name: "the percentage complete changing",
       current: workPackageWithChanges({ percentageDone: 50 }),
-      changes: ["set the work completed percentage to **50%**"],
+      changes: ["set the work completed percentage to <strong>50%</strong>"],
       categories: ["work_package:workpercent_changed"],
     },
     {
@@ -561,7 +590,9 @@ describe("OpenProject work-package diff formatter", () => {
       current: workPackageWithChanges({
         priority: { ...WORK_PACKAGE._embedded.priority, id: 9, name: "High" },
       }),
-      changes: ["changed the priority from **Normal** to **High**"],
+      changes: [
+        "changed the priority from <strong>Normal</strong> to <strong>High</strong>",
+      ],
       categories: ["work_package:priority_changed"],
     },
     {
@@ -586,7 +617,9 @@ describe("OpenProject work-package diff formatter", () => {
           name: "In progress",
         },
       }),
-      changes: ["changed the status from **New** to **In progress**"],
+      changes: [
+        "changed the status from <strong>New</strong> to <strong>In progress</strong>",
+      ],
       categories: ["work_package:updated"],
     },
     {
@@ -600,13 +633,13 @@ describe("OpenProject work-package diff formatter", () => {
       current: workPackageWithChanges({
         type: { ...WORK_PACKAGE._embedded.type, id: 3, name: "Task" },
       }),
-      changes: ["changed the type to **Task**"],
+      changes: ["changed the type to <strong>Task</strong>"],
       categories: ["work_package:updated"],
     },
     {
       name: "a milestone date being set",
       current: workPackageWithChanges({ date: "2025-06-01" }),
-      changes: ["set the date to `2025-06-01`"],
+      changes: ["set the date to <strong>2025-06-01</strong>"],
       categories: ["work_package:duedate_changed"],
     },
     {
@@ -620,7 +653,7 @@ describe("OpenProject work-package diff formatter", () => {
       name: "completion reaching zero",
       previous: workPackageWithChanges({ percentageDone: 20 }),
       current: workPackageWithChanges({ percentageDone: 0 }),
-      changes: ["set the work completed percentage to **0%**"],
+      changes: ["set the work completed percentage to <strong>0%</strong>"],
       categories: ["work_package:workpercent_changed"],
     },
     {
@@ -659,12 +692,12 @@ describe("OpenProject work-package diff formatter", () => {
         type: { ...WORK_PACKAGE._embedded.type, id: 4, name: "Task" },
       }),
       changes: [
-        "assigned **Alice**",
+        "assigned <strong>Alice</strong>",
         "removed the description",
-        "set the date to `2025-06-01`",
-        "set the work completed percentage to **0%**",
-        "changed the status from **Old status** to **New status**",
-        "changed the type to **Task**",
+        "set the date to <strong>2025-06-01</strong>",
+        "set the work completed percentage to <strong>0%</strong>",
+        "changed the status from <strong>Old status</strong> to <strong>New status</strong>",
+        "changed the type to <strong>Task</strong>",
       ],
       categories: [
         "work_package:assignee_changed",

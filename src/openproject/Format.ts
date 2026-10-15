@@ -67,6 +67,15 @@ export interface OpenProjectWorkPackageMatrixEvent {
       name: string;
       url: string;
     };
+    responsible?: {
+      name: string;
+      url: string;
+    };
+    priority?: {
+      name: string;
+      color: string;
+    };
+    percentageDone: number | null;
     dueDate: string | null;
     date: string | null;
     deadline: OpenProjectDeadline | null;
@@ -187,6 +196,22 @@ export function formatWorkPackageForMatrix(
             ).toString(),
           }
         : undefined,
+      responsible: pkg._embedded.responsible
+        ? {
+            name: pkg._embedded.responsible.name,
+            url: new URL(
+              baseURL.href + `users/${pkg._embedded.responsible.id}`,
+              baseURL,
+            ).toString(),
+          }
+        : undefined,
+      priority: pkg._embedded.priority
+        ? {
+            name: pkg._embedded.priority.name,
+            color: pkg._embedded.priority.color,
+          }
+        : undefined,
+      percentageDone: pkg.percentageDone ?? null,
       dueDate: pkg.dueDate ?? null,
       date: pkg.date ?? null,
       deadline: getDeadline(pkg),
@@ -428,7 +453,7 @@ export function formatWorkPackageDiff(
   // {user} {...changes} {issueUrl}
   if (old.assignee !== current.assignee) {
     if (current.assignee) {
-      changes.push(`assigned **${pkg._embedded.assignee?.name}**`);
+      changes.push(`assigned <strong>${pkg._embedded.assignee?.name}</strong>`);
     } else {
       changes.push(`removed assignee`);
     }
@@ -444,7 +469,7 @@ export function formatWorkPackageDiff(
   }
   if (old.date !== current.date) {
     if (current.date) {
-      changes.push(`set the date to \`${current.date}\``);
+      changes.push(`set the date to <strong>${current.date}</strong>`);
     } else {
       changes.push(`removed the date`);
     }
@@ -452,7 +477,7 @@ export function formatWorkPackageDiff(
   }
   if (old.dueDate !== current.dueDate) {
     if (current.dueDate) {
-      changes.push(`set the due date to \`${current.dueDate}\``);
+      changes.push(`set the due date to <strong>${current.dueDate}</strong>`);
     } else {
       changes.push(`removed the due date`);
     }
@@ -461,7 +486,7 @@ export function formatWorkPackageDiff(
   if (old.percentageDone !== current.percentageDone) {
     if (current.percentageDone !== null) {
       changes.push(
-        `set the work completed percentage to **${current.percentageDone}%**`,
+        `set the work completed percentage to <strong>${current.percentageDone}%</strong>`,
       );
     } else {
       changes.push(`cleared the work completed percentage`);
@@ -470,7 +495,7 @@ export function formatWorkPackageDiff(
   }
   if (old.priority?.id !== current.priority?.id) {
     changes.push(
-      `changed the priority from **${old.priority?.name}** to **${current.priority?.name ?? "none"}**`,
+      `changed the priority from <strong>${old.priority?.name}</strong> to <strong>${current.priority?.name ?? "none"}</strong>`,
     );
     categories.add("work_package:priority_changed");
   }
@@ -484,7 +509,7 @@ export function formatWorkPackageDiff(
   }
   if (old.status.id !== current.status.id) {
     changes.push(
-      `changed the status from **${old.status?.name}** to **${current.status?.name ?? "none"}**`,
+      `changed the status from <strong>${old.status?.name}</strong> to <strong>${current.status?.name ?? "none"}</strong>`,
     );
     categories.add("work_package:updated");
   }
@@ -494,7 +519,9 @@ export function formatWorkPackageDiff(
     categories.add("work_package:subject_changed");
   }
   if (old.type !== current.type) {
-    changes.push(`changed the type to **${pkg._embedded.type.name}**`);
+    changes.push(
+      `changed the type to <strong>${pkg._embedded.type.name}</strong>`,
+    );
     categories.add("work_package:updated");
   }
 

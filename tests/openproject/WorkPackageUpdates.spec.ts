@@ -1055,7 +1055,7 @@ describe("OpenProjectConnection work-package updates", () => {
         "org.matrix.matrix-hookshot.openproject.changes"
       ],
     ).toEqual([
-      "changed the priority from **Normal** to **High**",
+      "changed the priority from <strong>Normal</strong> to <strong>High</strong>",
       "updated the subject",
     ]);
     expect(
