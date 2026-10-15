@@ -1,13 +1,15 @@
+// @vitest-environment happy-dom
+
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { MockViewModel } from "@element-hq/web-shared-components";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { ActionsView } from "../src/components/workPackage/ActionsView";
 import { LinkView } from "../src/components/workPackage/LinkView";
-import { UpdateView } from "../src/components/workPackage/UpdateView";
-import type { OpenProjectUpdateContent } from "../src/models/OpenProjectMatrixEventContent";
+import { ActivityView } from "../src/components/workPackage/ActivityView";
+import type { OpenProjectActivityContent } from "../src/models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot } from "../src/viewmodels/workPackage/DetailsSnapshot";
-import { UpdateMessageViewModel } from "../src/viewmodels/workPackage/UpdateMessageViewModel";
+import { ActivityMessageViewModel } from "../src/viewmodels/workPackage/ActivityMessageViewModel";
 import { PROJECT, WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
 type ElementProps = Record<string, unknown>;
@@ -83,8 +85,8 @@ describe("OpenProject details snapshot", () => {
   });
 });
 
-describe("OpenProject update renderer", () => {
-  it("renders actor attribution and the compact change summary", () => {
+describe("OpenProject Activity renderer", () => {
+  it("renders the original timeline card and navigates to it in the event room", () => {
     const data = {
       "org.matrix.matrix-hookshot.openproject.work_package": {
         id: WORK_PACKAGE.id,
@@ -97,30 +99,89 @@ describe("OpenProject update renderer", () => {
         url: "https://openproject.example/users/10",
       },
       "org.matrix.matrix-hookshot.openproject.changes": [
-        "assigned **Alice**",
+        "assigned <strong>Alice</strong>",
         "updated the subject",
       ],
       "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-      "org.matrix.matrix-hookshot.openproject.event_kind": "update",
-    } satisfies OpenProjectUpdateContent;
-    const snapshot = new UpdateMessageViewModel(data).getSnapshot();
+      "org.matrix.matrix-hookshot.openproject.event_kind": "activity",
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+        "$original-anchor:example.org",
+      room_id: "!forged-room:example.org",
+      permalink: "https://attacker.example/",
+    } satisfies OpenProjectActivityContent & {
+      room_id: string;
+      permalink: string;
+    };
+    const onViewTimelineCard = vi.fn();
+    const vm = new ActivityMessageViewModel({
+      data,
+      roomId: "!activity-room:example.org",
+      onViewTimelineCard,
+    });
+    const snapshot = vm.getSnapshot();
 
     expect(snapshot).toMatchObject({
-      changeSummary: "assigned **Alice** and made 1 more update",
+      changeSummary: "assigned <strong>Alice</strong> and made 1 more update.",
       actor: { name: "OpenProject Admin" },
     });
 
     const markup = renderToStaticMarkup(
-      React.createElement(UpdateView, {
-        vm: new MockViewModel(snapshot),
+      React.createElement(ActivityView, {
+        vm,
       }),
     );
 
     expect(markup).toContain("OpenProject Admin");
-    expect(markup).toContain("assigned **Alice** and made 1 more update");
+    expect(markup).toContain("assigned <strong>Alice</strong> and made 1 more update.");
     expect(markup).toContain('href="https://openproject.example/users/10"');
     expect(markup).toContain(
       'href="https://openproject.example/projects/demo-project/work_packages/50"',
     );
+    expect(markup).toContain("View timeline card");
+
+    render(
+      React.createElement(ActivityView, {
+        vm,
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "View timeline card" }));
+    expect(onViewTimelineCard).toHaveBeenCalledWith(
+      "https://matrix.to/#/!activity-room%3Aexample.org/%24original-anchor%3Aexample.org",
+    );
+  });
+
+  it.each([
+    ["missing event ID", undefined, "!room:example.org"],
+    ["malformed event ID", "https://attacker.example/", "!room:example.org"],
+    ["malformed room ID", "$original-anchor:example.org", "not a room"],
+  ])("hides only the card action for %s", (_name, eventId, roomId) => {
+    const data = {
+      "org.matrix.matrix-hookshot.openproject.work_package": {
+        id: WORK_PACKAGE.id,
+        subject: WORK_PACKAGE.subject,
+        url: WORK_PACKAGE.url,
+      },
+      "org.matrix.matrix-hookshot.openproject.changes": ["updated the subject"],
+      "org.matrix.matrix-hookshot.openproject.schema_version": 1,
+      "org.matrix.matrix-hookshot.openproject.event_kind": "activity",
+      ...(eventId === undefined
+        ? {}
+        : {
+            "org.matrix.matrix-hookshot.openproject.anchor_event_id": eventId,
+          }),
+    } satisfies OpenProjectActivityContent;
+    const vm = new ActivityMessageViewModel({
+      data,
+      roomId,
+      onViewTimelineCard: vi.fn(),
+    });
+    const markup = renderToStaticMarkup(
+      React.createElement(ActivityView, {
+        vm,
+      }),
+    );
+
+    expect(markup).toContain(WORK_PACKAGE.subject);
+    expect(markup).not.toContain("View timeline card");
   });
 });

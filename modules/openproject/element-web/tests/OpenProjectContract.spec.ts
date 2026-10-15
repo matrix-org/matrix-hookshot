@@ -3,16 +3,16 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   isOpenProjectAnchorContent,
-  isOpenProjectUpdateContent,
+  isOpenProjectActivityContent,
 } from "../src/OpenProjectCapabilityClient";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
-import { OpenProjectUpdateRenderer } from "../src/OpenProjectUpdateRenderer";
+import { OpenProjectActivityRenderer } from "../src/OpenProjectActivityRenderer";
 import type { OpenProjectAnchorContent } from "../src/models/OpenProjectMatrixEventContent";
 import {
   activeAnchorContent,
   activeReplacement,
   anchorEventId,
-  compactUpdateContent,
+  compactActivityContent,
   inactiveReplacement,
   noDeadlineAnchorContent,
   updatedAnchorContent,
@@ -79,17 +79,69 @@ describe("Hookshot to Element work-package contract", () => {
     expect(markup).not.toContain("View package");
   });
 
-  it("renders Compact updates as display-only messages", () => {
-    expect(isOpenProjectUpdateContent(compactUpdateContent)).toBe(true);
+  it("renders Activity messages with a link to the original timeline card", () => {
+    expect(isOpenProjectActivityContent(compactActivityContent)).toBe(true);
 
     const markup = renderToStaticMarkup(
-      React.createElement(OpenProjectUpdateRenderer, {
-        data: compactUpdateContent,
+      React.createElement(OpenProjectActivityRenderer, {
+        data: compactActivityContent,
+        roomId: anchor.roomId,
+        onViewTimelineCard: () => {},
       }),
     );
     expect(markup).toContain("Webhook actor");
     expect(markup).toContain("updated the subject");
     expect(markup).toContain("Build the updated bridge");
+    expect(markup).toContain("View timeline card");
     expect(markup).not.toContain("View package");
+  });
+
+  it("hides the timeline-card link when the event ID is malformed", () => {
+    const malformed = {
+      ...compactActivityContent,
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+        "https://attacker.example/",
+    };
+    const markup = renderToStaticMarkup(
+      React.createElement(OpenProjectActivityRenderer, {
+        data: malformed,
+        roomId: anchor.roomId,
+        onViewTimelineCard: () => {},
+      }),
+    );
+
+    expect(markup).toContain("Build the updated bridge");
+    expect(markup).not.toContain("View timeline card");
+  });
+
+  it("keeps Activity readable after removal and links to the new ID after re-add", () => {
+    const {
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id": _removedId,
+      ...removedContent
+    } = compactActivityContent;
+    expect(_removedId).toBe(anchorEventId);
+    const removedMarkup = renderToStaticMarkup(
+      React.createElement(OpenProjectActivityRenderer, {
+        data: removedContent,
+        roomId: anchor.roomId,
+        onViewTimelineCard: () => {},
+      }),
+    );
+    expect(removedMarkup).toContain("Build the updated bridge");
+    expect(removedMarkup).not.toContain("View timeline card");
+
+    const reAddedContent = {
+      ...compactActivityContent,
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+        "$re-added-anchor:example.org",
+    };
+    const reAddedMarkup = renderToStaticMarkup(
+      React.createElement(OpenProjectActivityRenderer, {
+        data: reAddedContent,
+        roomId: anchor.roomId,
+        onViewTimelineCard: () => {},
+      }),
+    );
+    expect(reAddedMarkup).toContain("View timeline card");
   });
 });

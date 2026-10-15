@@ -93,3 +93,22 @@
   align-items: center;
   gap: var(--cpd-space-2x);
 }
+
+.activity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cpd-space-2x);
+}
+
+.activityContent {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.activityAction {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}

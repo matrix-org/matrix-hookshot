@@ -4,6 +4,7 @@ import type {
   OpenProjectPerson,
   OpenProjectProjectContent,
   OpenProjectStatus,
+  OpenProjectActivityContent,
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
 } from "../src/models/OpenProjectMatrixEventContent";
@@ -166,3 +167,55 @@ export const changedContent: OpenProjectContent = {
   "org.matrix.matrix-hookshot.openproject.work_package.changed":
     changedStatusDetails,
 };
+
+const activityBase = {
+  "org.matrix.matrix-hookshot.openproject.work_package": {
+    ...minimalWorkPackage,
+    id: 57,
+    subject: "Add project overview",
+    url: "https://openproject.example/work_packages/57",
+  },
+  "org.matrix.matrix-hookshot.openproject.schema_version": 1,
+  "org.matrix.matrix-hookshot.openproject.event_kind": "activity",
+} as const;
+
+export const activityWithActor = {
+  ...activityBase,
+  "org.matrix.matrix-hookshot.openproject.actor": {
+    id: 1,
+    name: "Ada Lovelace",
+    url: "https://openproject.example/users/1",
+  },
+  "org.matrix.matrix-hookshot.openproject.changes": [
+    "assigned <strong>Grace Hopper</strong>",
+    "updated the subject",
+  ],
+} satisfies OpenProjectActivityContent;
+
+export const activityWithoutActor = {
+  ...activityBase,
+  "org.matrix.matrix-hookshot.openproject.changes": ["updated the description"],
+} satisfies OpenProjectActivityContent;
+
+export const activityWithNoChanges = {
+  ...activityBase,
+  "org.matrix.matrix-hookshot.openproject.changes": [],
+} satisfies OpenProjectActivityContent;
+
+export const linkedActivity = {
+  ...activityWithActor,
+  "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+    "$original-anchor:example.org",
+} satisfies OpenProjectActivityContent;
+
+export const malformedLinkActivity = {
+  ...activityWithActor,
+  "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+    "https://attacker.example/",
+} satisfies OpenProjectActivityContent;
+
+export const reAddedActivity = {
+  ...activityWithActor,
+  "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+    "$new-anchor:example.org",
+} satisfies OpenProjectActivityContent;

@@ -1,8 +1,11 @@
+// @vitest-environment happy-dom
+
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { fireEvent, render, screen } from "@testing-library/react";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
-import { OpenProjectUpdateRenderer } from "../src/OpenProjectUpdateRenderer";
+import { OpenProjectActivityRenderer } from "../src/OpenProjectActivityRenderer";
 import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_ACTIVITY_EVENT_KIND,
@@ -39,6 +42,8 @@ function createUpdateEvent({
 } = {}) {
   return {
     ...OPENPROJECT_WORK_PACKAGE_CREATED_EVENT,
+    eventId: "$activity-event:example.test",
+    roomId: "!activity-room:example.test",
     content: {
       msgtype: "m.notice",
       body: "Updated the subject",
@@ -51,6 +56,8 @@ function createUpdateEvent({
         subject: "This is an updated task",
         url: "https://elementio-demo.openproject.com/projects/demo-project/work_packages/41",
       },
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id":
+        "$original-anchor:example.test",
       ...(includeActor
         ? {
             "org.matrix.matrix-hookshot.openproject.actor": {
@@ -66,12 +73,15 @@ function createUpdateEvent({
 
 function createModuleRegistration() {
   const registerMessageRenderer = vi.fn();
+  const toMatrixToLink = vi.fn().mockResolvedValue(undefined);
   const api = {
     customComponents: { registerMessageRenderer },
+    navigation: { toMatrixToLink },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
   return {
     registerMessageRenderer,
+    toMatrixToLink,
     load: () => new HookshotOpenProjectModule(api).load(),
   };
 }
@@ -149,7 +159,8 @@ describe("OpenProject Element Web module", () => {
   });
 
   it("renders only the event kind selected by each renderer", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
+    const { registerMessageRenderer, load, toMatrixToLink } =
+      createModuleRegistration();
     await load();
     const [, renderAnchor] = registerMessageRenderer.mock.calls[0];
     const [, renderUpdate] = registerMessageRenderer.mock.calls[1];
@@ -169,8 +180,14 @@ describe("OpenProject Element Web module", () => {
       { mxEvent: createUpdateEvent() },
       fallback,
     );
-    expect(updateRendered.type).toBe(OpenProjectUpdateRenderer);
+    expect(updateRendered.type).toBe(OpenProjectActivityRenderer);
     expect(updateRendered.props).not.toHaveProperty("capabilityClient");
+    expect(updateRendered.props.roomId).toBe("!activity-room:example.test");
+    render(updateRendered);
+    fireEvent.click(screen.getByRole("button", { name: "View timeline card" }));
+    expect(toMatrixToLink).toHaveBeenCalledWith(
+      "https://matrix.to/#/!activity-room%3Aexample.test/%24original-anchor%3Aexample.test",
+    );
 
     expect(renderAnchor({ mxEvent: createUpdateEvent() }, fallback)).toBe(
       "fallback",

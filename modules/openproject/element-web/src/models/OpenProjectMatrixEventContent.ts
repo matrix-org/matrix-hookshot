@@ -111,7 +111,13 @@ export type OpenProjectAnchorContent =
   | OpenProjectActiveAnchorContent
   | OpenProjectInactiveAnchorContent;
 
-export interface OpenProjectUpdateContent extends OpenProjectContent {
+export interface OpenProjectActivityContent {
+  "org.matrix.matrix-hookshot.openproject.actor"?: OpenProjectActor;
+  "org.matrix.matrix-hookshot.openproject.work_package": {
+    id: number;
+    subject: string;
+    url: string;
+  };
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ACTIVITY_EVENT_KIND;
   "org.matrix.matrix-hookshot.openproject.changes": string[];

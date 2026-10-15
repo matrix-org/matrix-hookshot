@@ -10,13 +10,13 @@ import { HookshotToDeviceClient } from "./HookshotToDeviceClient";
 import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
-  isOpenProjectUpdateContent,
+  isOpenProjectActivityContent,
   isOpenProjectAnchorContent,
   OpenProjectCapabilityClient,
   isOpenProjectContent,
 } from "./OpenProjectCapabilityClient";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
-import { OpenProjectUpdateRenderer } from "./OpenProjectUpdateRenderer";
+import { OpenProjectActivityRenderer } from "./OpenProjectActivityRenderer";
 
 function getElementConfig(api: Api): unknown {
   try {
@@ -94,30 +94,30 @@ class HookshotOpenProjectModule implements Module {
       anchorHints,
     );
 
-    function shouldRenderUpdate(
+    function shouldRenderActivity(
       mxEvent: CustomMessageComponentProps["mxEvent"],
     ): boolean {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      return isOpenProjectUpdateContent(mxEvent.content);
+      return isOpenProjectActivityContent(mxEvent.content);
     }
 
-    const updateHints = {
+    const activityHints = {
       allowEditingEvent: false,
       renderAsInfoMessage: true,
       renderGroupSummary: {
         getKey: (mxEvent: CustomMessageComponentProps["mxEvent"]) => {
           const content = mxEvent.content;
           if (!isOpenProjectContent(content)) {
-            return "OpenProjectUpdateContent";
+            return "OpenProjectActivityContent";
           }
 
           const workPackageId =
             content["org.matrix.matrix-hookshot.openproject.work_package"].id;
           const actorId =
             content["org.matrix.matrix-hookshot.openproject.actor"]?.id ?? "";
-          return `OpenProjectUpdateContent-${workPackageId}-${actorId}`;
+          return `OpenProjectActivityContent-${workPackageId}-${actorId}`;
         },
         getSummary: (
           events: readonly CustomMessageComponentProps["mxEvent"][],
@@ -138,17 +138,25 @@ class HookshotOpenProjectModule implements Module {
     };
 
     this.api.customComponents.registerMessageRenderer(
-      shouldRenderUpdate,
+      shouldRenderActivity,
       (props, originalComponentFn) => {
         const content = props.mxEvent.content;
 
-        if (!isOpenProjectUpdateContent(content)) {
+        if (!isOpenProjectActivityContent(content)) {
           return originalComponentFn!();
         }
 
-        return <OpenProjectUpdateRenderer data={content} />;
+        return (
+          <OpenProjectActivityRenderer
+            data={content}
+            roomId={props.mxEvent.roomId}
+            onViewTimelineCard={(permalink) =>
+              this.api.navigation.toMatrixToLink(permalink)
+            }
+          />
+        );
       },
-      updateHints,
+      activityHints,
     );
   }
 }

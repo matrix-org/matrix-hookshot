@@ -15,7 +15,7 @@ import type {
   OpenProjectAnchorContent,
   OpenProjectContent,
   OpenProjectInactiveAnchorContent,
-  OpenProjectUpdateContent,
+  OpenProjectActivityContent,
 } from "./models/OpenProjectMatrixEventContent";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
@@ -75,15 +75,15 @@ function isMatrixUserId(value: unknown): value is string {
   );
 }
 
-function isMatrixRoomId(value: unknown): value is string {
+export function isMatrixRoomId(value: unknown): value is string {
   return (
     typeof value === "string" &&
-    /^![^\s:]+:[^\s:]+$/u.test(value) &&
+    /^![^\s:]+:[^\s]+$/u.test(value) &&
     value.length <= 255
   );
 }
 
-function isMatrixEventId(value: unknown): value is string {
+export function isMatrixEventId(value: unknown): value is string {
   return (
     typeof value === "string" &&
     value.startsWith("$") &&
@@ -159,9 +159,9 @@ export function isOpenProjectActiveAnchorContent(
   );
 }
 
-export function isOpenProjectUpdateContent(
+export function isOpenProjectActivityContent(
   value: unknown,
-): value is OpenProjectUpdateContent {
+): value is OpenProjectActivityContent {
   if (!isRecord(value)) {
     return false;
   }

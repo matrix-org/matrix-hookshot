@@ -8,7 +8,7 @@ import {
 
 const ACTOR = { id: 12, name: "Webhook User" };
 
-function UpdateFallback({
+function ActivityFallback({
   actor,
   changes,
 }: {
@@ -26,10 +26,10 @@ function UpdateFallback({
 }
 
 const meta = {
-  title: "OpenProject/Work package/Update fallback",
-  component: UpdateFallback,
+  title: "OpenProject/Work package/Activity fallback",
+  component: ActivityFallback,
   tags: ["autodocs"],
-} satisfies Meta<typeof UpdateFallback>;
+} satisfies Meta<typeof ActivityFallback>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

@@ -5,7 +5,7 @@ import {
   isOpenProjectAnchorForBot,
   isOpenProjectInactiveAnchorContent,
   isOpenProjectProbeResponse,
-  isOpenProjectUpdateContent,
+  isOpenProjectActivityContent,
   OpenProjectCapabilityClient,
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
@@ -91,7 +91,7 @@ describe("OpenProjectCapabilityClient", () => {
       isOpenProjectAnchorForBot(
         {
           ...anchorContent,
-          "org.matrix.matrix-hookshot.openproject.event_kind": "update",
+          "org.matrix.matrix-hookshot.openproject.event_kind": "activity",
         },
         botUserId,
         botUserId,
@@ -109,7 +109,7 @@ describe("OpenProjectCapabilityClient", () => {
     ).toBe(false);
 
     expect(
-      isOpenProjectUpdateContent({
+      isOpenProjectActivityContent({
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.event_kind":
           OPENPROJECT_ACTIVITY_EVENT_KIND,
@@ -151,7 +151,7 @@ describe("OpenProjectCapabilityClient", () => {
       }),
     ).toBe(false);
     expect(
-      isOpenProjectUpdateContent({
+      isOpenProjectActivityContent({
         ...anchorContent,
         "org.matrix.matrix-hookshot.openproject.event_kind":
           OPENPROJECT_ACTIVITY_EVENT_KIND,
