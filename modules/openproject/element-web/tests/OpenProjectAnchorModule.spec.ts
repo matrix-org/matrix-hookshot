@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { render, screen } from "@testing-library/react";
+import { TooltipProvider } from "@vector-im/compound-web";
 import { describe, expect, it, vi } from "vitest";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
@@ -42,6 +43,10 @@ function renderAnchor(
     capabilityClient,
     data,
   });
+}
+
+function withTooltipProvider(children: React.ReactNode) {
+  return React.createElement(TooltipProvider, null, children);
 }
 
 function createMarkedAnchorEvent(
@@ -277,30 +282,46 @@ describe("OpenProject marked anchor path", () => {
     const probe = vi.fn(() => new Promise(() => {}));
     const capabilityClient = { probe } as never;
     const { rerender } = render(
-      renderAnchor(activeAnchorContent, capabilityClient),
+      withTooltipProvider(renderAnchor(activeAnchorContent, capabilityClient)),
     );
 
     expect(originalSnapshotId).toBe("00000000-0000-4000-8000-000000000001");
     expect(screen.getByText("Build the bridge")).toBeTruthy();
     expect(screen.getByText("New")).toBeTruthy();
-    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Checking OpenProject connection...",
+      }),
+    ).toBeTruthy();
     expect(probe).toHaveBeenCalledOnce();
 
     expect(activeSnapshotId).not.toBe(originalSnapshotId);
-    rerender(renderAnchor(activeContent, capabilityClient));
+    rerender(
+      withTooltipProvider(renderAnchor(activeContent, capabilityClient)),
+    );
     expect(screen.getByText("Build the updated bridge")).toBeTruthy();
     expect(screen.getByText("Closed")).toBeTruthy();
-    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Checking OpenProject connection...",
+      }),
+    ).toBeTruthy();
     expect(probe).toHaveBeenCalledTimes(2);
 
     expect(inactiveSnapshotId).not.toBe(activeSnapshotId);
-    rerender(renderAnchor(inactiveContent, capabilityClient));
+    rerender(
+      withTooltipProvider(renderAnchor(inactiveContent, capabilityClient)),
+    );
     expect(screen.getByText(/removed from timeline/)).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Demo project · #50" }),
     ).toBeTruthy();
     expect(screen.queryByText("Build the updated bridge")).toBeNull();
-    expect(screen.queryByText("Checking OpenProject actions…")).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "Checking OpenProject connection...",
+      }),
+    ).toBeNull();
     expect(screen.queryByRole("link", { name: "View package" })).toBeNull();
     expect(probe).toHaveBeenCalledTimes(2);
   });

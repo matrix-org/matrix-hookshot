@@ -63,15 +63,6 @@
   font: var(--cpd-font-heading-sm-semibold);
 }
 
-.probeStatus {
-  display: inline-flex;
-  margin-left: auto;
-  flex: 0 0 auto;
-
-  align-items: center;
-  gap: var(--cpd-space-2x);
-}
-
 .actions {
   display: inline-flex;
   flex: 1 1 auto;
@@ -79,6 +70,26 @@
 
   align-items: center;
   gap: var(--cpd-space-2x);
+}
+
+.statusIconButton[aria-disabled="true"] {
+  cursor: default;
+}
+
+.spinner {
+  animation: spinner-rotation 1s linear infinite;
+}
+
+@keyframes spinner-rotation {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }
 
 .activity {
