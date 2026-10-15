@@ -132,7 +132,9 @@ describe("OpenProject Activity renderer", () => {
     );
 
     expect(markup).toContain("OpenProject Admin");
-    expect(markup).toContain("assigned <strong>Alice</strong> and made 1 more update.");
+    expect(markup).toContain(
+      "assigned <strong>Alice</strong> and made 1 more update.",
+    );
     expect(markup).toContain('href="https://openproject.example/users/10"');
     expect(markup).toContain(
       'href="https://openproject.example/projects/demo-project/work_packages/50"',

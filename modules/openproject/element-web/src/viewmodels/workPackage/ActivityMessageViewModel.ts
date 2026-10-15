@@ -44,7 +44,7 @@ function createActivityViewSnapshot(
 ): ActivityViewSnapshot | null {
   const workPackage =
     data["org.matrix.matrix-hookshot.openproject.work_package"];
-  const changes = data["org.matrix.matrix-hookshot.openproject.changes"];
+  const changes = data["org.matrix.matrix-hookshot.openproject.changes"] || [];
   if (!workPackage) {
     return null;
   }

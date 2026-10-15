@@ -207,15 +207,3 @@ export const linkedActivity = {
   "org.matrix.matrix-hookshot.openproject.anchor_event_id":
     "$original-anchor:example.org",
 } satisfies OpenProjectActivityContent;
-
-export const malformedLinkActivity = {
-  ...activityWithActor,
-  "org.matrix.matrix-hookshot.openproject.anchor_event_id":
-    "https://attacker.example/",
-} satisfies OpenProjectActivityContent;
-
-export const reAddedActivity = {
-  ...activityWithActor,
-  "org.matrix.matrix-hookshot.openproject.anchor_event_id":
-    "$new-anchor:example.org",
-} satisfies OpenProjectActivityContent;

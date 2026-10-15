@@ -8,8 +8,6 @@ import {
   activityWithoutActor,
   activityWithNoChanges,
   linkedActivity,
-  malformedLinkActivity,
-  reAddedActivity,
 } from "../../../storybook/fixtures";
 
 function ActivityEventStory({ data }: { data: OpenProjectActivityContent }) {
@@ -44,16 +42,4 @@ export const WithoutChanges: Story = {
 
 export const WithTimelineCard: Story = {
   args: { data: linkedActivity },
-};
-
-export const MalformedTimelineCardId: Story = {
-  args: { data: malformedLinkActivity },
-};
-
-export const RemovedTimelineCard: Story = {
-  args: { data: activityWithActor },
-};
-
-export const ReAddedTimelineCard: Story = {
-  args: { data: reAddedActivity },
 };

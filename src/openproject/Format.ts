@@ -390,7 +390,10 @@ function formatActivityFallback(
     remainingChanges > 0
       ? ` and made ${remainingChanges} more ${remainingChanges === 1 ? "update" : "updates"}`
       : "";
-  const changeSummary = `${firstChange}${remainingSummary}`;
+  const fallbackChange = firstChange
+    .replaceAll("<strong>", "**")
+    .replaceAll("</strong>", "**");
+  const changeSummary = `${fallbackChange}${remainingSummary}`;
   const body = created
     ? actor
       ? `${actor.name} created work package #${pkg.id}: "${pkg.subject}"`

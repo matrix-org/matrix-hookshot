@@ -494,12 +494,21 @@ describe("OpenProject versioned message content", () => {
     const content = formatWorkPackageActivityForMatrix(
       WORK_PACKAGE,
       BASE_URL,
-      ["assigned **Alice**", "updated the description", "changed the status"],
+      [
+        "assigned <strong>Alice</strong>",
+        "updated the description",
+        "changed the status",
+      ],
       { actor: { id: 12, name: "Webhook User" } },
     );
 
     expect(content.body).toContain(
       "Webhook User assigned **Alice** and made 2 more updates on work package #50",
+    );
+    expect(content.body).not.toContain("<strong>");
+    expect(content.body).not.toContain("</strong>");
+    expect(content["org.matrix.matrix-hookshot.openproject.changes"][0]).toBe(
+      "assigned <strong>Alice</strong>",
     );
   });
 

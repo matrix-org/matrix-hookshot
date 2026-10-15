@@ -610,7 +610,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: activeRoomId,
-        body: `Webhook Actor changed the priority from <strong>Normal</strong> to <strong>High</strong> and made 1 more update on work package #50: "updated test 133"\n${workPackageUrl}`,
+        body: `Webhook Actor changed the priority from **Normal** to **High** and made 1 more update on work package #50: "updated test 133"\n${workPackageUrl}`,
       },
     );
     const unanchoredRoomActivityWaiter =
@@ -618,7 +618,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: unanchoredRoomId,
-        body: `Webhook Actor changed the priority from <strong>Normal</strong> to <strong>High</strong> and made 1 more update on work package #50: "updated test 133"\n${workPackageUrl}`,
+        body: `Webhook Actor changed the priority from **Normal** to **High** and made 1 more update on work package #50: "updated test 133"\n${workPackageUrl}`,
       });
     await sendOpenProjectWebhook(
       {
@@ -681,7 +681,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: activeRoomId,
-        body: `Webhook Actor changed the priority from <strong>High</strong> to <strong>Urgent</strong> and made 1 more update on work package #50: "updated without a card"\n${workPackageUrl}`,
+        body: `Webhook Actor changed the priority from **High** to **Urgent** and made 1 more update on work package #50: "updated without a card"\n${workPackageUrl}`,
       },
     );
     const afterRemovalUnanchoredWaiter =
@@ -689,7 +689,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: unanchoredRoomId,
-        body: `Webhook Actor changed the priority from <strong>High</strong> to <strong>Urgent</strong> and made 1 more update on work package #50: "updated without a card"\n${workPackageUrl}`,
+        body: `Webhook Actor changed the priority from **High** to **Urgent** and made 1 more update on work package #50: "updated without a card"\n${workPackageUrl}`,
       });
     await sendOpenProjectWebhook(
       {
