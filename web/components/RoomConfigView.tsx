@@ -82,7 +82,7 @@ const connections: Record<ConnectionType, IConnectionProps> = {
     displayName: "OpenProject",
     description: "Connect the room to OpenProject",
     icon: OpenProjectIcon,
-    darkIcon: true,
+    darkIcon: undefined,
     component: lazy(() => import("./roomConfig/OpenProjectConfig")),
   },
 };

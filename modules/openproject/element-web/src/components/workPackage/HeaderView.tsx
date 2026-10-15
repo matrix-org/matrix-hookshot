@@ -1,7 +1,9 @@
 import * as React from "react";
+import { Avatar } from "@vector-im/compound-web";
 import { LinkView } from "./LinkView";
 import { safeUrl } from "../../utils/validation";
 import styles from "./WorkPackage.module.css";
+import openProjectAvatar from "../../../../../../assets/openproject_avatar.png";
 
 export function HeaderView({
   id,
@@ -29,9 +31,13 @@ export function HeaderView({
 
   return (
     <div className={styles.header}>
-      <span className={styles.avatar} role="img" aria-label="OpenProject">
-        OP
-      </span>
+      <Avatar
+        src={openProjectAvatar}
+        id="OpenProject"
+        name="OpenProject"
+        type="square"
+        size="var(--cpd-space-7x)"
+      />
       <span>
         <span>{headerPrefix}</span>
         <LinkView url={sanitizedUrl}>{headerLink}</LinkView>

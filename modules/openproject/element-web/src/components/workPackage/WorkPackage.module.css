@@ -40,19 +40,6 @@
   }
 }
 
-.avatar {
-  width: var(--cpd-space-7x);
-  height: var(--cpd-space-7x);
-  border-radius: 25%;
-  color: var(--cpd-color-text-on-solid-primary);
-  background: var(--cpd-color-text-badge-info);
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font: var(--cpd-font-body-sm-semibold);
-}
-
 .metadataRow {
   gap: var(--cpd-space-2x);
   display: flex;
