@@ -52,6 +52,13 @@ an OpenProject login. Removing an ID with no active anchor is an idempotent
 no-op. Both commands require the sender to have Hookshot command permission for
 OpenProject.
 
+The room configuration's event choices control which OpenProject changes send
+activity messages to the room. These are display-only `m.notice` messages; the
+separate automatic-anchor choice controls whether a work package gets a
+replaceable timeline card. Activity messages continue when automatic anchors
+are disabled or a card has been removed. When a card is active, an activity
+message links back to its original timeline event.
+
 Active timeline anchors are stored by Hookshot. Without a `cache` configuration,
 Hookshot uses in-memory storage and loses active anchor records when it restarts.
 Configure Redis to preserve anchors across restarts, for example:
