@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   Connection,
   IConnection,
@@ -8,6 +9,7 @@ import {
 import {
   Appservice,
   Intent,
+  MatrixError,
   MatrixEvent,
   MessageEventContent,
   StateEvent,
@@ -23,17 +25,27 @@ import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { BridgeConfigMessaging } from "../config/sections";
 import {
+  formatWorkPackageAnchorContent,
+  formatInactiveWorkPackageAnchorReplacement,
+  formatWorkPackageAnchorReplacement,
   formatWorkPackageDiff,
   formatWorkPackageForMatrix,
   OpenProjectWorkPackageMatrixEvent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
+import { TimelineManager } from "../openproject/TimelineManager";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { CommandError, NotLoggedInError } from "../Errors";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_ANCHOR_STATE_ACTIVE,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../openproject/Schema";
+import type { OpenProjectAnchorState } from "../openproject/State";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -65,6 +77,7 @@ export interface OpenProjectConnectionState extends IConnectionState {
    */
   url: string;
   events: OpenProjectEventsNames[];
+  anchors: OpenProjectEventsNames[];
 }
 
 export type OpenProjectResponseItem =
@@ -122,7 +135,7 @@ function validateOpenProjectConnectionState(
       );
     }
   }
-  let { events } = state as Partial<OpenProjectConnectionState>;
+  let { events, anchors } = state as Partial<OpenProjectConnectionState>;
   events = events ?? ["work_package:created", "work_package:updated"];
   if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
     throw new ApiError(
@@ -130,7 +143,78 @@ function validateOpenProjectConnectionState(
       ErrCode.BadValue,
     );
   }
-  return { url, commandPrefix, events, priority };
+  anchors = anchors === undefined ? [] : anchors;
+  if (
+    !Array.isArray(anchors) ||
+    anchors.some((event) => event !== "work_package:created")
+  ) {
+    throw new ApiError(
+      "'anchors' can only contain work_package:created",
+      ErrCode.BadValue,
+    );
+  }
+  return { url, commandPrefix, events, anchors, priority };
+}
+
+function isMissingAnchorError(error: unknown): error is MatrixError {
+  return error instanceof MatrixError && error.errcode === "M_NOT_FOUND";
+}
+
+function parseWorkPackageId(argument: string): number {
+  if (!/^\d+$/.test(argument)) {
+    throw new CommandError(
+      "Invalid work package ID",
+      "Work package ID must be a positive safe integer.",
+    );
+  }
+  const workPackageId = Number(argument);
+  if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
+    throw new CommandError(
+      "Invalid work package ID",
+      "Work package ID must be a positive safe integer.",
+    );
+  }
+  return workPackageId;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isValidAnchorStateForRemoval(
+  value: unknown,
+  workPackageId: number,
+): value is OpenProjectAnchorState {
+  if (!isRecord(value) || !isRecord(value.lastContent)) {
+    return false;
+  }
+
+  const content = value.lastContent;
+  const workPackage =
+    content["org.matrix.matrix-hookshot.openproject.work_package"];
+  // The snapshot is written by our formatter. Removal only reads these fields;
+  // leave optional display data untouched so API nulls do not block removal.
+  return (
+    typeof value.anchorEventId === "string" &&
+    value.anchorEventId.length > 0 &&
+    typeof value.lockVersion === "number" &&
+    Number.isSafeInteger(value.lockVersion) &&
+    value.lockVersion >= 0 &&
+    content.msgtype === "m.notice" &&
+    typeof content.body === "string" &&
+    content["org.matrix.matrix-hookshot.openproject.schema_version"] ===
+      OPENPROJECT_EVENT_SCHEMA_VERSION &&
+    content["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+      OPENPROJECT_ANCHOR_EVENT_KIND &&
+    content["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
+      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
+    typeof content["org.matrix.matrix-hookshot.openproject.snapshot_id"] ===
+      "string" &&
+    isRecord(workPackage) &&
+    workPackage.id === workPackageId &&
+    typeof workPackage.subject === "string" &&
+    typeof workPackage.url === "string"
+  );
 }
 
 const log = new Logger("OpenProjectConnection");
@@ -195,7 +279,16 @@ export class OpenProjectConnection
     roomId: string,
     userId: string,
     data: Record<string, unknown>,
-    { as, intent, tokenStore, config, storage }: ProvisionConnectionOpts,
+    {
+      as,
+      intent: requestedIntent,
+      tokenStore,
+      config,
+      storage,
+      getIntegrationBotForService,
+      isBotUserInRoom,
+      timelineManager,
+    }: ProvisionConnectionOpts,
   ) {
     if (!config.openProject) {
       throw new ApiError(
@@ -207,6 +300,20 @@ export class OpenProjectConnection
       data,
       config.openProject.baseURL,
     );
+    const integrationBot = getIntegrationBotForService?.(
+      OpenProjectConnection.ServiceCategory,
+    );
+    const intent = integrationBot?.intent ?? requestedIntent;
+    if (
+      integrationBot &&
+      isBotUserInRoom &&
+      !isBotUserInRoom(roomId, integrationBot.userId)
+    ) {
+      throw new ApiError(
+        `The selected OpenProject bot ${integrationBot.userId} is not joined to this room`,
+        ErrCode.NotInRoom,
+      );
+    }
     log.info(
       `Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`,
     );
@@ -221,6 +328,7 @@ export class OpenProjectConnection
       tokenStore,
       storage,
       config.messaging,
+      timelineManager,
     );
     await intent.underlyingClient.sendStateEvent(
       roomId,
@@ -231,16 +339,26 @@ export class OpenProjectConnection
     log.info(
       `Created connection via provisionConnection ${connection.toString()}`,
     );
-    await new OpenProjectGrantChecker(as, tokenStore).grantConnection(roomId, {
-      url: validData.url,
-    });
+    await new OpenProjectGrantChecker(as, intent, tokenStore).grantConnection(
+      roomId,
+      {
+        url: validData.url,
+      },
+    );
     return { connection };
   }
 
   static createConnectionForState(
     roomId: string,
     state: StateEvent<Record<string, unknown>>,
-    { config, as, intent, tokenStore, storage }: InstantiateConnectionOpts,
+    {
+      config,
+      as,
+      intent,
+      tokenStore,
+      storage,
+      timelineManager,
+    }: InstantiateConnectionOpts,
   ) {
     if (!config.openProject) {
       throw Error("OpenProject is not configured");
@@ -259,6 +377,7 @@ export class OpenProjectConnection
       tokenStore,
       storage,
       config.messaging,
+      timelineManager,
     );
   }
 
@@ -303,15 +422,16 @@ export class OpenProjectConnection
   }
 
   public interestedInProject(project: number) {
-    if (this.projectId === project) {
-      return true;
-    }
-    return false;
+    // Removal stops timeline work before its storage cleanup can complete.
+    return !this.timelineRemoved && this.projectId === project;
   }
 
   public readonly url: URL;
   public readonly projectId: number;
+  /** The bot whose intent handles this connection's Matrix traffic. */
+  public readonly botUserId: string;
   private readonly grantChecker: OpenProjectGrantChecker;
+  private timelineRemoved = false;
 
   constructor(
     roomId: string,
@@ -323,6 +443,7 @@ export class OpenProjectConnection
     private readonly tokenStore: UserTokenStore,
     private readonly storage: IBridgeStorageProvider,
     msgConfig: BridgeConfigMessaging,
+    private readonly timelineManager = new TimelineManager(),
   ) {
     super(
       roomId,
@@ -337,7 +458,8 @@ export class OpenProjectConnection
       "!openproject",
       "openproject",
     );
-    this.grantChecker = new OpenProjectGrantChecker(as, tokenStore);
+    this.botUserId = intent.userId;
+    this.grantChecker = new OpenProjectGrantChecker(as, intent, tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
   }
@@ -363,42 +485,165 @@ export class OpenProjectConnection
     );
   }
 
+  private runTimelineTransition<T>(
+    workPackageId: number,
+    transition: () => Promise<T>,
+  ): Promise<T | undefined> {
+    if (this.timelineRemoved) {
+      return Promise.resolve(undefined);
+    }
+    return this.timelineManager.runTransition(
+      this.connectionId,
+      workPackageId,
+      transition,
+    );
+  }
+
   public async onWorkPackageCreated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
+    const workPackage = data.work_package;
+    try {
+      await this.runTimelineTransition(workPackage.id, async () => {
+        log.info(
+          `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
+        );
+
+        const existing = await this.storage.getOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+        );
+        if (!existing && this.state.anchors.includes("work_package:created")) {
+          const content = formatWorkPackageAnchorContent(
+            workPackage,
+            this.config.baseURL,
+            { snapshotId: randomUUID() },
+          );
+          const anchorEventId = await this.sendEvent(content.body, content, {
+            inline: false,
+          });
+          await this.storage.setOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+            {
+              anchorEventId,
+              lockVersion: workPackage.lockVersion,
+              lastContent: content,
+            },
+          );
+        } else if (existing && workPackage.lockVersion > existing.lockVersion) {
+          const replacement = formatWorkPackageAnchorReplacement(
+            existing.anchorEventId,
+            workPackage,
+            this.config.baseURL,
+            { snapshotId: randomUUID() },
+          );
+          await this.sendEvent(replacement.body, replacement, {
+            inline: false,
+          });
+          await this.storage.setOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+            {
+              anchorEventId: existing.anchorEventId,
+              lockVersion: workPackage.lockVersion,
+              lastContent: replacement["m.new_content"],
+            },
+          );
+        }
+      });
+    } catch (error) {
+      log.warn(
+        `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; activity notifications will continue`,
+        error,
+      );
+    }
+
+    await this.storage.setOpenProjectWorkPackageState(
+      workPackageToCacheState(workPackage),
+      workPackage.id,
+    );
+
     if (!this.isInterestedInHookEvent("work_package:created")) {
       return;
     }
-    log.info(
-      `onWorkPackageCreated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
-    );
-
-    const creator = data.work_package._embedded.author;
+    const creator = workPackage._embedded.author;
     if (!creator) {
       throw Error("No creator field");
     }
     const extraData = formatWorkPackageForMatrix(
-      data.work_package,
+      workPackage,
       this.config.baseURL,
     );
-    const content = `${creator.name} created a new work package [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
-    await this.sendEvent(content, extraData);
-    await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
-    );
+    const content = `**${creator.name}** created work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
+    await this.sendEvent(content, extraData, { inline: false });
   }
 
   public async onWorkPackageUpdated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
+    const workPackage = data.work_package;
     log.info(
-      `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${data.work_package.id}`,
+      `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${workPackage.id}`,
     );
 
+    try {
+      await this.runTimelineTransition(workPackage.id, async () => {
+        const activeAnchor = await this.storage.getOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+        );
+        if (
+          !activeAnchor ||
+          workPackage.lockVersion <= activeAnchor.lockVersion
+        ) {
+          return;
+        }
+
+        const replacement = formatWorkPackageAnchorReplacement(
+          activeAnchor.anchorEventId,
+          workPackage,
+          this.config.baseURL,
+          { snapshotId: randomUUID() },
+        );
+        try {
+          await this.sendEvent(replacement.body, replacement, {
+            inline: false,
+          });
+        } catch (error) {
+          if (!isMissingAnchorError(error)) {
+            throw error;
+          }
+          await this.storage.deleteOpenProjectAnchorState(
+            this.connectionId,
+            workPackage.id,
+          );
+          log.info(
+            `Removing missing OpenProject anchor ${activeAnchor.anchorEventId} for ${this.connectionId}/${workPackage.id}`,
+          );
+          return;
+        }
+
+        await this.storage.setOpenProjectAnchorState(
+          this.connectionId,
+          workPackage.id,
+          {
+            anchorEventId: activeAnchor.anchorEventId,
+            lockVersion: workPackage.lockVersion,
+            lastContent: replacement["m.new_content"],
+          },
+        );
+      });
+    } catch (error) {
+      log.warn(
+        `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; activity notifications will continue`,
+        error,
+      );
+    }
+
     const previousState = await this.storage.getOpenProjectWorkPackageState(
-      data.work_package._embedded.project.id,
-      data.work_package.id,
+      workPackage._embedded.project.id,
+      workPackage.id,
     );
 
     // Detect what changed.
@@ -407,7 +652,7 @@ export class OpenProjectConnection
     let hookEvent: OpenProjectEventsNames = "work_package:updated";
     let diffSet: ReturnType<typeof formatWorkPackageDiff> | undefined;
     if (previousState) {
-      diffSet = formatWorkPackageDiff(previousState, data.work_package);
+      diffSet = formatWorkPackageDiff(previousState, workPackage);
       if (diffSet) {
         hookEvent = diffSet.eventKind;
         postfix = diffSet.postfix;
@@ -420,8 +665,8 @@ export class OpenProjectConnection
     }
 
     await this.storage.setOpenProjectWorkPackageState(
-      workPackageToCacheState(data.work_package),
-      data.work_package.id,
+      workPackageToCacheState(workPackage),
+      workPackage.id,
     );
 
     if (previousState && !diffSet) {
@@ -431,15 +676,15 @@ export class OpenProjectConnection
     if (!this.isInterestedInHookEvent(hookEvent ?? "work_package:updated")) {
       return;
     }
-    const creator = data.work_package._embedded.author;
+    const creator = workPackage._embedded.author;
     if (!creator) {
       throw Error("No creator field");
     }
     const extraData = formatWorkPackageForMatrix(
-      data.work_package,
+      workPackage,
       this.config.baseURL,
     );
-    const content = `**${creator.name}** ${changeStatement} for [${data.work_package.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${data.work_package.subject}"`;
+    const content = `**${creator.name}** ${changeStatement} for [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
 
     await this.sendEvent(content + (postfix ?? ""), extraData, {
       inline: false,
@@ -472,6 +717,96 @@ export class OpenProjectConnection
     }
     return replyContent["org.matrix.matrix-hookshot.openproject.work_package"]
       .id;
+  }
+
+  /** Add the current OpenProject package as an active timeline anchor. */
+  @botCommand("timeline add", {
+    help: "Add a work package to the timeline",
+    requiredArgs: ["workPackageId"],
+    includeUserId: true,
+  })
+  public async commandTimelineAdd(
+    userId: string,
+    workPackageIdArgument: string,
+  ) {
+    const workPackageId = parseWorkPackageId(workPackageIdArgument);
+
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
+    }
+    const workPackage = await client.getWorkPackage(workPackageId);
+    if (workPackage._embedded.project.id !== this.projectId) {
+      throw new CommandError(
+        "Work package belongs to another project",
+        "This work package is not part of the project configured for this connection.",
+      );
+    }
+
+    await this.runTimelineTransition(workPackage.id, async () => {
+      const activeAnchor = await this.storage.getOpenProjectAnchorState(
+        this.connectionId,
+        workPackage.id,
+      );
+      if (activeAnchor) {
+        return;
+      }
+
+      const content = formatWorkPackageAnchorContent(
+        workPackage,
+        this.config.baseURL,
+        { snapshotId: randomUUID() },
+      );
+      const anchorEventId = await this.sendEvent(content.body, content, {
+        inline: false,
+      });
+      await this.storage.setOpenProjectAnchorState(
+        this.connectionId,
+        workPackage.id,
+        {
+          anchorEventId,
+          lockVersion: workPackage.lockVersion,
+          lastContent: content,
+        },
+      );
+    });
+  }
+
+  /** Remove a work package's active anchor without changing its OpenProject status. */
+  @botCommand("timeline remove", {
+    help: "Remove a work package from the timeline",
+    requiredArgs: ["workPackageId"],
+  })
+  public async commandTimelineRemove(workPackageIdArgument: string) {
+    const workPackageId = parseWorkPackageId(workPackageIdArgument);
+    await this.runTimelineTransition(workPackageId, async () => {
+      const activeAnchor = await this.storage.getOpenProjectAnchorState(
+        this.connectionId,
+        workPackageId,
+      );
+      if (!activeAnchor) {
+        return;
+      }
+      if (!isValidAnchorStateForRemoval(activeAnchor, workPackageId)) {
+        throw new CommandError(
+          "Invalid stored timeline anchor",
+          "The stored timeline anchor is invalid and cannot be removed safely.",
+        );
+      }
+
+      const replacement = formatInactiveWorkPackageAnchorReplacement(
+        activeAnchor.anchorEventId,
+        activeAnchor.lastContent,
+        randomUUID(),
+      );
+      await this.sendEvent(replacement.body, replacement, {
+        inline: false,
+      });
+      await this.storage.deleteOpenProjectAnchorState(
+        this.connectionId,
+        workPackageId,
+      );
+    });
   }
 
   @botCommand("create", {
@@ -535,17 +870,6 @@ export class OpenProjectConnection
       workPackageToCacheState(workPackage),
       workPackage.id,
     );
-    if (this.state.events.includes("work_package:created")) {
-      // Don't send an event if we're going to anyway.
-      return;
-    }
-
-    const extraData = formatWorkPackageForMatrix(
-      workPackage,
-      this.config.baseURL,
-    );
-    const content = `${workPackage._embedded.author.name} created a new work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
-    await this.sendEvent(content, extraData);
   }
 
   @botCommand("close", {
@@ -602,7 +926,7 @@ export class OpenProjectConnection
       );
     }
 
-    const workPackage = await client.updateWorkPackage(workPackageId, {
+    await client.updateWorkPackage(workPackageId, {
       _links: {
         status: {
           href: closedStatus?._links.self.href,
@@ -612,17 +936,6 @@ export class OpenProjectConnection
     if (finalComment) {
       await client.addWorkPackageComment(workPackageId, finalComment);
     }
-    if (this.state.events.includes("work_package:updated")) {
-      // Don't send an event if we're going to anyway.
-      return;
-    }
-
-    const extraData = formatWorkPackageForMatrix(
-      workPackage,
-      this.config.baseURL,
-    );
-    const content = `${workPackage._embedded.author.name} closed work package [${workPackage.id}](${extraData["org.matrix.matrix-hookshot.openproject.work_package"].url}): "${workPackage.subject}"`;
-    await this.sendEvent(content, extraData);
   }
 
   @botCommand("priority", {
@@ -843,18 +1156,34 @@ export class OpenProjectConnection
     };
   }
 
+  /** Delete this connection's active anchors after its pending transitions. */
+  public async cleanupTimelineAnchors(): Promise<void> {
+    this.timelineRemoved = true;
+    await this.timelineManager.runConnectionTransition(this.connectionId, () =>
+      this.storage.deleteOpenProjectAnchorStates(this.connectionId),
+    );
+  }
+
   public async onRemove() {
     log.info(`Removing ${this.toString()} for ${this.roomId}`);
+    const wasTimelineRemoved = this.timelineRemoved;
+    this.timelineRemoved = true;
+    try {
+      // Keep the active anchors and grant if Matrix cannot disable the connection.
+      await removeConnectionState(
+        this.intent.underlyingClient,
+        this.roomId,
+        this.stateKey,
+        OpenProjectConnection,
+      );
+    } catch (error) {
+      this.timelineRemoved = wasTimelineRemoved;
+      throw error;
+    }
+    await this.cleanupTimelineAnchors();
     await this.grantChecker.ungrantConnection(this.roomId, {
       url: this.state.url,
     });
-    // Do a sanity check that the event exists.
-    await removeConnectionState(
-      this.intent.underlyingClient,
-      this.roomId,
-      this.stateKey,
-      OpenProjectConnection,
-    );
   }
 
   public async migrateToNewRoom(newRoomId: string): Promise<void> {

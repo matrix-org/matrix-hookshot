@@ -1,4 +1,13 @@
-import type { OpenProjectWorkPackageContent } from "../../src/models/OpenProjectMatrixEventContent";
+import type {
+  OpenProjectProjectContent,
+  OpenProjectWorkPackageContent,
+} from "../../src/models/OpenProjectMatrixEventContent";
+
+export const PROJECT: OpenProjectProjectContent = {
+  id: 1,
+  name: "Demo project",
+  url: "https://openproject.example/projects/demo-project",
+};
 
 export const WORK_PACKAGE: OpenProjectWorkPackageContent = {
   id: 50,

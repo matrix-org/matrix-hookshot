@@ -110,7 +110,12 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
+import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
+import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
+import { createAuthenticatedProbeHandler } from "./AuthenticatedProbeHandler";
+import { assertUserPermissionsInRoom } from "./widgets/Api";
+import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("Bridge");
 
@@ -124,7 +129,9 @@ export class Bridge {
   private adminRooms: Map<string, AdminRoom> = new Map();
   private feedReader?: FeedReader;
   private houndReader?: HoundReader;
+  private toDeviceReceiver?: HookshotToDeviceReceiver;
   private replyProcessor = new RichRepliesPreprocessor(true);
+  private readonly timelineManager = new TimelineManager();
 
   private ready = false;
 
@@ -157,6 +164,7 @@ export class Bridge {
   public async stop() {
     this.feedReader?.stop();
     this.houndReader?.stop();
+    this.toDeviceReceiver?.stop();
     this.tokenStore.stop();
     this.as.stop();
     await this.queue.stop?.();
@@ -183,6 +191,10 @@ export class Bridge {
 
     await this.botUsersManager.start();
 
+    if (this.config.toDevice.receiver.enabled) {
+      await this.startToDeviceReceiver();
+    }
+
     await this.config.prefillMembershipCache(this.as.botClient);
 
     if (this.config.github) {
@@ -207,6 +219,7 @@ export class Bridge {
       this.messageClient,
       this.storage,
       this.botUsersManager,
+      this.timelineManager,
       this.github,
     ));
 
@@ -1471,6 +1484,13 @@ export class Bridge {
                   this.connectionManager.getAllConnectionsOfType.bind(
                     this.connectionManager,
                   ),
+                getIntegrationBotForService:
+                  this.botUsersManager.getIntegrationBotForService.bind(
+                    this.botUsersManager,
+                  ),
+                isBotUserInRoom: this.botUsersManager.isBotUserInRoom.bind(
+                  this.botUsersManager,
+                ),
               },
               this.getOrCreateAdminRoom.bind(this),
               this.connectionManager.push.bind(this.connectionManager),
@@ -2173,5 +2193,63 @@ export class Bridge {
           );
       }
     }
+  }
+
+  /**
+   * Service bots are the deployment-owned capability endpoints. Keeps the
+   * first (highest-priority) bot for each service so a dedicated service bot
+   * takes precedence over the default Hookshot bot.
+   */
+  private async startToDeviceReceiver() {
+    const integrationBots = new Map<string, string>();
+    const services = new Set(
+      this.botUsersManager.botUsers.flatMap((botUser) => botUser.services),
+    );
+    for (const service of services) {
+      const botUser = this.botUsersManager.getIntegrationBotForService(service);
+      if (botUser) {
+        integrationBots.set(service, botUser.userId);
+      }
+    }
+    await provisionToDeviceReceiverDevices(
+      this.as,
+      new Set(integrationBots.values()),
+      !!this.config.encryption,
+    );
+
+    this.toDeviceReceiver = new HookshotToDeviceReceiver(
+      this.as,
+      integrationBots,
+      {
+        probeHandler: createAuthenticatedProbeHandler({
+          getAnchorEvent: (roomId, eventId, recipientBotUserId) =>
+            this.as
+              .getIntentForUserId(recipientBotUserId)
+              .underlyingClient.getEvent(roomId, eventId),
+          assertRoomReadAccess: async (userId, roomId, recipientBotUserId) => {
+            await assertUserPermissionsInRoom(
+              userId,
+              roomId,
+              "read",
+              this.as.getIntentForUserId(recipientBotUserId),
+            );
+          },
+          getOpenProjectForUser: (userId) =>
+            this.tokenStore.getOpenProjectForUser(userId),
+          getOpenProjectConnections: (projectId) =>
+            (
+              this.connectionManager?.getConnectionsForOpenProject(projectId) ??
+              []
+            ).map((connection) => ({
+              connectionId: connection.connectionId,
+              roomId: connection.roomId,
+              botUserId: connection.botUserId,
+            })),
+          getOpenProjectAnchorState: (connectionId, workPackageId) =>
+            this.storage.getOpenProjectAnchorState(connectionId, workPackageId),
+        }),
+      },
+    );
+    this.toDeviceReceiver.start();
   }
 }
