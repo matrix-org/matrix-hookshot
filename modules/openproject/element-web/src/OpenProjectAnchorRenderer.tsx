@@ -1,4 +1,5 @@
 import * as React from "react";
+import { TooltipProvider } from "@vector-im/compound-web";
 import { useCreateAutoDisposedViewModel } from "@element-hq/web-shared-components";
 import {
   type OpenProjectAnchor,
@@ -23,14 +24,16 @@ export function OpenProjectAnchorRenderer({
   const snapshotId = data["org.matrix.matrix-hookshot.openproject.snapshot_id"];
 
   return (
-    <React.Fragment key={anchor.eventId}>
-      <OpenProjectAnchorCard
-        key={snapshotId}
-        anchor={anchor}
-        capabilityClient={capabilityClient}
-        data={data}
-      />
-    </React.Fragment>
+    <TooltipProvider>
+      <React.Fragment key={anchor.eventId}>
+        <OpenProjectAnchorCard
+          key={snapshotId}
+          anchor={anchor}
+          capabilityClient={capabilityClient}
+          data={data}
+        />
+      </React.Fragment>
+    </TooltipProvider>
   );
 }
 
