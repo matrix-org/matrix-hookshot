@@ -21,6 +21,7 @@ WORKDIR /src
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY modules ./modules
+COPY assets ./assets
 RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
 RUN pnpm install --frozen-lockfile

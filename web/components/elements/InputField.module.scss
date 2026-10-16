@@ -2,11 +2,15 @@
   label {
     position: relative;
     margin: 0;
+    max-width: 100%;
+    white-space: normal;
   }
 }
 
 .inputField {
   width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   margin-bottom: 12px;
   label {
     position: absolute;
@@ -61,7 +65,15 @@
 
 .container {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+
+  > * {
+    min-width: 0;
+    max-width: 100%;
+  }
 
   button {
     min-width: 0;

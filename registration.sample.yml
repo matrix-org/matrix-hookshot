@@ -4,6 +4,8 @@ hs_token: aaaaaaaaaa # ..as can this
 namespaces:
   rooms: []
   users: # In the following, foobar is your homeserver's domain
+    - regex: "@hookshot:foobar"
+      exclusive: true
     - regex: "@_github_.*:foobar"
       exclusive: true
     - regex: "@_gitlab_.*:foobar"
@@ -22,4 +24,5 @@ sender_localpart: hookshot
 url: "http://localhost:9993" # This should match the bridge.port in your config file
 rate_limited: false
 
-receive_ephemeral: true
+receive_ephemeral: true # Receive ephemeral events including presence, typing, receipts, and to-device messages.
+io.element.msc4190: true # Allow Hookshot to provision its persistent capability receiver device.
