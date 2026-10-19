@@ -12,16 +12,7 @@ export type OpenProjectActivityEventContent = OpenProjectActivityContent;
 
 export interface ActivityViewSnapshot {
   readonly kind: "activity";
-  readonly workPackage: {
-    readonly id: number;
-    readonly subject: string;
-    readonly url: string;
-  };
   readonly changeSummary: string;
-  readonly actor?: {
-    readonly name: string;
-    readonly url: string;
-  };
 }
 
 export interface ActivityViewActions {
@@ -29,7 +20,7 @@ export interface ActivityViewActions {
 }
 
 export type ActivityViewModel = ViewModel<
-  ActivityViewSnapshot | null,
+  ActivityViewSnapshot,
   ActivityViewActions
 >;
 
@@ -41,30 +32,12 @@ export interface ActivityMessageViewModelProps {
 
 function createActivityViewSnapshot(
   data: OpenProjectActivityEventContent,
-): ActivityViewSnapshot | null {
-  const workPackage =
-    data["org.matrix.matrix-hookshot.openproject.work_package"];
-  const changes = data["org.matrix.matrix-hookshot.openproject.changes"] || [];
-  if (!workPackage) {
-    return null;
-  }
-
-  const firstChange = changes[0] ?? "updated the details";
-  const remainingChanges = changes.length - 1;
-  const remainingSummary =
-    remainingChanges > 0
-      ? ` and made ${remainingChanges} more ${remainingChanges === 1 ? "update" : "updates"}`
-      : "";
-  const changeSummary = `${firstChange}${remainingSummary}.`;
+): ActivityViewSnapshot {
+  const changeSummary = data["formatted_body"] ?? data["body"];
 
   return {
     kind: "activity",
-    workPackage,
     changeSummary,
-    actor:
-      "org.matrix.matrix-hookshot.openproject.actor" in data
-        ? data["org.matrix.matrix-hookshot.openproject.actor"]
-        : undefined,
   };
 }
 
@@ -86,10 +59,7 @@ function createViewTimelineCardAction(
 }
 
 export class ActivityMessageViewModel
-  extends BaseViewModel<
-    ActivityViewSnapshot | null,
-    ActivityMessageViewModelProps
-  >
+  extends BaseViewModel<ActivityViewSnapshot, ActivityMessageViewModelProps>
   implements ActivityViewModel
 {
   public readonly onViewTimelineCard?: () => void;

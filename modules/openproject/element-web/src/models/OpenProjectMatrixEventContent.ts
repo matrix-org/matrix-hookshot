@@ -112,6 +112,8 @@ export type OpenProjectAnchorContent =
   | OpenProjectInactiveAnchorContent;
 
 export interface OpenProjectActivityContent {
+  body: string;
+  formatted_body?: string;
   "org.matrix.matrix-hookshot.openproject.actor"?: OpenProjectActor;
   "org.matrix.matrix-hookshot.openproject.work_package": {
     id: number;

@@ -660,10 +660,10 @@ export class OpenProjectConnection
         ? formatWorkPackageDiff(previous, workPackage)
         : null;
     const changes = created
-      ? ["created the work package"]
+      ? ["created"]
       : previous
         ? (diff?.changes ?? [])
-        : ["updated the work package"];
+        : ["updated the details"];
     const shouldSend = created
       ? this.isInterestedInHookEvent("work_package:created")
       : previous

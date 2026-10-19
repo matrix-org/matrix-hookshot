@@ -1,3 +1,4 @@
+import markdown from "markdown-it";
 import type { OpenProjectEventsNames } from "../Connections/OpenProjectConnection";
 import type { OpenProjectWorkPackageCacheState } from "./State";
 import { workPackageToCacheState } from "./State";
@@ -10,6 +11,8 @@ import {
   type OpenProjectAnchorState,
 } from "./Schema";
 import type { OpenProjectWebhookActor, OpenProjectWorkPackage } from "./Types";
+
+const md = new markdown();
 
 export interface OpenProjectDeadline {
   date: string;
@@ -135,6 +138,7 @@ export interface OpenProjectWorkPackageActivityMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
   "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ACTIVITY_EVENT_KIND;
   "org.matrix.matrix-hookshot.openproject.anchor_event_id"?: string;
+  external_url: string;
 }
 
 export interface OpenProjectActiveAnchorMessageContent extends OpenProjectActiveWorkPackageAnchorMatrixEvent {
@@ -164,6 +168,8 @@ export interface OpenProjectAnchorReplacementMessageContent {
 export interface OpenProjectActivityMessageContent extends OpenProjectWorkPackageActivityMatrixEvent {
   msgtype: "m.notice";
   body: string;
+  format: "org.matrix.custom.html";
+  formatted_body: string;
 }
 
 export function formatWorkPackageForMatrix(
@@ -323,7 +329,7 @@ export function formatWorkPackageAnchorReplacement(
 
   return {
     msgtype: "m.notice",
-    body: `* ${newContent.body}`,
+    body: `${newContent.body}`,
     "m.new_content": newContent,
     "m.relates_to": {
       rel_type: "m.replace",
@@ -361,7 +367,7 @@ export function formatInactiveWorkPackageAnchorReplacement(
 
   return {
     msgtype: "m.notice",
-    body: `* ${body}`,
+    body: `${body}`,
     "m.new_content": inactiveContent,
     "m.relates_to": {
       rel_type: "m.replace",
@@ -382,26 +388,22 @@ function formatActivityFallback(
   changes: string[],
   { actor, created = false }: OpenProjectActivityFormatOptions,
 ): string {
-  const firstChange =
-    changes[0] ??
-    (created ? "created the work package" : "updated the work package");
+  const workPackageUrl = getWorkPackageUrl(pkg, baseURL);
+  const actorName = `**${actor?.name ?? "Someone"}**`;
+
+  if (created) {
+    return `${actorName} created [#${pkg.id} ${pkg.subject}](${workPackageUrl})`;
+  }
+
+  const firstChange = changes[0] ?? "updated the details";
   const remainingChanges = changes.length - 1;
   const remainingSummary =
     remainingChanges > 0
-      ? ` and made ${remainingChanges} more ${remainingChanges === 1 ? "update" : "updates"}`
-      : "";
-  const fallbackChange = firstChange
-    .replaceAll("<strong>", "**")
-    .replaceAll("</strong>", "**");
-  const changeSummary = `${fallbackChange}${remainingSummary}`;
-  const body = created
-    ? actor
-      ? `${actor.name} created work package #${pkg.id}: "${pkg.subject}"`
-      : `Work package #${pkg.id} was created: "${pkg.subject}"`
-    : actor
-      ? `${actor.name} ${changeSummary} on work package #${pkg.id}: "${pkg.subject}"`
-      : `Work package #${pkg.id}: ${changeSummary} ("${pkg.subject}")`;
-  return `${body}\n${getWorkPackageUrl(pkg, baseURL)}`;
+      ? ` and made ${remainingChanges == 1 ? "one" : remainingChanges} more ${remainingChanges === 1 ? "update to " : "updates to "}`
+      : " on ";
+  const changeSummary = `${firstChange}${remainingSummary}`;
+
+  return `${actorName} ${changeSummary} [#${pkg.id} ${pkg.subject}](${workPackageUrl})`;
 }
 
 export function formatWorkPackageActivityForMatrix(
@@ -410,19 +412,24 @@ export function formatWorkPackageActivityForMatrix(
   changes: string[],
   options: OpenProjectActivityFormatOptions = {},
 ): OpenProjectActivityMessageContent {
+  const body = formatActivityFallback(pkg, baseURL, changes, options);
+  const url = getWorkPackageUrl(pkg, baseURL);
   const content: OpenProjectActivityMessageContent = {
     msgtype: "m.notice",
-    body: formatActivityFallback(pkg, baseURL, changes, options),
+    body,
+    format: "org.matrix.custom.html",
+    formatted_body: md.renderInline(body),
     "org.matrix.matrix-hookshot.openproject.work_package": {
       id: pkg.id,
       subject: pkg.subject,
-      url: getWorkPackageUrl(pkg, baseURL),
+      url: url,
     },
     "org.matrix.matrix-hookshot.openproject.changes": changes,
     "org.matrix.matrix-hookshot.openproject.schema_version":
       OPENPROJECT_EVENT_SCHEMA_VERSION,
     "org.matrix.matrix-hookshot.openproject.event_kind":
       OPENPROJECT_ACTIVITY_EVENT_KIND,
+    external_url: url,
   };
 
   if (options.actor) {
@@ -456,7 +463,7 @@ export function formatWorkPackageDiff(
   // {user} {...changes} {issueUrl}
   if (old.assignee !== current.assignee) {
     if (current.assignee) {
-      changes.push(`assigned <strong>${pkg._embedded.assignee?.name}</strong>`);
+      changes.push(`assigned **${pkg._embedded.assignee?.name}**`);
     } else {
       changes.push(`removed assignee`);
     }
@@ -472,7 +479,7 @@ export function formatWorkPackageDiff(
   }
   if (old.date !== current.date) {
     if (current.date) {
-      changes.push(`set the date to <strong>${current.date}</strong>`);
+      changes.push(`set the date to **${current.date}**`);
     } else {
       changes.push(`removed the date`);
     }
@@ -480,7 +487,7 @@ export function formatWorkPackageDiff(
   }
   if (old.dueDate !== current.dueDate) {
     if (current.dueDate) {
-      changes.push(`set the due date to <strong>${current.dueDate}</strong>`);
+      changes.push(`set the due date to **${current.dueDate}**`);
     } else {
       changes.push(`removed the due date`);
     }
@@ -489,7 +496,7 @@ export function formatWorkPackageDiff(
   if (old.percentageDone !== current.percentageDone) {
     if (current.percentageDone !== null) {
       changes.push(
-        `set the work completed percentage to <strong>${current.percentageDone}%</strong>`,
+        `set the work completed percentage to **${current.percentageDone}%**`,
       );
     } else {
       changes.push(`cleared the work completed percentage`);
@@ -498,7 +505,7 @@ export function formatWorkPackageDiff(
   }
   if (old.priority?.id !== current.priority?.id) {
     changes.push(
-      `changed the priority from <strong>${old.priority?.name}</strong> to <strong>${current.priority?.name ?? "none"}</strong>`,
+      `changed the priority from **${old.priority?.name}** to **${current.priority?.name ?? "none"}**`,
     );
     categories.add("work_package:priority_changed");
   }
@@ -512,7 +519,7 @@ export function formatWorkPackageDiff(
   }
   if (old.status.id !== current.status.id) {
     changes.push(
-      `changed the status from <strong>${old.status?.name}</strong> to <strong>${current.status?.name ?? "none"}</strong>`,
+      `changed the status from **${old.status?.name}** to **${current.status?.name ?? "none"}**`,
     );
     categories.add("work_package:updated");
   }
@@ -522,9 +529,7 @@ export function formatWorkPackageDiff(
     categories.add("work_package:subject_changed");
   }
   if (old.type !== current.type) {
-    changes.push(
-      `changed the type to <strong>${pkg._embedded.type.name}</strong>`,
-    );
+    changes.push(`changed the type to **${pkg._embedded.type.name}**`);
     categories.add("work_package:updated");
   }
 

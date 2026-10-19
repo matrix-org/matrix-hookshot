@@ -4,7 +4,6 @@ import LinkIcon from "@vector-im/compound-design-tokens/assets/web/icons/link";
 import { useViewModel } from "@element-hq/web-shared-components";
 import { safeHtml } from "../../utils/validation";
 import type { ActivityViewModel } from "../../viewmodels/workPackage/ActivityMessageViewModel";
-import { LinkView } from "./LinkView";
 import styles from "./WorkPackage.module.css";
 
 interface ActivityViewProps {
@@ -12,30 +11,17 @@ interface ActivityViewProps {
 }
 
 export function ActivityView({ vm }: Readonly<ActivityViewProps>) {
-  const snapshot = useViewModel(vm);
-  if (!snapshot) {
+  const { changeSummary } = useViewModel(vm);
+  const safeChangeSummary = safeHtml(changeSummary);
+
+  if (!safeChangeSummary) {
     return null;
   }
-
-  const { workPackage, changeSummary, actor } = snapshot;
-  const safeChangeSummary = safeHtml(changeSummary);
 
   return (
     <div className={styles.activity}>
       <div className={styles.activityContent}>
-        <LinkView
-          url={workPackage.url}
-          title={`#${workPackage.id} ${workPackage.subject}`}
-        >
-          #{workPackage.id}
-        </LinkView>
-        {" - "}
-        <LinkView url={actor?.url}>{actor?.name ?? "Someone"}</LinkView>{" "}
-        {safeChangeSummary ? (
-          <span dangerouslySetInnerHTML={{ __html: safeChangeSummary }} />
-        ) : (
-          changeSummary
-        )}
+        <span dangerouslySetInnerHTML={{ __html: safeChangeSummary }} />
       </div>
       {vm.onViewTimelineCard && (
         <div className={styles.activityAction}>
