@@ -503,8 +503,8 @@ importers:
         specifier: 0.1.0
         version: 0.1.0
       '@element-hq/web-shared-components':
-        specifier: ^0.1.1
-        version: 0.1.2(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-web@9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(blurhash@2.0.5)(matrix-widget-api@1.17.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^0.2.0
+        version: 0.2.2(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-web@9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(blurhash@2.0.5)(matrix-widget-api@1.17.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -757,24 +757,6 @@ packages:
   '@dnd-kit/state@0.5.0':
     resolution: {integrity: sha512-y7XbabQqjF58Lk8YmDQuR8l6QjN+Kh4qlGEjUvHuIeasLk1QP+9L5diXS98VMxQIivyMmUtX2//f+3N7qPJX4w==}
 
-  '@element-hq/element-web-module-api@1.14.0':
-    resolution: {integrity: sha512-44I0qr4LGiFpsuIJ8BQvjhNGdYUz/5ehyAbORXD6SRhwnRbNJFf/KG0d8jAOpJm77V0D+QxmCOxOzjzcyy4fUA==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      '@matrix-org/react-sdk-module-api': '*'
-      '@types/react': '*'
-      '@types/react-dom': '*'
-      matrix-web-i18n: '*'
-      matrix-widget-api: '*'
-      react: ^19
-    peerDependenciesMeta:
-      '@matrix-org/react-sdk-module-api':
-        optional: true
-      matrix-web-i18n:
-        optional: true
-      matrix-widget-api:
-        optional: true
-
   '@element-hq/element-web-module-api@2.2.0':
     resolution: {integrity: sha512-xJzkMlM9av0e4xtOHZKjEQLTLsgELhsQGUlg5R2wfmderKlF71+Kf2B72dG8OsMfHeXwNc6pA4RTVAlzcvnrkQ==}
     engines: {node: '>=20.0.0'}
@@ -794,8 +776,8 @@ packages:
     resolution: {integrity: sha512-b6O4BIDKve9uWIVZIpjiQiD/6DTACZ+nJ3hyhpTfI1QK8y3Imjn4MtJd11eDrDYUVVZ1QFCLmsMIOZGQ368Z/A==}
     engines: {node: '>=20.0.0'}
 
-  '@element-hq/web-shared-components@0.1.2':
-    resolution: {integrity: sha512-uvxTs80q59ro9H9i6Y/8ooTkeXLiEkkH++0zqJEKgTtMD42tSbXL7i7TP44V/stuP7Dh3myWfGysJtqEuBgmfw==}
+  '@element-hq/web-shared-components@0.2.2':
+    resolution: {integrity: sha512-g7ch3HS0CmSxvHLIF/J5U5WB7J858+IiuSrywdwOE3x5DPtCvpItqt4MW8i9Y+IKZu5t0jJtLdg+cv+Cpv6SkQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       '@vector-im/compound-web': ^8.3.5 || ^9.0.0
@@ -1295,6 +1277,9 @@ packages:
 
   '@marijn/find-cluster-break@1.0.4':
     resolution: {integrity: sha512-Wy0V7+SGUjnF9/TkiM1hKVDPj7jKXduPNboMVtHTA8dySMURWqfg/JZ9E2Sq8JgSJmkl7k7Qe9FLeMSrSraWmQ==}
+
+  '@matrix-org/emojibase-bindings@1.5.0':
+    resolution: {integrity: sha512-+W9/ow2Z3iQa7ZOF698PBhwNcgGkn36B5Sr8VDPx8N8CH7+Uw+7TrtbtKPZVdgf4m/THmgmfX40jS5YDBsLaYg==}
 
   '@matrix-org/matrix-sdk-crypto-nodejs@0.6.6':
     resolution: {integrity: sha512-JlYSjq9Sm/0QoUXfk6C7JppsOG0ESY8BHEIaQgjQ8iQ0GkhvJrhPZbMJmd77/Bgeahd1GENf8896nauf4ximzQ==}
@@ -2826,6 +2811,15 @@ packages:
       typescript:
         optional: true
 
+  '@tanstack/react-virtual@3.14.13':
+    resolution: {integrity: sha512-JbDTAwtzZ99aOeCrAfW5EsE5KSq5RWh6Af2dtFwyLIIk48Ja7vm6n4axu/43T3vfjFnEGJalxJ1wyYjSQD6bSg==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  '@tanstack/virtual-core@3.17.11':
+    resolution: {integrity: sha512-+ILjvtHup6Y2hzQ6YzwMgX1Q+oQpxEGOXCEsCNaPoIP0VxMbizIBTmYTDtkerkIQS8/CbP1BRuyt8V/8BCsy1g==}
+
   '@testcontainers/redis@10.28.0':
     resolution: {integrity: sha512-xDNKSJTBmQca/3v5sdHmqSCYr68vjvAGSxoHCuWylha77gAYn88g5nUZK0ocNbUZgBq69KhIzj/f9zlHkw34uA==}
 
@@ -3112,19 +3106,25 @@ packages:
       react: '>=17.0.0'
       react-dom: '>=17.0.0'
 
-  '@vector-im/compound-design-tokens@10.2.1':
-    resolution: {integrity: sha512-N8to81u7qVYRgQiMr8Fr1mM+s6ZHRsiGpXLFJiHTP4YDyc7vXW6MBUVuUaUGFcbmxq76lqPaZt2AsnD2barn6Q==}
+  '@vector-im/compound-design-tokens@10.2.4':
+    resolution: {integrity: sha512-2aCjhSvJxktPWnvh5s9Xdc0Rd76AfHqbDbN4QjOxo2VIac6zYdLyQbxMUQ5ZeoR9G3vAxILd0H1UvApRfMilpQ==}
     peerDependencies:
+      '@adobe/leonardo-contrast-colors': ^1.0.0
       '@types/react': '*'
+      chroma-js: ^3.0.0
       react: ^17 || ^18 || ^19.0.0
     peerDependenciesMeta:
+      '@adobe/leonardo-contrast-colors':
+        optional: true
       '@types/react':
+        optional: true
+      chroma-js:
         optional: true
       react:
         optional: true
 
-  '@vector-im/compound-design-tokens@10.2.4':
-    resolution: {integrity: sha512-2aCjhSvJxktPWnvh5s9Xdc0Rd76AfHqbDbN4QjOxo2VIac6zYdLyQbxMUQ5ZeoR9G3vAxILd0H1UvApRfMilpQ==}
+  '@vector-im/compound-design-tokens@11.2.0':
+    resolution: {integrity: sha512-XGwO63ZqFVXdkhCVLm3wa/tpx2Lw8pyaQYskObrLZIUkjs3aUmgq8CNhGcjkqRJXYGsLNJE2azov4DaM74h2PQ==}
     peerDependencies:
       '@adobe/leonardo-contrast-colors': ^1.0.0
       '@types/react': '*'
@@ -3957,6 +3957,15 @@ packages:
 
   emoji-regex@9.2.2:
     resolution: {integrity: sha512-L18DaJsXSUk2+42pv8mLs5jJT2hqFkFE4j21wOmgbUqsZ2hL72NsUU785g9RXgo3s0ZNgVl42TiHp3ZtOv/Vyg==}
+
+  emojibase-data@17.0.0:
+    resolution: {integrity: sha512-Yvgb5AWoHViHV/gq1qr5ZAarcBip+B27/ZLRsUJkbgAEaLlZ/fof9g882LTpmEpyhBNEC0m2SEmItljHsTygjA==}
+    peerDependencies:
+      emojibase: '*'
+
+  emojibase@17.0.0:
+    resolution: {integrity: sha512-bXdpf4HPY3p41zK5swVKZdC/VynsMZ4LoLxdYDE+GucqkFwzcM1GVc4ODfYAlwoKaf2U2oNNUoOO78N96ovpBA==}
+    engines: {node: '>=18.12.0'}
 
   emojilib@2.4.0:
     resolution: {integrity: sha512-5U0rVMU5Y2n2+ykNLQqMoqklN9ICBT/KsvC1Gz6vqHbz2AXXGkG+Pm5rMWk/8Vjrr/mY9985Hi8DYzn1F09Nyw==}
@@ -5409,8 +5418,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@4.9.0:
-    resolution: {integrity: sha512-sEl+hA6y9/kxa0aPlrUC+G1lcShAf/PiIjoeC8kWXxa53RfAVplVCIxEl01Nwa4L2iRa5JXBXq1/mI8ch6qOZQ==}
+  react-resizable-panels@4.14.1:
+    resolution: {integrity: sha512-OB1bXDNTLcGgTTbaX6Dn5efZhlMboSnkfr1w4xpsJTHPEbRJpACBhXpgRCXozgPO1ztgFeZRUe5J3mFNCVKm5g==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -6523,10 +6532,10 @@ snapshots:
 
   '@codemirror/autocomplete@6.20.3':
     dependencies:
-      '@codemirror/language': 6.12.3
-      '@codemirror/state': 6.6.0
-      '@codemirror/view': 6.43.1
-      '@lezer/common': 1.5.2
+      '@codemirror/language': 6.12.4
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.13
+      '@lezer/common': 1.5.3
 
   '@codemirror/commands@6.11.1':
     dependencies:
@@ -6565,9 +6574,9 @@ snapshots:
 
   '@codemirror/lint@6.9.7':
     dependencies:
-      '@codemirror/state': 6.6.0
-      '@codemirror/view': 6.43.1
-      crelt: 1.0.6
+      '@codemirror/state': 6.7.6
+      '@codemirror/view': 6.43.13
+      crelt: 1.0.7
 
   '@codemirror/search@6.7.0':
     dependencies:
@@ -6655,15 +6664,6 @@ snapshots:
       '@preact/signals-core': 1.14.4
       tslib: 2.8.1
 
-  '@element-hq/element-web-module-api@1.14.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)':
-    dependencies:
-      '@types/react': 19.2.18
-      '@types/react-dom': 19.3.0(@types/react@19.2.18)
-      react: 19.2.7
-    optionalDependencies:
-      matrix-web-i18n: 3.6.0
-      matrix-widget-api: 1.17.0
-
   '@element-hq/element-web-module-api@2.2.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)':
     dependencies:
       '@types/react': 19.2.18
@@ -6677,14 +6677,16 @@ snapshots:
     dependencies:
       sanitize-html: 2.17.7
 
-  '@element-hq/web-shared-components@0.1.2(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-web@9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(blurhash@2.0.5)(matrix-widget-api@1.17.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@element-hq/web-shared-components@0.2.2(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-web@9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(blurhash@2.0.5)(matrix-widget-api@1.17.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@dnd-kit/abstract': 0.5.0
       '@dnd-kit/dom': 0.5.0
       '@dnd-kit/react': 0.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@element-hq/element-web-module-api': 1.14.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)
+      '@element-hq/element-web-module-api': 2.2.0(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(matrix-web-i18n@3.6.0)(matrix-widget-api@1.17.0)(react@19.2.7)
+      '@matrix-org/emojibase-bindings': 1.5.0
       '@matrix-org/spec': 1.16.0
-      '@vector-im/compound-design-tokens': 10.2.1(@types/react@19.2.18)(react@19.2.7)
+      '@tanstack/react-virtual': 3.14.13(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@vector-im/compound-design-tokens': 11.2.0(@types/react@19.2.18)(react@19.2.7)
       '@vector-im/compound-web': 9.8.0(@fontsource/inconsolata@5.2.8)(@fontsource/inter@5.2.8)(@types/react-dom@19.3.0(@types/react@19.2.18))(@types/react@19.2.18)(@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       classnames: 2.5.1
       counterpart: 0.18.6
@@ -6700,14 +6702,15 @@ snapshots:
       react-blurhash: 0.3.0(blurhash@2.0.5)(react@19.2.7)
       react-dom: 19.2.7(react@19.2.7)
       react-merge-refs: 3.0.2(react@19.2.7)
-      react-resizable-panels: 4.9.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react-resizable-panels: 4.14.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react-virtuoso: 4.18.15(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       temporal-polyfill: 1.0.5
     transitivePeerDependencies:
-      - '@matrix-org/react-sdk-module-api'
+      - '@adobe/leonardo-contrast-colors'
       - '@types/react'
       - '@types/react-dom'
       - blurhash
+      - chroma-js
       - matrix-widget-api
       - supports-color
 
@@ -7146,11 +7149,16 @@ snapshots:
 
   '@lezer/lr@1.4.10':
     dependencies:
-      '@lezer/common': 1.5.2
+      '@lezer/common': 1.5.3
 
   '@marijn/find-cluster-break@1.0.2': {}
 
   '@marijn/find-cluster-break@1.0.4': {}
+
+  '@matrix-org/emojibase-bindings@1.5.0':
+    dependencies:
+      emojibase: 17.0.0
+      emojibase-data: 17.0.0(emojibase@17.0.0)
 
   '@matrix-org/matrix-sdk-crypto-nodejs@0.6.6':
     dependencies:
@@ -8667,6 +8675,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@tanstack/react-virtual@3.14.13(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@tanstack/virtual-core': 3.17.11
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  '@tanstack/virtual-core@3.17.11': {}
+
   '@testcontainers/redis@10.28.0':
     dependencies:
       testcontainers: 10.28.0
@@ -9036,12 +9052,12 @@ snapshots:
       - '@codemirror/lint'
       - '@codemirror/search'
 
-  '@vector-im/compound-design-tokens@10.2.1(@types/react@19.2.18)(react@19.2.7)':
+  '@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7)':
     optionalDependencies:
       '@types/react': 19.2.18
       react: 19.2.7
 
-  '@vector-im/compound-design-tokens@10.2.4(@types/react@19.2.18)(react@19.2.7)':
+  '@vector-im/compound-design-tokens@11.2.0(@types/react@19.2.18)(react@19.2.7)':
     optionalDependencies:
       '@types/react': 19.2.18
       react: 19.2.7
@@ -9943,6 +9959,12 @@ snapshots:
   emoji-regex@8.0.0: {}
 
   emoji-regex@9.2.2: {}
+
+  emojibase-data@17.0.0(emojibase@17.0.0):
+    dependencies:
+      emojibase: 17.0.0
+
+  emojibase@17.0.0: {}
 
   emojilib@2.4.0: {}
 
@@ -11072,7 +11094,7 @@ snapshots:
 
   matrix-web-i18n@3.6.0:
     dependencies:
-      '@babel/parser': 7.29.8
+      '@babel/parser': 7.29.9
       '@babel/traverse': 7.29.8
       lodash: 4.18.1
       minimist: 1.2.8
@@ -11609,7 +11631,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  react-resizable-panels@4.9.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  react-resizable-panels@4.14.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
