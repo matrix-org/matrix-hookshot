@@ -148,7 +148,9 @@ describe("OpenProjectConnection work-package updates", () => {
           body: formatWorkPackageFallback(workPackage, BASE_URL),
         },
       });
-      expect(intent.sentEvents[1].content.body).toContain("was created");
+      expect(intent.sentEvents[1].content.body).toContain(
+        "created [#50 Build the bridge]",
+      );
       expect(
         intent.sentEvents[1].content[
           "org.matrix.matrix-hookshot.openproject.event_kind"
@@ -171,7 +173,9 @@ describe("OpenProjectConnection work-package updates", () => {
     await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
 
     expect(intent.sentEvents).toHaveLength(1);
-    expect(intent.sentEvents[0].content.body).toContain("was created");
+    expect(intent.sentEvents[0].content.body).toContain(
+      "created [#50 Build the bridge]",
+    );
     expect(storage.anchorState).toBeNull();
   });
 
@@ -232,7 +236,9 @@ describe("OpenProjectConnection work-package updates", () => {
     await connection.onWorkPackageCreated(createPayload(WORK_PACKAGE));
 
     expect(intent.sentEvents).toHaveLength(1);
-    expect(intent.sentEvents[0].content.body).toContain("was created");
+    expect(intent.sentEvents[0].content.body).toContain(
+      "created [#50 Build the bridge]",
+    );
     expect(
       intent.sentEvents[0].content[
         "org.matrix.matrix-hookshot.openproject.event_kind"
@@ -1000,7 +1006,7 @@ describe("OpenProjectConnection work-package updates", () => {
     ]);
     expect(intent.sentEvents).toHaveLength(1);
     expect(intent.sentEvents[0].content.body).toContain(
-      "Work package #50: updated the work package",
+      "**Someone** updated the details on [#50 Build the bridge]",
     );
   });
 
@@ -1055,7 +1061,7 @@ describe("OpenProjectConnection work-package updates", () => {
         "org.matrix.matrix-hookshot.openproject.changes"
       ],
     ).toEqual([
-      "changed the priority from <strong>Normal</strong> to <strong>High</strong>",
+      "changed the priority from **Normal** to **High**",
       "updated the subject",
     ]);
     expect(

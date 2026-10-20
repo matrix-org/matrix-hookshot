@@ -330,7 +330,7 @@ describe("OpenProject versioned message content", () => {
 
     expect(content).toEqual({
       msgtype: "m.notice",
-      body: `* ${newContent.body}`,
+      body: newContent.body,
       "m.new_content": newContent,
       "m.relates_to": {
         rel_type: "m.replace",
@@ -360,7 +360,7 @@ describe("OpenProject versioned message content", () => {
 
     expect(content).toMatchObject({
       msgtype: "m.notice",
-      body: `* ${inactiveContent.body}`,
+      body: inactiveContent.body,
       "m.relates_to": {
         rel_type: "m.replace",
         event_id: "$original-anchor",
@@ -401,7 +401,7 @@ describe("OpenProject versioned message content", () => {
 
     expect(content).toMatchObject({
       msgtype: "m.notice",
-      body: `* Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — removed from the timeline`,
+      body: `Work package [50](https://openproject.example/projects/demo-project/work_packages/50): "Build the bridge" — removed from the timeline`,
       "m.relates_to": {
         rel_type: "m.replace",
         event_id: "$original-anchor",
@@ -446,7 +446,10 @@ describe("OpenProject versioned message content", () => {
 
     expect(content).toEqual({
       msgtype: "m.notice",
-      body: `Webhook User updated the subject on work package #50: "Build the bridge"\nhttps://openproject.example/projects/demo-project/work_packages/50`,
+      body: `**Webhook User** updated the subject on [#50 Build the bridge](https://openproject.example/projects/demo-project/work_packages/50)`,
+      format: "org.matrix.custom.html",
+      formatted_body:
+        '<strong>Webhook User</strong> updated the subject on <a href="https://openproject.example/projects/demo-project/work_packages/50">#50 Build the bridge</a>',
       "org.matrix.matrix-hookshot.openproject.work_package": {
         id: 50,
         subject: "Build the bridge",
@@ -462,6 +465,8 @@ describe("OpenProject versioned message content", () => {
         OPENPROJECT_EVENT_SCHEMA_VERSION,
       "org.matrix.matrix-hookshot.openproject.event_kind":
         OPENPROJECT_ACTIVITY_EVENT_KIND,
+      external_url:
+        "https://openproject.example/projects/demo-project/work_packages/50",
       "org.matrix.matrix-hookshot.openproject.anchor_event_id":
         "$original-anchor",
     });
@@ -472,12 +477,34 @@ describe("OpenProject versioned message content", () => {
     expect(content).not.toHaveProperty("m.new_content");
   });
 
+  it("escapes Markdown link text without changing the work-package URL", () => {
+    const subject = String.raw`Build ](https://attacker.example) [phase] \ path`;
+    const content = formatWorkPackageActivityForMatrix(
+      workPackageWithChanges({ subject }),
+      BASE_URL,
+      ["updated the subject"],
+    );
+    const workPackageUrl =
+      "https://openproject.example/projects/demo-project/work_packages/50";
+
+    const expectedEscapedLabel = String.raw`#50 Build \](https://attacker.example) \[phase\] \\ path`;
+    expect(content.body).toContain(
+      `[${expectedEscapedLabel}](${workPackageUrl})`,
+    );
+    expect(content.formatted_body).toContain(
+      String.raw`<a href="${workPackageUrl}">#50 Build ](https://attacker.example) [phase] \ path</a>`,
+    );
+    expect(content.external_url).toBe(workPackageUrl);
+  });
+
   it("uses neutral attribution when the webhook has no actor", () => {
     const content = formatWorkPackageActivityForMatrix(WORK_PACKAGE, BASE_URL, [
       "updated the subject",
     ]);
 
-    expect(content.body).toMatch(/^Work package #50: updated the subject/);
+    expect(content.body).toMatch(
+      /^\*\*Someone\*\* updated the subject on \[#50 Build the bridge\]/,
+    );
     expect(content).not.toHaveProperty(
       "org.matrix.matrix-hookshot.openproject.actor",
     );
@@ -494,21 +521,16 @@ describe("OpenProject versioned message content", () => {
     const content = formatWorkPackageActivityForMatrix(
       WORK_PACKAGE,
       BASE_URL,
-      [
-        "assigned <strong>Alice</strong>",
-        "updated the description",
-        "changed the status",
-      ],
+      ["assigned **Alice**", "updated the description", "changed the status"],
       { actor: { id: 12, name: "Webhook User" } },
     );
 
     expect(content.body).toContain(
-      "Webhook User assigned **Alice** and made 2 more updates on work package #50",
+      "**Webhook User** assigned **Alice** and made 2 more updates to [#50 Build the bridge]",
     );
     expect(content.body).not.toContain("<strong>");
-    expect(content.body).not.toContain("</strong>");
     expect(content["org.matrix.matrix-hookshot.openproject.changes"][0]).toBe(
-      "assigned <strong>Alice</strong>",
+      "assigned **Alice**",
     );
   });
 
@@ -521,7 +543,7 @@ describe("OpenProject versioned message content", () => {
     );
 
     expect(content.body).toContain(
-      "Webhook User assigned **Alice** and made 1 more update on work package #50",
+      "**Webhook User** assigned **Alice** and made one more update to [#50 Build the bridge]",
     );
   });
 
@@ -534,7 +556,7 @@ describe("OpenProject versioned message content", () => {
     );
 
     expect(content.body).toBe(
-      'Work package #50 was created: "Build the bridge"\nhttps://openproject.example/projects/demo-project/work_packages/50',
+      "**Someone** created [#50 Build the bridge](https://openproject.example/projects/demo-project/work_packages/50)",
     );
     expect(content["org.matrix.matrix-hookshot.openproject.changes"]).toEqual([
       "created the work package",
@@ -554,7 +576,7 @@ describe("OpenProject work-package diff formatter", () => {
       name: "an assignee being added",
       previous: workPackageWithChanges({ assignee: undefined }),
       current: WORK_PACKAGE,
-      changes: ["assigned <strong>Alice</strong>"],
+      changes: ["assigned **Alice**"],
       categories: ["work_package:assignee_changed"],
     },
     {
@@ -578,7 +600,7 @@ describe("OpenProject work-package diff formatter", () => {
     {
       name: "a due date being set",
       current: workPackageWithChanges({ dueDate: "2025-06-01" }),
-      changes: ["set the due date to <strong>2025-06-01</strong>"],
+      changes: ["set the due date to **2025-06-01**"],
       categories: ["work_package:duedate_changed"],
     },
     {
@@ -591,7 +613,7 @@ describe("OpenProject work-package diff formatter", () => {
     {
       name: "the percentage complete changing",
       current: workPackageWithChanges({ percentageDone: 50 }),
-      changes: ["set the work completed percentage to <strong>50%</strong>"],
+      changes: ["set the work completed percentage to **50%**"],
       categories: ["work_package:workpercent_changed"],
     },
     {
@@ -599,9 +621,7 @@ describe("OpenProject work-package diff formatter", () => {
       current: workPackageWithChanges({
         priority: { ...WORK_PACKAGE._embedded.priority, id: 9, name: "High" },
       }),
-      changes: [
-        "changed the priority from <strong>Normal</strong> to <strong>High</strong>",
-      ],
+      changes: ["changed the priority from **Normal** to **High**"],
       categories: ["work_package:priority_changed"],
     },
     {
@@ -626,9 +646,7 @@ describe("OpenProject work-package diff formatter", () => {
           name: "In progress",
         },
       }),
-      changes: [
-        "changed the status from <strong>New</strong> to <strong>In progress</strong>",
-      ],
+      changes: ["changed the status from **New** to **In progress**"],
       categories: ["work_package:updated"],
     },
     {
@@ -642,13 +660,13 @@ describe("OpenProject work-package diff formatter", () => {
       current: workPackageWithChanges({
         type: { ...WORK_PACKAGE._embedded.type, id: 3, name: "Task" },
       }),
-      changes: ["changed the type to <strong>Task</strong>"],
+      changes: ["changed the type to **Task**"],
       categories: ["work_package:updated"],
     },
     {
       name: "a milestone date being set",
       current: workPackageWithChanges({ date: "2025-06-01" }),
-      changes: ["set the date to <strong>2025-06-01</strong>"],
+      changes: ["set the date to **2025-06-01**"],
       categories: ["work_package:duedate_changed"],
     },
     {
@@ -662,7 +680,7 @@ describe("OpenProject work-package diff formatter", () => {
       name: "completion reaching zero",
       previous: workPackageWithChanges({ percentageDone: 20 }),
       current: workPackageWithChanges({ percentageDone: 0 }),
-      changes: ["set the work completed percentage to <strong>0%</strong>"],
+      changes: ["set the work completed percentage to **0%**"],
       categories: ["work_package:workpercent_changed"],
     },
     {
@@ -701,12 +719,12 @@ describe("OpenProject work-package diff formatter", () => {
         type: { ...WORK_PACKAGE._embedded.type, id: 4, name: "Task" },
       }),
       changes: [
-        "assigned <strong>Alice</strong>",
+        "assigned **Alice**",
         "removed the description",
-        "set the date to <strong>2025-06-01</strong>",
-        "set the work completed percentage to <strong>0%</strong>",
-        "changed the status from <strong>Old status</strong> to <strong>New status</strong>",
-        "changed the type to <strong>Task</strong>",
+        "set the date to **2025-06-01**",
+        "set the work completed percentage to **0%**",
+        "changed the status from **Old status** to **New status**",
+        "changed the type to **Task**",
       ],
       categories: [
         "work_package:assignee_changed",

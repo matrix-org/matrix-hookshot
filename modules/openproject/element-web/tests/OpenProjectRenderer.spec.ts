@@ -88,6 +88,10 @@ describe("OpenProject details snapshot", () => {
 describe("OpenProject Activity renderer", () => {
   it("renders the original timeline card and navigates to it in the event room", () => {
     const data = {
+      body: `**OpenProject Admin** assigned **Alice** and made one more update to [#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}](${WORK_PACKAGE.url})`,
+      format: "org.matrix.custom.html",
+      formatted_body: `<strong>OpenProject Admin</strong> assigned <strong>Alice</strong> and made one more update to <a href="${WORK_PACKAGE.url}">#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}</a>`,
+      external_url: WORK_PACKAGE.url,
       "org.matrix.matrix-hookshot.openproject.work_package": {
         id: WORK_PACKAGE.id,
         subject: WORK_PACKAGE.subject,
@@ -99,7 +103,7 @@ describe("OpenProject Activity renderer", () => {
         url: "https://openproject.example/users/10",
       },
       "org.matrix.matrix-hookshot.openproject.changes": [
-        "assigned <strong>Alice</strong>",
+        "assigned **Alice**",
         "updated the subject",
       ],
       "org.matrix.matrix-hookshot.openproject.schema_version": 1,
@@ -121,8 +125,7 @@ describe("OpenProject Activity renderer", () => {
     const snapshot = vm.getSnapshot();
 
     expect(snapshot).toMatchObject({
-      changeSummary: "assigned <strong>Alice</strong> and made 1 more update.",
-      actor: { name: "OpenProject Admin" },
+      changeSummary: `<strong>OpenProject Admin</strong> assigned <strong>Alice</strong> and made one more update to <a href="${WORK_PACKAGE.url}">#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}</a>`,
     });
 
     const markup = renderToStaticMarkup(
@@ -131,14 +134,10 @@ describe("OpenProject Activity renderer", () => {
       }),
     );
 
-    expect(markup).toContain("OpenProject Admin");
     expect(markup).toContain(
-      "assigned <strong>Alice</strong> and made 1 more update.",
+      "<strong>OpenProject Admin</strong> assigned <strong>Alice</strong> and made one more update to",
     );
-    expect(markup).toContain('href="https://openproject.example/users/10"');
-    expect(markup).toContain(
-      'href="https://openproject.example/projects/demo-project/work_packages/50"',
-    );
+    expect(markup).toContain(`href="${WORK_PACKAGE.url}"`);
     expect(markup).toContain("View timeline card");
 
     render(
@@ -158,6 +157,10 @@ describe("OpenProject Activity renderer", () => {
     ["malformed room ID", "$original-anchor:example.org", "not a room"],
   ])("hides only the card action for %s", (_name, eventId, roomId) => {
     const data = {
+      body: `**Someone** updated the subject on [#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}](${WORK_PACKAGE.url})`,
+      format: "org.matrix.custom.html",
+      formatted_body: `<strong>Someone</strong> updated the subject on <a href="${WORK_PACKAGE.url}">#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}</a>`,
+      external_url: WORK_PACKAGE.url,
       "org.matrix.matrix-hookshot.openproject.work_package": {
         id: WORK_PACKAGE.id,
         subject: WORK_PACKAGE.subject,

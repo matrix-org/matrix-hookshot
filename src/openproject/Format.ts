@@ -407,8 +407,8 @@ function formatActivityFallback(
   const remainingChanges = changes.length - 1;
   const remainingSummary =
     remainingChanges > 0
-      ? ` and made ${remainingChanges == 1 ? "one" : remainingChanges} more ${remainingChanges === 1 ? "update to " : "updates to "}`
-      : " on ";
+      ? ` and made ${remainingChanges === 1 ? "one" : remainingChanges} more ${remainingChanges === 1 ? "update to" : "updates to"}`
+      : " on";
   const changeSummary = `${firstChange}${remainingSummary}`;
 
   return `${actorName} ${changeSummary} [${workPackageLabel}](${workPackageUrl})`;

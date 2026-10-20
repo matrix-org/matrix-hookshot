@@ -113,7 +113,9 @@ export type OpenProjectAnchorContent =
 
 export interface OpenProjectActivityContent {
   body: string;
-  formatted_body?: string;
+  format: "org.matrix.custom.html";
+  formatted_body: string;
+  external_url: string;
   "org.matrix.matrix-hookshot.openproject.actor"?: OpenProjectActor;
   "org.matrix.matrix-hookshot.openproject.work_package": {
     id: number;
