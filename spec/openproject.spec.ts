@@ -507,7 +507,7 @@ describe("OpenProject", () => {
 
     const { body } = (await updateNotice).data.content;
     expect(body).toContain(
-      'Webhook Actor updated the subject on work package #50: "updated test 133"',
+      `**Webhook Actor** updated the subject on [#50 updated test 133](http://mytestproject.com/projects/demo-project/work_packages/50)`,
     );
   });
 
@@ -570,7 +570,7 @@ describe("OpenProject", () => {
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId: activeRoomId,
-      body: `Webhook Actor created work package #50: "test 133"\n${workPackageUrl}`,
+      body: `**Webhook Actor** created [#50 test 133](${workPackageUrl})`,
     });
     await sendOpenProjectWebhook(
       { ...OPEN_PROJECT_PAYLOAD, actor },
@@ -610,7 +610,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: activeRoomId,
-        body: `Webhook Actor changed the priority from **Normal** to **High** and made 1 more update on work package #50: "updated test 133"\n${workPackageUrl}`,
+        body: `**Webhook Actor** changed the priority from **Normal** to **High** and made one more update to [#50 updated test 133](${workPackageUrl})`,
       },
     );
     const unanchoredRoomActivityWaiter =
@@ -618,7 +618,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: unanchoredRoomId,
-        body: `Webhook Actor changed the priority from **Normal** to **High** and made 1 more update on work package #50: "updated test 133"\n${workPackageUrl}`,
+        body: `**Webhook Actor** changed the priority from **Normal** to **High** and made one more update to [#50 updated test 133](${workPackageUrl})`,
       });
     await sendOpenProjectWebhook(
       {
@@ -637,7 +637,7 @@ describe("OpenProject", () => {
     expect(
       activeRoomActivity["org.matrix.matrix-hookshot.openproject.changes"],
     ).toEqual([
-      "changed the priority from <strong>Normal</strong> to <strong>High</strong>",
+      "changed the priority from **Normal** to **High**",
       "updated the subject",
     ]);
     expect(
@@ -658,7 +658,7 @@ describe("OpenProject", () => {
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId: activeRoomId,
-      body: `* Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
+      body: `Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
     });
     await user.sendText(activeRoomId, "!openproject timeline remove 50");
     await removedAnchorWaiter;
@@ -681,7 +681,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: activeRoomId,
-        body: `Webhook Actor changed the priority from **High** to **Urgent** and made 1 more update on work package #50: "updated without a card"\n${workPackageUrl}`,
+        body: `**Webhook Actor** changed the priority from **High** to **Urgent** and made one more update to [#50 updated without a card](${workPackageUrl})`,
       },
     );
     const afterRemovalUnanchoredWaiter =
@@ -689,7 +689,7 @@ describe("OpenProject", () => {
         eventType: "m.room.message",
         sender: testEnv.botMxid,
         roomId: unanchoredRoomId,
-        body: `Webhook Actor changed the priority from **High** to **Urgent** and made 1 more update on work package #50: "updated without a card"\n${workPackageUrl}`,
+        body: `**Webhook Actor** changed the priority from **High** to **Urgent** and made one more update to [#50 updated without a card](${workPackageUrl})`,
       });
     await sendOpenProjectWebhook(
       {
@@ -717,7 +717,7 @@ describe("OpenProject", () => {
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId: activeRoomId,
-      body: `Webhook Actor created work package #50: "re-added test 133"\n${workPackageUrl}`,
+      body: `**Webhook Actor** created [#50 re-added test 133](${workPackageUrl})`,
     });
     await sendOpenProjectWebhook(
       {
@@ -858,7 +858,7 @@ describe("OpenProject", () => {
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId,
-      body: `* Work package [50](${workPackageUrl}): "updated test 133" — added to the timeline`,
+      body: `Work package [50](${workPackageUrl}): "updated test 133" — added to the timeline`,
     });
     await sendOpenProjectWebhook(
       {
@@ -894,7 +894,7 @@ describe("OpenProject", () => {
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId,
-      body: `* Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
+      body: `Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
     });
     await user.sendText(roomId, "!openproject timeline remove 50");
     const inactiveReplacement = (await removedAnchor).data
