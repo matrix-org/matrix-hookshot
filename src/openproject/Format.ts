@@ -382,6 +382,13 @@ export interface OpenProjectActivityFormatOptions {
   created?: boolean;
 }
 
+function escapeMarkdownLinkText(text: string): string {
+  return text
+    .replaceAll("\\", "\\\\")
+    .replaceAll("[", "\\[")
+    .replaceAll("]", "\\]");
+}
+
 function formatActivityFallback(
   pkg: OpenProjectWorkPackage,
   baseURL: URL,
@@ -390,9 +397,10 @@ function formatActivityFallback(
 ): string {
   const workPackageUrl = getWorkPackageUrl(pkg, baseURL);
   const actorName = `**${actor?.name ?? "Someone"}**`;
+  const workPackageLabel = `#${pkg.id} ${escapeMarkdownLinkText(pkg.subject)}`;
 
   if (created) {
-    return `${actorName} created [#${pkg.id} ${pkg.subject}](${workPackageUrl})`;
+    return `${actorName} created [${workPackageLabel}](${workPackageUrl})`;
   }
 
   const firstChange = changes[0] ?? "updated the details";
@@ -403,7 +411,7 @@ function formatActivityFallback(
       : " on ";
   const changeSummary = `${firstChange}${remainingSummary}`;
 
-  return `${actorName} ${changeSummary} [#${pkg.id} ${pkg.subject}](${workPackageUrl})`;
+  return `${actorName} ${changeSummary} [${workPackageLabel}](${workPackageUrl})`;
 }
 
 export function formatWorkPackageActivityForMatrix(
