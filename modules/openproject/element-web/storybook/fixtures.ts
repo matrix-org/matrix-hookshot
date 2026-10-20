@@ -1,3 +1,4 @@
+import markdown from "markdown-it";
 import type {
   OpenProjectContent,
   OpenProjectDescription,
@@ -8,6 +9,8 @@ import type {
   OpenProjectWorkPackageChanges,
   OpenProjectWorkPackageContent,
 } from "../src/models/OpenProjectMatrixEventContent";
+
+const md = new markdown();
 
 export const author: OpenProjectPerson = {
   name: "Ada Lovelace",
@@ -168,39 +171,61 @@ export const changedContent: OpenProjectContent = {
     changedStatusDetails,
 };
 
-const activityBase = {
-  "org.matrix.matrix-hookshot.openproject.work_package": {
-    ...minimalWorkPackage,
-    id: 57,
-    subject: "Add project overview",
-    url: "https://openproject.example/work_packages/57",
-  },
-  "org.matrix.matrix-hookshot.openproject.schema_version": 1,
-  "org.matrix.matrix-hookshot.openproject.event_kind": "activity",
-} as const;
+const activityWorkPackage = {
+  ...minimalWorkPackage,
+  id: 57,
+  subject: "Add project overview",
+  url: "https://openproject.example/work_packages/57",
+};
 
-export const activityWithActor = {
-  ...activityBase,
-  "org.matrix.matrix-hookshot.openproject.actor": {
+type ActivityActor = NonNullable<
+  OpenProjectActivityContent["org.matrix.matrix-hookshot.openproject.actor"]
+>;
+
+function createActivityContent(
+  changes: string[],
+  actor?: ActivityActor,
+): OpenProjectActivityContent {
+  const firstChange = changes[0] ?? "updated the details";
+  const remainingChanges = changes.length - 1;
+  const remainingSummary =
+    remainingChanges > 0
+      ? ` and made ${remainingChanges === 1 ? "one" : remainingChanges} more ${remainingChanges === 1 ? "update to" : "updates to"}`
+      : " on";
+  const actorName = actor?.name ?? "Someone";
+  const body = `**${actorName}** ${firstChange}${remainingSummary} [#${activityWorkPackage.id} ${activityWorkPackage.subject}](${activityWorkPackage.url})`;
+
+  return {
+    body,
+    format: "org.matrix.custom.html",
+    formatted_body: md.renderInline(body),
+    external_url: activityWorkPackage.url,
+    ...(actor ? { "org.matrix.matrix-hookshot.openproject.actor": actor } : {}),
+    "org.matrix.matrix-hookshot.openproject.work_package": {
+      id: activityWorkPackage.id,
+      subject: activityWorkPackage.subject,
+      url: activityWorkPackage.url,
+    },
+    "org.matrix.matrix-hookshot.openproject.schema_version": 1,
+    "org.matrix.matrix-hookshot.openproject.event_kind": "activity",
+    "org.matrix.matrix-hookshot.openproject.changes": changes,
+  };
+}
+
+export const activityWithActor = createActivityContent(
+  ["assigned **Grace Hopper**", "updated the subject"],
+  {
     id: 1,
     name: "Ada Lovelace",
     url: "https://openproject.example/users/1",
   },
-  "org.matrix.matrix-hookshot.openproject.changes": [
-    "assigned <strong>Grace Hopper</strong>",
-    "updated the subject",
-  ],
-} satisfies OpenProjectActivityContent;
+);
 
-export const activityWithoutActor = {
-  ...activityBase,
-  "org.matrix.matrix-hookshot.openproject.changes": ["updated the description"],
-} satisfies OpenProjectActivityContent;
+export const activityWithoutActor = createActivityContent([
+  "updated the description",
+]);
 
-export const activityWithNoChanges = {
-  ...activityBase,
-  "org.matrix.matrix-hookshot.openproject.changes": [],
-} satisfies OpenProjectActivityContent;
+export const activityWithNoChanges = createActivityContent([]);
 
 export const linkedActivity = {
   ...activityWithActor,
