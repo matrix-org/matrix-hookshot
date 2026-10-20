@@ -27,9 +27,10 @@ export function ActivityView({ vm }: Readonly<ActivityViewProps>) {
         <div className={styles.activityAction}>
           <IconButton
             aria-label="View timeline card"
-            kind="secondary"
+            kind="primary"
             size="20px"
-            title="View timeline card"
+            noBackground
+            tooltip="View timeline card"
             onClick={vm.onViewTimelineCard}
           >
             <LinkIcon />
