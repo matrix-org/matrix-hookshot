@@ -177,8 +177,7 @@ const ConnectionConfiguration: FunctionComponent<
       {hasExpired && (
         <Alert type="critical" title="This Webhook has expired">
           This Webhook has expired and will no longer handle any incoming
-          requests. Please set a new expiry date or <strong>remove</strong> the
-          Webhook.
+          requests. Please set a new expiry date or remove the Webhook.
         </Alert>
       )}
       {willExpireSoon && (
@@ -240,7 +239,6 @@ const ConnectionConfiguration: FunctionComponent<
       >
         <ToggleInput
           disabled={!canEdit}
-          type="checkbox"
           checked={transFnEnabled}
           onChange={useCallback(() => setTransFnEnabled((v) => !v), [])}
         />
@@ -253,7 +251,6 @@ const ConnectionConfiguration: FunctionComponent<
       >
         <ToggleInput
           disabled={!canEdit || serviceConfig.waitForComplete}
-          type="checkbox"
           checked={waitForComplete || serviceConfig.waitForComplete}
           onChange={useCallback(() => setWaitForComplete((v) => !v), [])}
         />

@@ -1,4 +1,9 @@
-import { FunctionComponent, createRef } from "preact";
+import { createRef } from "preact";
+import type {
+  FunctionComponent,
+  TargetedEvent,
+  TargetedMouseEvent,
+} from "preact";
 import { useCallback, useState } from "preact/hooks";
 import { BridgeConfig } from "../../BridgeAPI";
 import type {
@@ -8,7 +13,6 @@ import type {
 import { ConnectionConfigurationProps, RoomConfig } from "./RoomConfig";
 import { InputField, ButtonSet, Button } from "../elements";
 import WebhookIcon from "../../icons/webhook.png";
-import { MouseEventHandler } from "preact/compat";
 
 const ConnectionConfiguration: FunctionComponent<
   ConnectionConfigurationProps<
@@ -41,16 +45,20 @@ const ConnectionConfiguration: FunctionComponent<
     [canEdit, onSave, nameRef, outboundUrl, existingConnection],
   );
 
-  const onUrlChange = useCallback<MouseEventHandler<HTMLInputElement>>(
+  const onUrlChange = useCallback<
+    (evt: TargetedEvent<HTMLInputElement>) => void
+  >(
     (evt) => {
-      setOutboundUrl(evt.target?.value);
+      setOutboundUrl(evt.currentTarget.value);
     },
     [setOutboundUrl],
   );
 
   const [tokenRevealed, setTokenRevealed] = useState<boolean>(false);
 
-  const revealToken = useCallback<MouseEventHandler<HTMLInputElement>>(
+  const revealToken = useCallback<
+    (evt: TargetedMouseEvent<HTMLInputElement>) => void
+  >(
     (evt) => {
       evt.preventDefault();
       setTokenRevealed(true);

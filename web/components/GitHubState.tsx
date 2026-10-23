@@ -9,10 +9,10 @@ const GitHubState: FunctionComponent<{ config: BridgeRoomStateGitHub }> = ({
     <div className="container login-card">
       <div className="row">
         <div className="col-sm-2">
-          <img alt="GitHub avatar" src={config.identity.avatarUrl} />
+          <img alt="GitHub avatar" src={config.identity?.avatarUrl as string} />
         </div>
         <div className="col-sm-9">
-          Logged in as <span>{config.identity.name}</span>
+          Logged in as <span>{config.identity?.name}</span>
           <p>Notifications {config.notifications ? "Enabled" : "Disabled"}</p>
         </div>
       </div>

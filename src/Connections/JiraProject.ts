@@ -80,6 +80,17 @@ export type JiraProjectResponseItem =
 
 const log = new Logger("JiraProjectConnection");
 
+function getJiraErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  // jira-client rejects HTTP response bodies directly on request failures.
+  if (error !== null && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return "undefined";
+}
+
 /**
  * Handles rooms connected to a Jira project.
  */
@@ -623,7 +634,10 @@ export class JiraProjectConnection
       }
     } catch (ex) {
       log.warn("Failed to create JIRA issue:", ex);
-      throw new CommandError(ex.message, "Failed to create JIRA issue");
+      throw new CommandError(
+        getJiraErrorMessage(ex),
+        "Failed to create JIRA issue",
+      );
     }
 
     const link = generateJiraWebLinkFromIssue({
@@ -646,7 +660,10 @@ export class JiraProjectConnection
       result = await api.getProject(keyOrId);
     } catch (ex) {
       log.warn("Failed to get issue types:", ex);
-      throw new CommandError(ex.message, "Failed to get issue types");
+      throw new CommandError(
+        getJiraErrorMessage(ex),
+        "Failed to get issue types",
+      );
     }
 
     const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(", ")}`;
@@ -666,7 +683,7 @@ export class JiraProjectConnection
       await api.getIssue(issueKey);
     } catch (ex) {
       log.warn(`Failed to find issue`, ex);
-      throw new CommandError(ex.message, "Failed to find issue");
+      throw new CommandError(getJiraErrorMessage(ex), "Failed to find issue");
     }
 
     log.info(`Assinging issue on behalf of ${userId}`);
