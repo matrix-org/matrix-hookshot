@@ -1,5 +1,5 @@
 import { StatusCodes } from "http-status-codes";
-import { safeGet } from "./util/object";
+import { MatrixError } from "matrix-bot-sdk";
 
 const SLEEP_TIME_MS = 1000;
 const EXPONENT_DIVISOR = 20;
@@ -10,20 +10,23 @@ type RetryFn = (error: unknown) => boolean | number;
 /**
  * Checks errors returned from a Matrix API request, and determines
  * if the error should be retried.
- * @param err An Error object, which may be a MatrixError
+ * @param err An error, which may be a MatrixError.
  * @returns - `true` if the action should be retried.
  *  - A `number` if the action should be retried with a specific wait period.
  *  - `false` if the action should not be retried..
  */
 export function retryMatrixErrorFilter(err: unknown) {
-  const statusCode = safeGet(err, "statusCode");
+  if (!(err instanceof MatrixError)) {
+    return true;
+  }
+  const statusCode = err.statusCode;
   if (
     typeof statusCode === "number" &&
     statusCode >= 400 &&
     statusCode <= 499
   ) {
     if (statusCode === StatusCodes.TOO_MANY_REQUESTS) {
-      const retryAfterMs = safeGet(err, "retryAfterMs");
+      const retryAfterMs = err.retryAfterMs;
       return typeof retryAfterMs === "number" ? retryAfterMs : true;
     }
     return false;

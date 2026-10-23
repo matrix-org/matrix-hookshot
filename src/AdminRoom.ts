@@ -40,7 +40,6 @@ import { Logger } from "matrix-appservice-bridge";
 import markdown from "markdown-it";
 import { OpenProjectBotCommands } from "./openproject/AdminCommands";
 import { ConnectionType } from "./Connections/type";
-import { safeGet } from "./util/object";
 type ProjectsListForRepoResponseData =
   Endpoints["GET /repos/{owner}/{repo}/projects"]["response"];
 type ProjectsListForUserResponseData =
@@ -438,7 +437,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         org,
       });
     } catch (ex) {
-      if (safeGet(ex, "status") === 404) {
+      if (ex instanceof Error && "status" in ex && ex.status === 404) {
         return this.sendNotice(
           `${repo ? "Repository" : "Org"} does not exist.`,
         );
@@ -482,7 +481,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
       });
       return this.emit("open.project", project.data);
     } catch (ex) {
-      if (safeGet(ex, "status") === 404) {
+      if (ex instanceof Error && "status" in ex && ex.status === 404) {
         return this.sendNotice("Project does not exist.");
       }
       log.warn(`Failed to fetch project:`, ex);
@@ -521,7 +520,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
       );
       return this.emit("open.discussion", owner, repo, discussions);
     } catch (ex) {
-      if (safeGet(ex, "status") === 404) {
+      if (ex instanceof Error && "status" in ex && ex.status === 404) {
         return this.sendNotice("Discussion does not exist.");
       }
       log.warn(`Failed to fetch discussions:`, ex);

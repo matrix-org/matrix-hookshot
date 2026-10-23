@@ -33,7 +33,6 @@ import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigJira } from "../config/sections";
 import { BridgeConfigMessaging } from "../config/sections";
-import { safeGet } from "../util/object";
 
 type JiraAllowedEventsNames =
   | "issue_created"
@@ -80,6 +79,17 @@ export type JiraProjectResponseItem =
   GetConnectionsResponseItem<JiraProjectConnectionState>;
 
 const log = new Logger("JiraProjectConnection");
+
+function getJiraErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  // jira-client rejects HTTP response bodies directly on request failures.
+  if (error !== null && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return "undefined";
+}
 
 /**
  * Handles rooms connected to a Jira project.
@@ -625,7 +635,7 @@ export class JiraProjectConnection
     } catch (ex) {
       log.warn("Failed to create JIRA issue:", ex);
       throw new CommandError(
-        String(safeGet(ex, "message")),
+        getJiraErrorMessage(ex),
         "Failed to create JIRA issue",
       );
     }
@@ -651,7 +661,7 @@ export class JiraProjectConnection
     } catch (ex) {
       log.warn("Failed to get issue types:", ex);
       throw new CommandError(
-        String(safeGet(ex, "message")),
+        getJiraErrorMessage(ex),
         "Failed to get issue types",
       );
     }
@@ -673,10 +683,7 @@ export class JiraProjectConnection
       await api.getIssue(issueKey);
     } catch (ex) {
       log.warn(`Failed to find issue`, ex);
-      throw new CommandError(
-        String(safeGet(ex, "message")),
-        "Failed to find issue",
-      );
+      throw new CommandError(getJiraErrorMessage(ex), "Failed to find issue");
     }
 
     log.info(`Assinging issue on behalf of ${userId}`);

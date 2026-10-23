@@ -12,7 +12,6 @@ import AdminSettings from "./components/AdminSettings";
 import RoomConfigView from "./components/RoomConfigView";
 import { Alert } from "@vector-im/compound-web";
 import { BridgeContext } from "./context";
-import { safeGet } from "../src/util/object";
 
 interface IMinimalState {
   error: string | null;
@@ -126,7 +125,7 @@ export default class App extends Component<Record<string, never>, IState> {
       });
     } catch (ex) {
       console.error(`Failed to set up widget:`, ex);
-      let error = String(safeGet(ex, "message"));
+      let error = ex instanceof Error ? ex.message : "undefined";
       if (ex instanceof BridgeAPIError) {
         if (ex.errcode === "M_AS_BAD_OPENID") {
           error =

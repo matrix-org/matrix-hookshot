@@ -1,8 +1,13 @@
 import { Logger } from "matrix-appservice-bridge";
-import { Appservice, Intent, MatrixClient, UserID } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixClient,
+  MatrixError,
+  UserID,
+} from "matrix-bot-sdk";
 import axios from "axios";
 import { getStringHeader } from "./util/axios";
-import { safeGet } from "./util/object";
 
 const log = new Logger("IntentUtils");
 
@@ -27,7 +32,7 @@ export async function ensureUserIsInRoom(
     try {
       await targetIntent.ensureJoined(roomId);
     } catch (ex) {
-      if (safeGet(ex, "errcode") === "M_FORBIDDEN") {
+      if (ex instanceof MatrixError && ex.errcode === "M_FORBIDDEN") {
         // Make sure ghost user is invited to the room
         await botClient.inviteUser(senderUserId, roomId);
         await targetIntent.ensureJoined(roomId);
