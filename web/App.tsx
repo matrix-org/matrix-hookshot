@@ -146,6 +146,10 @@ export default class App extends Component<void, IState> {
         this.state.embedType === EmbedType.IntegrationManager
           ? "0"
           : "16px",
+      display: "flex",
+      flexDirection: "column",
+      minHeight: "100vh",
+      boxSizing: "border-box",
     };
     if (this.state.error) {
       return (
