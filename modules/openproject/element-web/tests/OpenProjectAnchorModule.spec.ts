@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { render, screen } from "@testing-library/react";
-import { TooltipProvider } from "@vector-im/compound-web";
 import { describe, expect, it, vi } from "vitest";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
@@ -43,10 +42,6 @@ function renderAnchor(
     capabilityClient,
     data,
   });
-}
-
-function withTooltipProvider(children: React.ReactNode) {
-  return React.createElement(TooltipProvider, null, children);
 }
 
 function createMarkedAnchorEvent(
@@ -282,7 +277,7 @@ describe("OpenProject marked anchor path", () => {
     const probe = vi.fn(() => new Promise(() => {}));
     const capabilityClient = { probe } as never;
     const { rerender } = render(
-      withTooltipProvider(renderAnchor(activeAnchorContent, capabilityClient)),
+      renderAnchor(activeAnchorContent, capabilityClient),
     );
 
     expect(originalSnapshotId).toBe("00000000-0000-4000-8000-000000000001");
@@ -296,9 +291,7 @@ describe("OpenProject marked anchor path", () => {
     expect(probe).toHaveBeenCalledOnce();
 
     expect(activeSnapshotId).not.toBe(originalSnapshotId);
-    rerender(
-      withTooltipProvider(renderAnchor(activeContent, capabilityClient)),
-    );
+    rerender(renderAnchor(activeContent, capabilityClient));
     expect(screen.getByText("Build the updated bridge")).toBeTruthy();
     expect(screen.getByText("Closed")).toBeTruthy();
     expect(
@@ -309,9 +302,7 @@ describe("OpenProject marked anchor path", () => {
     expect(probe).toHaveBeenCalledTimes(2);
 
     expect(inactiveSnapshotId).not.toBe(activeSnapshotId);
-    rerender(
-      withTooltipProvider(renderAnchor(inactiveContent, capabilityClient)),
-    );
+    rerender(renderAnchor(inactiveContent, capabilityClient));
     expect(screen.getByText(/removed from timeline/)).toBeTruthy();
     expect(
       screen.getByRole("link", { name: "Demo project · #50" }),

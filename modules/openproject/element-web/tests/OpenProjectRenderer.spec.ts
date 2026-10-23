@@ -3,6 +3,7 @@
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { TooltipProvider } from "@vector-im/compound-web";
 import { describe, expect, it, vi } from "vitest";
 import { ActionsView } from "../src/components/workPackage/ActionsView";
 import { LinkView } from "../src/components/workPackage/LinkView";
@@ -128,11 +129,12 @@ describe("OpenProject Activity renderer", () => {
       changeSummary: `<strong>OpenProject Admin</strong> assigned <strong>Alice</strong> and made one more update to <a href="${WORK_PACKAGE.url}">#${WORK_PACKAGE.id} ${WORK_PACKAGE.subject}</a>`,
     });
 
-    const markup = renderToStaticMarkup(
-      React.createElement(ActivityView, {
-        vm,
-      }),
+    const view = React.createElement(
+      TooltipProvider,
+      null,
+      React.createElement(ActivityView, { vm }),
     );
+    const markup = renderToStaticMarkup(view);
 
     expect(markup).toContain(
       "<strong>OpenProject Admin</strong> assigned <strong>Alice</strong> and made one more update to",
@@ -140,11 +142,7 @@ describe("OpenProject Activity renderer", () => {
     expect(markup).toContain(`href="${WORK_PACKAGE.url}"`);
     expect(markup).toContain("View timeline card");
 
-    render(
-      React.createElement(ActivityView, {
-        vm,
-      }),
-    );
+    render(view);
     fireEvent.click(screen.getByRole("button", { name: "View timeline card" }));
     expect(onViewTimelineCard).toHaveBeenCalledWith(
       "https://matrix.to/#/!activity-room%3Aexample.org/%24original-anchor%3Aexample.org",
