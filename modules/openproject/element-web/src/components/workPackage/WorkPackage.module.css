@@ -94,7 +94,7 @@
 
 .activity {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: var(--cpd-space-2x);
 }
