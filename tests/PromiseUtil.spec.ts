@@ -27,10 +27,10 @@ describe("retryMatrixErrorFilter", () => {
     expect(retryMatrixErrorFilter(error)).toBe(1500);
   });
 
-  it("retries plain objects that are not MatrixError instances", () => {
-    expect(retryMatrixErrorFilter({ statusCode: 404 })).toBe(true);
+  it("handles plain objects by status code", () => {
+    expect(retryMatrixErrorFilter({ statusCode: 404 })).toBe(false);
     expect(retryMatrixErrorFilter({ statusCode: 429, retryAfterMs: 250 })).toBe(
-      true,
+      250,
     );
     expect(retryMatrixErrorFilter({ statusCode: 429 })).toBe(true);
   });

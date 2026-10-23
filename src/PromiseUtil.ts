@@ -1,5 +1,4 @@
 import { StatusCodes } from "http-status-codes";
-import { MatrixError } from "matrix-bot-sdk";
 
 const SLEEP_TIME_MS = 1000;
 const EXPONENT_DIVISOR = 20;
@@ -16,7 +15,7 @@ type RetryFn = (error: unknown) => boolean | number;
  *  - `false` if the action should not be retried..
  */
 export function retryMatrixErrorFilter(err: unknown) {
-  if (!(err instanceof MatrixError)) {
+  if (typeof err !== "object" || err === null || !("statusCode" in err)) {
     return true;
   }
   const statusCode = err.statusCode;
@@ -26,7 +25,7 @@ export function retryMatrixErrorFilter(err: unknown) {
     statusCode <= 499
   ) {
     if (statusCode === StatusCodes.TOO_MANY_REQUESTS) {
-      const retryAfterMs = err.retryAfterMs;
+      const retryAfterMs = "retryAfterMs" in err ? err.retryAfterMs : undefined;
       return typeof retryAfterMs === "number" ? retryAfterMs : true;
     }
     return false;
