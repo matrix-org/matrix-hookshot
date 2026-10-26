@@ -15,7 +15,9 @@
 - Refactor the OpenProject element-web plugin module to use the MVVM pattern. ([\#1402](https://github.com/matrix-org/matrix-hookshot/issues/1402))
 - Refactor the OpenProject element-web plugin module to use CSS instead of the styled components package. ([\#1405](https://github.com/matrix-org/matrix-hookshot/issues/1405))
 - Update rustls-webpki and webpki-root-certs to stop trusting compromised eMudhra intermediate certificates (RUSTSEC-2026-0382, RUSTSEC-2026-0383). ([\#1441](https://github.com/matrix-org/matrix-hookshot/issues/1441))
-
+- Update the base Node.js images to address the following high/medium/low CVE's `CVE-2026-105482`,
+  `CVE-2026-105483`, `CVE-2026-106069`, `CVE-2026-111497`, `CVE-2026-105481`, `CVE-2026-106072`, `CVE-2026-106074`,
+  `CVE-2026-106070`, `CVE-2026-106071` and `CVE-2026-106073`.
 
 # 7.5.0 (2026-09-22)
 
