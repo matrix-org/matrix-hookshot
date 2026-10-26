@@ -1,6 +1,8 @@
 #!/bin/bash
 # This script will run towncrier to and generate a release commit, tag and push to the origin.
 
+set -e
+
 if ! command -v jq &> /dev/null
 then
     echo "You must install jq to use this script" >&2
@@ -60,8 +62,14 @@ git tag -F draft-release.txt -s $TAG
 rm draft-release.txt
 echo "Generated tag $TAG"
 
-echo "Pushing to origin"
-git push origin $TAG
-git push
+read -p "Shall I push the release to GitHub? <y/N> " prompt
+if [[ $prompt != "y" && $prompt != "Y" && $prompt != "yes" && $prompt != "Yes" ]]
+then
+  echo "Pushing to origin"
+  git push origin main $TAG
+  echo "The CI to generate a release is now running. Check https://github.com/$REPO_NAME/releases and publish the release when it's ready."
+else
+  echo 'Do not forget to `git push origin main $TAG` once you are happy with everything!'
+fi
 
 echo "The CI to generate a release is now running. Check https://github.com/$REPO_NAME/releases and publish the release when it's ready."
