@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 ARG NODE_VERSION=24
 
 # Stage 0: Build the thing
@@ -25,7 +26,7 @@ RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
 RUN pnpm install --frozen-lockfile
 
-COPY . ./
+COPY --exclude=Dockerfile . ./
 
 RUN pnpm run build
 
