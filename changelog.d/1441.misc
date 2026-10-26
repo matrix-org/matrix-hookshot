@@ -1,0 +1,1 @@
+Update rustls-webpki and webpki-root-certs to stop trusting compromised eMudhra intermediate certificates (RUSTSEC-2026-0382, RUSTSEC-2026-0383).
