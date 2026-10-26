@@ -3,6 +3,7 @@ import "./../css/index.css";
 import type {
   Api,
   CustomMessageComponentProps,
+  CustomMessageRenderHints,
   Module,
   ModuleFactory,
 } from "@element-hq/element-web-module-api";
@@ -51,7 +52,7 @@ class HookshotOpenProjectModule implements Module {
       return isOpenProjectAnchorContent(mxEvent.content);
     }
 
-    const anchorHints = {
+    const anchorHints: CustomMessageRenderHints = {
       allowEditingEvent: false,
       renderSenderProfile: false,
     };
@@ -103,7 +104,7 @@ class HookshotOpenProjectModule implements Module {
       return isOpenProjectActivityContent(mxEvent.content);
     }
 
-    const activityHints = {
+    const activityHints: CustomMessageRenderHints = {
       allowEditingEvent: false,
       renderAsInfoMessage: true,
       renderGroupSummary: {
