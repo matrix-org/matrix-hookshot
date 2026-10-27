@@ -14,8 +14,9 @@ const config = {
   viteFinal: async (viteConfig) =>
     mergeConfig(viteConfig, {
       resolve: {
-        // The module and Storybook must share the same React runtime.
-        dedupe: ["react", "react-dom"],
+        // The module and Storybook must share the same React and Compound
+        // runtimes so providers and components use the same React contexts.
+        dedupe: ["react", "react-dom", "@vector-im/compound-web"],
         // The repository's application Vite config aliases React to Preact.
         // Shared Components uses React 19 internals, so Storybook must resolve
         // these imports to the actual React packages instead.
