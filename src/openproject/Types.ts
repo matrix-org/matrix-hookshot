@@ -2,7 +2,83 @@ type StringDate = string;
 
 export type OpenProjectIterableResult<T> = {
   _embedded: { elements: T[] };
+  _links?: {
+    nextByOffset?: OpenProjectLink;
+    nextByCursor?: OpenProjectLink;
+  };
 };
+
+export interface OpenProjectLink {
+  href: string;
+  title?: string;
+  method?: string;
+  templated?: boolean;
+}
+
+export interface OpenProjectAvailableAssignee {
+  id: number;
+  _links: {
+    self: OpenProjectLink;
+  };
+}
+
+export interface OpenProjectFormAllowedValue {
+  id?: number;
+  name?: string;
+  isClosed?: boolean;
+  _type?: string;
+  _links?: {
+    self?: OpenProjectLink;
+  };
+  href?: string;
+  title?: string;
+}
+
+export interface OpenProjectFormProperty {
+  type?: string;
+  writable?: boolean;
+  _embedded?: {
+    allowedValues?: OpenProjectFormAllowedValue[];
+  };
+  _links?: {
+    allowedValues?: OpenProjectLink[];
+  };
+}
+
+export interface OpenProjectWorkPackageForm {
+  _embedded: {
+    payload: Record<string, unknown>;
+    schema: {
+      assignee?: OpenProjectFormProperty;
+      status?: OpenProjectFormProperty;
+    };
+    validationErrors: Record<string, OpenProjectFormValidationError>;
+  };
+  _links?: {
+    commit?: OpenProjectLink;
+    self?: OpenProjectLink;
+    validate?: OpenProjectLink;
+  };
+}
+
+export interface OpenProjectFormValidationError {
+  _type?: "Error";
+  errorIdentifier?: string;
+  message: string;
+}
+
+export interface OpenProjectWorkPackageUpdate {
+  _links?: {
+    assignee?: { href: string | null };
+    responsible?: { href: string | null };
+    status?: { href: string };
+    priority?: { href: string };
+  };
+}
+
+export interface OpenProjectWorkPackageFormPayload extends OpenProjectWorkPackageUpdate {
+  lockVersion?: number;
+}
 
 export interface OpenProjectUser {
   id: number;

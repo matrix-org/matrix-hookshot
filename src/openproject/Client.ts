@@ -1,5 +1,6 @@
 import axios, { Method } from "axios";
 import {
+  OpenProjectAvailableAssignee,
   OpenProjectIterableResult,
   OpenProjectMembership,
   OpenProjectPriority,
@@ -9,6 +10,9 @@ import {
   OpenProjectType,
   OpenProjectUser,
   OpenProjectWorkPackage,
+  OpenProjectWorkPackageForm,
+  OpenProjectWorkPackageFormPayload,
+  OpenProjectWorkPackageUpdate,
 } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { OpenProjectOAuth } from "./Oauth";
@@ -115,6 +119,60 @@ export class OpenProjectAPIClient {
     );
   }
 
+  /**
+   * Fetch the edit form for a work package, optionally validating proposed changes.
+   * An empty payload returns the current writable fields and allowed values.
+   */
+  async getWorkPackageForm(
+    workPackageId: number,
+    payload: OpenProjectWorkPackageFormPayload = {},
+  ): Promise<OpenProjectWorkPackageForm> {
+    return this.apiRequest<
+      OpenProjectWorkPackageForm,
+      OpenProjectWorkPackageFormPayload
+    >(
+      `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/form`,
+      "POST",
+      payload,
+    );
+  }
+
+  /** Fetch all users that can be assigned to a work package. */
+  async getAvailableAssignees(
+    workPackageId: number,
+  ): Promise<OpenProjectAvailableAssignee[]> {
+    const assignees: OpenProjectAvailableAssignee[] = [];
+    const visitedPages = new Set<string>();
+    let pagePath = `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/available_assignees`;
+
+    while (pagePath) {
+      if (visitedPages.has(pagePath)) {
+        throw new Error("OpenProject returned a cyclic assignee page link");
+      }
+      visitedPages.add(pagePath);
+
+      const page =
+        await this.apiRequest<
+          OpenProjectIterableResult<OpenProjectAvailableAssignee>
+        >(pagePath);
+      assignees.push(...page._embedded.elements);
+
+      const nextPage =
+        page._links?.nextByOffset?.href ?? page._links?.nextByCursor?.href;
+      pagePath = nextPage ? this.getApiPath(nextPage) : "";
+    }
+
+    return assignees;
+  }
+
+  private getApiPath(href: string): string {
+    const url = new URL(href, this.baseUrl);
+    if (url.origin !== this.baseUrl.origin) {
+      throw new Error("OpenProject returned a link for a different origin");
+    }
+    return `${url.pathname}${url.search}`;
+  }
+
   async getTypesInProject(projectId: number): Promise<OpenProjectType[]> {
     // TODO: Paginate?
     return (
@@ -184,8 +242,7 @@ export class OpenProjectAPIClient {
   async updateWorkPackage(
     workPackageId: number,
     lockVersion: number,
-    // TODO: Type.
-    update: object,
+    update: OpenProjectWorkPackageUpdate,
   ): Promise<OpenProjectWorkPackage> {
     return this.apiRequest<OpenProjectWorkPackage>(
       `/api/v3/work_packages/${workPackageId}`,
