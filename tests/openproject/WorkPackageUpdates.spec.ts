@@ -913,6 +913,7 @@ describe("OpenProjectConnection work-package updates", () => {
   it("does not send a standalone card when closing a work package", async () => {
     const storage = new RecordingStorage();
     const openProjectClient = {
+      getWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
       getStatuses: vi.fn().mockResolvedValue([
         {
           name: "Closed",
@@ -934,12 +935,95 @@ describe("OpenProjectConnection work-package updates", () => {
       String(WORK_PACKAGE.id),
     );
 
+    expect(openProjectClient.getWorkPackage).toHaveBeenCalledTimes(1);
     expect(openProjectClient.updateWorkPackage).toHaveBeenCalledWith(
       WORK_PACKAGE.id,
+      WORK_PACKAGE.lockVersion,
       { _links: { status: { href: "/statuses/5" } } },
     );
     expect(intent.sentEvents).toHaveLength(0);
   });
+
+  it("uses the fetched revision when setting a work-package priority", async () => {
+    const storage = new RecordingStorage();
+    const workPackage = { ...WORK_PACKAGE, lockVersion: 7 };
+    const priority = {
+      name: "High",
+      _links: { self: { href: "/api/v3/priorities/9" } },
+    };
+    const openProjectClient = {
+      getPriorities: vi.fn().mockResolvedValue([priority]),
+      getWorkPackage: vi.fn().mockResolvedValue(workPackage),
+      updateWorkPackage: vi.fn().mockResolvedValue(workPackage),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+    } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+    const { connection } = createConnection(storage, [], tokenStore);
+
+    await connection.commandSetPriority(
+      "@alice:example.test",
+      undefined,
+      String(workPackage.id),
+      priority.name,
+    );
+
+    expect(openProjectClient.getWorkPackage).toHaveBeenCalledTimes(1);
+    expect(openProjectClient.getWorkPackage).toHaveBeenCalledWith(
+      workPackage.id,
+    );
+    expect(openProjectClient.updateWorkPackage).toHaveBeenCalledWith(
+      workPackage.id,
+      workPackage.lockVersion,
+      { _links: { priority: { href: priority._links.self.href } } },
+    );
+  });
+
+  it.each([
+    ["assignee", "commandAssignWorkPackage"],
+    ["responsible", "commandResponsibleWorkPackage"],
+  ] as const)(
+    "uses the fetched revision when setting a work-package %s",
+    async (field, command) => {
+      const storage = new RecordingStorage();
+      const workPackage = { ...WORK_PACKAGE, lockVersion: 7 };
+      const openProjectClient = {
+        getIdentity: vi.fn().mockResolvedValue({
+          _links: { self: { href: "/api/v3/users/11" } },
+        }),
+        getWorkPackage: vi.fn().mockResolvedValue(workPackage),
+        updateWorkPackage: vi.fn().mockResolvedValue(workPackage),
+      };
+      const tokenStore = {
+        getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+      } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+      const { connection } = createConnection(storage, [], tokenStore);
+
+      if (command === "commandAssignWorkPackage") {
+        await connection.commandAssignWorkPackage(
+          "@alice:example.test",
+          undefined,
+          String(workPackage.id),
+        );
+      } else {
+        await connection.commandResponsibleWorkPackage(
+          "@alice:example.test",
+          undefined,
+          String(workPackage.id),
+        );
+      }
+
+      expect(openProjectClient.getWorkPackage).toHaveBeenCalledTimes(1);
+      expect(openProjectClient.getWorkPackage).toHaveBeenCalledWith(
+        workPackage.id,
+      );
+      expect(openProjectClient.updateWorkPackage).toHaveBeenCalledWith(
+        workPackage.id,
+        workPackage.lockVersion,
+        { _links: { [field]: { href: "/api/v3/users/11" } } },
+      );
+    },
+  );
 
   it("reads the previous state before writing the updated state", async () => {
     const storage = new RecordingStorage();
