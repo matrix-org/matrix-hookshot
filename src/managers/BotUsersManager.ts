@@ -339,6 +339,27 @@ export default class BotUsersManager {
    * @param serviceType Service type for the bot.
    */
   getBotUserForService(serviceType: string): BotUser | undefined {
+    return this.getIntegrationBotForService(serviceType);
+  }
+
+  /**
+   * Gets the deployment-selected bot for a service.
+   *
+   * This is deliberately independent of room membership. Callers which need
+   * to use the bot in a room must check that it is joined there first.
+   */
+  getIntegrationBotForService(serviceType: string): BotUser | undefined {
     return this.botUsers.find((b) => b.services.includes(serviceType));
+  }
+
+  /**
+   * Checks whether a configured bot is currently joined to a room.
+   */
+  isBotUserInRoom(roomId: string, userId: string): boolean {
+    const botUser = this._botUsers.get(userId);
+    return (
+      botUser !== undefined &&
+      this._botsInRooms.get(roomId)?.has(botUser) === true
+    );
   }
 }
