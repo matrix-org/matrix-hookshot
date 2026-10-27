@@ -930,7 +930,8 @@ export class OpenProjectConnection
       );
     }
 
-    await client.updateWorkPackage(workPackageId, {
+    const workPackage = await client.getWorkPackage(workPackageId);
+    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
       _links: {
         status: {
           href: closedStatus?._links.self.href,
@@ -1003,7 +1004,8 @@ export class OpenProjectConnection
       );
     }
 
-    await client.updateWorkPackage(workPackageId, {
+    const workPackage = await client.getWorkPackage(workPackageId);
+    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
       _links: {
         priority: {
           href: priorityRef?._links.self.href,
@@ -1086,7 +1088,8 @@ export class OpenProjectConnection
       userHref = (await client.getIdentity())._links.self;
     }
 
-    await client.updateWorkPackage(workPackageId, {
+    const workPackage = await client.getWorkPackage(workPackageId);
+    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
       _links: {
         [field]: {
           href: userHref.href,

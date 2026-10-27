@@ -183,20 +183,16 @@ export class OpenProjectAPIClient {
 
   async updateWorkPackage(
     workPackageId: number,
+    lockVersion: number,
     // TODO: Type.
     update: object,
   ): Promise<OpenProjectWorkPackage> {
-    // Needed for the lockVersion.
-    const existingWp = await this.apiRequest<OpenProjectWorkPackage>(
-      `/api/v3/work_packages/${workPackageId}`,
-      "GET",
-    );
     return this.apiRequest<OpenProjectWorkPackage>(
       `/api/v3/work_packages/${workPackageId}`,
       "PATCH",
       {
-        lockVersion: (await existingWp).lockVersion,
         ...update,
+        lockVersion,
       },
     );
   }
