@@ -9,7 +9,6 @@ import {
 } from "../../src/openproject/Eligibility";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import type {
-  OpenProjectAvailableAssignee,
   OpenProjectIdentity,
   OpenProjectWorkPackage,
   OpenProjectWorkPackageForm,
@@ -39,13 +38,6 @@ function createWorkPackage(): OpenProjectWorkPackage {
   };
 }
 
-function createAvailableAssignee(): OpenProjectAvailableAssignee {
-  return {
-    id: OPENPROJECT_USER_ID,
-    _links: { self: { href: ASSIGNEE_HREF } },
-  };
-}
-
 function createForm(
   options: {
     assigneeWritable?: boolean;
@@ -65,17 +57,21 @@ function createForm(
 
 function createHarness() {
   let workPackage = createWorkPackage();
-  let now = 1_000;
   const getIdentity = vi.fn(async () => createIdentity());
   const getWorkPackage = vi.fn(async () => workPackage);
-  const getAvailableAssignees = vi.fn(async () => [createAvailableAssignee()]);
+  const hasAvailableAssignee = vi.fn(
+    async (_workPackageId: number, userId: number) =>
+      userId === OPENPROJECT_USER_ID,
+  );
   const getWorkPackageForm = vi.fn(async () => createForm());
+  const updateWorkPackage = vi.fn(async () => undefined);
   const client = {
     getOrigin: () => BASE_URL.origin,
     getIdentity,
     getWorkPackage,
-    getAvailableAssignees,
+    hasAvailableAssignee,
     getWorkPackageForm,
+    updateWorkPackage,
   } as unknown as OpenProjectAPIClient;
   const getOpenProjectForUser = vi.fn(
     async (): Promise<OpenProjectAPIClient | null> => client,
@@ -83,11 +79,7 @@ function createHarness() {
   const tokenStore = {
     getOpenProjectForUser,
   } as unknown as UserTokenStore;
-  const service = new OpenProjectEligibilityService(
-    tokenStore,
-    1_000,
-    () => now,
-  );
+  const service = new OpenProjectEligibilityService(tokenStore);
   const connection: OpenProjectEligibilityConnection = {
     projectId: WORK_PACKAGE._embedded.project.id,
     interestedInProject: vi.fn(() => true),
@@ -99,14 +91,12 @@ function createHarness() {
     client,
     getIdentity,
     getWorkPackage,
-    getAvailableAssignees,
+    hasAvailableAssignee,
     getWorkPackageForm,
+    updateWorkPackage,
     getOpenProjectForUser,
     setWorkPackage(next: OpenProjectWorkPackage) {
       workPackage = next;
-    },
-    setNow(next: number) {
-      now = next;
     },
   };
 }
@@ -129,7 +119,10 @@ describe("OpenProjectEligibilityService assignment", () => {
       targetHref: ASSIGNEE_HREF,
     });
 
-    expect(harness.getAvailableAssignees).toHaveBeenCalledWith(WORK_PACKAGE.id);
+    expect(harness.hasAvailableAssignee).toHaveBeenCalledWith(
+      WORK_PACKAGE.id,
+      OPENPROJECT_USER_ID,
+    );
     expect(harness.getWorkPackageForm).toHaveBeenCalledWith(WORK_PACKAGE.id, {
       lockVersion: 8,
       _links: { assignee: { href: ASSIGNEE_HREF } },
@@ -160,13 +153,13 @@ describe("OpenProjectEligibilityService assignment", () => {
       status: "ineligible",
       reason: "already_assigned",
     });
-    expect(harness.getAvailableAssignees).not.toHaveBeenCalled();
+    expect(harness.hasAvailableAssignee).not.toHaveBeenCalled();
     expect(harness.getWorkPackageForm).not.toHaveBeenCalled();
   });
 
   it("rejects a target absent from the package-specific assignee list", async () => {
     const harness = createHarness();
-    harness.getAvailableAssignees.mockResolvedValue([]);
+    harness.hasAvailableAssignee.mockResolvedValue(false);
 
     await expect(
       harness.service.evaluateAssignSelf(
@@ -188,9 +181,16 @@ describe("OpenProjectEligibilityService assignment", () => {
       "assignee_not_writable",
     ],
     [
-      "form-rejected",
+      "assignee form error",
       createForm({
         validationErrors: { assignee: { message: "Not allowed" } },
+      }),
+      "assignment_invalid",
+    ],
+    [
+      "other form error",
+      createForm({
+        validationErrors: { subject: { message: "Subject is required" } },
       }),
       "assignment_invalid",
     ],
@@ -248,7 +248,7 @@ describe("OpenProjectEligibilityService assignment", () => {
       status: "not_authorized",
       reason: "wrong_project",
     });
-    expect(harness.getAvailableAssignees).not.toHaveBeenCalled();
+    expect(harness.hasAvailableAssignee).not.toHaveBeenCalled();
   });
 
   it("requires a live connection and a valid package ID before fetching", async () => {
@@ -300,26 +300,38 @@ describe("OpenProjectEligibilityService assignment", () => {
     });
   });
 
-  it("validates a manual target and allows clearing when the form accepts it", async () => {
+  it("assigns a manual target and allows clearing when the form accepts it", async () => {
     const harness = createHarness();
     await expect(
-      harness.service.validateAssigneeTarget(
+      harness.service.executeAssignment(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
-        { href: ASSIGNEE_HREF, userId: OPENPROJECT_USER_ID },
+        { kind: "user", href: ASSIGNEE_HREF, userId: OPENPROJECT_USER_ID },
       ),
     ).resolves.toMatchObject({ status: "eligible", targetHref: ASSIGNEE_HREF });
 
     await expect(
-      harness.service.validateAssigneeTarget(
+      harness.service.executeAssignment(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
-        { href: null },
+        { kind: "user", href: null },
       ),
     ).resolves.toMatchObject({ status: "eligible", targetHref: null });
-    expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(1);
+    expect(harness.hasAvailableAssignee).toHaveBeenCalledTimes(1);
+    expect(harness.updateWorkPackage).toHaveBeenNthCalledWith(
+      1,
+      WORK_PACKAGE.id,
+      8,
+      { _links: { assignee: { href: ASSIGNEE_HREF } } },
+    );
+    expect(harness.updateWorkPackage).toHaveBeenNthCalledWith(
+      2,
+      WORK_PACKAGE.id,
+      8,
+      { _links: { assignee: { href: null } } },
+    );
   });
 
   it("rejects mismatched IDs and non-user links before assignee lookup", async () => {
@@ -330,11 +342,11 @@ describe("OpenProjectEligibilityService assignment", () => {
       { href: "/api/v3/projects/1", userId: OPENPROJECT_USER_ID },
     ]) {
       await expect(
-        harness.service.validateAssigneeTarget(
+        harness.service.executeAssignment(
           MATRIX_USER_ID,
           harness.connection,
           WORK_PACKAGE.id,
-          target,
+          { kind: "user", ...target },
         ),
       ).resolves.toEqual({
         status: "ineligible",
@@ -342,19 +354,21 @@ describe("OpenProjectEligibilityService assignment", () => {
       });
     }
 
-    expect(harness.getAvailableAssignees).not.toHaveBeenCalled();
+    expect(harness.hasAvailableAssignee).not.toHaveBeenCalled();
     expect(harness.getWorkPackageForm).not.toHaveBeenCalled();
+    expect(harness.updateWorkPackage).not.toHaveBeenCalled();
   });
 
   it("normalizes an absolute canonical user link before form validation", async () => {
     const harness = createHarness();
 
     await expect(
-      harness.service.validateAssigneeTarget(
+      harness.service.executeAssignment(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
         {
+          kind: "user",
           href: `${BASE_URL.origin}${ASSIGNEE_HREF}`,
           userId: OPENPROJECT_USER_ID,
         },
@@ -367,9 +381,12 @@ describe("OpenProjectEligibilityService assignment", () => {
       lockVersion: 8,
       _links: { assignee: { href: ASSIGNEE_HREF } },
     });
+    expect(harness.updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+      _links: { assignee: { href: ASSIGNEE_HREF } },
+    });
   });
 
-  it("reuses successful assignee results but refreshes them for a new revision", async () => {
+  it("rechecks target availability for every evaluation", async () => {
     const harness = createHarness();
     const evaluate = () =>
       harness.service.evaluateAssignSelf(
@@ -378,38 +395,32 @@ describe("OpenProjectEligibilityService assignment", () => {
         WORK_PACKAGE.id,
       );
 
-    await evaluate();
-    await evaluate();
-    expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(1);
+    harness.hasAvailableAssignee
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
-    harness.setWorkPackage({ ...createWorkPackage(), lockVersion: 9 });
-    await evaluate();
-    expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(2);
+    await expect(evaluate()).resolves.toMatchObject({ status: "eligible" });
+    await expect(evaluate()).resolves.toEqual({
+      status: "ineligible",
+      reason: "target_not_available",
+    });
+    expect(harness.hasAvailableAssignee).toHaveBeenNthCalledWith(
+      1,
+      WORK_PACKAGE.id,
+      OPENPROJECT_USER_ID,
+    );
+    expect(harness.hasAvailableAssignee).toHaveBeenNthCalledWith(
+      2,
+      WORK_PACKAGE.id,
+      OPENPROJECT_USER_ID,
+    );
   });
 
-  it("expires successful assignee results and bypasses the cache on request", async () => {
+  it("reports a failed assignee lookup as unavailable", async () => {
     const harness = createHarness();
-    const evaluate = (bypassAssigneeCache = false) =>
-      harness.service.evaluateAssignSelf(
-        MATRIX_USER_ID,
-        harness.connection,
-        WORK_PACKAGE.id,
-        { bypassAssigneeCache },
-      );
-
-    await evaluate();
-    harness.setNow(2_001);
-    await evaluate();
-    await evaluate(true);
-
-    expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(3);
-  });
-
-  it("does not cache a failed assignee request", async () => {
-    const harness = createHarness();
-    harness.getAvailableAssignees
-      .mockRejectedValueOnce(new Error("OpenProject unavailable"))
-      .mockResolvedValueOnce([createAvailableAssignee()]);
+    harness.hasAvailableAssignee.mockRejectedValueOnce(
+      new Error("OpenProject unavailable"),
+    );
     const evaluate = () =>
       harness.service.evaluateAssignSelf(
         MATRIX_USER_ID,
@@ -421,66 +432,7 @@ describe("OpenProjectEligibilityService assignment", () => {
       status: "unavailable",
       reason: "openproject_error",
     });
-    await expect(evaluate()).resolves.toMatchObject({ status: "eligible" });
-    expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(2);
-  });
-
-  it("coalesces concurrent assignee requests for the same user and revision", async () => {
-    const harness = createHarness();
-    let resolveAssignees!: (assignees: OpenProjectAvailableAssignee[]) => void;
-    const pendingAssignees = new Promise<OpenProjectAvailableAssignee[]>(
-      (resolve) => {
-        resolveAssignees = resolve;
-      },
-    );
-    harness.getAvailableAssignees.mockReturnValue(pendingAssignees);
-    const evaluate = () =>
-      harness.service.evaluateAssignSelf(
-        MATRIX_USER_ID,
-        harness.connection,
-        WORK_PACKAGE.id,
-      );
-
-    const first = evaluate();
-    const second = evaluate();
-    await vi.waitFor(() =>
-      expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(1),
-    );
-    resolveAssignees([createAvailableAssignee()]);
-
-    await expect(Promise.all([first, second])).resolves.toEqual([
-      {
-        status: "eligible",
-        action: "assign_self",
-        workPackageId: WORK_PACKAGE.id,
-        lockVersion: 8,
-        targetHref: ASSIGNEE_HREF,
-      },
-      {
-        status: "eligible",
-        action: "assign_self",
-        workPackageId: WORK_PACKAGE.id,
-        lockVersion: 8,
-        targetHref: ASSIGNEE_HREF,
-      },
-    ]);
-  });
-
-  it("does not share cached assignees across Matrix users", async () => {
-    const harness = createHarness();
-
-    await harness.service.evaluateAssignSelf(
-      MATRIX_USER_ID,
-      harness.connection,
-      WORK_PACKAGE.id,
-    );
-    await harness.service.evaluateAssignSelf(
-      "@bob:example.org",
-      harness.connection,
-      WORK_PACKAGE.id,
-    );
-
-    expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(2);
+    expect(harness.hasAvailableAssignee).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -492,7 +444,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     "maps an OpenProject %i assignment error",
     async (status, result) => {
       const harness = createHarness();
-      harness.getAvailableAssignees.mockRejectedValue({ response: { status } });
+      harness.hasAvailableAssignee.mockRejectedValue({ response: { status } });
 
       await expect(
         harness.service.evaluateAssignSelf(

@@ -3,13 +3,7 @@ import {
   OpenProjectAPIClient,
   OpenProjectMalformedResponseError,
 } from "./Client";
-import type {
-  OpenProjectAvailableAssignee,
-  OpenProjectUser,
-  OpenProjectWorkPackage,
-} from "./Types";
-
-const DEFAULT_ASSIGNEE_CACHE_TTL_MS = 30_000;
+import type { OpenProjectUser, OpenProjectWorkPackage } from "./Types";
 
 /** Connection properties needed to evaluate a work package action. */
 export interface OpenProjectEligibilityConnection {
@@ -49,42 +43,10 @@ export type OpenProjectAssignmentResult =
       reason: "connection_removed" | "openproject_error" | "malformed_response";
     };
 
-/** Options for assignment eligibility checks. */
-export interface OpenProjectEligibilityOptions {
-  /** Skip the short-lived assignee collection cache for command execution. */
-  bypassAssigneeCache?: boolean;
-}
-
 /** Target selection for command-time assignment. */
 export type OpenProjectAssignmentTarget =
   | { kind: "self" }
   | { kind: "user"; href: string | null; userId?: number };
-
-interface AssigneeCacheEntry {
-  origin: string;
-  matrixUserId: string;
-  openProjectUserId: number;
-  workPackageId: number;
-  lockVersion: number;
-  expiresAt?: number;
-  promise: Promise<OpenProjectAvailableAssignee[]>;
-}
-
-function assigneeCacheKey(
-  origin: string,
-  matrixUserId: string,
-  openProjectUserId: number,
-  workPackageId: number,
-  lockVersion: number,
-): string {
-  return JSON.stringify([
-    origin,
-    matrixUserId,
-    openProjectUserId,
-    workPackageId,
-    lockVersion,
-  ]);
-}
 
 interface EvaluationContext {
   client: OpenProjectAPIClient;
@@ -183,24 +145,16 @@ function matchesUser(
 
 /**
  * Evaluates package-specific assignment eligibility for the acting Matrix user.
- * The service keeps only short-lived, successful assignee collections in memory.
+ * Each evaluation checks current OpenProject state for the acting Matrix user.
  */
 export class OpenProjectEligibilityService {
-  private readonly assigneeCache = new Map<string, AssigneeCacheEntry>();
-  private readonly identityByMatrixUser = new Map<string, number>();
-
-  constructor(
-    private readonly tokenStore: UserTokenStore,
-    private readonly assigneeCacheTtlMs = DEFAULT_ASSIGNEE_CACHE_TTL_MS,
-    private readonly now: () => number = Date.now,
-  ) {}
+  constructor(private readonly tokenStore: UserTokenStore) {}
 
   /** Evaluate whether the sender can assign themself to this work package. */
   public async evaluateAssignSelf(
     matrixUserId: string,
     connection: OpenProjectEligibilityConnection,
     workPackageId: number,
-    options: OpenProjectEligibilityOptions = {},
   ): Promise<OpenProjectAssignmentResult> {
     const contextResult = await this.getContext(
       matrixUserId,
@@ -222,10 +176,8 @@ export class OpenProjectEligibilityService {
     }
 
     return this.validateTargetInContext(
-      matrixUserId,
       workPackageId,
       { href: context.identity.href, userId: context.identity.id },
-      options,
       context,
       "assign_self",
     );
@@ -237,7 +189,6 @@ export class OpenProjectEligibilityService {
     connection: OpenProjectEligibilityConnection,
     workPackageId: number,
     target: OpenProjectAssignmentTarget,
-    options: OpenProjectEligibilityOptions = {},
   ): Promise<OpenProjectAssignmentResult> {
     const contextResult = await this.getContext(
       matrixUserId,
@@ -260,62 +211,28 @@ export class OpenProjectEligibilityService {
       }
 
       return this.executeTargetInContext(
-        matrixUserId,
         workPackageId,
         { href: context.identity.href, userId: context.identity.id },
-        options,
         context,
         "assign_self",
       );
     }
 
     return this.executeTargetInContext(
-      matrixUserId,
       workPackageId,
       { href: target.href, userId: target.userId },
-      options,
       context,
       undefined,
     );
   }
 
-  /**
-   * Validate a manual assignee target against the sender's current package state.
-   * A null href represents clearing the assignee.
-   */
-  public async validateAssigneeTarget(
-    matrixUserId: string,
-    connection: OpenProjectEligibilityConnection,
-    workPackageId: number,
-    target: { href: string | null; userId?: number },
-    options: OpenProjectEligibilityOptions = {},
-  ): Promise<OpenProjectAssignmentResult> {
-    const contextResult = await this.getContext(
-      matrixUserId,
-      connection,
-      workPackageId,
-    );
-    if (!contextResult.ok) return contextResult.result;
-
-    return this.validateTargetInContext(
-      matrixUserId,
-      workPackageId,
-      target,
-      options,
-      contextResult.context,
-      undefined,
-    );
-  }
-
   private async validateTargetInContext(
-    matrixUserId: string,
     workPackageId: number,
     target: { href: string | null; userId?: number },
-    options: OpenProjectEligibilityOptions,
     context: EvaluationContext,
     action: "assign_self" | undefined,
   ): Promise<OpenProjectAssignmentResult> {
-    const { client, identity, workPackage } = context;
+    const { client, workPackage } = context;
     const canonicalTarget =
       target.href === null
         ? undefined
@@ -341,23 +258,13 @@ export class OpenProjectEligibilityService {
 
     try {
       if (canonicalHref !== null) {
-        const assignees = await this.getAssignees(
-          client,
-          matrixUserId,
-          identity.id,
-          workPackage,
-          options.bypassAssigneeCache === true,
+        if (targetId === undefined) {
+          return { status: "ineligible", reason: "target_not_available" };
+        }
+        const isAvailable = await client.hasAvailableAssignee(
+          workPackage.id,
+          targetId,
         );
-        const isAvailable = assignees.some((assignee) => {
-          const assigneeHref = normalizeHref(
-            assignee._links.self.href,
-            client.getOrigin(),
-          );
-          return (
-            (targetId !== undefined && assignee.id === targetId) ||
-            (assigneeHref !== undefined && assigneeHref === canonicalHref)
-          );
-        });
         if (!isAvailable) {
           return { status: "ineligible", reason: "target_not_available" };
         }
@@ -371,7 +278,7 @@ export class OpenProjectEligibilityService {
       if (!assigneeField || assigneeField.writable !== true) {
         return { status: "ineligible", reason: "assignee_not_writable" };
       }
-      if (Object.hasOwn(form._embedded.validationErrors, "assignee")) {
+      if (Object.keys(form._embedded.validationErrors).length > 0) {
         return { status: "ineligible", reason: "assignment_invalid" };
       }
 
@@ -388,18 +295,14 @@ export class OpenProjectEligibilityService {
   }
 
   private async executeTargetInContext(
-    matrixUserId: string,
     workPackageId: number,
     target: { href: string | null; userId?: number },
-    options: OpenProjectEligibilityOptions,
     context: EvaluationContext,
     action: "assign_self" | undefined,
   ): Promise<OpenProjectAssignmentResult> {
     const result = await this.validateTargetInContext(
-      matrixUserId,
       workPackageId,
       target,
-      options,
       context,
       action,
     );
@@ -416,21 +319,6 @@ export class OpenProjectEligibilityService {
       return result;
     } catch (error) {
       return this.resultForError(error, "mutation");
-    }
-  }
-
-  /** Invalidate cached assignee collections for this Matrix user. */
-  public invalidateAssigneeCache(
-    matrixUserId: string,
-    workPackageId?: number,
-  ): void {
-    for (const [key, entry] of this.assigneeCache) {
-      if (
-        entry.matrixUserId === matrixUserId &&
-        (workPackageId === undefined || entry.workPackageId === workPackageId)
-      ) {
-        this.assigneeCache.delete(key);
-      }
     }
   }
 
@@ -480,8 +368,6 @@ export class OpenProjectEligibilityService {
           result: { status: "unavailable", reason: "malformed_response" },
         };
       }
-      this.observeIdentity(matrixUserId, client.getOrigin(), identity.id);
-
       stage = "work_package";
       const workPackage = await client.getWorkPackage(workPackageId);
       if (workPackage._embedded.project.id !== connection.projectId) {
@@ -490,15 +376,6 @@ export class OpenProjectEligibilityService {
           result: { status: "not_authorized", reason: "wrong_project" },
         };
       }
-      this.removeExpiredCacheEntries();
-      this.removeOlderRevisions(
-        client.getOrigin(),
-        matrixUserId,
-        identity.id,
-        workPackage.id,
-        workPackage.lockVersion,
-      );
-
       return {
         ok: true,
         context: {
@@ -513,97 +390,6 @@ export class OpenProjectEligibilityService {
       };
     } catch (error) {
       return { ok: false, result: this.resultForError(error, stage) };
-    }
-  }
-
-  private async getAssignees(
-    client: OpenProjectAPIClient,
-    matrixUserId: string,
-    openProjectUserId: number,
-    workPackage: OpenProjectWorkPackage,
-    bypassCache: boolean,
-  ): Promise<OpenProjectAvailableAssignee[]> {
-    if (bypassCache) {
-      return this.fetchAssignees(client, workPackage.id);
-    }
-
-    const cacheKey = assigneeCacheKey(
-      client.getOrigin(),
-      matrixUserId,
-      openProjectUserId,
-      workPackage.id,
-      workPackage.lockVersion,
-    );
-    const cached = this.assigneeCache.get(cacheKey);
-    if (cached) {
-      return cached.promise;
-    }
-
-    const entry: AssigneeCacheEntry = {
-      origin: client.getOrigin(),
-      matrixUserId,
-      openProjectUserId,
-      workPackageId: workPackage.id,
-      lockVersion: workPackage.lockVersion,
-      promise: this.fetchAssignees(client, workPackage.id),
-    };
-    this.assigneeCache.set(cacheKey, entry);
-    try {
-      const assignees = await entry.promise;
-      entry.expiresAt = this.now() + this.assigneeCacheTtlMs;
-      return assignees;
-    } catch (error) {
-      this.assigneeCache.delete(cacheKey);
-      throw error;
-    }
-  }
-
-  private async fetchAssignees(
-    client: OpenProjectAPIClient,
-    workPackageId: number,
-  ): Promise<OpenProjectAvailableAssignee[]> {
-    return client.getAvailableAssignees(workPackageId);
-  }
-
-  private observeIdentity(
-    matrixUserId: string,
-    origin: string,
-    openProjectUserId: number,
-  ): void {
-    const identityKey = JSON.stringify([origin, matrixUserId]);
-    const previous = this.identityByMatrixUser.get(identityKey);
-    if (previous !== undefined && previous !== openProjectUserId) {
-      this.invalidateAssigneeCache(matrixUserId);
-    }
-    this.identityByMatrixUser.set(identityKey, openProjectUserId);
-  }
-
-  private removeOlderRevisions(
-    origin: string,
-    matrixUserId: string,
-    openProjectUserId: number,
-    workPackageId: number,
-    lockVersion: number,
-  ): void {
-    for (const [key, entry] of this.assigneeCache) {
-      if (
-        entry.origin === origin &&
-        entry.matrixUserId === matrixUserId &&
-        entry.openProjectUserId === openProjectUserId &&
-        entry.workPackageId === workPackageId &&
-        entry.lockVersion !== lockVersion
-      ) {
-        this.assigneeCache.delete(key);
-      }
-    }
-  }
-
-  private removeExpiredCacheEntries(): void {
-    const now = this.now();
-    for (const [key, entry] of this.assigneeCache) {
-      if (entry.expiresAt !== undefined && entry.expiresAt <= now) {
-        this.assigneeCache.delete(key);
-      }
     }
   }
 

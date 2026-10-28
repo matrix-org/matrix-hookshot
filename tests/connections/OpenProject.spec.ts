@@ -89,11 +89,9 @@ function createAssignmentHarness(availableUserIds = [7, 12]) {
       ...WORK_PACKAGE,
       lockVersion: 8,
     }),
-    getAvailableAssignees: vi.fn().mockResolvedValue(
-      availableUserIds.map((userId) => ({
-        id: userId,
-        _links: { self: { href: `/api/v3/users/${userId}` } },
-      })),
+    hasAvailableAssignee: vi.fn(
+      async (_workPackageId: number, userId: number) =>
+        availableUserIds.includes(userId),
     ),
     getWorkPackageForm: vi.fn().mockResolvedValue({
       _embedded: {
@@ -146,10 +144,28 @@ describe("OpenProjectConnection", () => {
       );
 
       expect(senderClient.getWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id);
+      expect(senderClient.hasAvailableAssignee).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        7,
+      );
+      expect(senderClient.getWorkPackageForm).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        { lockVersion: 8, _links: { assignee: { href: "/api/v3/users/7" } } },
+      );
       expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
         WORK_PACKAGE.id,
         8,
         { _links: { assignee: { href: "/api/v3/users/7" } } },
+      );
+      expect(
+        senderClient.hasAvailableAssignee.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
+      );
+      expect(
+        senderClient.getWorkPackageForm.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
       );
     });
 
@@ -167,10 +183,28 @@ describe("OpenProjectConnection", () => {
         1,
         "Bob Smith",
       );
+      expect(senderClient.hasAvailableAssignee).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        12,
+      );
+      expect(senderClient.getWorkPackageForm).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        { lockVersion: 8, _links: { assignee: { href: "/api/v3/users/12" } } },
+      );
       expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
         WORK_PACKAGE.id,
         8,
         { _links: { assignee: { href: "/api/v3/users/12" } } },
+      );
+      expect(
+        senderClient.hasAvailableAssignee.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
+      );
+      expect(
+        senderClient.getWorkPackageForm.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
       );
     });
 
@@ -190,10 +224,28 @@ describe("OpenProjectConnection", () => {
       );
       expect(targetClient.getIdentity).toHaveBeenCalledOnce();
       expect(senderClient.searchForUserInProject).not.toHaveBeenCalled();
+      expect(senderClient.hasAvailableAssignee).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        12,
+      );
+      expect(senderClient.getWorkPackageForm).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        { lockVersion: 8, _links: { assignee: { href: "/api/v3/users/12" } } },
+      );
       expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
         WORK_PACKAGE.id,
         8,
         { _links: { assignee: { href: "/api/v3/users/12" } } },
+      );
+      expect(
+        senderClient.hasAvailableAssignee.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
+      );
+      expect(
+        senderClient.getWorkPackageForm.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
       );
     });
 
@@ -216,7 +268,7 @@ describe("OpenProjectConnection", () => {
       );
 
       expect(senderClient.getWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id);
-      expect(senderClient.getAvailableAssignees).not.toHaveBeenCalled();
+      expect(senderClient.hasAvailableAssignee).not.toHaveBeenCalled();
       expect(senderClient.getWorkPackageForm).toHaveBeenCalledWith(
         WORK_PACKAGE.id,
         { lockVersion: 8, _links: { assignee: { href: null } } },
@@ -225,6 +277,11 @@ describe("OpenProjectConnection", () => {
         WORK_PACKAGE.id,
         8,
         { _links: { assignee: { href: null } } },
+      );
+      expect(
+        senderClient.getWorkPackageForm.mock.invocationCallOrder[0],
+      ).toBeLessThan(
+        senderClient.updateWorkPackage.mock.invocationCallOrder[0],
       );
     });
 

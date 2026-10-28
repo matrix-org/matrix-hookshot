@@ -167,22 +167,30 @@ export class OpenProjectAPIClient {
     return form;
   }
 
-  /** Fetch all users that can be assigned to a work package. */
-  async getAvailableAssignees(
+  /** Check assignment eligibility, stopping pagination as soon as the user is found. */
+  async hasAvailableAssignee(
     workPackageId: number,
-  ): Promise<OpenProjectAvailableAssignee[]> {
-    const assignees: OpenProjectAvailableAssignee[] = [];
-    const path = `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/available_assignees`;
+    userId: number,
+  ): Promise<boolean> {
+    for await (const assignee of this.iterateAvailableAssignees(
+      workPackageId,
+    )) {
+      if (assignee.id === userId) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-    for await (const assignee of this.iterateCollection<OpenProjectAvailableAssignee>(
+  private iterateAvailableAssignees(
+    workPackageId: number,
+  ): AsyncGenerator<OpenProjectAvailableAssignee> {
+    const path = `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/available_assignees`;
+    return this.iterateCollection<OpenProjectAvailableAssignee>(
       path,
       OpenProjectAvailableAssigneeCollectionSchema,
       "Invalid available assignees collection response",
-    )) {
-      assignees.push(assignee);
-    }
-
-    return assignees;
+    );
   }
 
   private async *iterateCollection<T>(

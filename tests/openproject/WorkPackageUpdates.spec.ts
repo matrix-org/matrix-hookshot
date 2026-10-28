@@ -995,12 +995,7 @@ describe("OpenProjectConnection work-package updates", () => {
           _links: { self: { href: "/api/v3/users/12" } },
         }),
         getWorkPackage: vi.fn().mockResolvedValue(workPackage),
-        getAvailableAssignees: vi.fn().mockResolvedValue([
-          {
-            id: 12,
-            _links: { self: { href: "/api/v3/users/12" } },
-          },
-        ]),
+        hasAvailableAssignee: vi.fn().mockResolvedValue(true),
         getWorkPackageForm: vi.fn().mockResolvedValue({
           _embedded: {
             payload: {},

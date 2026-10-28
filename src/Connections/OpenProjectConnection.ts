@@ -1172,7 +1172,6 @@ export class OpenProjectConnection
       this,
       workPackageId,
       target === undefined ? { kind: "self" } : { kind: "user", ...target },
-      { bypassAssigneeCache: true },
     );
 
     if (result.status !== "eligible") {

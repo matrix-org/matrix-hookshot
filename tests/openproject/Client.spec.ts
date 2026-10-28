@@ -155,9 +155,9 @@ describe("OpenProjectAPIClient", () => {
     await expect(client.getWorkPackageForm(WORK_PACKAGE.id)).rejects.toThrow(
       "Invalid OpenProject work package form response",
     );
-    await expect(client.getAvailableAssignees(WORK_PACKAGE.id)).rejects.toThrow(
-      "Invalid available assignees collection response",
-    );
+    await expect(
+      client.hasAvailableAssignee(WORK_PACKAGE.id, 7),
+    ).rejects.toThrow("Invalid available assignees collection response");
   });
 
   it("posts an empty payload to retrieve the current work package form", async () => {
@@ -239,7 +239,7 @@ describe("OpenProjectAPIClient", () => {
     );
   });
 
-  it("follows offset and cursor links to collect all available assignees", async () => {
+  it("follows offset and cursor links until the target assignee is found", async () => {
     const request = vi.mocked(axios.request);
     const firstAssignee = {
       id: 11,
@@ -280,8 +280,8 @@ describe("OpenProjectAPIClient", () => {
     const client = createClient();
 
     await expect(
-      client.getAvailableAssignees(WORK_PACKAGE.id),
-    ).resolves.toEqual([firstAssignee, secondAssignee, thirdAssignee]);
+      client.hasAvailableAssignee(WORK_PACKAGE.id, thirdAssignee.id),
+    ).resolves.toBe(true);
 
     expect(request).toHaveBeenCalledTimes(3);
     expect(request).toHaveBeenNthCalledWith(
@@ -304,6 +304,65 @@ describe("OpenProjectAPIClient", () => {
     );
   });
 
+  it("stops assignee pagination as soon as the target user is found", async () => {
+    const request = vi.mocked(axios.request);
+    request.mockResolvedValueOnce({
+      data: {
+        _embedded: {
+          elements: [
+            { id: 12, _links: { self: { href: "/api/v3/users/12" } } },
+          ],
+        },
+        _links: {
+          nextByOffset: {
+            href: `/api/v3/work_packages/${WORK_PACKAGE.id}/available_assignees?offset=2`,
+          },
+        },
+      },
+    } as never);
+    request.mockRejectedValueOnce(new Error("Later page unavailable"));
+    const client = createClient();
+
+    await expect(
+      client.hasAvailableAssignee(WORK_PACKAGE.id, 12),
+    ).resolves.toBe(true);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("exhausts assignee pages when the target user is absent", async () => {
+    const request = vi.mocked(axios.request);
+    request
+      .mockResolvedValueOnce({
+        data: {
+          _embedded: {
+            elements: [
+              { id: 11, _links: { self: { href: "/api/v3/users/11" } } },
+            ],
+          },
+          _links: {
+            nextByOffset: {
+              href: `/api/v3/work_packages/${WORK_PACKAGE.id}/available_assignees?offset=2`,
+            },
+          },
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        data: {
+          _embedded: {
+            elements: [
+              { id: 13, _links: { self: { href: "/api/v3/users/13" } } },
+            ],
+          },
+        },
+      } as never);
+    const client = createClient();
+
+    await expect(
+      client.hasAvailableAssignee(WORK_PACKAGE.id, 12),
+    ).resolves.toBe(false);
+    expect(request).toHaveBeenCalledTimes(2);
+  });
+
   it("does not follow an assignee page link to a different origin", async () => {
     const request = vi.mocked(axios.request);
     request.mockResolvedValueOnce({
@@ -314,9 +373,9 @@ describe("OpenProjectAPIClient", () => {
     } as never);
     const client = createClient();
 
-    await expect(client.getAvailableAssignees(WORK_PACKAGE.id)).rejects.toThrow(
-      "different origin",
-    );
+    await expect(
+      client.hasAvailableAssignee(WORK_PACKAGE.id, 12),
+    ).rejects.toThrow("different origin");
 
     expect(request).toHaveBeenCalledTimes(1);
   });
@@ -332,9 +391,9 @@ describe("OpenProjectAPIClient", () => {
     } as never);
     const client = createClient();
 
-    await expect(client.getAvailableAssignees(WORK_PACKAGE.id)).rejects.toThrow(
-      "cyclic collection page link",
-    );
+    await expect(
+      client.hasAvailableAssignee(WORK_PACKAGE.id, 12),
+    ).rejects.toThrow("cyclic collection page link");
     expect(request).toHaveBeenCalledTimes(1);
   });
 
@@ -348,9 +407,9 @@ describe("OpenProjectAPIClient", () => {
     } as never);
     const client = createClient();
 
-    await expect(client.getAvailableAssignees(WORK_PACKAGE.id)).rejects.toThrow(
-      "invalid collection page link",
-    );
+    await expect(
+      client.hasAvailableAssignee(WORK_PACKAGE.id, 12),
+    ).rejects.toThrow("invalid collection page link");
     expect(request).toHaveBeenCalledTimes(1);
   });
 
