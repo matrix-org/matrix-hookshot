@@ -1,9 +1,12 @@
 import { UserTokenStore } from "../tokens/UserTokenStore";
+import { Logger } from "matrix-appservice-bridge";
 import {
   OpenProjectAPIClient,
   OpenProjectMalformedResponseError,
 } from "./Client";
 import type { OpenProjectUser, OpenProjectWorkPackage } from "./Types";
+
+const log = new Logger("OpenProjectEligibilityService");
 
 /** Connection properties needed to evaluate a work package action. */
 export interface OpenProjectEligibilityConnection {
@@ -337,6 +340,7 @@ export class OpenProjectEligibilityService {
       !Number.isSafeInteger(connection.projectId) ||
       connection.projectId <= 0
     ) {
+      log.warn("Invalid connected OpenProject project ID");
       return {
         ok: false,
         result: { status: "unavailable", reason: "malformed_response" },
@@ -363,6 +367,7 @@ export class OpenProjectEligibilityService {
         client.getOrigin(),
       );
       if (normalizedHref !== `/api/v3/users/${identity.id}`) {
+        log.warn("OpenProject identity self link does not match its user ID");
         return {
           ok: false,
           result: { status: "unavailable", reason: "malformed_response" },
@@ -403,6 +408,9 @@ export class OpenProjectEligibilityService {
       | "mutation",
   ): ContextFailure {
     if (error instanceof OpenProjectMalformedResponseError) {
+      log.warn(
+        `Malformed OpenProject response during ${stage}: ${error.message}`,
+      );
       return { status: "unavailable", reason: "malformed_response" };
     }
     const status = httpStatus(error);

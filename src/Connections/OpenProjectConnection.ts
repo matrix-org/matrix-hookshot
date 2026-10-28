@@ -4,6 +4,7 @@ import {
   IConnection,
   IConnectionState,
   InstantiateConnectionOpts,
+  PermissionCheckFn,
   ProvisionConnectionOpts,
 } from "./IConnection";
 import {
@@ -12,12 +13,16 @@ import {
   MatrixError,
   MatrixEvent,
   MessageEventContent,
+  RoomEvent,
   StateEvent,
   UserID,
 } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
-import { MatrixMessageContent } from "../MatrixEvent";
+import {
+  MatrixMessageContent,
+  type MatrixEvent as CommandMatrixEvent,
+} from "../MatrixEvent";
 import { CommandConnection } from "./CommandConnection";
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { ApiError, ErrCode } from "../api";
@@ -30,7 +35,6 @@ import {
   formatWorkPackageAnchorReplacement,
   formatWorkPackageActivityForMatrix,
   formatWorkPackageDiff,
-  OpenProjectWorkPackageMatrixEvent,
 } from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
@@ -50,6 +54,7 @@ import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
 } from "../openproject/Schema";
 import type { OpenProjectAnchorState } from "../openproject/State";
+import type { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -185,6 +190,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function commandBodyWithTrailingUserMention(
+  content: MatrixMessageContent,
+): string {
+  // Element Web puts the displayed name in body and the Matrix ID in m.mentions.
+  // Reply metadata can add mentions, so a single ID alone is not enough.
+  const mentions = (
+    content as MatrixMessageContent & { "m.mentions"?: unknown }
+  )["m.mentions"];
+  const userIds = isRecord(mentions) ? mentions.user_ids : undefined;
+  if (
+    !Array.isArray(userIds) ||
+    userIds.length !== 1 ||
+    typeof userIds[0] !== "string" ||
+    !/^@[^:\s]+:[^\s]+$/.test(userIds[0]) ||
+    content.format !== "org.matrix.custom.html" ||
+    typeof content.formatted_body !== "string"
+  ) {
+    return content.body;
+  }
+
+  // Require a trailing assignment link whose visible text matches body;
+  // otherwise a mention from reply metadata could change the wrong argument.
+  const pill = /^(.*)<a\b[^>]*>([^<>]+)<\/a>\s*$/.exec(content.formatted_body);
+  if (
+    !pill ||
+    !/\b(?:assign|responsible)(?:\s+[1-9]\d*)?\s+$/.test(pill[1]) ||
+    content.body.trimEnd() !== `${pill[1]}${pill[2]}`
+  ) {
+    return content.body;
+  }
+
+  return `${pill[1]}${userIds[0]}`;
+}
+
 function isValidAnchorStateForRemoval(
   value: unknown,
   workPackageId: number,
@@ -231,6 +270,64 @@ export class OpenProjectConnection
   extends CommandConnection<OpenProjectConnectionState>
   implements IConnection
 {
+  public override async onMessageEvent(
+    ev: CommandMatrixEvent<MatrixMessageContent>,
+    checkPermission: PermissionCheckFn,
+    parentEvent?: RoomEvent<IJsonType>,
+  ): Promise<boolean> {
+    // A project prefix selects this connection directly. A global prefix may
+    // need the replied-to message to identify which project should handle it.
+    const hasProjectPrefix = ev.content.body.startsWith(this.commandPrefix);
+    const hasGlobalPrefix = ev.content.body.startsWith(
+      `${this.defaultCommandPrefix} `,
+    );
+    if (!hasProjectPrefix && !hasGlobalPrefix) {
+      return super.onMessageEvent(ev, checkPermission, parentEvent);
+    }
+
+    let replyEvent = parentEvent;
+    const replyEventId =
+      ev.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
+    if (!replyEvent && replyEventId) {
+      try {
+        // New-style Matrix replies carry only the event ID; resolve the
+        // work package message before the command parser reads its metadata.
+        replyEvent = await this.as.botClient.getEvent(
+          this.roomId,
+          replyEventId,
+        );
+      } catch (ex) {
+        log.warn(`Could not look up OpenProject reply ${replyEventId}`, ex);
+      }
+    }
+
+    // Anchor and activity messages carry the project ID used to route a
+    // global reply when several OpenProject connections share the room.
+    const replyProjectId = this.getProjectIDFromReply(replyEvent);
+    if (
+      !hasProjectPrefix &&
+      replyProjectId !== undefined &&
+      replyProjectId !== this.projectId
+    ) {
+      // Let the connection for the replied-to project handle a global command.
+      return false;
+    }
+
+    // Keep command parsing and feedback in the base class after resolving the
+    // reply and replacing an Element Web mention label with its Matrix ID.
+    return super.onMessageEvent(
+      {
+        ...ev,
+        content: {
+          ...ev.content,
+          body: commandBodyWithTrailingUserMention(ev.content),
+        },
+      },
+      checkPermission,
+      replyEvent,
+    );
+  }
+
   static readonly CanonicalEventType =
     "org.matrix.matrix-hookshot.openproject.project";
 
@@ -705,32 +802,53 @@ export class OpenProjectConnection
     );
   }
 
+  private getProjectIDFromReply(
+    reply?: MatrixEvent<unknown>,
+  ): number | undefined {
+    const replyContent = reply?.content;
+    const project = isRecord(replyContent)
+      ? replyContent["org.matrix.matrix-hookshot.openproject.project"]
+      : undefined;
+    if (
+      !isRecord(project) ||
+      typeof project.id !== "number" ||
+      !Number.isSafeInteger(project.id) ||
+      project.id <= 0
+    ) {
+      return undefined;
+    }
+    return project.id;
+  }
+
   public getWorkPackageIDFromReply(
     reply?: MatrixEvent<unknown>,
   ): number | undefined {
     if (!reply) {
       return undefined;
     }
-    const replyContent = reply?.content as OpenProjectWorkPackageMatrixEvent;
+    const replyContent = reply.content;
+    const workPackage = isRecord(replyContent)
+      ? replyContent["org.matrix.matrix-hookshot.openproject.work_package"]
+      : undefined;
+    const workPackageId = isRecord(workPackage) ? workPackage.id : undefined;
+    const projectId = this.getProjectIDFromReply(reply);
     if (
       reply.type !== "m.room.message" ||
-      !replyContent["org.matrix.matrix-hookshot.openproject.project"]?.id ||
-      !replyContent["org.matrix.matrix-hookshot.openproject.work_package"]?.id
+      typeof workPackageId !== "number" ||
+      !Number.isSafeInteger(workPackageId) ||
+      workPackageId <= 0 ||
+      projectId === undefined
     ) {
       throw new CommandError(
         "Did not reference a hookshot event",
         "You must reply to a work package message when running this command.",
       );
     }
-    if (
-      replyContent["org.matrix.matrix-hookshot.openproject.project"].id !==
-      this.projectId
-    ) {
+    if (projectId !== this.projectId) {
       // This is not us.
       return;
     }
-    return replyContent["org.matrix.matrix-hookshot.openproject.work_package"]
-      .id;
+    return workPackageId;
   }
 
   /** Add the current OpenProject package as an active timeline anchor. */
@@ -1026,16 +1144,23 @@ export class OpenProjectConnection
     reply: MatrixEvent<unknown> | undefined,
     workPackageIdOrUser?: string,
     providedUser?: string,
+    ...additionalUserParts: string[]
   ) {
     let requestedUser: string | undefined;
     let workPackageId: number;
     const replyWp = this.getWorkPackageIDFromReply(reply);
     if (replyWp !== undefined) {
       workPackageId = parseWorkPackageId(String(replyWp));
-      requestedUser = workPackageIdOrUser;
+      requestedUser =
+        [workPackageIdOrUser, providedUser, ...additionalUserParts]
+          .filter((part): part is string => part !== undefined)
+          .join(" ") || undefined;
     } else if (workPackageIdOrUser) {
       workPackageId = parseWorkPackageId(workPackageIdOrUser);
-      requestedUser = providedUser;
+      requestedUser =
+        [providedUser, ...additionalUserParts]
+          .filter((part): part is string => part !== undefined)
+          .join(" ") || undefined;
     } else {
       throw new CommandError(
         "No ID provided",
@@ -1290,6 +1415,7 @@ export class OpenProjectConnection
     reply: MatrixEvent<unknown> | undefined,
     workPackageIdOrAssignee?: string,
     cliAssignee?: string,
+    ...additionalAssigneeParts: string[]
   ) {
     return this.helperChangeWorkPackageUser(
       "assignee",
@@ -1297,6 +1423,7 @@ export class OpenProjectConnection
       reply,
       workPackageIdOrAssignee,
       cliAssignee,
+      ...additionalAssigneeParts,
     );
   }
 
@@ -1313,6 +1440,7 @@ export class OpenProjectConnection
     reply: MatrixEvent<unknown> | undefined,
     workPackageIdOrAssignee?: string,
     cliAssignee?: string,
+    ...additionalAssigneeParts: string[]
   ) {
     return this.helperChangeWorkPackageUser(
       "responsible",
@@ -1320,6 +1448,7 @@ export class OpenProjectConnection
       reply,
       workPackageIdOrAssignee,
       cliAssignee,
+      ...additionalAssigneeParts,
     );
   }
 

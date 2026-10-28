@@ -96,7 +96,10 @@ export const OpenProjectFormPropertySchema = z
       .optional(),
     _links: z
       .object({
-        allowedValues: z.array(OpenProjectLinkSchema).optional(),
+        // OpenProject uses one collection link for large sets and inline links for small sets.
+        allowedValues: z
+          .union([OpenProjectLinkSchema, z.array(OpenProjectLinkSchema)])
+          .optional(),
       })
       .loose()
       .optional(),

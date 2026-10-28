@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Intent, MatrixEvent, StateEvent } from "matrix-bot-sdk";
+import {
+  RoomEvent,
+  type Intent,
+  type MatrixEvent,
+  type StateEvent,
+} from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../../src/api";
 import type { BridgeConfig } from "../../src/config/Config";
 import { BridgeConfigMessaging } from "../../src/config/sections";
@@ -22,6 +27,7 @@ import {
 } from "../../src/ToDeviceProtocol";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BASE_URL, WORK_PACKAGE } from "../openproject/WorkPackageFixtures";
+import { formatWorkPackageActivityForMatrix } from "../../src/openproject/Format";
 
 const ROOM_ID = "!openproject:example.test";
 const PROJECT_URL = `${BASE_URL}projects/1`;
@@ -47,6 +53,7 @@ function createConnectionState(
   const intent =
     intentOverride ??
     appservice.getIntentForUserId("@openproject:example.test");
+  intent.underlyingClient.sendEvent = vi.fn().mockResolvedValue("$sent");
   const config = {
     openProject: new BridgeOpenProjectConfig({
       baseUrl: BASE_URL.href,
@@ -113,7 +120,7 @@ function createAssignmentHarness(availableUserIds = [7, 12]) {
     ),
   } as unknown as UserTokenStore;
   const connection = createConnectionState(
-    {},
+    { commandPrefix: "!openproject dev-work-package-sharing" },
     undefined,
     undefined,
     tokenStore,
@@ -134,6 +141,135 @@ function expectBadValue(state: Record<string, unknown>): void {
 
 describe("OpenProjectConnection", () => {
   describe("assignment command", () => {
+    it("self-assigns from an activity reply with the global prefix", async () => {
+      const { connection, senderClient, tokenStore } =
+        createAssignmentHarness();
+      const activityContent = formatWorkPackageActivityForMatrix(
+        WORK_PACKAGE,
+        BASE_URL,
+        ["updated the subject"],
+      );
+      const activity = new RoomEvent({
+        event_id: "$activity",
+        room_id: ROOM_ID,
+        origin_server_ts: Date.now(),
+        sender: "@openproject:example.test",
+        type: "m.room.message",
+        content: activityContent,
+      });
+      const getEvent = vi.fn().mockResolvedValue(activity);
+      connection["as"].botClient.getEvent = getEvent;
+      const otherConnection = createConnectionState(
+        {
+          url: `${BASE_URL}projects/2`,
+          commandPrefix: "!openproject other-project",
+        },
+        undefined,
+        undefined,
+        tokenStore,
+      );
+      otherConnection["as"].botClient.getEvent = getEvent;
+      const event = {
+        content: {
+          body: "!openproject assign",
+          "m.mentions": { user_ids: ["@openproject:example.test"] },
+          "m.relates_to": { "m.in_reply_to": { event_id: "$activity" } },
+          msgtype: "m.text" as const,
+        },
+        event_id: "$activity-reply",
+        origin_server_ts: Date.now(),
+        sender: "@alice:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      };
+
+      expect(await otherConnection.onMessageEvent(event, () => true)).toBe(
+        false,
+      );
+      expect(senderClient.updateWorkPackage).not.toHaveBeenCalled();
+      expect(await connection.onMessageEvent(event, () => true)).toBe(true);
+
+      expect(getEvent).toHaveBeenCalledWith(ROOM_ID, "$activity");
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { assignee: { href: "/api/v3/users/7" } } },
+      );
+    });
+
+    it("rejects a reply without OpenProject project metadata", () => {
+      const { connection } = createAssignmentHarness();
+      const unrelatedReply = {
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.openproject.work_package": {
+            id: WORK_PACKAGE.id,
+          },
+        },
+      } as MatrixEvent<unknown>;
+
+      expect(() =>
+        connection.getWorkPackageIDFromReply(unrelatedReply),
+      ).toThrow("Did not reference a hookshot event");
+    });
+
+    it("self-assigns with the global prefix from a new-style anchor reply", async () => {
+      const { connection, senderClient, tokenStore } =
+        createAssignmentHarness();
+      const anchor = new RoomEvent({
+        event_id: "$anchor",
+        room_id: ROOM_ID,
+        origin_server_ts: Date.now(),
+        sender: "@openproject:example.test",
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.openproject.project": { id: 1 },
+          "org.matrix.matrix-hookshot.openproject.work_package": {
+            id: WORK_PACKAGE.id,
+          },
+        },
+      });
+      const getEvent = vi.fn().mockResolvedValue(anchor);
+      connection["as"].botClient.getEvent = getEvent;
+      const event = {
+        content: {
+          body: "!openproject assign",
+          "m.mentions": { user_ids: ["@openproject:example.test"] },
+          "m.relates_to": { "m.in_reply_to": { event_id: "$anchor" } },
+          msgtype: "m.text" as const,
+        },
+        event_id: "$reply",
+        origin_server_ts: Date.now(),
+        sender: "@alice:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      };
+
+      const otherConnection = createConnectionState(
+        {
+          url: `${BASE_URL}projects/2`,
+          commandPrefix: "!openproject other-project",
+        },
+        undefined,
+        undefined,
+        tokenStore,
+      );
+      otherConnection["as"].botClient.getEvent = getEvent;
+      expect(await otherConnection.onMessageEvent(event, () => true)).toBe(
+        false,
+      );
+      expect(senderClient.updateWorkPackage).not.toHaveBeenCalled();
+
+      await connection.onMessageEvent(event, () => true);
+
+      expect(getEvent).toHaveBeenCalledWith(ROOM_ID, "$anchor");
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { assignee: { href: "/api/v3/users/7" } } },
+      );
+    });
+
     it("self-assigns an explicitly identified work package", async () => {
       const { connection, senderClient } = createAssignmentHarness();
 
@@ -206,6 +342,90 @@ describe("OpenProjectConnection", () => {
       ).toBeLessThan(
         senderClient.updateWorkPackage.mock.invocationCallOrder[0],
       );
+    });
+
+    it("joins an unquoted multiword assignee name", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+
+      await connection.commandAssignWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "Member",
+        "DEV",
+        "user",
+      );
+
+      expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(
+        1,
+        "Member DEV user",
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledOnce();
+    });
+
+    it("resolves an Element Web mention pill to its Matrix user ID", async () => {
+      const { connection, senderClient, tokenStore } =
+        createAssignmentHarness();
+      vi.mocked(tokenStore.getOpenProjectForUser).mockImplementation(
+        async (userId) =>
+          userId === "@hookshot:localhost" ? null : (senderClient as never),
+      );
+      const content = {
+        body: "!openproject dev-work-package-sharing assign 49 hookshot ",
+        format: "org.matrix.custom.html",
+        formatted_body:
+          '!openproject dev-work-package-sharing assign 49 <a href="https://matrix.to/#/@hookshot:localhost">hookshot</a>',
+        "m.mentions": { user_ids: ["@hookshot:localhost"] },
+        msgtype: "m.text" as const,
+      };
+      const event = {
+        content,
+        event_id: "$mention",
+        origin_server_ts: Date.now(),
+        sender: "@alice:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      };
+
+      await connection.onMessageEvent(event, () => true);
+
+      expect(tokenStore.getOpenProjectForUser).toHaveBeenCalledWith(
+        "@hookshot:localhost",
+      );
+      expect(senderClient.searchForUserInProject).not.toHaveBeenCalled();
+      expect(senderClient.updateWorkPackage).not.toHaveBeenCalled();
+    });
+
+    it("ignores mention metadata without a trailing user pill", async () => {
+      const { connection, senderClient, tokenStore } =
+        createAssignmentHarness();
+      const content = {
+        body: "!openproject dev-work-package-sharing assign 49 hookshot ",
+        format: "org.matrix.custom.html",
+        formatted_body:
+          "!openproject dev-work-package-sharing assign 49 hookshot",
+        "m.mentions": { user_ids: ["@hookshot:localhost"] },
+        msgtype: "m.text" as const,
+      };
+      const event = {
+        content,
+        event_id: "$unrelated-mention",
+        origin_server_ts: Date.now(),
+        sender: "@alice:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      };
+
+      await connection.onMessageEvent(event, () => true);
+
+      expect(tokenStore.getOpenProjectForUser).not.toHaveBeenCalledWith(
+        "@hookshot:localhost",
+      );
+      expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(
+        1,
+        "hookshot",
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledOnce();
     });
 
     it("resolves a Matrix ID to its coupled OpenProject identity", async () => {
@@ -285,6 +505,33 @@ describe("OpenProjectConnection", () => {
       );
     });
 
+    it("joins an unquoted assignee name in reply shorthand", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+      const reply = {
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.openproject.project": { id: 1 },
+          "org.matrix.matrix-hookshot.openproject.work_package": {
+            id: WORK_PACKAGE.id,
+          },
+        },
+      } as MatrixEvent<unknown>;
+
+      await connection.commandAssignWorkPackage(
+        "@alice:example.test",
+        reply,
+        "Member",
+        "DEV",
+        "user",
+      );
+
+      expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(
+        1,
+        "Member DEV user",
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledOnce();
+    });
+
     it("reports an unavailable target without mutating the work package", async () => {
       const { connection, senderClient } = createAssignmentHarness([7]);
 
@@ -322,14 +569,15 @@ describe("OpenProjectConnection", () => {
       );
     });
 
-    it("resolves a named project member", async () => {
+    it("resolves an unquoted multiword project member", async () => {
       const { connection, senderClient } = createAssignmentHarness();
 
       await connection.commandResponsibleWorkPackage(
         "@alice:example.test",
         undefined,
         String(WORK_PACKAGE.id),
-        "Bob Smith",
+        "Bob",
+        "Smith",
       );
 
       expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(

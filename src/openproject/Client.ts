@@ -69,7 +69,13 @@ export class OpenProjectAPIClient {
     });
     if (responseSchema) {
       // Validate at the HTTP boundary and preserve the response's extra API fields.
-      if (!responseSchema.safeParse(res.data).success) {
+      const validation = responseSchema.safeParse(res.data);
+      if (!validation.success) {
+        // Log only schema paths and issue codes, never response bodies or tokens.
+        const issues = validation.error.issues.map(
+          (issue) => `${issue.path.map(String).join(".")}: ${issue.code}`,
+        );
+        log.warn(`${malformedResponseMessage}: ${issues.join(", ")}`);
         throw new OpenProjectMalformedResponseError(malformedResponseMessage);
       }
     }

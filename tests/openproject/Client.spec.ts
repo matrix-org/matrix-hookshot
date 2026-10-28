@@ -166,7 +166,15 @@ describe("OpenProjectAPIClient", () => {
       _embedded: {
         payload: { lockVersion: WORK_PACKAGE.lockVersion },
         schema: {
-          assignee: { type: "User", writable: true },
+          assignee: {
+            type: "User",
+            writable: true,
+            _links: {
+              allowedValues: {
+                href: `/api/v3/work_packages/${WORK_PACKAGE.id}/available_assignees`,
+              },
+            },
+          },
           status: {
             type: "Status",
             writable: true,
