@@ -4,6 +4,10 @@ import {
   workPackageToCacheState,
 } from "./State";
 import { OpenProjectWorkPackage } from "./Types";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "./Schema";
 
 export interface OpenProjectWorkPackageMatrixEvent {
   "org.matrix.matrix-hookshot.openproject.work_package": {
@@ -37,6 +41,11 @@ export interface OpenProjectWorkPackageMatrixEvent {
     url: string;
   };
   external_url: string;
+}
+
+export interface OpenProjectWorkPackageAnchorMatrixEvent extends OpenProjectWorkPackageMatrixEvent {
+  "org.matrix.matrix-hookshot.openproject.schema_version": typeof OPENPROJECT_EVENT_SCHEMA_VERSION;
+  "org.matrix.matrix-hookshot.openproject.event_kind": typeof OPENPROJECT_ANCHOR_EVENT_KIND;
 }
 
 export function formatWorkPackageForMatrix(
@@ -89,6 +98,25 @@ export function formatWorkPackageForMatrix(
       ).toString(),
     },
     external_url: url,
+  };
+}
+
+/**
+ * Format the initial full work-package event as an actionable anchor.
+ *
+ * Existing update messages intentionally continue to use the unmarked base
+ * formatter until the replacement/compact-update lifecycle is implemented.
+ */
+export function formatWorkPackageAnchorForMatrix(
+  pkg: OpenProjectWorkPackage,
+  baseURL: URL,
+): OpenProjectWorkPackageAnchorMatrixEvent {
+  return {
+    ...formatWorkPackageForMatrix(pkg, baseURL),
+    "org.matrix.matrix-hookshot.openproject.schema_version":
+      OPENPROJECT_EVENT_SCHEMA_VERSION,
+    "org.matrix.matrix-hookshot.openproject.event_kind":
+      OPENPROJECT_ANCHOR_EVENT_KIND,
   };
 }
 
