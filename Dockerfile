@@ -1,9 +1,10 @@
+# syntax=docker/dockerfile:1
 ARG NODE_VERSION=24
 
 # Stage 0: Build the thing
 # Need debian based image to build the native rust module
 # as musl doesn't support cdylib
-FROM node:${NODE_VERSION}-slim AS builder
+FROM node:${NODE_VERSION}-trixie-slim AS builder
 
 # Needed in order to build rust FFI bindings.
 RUN apt-get update && apt-get install -y build-essential cmake curl pkg-config pkg-config libssl-dev
@@ -25,13 +26,13 @@ RUN corepack enable pnpm
 RUN pnpm config set store-dir /cache/pnpm-store
 RUN pnpm install --frozen-lockfile
 
-COPY . ./
+COPY --exclude=Dockerfile . ./
 
 RUN pnpm run build
 
 
 # Stage 1: The actual container
-FROM node:${NODE_VERSION}-slim
+FROM node:${NODE_VERSION}-trixie-slim
 
 WORKDIR /bin/matrix-hookshot
 
