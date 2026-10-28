@@ -1,6 +1,14 @@
 import axios, { Method } from "axios";
+import { z } from "zod";
 import {
+  OpenProjectAvailableAssigneeCollectionSchema,
+  OpenProjectIdentitySchema,
+  OpenProjectWorkPackageEligibilitySchema,
+  OpenProjectWorkPackageFormSchema,
+} from "./Types";
+import type {
   OpenProjectAvailableAssignee,
+  OpenProjectIdentity,
   OpenProjectIterableResult,
   OpenProjectMembership,
   OpenProjectPriority,
@@ -8,11 +16,10 @@ import {
   OpenProjectStatus,
   OpenProjectStoredToken,
   OpenProjectType,
-  OpenProjectUser,
-  OpenProjectWorkPackage,
   OpenProjectWorkPackageForm,
   OpenProjectWorkPackageFormPayload,
   OpenProjectWorkPackageUpdate,
+  OpenProjectWorkPackage,
 } from "./Types";
 import { Logger } from "matrix-appservice-bridge";
 import { OpenProjectOAuth } from "./Oauth";
@@ -21,6 +28,9 @@ const urlJoin = import("url-join").then((d) => d.default);
 const log = new Logger("OpenProjectAPIClient");
 
 type OpenProjectProjectWithUrl = OpenProjectProject & { project_url: string };
+
+/** A successful API response did not match the expected OpenProject shape. */
+export class OpenProjectMalformedResponseError extends Error {}
 
 export class OpenProjectAPIClient {
   private storedToken: OpenProjectStoredToken;
@@ -33,10 +43,17 @@ export class OpenProjectAPIClient {
     this.storedToken = JSON.parse(tokenInfo);
   }
 
+  /** The origin used for authenticated API requests. */
+  public getOrigin(): string {
+    return this.baseUrl.origin;
+  }
+
   private async apiRequest<T, R = unknown>(
     path: string,
     method: Method = "GET",
     data?: R,
+    responseSchema?: z.ZodType,
+    malformedResponseMessage = "Invalid OpenProject API response",
   ): Promise<T> {
     await this.checkTokenAge();
 
@@ -50,6 +67,12 @@ export class OpenProjectAPIClient {
       },
       responseType: "json",
     });
+    if (responseSchema) {
+      // Validate at the HTTP boundary and preserve the response's extra API fields.
+      if (!responseSchema.safeParse(res.data).success) {
+        throw new OpenProjectMalformedResponseError(malformedResponseMessage);
+      }
+    }
     return res.data;
   }
 
@@ -72,34 +95,30 @@ export class OpenProjectAPIClient {
     this.onTokenRefreshed(this.storedToken);
   }
 
-  async getIdentity(userId = "me"): Promise<OpenProjectUser> {
-    return this.apiRequest<OpenProjectUser>(
+  async getIdentity(userId = "me"): Promise<OpenProjectIdentity> {
+    const identity = await this.apiRequest<OpenProjectIdentity>(
       `/api/v3/users/${encodeURIComponent(userId)}`,
+      "GET",
+      undefined,
+      OpenProjectIdentitySchema,
+      "Invalid OpenProject identity response",
     );
+    return identity;
   }
 
   async searchProjects(
     nameAndIdentifier?: string,
   ): Promise<OpenProjectProjectWithUrl[]> {
     // See https://www.openproject.org/docs/api/endpoints/projects/
-    let projects: OpenProjectProject[];
+    let path = "/api/v3/projects";
     if (nameAndIdentifier) {
       const query = [
         { name_and_identifier: { operator: "~", values: [nameAndIdentifier] } },
       ];
-      projects = (
-        await this.apiRequest<OpenProjectIterableResult<OpenProjectProject>>(
-          `/api/v3/projects?filters=${encodeURIComponent(JSON.stringify(query))}`,
-        )
-      )._embedded.elements;
-    } else {
-      projects = (
-        await this.apiRequest<OpenProjectIterableResult<OpenProjectProject>>(
-          `/api/v3/projects`,
-        )
-      )._embedded.elements;
+      path += `?filters=${encodeURIComponent(JSON.stringify(query))}`;
     }
-    // Note: We take the first page of results here for now.
+    const projects = await this.getCollectionElements<OpenProjectProject>(path);
+
     return projects.map((p) => ({
       ...p,
       project_url: `${this.baseUrl}projects/${p.id}`,
@@ -114,8 +133,16 @@ export class OpenProjectAPIClient {
 
   /** Fetch a work package without changing it. */
   async getWorkPackage(workPackageId: number): Promise<OpenProjectWorkPackage> {
+    // Validate fields used for eligibility while preserving the full DTO for callers.
+    const responseSchema = OpenProjectWorkPackageEligibilitySchema.refine(
+      (workPackage) => workPackage.id === workPackageId,
+    );
     return this.apiRequest<OpenProjectWorkPackage>(
       `/api/v3/work_packages/${encodeURIComponent(workPackageId)}`,
+      "GET",
+      undefined,
+      responseSchema,
+      "Invalid OpenProject work package response",
     );
   }
 
@@ -127,14 +154,17 @@ export class OpenProjectAPIClient {
     workPackageId: number,
     payload: OpenProjectWorkPackageFormPayload = {},
   ): Promise<OpenProjectWorkPackageForm> {
-    return this.apiRequest<
+    const form = await this.apiRequest<
       OpenProjectWorkPackageForm,
       OpenProjectWorkPackageFormPayload
     >(
       `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/form`,
       "POST",
       payload,
+      OpenProjectWorkPackageFormSchema,
+      "Invalid OpenProject work package form response",
     );
+    return form;
   }
 
   /** Fetch all users that can be assigned to a work package. */
@@ -142,39 +172,78 @@ export class OpenProjectAPIClient {
     workPackageId: number,
   ): Promise<OpenProjectAvailableAssignee[]> {
     const assignees: OpenProjectAvailableAssignee[] = [];
-    const visitedPages = new Set<string>();
-    let pagePath = `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/available_assignees`;
+    const path = `/api/v3/work_packages/${encodeURIComponent(workPackageId)}/available_assignees`;
 
-    while (pagePath) {
-      if (visitedPages.has(pagePath)) {
-        throw new Error("OpenProject returned a cyclic assignee page link");
-      }
-      visitedPages.add(pagePath);
-
-      const page =
-        await this.apiRequest<
-          OpenProjectIterableResult<OpenProjectAvailableAssignee>
-        >(pagePath);
-      assignees.push(...page._embedded.elements);
-
-      const nextPage =
-        page._links?.nextByOffset?.href ?? page._links?.nextByCursor?.href;
-      pagePath = nextPage ? this.getApiPath(nextPage) : "";
+    for await (const assignee of this.iterateCollection<OpenProjectAvailableAssignee>(
+      path,
+      OpenProjectAvailableAssigneeCollectionSchema,
+      "Invalid available assignees collection response",
+    )) {
+      assignees.push(assignee);
     }
 
     return assignees;
   }
 
-  private getApiPath(href: string): string {
-    const url = new URL(href, this.baseUrl);
-    if (url.origin !== this.baseUrl.origin) {
-      throw new Error("OpenProject returned a link for a different origin");
+  private async *iterateCollection<T>(
+    initialPath: string,
+    responseSchema?: z.ZodType,
+    malformedResponseMessage = "Invalid OpenProject collection response",
+  ): AsyncGenerator<T> {
+    const visitedPages = new Set<string>();
+    let pagePath = this.getApiPath(initialPath);
+
+    while (pagePath) {
+      if (visitedPages.has(pagePath)) {
+        throw new OpenProjectMalformedResponseError(
+          "OpenProject returned a cyclic collection page link",
+        );
+      }
+      visitedPages.add(pagePath);
+
+      const page = await this.apiRequest<OpenProjectIterableResult<T>>(
+        pagePath,
+        "GET",
+        undefined,
+        responseSchema,
+        malformedResponseMessage,
+      );
+      yield* page._embedded.elements;
+
+      const nextPage =
+        page._links?.nextByOffset?.href ?? page._links?.nextByCursor?.href;
+      pagePath = nextPage ? this.getApiPath(nextPage) : "";
     }
-    return `${url.pathname}${url.search}`;
+  }
+
+  private async getCollectionElements<T>(path: string): Promise<T[]> {
+    const elements: T[] = [];
+    for await (const element of this.iterateCollection<T>(path)) {
+      elements.push(element);
+    }
+    return elements;
+  }
+
+  private getApiPath(href: string): string {
+    try {
+      const url = new URL(href, this.baseUrl);
+      if (url.origin !== this.baseUrl.origin) {
+        throw new OpenProjectMalformedResponseError(
+          "OpenProject returned a link for a different origin",
+        );
+      }
+      return `${url.pathname}${url.search}`;
+    } catch (error) {
+      if (error instanceof OpenProjectMalformedResponseError) {
+        throw error;
+      }
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject returned an invalid collection page link",
+      );
+    }
   }
 
   async getTypesInProject(projectId: number): Promise<OpenProjectType[]> {
-    // TODO: Paginate?
     return (
       await this.apiRequest<OpenProjectIterableResult<OpenProjectType>>(
         `/api/v3/projects/${encodeURIComponent(projectId)}/types`,
@@ -187,11 +256,10 @@ export class OpenProjectAPIClient {
     title: string,
   ): Promise<{ href: string; title: string } | undefined> {
     const project = await this.getProject(projectId);
-    const memberships = await this.apiRequest<
-      OpenProjectIterableResult<OpenProjectMembership>
-    >(project._links.memberships.href);
     const lowercaseTitle = title.trim().toLowerCase();
-    for (const membership of memberships._embedded.elements) {
+    for await (const membership of this.iterateCollection<OpenProjectMembership>(
+      project._links.memberships.href,
+    )) {
       if (membership._links.principal.title.toLowerCase() === lowercaseTitle) {
         return membership._links.principal;
       }
@@ -200,7 +268,6 @@ export class OpenProjectAPIClient {
   }
 
   async getStatuses(): Promise<OpenProjectStatus[]> {
-    // TODO: Paginate?
     return (
       await this.apiRequest<OpenProjectIterableResult<OpenProjectStatus>>(
         `/api/v3/statuses`,
@@ -209,7 +276,6 @@ export class OpenProjectAPIClient {
   }
 
   async getPriorities(): Promise<OpenProjectPriority[]> {
-    // TODO: Paginate?
     return (
       await this.apiRequest<OpenProjectIterableResult<OpenProjectPriority>>(
         `/api/v3/priorities`,

@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 type StringDate = string;
 
 export type OpenProjectIterableResult<T> = {
@@ -8,64 +10,177 @@ export type OpenProjectIterableResult<T> = {
   };
 };
 
-export interface OpenProjectLink {
-  href: string;
-  title?: string;
-  method?: string;
-  templated?: boolean;
-}
+/** Validates a link while preserving additional fields returned by OpenProject. */
+export const OpenProjectLinkSchema = z
+  .object({
+    href: z.string(),
+    title: z.string().optional(),
+    method: z.string().optional(),
+    templated: z.boolean().optional(),
+  })
+  .loose();
 
-export interface OpenProjectAvailableAssignee {
-  id: number;
-  _links: {
-    self: OpenProjectLink;
-  };
-}
+export type OpenProjectLink = z.infer<typeof OpenProjectLinkSchema>;
 
-export interface OpenProjectFormAllowedValue {
-  id?: number;
-  name?: string;
-  isClosed?: boolean;
-  _type?: string;
-  _links?: {
-    self?: OpenProjectLink;
-  };
-  href?: string;
-  title?: string;
-}
+const OpenProjectUserReferenceSchema = z
+  .object({
+    id: z.number().int().positive(),
+    _links: z
+      .object({
+        self: z.object({ href: z.string() }).loose(),
+      })
+      .loose(),
+  })
+  .loose();
 
-export interface OpenProjectFormProperty {
-  type?: string;
-  writable?: boolean;
-  _embedded?: {
-    allowedValues?: OpenProjectFormAllowedValue[];
-  };
-  _links?: {
-    allowedValues?: OpenProjectLink[];
-  };
-}
+/** Validates the user reference returned by available-assignee endpoints. */
+export const OpenProjectAvailableAssigneeSchema =
+  OpenProjectUserReferenceSchema;
 
-export interface OpenProjectWorkPackageForm {
-  _embedded: {
-    payload: Record<string, unknown>;
-    schema: {
-      assignee?: OpenProjectFormProperty;
-      status?: OpenProjectFormProperty;
-    };
-    validationErrors: Record<string, OpenProjectFormValidationError>;
-  };
-  _links?: {
-    commit?: OpenProjectLink;
-    self?: OpenProjectLink;
-    validate?: OpenProjectLink;
-  };
-}
+export type OpenProjectAvailableAssignee = z.infer<
+  typeof OpenProjectAvailableAssigneeSchema
+>;
 
-export interface OpenProjectFormValidationError {
-  _type?: "Error";
-  errorIdentifier?: string;
-  message: string;
-}
+/** Validates one page of OpenProject's available-assignees collection. */
+export const OpenProjectAvailableAssigneeCollectionSchema = z
+  .object({
+    _embedded: z
+      .object({
+        elements: z.array(OpenProjectAvailableAssigneeSchema),
+      })
+      .loose(),
+    _links: z
+      .object({
+        nextByOffset: OpenProjectLinkSchema.optional(),
+        nextByCursor: OpenProjectLinkSchema.optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
+export type OpenProjectAvailableAssigneeCollection = z.infer<
+  typeof OpenProjectAvailableAssigneeCollectionSchema
+>;
+
+/** Validates a form property's optional allowed value. */
+export const OpenProjectFormAllowedValueSchema = z
+  .object({
+    id: z.number().optional(),
+    name: z.string().optional(),
+    isClosed: z.boolean().optional(),
+    _type: z.string().optional(),
+    _links: z
+      .object({ self: OpenProjectLinkSchema.optional() })
+      .loose()
+      .optional(),
+    href: z.string().optional(),
+    title: z.string().optional(),
+  })
+  .loose();
+
+export type OpenProjectFormAllowedValue = z.infer<
+  typeof OpenProjectFormAllowedValueSchema
+>;
+
+/** Validates fields read from a work-package form schema. */
+export const OpenProjectFormPropertySchema = z
+  .object({
+    type: z.string().optional(),
+    writable: z.boolean().optional(),
+    _embedded: z
+      .object({
+        allowedValues: z.array(OpenProjectFormAllowedValueSchema).optional(),
+      })
+      .loose()
+      .optional(),
+    _links: z
+      .object({
+        allowedValues: z.array(OpenProjectLinkSchema).optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
+export type OpenProjectFormProperty = z.infer<
+  typeof OpenProjectFormPropertySchema
+>;
+
+/** Validates an OpenProject work-package form validation error. */
+export const OpenProjectFormValidationErrorSchema = z
+  .object({
+    _type: z.literal("Error").optional(),
+    errorIdentifier: z.string().optional(),
+    message: z.string(),
+  })
+  .loose();
+
+export type OpenProjectFormValidationError = z.infer<
+  typeof OpenProjectFormValidationErrorSchema
+>;
+
+/** Validates the work-package form fields used by assignment and status checks. */
+export const OpenProjectWorkPackageFormSchema = z
+  .object({
+    _embedded: z
+      .object({
+        payload: z.record(z.string(), z.unknown()),
+        schema: z
+          .object({
+            assignee: OpenProjectFormPropertySchema.optional(),
+            status: OpenProjectFormPropertySchema.optional(),
+          })
+          .loose(),
+        validationErrors: z.record(
+          z.string(),
+          OpenProjectFormValidationErrorSchema,
+        ),
+      })
+      .loose(),
+    _links: z
+      .object({
+        commit: OpenProjectLinkSchema.optional(),
+        self: OpenProjectLinkSchema.optional(),
+        validate: OpenProjectLinkSchema.optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
+export type OpenProjectWorkPackageForm = z.infer<
+  typeof OpenProjectWorkPackageFormSchema
+>;
+
+/** Validates the identity fields used by OpenProject commands and eligibility. */
+export const OpenProjectIdentitySchema = z
+  .object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    _links: z
+      .object({
+        self: z.object({ href: z.string().min(1) }).loose(),
+      })
+      .loose(),
+  })
+  .loose();
+
+export type OpenProjectIdentity = z.infer<typeof OpenProjectIdentitySchema>;
+
+/** Validates the work-package fields needed for eligibility and revision checks. */
+export const OpenProjectWorkPackageEligibilitySchema = z
+  .object({
+    id: z.number().int().positive(),
+    lockVersion: z.number().int().nonnegative(),
+    _embedded: z
+      .object({
+        project: z.object({ id: z.number().int().positive() }).loose(),
+        assignee: OpenProjectUserReferenceSchema.nullish(),
+      })
+      .loose(),
+  })
+  .loose();
 
 export interface OpenProjectWorkPackageUpdate {
   _links?: {
