@@ -322,7 +322,31 @@ describe("OpenProjectEligibilityService assignment", () => {
     expect(harness.getAvailableAssignees).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects mismatched target IDs and links before requesting OpenProject", async () => {
+  it("rejects mismatched IDs and non-user links before assignee lookup", async () => {
+    const harness = createHarness();
+
+    for (const target of [
+      { href: "/api/v3/users/8", userId: OPENPROJECT_USER_ID },
+      { href: "/api/v3/projects/1", userId: OPENPROJECT_USER_ID },
+    ]) {
+      await expect(
+        harness.service.validateAssigneeTarget(
+          MATRIX_USER_ID,
+          harness.connection,
+          WORK_PACKAGE.id,
+          target,
+        ),
+      ).resolves.toEqual({
+        status: "ineligible",
+        reason: "target_not_available",
+      });
+    }
+
+    expect(harness.getAvailableAssignees).not.toHaveBeenCalled();
+    expect(harness.getWorkPackageForm).not.toHaveBeenCalled();
+  });
+
+  it("normalizes an absolute canonical user link before form validation", async () => {
     const harness = createHarness();
 
     await expect(
@@ -330,15 +354,19 @@ describe("OpenProjectEligibilityService assignment", () => {
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
-        { href: "/api/v3/users/8", userId: OPENPROJECT_USER_ID },
+        {
+          href: `${BASE_URL.origin}${ASSIGNEE_HREF}`,
+          userId: OPENPROJECT_USER_ID,
+        },
       ),
-    ).resolves.toEqual({
-      status: "ineligible",
-      reason: "target_not_available",
+    ).resolves.toMatchObject({
+      status: "eligible",
+      targetHref: ASSIGNEE_HREF,
     });
-
-    expect(harness.getAvailableAssignees).not.toHaveBeenCalled();
-    expect(harness.getWorkPackageForm).not.toHaveBeenCalled();
+    expect(harness.getWorkPackageForm).toHaveBeenCalledWith(WORK_PACKAGE.id, {
+      lockVersion: 8,
+      _links: { assignee: { href: ASSIGNEE_HREF } },
+    });
   });
 
   it("reuses successful assignee results but refreshes them for a new revision", async () => {

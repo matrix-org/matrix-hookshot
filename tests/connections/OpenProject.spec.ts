@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Intent, StateEvent } from "matrix-bot-sdk";
+import type { Intent, MatrixEvent, StateEvent } from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "../../src/api";
 import type { BridgeConfig } from "../../src/config/Config";
 import { BridgeConfigMessaging } from "../../src/config/sections";
@@ -21,7 +21,7 @@ import {
   type HookshotCapabilitiesProbeRequest,
 } from "../../src/ToDeviceProtocol";
 import { AppserviceMock } from "../utils/AppserviceMock";
-import { BASE_URL } from "../openproject/WorkPackageFixtures";
+import { BASE_URL, WORK_PACKAGE } from "../openproject/WorkPackageFixtures";
 
 const ROOM_ID = "!openproject:example.test";
 const PROJECT_URL = `${BASE_URL}projects/1`;
@@ -41,6 +41,7 @@ function createConnectionState(
   state: Record<string, unknown> = {},
   intentOverride?: Intent,
   storageOverride?: InstantiateConnectionOpts["storage"],
+  tokenStoreOverride?: UserTokenStore,
 ): OpenProjectConnection {
   const appservice = AppserviceMock.create();
   const intent =
@@ -68,12 +69,59 @@ function createConnectionState(
       as: appservice,
       intent,
       config,
-      tokenStore: {} as UserTokenStore,
+      tokenStore: tokenStoreOverride ?? ({} as UserTokenStore),
       commentProcessor: undefined as never,
       messageClient: undefined as never,
       storage: storageOverride ?? ({} as InstantiateConnectionOpts["storage"]),
     },
   );
+}
+
+function createAssignmentHarness(availableUserIds = [7, 12]) {
+  const makeClient = (id: number, name: string) => ({
+    getOrigin: vi.fn(() => BASE_URL.origin),
+    getIdentity: vi.fn().mockResolvedValue({
+      id,
+      name,
+      _links: { self: { href: `/api/v3/users/${id}` } },
+    }),
+    getWorkPackage: vi.fn().mockResolvedValue({
+      ...WORK_PACKAGE,
+      lockVersion: 8,
+    }),
+    getAvailableAssignees: vi.fn().mockResolvedValue(
+      availableUserIds.map((userId) => ({
+        id: userId,
+        _links: { self: { href: `/api/v3/users/${userId}` } },
+      })),
+    ),
+    getWorkPackageForm: vi.fn().mockResolvedValue({
+      _embedded: {
+        payload: {},
+        schema: { assignee: { writable: true } },
+        validationErrors: {},
+      },
+    }),
+    updateWorkPackage: vi.fn().mockResolvedValue(undefined),
+    searchForUserInProject: vi.fn().mockResolvedValue({
+      href: "/api/v3/users/12",
+    }),
+  });
+  const senderClient = makeClient(7, "Alice");
+  const targetClient = makeClient(12, "Bob");
+  const tokenStore = {
+    getOpenProjectForUser: vi.fn(async (matrixUserId: string) =>
+      matrixUserId === "@bob:example.test" ? targetClient : senderClient,
+    ),
+  } as unknown as UserTokenStore;
+  const connection = createConnectionState(
+    {},
+    undefined,
+    undefined,
+    tokenStore,
+  );
+
+  return { connection, senderClient, targetClient, tokenStore };
 }
 
 function expectBadValue(state: Record<string, unknown>): void {
@@ -87,6 +135,269 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  describe("assignment command", () => {
+    it("self-assigns an explicitly identified work package", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+
+      await connection.commandAssignWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+      );
+
+      expect(senderClient.getWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id);
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { assignee: { href: "/api/v3/users/7" } } },
+      );
+    });
+
+    it("resolves a named project member before assignment", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+
+      await connection.commandAssignWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "Bob Smith",
+      );
+
+      expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(
+        1,
+        "Bob Smith",
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { assignee: { href: "/api/v3/users/12" } } },
+      );
+    });
+
+    it("resolves a Matrix ID to its coupled OpenProject identity", async () => {
+      const { connection, senderClient, targetClient, tokenStore } =
+        createAssignmentHarness();
+
+      await connection.commandAssignWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "@bob:example.test",
+      );
+
+      expect(tokenStore.getOpenProjectForUser).toHaveBeenCalledWith(
+        "@bob:example.test",
+      );
+      expect(targetClient.getIdentity).toHaveBeenCalledOnce();
+      expect(senderClient.searchForUserInProject).not.toHaveBeenCalled();
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { assignee: { href: "/api/v3/users/12" } } },
+      );
+    });
+
+    it("clears the assignee when given unset in reply shorthand", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+      const reply = {
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.openproject.project": { id: 1 },
+          "org.matrix.matrix-hookshot.openproject.work_package": {
+            id: WORK_PACKAGE.id,
+          },
+        },
+      } as MatrixEvent<unknown>;
+
+      await connection.commandAssignWorkPackage(
+        "@alice:example.test",
+        reply,
+        "unset",
+      );
+
+      expect(senderClient.getWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id);
+      expect(senderClient.getAvailableAssignees).not.toHaveBeenCalled();
+      expect(senderClient.getWorkPackageForm).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        { lockVersion: 8, _links: { assignee: { href: null } } },
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { assignee: { href: null } } },
+      );
+    });
+
+    it("reports an unavailable target without mutating the work package", async () => {
+      const { connection, senderClient } = createAssignmentHarness([7]);
+
+      await expect(
+        connection.commandAssignWorkPackage(
+          "@alice:example.test",
+          undefined,
+          String(WORK_PACKAGE.id),
+          "Bob Smith",
+        ),
+      ).rejects.toMatchObject({
+        message: "Assignee unavailable",
+        humanError: "That user cannot be assigned to this work package.",
+      });
+
+      expect(senderClient.updateWorkPackage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("responsible command", () => {
+    it("sets the responsible user to the sender by default", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+
+      await connection.commandResponsibleWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+      );
+
+      expect(senderClient.getWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id);
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { responsible: { href: "/api/v3/users/7" } } },
+      );
+    });
+
+    it("resolves a named project member", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+
+      await connection.commandResponsibleWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "Bob Smith",
+      );
+
+      expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(
+        1,
+        "Bob Smith",
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { responsible: { href: "/api/v3/users/12" } } },
+      );
+    });
+
+    it("resolves a Matrix ID to its coupled OpenProject identity", async () => {
+      const { connection, senderClient, targetClient, tokenStore } =
+        createAssignmentHarness();
+
+      await connection.commandResponsibleWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "@bob:example.test",
+      );
+
+      expect(tokenStore.getOpenProjectForUser).toHaveBeenCalledWith(
+        "@bob:example.test",
+      );
+      expect(targetClient.getIdentity).toHaveBeenCalledOnce();
+      expect(senderClient.searchForUserInProject).not.toHaveBeenCalled();
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { responsible: { href: "/api/v3/users/12" } } },
+      );
+    });
+
+    it("clears the responsible user when given unset", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+
+      await connection.commandResponsibleWorkPackage(
+        "@alice:example.test",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "unset",
+      );
+
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { responsible: { href: null } } },
+      );
+    });
+
+    it("supports reply shorthand with an explicit responsible user", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+      const reply = {
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.openproject.project": { id: 1 },
+          "org.matrix.matrix-hookshot.openproject.work_package": {
+            id: WORK_PACKAGE.id,
+          },
+        },
+      } as MatrixEvent<unknown>;
+
+      await connection.commandResponsibleWorkPackage(
+        "@alice:example.test",
+        reply,
+        "Bob Smith",
+      );
+
+      expect(senderClient.searchForUserInProject).toHaveBeenCalledWith(
+        1,
+        "Bob Smith",
+      );
+      expect(senderClient.updateWorkPackage).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        8,
+        { _links: { responsible: { href: "/api/v3/users/12" } } },
+      );
+    });
+
+    it("rejects an unknown name without mutating the work package", async () => {
+      const { connection, senderClient } = createAssignmentHarness();
+      senderClient.searchForUserInProject.mockResolvedValue(null);
+
+      await expect(
+        connection.commandResponsibleWorkPackage(
+          "@alice:example.test",
+          undefined,
+          String(WORK_PACKAGE.id),
+          "Unknown User",
+        ),
+      ).rejects.toMatchObject({
+        message: "Invalid user",
+        humanError: "Could not find a user by that name",
+      });
+
+      expect(senderClient.updateWorkPackage).not.toHaveBeenCalled();
+    });
+
+    it("requires the sender to be connected to OpenProject", async () => {
+      const tokenStore = {
+        getOpenProjectForUser: vi.fn().mockResolvedValue(null),
+      } as unknown as UserTokenStore;
+      const connection = createConnectionState(
+        {},
+        undefined,
+        undefined,
+        tokenStore,
+      );
+
+      await expect(
+        connection.commandResponsibleWorkPackage(
+          "@alice:example.test",
+          undefined,
+          String(WORK_PACKAGE.id),
+        ),
+      ).rejects.toMatchObject({
+        message: "User is not logged in",
+        humanError: "You are not logged in",
+      });
+    });
+  });
+
   it("deletes all active anchors during connection cleanup", async () => {
     const storage = {
       deleteOpenProjectAnchorStates: vi.fn().mockResolvedValue(undefined),

@@ -988,10 +988,26 @@ describe("OpenProjectConnection work-package updates", () => {
       const storage = new RecordingStorage();
       const workPackage = { ...WORK_PACKAGE, lockVersion: 7 };
       const openProjectClient = {
+        getOrigin: vi.fn(() => BASE_URL.origin),
         getIdentity: vi.fn().mockResolvedValue({
-          _links: { self: { href: "/api/v3/users/11" } },
+          id: 12,
+          name: "Alice",
+          _links: { self: { href: "/api/v3/users/12" } },
         }),
         getWorkPackage: vi.fn().mockResolvedValue(workPackage),
+        getAvailableAssignees: vi.fn().mockResolvedValue([
+          {
+            id: 12,
+            _links: { self: { href: "/api/v3/users/12" } },
+          },
+        ]),
+        getWorkPackageForm: vi.fn().mockResolvedValue({
+          _embedded: {
+            payload: {},
+            schema: { assignee: { writable: true } },
+            validationErrors: {},
+          },
+        }),
         updateWorkPackage: vi.fn().mockResolvedValue(workPackage),
       };
       const tokenStore = {
@@ -1020,7 +1036,7 @@ describe("OpenProjectConnection work-package updates", () => {
       expect(openProjectClient.updateWorkPackage).toHaveBeenCalledWith(
         workPackage.id,
         workPackage.lockVersion,
-        { _links: { [field]: { href: "/api/v3/users/11" } } },
+        { _links: { [field]: { href: "/api/v3/users/12" } } },
       );
     },
   );
