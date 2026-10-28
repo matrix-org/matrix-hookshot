@@ -455,6 +455,11 @@ describe("OpenProject versioned message content", () => {
         subject: "Build the bridge",
         url: "https://openproject.example/projects/demo-project/work_packages/50",
       },
+      "org.matrix.matrix-hookshot.openproject.project": {
+        id: 1,
+        name: "Demo project",
+        url: "https://openproject.example/projects/1",
+      },
       "org.matrix.matrix-hookshot.openproject.actor": {
         id: 12,
         name: "Webhook User",

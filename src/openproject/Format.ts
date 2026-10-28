@@ -129,6 +129,11 @@ export interface OpenProjectWorkPackageActivityMatrixEvent {
     subject: string;
     url: string;
   };
+  "org.matrix.matrix-hookshot.openproject.project": {
+    id: number;
+    name: string;
+    url: string;
+  };
   "org.matrix.matrix-hookshot.openproject.actor"?: {
     id: number;
     name: string;
@@ -431,6 +436,14 @@ export function formatWorkPackageActivityForMatrix(
       id: pkg.id,
       subject: pkg.subject,
       url: url,
+    },
+    "org.matrix.matrix-hookshot.openproject.project": {
+      id: pkg._embedded.project.id,
+      name: pkg._embedded.project.name,
+      url: new URL(
+        baseURL.href + `projects/${pkg._embedded.project.id}`,
+        baseURL,
+      ).toString(),
     },
     "org.matrix.matrix-hookshot.openproject.changes": changes,
     "org.matrix.matrix-hookshot.openproject.schema_version":
