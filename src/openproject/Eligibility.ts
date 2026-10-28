@@ -55,6 +55,11 @@ export interface OpenProjectEligibilityOptions {
   bypassAssigneeCache?: boolean;
 }
 
+/** Target selection for command-time assignment. */
+export type OpenProjectAssignmentTarget =
+  | { kind: "self" }
+  | { kind: "user"; href: string | null; userId?: number };
+
 interface AssigneeCacheEntry {
   origin: string;
   matrixUserId: string;
@@ -125,6 +130,42 @@ function normalizeHref(href: string, origin: string): string | undefined {
   }
 }
 
+function canonicalUserHref(
+  href: string,
+  expectedUserId: number | undefined,
+  origin: string,
+): { href: string; userId: number } | undefined {
+  try {
+    const url = new URL(href, `${origin}/`);
+    if (
+      url.origin !== origin ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    ) {
+      return undefined;
+    }
+
+    const match = /^\/api\/v3\/users\/([1-9]\d*)$/.exec(url.pathname);
+    if (!match) {
+      return undefined;
+    }
+    const userId = Number(match[1]);
+    if (
+      !Number.isSafeInteger(userId) ||
+      userId <= 0 ||
+      (expectedUserId !== undefined && expectedUserId !== userId)
+    ) {
+      return undefined;
+    }
+
+    return { href: url.pathname, userId };
+  } catch {
+    return undefined;
+  }
+}
+
 function matchesUser(
   user: OpenProjectUser | null | undefined,
   userId: number | undefined,
@@ -190,6 +231,54 @@ export class OpenProjectEligibilityService {
     );
   }
 
+  /** Recheck eligibility and apply an assignment using the fetched revision. */
+  public async executeAssignment(
+    matrixUserId: string,
+    connection: OpenProjectEligibilityConnection,
+    workPackageId: number,
+    target: OpenProjectAssignmentTarget,
+    options: OpenProjectEligibilityOptions = {},
+  ): Promise<OpenProjectAssignmentResult> {
+    const contextResult = await this.getContext(
+      matrixUserId,
+      connection,
+      workPackageId,
+    );
+    if (!contextResult.ok) return contextResult.result;
+
+    const { context } = contextResult;
+    if (target.kind === "self") {
+      if (
+        matchesUser(
+          context.workPackage._embedded.assignee,
+          context.identity.id,
+          context.identity.normalizedHref,
+          context.client.getOrigin(),
+        )
+      ) {
+        return { status: "ineligible", reason: "already_assigned" };
+      }
+
+      return this.executeTargetInContext(
+        matrixUserId,
+        workPackageId,
+        { href: context.identity.href, userId: context.identity.id },
+        options,
+        context,
+        "assign_self",
+      );
+    }
+
+    return this.executeTargetInContext(
+      matrixUserId,
+      workPackageId,
+      { href: target.href, userId: target.userId },
+      options,
+      context,
+      undefined,
+    );
+  }
+
   /**
    * Validate a manual assignee target against the sender's current package state.
    * A null href represents clearing the assignee.
@@ -227,34 +316,23 @@ export class OpenProjectEligibilityService {
     action: "assign_self" | undefined,
   ): Promise<OpenProjectAssignmentResult> {
     const { client, identity, workPackage } = context;
-    const targetPath: string | null =
+    const canonicalTarget =
       target.href === null
-        ? null
-        : (normalizeHref(target.href, client.getOrigin()) ?? null);
-    if (target.href !== null && targetPath === null) {
-      return { status: "ineligible", reason: "target_not_available" };
-    }
-    const targetId =
-      targetPath === null
         ? undefined
-        : (target.userId ?? this.userIdFromPath(targetPath));
-    const pathUserId =
-      targetPath === null ? undefined : this.userIdFromPath(targetPath);
-    if (
-      target.userId !== undefined &&
-      pathUserId !== undefined &&
-      target.userId !== pathUserId
-    ) {
+        : canonicalUserHref(target.href, target.userId, client.getOrigin());
+    if (target.href !== null && canonicalTarget === undefined) {
       return { status: "ineligible", reason: "target_not_available" };
     }
+    const canonicalHref = canonicalTarget?.href ?? null;
+    const targetId = canonicalTarget?.userId;
 
     if (
-      targetPath !== null &&
+      canonicalHref !== null &&
       action === undefined &&
       matchesUser(
         workPackage._embedded.assignee,
         targetId,
-        targetPath,
+        canonicalHref,
         client.getOrigin(),
       )
     ) {
@@ -262,7 +340,7 @@ export class OpenProjectEligibilityService {
     }
 
     try {
-      if (targetPath !== null) {
+      if (canonicalHref !== null) {
         const assignees = await this.getAssignees(
           client,
           matrixUserId,
@@ -277,7 +355,7 @@ export class OpenProjectEligibilityService {
           );
           return (
             (targetId !== undefined && assignee.id === targetId) ||
-            (assigneeHref !== undefined && assigneeHref === targetPath)
+            (assigneeHref !== undefined && assigneeHref === canonicalHref)
           );
         });
         if (!isAvailable) {
@@ -287,7 +365,7 @@ export class OpenProjectEligibilityService {
 
       const form = await client.getWorkPackageForm(workPackageId, {
         lockVersion: workPackage.lockVersion,
-        _links: { assignee: { href: target.href } },
+        _links: { assignee: { href: canonicalHref } },
       });
       const assigneeField = form._embedded.schema.assignee;
       if (!assigneeField || assigneeField.writable !== true) {
@@ -302,10 +380,42 @@ export class OpenProjectEligibilityService {
         ...(action ? { action } : {}),
         workPackageId,
         lockVersion: workPackage.lockVersion,
-        targetHref: target.href,
+        targetHref: canonicalHref,
       };
     } catch (error) {
       return this.resultForError(error, "assignees_or_form");
+    }
+  }
+
+  private async executeTargetInContext(
+    matrixUserId: string,
+    workPackageId: number,
+    target: { href: string | null; userId?: number },
+    options: OpenProjectEligibilityOptions,
+    context: EvaluationContext,
+    action: "assign_self" | undefined,
+  ): Promise<OpenProjectAssignmentResult> {
+    const result = await this.validateTargetInContext(
+      matrixUserId,
+      workPackageId,
+      target,
+      options,
+      context,
+      action,
+    );
+    if (result.status !== "eligible") return result;
+
+    try {
+      await context.client.updateWorkPackage(
+        workPackageId,
+        result.lockVersion,
+        {
+          _links: { assignee: { href: result.targetHref } },
+        },
+      );
+      return result;
+    } catch (error) {
+      return this.resultForError(error, "mutation");
     }
   }
 
@@ -497,18 +607,14 @@ export class OpenProjectEligibilityService {
     }
   }
 
-  private userIdFromPath(path: string): number | undefined {
-    const match = /^\/api\/v3\/users\/(\d+)$/.exec(path);
-    if (!match) {
-      return undefined;
-    }
-    const id = Number(match[1]);
-    return Number.isSafeInteger(id) && id > 0 ? id : undefined;
-  }
-
   private resultForError(
     error: unknown,
-    stage: "client" | "identity" | "work_package" | "assignees_or_form",
+    stage:
+      | "client"
+      | "identity"
+      | "work_package"
+      | "assignees_or_form"
+      | "mutation",
   ): ContextFailure {
     if (error instanceof OpenProjectMalformedResponseError) {
       return { status: "unavailable", reason: "malformed_response" };
@@ -520,9 +626,14 @@ export class OpenProjectEligibilityService {
     if (status === 401 || status === 403) {
       return { status: "not_authorized", reason: "openproject_permission" };
     }
+    if ((status === 400 || status === 422) && stage === "mutation") {
+      return { status: "ineligible", reason: "assignment_invalid" };
+    }
     if (
       status === 404 &&
-      (stage === "work_package" || stage === "assignees_or_form")
+      (stage === "work_package" ||
+        stage === "assignees_or_form" ||
+        stage === "mutation")
     ) {
       return { status: "not_authorized", reason: "work_package_not_found" };
     }

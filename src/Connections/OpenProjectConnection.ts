@@ -36,6 +36,10 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { workPackageToCacheState } from "../openproject/State";
 import { TimelineManager } from "../openproject/TimelineManager";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
+import {
+  OpenProjectEligibilityService,
+  type OpenProjectAssignmentResult,
+} from "../openproject/Eligibility";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { CommandError, NotLoggedInError } from "../Errors";
 import { removeConnectionState } from "./BaseConnection";
@@ -431,6 +435,7 @@ export class OpenProjectConnection
   /** The bot whose intent handles this connection's Matrix traffic. */
   public readonly botUserId: string;
   private readonly grantChecker: OpenProjectGrantChecker;
+  private readonly eligibilityService: OpenProjectEligibilityService;
   private timelineRemoved = false;
 
   constructor(
@@ -460,6 +465,7 @@ export class OpenProjectConnection
     );
     this.botUserId = intent.userId;
     this.grantChecker = new OpenProjectGrantChecker(as, intent, tokenStore);
+    this.eligibilityService = new OpenProjectEligibilityService(tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
   }
@@ -1021,40 +1027,47 @@ export class OpenProjectConnection
     workPackageIdOrUser?: string,
     providedUser?: string,
   ) {
-    const client = await this.tokenStore.getOpenProjectForUser(userId);
-    if (!client) {
-      throw new NotLoggedInError();
-    }
-    let assigneeName: string | undefined;
-    let workPackageId;
+    let requestedUser: string | undefined;
+    let workPackageId: number;
     const replyWp = this.getWorkPackageIDFromReply(reply);
-    if (replyWp) {
-      workPackageId = replyWp;
-      assigneeName = workPackageIdOrUser;
+    if (replyWp !== undefined) {
+      workPackageId = parseWorkPackageId(String(replyWp));
+      requestedUser = workPackageIdOrUser;
     } else if (workPackageIdOrUser) {
-      workPackageId = parseInt(workPackageIdOrUser);
-      assigneeName = providedUser;
+      workPackageId = parseWorkPackageId(workPackageIdOrUser);
+      requestedUser = providedUser;
     } else {
       throw new CommandError(
         "No ID provided",
         "You must provide a work package ID",
       );
     }
-    if (isNaN(workPackageId)) {
-      throw new CommandError(
-        "Invalid work package ID",
-        "Work Package ID must be a valid number",
-      );
+
+    if (field === "assignee") {
+      return this.assignWorkPackage(userId, workPackageId, requestedUser);
+    }
+
+    return this.setResponsibleWorkPackage(userId, workPackageId, requestedUser);
+  }
+
+  private async setResponsibleWorkPackage(
+    userId: string,
+    workPackageId: number,
+    responsibleName?: string,
+  ): Promise<void> {
+    const client = await this.tokenStore.getOpenProjectForUser(userId);
+    if (!client) {
+      throw new NotLoggedInError();
     }
 
     let userHref: { href: string | null };
 
-    if (assigneeName) {
-      if (["none", "unset"].includes(assigneeName.toLowerCase())) {
+    if (responsibleName) {
+      if (["none", "unset"].includes(responsibleName.toLowerCase())) {
         userHref = { href: null };
       } else {
         try {
-          const matrixId = new UserID(assigneeName);
+          const matrixId = new UserID(responsibleName);
           const userClient = await this.tokenStore.getOpenProjectForUser(
             matrixId.toString(),
           );
@@ -1072,7 +1085,7 @@ export class OpenProjectConnection
           // Not a matrix ID
           const foundUser = await client.searchForUserInProject(
             this.projectId,
-            assigneeName,
+            responsibleName,
           );
           if (!foundUser) {
             throw new CommandError(
@@ -1091,11 +1104,178 @@ export class OpenProjectConnection
     const workPackage = await client.getWorkPackage(workPackageId);
     await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
       _links: {
-        [field]: {
+        responsible: {
           href: userHref.href,
         },
       },
     });
+  }
+
+  private async assignWorkPackage(
+    matrixUserId: string,
+    workPackageId: number,
+    assigneeName?: string,
+  ): Promise<void> {
+    let target: { href: string | null; userId?: number } | undefined;
+    if (assigneeName !== undefined) {
+      if (["none", "unset"].includes(assigneeName.toLowerCase())) {
+        target = { href: null };
+      } else {
+        let targetMatrixId: UserID | undefined = undefined;
+        try {
+          targetMatrixId = new UserID(assigneeName);
+        } catch {
+          // Names that are not valid Matrix IDs are resolved as project members.
+        }
+
+        if (targetMatrixId) {
+          const userClient = await this.tokenStore.getOpenProjectForUser(
+            targetMatrixId.toString(),
+          );
+          if (!userClient) {
+            throw new CommandError(
+              "Invalid user",
+              "Matrix user does not map to an OpenProject user",
+            );
+          }
+          if (userClient.getOrigin() !== this.config.baseURL.origin) {
+            throw new CommandError(
+              "Invalid user",
+              "Matrix user is not connected to this OpenProject instance",
+            );
+          }
+          const identity = await userClient.getIdentity();
+          target = { href: identity._links.self.href, userId: identity.id };
+        } else {
+          const client =
+            await this.tokenStore.getOpenProjectForUser(matrixUserId);
+          if (!client) {
+            throw new NotLoggedInError();
+          }
+          const foundUser = await client.searchForUserInProject(
+            this.projectId,
+            assigneeName,
+          );
+          if (!foundUser) {
+            throw new CommandError(
+              "Invalid user",
+              "Could not find a user by that name",
+            );
+          }
+          target = { href: foundUser.href };
+        }
+      }
+    }
+
+    const result = await this.eligibilityService.executeAssignment(
+      matrixUserId,
+      this,
+      workPackageId,
+      target === undefined ? { kind: "self" } : { kind: "user", ...target },
+      { bypassAssigneeCache: true },
+    );
+
+    if (result.status !== "eligible") {
+      throw this.assignmentCommandError(result);
+    }
+  }
+
+  private assignmentCommandError(
+    result: Exclude<OpenProjectAssignmentResult, { status: "eligible" }>,
+  ): CommandError {
+    switch (result.status) {
+      case "not_connected":
+        return new NotLoggedInError();
+      case "conflict":
+        return new CommandError(
+          "Work package changed",
+          "The work package changed while assignment was being checked. Please try again.",
+        );
+      case "not_authorized":
+        switch (result.reason) {
+          case "wrong_project":
+            return new CommandError(
+              "Work package belongs to another project",
+              "This work package is not part of the project configured for this connection.",
+            );
+          case "work_package_not_found":
+            return new CommandError(
+              "Work package not found",
+              "The work package could not be found or is not accessible to you.",
+            );
+          case "openproject_permission":
+            return new CommandError(
+              "OpenProject permission denied",
+              "You do not have permission to assign this work package in OpenProject.",
+            );
+          default:
+            return new CommandError(
+              "Assignment failed",
+              "Hookshot could not authorize this assignment.",
+            );
+        }
+      case "ineligible":
+        switch (result.reason) {
+          case "invalid_work_package_id":
+            return new CommandError(
+              "Invalid work package ID",
+              "Work package ID must be a positive safe integer.",
+            );
+          case "already_assigned":
+            return new CommandError(
+              "Already assigned",
+              "This work package is already assigned to that user.",
+            );
+          case "target_not_available":
+            return new CommandError(
+              "Assignee unavailable",
+              "That user cannot be assigned to this work package.",
+            );
+          case "assignee_not_writable":
+            return new CommandError(
+              "Assignee cannot be changed",
+              "The assignee field cannot be changed on this work package.",
+            );
+          case "assignment_invalid":
+            return new CommandError(
+              "Assignment rejected",
+              "OpenProject rejected this assignee for the work package.",
+            );
+          default:
+            return new CommandError(
+              "Assignment failed",
+              "Hookshot could not validate this assignment.",
+            );
+        }
+      case "unavailable":
+        switch (result.reason) {
+          case "connection_removed":
+            return new CommandError(
+              "OpenProject connection removed",
+              "This OpenProject connection is no longer active.",
+            );
+          case "malformed_response":
+            return new CommandError(
+              "Invalid OpenProject response",
+              "OpenProject returned data that Hookshot could not use to check this assignment.",
+            );
+          case "openproject_error":
+            return new CommandError(
+              "OpenProject unavailable",
+              "Hookshot could not check or update this assignment in OpenProject. Please try again later.",
+            );
+          default:
+            return new CommandError(
+              "OpenProject unavailable",
+              "Hookshot could not check or update this assignment in OpenProject. Please try again later.",
+            );
+        }
+      default:
+        return new CommandError(
+          "Assignment failed",
+          "Hookshot could not complete this assignment.",
+        );
+    }
   }
 
   @botCommand("assign", {
