@@ -8,6 +8,7 @@ catalog:
   typescript: ^5.7.2
   vite: ^7.0.0
   vitest: ^4.1.8
+  zod: ^4.1.12
 
 allowBuilds:
   "@matrix-org/matrix-sdk-crypto-nodejs": true

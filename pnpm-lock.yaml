@@ -223,6 +223,9 @@ catalogs:
     vitest:
       specifier: ^4.1.8
       version: 4.1.11
+    zod:
+      specifier: ^4.1.12
+      version: 4.6.7
 
 importers:
 
@@ -348,6 +351,9 @@ importers:
       yaml:
         specifier: ^2.3.4
         version: 2.9.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
     devDependencies:
       '@babel/core':
         specifier: ^7.26.9
@@ -6379,6 +6385,9 @@ packages:
   zip-stream@6.0.1:
     resolution: {integrity: sha512-zK7YHHz4ZXpW89AHXUPbQVGKI7uvkd3hzusTdotCg1UxyaVtg0zFJSTfW/Dq5f7OBBVnq6cZIaC8Ti4hb6dtCA==}
     engines: {node: '>= 14'}
+
+  zod@4.6.7:
+    resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
 snapshots:
 
@@ -12779,3 +12788,5 @@ snapshots:
       archiver-utils: 5.0.2
       compress-commons: 6.0.2
       readable-stream: 4.7.0
+
+  zod@4.6.7: {}
