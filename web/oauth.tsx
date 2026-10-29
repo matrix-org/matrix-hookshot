@@ -3,7 +3,7 @@ import "./styling.scss";
 import "./oauth.scss";
 import { render } from "preact";
 import "preact/devtools";
-import type { OAuthPageParams } from "../src/Webhooks";
+import type { OAuthPageParams } from "../src/github/Router";
 
 const root = document.getElementsByTagName("main")[0];
 
