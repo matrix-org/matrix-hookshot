@@ -208,48 +208,53 @@ describe("JIRA", () => {
     },
   );
 
-  test("should save showUrlPreviews changes made via the widget API", async () => {
-    const user = testEnv.getUser("user");
-    const bridgeApi = await getBridgeApi(
-      testEnv.opts.config?.widgets?.publicUrl!,
-      user,
-    );
-    const testRoomId = await user.createRoom({
-      name: "Test room",
-    });
-    const join = user.waitForRoomJoin({
-      sender: testEnv.botMxid,
-      roomId: testRoomId,
-    });
-    await user.inviteUser(testEnv.botMxid, testRoomId);
-    await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
-    const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
-    await join;
-    const granter = new JiraGrantChecker(testEnv.app.appservice, null as any);
-    await granter.grantConnection(testRoomId, {
-      url: jiraURL,
-    });
-
-    await testEnv.app.appservice.botClient.sendStateEvent(
-      testRoomId,
-      JiraProjectConnection.CanonicalEventType,
-      jiraURL,
-      {
-        id: JIRA_PAYLOAD.issue.fields.project.id,
+  test.each([
+    [undefined, false],
+    [false, true],
+  ])(
+    "should save showUrlPreviews changing from %s to %s via the widget API",
+    async (from, to) => {
+      const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const testRoomId = await user.createRoom({
+        name: "Test room",
+      });
+      const join = user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      await user.inviteUser(testEnv.botMxid, testRoomId);
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
+      await join;
+      const granter = new JiraGrantChecker(testEnv.app.appservice, null as any);
+      await granter.grantConnection(testRoomId, {
         url: jiraURL,
-      } satisfies JiraProjectConnectionState,
-    );
+      });
 
-    await waitFor(
-      async () =>
-        (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
-    );
-    const [connection] = await bridgeApi.getConnectionsForRoom(testRoomId);
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        testRoomId,
+        JiraProjectConnection.CanonicalEventType,
+        jiraURL,
+        {
+          id: JIRA_PAYLOAD.issue.fields.project.id,
+          url: jiraURL,
+          showUrlPreviews: from,
+        } satisfies JiraProjectConnectionState,
+      );
 
-    for (const showUrlPreviews of [false, true]) {
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+      );
+      const [connection] = await bridgeApi.getConnectionsForRoom(testRoomId);
+
       await bridgeApi.updateConnection(testRoomId, connection.id, {
         ...connection.config,
-        showUrlPreviews,
+        showUrlPreviews: to,
       });
       expect(
         await user.getRoomStateEventContent(
@@ -257,7 +262,7 @@ describe("JIRA", () => {
           JiraProjectConnection.CanonicalEventType,
           jiraURL,
         ),
-      ).toMatchObject({ showUrlPreviews });
+      ).toMatchObject({ showUrlPreviews: to });
 
       const webhookNotice = user.waitForRoomEvent({
         eventType: "m.room.message",
@@ -270,9 +275,7 @@ describe("JIRA", () => {
         webhooksPort,
       );
       const { content } = (await webhookNotice).data;
-      expect(content["com.beeper.linkpreviews"]).toEqual(
-        showUrlPreviews ? undefined : [],
-      );
-    }
-  });
+      expect(content["com.beeper.linkpreviews"]).toEqual(to ? undefined : []);
+    },
+  );
 });

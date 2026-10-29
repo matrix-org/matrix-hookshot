@@ -494,46 +494,51 @@ describe("OpenProject", () => {
     );
   });
 
-  test("should save showUrlPreviews changes made via the widget API", async () => {
-    const user = testEnv.getUser("user");
-    const bridgeApi = await getBridgeApi(
-      testEnv.opts.config?.widgets?.publicUrl!,
-      user,
-    );
-    const testRoomId = await user.createRoom({
-      name: "Test URL previews room",
-    });
-    const join = user.waitForRoomJoin({
-      sender: testEnv.botMxid,
-      roomId: testRoomId,
-    });
-    await user.inviteUser(testEnv.botMxid, testRoomId);
-    await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
-    const openProjectId =
-      OPEN_PROJECT_PAYLOAD.work_package._embedded.project.id;
-    await join;
+  test.each([
+    [undefined, false],
+    [false, true],
+  ])(
+    "should save showUrlPreviews changing from %s to %s via the widget API",
+    async (from, to) => {
+      const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const testRoomId = await user.createRoom({
+        name: "Test URL previews room",
+      });
+      const join = user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      await user.inviteUser(testEnv.botMxid, testRoomId);
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      const openProjectId =
+        OPEN_PROJECT_PAYLOAD.work_package._embedded.project.id;
+      await join;
 
-    const url = `http://mytestproject.com/projects/${openProjectId}`;
-    await testEnv.app.appservice.botClient.sendStateEvent(
-      testRoomId,
-      OpenProjectConnection.CanonicalEventType,
-      url,
-      {
+      const url = `http://mytestproject.com/projects/${openProjectId}`;
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        testRoomId,
+        OpenProjectConnection.CanonicalEventType,
         url,
-        events: ["work_package:created"],
-      } satisfies OpenProjectConnectionState,
-    );
+        {
+          url,
+          events: ["work_package:created"],
+          showUrlPreviews: from,
+        } satisfies OpenProjectConnectionState,
+      );
 
-    await waitFor(
-      async () =>
-        (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
-    );
-    const [connection] = await bridgeApi.getConnectionsForRoom(testRoomId);
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+      );
+      const [connection] = await bridgeApi.getConnectionsForRoom(testRoomId);
 
-    for (const showUrlPreviews of [false, true]) {
       await bridgeApi.updateConnection(testRoomId, connection.id, {
         ...connection.config,
-        showUrlPreviews,
+        showUrlPreviews: to,
       });
       expect(
         await user.getRoomStateEventContent(
@@ -541,7 +546,7 @@ describe("OpenProject", () => {
           OpenProjectConnection.CanonicalEventType,
           url,
         ),
-      ).toMatchObject({ showUrlPreviews });
+      ).toMatchObject({ showUrlPreviews: to });
 
       const webhookNotice = user.waitForRoomEvent({
         eventType: "m.room.message",
@@ -554,9 +559,7 @@ describe("OpenProject", () => {
         webhooksPort,
       );
       const { content } = (await webhookNotice).data;
-      expect(content["com.beeper.linkpreviews"]).toEqual(
-        showUrlPreviews ? undefined : [],
-      );
-    }
-  });
+      expect(content["com.beeper.linkpreviews"]).toEqual(to ? undefined : []);
+    },
+  );
 });
