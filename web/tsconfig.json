@@ -5,6 +5,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "es2019",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "types": ["preact"],
     /* noEmit - Vite builds (emits) files, not tsc. */
     "noEmit": true,
@@ -17,6 +18,6 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "typeRoots": ["./typings"]
+    "typeRoots": ["./typings", "../node_modules"]
   }
 }

@@ -225,17 +225,17 @@ export class OutboundHookConnection
         },
       };
       return {
-        blob: new File(
-          [await client.crypto.decryptMedia(content.file)],
-          content.body,
-          { type: data.contentType },
-        ),
+        blob: new File([Uint8Array.from(data.data)], content.body, {
+          type: data.contentType,
+        }),
         event: strippedContent,
       };
     } else if (content.url) {
       data = await this.intent.underlyingClient.downloadContent(content.url);
       return {
-        blob: new File([data.data], content.body, { type: data.contentType }),
+        blob: new File([Uint8Array.from(data.data)], content.body, {
+          type: data.contentType,
+        }),
         event: ev,
       };
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { LoadingSpinner } from "./elements/LoadingSpinner";
 import { BridgeRoomState } from "../../src/widgets/BridgeWidgetInterface";
 import GeneralConfig from "./configs/GeneralConfig";
@@ -32,16 +32,6 @@ export default function AdminSettings(props: IProps) {
     });
     setBusy(false);
   }, [setBusy, setActiveSections, props.bridgeApi]);
-  const onSectionClick = useCallback(
-    (event: MouseEvent) => {
-      const key = parseInt(
-        (event.target as HTMLElement).parentElement.getAttribute("sectionkey"),
-        10,
-      );
-      setCurrentTab(key as AdminSettingsTab);
-    },
-    [setCurrentTab],
-  );
   if (busy) {
     return (
       <div className={style.root}>
@@ -56,7 +46,7 @@ export default function AdminSettings(props: IProps) {
         <aside className={style.sidebar}>
           <ul>
             {activeSections.general && (
-              <a onClick={onSectionClick}>
+              <a onClick={() => setCurrentTab(AdminSettingsTab.General)}>
                 <li
                   className={
                     currentTab === AdminSettingsTab.General
@@ -69,7 +59,7 @@ export default function AdminSettings(props: IProps) {
               </a>
             )}
             {activeSections.github && (
-              <a onClick={onSectionClick}>
+              <a onClick={() => setCurrentTab(AdminSettingsTab.GitHub)}>
                 <li
                   className={
                     currentTab === AdminSettingsTab.GitHub ? style.active : null
@@ -81,7 +71,7 @@ export default function AdminSettings(props: IProps) {
               </a>
             )}
             {activeSections.gitlab && (
-              <a onClick={onSectionClick}>
+              <a onClick={() => setCurrentTab(AdminSettingsTab.GitLab)}>
                 <li
                   className={
                     currentTab === AdminSettingsTab.GitLab ? style.active : null
@@ -93,7 +83,7 @@ export default function AdminSettings(props: IProps) {
               </a>
             )}
             {activeSections.jira && (
-              <a onClick={onSectionClick}>
+              <a onClick={() => setCurrentTab(AdminSettingsTab.Jira)}>
                 <li
                   className={
                     currentTab === AdminSettingsTab.Jira ? style.active : null
@@ -105,7 +95,7 @@ export default function AdminSettings(props: IProps) {
               </a>
             )}
             {activeSections.figma && (
-              <a onClick={onSectionClick}>
+              <a onClick={() => setCurrentTab(AdminSettingsTab.Figma)}>
                 <li
                   className={
                     currentTab === AdminSettingsTab.Figma ? style.active : null
