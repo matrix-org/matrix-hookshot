@@ -27,7 +27,10 @@ import {
 } from "../../src/ToDeviceProtocol";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BASE_URL, WORK_PACKAGE } from "../openproject/WorkPackageFixtures";
-import { formatWorkPackageActivityForMatrix } from "../../src/openproject/Format";
+import {
+  formatWorkPackageActivityForMatrix,
+  formatWorkPackageAnchorContent,
+} from "../../src/openproject/Format";
 
 const ROOM_ID = "!openproject:example.test";
 const PROJECT_URL = `${BASE_URL}projects/1`;
@@ -140,6 +143,86 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  it("shows project-specific and reply-based help forms with the right prefixes", () => {
+    const help = OpenProjectConnection.helpMessage(
+      "!openproject <projectId> ",
+      undefined,
+      undefined,
+      "!openproject ",
+    );
+
+    expect(help.body).toContain(
+      " - `!openproject <projectId> priority <workPackageId> <priority>` - Set the priority for a work package",
+    );
+    expect(help.body).toContain(
+      " - `!openproject priority <priority>` (reply to a work package) - Set the priority for a work package",
+    );
+    expect(help.body).toContain(
+      " - `!openproject <projectId> assign <workPackageId> [user]` - Assign a work package to a new user (use 'unset' to remove)",
+    );
+    expect(help.body).toContain(
+      " - `!openproject assign [user]` (reply to a work package) - Assign a work package to a new user (use 'unset' to remove)",
+    );
+    expect(help.body).toContain(
+      " - `!openproject <projectId> responsible <workPackageId> [user]` - Assign a responsible user to a work package (use 'unset' to remove)",
+    );
+    expect(help.body).toContain(
+      " - `!openproject responsible [user]` (reply to a work package) - Assign a responsible user to a work package (use 'unset' to remove)",
+    );
+    expect(help.body).toContain(" - `!openproject help` - This help text");
+    expect(help.body).toContain(
+      " - `!openproject <projectId> timeline remove <workPackageId>` - Remove a work package from the timeline",
+    );
+    expect(help.body).toContain(
+      " - `!openproject timeline remove` (reply to a work package) - Remove a work package from the timeline",
+    );
+    expect(help.formatted_body).toContain(
+      "<code>!openproject &lt;projectId&gt; priority &lt;workPackageId&gt; &lt;priority&gt;</code>",
+    );
+  });
+
+  it("removes a timeline anchor when invoked with a global prefix in a reply", async () => {
+    const connection = createConnectionState({
+      commandPrefix: "!openproject demo-project",
+    });
+    const reply = new RoomEvent({
+      content: formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL, {
+        snapshotId: "reply-anchor",
+      }),
+      event_id: "$anchor",
+      room_id: ROOM_ID,
+      origin_server_ts: Date.now(),
+      sender: "@hookshot:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    });
+    const getEvent = vi.fn().mockResolvedValue(reply);
+    connection["as"].botClient.getEvent = getEvent;
+    const removeTimelineWorkPackage = vi
+      .spyOn(connection["timelineCommandService"], "removeTimelineWorkPackage")
+      .mockResolvedValue(undefined);
+    const commandEvent = {
+      content: {
+        body: "!openproject timeline remove",
+        "m.relates_to": { "m.in_reply_to": { event_id: "$anchor" } },
+        msgtype: "m.text" as const,
+      },
+      event_id: "$remove-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    expect(await connection.onMessageEvent(commandEvent, () => true)).toBe(
+      true,
+    );
+    expect(getEvent).toHaveBeenCalledWith(ROOM_ID, "$anchor");
+    expect(removeTimelineWorkPackage).toHaveBeenCalledWith(
+      String(WORK_PACKAGE.id),
+    );
+  });
+
   describe("assignment command", () => {
     it("self-assigns from an activity reply with the global prefix", async () => {
       const { connection, senderClient, tokenStore } =
