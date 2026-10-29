@@ -55,6 +55,14 @@ import {
 } from "../openproject/Schema";
 import type { OpenProjectAnchorState } from "../openproject/State";
 import type { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import {
+  type AssignmentCommandInput,
+  getProjectIdFromReplyContent,
+  getWorkPackageIdFromReply,
+  normalizeAssignmentMention,
+  parseAssignmentCommandArguments,
+  parseWorkPackageId,
+} from "../openproject/CommandParser";
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -169,59 +177,8 @@ function isMissingAnchorError(error: unknown): error is MatrixError {
   return error instanceof MatrixError && error.errcode === "M_NOT_FOUND";
 }
 
-function parseWorkPackageId(argument: string): number {
-  if (!/^\d+$/.test(argument)) {
-    throw new CommandError(
-      "Invalid work package ID",
-      "Work package ID must be a positive safe integer.",
-    );
-  }
-  const workPackageId = Number(argument);
-  if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
-    throw new CommandError(
-      "Invalid work package ID",
-      "Work package ID must be a positive safe integer.",
-    );
-  }
-  return workPackageId;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function commandBodyWithTrailingUserMention(
-  content: MatrixMessageContent,
-): string {
-  // Element Web puts the displayed name in body and the Matrix ID in m.mentions.
-  // Reply metadata can add mentions, so a single ID alone is not enough.
-  const mentions = (
-    content as MatrixMessageContent & { "m.mentions"?: unknown }
-  )["m.mentions"];
-  const userIds = isRecord(mentions) ? mentions.user_ids : undefined;
-  if (
-    !Array.isArray(userIds) ||
-    userIds.length !== 1 ||
-    typeof userIds[0] !== "string" ||
-    !/^@[^:\s]+:[^\s]+$/.test(userIds[0]) ||
-    content.format !== "org.matrix.custom.html" ||
-    typeof content.formatted_body !== "string"
-  ) {
-    return content.body;
-  }
-
-  // Require a trailing assignment link whose visible text matches body;
-  // otherwise a mention from reply metadata could change the wrong argument.
-  const pill = /^(.*)<a\b[^>]*>([^<>]+)<\/a>\s*$/.exec(content.formatted_body);
-  if (
-    !pill ||
-    !/\b(?:assign|responsible)(?:\s+[1-9]\d*)?\s+$/.test(pill[1]) ||
-    content.body.trimEnd() !== `${pill[1]}${pill[2]}`
-  ) {
-    return content.body;
-  }
-
-  return `${pill[1]}${userIds[0]}`;
 }
 
 function isValidAnchorStateForRemoval(
@@ -303,7 +260,7 @@ export class OpenProjectConnection
 
     // Anchor and activity messages carry the project ID used to route a
     // global reply when several OpenProject connections share the room.
-    const replyProjectId = this.getProjectIDFromReply(replyEvent);
+    const replyProjectId = getProjectIdFromReplyContent(replyEvent?.content);
     if (
       !hasProjectPrefix &&
       replyProjectId !== undefined &&
@@ -320,7 +277,7 @@ export class OpenProjectConnection
         ...ev,
         content: {
           ...ev.content,
-          body: commandBodyWithTrailingUserMention(ev.content),
+          body: normalizeAssignmentMention(ev.content),
         },
       },
       checkPermission,
@@ -802,53 +759,10 @@ export class OpenProjectConnection
     );
   }
 
-  private getProjectIDFromReply(
-    reply?: MatrixEvent<unknown>,
-  ): number | undefined {
-    const replyContent = reply?.content;
-    const project = isRecord(replyContent)
-      ? replyContent["org.matrix.matrix-hookshot.openproject.project"]
-      : undefined;
-    if (
-      !isRecord(project) ||
-      typeof project.id !== "number" ||
-      !Number.isSafeInteger(project.id) ||
-      project.id <= 0
-    ) {
-      return undefined;
-    }
-    return project.id;
-  }
-
   public getWorkPackageIDFromReply(
     reply?: MatrixEvent<unknown>,
   ): number | undefined {
-    if (!reply) {
-      return undefined;
-    }
-    const replyContent = reply.content;
-    const workPackage = isRecord(replyContent)
-      ? replyContent["org.matrix.matrix-hookshot.openproject.work_package"]
-      : undefined;
-    const workPackageId = isRecord(workPackage) ? workPackage.id : undefined;
-    const projectId = this.getProjectIDFromReply(reply);
-    if (
-      reply.type !== "m.room.message" ||
-      typeof workPackageId !== "number" ||
-      !Number.isSafeInteger(workPackageId) ||
-      workPackageId <= 0 ||
-      projectId === undefined
-    ) {
-      throw new CommandError(
-        "Did not reference a hookshot event",
-        "You must reply to a work package message when running this command.",
-      );
-    }
-    if (projectId !== this.projectId) {
-      // This is not us.
-      return;
-    }
-    return workPackageId;
+    return getWorkPackageIdFromReply(reply, this.projectId);
   }
 
   /** Add the current OpenProject package as an active timeline anchor. */
@@ -1146,27 +1060,23 @@ export class OpenProjectConnection
     providedUser?: string,
     ...additionalUserParts: string[]
   ) {
-    let requestedUser: string | undefined;
-    let workPackageId: number;
-    const replyWp = this.getWorkPackageIDFromReply(reply);
-    if (replyWp !== undefined) {
-      workPackageId = parseWorkPackageId(String(replyWp));
-      requestedUser =
-        [workPackageIdOrUser, providedUser, ...additionalUserParts]
-          .filter((part): part is string => part !== undefined)
-          .join(" ") || undefined;
-    } else if (workPackageIdOrUser) {
-      workPackageId = parseWorkPackageId(workPackageIdOrUser);
-      requestedUser =
-        [providedUser, ...additionalUserParts]
-          .filter((part): part is string => part !== undefined)
-          .join(" ") || undefined;
+    const replyWorkPackageId = this.getWorkPackageIDFromReply(reply);
+    let input: AssignmentCommandInput;
+    if (replyWorkPackageId !== undefined) {
+      input = {
+        kind: "reply",
+        workPackageId: replyWorkPackageId,
+        userParts: [workPackageIdOrUser, providedUser, ...additionalUserParts],
+      };
     } else {
-      throw new CommandError(
-        "No ID provided",
-        "You must provide a work package ID",
-      );
+      input = {
+        kind: "explicit_id",
+        workPackageIdArgument: workPackageIdOrUser,
+        userParts: [providedUser, ...additionalUserParts],
+      };
     }
+    const { workPackageId, requestedUser } =
+      parseAssignmentCommandArguments(input);
 
     if (field === "assignee") {
       return this.assignWorkPackage(userId, workPackageId, requestedUser);
