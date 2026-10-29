@@ -101,7 +101,7 @@ export class JiraProjectConnection
   static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
   public static validateState(state: unknown): JiraProjectConnectionState {
-    const { id, url, commandPrefix, priority } =
+    const { id, url, commandPrefix, priority, showUrlPreviews } =
       state as Partial<JiraProjectConnectionState>;
     if (id !== undefined && typeof id !== "string") {
       throw new ApiError("Expected 'id' to be a string", ErrCode.BadValue);
@@ -123,6 +123,12 @@ export class JiraProjectConnection
         );
       }
     }
+    if (showUrlPreviews !== undefined && typeof showUrlPreviews !== "boolean") {
+      throw new ApiError(
+        "Expected 'showUrlPreviews' to be a boolean",
+        ErrCode.BadValue,
+      );
+    }
     let { events } = state as Partial<JiraProjectConnectionState>;
     if (!events || (events[0] as string) == "issue.created") {
       // migration
@@ -133,7 +139,7 @@ export class JiraProjectConnection
         ErrCode.BadValue,
       );
     }
-    return { id, url, commandPrefix, events, priority };
+    return { id, url, commandPrefix, events, priority, showUrlPreviews };
   }
 
   static async assertUserHasAccessToProject(
