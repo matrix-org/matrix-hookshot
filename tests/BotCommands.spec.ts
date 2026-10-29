@@ -287,6 +287,71 @@ describe("BotCommands", () => {
       ).toBe(true);
     });
 
+    it.each([
+      {
+        command: "!project unknown",
+        prefix: "!project ",
+        globalPrefix: undefined,
+        expectedPrefix: "!project",
+      },
+      {
+        command: "!openproject unknown",
+        prefix: undefined,
+        globalPrefix: "!openproject",
+        expectedPrefix: "!openproject",
+      },
+    ])(
+      "reports an unknown command after the $expectedPrefix prefix",
+      async ({ command, prefix, globalPrefix, expectedPrefix }) => {
+        const outcome = await handleCommand(
+          USER_ID,
+          command,
+          undefined,
+          {},
+          null,
+          () => true,
+          undefined,
+          prefix,
+          globalPrefix,
+        );
+
+        expect(outcome).toEqual({
+          handled: true,
+          humanError: `Unknown command. Try "${expectedPrefix} help" for available commands.`,
+        });
+      },
+    );
+
+    it("does not handle unrelated messages or lookalike global prefixes", async () => {
+      const handle = (command: string) =>
+        handleCommand(
+          USER_ID,
+          command,
+          undefined,
+          {},
+          null,
+          () => true,
+          undefined,
+          "!project ",
+          "!openproject",
+        );
+
+      expect((await handle("hello there")).handled).toBe(false);
+      expect((await handle("!openproject-extra unknown")).handled).toBe(false);
+      expect(
+        (
+          await handleCommand(
+            USER_ID,
+            "unknown",
+            undefined,
+            {},
+            null,
+            () => true,
+          )
+        ).handled,
+      ).toBe(false);
+    });
+
     it("should reject a command with too few arguments", async () => {
       const command: BotCommands = {
         simple: {
@@ -364,6 +429,72 @@ describe("BotCommands", () => {
           "<ul>\n<li><code>command</code> - a simple bit of help text</li>\n<li><code>command two &lt;withargs&gt; [optionalArgs]</code> - a simple bit of help text</li>\n</ul>\n",
         msgtype: "m.notice",
       });
+    });
+
+    it("renders alternative help usages with context notes", () => {
+      class TestBotCommands {
+        @botCommand("priority", {
+          help: "Set the priority for a work package",
+          helpUsages: [
+            { args: ["<workPackageId>", "<priority>"] },
+            {
+              args: ["<priority>"],
+              note: "reply to a work package",
+              prefix: "global",
+            },
+          ],
+        })
+        public async setPriority() {}
+      }
+
+      const output = compileBotCommands(
+        TestBotCommands.prototype as unknown as Record<
+          string,
+          (...args: string[]) => Promise<undefined>
+        >,
+      );
+      const help = output.helpMessage(
+        "!openproject <projectId> ",
+        undefined,
+        undefined,
+        "!openproject ",
+      );
+      expect(help.body).toBe(
+        " - `!openproject <projectId> priority <workPackageId> <priority>` - Set the priority for a work package\n" +
+          " - `!openproject priority <priority>` (reply to a work package) - Set the priority for a work package\n",
+      );
+      expect(help.formatted_body).toContain(
+        "<code>!openproject &lt;projectId&gt; priority &lt;workPackageId&gt; &lt;priority&gt;</code>",
+      );
+      expect(help.formatted_body).toContain(
+        "<code>!openproject priority &lt;priority&gt;</code> (reply to a work package)",
+      );
+    });
+
+    it("uses the global prefix for globally available help", () => {
+      class TestBotCommands {
+        @botCommand("help", {
+          help: "This help text",
+          helpUsages: [{ args: [], prefix: "global" }],
+          runOnGlobalPrefix: true,
+        })
+        public async help() {}
+      }
+
+      const output = compileBotCommands(
+        TestBotCommands.prototype as unknown as Record<
+          string,
+          (...args: string[]) => Promise<undefined>
+        >,
+      );
+      expect(
+        output.helpMessage(
+          "!openproject <projectId> ",
+          undefined,
+          undefined,
+          "!openproject ",
+        ).body,
+      ).toBe(" - `!openproject help` - This help text\n");
     });
 
     it("can will fail if two commands share a prefix", () => {

@@ -10,14 +10,16 @@
     "test": "vitest --config vitest.config.ts run"
   },
   "devDependencies": {
-    "@element-hq/element-web-module-api": "2.2.0",
+    "@element-hq/element-web-module-api": "2.3.0",
     "@element-hq/element-web-shared-utils": "0.1.0",
     "@element-hq/web-shared-components": "^0.1.1",
+    "@testing-library/react": "^16.3.0",
     "@vector-im/compound-design-tokens": "catalog:",
     "@vector-im/compound-web": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "^19",
     "@vitejs/plugin-react": "^5.0.4",
+    "happy-dom": "^20.0.8",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "rollup-plugin-external-globals": "^0.13.0",
