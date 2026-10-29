@@ -6,10 +6,12 @@ import classnames from "classnames";
 export function LinkView({
   url,
   className,
+  title,
   children,
 }: {
   url?: string;
   className?: string;
+  title?: string;
   children: React.ReactNode;
 }) {
   // `url` originates in untrusted event content and is sanitised here
@@ -19,6 +21,7 @@ export function LinkView({
       <a
         className={classnames(styles.link, className)}
         href={sanitizedUrl}
+        title={title}
         target="_blank"
         rel="noopener noreferrer"
       >
@@ -27,5 +30,9 @@ export function LinkView({
     );
   }
 
-  return <span className={className}>{children}</span>;
+  return (
+    <span className={className} title={title}>
+      {children}
+    </span>
+  );
 }

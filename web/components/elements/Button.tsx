@@ -1,7 +1,8 @@
-import { FunctionComponent, h } from "preact";
+import { FunctionComponent } from "preact";
+import type { ButtonHTMLAttributes } from "preact";
 import style from "./Button.module.scss";
 
-interface ButtonProps extends h.JSX.HTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   intent?: "remove";
 }
 

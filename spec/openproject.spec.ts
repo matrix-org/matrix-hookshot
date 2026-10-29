@@ -8,6 +8,10 @@ import {
   OpenProjectConnection,
   OpenProjectConnectionState,
 } from "../src/Connections/OpenProjectConnection";
+import {
+  OPENPROJECT_ACTIVITY_EVENT_KIND,
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+} from "../src/openproject/Schema";
 
 const OPEN_PROJECT_PAYLOAD = {
   action: "work_package:created",
@@ -336,7 +340,12 @@ describe("OpenProject", () => {
 
   beforeAll(async () => {
     testEnv = await E2ETestEnv.createTestEnv({
-      matrixLocalparts: ["user"],
+      matrixLocalparts: ["user", "denied_user"],
+      permissionsRoom: {
+        members: ["user"],
+        permissions: [{ service: "openproject", level: "login" }],
+      },
+      e2eClientOpts: { autoAcceptInvite: true },
       config: {
         openProject: {
           webhook: {
@@ -364,7 +373,7 @@ describe("OpenProject", () => {
     return testEnv?.tearDown();
   });
 
-  test("should be able to handle a OpenProject event", async () => {
+  test("creates an OpenProject anchor from a webhook", async () => {
     const user = testEnv.getUser("user");
     const bridgeApi = await getBridgeApi(
       testEnv.opts.config?.widgets?.publicUrl!,
@@ -385,7 +394,7 @@ describe("OpenProject", () => {
     // Pre-grant connection to allow us to bypass the oauth dance.
     await join;
 
-    // "Create" a JIRA connection.
+    // Create an OpenProject connection.
     const url = `http://mytestproject.com/projects/${openProjectId}`;
     await testEnv.app.appservice.botClient.sendStateEvent(
       testRoomId,
@@ -394,6 +403,7 @@ describe("OpenProject", () => {
       {
         url,
         events: ["work_package:created", "work_package:updated"],
+        anchors: ["work_package:created"],
       } satisfies OpenProjectConnectionState,
     );
 
@@ -402,10 +412,13 @@ describe("OpenProject", () => {
         (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
     );
 
-    const webhookNotice = user.waitForRoomEvent<MessageEventContent>({
+    const expectedBody =
+      'Work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133" — added to the timeline';
+    const webhookAnchor = user.waitForRoomEvent<MessageEventContent>({
       eventType: "m.room.message",
       sender: testEnv.botMxid,
       roomId: testRoomId,
+      body: expectedBody,
     });
 
     await sendOpenProjectWebhook(
@@ -414,10 +427,11 @@ describe("OpenProject", () => {
       webhooksPort,
     );
 
-    // And await the notice.
-    const { body } = (await webhookNotice).data.content;
-    expect(body).toContain(
-      'OpenProject Admin created a new work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133"',
+    const content = (await webhookAnchor).data.content as MessageEventContent &
+      Record<string, unknown>;
+    expect(content.body).toBe(expectedBody);
+    expect(content["org.matrix.matrix-hookshot.openproject.event_kind"]).toBe(
+      OPENPROJECT_ANCHOR_EVENT_KIND,
     );
   });
 
@@ -449,6 +463,7 @@ describe("OpenProject", () => {
       {
         url,
         events: ["work_package:created", "work_package:subject_changed"],
+        anchors: [],
       } satisfies OpenProjectConnectionState,
     );
 
@@ -480,9 +495,11 @@ describe("OpenProject", () => {
         action: "work_package:updated",
         work_package: {
           ...OPEN_PROJECT_PAYLOAD.work_package,
+          lockVersion: 1,
           subject: "updated test 133",
           updatedAt: "2025-05-08T13:20:12.309Z",
         },
+        actor: { id: 7, name: "Webhook Actor" },
       },
       testEnv.opts.config?.openProject?.webhook.secret!,
       webhooksPort,
@@ -490,7 +507,434 @@ describe("OpenProject", () => {
 
     const { body } = (await updateNotice).data.content;
     expect(body).toContain(
-      '**OpenProject Admin** updated the subject for [50](http://mytestproject.com/projects/demo-project/work_packages/50): "updated test 133"',
+      `**Webhook Actor** updated the subject on [#50 updated test 133](http://mytestproject.com/projects/demo-project/work_packages/50)`,
     );
+  });
+
+  test("delivers per-room Activity with the active original timeline link", async () => {
+    const user = testEnv.getUser("user");
+    const bridgeApi = await getBridgeApi(
+      testEnv.opts.config?.widgets?.publicUrl!,
+      user,
+    );
+    const activeRoomId = await user.createRoom({
+      name: "OpenProject Activity with anchor",
+    });
+    const unanchoredRoomId = await user.createRoom({
+      name: "OpenProject Activity without anchor",
+    });
+
+    async function connectRoom(
+      roomId: string,
+      events: OpenProjectConnectionState["events"],
+      anchors: OpenProjectConnectionState["anchors"],
+    ) {
+      const join = user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId,
+      });
+      await user.inviteUser(testEnv.botMxid, roomId);
+      await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
+      await join;
+
+      const url = "http://mytestproject.com/projects/1";
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        roomId,
+        OpenProjectConnection.CanonicalEventType,
+        url,
+        { url, events, anchors } satisfies OpenProjectConnectionState,
+      );
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(roomId)).length === 1,
+      );
+    }
+
+    await connectRoom(
+      activeRoomId,
+      ["work_package:created", "work_package:subject_changed"],
+      ["work_package:created"],
+    );
+    await connectRoom(unanchoredRoomId, ["work_package:priority_changed"], []);
+
+    const workPackageUrl =
+      "http://mytestproject.com/projects/demo-project/work_packages/50";
+    const actor = { id: 7, name: "Webhook Actor" };
+    const createdAnchorWaiter = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: activeRoomId,
+      body: `Work package [50](${workPackageUrl}): "test 133" — added to the timeline`,
+    });
+    const createdActivityWaiter = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: activeRoomId,
+      body: `**Webhook Actor** created [#50 test 133](${workPackageUrl})`,
+    });
+    await sendOpenProjectWebhook(
+      { ...OPEN_PROJECT_PAYLOAD, actor },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const originalAnchor = (await createdAnchorWaiter).data;
+    const createdActivity = (await createdActivityWaiter).data
+      .content as MessageEventContent & Record<string, unknown>;
+    expect(createdActivity.msgtype).toBe("m.notice");
+    expect(
+      createdActivity["org.matrix.matrix-hookshot.openproject.event_kind"],
+    ).toBe(OPENPROJECT_ACTIVITY_EVENT_KIND);
+    expect(
+      createdActivity["org.matrix.matrix-hookshot.openproject.anchor_event_id"],
+    ).toBe(originalAnchor.event_id);
+    expect(
+      createdActivity["org.matrix.matrix-hookshot.openproject.actor"],
+    ).toMatchObject({ id: actor.id, name: actor.name });
+
+    const updatedPackage = {
+      ...OPEN_PROJECT_PAYLOAD.work_package,
+      lockVersion: 1,
+      subject: "updated test 133",
+      updatedAt: "2025-05-08T13:20:12.309Z",
+      _embedded: {
+        ...OPEN_PROJECT_PAYLOAD.work_package._embedded,
+        priority: {
+          ...OPEN_PROJECT_PAYLOAD.work_package._embedded.priority,
+          id: 9,
+          name: "High",
+        },
+      },
+    };
+    const activeRoomActivityWaiter = user.waitForRoomEvent<MessageEventContent>(
+      {
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: activeRoomId,
+        body: `**Webhook Actor** changed the priority from **Normal** to **High** and made one more update to [#50 updated test 133](${workPackageUrl})`,
+      },
+    );
+    const unanchoredRoomActivityWaiter =
+      user.waitForRoomEvent<MessageEventContent>({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: unanchoredRoomId,
+        body: `**Webhook Actor** changed the priority from **Normal** to **High** and made one more update to [#50 updated test 133](${workPackageUrl})`,
+      });
+    await sendOpenProjectWebhook(
+      {
+        action: "work_package:updated",
+        work_package: updatedPackage,
+        actor,
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const activeRoomActivity = (await activeRoomActivityWaiter).data
+      .content as MessageEventContent & Record<string, unknown>;
+    const unanchoredRoomActivity = (await unanchoredRoomActivityWaiter).data
+      .content as MessageEventContent & Record<string, unknown>;
+    expect(activeRoomActivity.msgtype).toBe("m.notice");
+    expect(
+      activeRoomActivity["org.matrix.matrix-hookshot.openproject.changes"],
+    ).toEqual([
+      "changed the priority from **Normal** to **High**",
+      "updated the subject",
+    ]);
+    expect(
+      activeRoomActivity[
+        "org.matrix.matrix-hookshot.openproject.anchor_event_id"
+      ],
+    ).toBe(originalAnchor.event_id);
+    expect(unanchoredRoomActivity).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id",
+    );
+    expect(
+      unanchoredRoomActivity["org.matrix.matrix-hookshot.openproject.changes"],
+    ).toEqual(
+      activeRoomActivity["org.matrix.matrix-hookshot.openproject.changes"],
+    );
+
+    const removedAnchorWaiter = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: activeRoomId,
+      body: `Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
+    });
+    await user.sendText(activeRoomId, "!openproject timeline remove 50");
+    await removedAnchorWaiter;
+
+    const afterRemovalPackage = {
+      ...updatedPackage,
+      lockVersion: 2,
+      subject: "updated without a card",
+      _embedded: {
+        ...updatedPackage._embedded,
+        priority: {
+          ...updatedPackage._embedded.priority,
+          id: 10,
+          name: "Urgent",
+        },
+      },
+    };
+    const afterRemovalActiveWaiter = user.waitForRoomEvent<MessageEventContent>(
+      {
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: activeRoomId,
+        body: `**Webhook Actor** changed the priority from **High** to **Urgent** and made one more update to [#50 updated without a card](${workPackageUrl})`,
+      },
+    );
+    const afterRemovalUnanchoredWaiter =
+      user.waitForRoomEvent<MessageEventContent>({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: unanchoredRoomId,
+        body: `**Webhook Actor** changed the priority from **High** to **Urgent** and made one more update to [#50 updated without a card](${workPackageUrl})`,
+      });
+    await sendOpenProjectWebhook(
+      {
+        action: "work_package:updated",
+        work_package: afterRemovalPackage,
+        actor,
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const afterRemovalActivity = (await afterRemovalActiveWaiter).data
+      .content as MessageEventContent & Record<string, unknown>;
+    await afterRemovalUnanchoredWaiter;
+    expect(afterRemovalActivity).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.anchor_event_id",
+    );
+
+    const reAddedAnchorWaiter = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: activeRoomId,
+      body: `Work package [50](${workPackageUrl}): "re-added test 133" — added to the timeline`,
+    });
+    const reAddedActivityWaiter = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId: activeRoomId,
+      body: `**Webhook Actor** created [#50 re-added test 133](${workPackageUrl})`,
+    });
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        actor,
+        work_package: {
+          ...afterRemovalPackage,
+          lockVersion: 3,
+          subject: "re-added test 133",
+        },
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const reAddedAnchor = (await reAddedAnchorWaiter).data;
+    const reAddedActivity = (await reAddedActivityWaiter).data
+      .content as MessageEventContent & Record<string, unknown>;
+    expect(reAddedAnchor.event_id).not.toBe(originalAnchor.event_id);
+    expect(
+      reAddedActivity["org.matrix.matrix-hookshot.openproject.anchor_event_id"],
+    ).toBe(reAddedAnchor.event_id);
+
+    let duplicateActivityCount = 0;
+    const duplicateListener = (
+      eventRoomId: string,
+      event: {
+        sender?: string;
+        type?: string;
+        content?: Record<string, unknown>;
+      },
+    ) => {
+      if (
+        [activeRoomId, unanchoredRoomId].includes(eventRoomId) &&
+        event.sender === testEnv.botMxid &&
+        event.type === "m.room.message" &&
+        event.content?.["org.matrix.matrix-hookshot.openproject.event_kind"] ===
+          OPENPROJECT_ACTIVITY_EVENT_KIND
+      ) {
+        duplicateActivityCount++;
+      }
+    };
+    user.on("room.event", duplicateListener);
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        actor,
+        work_package: {
+          ...afterRemovalPackage,
+          lockVersion: 3,
+          subject: "re-added test 133",
+        },
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    user.off("room.event", duplicateListener);
+    expect(duplicateActivityCount).toBe(0);
+  });
+
+  test("keeps one active anchor through update, remove, and re-add", async () => {
+    const user = testEnv.getUser("user");
+    const deniedUser = testEnv.getUser("denied_user");
+    const roomId = await user.createRoom({ name: "Timeline lifecycle room" });
+    const deniedJoined = deniedUser.waitForRoomJoin({
+      sender: await deniedUser.getUserId(),
+      roomId,
+    });
+    await user.inviteUser(await deniedUser.getUserId(), roomId);
+    await deniedJoined;
+    const botJoined = user.waitForRoomJoin({
+      sender: testEnv.botMxid,
+      roomId,
+    });
+    await user.inviteUser(testEnv.botMxid, roomId);
+    await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
+    await botJoined;
+
+    const url = "http://mytestproject.com/projects/1";
+    await testEnv.app.appservice.botClient.sendStateEvent(
+      roomId,
+      OpenProjectConnection.CanonicalEventType,
+      url,
+      {
+        url,
+        events: ["work_package:created", "work_package:updated"],
+        anchors: ["work_package:created"],
+      } satisfies OpenProjectConnectionState,
+    );
+    const bridgeApi = await getBridgeApi(
+      testEnv.opts.config?.widgets?.publicUrl!,
+      user,
+    );
+    await waitFor(
+      async () => (await bridgeApi.getConnectionsForRoom(roomId)).length === 1,
+    );
+
+    const workPackageUrl =
+      "http://mytestproject.com/projects/demo-project/work_packages/50";
+    const created = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `Work package [50](${workPackageUrl}): "test 133" — added to the timeline`,
+    });
+    await sendOpenProjectWebhook(
+      OPEN_PROJECT_PAYLOAD,
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const originalAnchor = (await created).data;
+    const originalContent = originalAnchor.content as unknown as Record<
+      string,
+      unknown
+    >;
+    const initialSnapshotId =
+      originalContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
+    expect(
+      originalContent["org.matrix.matrix-hookshot.openproject.anchor_state"],
+    ).toBe("active");
+
+    const deniedCommand = deniedUser.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: "Failed to handle command: You do not have permission to use this command.",
+    });
+    await deniedUser.sendText(roomId, "!openproject timeline remove 50");
+    await deniedCommand;
+
+    const updatedPackage = {
+      ...OPEN_PROJECT_PAYLOAD.work_package,
+      lockVersion: 1,
+      subject: "updated test 133",
+      updatedAt: "2025-05-08T13:20:12.309Z",
+    };
+    const updatedAnchor = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `Work package [50](${workPackageUrl}): "updated test 133" — added to the timeline`,
+    });
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        action: "work_package:updated",
+        work_package: updatedPackage,
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const activeReplacement = (await updatedAnchor).data
+      .content as unknown as Record<string, unknown>;
+    expect(activeReplacement["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: originalAnchor.event_id,
+    });
+    const activeContent = activeReplacement["m.new_content"] as Record<
+      string,
+      unknown
+    >;
+    expect(
+      activeContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ).not.toBe(initialSnapshotId);
+    expect(
+      (
+        activeContent[
+          "org.matrix.matrix-hookshot.openproject.work_package"
+        ] as Record<string, unknown>
+      ).subject,
+    ).toBe("updated test 133");
+
+    const removedAnchor = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `Work package [50](${workPackageUrl}): "updated test 133" — removed from the timeline`,
+    });
+    await user.sendText(roomId, "!openproject timeline remove 50");
+    const inactiveReplacement = (await removedAnchor).data
+      .content as unknown as Record<string, unknown>;
+    expect(inactiveReplacement["m.relates_to"]).toEqual({
+      rel_type: "m.replace",
+      event_id: originalAnchor.event_id,
+    });
+    expect(
+      (inactiveReplacement["m.new_content"] as Record<string, unknown>)[
+        "org.matrix.matrix-hookshot.openproject.anchor_state"
+      ],
+    ).toBe("inactive");
+
+    const readded = user.waitForRoomEvent<MessageEventContent>({
+      eventType: "m.room.message",
+      sender: testEnv.botMxid,
+      roomId,
+      body: `Work package [50](${workPackageUrl}): "re-added test 133" — added to the timeline`,
+    });
+    await sendOpenProjectWebhook(
+      {
+        ...OPEN_PROJECT_PAYLOAD,
+        work_package: {
+          ...updatedPackage,
+          lockVersion: 2,
+          subject: "re-added test 133",
+        },
+      },
+      testEnv.opts.config?.openProject?.webhook.secret!,
+      webhooksPort,
+    );
+    const newAnchor = (await readded).data;
+    expect(newAnchor.event_id).not.toBe(originalAnchor.event_id);
+    const newContent = newAnchor.content as unknown as Record<string, unknown>;
+    expect(
+      newContent["org.matrix.matrix-hookshot.openproject.anchor_state"],
+    ).toBe("active");
+    expect(
+      newContent["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    ).not.toBe(initialSnapshotId);
   });
 });
