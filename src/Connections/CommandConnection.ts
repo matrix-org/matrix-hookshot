@@ -49,6 +49,10 @@ export abstract class CommandConnection<
     return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
   }
 
+  protected get helpCommandPrefix(): string {
+    return this.commandPrefix;
+  }
+
   public conflictsWithCommandPrefix(commandPrefix: string) {
     return this.commandPrefix === commandPrefix + " ";
   }
@@ -111,15 +115,20 @@ export abstract class CommandConnection<
     }
   }
 
-  @botCommand("help", "This help text")
+  @botCommand("help", {
+    help: "This help text",
+    helpUsages: [{ args: [], prefix: "global" }],
+    runOnGlobalPrefix: true,
+  })
   public async helpCommand() {
     return this.botClient.sendEvent(
       this.roomId,
       "m.room.message",
       this.helpMessage(
-        this.commandPrefix,
+        this.helpCommandPrefix,
         this.helpCategories,
         this.includeTitlesInHelp,
+        `${this.defaultCommandPrefix} `,
       ),
     );
   }

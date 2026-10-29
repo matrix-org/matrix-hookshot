@@ -14,7 +14,13 @@ import {
   StateEvent,
 } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
-import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
+import { CommandError } from "../Errors";
+import {
+  botCommand,
+  BotCommands,
+  compileBotCommands,
+  HelpFunction,
+} from "../BotCommands";
 import {
   MatrixMessageContent,
   type MatrixEvent as CommandMatrixEvent,
@@ -219,13 +225,17 @@ export class OpenProjectConnection
     );
   }
 
+  protected override get helpCommandPrefix(): string {
+    return `${this.defaultCommandPrefix} <projectId> `;
+  }
+
   static readonly CanonicalEventType =
     "org.matrix.matrix-hookshot.openproject.project";
 
   static readonly EventTypes = [OpenProjectConnection.CanonicalEventType];
   static readonly ServiceCategory = ConnectionType.OpenProject;
   static botCommands: BotCommands;
-  static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
+  static helpMessage: HelpFunction;
 
   static projectIdFromUrl(url: URL): number {
     const id = parseInt(/\/projects\/(\d+)\/?/.exec(url.pathname)?.[1] ?? "");
@@ -567,12 +577,39 @@ export class OpenProjectConnection
   /** Remove a work package's active anchor without changing its OpenProject status. */
   @botCommand("timeline remove", {
     help: "Remove a work package from the timeline",
-    requiredArgs: ["workPackageId"],
+    helpUsages: [
+      { args: ["<workPackageId>"] },
+      {
+        args: [],
+        note: "reply to a work package",
+        prefix: "global",
+      },
+    ],
+    includeReply: true,
+    runOnGlobalPrefix: true,
   })
-  public async commandTimelineRemove(workPackageIdArgument: string) {
-    return this.timelineCommandService.removeTimelineWorkPackage(
-      workPackageIdArgument,
-    );
+  public async commandTimelineRemove(
+    replyOrWorkPackageId?: MatrixEvent<unknown> | string,
+    workPackageIdArgument?: string,
+  ) {
+    const reply =
+      typeof replyOrWorkPackageId === "string"
+        ? undefined
+        : replyOrWorkPackageId;
+    const explicitWorkPackageId =
+      typeof replyOrWorkPackageId === "string"
+        ? replyOrWorkPackageId
+        : workPackageIdArgument;
+    const workPackageId =
+      explicitWorkPackageId ??
+      this.getWorkPackageIDFromReply(reply)?.toString();
+    if (workPackageId === undefined) {
+      throw new CommandError(
+        "No work package ID provided",
+        "Provide a work package ID or reply to a work package message.",
+      );
+    }
+    return this.timelineCommandService.removeTimelineWorkPackage(workPackageId);
   }
 
   @botCommand("create", {
@@ -600,7 +637,14 @@ export class OpenProjectConnection
 
   @botCommand("close", {
     help: "Close a work package",
-    optionalArgs: ["workPackageId", "description"],
+    helpUsages: [
+      { args: ["<workPackageId>", "[description]"] },
+      {
+        args: ["[description]"],
+        note: "reply to a work package",
+        prefix: "global",
+      },
+    ],
     includeUserId: true,
     includeReply: true,
     // We allow uses to call global for shorthand replies.
@@ -622,7 +666,14 @@ export class OpenProjectConnection
 
   @botCommand("priority", {
     help: "Set the priority for a work package",
-    optionalArgs: ["workPackageId", "priority"],
+    helpUsages: [
+      { args: ["<workPackageId>", "<priority>"] },
+      {
+        args: ["<priority>"],
+        note: "reply to a work package",
+        prefix: "global",
+      },
+    ],
     includeUserId: true,
     includeReply: true,
     // We allow uses to call global for shorthand replies.
@@ -644,7 +695,14 @@ export class OpenProjectConnection
 
   @botCommand("assign", {
     help: "Assign a work package to a new user (use 'unset' to remove)",
-    optionalArgs: ["workPackageId", "assignee"],
+    helpUsages: [
+      { args: ["<workPackageId>", "[user]"] },
+      {
+        args: ["[user]"],
+        note: "reply to a work package",
+        prefix: "global",
+      },
+    ],
     includeUserId: true,
     includeReply: true,
     // We allow uses to call global for shorthand replies.
@@ -669,7 +727,14 @@ export class OpenProjectConnection
 
   @botCommand("responsible", {
     help: "Assign a responsible user to a work package (use 'unset' to remove)",
-    optionalArgs: ["workPackageId", "responsibleUser"],
+    helpUsages: [
+      { args: ["<workPackageId>", "[user]"] },
+      {
+        args: ["[user]"],
+        note: "reply to a work package",
+        prefix: "global",
+      },
+    ],
     includeUserId: true,
     includeReply: true,
     // We allow uses to call global for shorthand replies.
