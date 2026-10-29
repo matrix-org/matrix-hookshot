@@ -471,6 +471,140 @@ export function formatWorkPackageActivityForMatrix(
   return content;
 }
 
+interface WorkPackageDiffContext {
+  old: OpenProjectWorkPackageCacheState;
+  current: OpenProjectWorkPackageCacheState;
+  pkg: OpenProjectWorkPackage;
+}
+
+interface WorkPackageFieldChange {
+  category: OpenProjectEventsNames;
+  message: string;
+}
+
+function formatAssigneeChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current, pkg } = context;
+  if (old.assignee === current.assignee) return undefined;
+  return {
+    category: "work_package:assignee_changed",
+    message: current.assignee
+      ? `assigned **${pkg._embedded.assignee?.name}**`
+      : "removed assignee",
+  };
+}
+
+function formatDescriptionChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.description.raw === current.description.raw) return undefined;
+  return {
+    category: "work_package:description_changed",
+    message: current.description.raw
+      ? "updated the description"
+      : "removed the description",
+  };
+}
+
+function formatDateChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.date === current.date) return undefined;
+  return {
+    category: "work_package:duedate_changed",
+    message: current.date
+      ? `set the date to **${current.date}**`
+      : "removed the date",
+  };
+}
+
+function formatDueDateChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.dueDate === current.dueDate) return undefined;
+  return {
+    category: "work_package:duedate_changed",
+    message: current.dueDate
+      ? `set the due date to **${current.dueDate}**`
+      : "removed the due date",
+  };
+}
+
+function formatPercentageDoneChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.percentageDone === current.percentageDone) return undefined;
+  return {
+    category: "work_package:workpercent_changed",
+    message:
+      current.percentageDone !== null
+        ? `set the work completed percentage to **${current.percentageDone}%**`
+        : "cleared the work completed percentage",
+  };
+}
+
+function formatPriorityChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.priority?.id === current.priority?.id) return undefined;
+  return {
+    category: "work_package:priority_changed",
+    message: `changed the priority from **${old.priority?.name}** to **${current.priority?.name ?? "none"}**`,
+  };
+}
+
+function formatResponsibleChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current, pkg } = context;
+  if (old.responsible === current.responsible) return undefined;
+  return {
+    category: "work_package:responsible_changed",
+    message: current.responsible
+      ? `set ${pkg._embedded.responsible?.name} as responsible`
+      : "removed responsible user",
+  };
+}
+
+function formatStatusChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.status.id === current.status.id) return undefined;
+  return {
+    category: "work_package:updated",
+    message: `changed the status from **${old.status?.name}** to **${current.status?.name ?? "none"}**`,
+  };
+}
+
+function formatSubjectChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current } = context;
+  if (old.subject === current.subject) return undefined;
+  return {
+    category: "work_package:subject_changed",
+    message: "updated the subject",
+  };
+}
+
+function formatTypeChange(
+  context: WorkPackageDiffContext,
+): WorkPackageFieldChange | undefined {
+  const { old, current, pkg } = context;
+  if (old.type === current.type) return undefined;
+  return {
+    category: "work_package:updated",
+    message: `changed the type to **${pkg._embedded.type.name}**`,
+  };
+}
+
 export function formatWorkPackageDiff(
   old: OpenProjectWorkPackageCacheState,
   pkg: OpenProjectWorkPackage,
@@ -478,88 +612,27 @@ export function formatWorkPackageDiff(
   categories: OpenProjectEventsNames[];
   changes: string[];
 } | null {
-  const changes: string[] = [];
-  const categories = new Set<OpenProjectEventsNames>();
-  const current = workPackageToCacheState(pkg);
+  const context = { old, current: workPackageToCacheState(pkg), pkg };
   // {user} {...changes} {issueUrl}
-  if (old.assignee !== current.assignee) {
-    if (current.assignee) {
-      changes.push(`assigned **${pkg._embedded.assignee?.name}**`);
-    } else {
-      changes.push(`removed assignee`);
-    }
-    categories.add("work_package:assignee_changed");
-  }
-  if (old.description.raw !== current.description.raw) {
-    if (current.description.raw) {
-      changes.push(`updated the description`);
-    } else {
-      changes.push(`removed the description`);
-    }
-    categories.add("work_package:description_changed");
-  }
-  if (old.date !== current.date) {
-    if (current.date) {
-      changes.push(`set the date to **${current.date}**`);
-    } else {
-      changes.push(`removed the date`);
-    }
-    categories.add("work_package:duedate_changed");
-  }
-  if (old.dueDate !== current.dueDate) {
-    if (current.dueDate) {
-      changes.push(`set the due date to **${current.dueDate}**`);
-    } else {
-      changes.push(`removed the due date`);
-    }
-    categories.add("work_package:duedate_changed");
-  }
-  if (old.percentageDone !== current.percentageDone) {
-    if (current.percentageDone !== null) {
-      changes.push(
-        `set the work completed percentage to **${current.percentageDone}%**`,
-      );
-    } else {
-      changes.push(`cleared the work completed percentage`);
-    }
-    categories.add("work_package:workpercent_changed");
-  }
-  if (old.priority?.id !== current.priority?.id) {
-    changes.push(
-      `changed the priority from **${old.priority?.name}** to **${current.priority?.name ?? "none"}**`,
-    );
-    categories.add("work_package:priority_changed");
-  }
-  if (old.responsible !== current.responsible) {
-    if (current.responsible) {
-      changes.push(`set ${pkg._embedded.responsible?.name} as responsible`);
-    } else {
-      changes.push(`removed responsible user`);
-    }
-    categories.add("work_package:responsible_changed");
-  }
-  if (old.status.id !== current.status.id) {
-    changes.push(
-      `changed the status from **${old.status?.name}** to **${current.status?.name ?? "none"}**`,
-    );
-    categories.add("work_package:updated");
-  }
-  if (old.subject !== current.subject) {
-    // Implicitly named
-    changes.push(`updated the subject`);
-    categories.add("work_package:subject_changed");
-  }
-  if (old.type !== current.type) {
-    changes.push(`changed the type to **${pkg._embedded.type.name}**`);
-    categories.add("work_package:updated");
-  }
+  const fieldChanges = [
+    formatAssigneeChange(context),
+    formatDescriptionChange(context),
+    formatDateChange(context),
+    formatDueDateChange(context),
+    formatPercentageDoneChange(context),
+    formatPriorityChange(context),
+    formatResponsibleChange(context),
+    formatStatusChange(context),
+    formatSubjectChange(context),
+    formatTypeChange(context),
+  ].filter((change): change is WorkPackageFieldChange => change !== undefined);
 
-  if (changes.length === 0) {
+  if (fieldChanges.length === 0) {
     // Unknown change
     return null;
   }
   return {
-    categories: [...categories],
-    changes,
+    categories: [...new Set(fieldChanges.map((change) => change.category))],
+    changes: fieldChanges.map((change) => change.message),
   };
 }

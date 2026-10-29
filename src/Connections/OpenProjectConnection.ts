@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import {
   Connection,
   IConnection,
@@ -10,12 +9,9 @@ import {
 import {
   Appservice,
   Intent,
-  MatrixError,
   MatrixEvent,
-  MessageEventContent,
   RoomEvent,
   StateEvent,
-  UserID,
 } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 import { botCommand, BotCommands, compileBotCommands } from "../BotCommands";
@@ -29,39 +25,21 @@ import { ApiError, ErrCode } from "../api";
 import { OpenProjectWebhookPayloadWorkPackage } from "../openproject/Types";
 import { BridgeOpenProjectConfig } from "../config/sections/OpenProject";
 import { BridgeConfigMessaging } from "../config/sections";
-import {
-  formatWorkPackageAnchorContent,
-  formatInactiveWorkPackageAnchorReplacement,
-  formatWorkPackageAnchorReplacement,
-  formatWorkPackageActivityForMatrix,
-  formatWorkPackageDiff,
-} from "../openproject/Format";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
-import { workPackageToCacheState } from "../openproject/State";
 import { TimelineManager } from "../openproject/TimelineManager";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
-import {
-  OpenProjectEligibilityService,
-  type OpenProjectAssignmentResult,
-} from "../openproject/Eligibility";
+import { OpenProjectEligibilityService } from "../openproject/Eligibility";
 import { GetConnectionsResponseItem } from "../widgets/Api";
-import { CommandError, NotLoggedInError } from "../Errors";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
-import {
-  OPENPROJECT_ANCHOR_EVENT_KIND,
-  OPENPROJECT_ANCHOR_STATE_ACTIVE,
-  OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../openproject/Schema";
-import type { OpenProjectAnchorState } from "../openproject/State";
 import type { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
+import { OpenProjectTimelineCommandService } from "../openproject/TimelineCommands";
+import { OpenProjectWorkPackageCommandService } from "../openproject/WorkPackageCommands";
+import { OpenProjectWebhookHandler } from "../openproject/WebhookHandler";
 import {
-  type AssignmentCommandInput,
   getProjectIdFromReplyContent,
   getWorkPackageIdFromReply,
   normalizeAssignmentMention,
-  parseAssignmentCommandArguments,
-  parseWorkPackageId,
 } from "../openproject/CommandParser";
 
 export type OpenProjectEventsNames =
@@ -171,50 +149,6 @@ function validateOpenProjectConnectionState(
     );
   }
   return { url, commandPrefix, events, anchors, priority };
-}
-
-function isMissingAnchorError(error: unknown): error is MatrixError {
-  return error instanceof MatrixError && error.errcode === "M_NOT_FOUND";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isValidAnchorStateForRemoval(
-  value: unknown,
-  workPackageId: number,
-): value is OpenProjectAnchorState {
-  if (!isRecord(value) || !isRecord(value.lastContent)) {
-    return false;
-  }
-
-  const content = value.lastContent;
-  const workPackage =
-    content["org.matrix.matrix-hookshot.openproject.work_package"];
-  // The snapshot is written by our formatter. Removal only reads these fields;
-  // leave optional display data untouched so API nulls do not block removal.
-  return (
-    typeof value.anchorEventId === "string" &&
-    value.anchorEventId.length > 0 &&
-    typeof value.lockVersion === "number" &&
-    Number.isSafeInteger(value.lockVersion) &&
-    value.lockVersion >= 0 &&
-    content.msgtype === "m.notice" &&
-    typeof content.body === "string" &&
-    content["org.matrix.matrix-hookshot.openproject.schema_version"] ===
-      OPENPROJECT_EVENT_SCHEMA_VERSION &&
-    content["org.matrix.matrix-hookshot.openproject.event_kind"] ===
-      OPENPROJECT_ANCHOR_EVENT_KIND &&
-    content["org.matrix.matrix-hookshot.openproject.anchor_state"] ===
-      OPENPROJECT_ANCHOR_STATE_ACTIVE &&
-    typeof content["org.matrix.matrix-hookshot.openproject.snapshot_id"] ===
-      "string" &&
-    isRecord(workPackage) &&
-    workPackage.id === workPackageId &&
-    typeof workPackage.subject === "string" &&
-    typeof workPackage.url === "string"
-  );
 }
 
 const log = new Logger("OpenProjectConnection");
@@ -489,7 +423,9 @@ export class OpenProjectConnection
   /** The bot whose intent handles this connection's Matrix traffic. */
   public readonly botUserId: string;
   private readonly grantChecker: OpenProjectGrantChecker;
-  private readonly eligibilityService: OpenProjectEligibilityService;
+  private readonly timelineCommandService: OpenProjectTimelineCommandService;
+  private readonly workPackageCommandService: OpenProjectWorkPackageCommandService;
+  private readonly webhookHandler: OpenProjectWebhookHandler;
   private timelineRemoved = false;
 
   constructor(
@@ -519,9 +455,44 @@ export class OpenProjectConnection
     );
     this.botUserId = intent.userId;
     this.grantChecker = new OpenProjectGrantChecker(as, intent, tokenStore);
-    this.eligibilityService = new OpenProjectEligibilityService(tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
+    this.timelineCommandService = new OpenProjectTimelineCommandService({
+      connectionId: this.connectionId,
+      projectId: this.projectId,
+      baseURL: this.config.baseURL,
+      storage: this.storage,
+      tokenStore: this.tokenStore,
+      runTimelineTransition: (workPackageId, transition) =>
+        this.runTimelineTransition(workPackageId, transition),
+      sendEvent: (body, content, options) =>
+        this.sendEvent(body, content, options),
+    });
+    this.workPackageCommandService = new OpenProjectWorkPackageCommandService(
+      {
+        projectId: this.projectId,
+        baseURL: this.config.baseURL,
+        tokenStore: this.tokenStore,
+        interestedInProject: (projectId) => this.interestedInProject(projectId),
+        getWorkPackageIDFromReply: (reply) =>
+          this.getWorkPackageIDFromReply(reply),
+      },
+      new OpenProjectEligibilityService(tokenStore),
+    );
+    this.webhookHandler = new OpenProjectWebhookHandler({
+      connectionId: this.connectionId,
+      roomId: this.roomId,
+      projectId: this.projectId,
+      baseURL: this.config.baseURL,
+      storage: this.storage,
+      isAnchorEnabled: (eventName) => this.state.anchors.includes(eventName),
+      isInterestedInHookEvent: (eventName) =>
+        this.isInterestedInHookEvent(eventName),
+      runTimelineTransition: (workPackageId, transition) =>
+        this.runTimelineTransition(workPackageId, transition),
+      sendEvent: (body, content, options) =>
+        this.sendEvent(body, content, options),
+    });
   }
 
   public isInterestedInStateEvent(eventType: string, stateKey: string) {
@@ -562,201 +533,13 @@ export class OpenProjectConnection
   public async onWorkPackageCreated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
-    const workPackage = data.work_package;
-    await this.runTimelineTransition(workPackage.id, async () => {
-      try {
-        log.info(
-          `onWorkPackageCreated ${this.roomId} ${this.projectId} ${workPackage.id}`,
-        );
-
-        const existing = await this.storage.getOpenProjectAnchorState(
-          this.connectionId,
-          workPackage.id,
-        );
-        if (!existing && this.state.anchors.includes("work_package:created")) {
-          const content = formatWorkPackageAnchorContent(
-            workPackage,
-            this.config.baseURL,
-            { snapshotId: randomUUID() },
-          );
-          const anchorEventId = await this.sendEvent(content.body, content, {
-            inline: false,
-          });
-          await this.storage.setOpenProjectAnchorState(
-            this.connectionId,
-            workPackage.id,
-            {
-              anchorEventId,
-              lockVersion: workPackage.lockVersion,
-              lastContent: content,
-            },
-          );
-        } else if (existing && workPackage.lockVersion > existing.lockVersion) {
-          const replacement = formatWorkPackageAnchorReplacement(
-            existing.anchorEventId,
-            workPackage,
-            this.config.baseURL,
-            { snapshotId: randomUUID() },
-          );
-          await this.sendEvent(replacement.body, replacement, {
-            inline: false,
-          });
-          await this.storage.setOpenProjectAnchorState(
-            this.connectionId,
-            workPackage.id,
-            {
-              anchorEventId: existing.anchorEventId,
-              lockVersion: workPackage.lockVersion,
-              lastContent: replacement["m.new_content"],
-            },
-          );
-        }
-      } catch (error) {
-        log.warn(
-          `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; Activity processing will continue`,
-          error,
-        );
-      }
-
-      try {
-        await this.processWorkPackageActivity(data, true);
-      } catch (error) {
-        log.warn(
-          `Failed to process OpenProject Activity for ${this.connectionId}/${workPackage.id}`,
-          error,
-        );
-      }
-    });
+    return this.webhookHandler.onWorkPackageCreated(data);
   }
 
   public async onWorkPackageUpdated(
     data: OpenProjectWebhookPayloadWorkPackage,
   ) {
-    const workPackage = data.work_package;
-    log.info(
-      `onWorkPackageUpdated ${this.roomId} ${this.projectId} ${workPackage.id}`,
-    );
-
-    await this.runTimelineTransition(workPackage.id, async () => {
-      try {
-        const activeAnchor = await this.storage.getOpenProjectAnchorState(
-          this.connectionId,
-          workPackage.id,
-        );
-        if (
-          activeAnchor &&
-          workPackage.lockVersion > activeAnchor.lockVersion
-        ) {
-          const replacement = formatWorkPackageAnchorReplacement(
-            activeAnchor.anchorEventId,
-            workPackage,
-            this.config.baseURL,
-            { snapshotId: randomUUID() },
-          );
-          let missingAnchor = false;
-          try {
-            await this.sendEvent(replacement.body, replacement, {
-              inline: false,
-            });
-          } catch (error) {
-            if (!isMissingAnchorError(error)) {
-              throw error;
-            }
-            missingAnchor = true;
-            await this.storage.deleteOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-            );
-            log.info(
-              `Removing missing OpenProject anchor ${activeAnchor.anchorEventId} for ${this.connectionId}/${workPackage.id}`,
-            );
-          }
-          if (!missingAnchor) {
-            await this.storage.setOpenProjectAnchorState(
-              this.connectionId,
-              workPackage.id,
-              {
-                anchorEventId: activeAnchor.anchorEventId,
-                lockVersion: workPackage.lockVersion,
-                lastContent: replacement["m.new_content"],
-              },
-            );
-          }
-        }
-      } catch (error) {
-        log.warn(
-          `Failed to update OpenProject anchor for ${this.connectionId}/${workPackage.id}; Activity processing will continue`,
-          error,
-        );
-      }
-
-      try {
-        await this.processWorkPackageActivity(data, false);
-      } catch (error) {
-        log.warn(
-          `Failed to process OpenProject Activity for ${this.connectionId}/${workPackage.id}`,
-          error,
-        );
-      }
-    });
-  }
-
-  /** Advance this room's Activity cursor and send at most one event per revision. */
-  private async processWorkPackageActivity(
-    data: OpenProjectWebhookPayloadWorkPackage,
-    created: boolean,
-  ): Promise<void> {
-    const workPackage = data.work_package;
-    const previous = await this.storage.getOpenProjectActivityState(
-      this.connectionId,
-      workPackage.id,
-    );
-    if (previous && workPackage.lockVersion <= previous.lockVersion) {
-      return;
-    }
-
-    const diff =
-      previous && !created
-        ? formatWorkPackageDiff(previous, workPackage)
-        : null;
-    const changes = created
-      ? ["created"]
-      : previous
-        ? (diff?.changes ?? [])
-        : ["updated the details"];
-    const shouldSend = created
-      ? this.isInterestedInHookEvent("work_package:created")
-      : previous
-        ? !!diff &&
-          (this.isInterestedInHookEvent("work_package:updated") ||
-            diff.categories.some((category) =>
-              this.isInterestedInHookEvent(category),
-            ))
-        : this.isInterestedInHookEvent("work_package:updated");
-
-    if (shouldSend) {
-      const activeAnchor = await this.storage.getOpenProjectAnchorState(
-        this.connectionId,
-        workPackage.id,
-      );
-      const content = formatWorkPackageActivityForMatrix(
-        workPackage,
-        this.config.baseURL,
-        changes,
-        {
-          actor: data.actor,
-          created,
-          anchorEventId: activeAnchor?.anchorEventId,
-        },
-      );
-      await this.sendEvent(content.body, content, { inline: false });
-    }
-
-    await this.storage.setOpenProjectActivityState(
-      this.connectionId,
-      workPackage.id,
-      workPackageToCacheState(workPackage),
-    );
+    return this.webhookHandler.onWorkPackageUpdated(data);
   }
 
   public getWorkPackageIDFromReply(
@@ -775,47 +558,10 @@ export class OpenProjectConnection
     userId: string,
     workPackageIdArgument: string,
   ) {
-    const workPackageId = parseWorkPackageId(workPackageIdArgument);
-
-    const client = await this.tokenStore.getOpenProjectForUser(userId);
-    if (!client) {
-      throw new NotLoggedInError();
-    }
-    const workPackage = await client.getWorkPackage(workPackageId);
-    if (workPackage._embedded.project.id !== this.projectId) {
-      throw new CommandError(
-        "Work package belongs to another project",
-        "This work package is not part of the project configured for this connection.",
-      );
-    }
-
-    await this.runTimelineTransition(workPackage.id, async () => {
-      const activeAnchor = await this.storage.getOpenProjectAnchorState(
-        this.connectionId,
-        workPackage.id,
-      );
-      if (activeAnchor) {
-        return;
-      }
-
-      const content = formatWorkPackageAnchorContent(
-        workPackage,
-        this.config.baseURL,
-        { snapshotId: randomUUID() },
-      );
-      const anchorEventId = await this.sendEvent(content.body, content, {
-        inline: false,
-      });
-      await this.storage.setOpenProjectAnchorState(
-        this.connectionId,
-        workPackage.id,
-        {
-          anchorEventId,
-          lockVersion: workPackage.lockVersion,
-          lastContent: content,
-        },
-      );
-    });
+    return this.timelineCommandService.addTimelineWorkPackage(
+      userId,
+      workPackageIdArgument,
+    );
   }
 
   /** Remove a work package's active anchor without changing its OpenProject status. */
@@ -824,35 +570,9 @@ export class OpenProjectConnection
     requiredArgs: ["workPackageId"],
   })
   public async commandTimelineRemove(workPackageIdArgument: string) {
-    const workPackageId = parseWorkPackageId(workPackageIdArgument);
-    await this.runTimelineTransition(workPackageId, async () => {
-      const activeAnchor = await this.storage.getOpenProjectAnchorState(
-        this.connectionId,
-        workPackageId,
-      );
-      if (!activeAnchor) {
-        return;
-      }
-      if (!isValidAnchorStateForRemoval(activeAnchor, workPackageId)) {
-        throw new CommandError(
-          "Invalid stored timeline anchor",
-          "The stored timeline anchor is invalid and cannot be removed safely.",
-        );
-      }
-
-      const replacement = formatInactiveWorkPackageAnchorReplacement(
-        activeAnchor.anchorEventId,
-        activeAnchor.lastContent,
-        randomUUID(),
-      );
-      await this.sendEvent(replacement.body, replacement, {
-        inline: false,
-      });
-      await this.storage.deleteOpenProjectAnchorState(
-        this.connectionId,
-        workPackageId,
-      );
-    });
+    return this.timelineCommandService.removeTimelineWorkPackage(
+      workPackageIdArgument,
+    );
   }
 
   @botCommand("create", {
@@ -869,48 +589,12 @@ export class OpenProjectConnection
     subject: string,
     cmdDescription?: string,
   ) {
-    const client = await this.tokenStore.getOpenProjectForUser(userId);
-    if (!client) {
-      throw new NotLoggedInError();
-    }
-    let finalDescription: string | undefined;
-    if (reply) {
-      if (reply.type !== "m.room.message") {
-        throw new CommandError(
-          "Reply was not a m.room.message",
-          "You can only use textual events as work package descriptions.",
-        );
-      }
-      const replyContent = reply.content as MessageEventContent;
-      if (!replyContent.body?.trim()) {
-        throw new CommandError(
-          "Source message had no body",
-          "This event has no content and cannot be used.",
-        );
-      }
-      if (cmdDescription) {
-        finalDescription = `${cmdDescription}\n\n${replyContent.body}`;
-      } else {
-        finalDescription = replyContent.body;
-      }
-    } else {
-      finalDescription = cmdDescription;
-    }
-    const allTypes = await client.getTypesInProject(this.projectId);
-    const foundType = allTypes.find(
-      (t) => t.name.toLowerCase() === type.toLowerCase(),
-    );
-    if (!foundType) {
-      throw new CommandError(
-        "Type not understood",
-        `Work package type not known. You can use ${allTypes.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
-      );
-    }
-    await client.createWorkPackage(
-      this.projectId,
-      foundType,
+    return this.workPackageCommandService.createWorkPackage(
+      userId,
+      reply,
+      type,
       subject,
-      finalDescription,
+      cmdDescription,
     );
   }
 
@@ -928,57 +612,12 @@ export class OpenProjectConnection
     workPackageIdOrComment?: string,
     comment?: string,
   ) {
-    const client = await this.tokenStore.getOpenProjectForUser(userId);
-    if (!client) {
-      throw new NotLoggedInError();
-    }
-    let finalComment: string | undefined;
-    let workPackageId;
-    const replyWp = this.getWorkPackageIDFromReply(reply);
-    if (replyWp) {
-      workPackageId = replyWp;
-      finalComment = workPackageIdOrComment;
-    } else if (workPackageIdOrComment) {
-      workPackageId = parseInt(workPackageIdOrComment);
-      finalComment = comment;
-    } else {
-      throw new CommandError(
-        "No ID provided",
-        "You must provide a work package ID",
-      );
-    }
-    if (isNaN(workPackageId)) {
-      throw new CommandError(
-        "Invalid work package ID",
-        "Work Package ID must be a valid number",
-      );
-    }
-
-    // TODO: Cache this.
-    const validStatuses = await client.getStatuses();
-    // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
-    const closedStatus =
-      validStatuses.find((s) => s.name.toLowerCase() === "closed") ??
-      validStatuses.find((s) => s.isClosed);
-
-    if (!closedStatus) {
-      throw new CommandError(
-        "No closed status on OpenProject",
-        "This instance doesn't have a closed status, so the work package cannot be closed.",
-      );
-    }
-
-    const workPackage = await client.getWorkPackage(workPackageId);
-    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
-      _links: {
-        status: {
-          href: closedStatus?._links.self.href,
-        },
-      },
-    });
-    if (finalComment) {
-      await client.addWorkPackageComment(workPackageId, finalComment);
-    }
+    return this.workPackageCommandService.closeWorkPackage(
+      userId,
+      reply,
+      workPackageIdOrComment,
+      comment,
+    );
   }
 
   @botCommand("priority", {
@@ -995,321 +634,12 @@ export class OpenProjectConnection
     workPackageIdOrPriority?: string,
     priority?: string,
   ) {
-    const client = await this.tokenStore.getOpenProjectForUser(userId);
-    if (!client) {
-      throw new NotLoggedInError();
-    }
-    let finalPriority: string | undefined;
-    let workPackageId;
-    const replyWp = this.getWorkPackageIDFromReply(reply);
-    if (replyWp) {
-      workPackageId = replyWp;
-      finalPriority = workPackageIdOrPriority;
-    } else if (workPackageIdOrPriority) {
-      workPackageId = parseInt(workPackageIdOrPriority);
-      finalPriority = priority;
-    } else {
-      throw new CommandError(
-        "No ID provided",
-        "You must provide a work package ID",
-      );
-    }
-    if (isNaN(workPackageId)) {
-      throw new CommandError(
-        "Invalid work package ID",
-        "Work Package ID must be a valid number",
-      );
-    }
-    const priorities = await client.getPriorities();
-    if (!finalPriority) {
-      throw new CommandError(
-        "Priority not provided",
-        `Priority not provided. You can use ${priorities.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
-      );
-    }
-
-    // Prefer the "closed" status, but if that fails then we'll just use whatever status is used for closed.
-    const priorityRef =
-      finalPriority &&
-      (await client.getPriorities()).find(
-        (s) => s.name.toLowerCase() === finalPriority?.toLowerCase(),
-      );
-
-    if (!priorityRef) {
-      throw new CommandError(
-        "Priority not understood",
-        `Priority not understood. You can use ${priorities.map((t) => (t.name.includes(" ") ? `"${t.name}"` : t.name)).join(", ")}`,
-      );
-    }
-
-    const workPackage = await client.getWorkPackage(workPackageId);
-    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
-      _links: {
-        priority: {
-          href: priorityRef?._links.self.href,
-        },
-      },
-    });
-  }
-
-  public async helperChangeWorkPackageUser(
-    field: "assignee" | "responsible",
-    userId: string,
-    reply: MatrixEvent<unknown> | undefined,
-    workPackageIdOrUser?: string,
-    providedUser?: string,
-    ...additionalUserParts: string[]
-  ) {
-    const replyWorkPackageId = this.getWorkPackageIDFromReply(reply);
-    let input: AssignmentCommandInput;
-    if (replyWorkPackageId !== undefined) {
-      input = {
-        kind: "reply",
-        workPackageId: replyWorkPackageId,
-        userParts: [workPackageIdOrUser, providedUser, ...additionalUserParts],
-      };
-    } else {
-      input = {
-        kind: "explicit_id",
-        workPackageIdArgument: workPackageIdOrUser,
-        userParts: [providedUser, ...additionalUserParts],
-      };
-    }
-    const { workPackageId, requestedUser } =
-      parseAssignmentCommandArguments(input);
-
-    if (field === "assignee") {
-      return this.assignWorkPackage(userId, workPackageId, requestedUser);
-    }
-
-    return this.setResponsibleWorkPackage(userId, workPackageId, requestedUser);
-  }
-
-  private async setResponsibleWorkPackage(
-    userId: string,
-    workPackageId: number,
-    responsibleName?: string,
-  ): Promise<void> {
-    const client = await this.tokenStore.getOpenProjectForUser(userId);
-    if (!client) {
-      throw new NotLoggedInError();
-    }
-
-    let userHref: { href: string | null };
-
-    if (responsibleName) {
-      if (["none", "unset"].includes(responsibleName.toLowerCase())) {
-        userHref = { href: null };
-      } else {
-        try {
-          const matrixId = new UserID(responsibleName);
-          const userClient = await this.tokenStore.getOpenProjectForUser(
-            matrixId.toString(),
-          );
-          if (!userClient) {
-            throw new CommandError(
-              "Invalid user",
-              "Matrix user does not map to a OpenProject user",
-            );
-          }
-          userHref = (await userClient.getIdentity())._links.self;
-        } catch (ex) {
-          if (ex instanceof CommandError) {
-            throw ex;
-          }
-          // Not a matrix ID
-          const foundUser = await client.searchForUserInProject(
-            this.projectId,
-            responsibleName,
-          );
-          if (!foundUser) {
-            throw new CommandError(
-              "Invalid user",
-              "Could not find a user by that name",
-            );
-          }
-          userHref = foundUser;
-        }
-      }
-    } else {
-      // Self assign.
-      userHref = (await client.getIdentity())._links.self;
-    }
-
-    const workPackage = await client.getWorkPackage(workPackageId);
-    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
-      _links: {
-        responsible: {
-          href: userHref.href,
-        },
-      },
-    });
-  }
-
-  private async assignWorkPackage(
-    matrixUserId: string,
-    workPackageId: number,
-    assigneeName?: string,
-  ): Promise<void> {
-    let target: { href: string | null; userId?: number } | undefined;
-    if (assigneeName !== undefined) {
-      if (["none", "unset"].includes(assigneeName.toLowerCase())) {
-        target = { href: null };
-      } else {
-        let targetMatrixId: UserID | undefined = undefined;
-        try {
-          targetMatrixId = new UserID(assigneeName);
-        } catch {
-          // Names that are not valid Matrix IDs are resolved as project members.
-        }
-
-        if (targetMatrixId) {
-          const userClient = await this.tokenStore.getOpenProjectForUser(
-            targetMatrixId.toString(),
-          );
-          if (!userClient) {
-            throw new CommandError(
-              "Invalid user",
-              "Matrix user does not map to an OpenProject user",
-            );
-          }
-          if (userClient.getOrigin() !== this.config.baseURL.origin) {
-            throw new CommandError(
-              "Invalid user",
-              "Matrix user is not connected to this OpenProject instance",
-            );
-          }
-          const identity = await userClient.getIdentity();
-          target = { href: identity._links.self.href, userId: identity.id };
-        } else {
-          const client =
-            await this.tokenStore.getOpenProjectForUser(matrixUserId);
-          if (!client) {
-            throw new NotLoggedInError();
-          }
-          const foundUser = await client.searchForUserInProject(
-            this.projectId,
-            assigneeName,
-          );
-          if (!foundUser) {
-            throw new CommandError(
-              "Invalid user",
-              "Could not find a user by that name",
-            );
-          }
-          target = { href: foundUser.href };
-        }
-      }
-    }
-
-    const result = await this.eligibilityService.executeAssignment(
-      matrixUserId,
-      this,
-      workPackageId,
-      target === undefined ? { kind: "self" } : { kind: "user", ...target },
+    return this.workPackageCommandService.setPriority(
+      userId,
+      reply,
+      workPackageIdOrPriority,
+      priority,
     );
-
-    if (result.status !== "eligible") {
-      throw this.assignmentCommandError(result);
-    }
-  }
-
-  private assignmentCommandError(
-    result: Exclude<OpenProjectAssignmentResult, { status: "eligible" }>,
-  ): CommandError {
-    switch (result.status) {
-      case "not_connected":
-        return new NotLoggedInError();
-      case "conflict":
-        return new CommandError(
-          "Work package changed",
-          "The work package changed while assignment was being checked. Please try again.",
-        );
-      case "not_authorized":
-        switch (result.reason) {
-          case "wrong_project":
-            return new CommandError(
-              "Work package belongs to another project",
-              "This work package is not part of the project configured for this connection.",
-            );
-          case "work_package_not_found":
-            return new CommandError(
-              "Work package not found",
-              "The work package could not be found or is not accessible to you.",
-            );
-          case "openproject_permission":
-            return new CommandError(
-              "OpenProject permission denied",
-              "You do not have permission to assign this work package in OpenProject.",
-            );
-          default:
-            return new CommandError(
-              "Assignment failed",
-              "Hookshot could not authorize this assignment.",
-            );
-        }
-      case "ineligible":
-        switch (result.reason) {
-          case "invalid_work_package_id":
-            return new CommandError(
-              "Invalid work package ID",
-              "Work package ID must be a positive safe integer.",
-            );
-          case "already_assigned":
-            return new CommandError(
-              "Already assigned",
-              "This work package is already assigned to that user.",
-            );
-          case "target_not_available":
-            return new CommandError(
-              "Assignee unavailable",
-              "That user cannot be assigned to this work package.",
-            );
-          case "assignee_not_writable":
-            return new CommandError(
-              "Assignee cannot be changed",
-              "The assignee field cannot be changed on this work package.",
-            );
-          case "assignment_invalid":
-            return new CommandError(
-              "Assignment rejected",
-              "OpenProject rejected this assignee for the work package.",
-            );
-          default:
-            return new CommandError(
-              "Assignment failed",
-              "Hookshot could not validate this assignment.",
-            );
-        }
-      case "unavailable":
-        switch (result.reason) {
-          case "connection_removed":
-            return new CommandError(
-              "OpenProject connection removed",
-              "This OpenProject connection is no longer active.",
-            );
-          case "malformed_response":
-            return new CommandError(
-              "Invalid OpenProject response",
-              "OpenProject returned data that Hookshot could not use to check this assignment.",
-            );
-          case "openproject_error":
-            return new CommandError(
-              "OpenProject unavailable",
-              "Hookshot could not check or update this assignment in OpenProject. Please try again later.",
-            );
-          default:
-            return new CommandError(
-              "OpenProject unavailable",
-              "Hookshot could not check or update this assignment in OpenProject. Please try again later.",
-            );
-        }
-      default:
-        return new CommandError(
-          "Assignment failed",
-          "Hookshot could not complete this assignment.",
-        );
-    }
   }
 
   @botCommand("assign", {
@@ -1327,7 +657,7 @@ export class OpenProjectConnection
     cliAssignee?: string,
     ...additionalAssigneeParts: string[]
   ) {
-    return this.helperChangeWorkPackageUser(
+    return this.workPackageCommandService.changeWorkPackageUser(
       "assignee",
       userId,
       reply,
@@ -1352,7 +682,7 @@ export class OpenProjectConnection
     cliAssignee?: string,
     ...additionalAssigneeParts: string[]
   ) {
-    return this.helperChangeWorkPackageUser(
+    return this.workPackageCommandService.changeWorkPackageUser(
       "responsible",
       userId,
       reply,

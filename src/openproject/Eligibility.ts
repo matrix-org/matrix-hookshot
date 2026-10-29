@@ -4,7 +4,11 @@ import {
   OpenProjectAPIClient,
   OpenProjectMalformedResponseError,
 } from "./Client";
-import type { OpenProjectUser, OpenProjectWorkPackage } from "./Types";
+import type {
+  OpenProjectUser,
+  OpenProjectWorkPackage,
+  OpenProjectWorkPackageForm,
+} from "./Types";
 
 const log = new Logger("OpenProjectEligibilityService");
 
@@ -61,10 +65,19 @@ type ContextFailure = Exclude<
   OpenProjectAssignmentResult,
   { status: "eligible" }
 >;
+type IneligibleAssignmentResult = Extract<
+  OpenProjectAssignmentResult,
+  { status: "ineligible" }
+>;
 
 type ContextResult =
   | { ok: true; context: EvaluationContext }
   | { ok: false; result: ContextFailure };
+
+interface CanonicalAssignmentTarget {
+  href: string;
+  userId: number;
+}
 
 function httpStatus(error: unknown): number | undefined {
   if (typeof error !== "object" || error === null || !("response" in error)) {
@@ -112,6 +125,7 @@ function canonicalUserHref(
       return undefined;
     }
 
+    // Example matched: "/api/v3/users/42".
     const match = /^\/api\/v3\/users\/([1-9]\d*)$/.exec(url.pathname);
     if (!match) {
       return undefined;
@@ -167,17 +181,6 @@ export class OpenProjectEligibilityService {
     if (!contextResult.ok) return contextResult.result;
 
     const { context } = contextResult;
-    if (
-      matchesUser(
-        context.workPackage._embedded.assignee,
-        context.identity.id,
-        context.identity.normalizedHref,
-        context.client.getOrigin(),
-      )
-    ) {
-      return { status: "ineligible", reason: "already_assigned" };
-    }
-
     return this.validateTargetInContext(
       workPackageId,
       { href: context.identity.href, userId: context.identity.id },
@@ -202,17 +205,6 @@ export class OpenProjectEligibilityService {
 
     const { context } = contextResult;
     if (target.kind === "self") {
-      if (
-        matchesUser(
-          context.workPackage._embedded.assignee,
-          context.identity.id,
-          context.identity.normalizedHref,
-          context.client.getOrigin(),
-        )
-      ) {
-        return { status: "ineligible", reason: "already_assigned" };
-      }
-
       return this.executeTargetInContext(
         workPackageId,
         { href: context.identity.href, userId: context.identity.id },
@@ -236,65 +228,98 @@ export class OpenProjectEligibilityService {
     action: "assign_self" | undefined,
   ): Promise<OpenProjectAssignmentResult> {
     const { client, workPackage } = context;
-    const canonicalTarget =
-      target.href === null
-        ? undefined
-        : canonicalUserHref(target.href, target.userId, client.getOrigin());
-    if (target.href !== null && canonicalTarget === undefined) {
+    if (
+      action === "assign_self" &&
+      this.isAlreadyAssigned(context, {
+        href: context.identity.normalizedHref,
+        userId: context.identity.id,
+      })
+    ) {
+      return { status: "ineligible", reason: "already_assigned" };
+    }
+
+    const normalizedTarget = this.normalizeTarget(target, client.getOrigin());
+    if (target.href !== null && normalizedTarget === undefined) {
       return { status: "ineligible", reason: "target_not_available" };
     }
-    const canonicalHref = canonicalTarget?.href ?? null;
-    const targetId = canonicalTarget?.userId;
+    const targetHref = normalizedTarget?.href ?? null;
 
     if (
-      canonicalHref !== null &&
       action === undefined &&
-      matchesUser(
-        workPackage._embedded.assignee,
-        targetId,
-        canonicalHref,
-        client.getOrigin(),
-      )
+      normalizedTarget &&
+      this.isAlreadyAssigned(context, normalizedTarget)
     ) {
       return { status: "ineligible", reason: "already_assigned" };
     }
 
     try {
-      if (canonicalHref !== null) {
-        if (targetId === undefined) {
-          return { status: "ineligible", reason: "target_not_available" };
-        }
-        const isAvailable = await client.hasAvailableAssignee(
-          workPackage.id,
-          targetId,
-        );
-        if (!isAvailable) {
-          return { status: "ineligible", reason: "target_not_available" };
-        }
+      if (
+        normalizedTarget &&
+        !(await this.isTargetAvailable(context, normalizedTarget))
+      ) {
+        return { status: "ineligible", reason: "target_not_available" };
       }
 
       const form = await client.getWorkPackageForm(workPackageId, {
         lockVersion: workPackage.lockVersion,
-        _links: { assignee: { href: canonicalHref } },
+        _links: { assignee: { href: targetHref } },
       });
-      const assigneeField = form._embedded.schema.assignee;
-      if (!assigneeField || assigneeField.writable !== true) {
-        return { status: "ineligible", reason: "assignee_not_writable" };
-      }
-      if (Object.keys(form._embedded.validationErrors).length > 0) {
-        return { status: "ineligible", reason: "assignment_invalid" };
-      }
+      const formFailure = this.validateAssignmentForm(form);
+      if (formFailure) return formFailure;
 
       return {
         status: "eligible",
         ...(action ? { action } : {}),
         workPackageId,
         lockVersion: workPackage.lockVersion,
-        targetHref: canonicalHref,
+        targetHref,
       };
     } catch (error) {
       return this.resultForError(error, "assignees_or_form");
     }
+  }
+
+  private normalizeTarget(
+    target: { href: string | null; userId?: number },
+    origin: string,
+  ): CanonicalAssignmentTarget | null | undefined {
+    if (target.href === null) return null;
+    return canonicalUserHref(target.href, target.userId, origin);
+  }
+
+  private isAlreadyAssigned(
+    context: EvaluationContext,
+    target: CanonicalAssignmentTarget,
+  ): boolean {
+    return matchesUser(
+      context.workPackage._embedded.assignee,
+      target.userId,
+      target.href,
+      context.client.getOrigin(),
+    );
+  }
+
+  private async isTargetAvailable(
+    context: EvaluationContext,
+    target: CanonicalAssignmentTarget,
+  ): Promise<boolean> {
+    return context.client.hasAvailableAssignee(
+      context.workPackage.id,
+      target.userId,
+    );
+  }
+
+  private validateAssignmentForm(
+    form: OpenProjectWorkPackageForm,
+  ): IneligibleAssignmentResult | undefined {
+    const assigneeField = form._embedded.schema.assignee;
+    if (!assigneeField || assigneeField.writable !== true) {
+      return { status: "ineligible", reason: "assignee_not_writable" };
+    }
+    if (Object.keys(form._embedded.validationErrors).length > 0) {
+      return { status: "ineligible", reason: "assignment_invalid" };
+    }
+    return undefined;
   }
 
   private async executeTargetInContext(
