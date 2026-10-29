@@ -493,4 +493,73 @@ describe("OpenProject", () => {
       '**OpenProject Admin** updated the subject for [50](http://mytestproject.com/projects/demo-project/work_packages/50): "updated test 133"',
     );
   });
+
+  test.each([
+    [undefined, false],
+    [false, true],
+  ])(
+    "should save showUrlPreviews changing from %s to %s via the widget API",
+    async (from, to) => {
+      const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const testRoomId = await user.createRoom({
+        name: "Test URL previews room",
+      });
+      const join = user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      await user.inviteUser(testEnv.botMxid, testRoomId);
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      const openProjectId =
+        OPEN_PROJECT_PAYLOAD.work_package._embedded.project.id;
+      await join;
+
+      const url = `http://mytestproject.com/projects/${openProjectId}`;
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        testRoomId,
+        OpenProjectConnection.CanonicalEventType,
+        url,
+        {
+          url,
+          events: ["work_package:created"],
+          showUrlPreviews: from,
+        } satisfies OpenProjectConnectionState,
+      );
+
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+      );
+      const [connection] = await bridgeApi.getConnectionsForRoom(testRoomId);
+
+      await bridgeApi.updateConnection(testRoomId, connection.id, {
+        ...connection.config,
+        showUrlPreviews: to,
+      });
+      expect(
+        await user.getRoomStateEventContent(
+          testRoomId,
+          OpenProjectConnection.CanonicalEventType,
+          url,
+        ),
+      ).toMatchObject({ showUrlPreviews: to });
+
+      const webhookNotice = user.waitForRoomEvent({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      await sendOpenProjectWebhook(
+        OPEN_PROJECT_PAYLOAD,
+        testEnv.opts.config?.openProject?.webhook.secret!,
+        webhooksPort,
+      );
+      const { content } = (await webhookNotice).data;
+      expect(content["com.beeper.linkpreviews"]).toEqual(to ? undefined : []);
+    },
+  );
 });
