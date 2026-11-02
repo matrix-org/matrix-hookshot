@@ -6,8 +6,9 @@ import { BridgeConfigMessaging } from "../../src/config/sections";
 import { JiraProjectConnection } from "../../src/Connections/JiraProject";
 import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
 import type { JiraVersionEvent } from "../../src/jira/WebhookTypes";
-import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
+import { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
+import { DefaultConfig } from "../../src/config/Defaults";
 
 const ROOM_ID = "!jira:example.test";
 const USER_ID = "@user:example.test";
@@ -146,5 +147,32 @@ describe("JiraProjectConnection", () => {
         intent.sentEvents[0].content["com.beeper.linkpreviews"],
       ).toBeUndefined();
     });
+  });
+
+  it("preserves messages from rejection bodies returned by jira-client", async () => {
+    const as = AppserviceMock.create();
+    const jiraClient = {
+      getProject: async () => {
+        throw { message: "Project is unavailable" };
+      },
+    };
+    const tokenStore = {
+      getJiraForUser: async () => ({
+        getClientForUrl: async () => jiraClient,
+      }),
+    } as unknown as UserTokenStore;
+    const connection = new JiraProjectConnection(
+      "!room:example.com",
+      as,
+      as.botIntent,
+      { url: "https://jira.example.com/jira/software/c/projects/PLAY" },
+      "PLAY",
+      tokenStore,
+      DefaultConfig.messaging,
+    );
+
+    await expect(connection.getIssueTypes("@user:example.com")).rejects.toThrow(
+      "Project is unavailable",
+    );
   });
 });

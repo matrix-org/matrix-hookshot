@@ -47,7 +47,7 @@ function assertParam(fragment: URLSearchParams, name: string) {
   return val;
 }
 
-export default class App extends Component<void, IState> {
+export default class App extends Component<Record<string, never>, IState> {
   constructor() {
     super();
     this.state = {
@@ -125,7 +125,7 @@ export default class App extends Component<void, IState> {
       });
     } catch (ex) {
       console.error(`Failed to set up widget:`, ex);
-      let error: string = ex.message;
+      let error = ex instanceof Error ? ex.message : "undefined";
       if (ex instanceof BridgeAPIError) {
         if (ex.errcode === "M_AS_BAD_OPENID") {
           error =
@@ -176,7 +176,12 @@ export default class App extends Component<void, IState> {
     let content;
 
     if (this.state.kind === "admin") {
-      content = <AdminSettings roomState={this.state.roomState} />;
+      content = (
+        <AdminSettings
+          roomState={this.state.roomState}
+          bridgeApi={this.state.bridgeApi}
+        />
+      );
     } else if (this.state.kind === "roomConfig") {
       content = (
         <RoomConfigView
