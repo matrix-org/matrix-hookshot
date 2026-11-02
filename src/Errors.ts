@@ -17,7 +17,7 @@ export class ConfigError extends Error {
   constructor(
     public readonly configPath: string,
     public readonly msg?: string,
-    cause?: Error,
+    cause?: unknown,
   ) {
     super(`There was an error in the config (${configPath}): ${msg}`, {
       cause,

@@ -20,7 +20,7 @@ export const ServiceAuth = ({
   const [pollStateId, setPollStateId] = useState<string | null>();
 
   const pollAuth = useCallback(
-    async (pollId) => {
+    async (pollId: string) => {
       try {
         const res = await api.getAuthPoll(service, pollId);
         if (res.state === "waiting") {
