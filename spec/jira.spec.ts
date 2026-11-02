@@ -80,6 +80,24 @@ const JIRA_PAYLOAD = {
   },
 };
 
+async function sendJiraWebhook(payload: unknown, secret: string, port: number) {
+  const webhookPayload = JSON.stringify(payload);
+  const signature = createHmac("sha256", secret)
+    .update(webhookPayload)
+    .digest("hex");
+  const req = await fetch(`http://localhost:${port}/jira/webhook`, {
+    method: "POST",
+    headers: {
+      "X-Hub-Signature": `sha256=${signature}`,
+      "x-atlassian-webhook-identifier": randomUUID(),
+      "Content-Type": "application/json",
+    },
+    body: webhookPayload,
+  });
+  expect(req.status).toBe(200);
+  expect(await req.text()).toBe("OK");
+}
+
 describe("JIRA", () => {
   let testEnv: E2ETestEnv;
   const webhooksPort = 9500 + E2ETestEnv.workerId;
@@ -187,6 +205,77 @@ describe("JIRA", () => {
       expect(body).toContain(
         'Test User created a new JIRA issue [TP-8](https://example.org/browse/TP-8): "Test issue"',
       );
+    },
+  );
+
+  test.each([
+    [undefined, false],
+    [false, true],
+  ])(
+    "should save showUrlPreviews changing from %s to %s via the widget API",
+    async (from, to) => {
+      const user = testEnv.getUser("user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const testRoomId = await user.createRoom({
+        name: "Test room",
+      });
+      const join = user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      await user.inviteUser(testEnv.botMxid, testRoomId);
+      await user.setUserPowerLevel(testEnv.botMxid, testRoomId, 50);
+      const jiraURL = JIRA_PAYLOAD.issue.fields.project.self;
+      await join;
+      const granter = new JiraGrantChecker(testEnv.app.appservice, null as any);
+      await granter.grantConnection(testRoomId, {
+        url: jiraURL,
+      });
+
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        testRoomId,
+        JiraProjectConnection.CanonicalEventType,
+        jiraURL,
+        {
+          id: JIRA_PAYLOAD.issue.fields.project.id,
+          url: jiraURL,
+          showUrlPreviews: from,
+        } satisfies JiraProjectConnectionState,
+      );
+
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(testRoomId)).length === 1,
+      );
+      const [connection] = await bridgeApi.getConnectionsForRoom(testRoomId);
+
+      await bridgeApi.updateConnection(testRoomId, connection.id, {
+        ...connection.config,
+        showUrlPreviews: to,
+      });
+      expect(
+        await user.getRoomStateEventContent(
+          testRoomId,
+          JiraProjectConnection.CanonicalEventType,
+          jiraURL,
+        ),
+      ).toMatchObject({ showUrlPreviews: to });
+
+      const webhookNotice = user.waitForRoomEvent({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId: testRoomId,
+      });
+      await sendJiraWebhook(
+        JIRA_PAYLOAD,
+        testEnv.opts.config?.jira?.webhook.secret!,
+        webhooksPort,
+      );
+      const { content } = (await webhookNotice).data;
+      expect(content["com.beeper.linkpreviews"]).toEqual(to ? undefined : []);
     },
   );
 });
