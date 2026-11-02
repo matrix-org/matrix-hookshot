@@ -12,6 +12,7 @@ import UserAgent from "../UserAgent";
 import { retry, retryMatrixErrorFilter } from "../PromiseUtil";
 import { ConnectionType } from "./type";
 import { BridgeConfigMessaging } from "../config/sections";
+import { safeGet } from "../util/object";
 const log = new Logger("FeedConnection");
 const md = new markdown({
   html: true,
@@ -92,7 +93,7 @@ export class FeedConnection extends BaseConnection implements IConnection {
       });
     } catch (ex) {
       throw new ApiError(
-        `Could not read feed from URL: ${ex.message}`,
+        `Could not read feed from URL: ${String(safeGet(ex, "message"))}`,
         ErrCode.BadValue,
       );
     }

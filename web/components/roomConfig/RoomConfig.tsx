@@ -9,7 +9,7 @@ import {
 import { BridgeAPIError } from "../../BridgeAPI";
 import { ListItem, Card } from "../elements";
 import style from "./RoomConfig.module.scss";
-import { GetConnectionsResponseItem } from "../../../src/provisioning/api";
+import { GetConnectionsResponseItem } from "../../../src/widgets/Api";
 import { IConnectionState } from "../../../src/Connections";
 import { LoadingSpinner } from "../elements/LoadingSpinner";
 import { ErrCode } from "../../../src/api";
@@ -189,7 +189,7 @@ export const RoomConfig = function <
         {error && (
           <Alert
             type="critical"
-            text={error.header || error.isWarning ? "Warning" : "Error"}
+            title={error.header || (error.isWarning ? "Warning" : "Error")}
           >
             {error.message}
           </Alert>

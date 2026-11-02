@@ -42,6 +42,7 @@ import { MessageSenderClient } from "../MatrixSender";
 import { CommandError, NotLoggedInError } from "../Errors";
 import { ReposGetResponseData } from "../github/Types";
 import { UserTokenStore } from "../tokens/UserTokenStore";
+import { safeGet } from "../util/object";
 import axios, { AxiosError } from "axios";
 import { emojify } from "node-emoji";
 import { Logger } from "matrix-appservice-bridge";
@@ -902,7 +903,9 @@ export class GitHubRepoConnection
               },
             },
           );
-          await this.sendEvent(`Failed to submit review: ${ex.message}`);
+          await this.sendEvent(
+            `Failed to submit review: ${String(safeGet(ex, "message"))}`,
+          );
         }
         return true;
       }
@@ -1074,7 +1077,7 @@ export class GitHubRepoConnection
       }
     } catch (ex) {
       throw new CommandError(
-        ex.message,
+        String(safeGet(ex, "message")),
         `Could not determine default ref (maybe pass one in)`,
       );
     }

@@ -33,6 +33,7 @@ import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
 import { BridgeConfigJira } from "../config/sections";
 import { BridgeConfigMessaging } from "../config/sections";
+import { safeGet } from "../util/object";
 
 type JiraAllowedEventsNames =
   | "issue_created"
@@ -629,7 +630,10 @@ export class JiraProjectConnection
       }
     } catch (ex) {
       log.warn("Failed to create JIRA issue:", ex);
-      throw new CommandError(ex.message, "Failed to create JIRA issue");
+      throw new CommandError(
+        String(safeGet(ex, "message")),
+        "Failed to create JIRA issue",
+      );
     }
 
     const link = generateJiraWebLinkFromIssue({
@@ -652,7 +656,10 @@ export class JiraProjectConnection
       result = await api.getProject(keyOrId);
     } catch (ex) {
       log.warn("Failed to get issue types:", ex);
-      throw new CommandError(ex.message, "Failed to get issue types");
+      throw new CommandError(
+        String(safeGet(ex, "message")),
+        "Failed to get issue types",
+      );
     }
 
     const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(", ")}`;
@@ -672,7 +679,10 @@ export class JiraProjectConnection
       await api.getIssue(issueKey);
     } catch (ex) {
       log.warn(`Failed to find issue`, ex);
-      throw new CommandError(ex.message, "Failed to find issue");
+      throw new CommandError(
+        String(safeGet(ex, "message")),
+        "Failed to find issue",
+      );
     }
 
     log.info(`Assinging issue on behalf of ${userId}`);
