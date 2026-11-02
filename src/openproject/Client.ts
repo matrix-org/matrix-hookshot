@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   OpenProjectAvailableAssigneeCollectionSchema,
   OpenProjectIdentitySchema,
+  OpenProjectStatusCollectionSchema,
   OpenProjectWorkPackageEligibilitySchema,
   OpenProjectWorkPackageFormSchema,
 } from "./Types";
@@ -230,9 +231,17 @@ export class OpenProjectAPIClient {
     }
   }
 
-  private async getCollectionElements<T>(path: string): Promise<T[]> {
+  private async getCollectionElements<T>(
+    path: string,
+    responseSchema?: z.ZodType,
+    malformedResponseMessage = "Invalid OpenProject collection response",
+  ): Promise<T[]> {
     const elements: T[] = [];
-    for await (const element of this.iterateCollection<T>(path)) {
+    for await (const element of this.iterateCollection<T>(
+      path,
+      responseSchema,
+      malformedResponseMessage,
+    )) {
       elements.push(element);
     }
     return elements;
@@ -282,11 +291,11 @@ export class OpenProjectAPIClient {
   }
 
   async getStatuses(): Promise<OpenProjectStatus[]> {
-    return (
-      await this.apiRequest<OpenProjectIterableResult<OpenProjectStatus>>(
-        `/api/v3/statuses`,
-      )
-    )._embedded.elements;
+    return this.getCollectionElements<OpenProjectStatus>(
+      `/api/v3/statuses`,
+      OpenProjectStatusCollectionSchema,
+      "Invalid OpenProject statuses collection response",
+    );
   }
 
   async getPriorities(): Promise<OpenProjectPriority[]> {

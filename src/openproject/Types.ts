@@ -22,6 +22,38 @@ export const OpenProjectLinkSchema = z
 
 export type OpenProjectLink = z.infer<typeof OpenProjectLinkSchema>;
 
+/** Validates the status fields consumed by OpenProject clients. */
+export const OpenProjectStatusSchema = z
+  .object({
+    id: z.number().int().positive(),
+    name: z.string(),
+    isClosed: z.boolean(),
+    _links: z
+      .object({
+        self: OpenProjectLinkSchema,
+      })
+      .loose(),
+  })
+  .loose();
+
+/** Validates a page of OpenProject statuses while preserving extra API fields. */
+export const OpenProjectStatusCollectionSchema = z
+  .object({
+    _embedded: z
+      .object({
+        elements: z.array(OpenProjectStatusSchema),
+      })
+      .loose(),
+    _links: z
+      .object({
+        nextByOffset: OpenProjectLinkSchema.optional(),
+        nextByCursor: OpenProjectLinkSchema.optional(),
+      })
+      .loose()
+      .optional(),
+  })
+  .loose();
+
 const OpenProjectUserReferenceSchema = z
   .object({
     id: z.number().int().positive(),

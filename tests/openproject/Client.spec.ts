@@ -562,7 +562,12 @@ describe("OpenProjectAPIClient", () => {
   it("returns collection elements for project types, statuses, and priorities", async () => {
     const request = vi.mocked(axios.request);
     const type = { id: 2, name: "Bug" };
-    const status = { id: 3, name: "New" };
+    const status = {
+      id: 3,
+      name: "New",
+      isClosed: false,
+      _links: { self: { href: "/api/v3/statuses/3" } },
+    };
     const priority = { id: 4, name: "High" };
     request
       .mockResolvedValueOnce({
@@ -580,6 +585,107 @@ describe("OpenProjectAPIClient", () => {
     await expect(client.getStatuses()).resolves.toEqual([status]);
     await expect(client.getPriorities()).resolves.toEqual([priority]);
     expect(request).toHaveBeenCalledTimes(3);
+  });
+
+  it("follows every page and preserves full status objects", async () => {
+    const request = vi.mocked(axios.request);
+    const firstStatus = {
+      id: 3,
+      name: "New",
+      isClosed: false,
+      _links: { self: { href: "/api/v3/statuses/3", title: "New" } },
+    };
+    const closedStatus = {
+      id: 4,
+      name: "Resolved",
+      isClosed: true,
+      _links: { self: { href: "/api/v3/statuses/4", title: "Resolved" } },
+    };
+    request
+      .mockResolvedValueOnce({
+        data: {
+          _embedded: { elements: [firstStatus] },
+          _links: {
+            nextByOffset: { href: "/api/v3/statuses?offset=1" },
+          },
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        data: { _embedded: { elements: [closedStatus] } },
+      } as never);
+    const client = createClient();
+
+    await expect(client.getStatuses()).resolves.toEqual([
+      firstStatus,
+      closedStatus,
+    ]);
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ url: `${BASE_URL}api/v3/statuses` }),
+    );
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ url: `${BASE_URL}api/v3/statuses?offset=1` }),
+    );
+  });
+
+  it("rejects malformed statuses and unsafe pagination links", async () => {
+    const request = vi.mocked(axios.request);
+    const client = createClient();
+
+    request.mockResolvedValueOnce({
+      data: { _embedded: { elements: [{ id: 3, name: "Closed" }] } },
+    } as never);
+    await expect(client.getStatuses()).rejects.toThrow(
+      "Invalid OpenProject statuses collection response",
+    );
+
+    request.mockResolvedValueOnce({
+      data: {
+        _embedded: { elements: [] },
+        _links: {
+          nextByOffset: {
+            href: "https://other.example/api/v3/statuses?offset=1",
+          },
+        },
+      },
+    } as never);
+    await expect(client.getStatuses()).rejects.toThrow(
+      "OpenProject returned a link for a different origin",
+    );
+  });
+
+  it("rejects cyclic status pagination and returns an empty collection", async () => {
+    const request = vi.mocked(axios.request);
+    const client = createClient();
+
+    request
+      .mockResolvedValueOnce({
+        data: {
+          _embedded: { elements: [] },
+          _links: {
+            nextByOffset: { href: "/api/v3/statuses?offset=1" },
+          },
+        },
+      } as never)
+      .mockResolvedValueOnce({
+        data: {
+          _embedded: { elements: [] },
+          _links: {
+            nextByOffset: { href: "/api/v3/statuses?offset=1" },
+          },
+        },
+      } as never);
+
+    await expect(client.getStatuses()).rejects.toThrow(
+      "OpenProject returned a cyclic collection page link",
+    );
+    expect(request).toHaveBeenCalledTimes(2);
+
+    request.mockResolvedValueOnce({
+      data: { _embedded: { elements: [] } },
+    } as never);
+    await expect(client.getStatuses()).resolves.toEqual([]);
   });
 
   it("sends the expected create and comment payloads", async () => {
