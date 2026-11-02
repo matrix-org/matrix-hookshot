@@ -437,7 +437,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
         org,
       });
     } catch (ex) {
-      if (ex.status === 404) {
+      if (ex instanceof Error && "status" in ex && ex.status === 404) {
         return this.sendNotice(
           `${repo ? "Repository" : "Org"} does not exist.`,
         );
@@ -481,7 +481,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
       });
       return this.emit("open.project", project.data);
     } catch (ex) {
-      if (ex.status === 404) {
+      if (ex instanceof Error && "status" in ex && ex.status === 404) {
         return this.sendNotice("Project does not exist.");
       }
       log.warn(`Failed to fetch project:`, ex);
@@ -520,7 +520,7 @@ export class AdminRoom extends AdminRoomCommandHandler {
       );
       return this.emit("open.discussion", owner, repo, discussions);
     } catch (ex) {
-      if (ex.status === 404) {
+      if (ex instanceof Error && "status" in ex && ex.status === 404) {
         return this.sendNotice("Discussion does not exist.");
       }
       log.warn(`Failed to fetch discussions:`, ex);

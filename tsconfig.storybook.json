@@ -12,12 +12,7 @@
   },
   "include": [
     ".storybook/**/*.ts",
-    ".storybook/**/*.tsx",
-    "modules/**/*.ts",
-    "modules/**/*.tsx",
-    "web/**/*.stories.ts",
-    "web/**/*.stories.tsx",
-    "web/**/*.stories.mdx"
+    ".storybook/**/*.tsx"
   ],
   "exclude": ["node_modules", "lib", "public"]
 }
