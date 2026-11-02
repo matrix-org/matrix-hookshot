@@ -21,9 +21,10 @@ import {
   type HookshotCapabilitiesProbeRequest,
 } from "../../src/ToDeviceProtocol";
 import { AppserviceMock } from "../utils/AppserviceMock";
-import { BASE_URL } from "../openproject/WorkPackageFixtures";
+import { BASE_URL, WORK_PACKAGE } from "../openproject/WorkPackageFixtures";
 
 const ROOM_ID = "!openproject:example.test";
+const USER_ID = "@user:example.test";
 const PROJECT_URL = `${BASE_URL}projects/1`;
 const ALL_EVENTS: OpenProjectEventsNames[] = [
   "work_package:created",
@@ -37,11 +38,12 @@ const ALL_EVENTS: OpenProjectEventsNames[] = [
   "work_package:subject_changed",
 ];
 
-function createConnectionState(
+function createConnection(
   state: Record<string, unknown> = {},
+  messaging = new BridgeConfigMessaging(),
   intentOverride?: Intent,
   storageOverride?: InstantiateConnectionOpts["storage"],
-): OpenProjectConnection {
+) {
   const appservice = AppserviceMock.create();
   const intent =
     intentOverride ??
@@ -51,10 +53,10 @@ function createConnectionState(
       baseUrl: BASE_URL.href,
       webhook: { secret: "secret" },
     }),
-    messaging: new BridgeConfigMessaging(),
+    messaging,
   } as unknown as BridgeConfig;
 
-  return OpenProjectConnection.createConnectionForState(
+  const connection = OpenProjectConnection.createConnectionForState(
     ROOM_ID,
     {
       stateKey: "state-key",
@@ -71,9 +73,28 @@ function createConnectionState(
       tokenStore: {} as UserTokenStore,
       commentProcessor: undefined as never,
       messageClient: undefined as never,
-      storage: storageOverride ?? ({} as InstantiateConnectionOpts["storage"]),
+      storage:
+        storageOverride ??
+        ({
+          getOpenProjectWorkPackageState: async () => null,
+          setOpenProjectWorkPackageState: async () => undefined,
+        } as unknown as InstantiateConnectionOpts["storage"]),
     },
   );
+  return { connection, intent };
+}
+
+function createConnectionState(
+  state: Record<string, unknown> = {},
+  intentOverride?: Intent,
+  storageOverride?: InstantiateConnectionOpts["storage"],
+): OpenProjectConnection {
+  return createConnection(
+    state,
+    new BridgeConfigMessaging(),
+    intentOverride,
+    storageOverride,
+  ).connection;
 }
 
 function expectBadValue(state: Record<string, unknown>): void {
@@ -458,5 +479,93 @@ describe("OpenProjectConnection", () => {
       "work_package:created",
     ]);
     sendStateEventSpy.mockRestore();
+  });
+
+  describe("showUrlPreviews", () => {
+    it.each([true, false])(
+      "keeps showUrlPreviews=%s from the room state",
+      (showUrlPreviews) => {
+        const connection = createConnectionState({ showUrlPreviews });
+
+        expect(connection.getProvisionerDetails().config.showUrlPreviews).toBe(
+          showUrlPreviews,
+        );
+      },
+    );
+
+    it("rejects a non-boolean showUrlPreviews", () => {
+      expectBadValue({ showUrlPreviews: "false" });
+    });
+
+    it.each([
+      [undefined, false],
+      [false, true],
+      [true, false],
+    ])(
+      "saves a showUrlPreviews change from %s to %s to the room state",
+      async (from, to) => {
+        const { connection, intent } = createConnection({
+          showUrlPreviews: from,
+        });
+        const sendStateEvent = vi.spyOn(
+          intent.underlyingClient,
+          "sendStateEvent",
+        );
+
+        await connection.provisionerUpdateConfig(USER_ID, {
+          ...connection.getProvisionerDetails().config,
+          showUrlPreviews: to,
+        });
+
+        expect(sendStateEvent).toHaveBeenCalledExactlyOnceWith(
+          ROOM_ID,
+          OpenProjectConnection.CanonicalEventType,
+          "state-key",
+          expect.objectContaining({ showUrlPreviews: to }),
+        );
+        expect(connection.getProvisionerDetails().config.showUrlPreviews).toBe(
+          to,
+        );
+      },
+    );
+
+    it("disables URL previews on messages after turning showUrlPreviews off", async () => {
+      const { connection, intent } = createConnection();
+
+      await connection.provisionerUpdateConfig(USER_ID, {
+        ...connection.getProvisionerDetails().config,
+        showUrlPreviews: false,
+      });
+      await connection.onWorkPackageUpdated({
+        action: "work_package:updated",
+        work_package: WORK_PACKAGE,
+      });
+
+      expect(intent.sentEvents).toHaveLength(1);
+      expect(intent.sentEvents[0].content["com.beeper.linkpreviews"]).toEqual(
+        [],
+      );
+    });
+
+    it("allows URL previews on messages after turning showUrlPreviews on, even when disabled globally", async () => {
+      const { connection, intent } = createConnection(
+        { showUrlPreviews: false },
+        new BridgeConfigMessaging({ allowUrlPreviews: false }),
+      );
+
+      await connection.provisionerUpdateConfig(USER_ID, {
+        ...connection.getProvisionerDetails().config,
+        showUrlPreviews: true,
+      });
+      await connection.onWorkPackageUpdated({
+        action: "work_package:updated",
+        work_package: WORK_PACKAGE,
+      });
+
+      expect(intent.sentEvents).toHaveLength(1);
+      expect(
+        intent.sentEvents[0].content["com.beeper.linkpreviews"],
+      ).toBeUndefined();
+    });
   });
 });

@@ -7,12 +7,12 @@ import {
   UpdateMessageViewModel,
   type UpdateViewSnapshot,
 } from "../../viewmodels/workPackage/UpdateMessageViewModel";
+import { minimalWorkPackage } from "../../../storybook/fixtures";
 
 const updateBase = {
   "org.matrix.matrix-hookshot.openproject.work_package": {
-    id: 57,
+    ...minimalWorkPackage,
     subject: "Add project overview",
-    url: "https://openproject.example/work_packages/57",
   },
   "org.matrix.matrix-hookshot.openproject.schema_version": 1,
   "org.matrix.matrix-hookshot.openproject.event_kind": "update",

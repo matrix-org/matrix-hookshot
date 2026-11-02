@@ -10,16 +10,11 @@
     "moduleResolution": "bundler",
     "types": ["vite/client"],
     "esModuleInterop": true,
+    "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src"],
-  "exclude": [
-    "src/**/*.stories.ts",
-    "src/**/*.stories.tsx",
-    "src/**/storybook.*.ts",
-    "src/**/storybook.*.tsx"
-  ]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "e2e/**/*.ts", "e2e/**/*.tsx"]
 }
