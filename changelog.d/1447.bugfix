@@ -1,0 +1,2 @@
+Fix generic webhook connections being lost after restart, when created via `!webhook` while having
+service bots configured.
