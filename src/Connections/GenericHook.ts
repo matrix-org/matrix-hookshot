@@ -298,6 +298,45 @@ export class GenericHookConnection
     return Object.entries(acctData).find(([, v]) => v === stateKey)?.[0];
   }
 
+  /**
+   * Search the account data of other bot users for the hookId of a connection. Older versions
+   * of hookshot could store the hookId with a different bot from the one that now owns the
+   * connection (e.g. a connection created via the main bot in a room with a service bot).
+   * The data is deliberately not migrated, as the other bot may no longer be in the room.
+   * @returns The hookId and the intent of the bot it was found with, or undefined if no other bot has one.
+   */
+  static async findHookIdFromOtherBots(
+    intent: Intent,
+    botIntents: Intent[],
+    roomId: string,
+    stateKey: string,
+    sender: string,
+  ): Promise<{ hookId: string; accountDataIntent: Intent } | undefined> {
+    // Prefer the bot that sent the state, as it most likely provisioned the connection.
+    const candidates = botIntents
+      .filter((i) => i.userId !== intent.userId)
+      .sort(
+        (a, b) => Number(b.userId === sender) - Number(a.userId === sender),
+      );
+    for (const candidate of candidates) {
+      try {
+        const hookId = await this.getHookId(candidate, roomId, stateKey);
+        if (hookId) {
+          log.info(
+            `Found hookId for "${stateKey}" in ${roomId} in account data of ${candidate.userId}`,
+          );
+          return { hookId, accountDataIntent: candidate };
+        }
+      } catch (ex) {
+        log.warn(
+          `Failed to check account data of ${candidate.userId} for hookId in ${roomId}`,
+          ex,
+        );
+      }
+    }
+    return undefined;
+  }
+
   static async createConnectionForState(
     roomId: string,
     event: StateEvent<Record<string, unknown>>,
@@ -308,6 +347,7 @@ export class GenericHookConnection
       messageClient,
       storage,
       isStatic,
+      botIntents,
     }: InstantiateConnectionOpts,
   ) {
     if (!config.generic?.enabled) {
@@ -334,12 +374,27 @@ export class GenericHookConnection
     }
     // Generic hooks store the hookId in the account data
     let hookId = await this.getHookId(intent, roomId, event.stateKey);
+    let accountDataIntent = intent;
+
+    // The hookId may be stored with a different bot.
+    if (!hookId && botIntents) {
+      const found = await this.findHookIdFromOtherBots(
+        intent,
+        botIntents,
+        roomId,
+        event.stateKey,
+        event.sender,
+      );
+      if (found) {
+        ({ hookId, accountDataIntent } = found);
+      }
+    }
 
     // This should ONLY happen if the user created the state.
     if (!hookId) {
       if (as.isNamespacedUser(event.sender)) {
         throw new Error(
-          `No hookId found for "${state.name}". Refusing to generate a hookId as it's owned by us.`,
+          `No hookId found for "${state.name}" in account data of ${intent.userId} (state sent by ${event.sender}). Refusing to generate a hookId as it's owned by us.`,
         );
       } else {
         // This state was last edited by something other than hookshot, so it's plausible we do not
@@ -373,6 +428,7 @@ export class GenericHookConnection
       storage,
       config.messaging,
       false,
+      accountDataIntent,
     );
   }
 
@@ -506,6 +562,10 @@ export class GenericHookConnection
     private readonly storage: IBridgeStorageProvider,
     private readonly msgConfig: BridgeConfigMessaging,
     public readonly isStatic = false,
+    /**
+     * The bot user whose account data holds the hookId, if not the bot that owns the connection.
+     */
+    private readonly accountDataIntent: Intent = intent,
   ) {
     super(roomId, stateKey, GenericHookConnection.CanonicalEventType);
     if (state.transformationFunction && WebhookTransformer.canTransform) {
@@ -864,13 +924,25 @@ export class GenericHookConnection
       this.stateKey,
       GenericHookConnection,
     );
-    await GenericHookConnection.ensureRoomAccountData(
-      this.roomId,
-      this.intent,
-      this.hookId,
-      this.stateKey,
-      true,
-    );
+    try {
+      await GenericHookConnection.ensureRoomAccountData(
+        this.roomId,
+        this.accountDataIntent,
+        this.hookId,
+        this.stateKey,
+        true,
+      );
+    } catch (ex) {
+      if (this.accountDataIntent === this.intent) {
+        throw ex;
+      }
+      // The bot holding the hookId may no longer be in the room. The connection state
+      // is already removed, so a leftover hookId is harmless.
+      log.warn(
+        `Failed to remove hookId for "${this.stateKey}" from account data of ${this.accountDataIntent.userId}`,
+        ex,
+      );
+    }
   }
 
   public async provisionerUpdateConfig(
