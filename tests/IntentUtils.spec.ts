@@ -8,16 +8,16 @@ const SENDER_USER_ID = "@my_target:foo";
 
 describe("IntentUtils", () => {
   describe("ensureUserIsInRoom", () => {
-    it("no-ops if the user is already joined to the room", () => {
+    it("no-ops if the user is already joined to the room", async () => {
       const targetIntent = IntentMock.create(SENDER_USER_ID);
       targetIntent.ensureJoined = () => {
         /* No-op */
       };
       const matrixClient = MatrixClientMock.create();
-      ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);
+      await ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);
     });
 
-    it("invites the user to the room and joins", () => {
+    it("invites the user to the room and joins", async () => {
       const targetIntent = IntentMock.create(SENDER_USER_ID);
       const matrixClient = MatrixClientMock.create();
       let hasInvited = false;
@@ -39,7 +39,7 @@ describe("IntentUtils", () => {
         hasInvited = true;
       };
 
-      ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);
+      await ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID);
       expect(hasInvited).toBe(true);
     });
 
@@ -59,6 +59,29 @@ describe("IntentUtils", () => {
       ).rejects.toThrow(
         `Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`,
       );
+    });
+
+    it("does not invite for a plain object with a forbidden error code", async () => {
+      const targetIntent = IntentMock.create(SENDER_USER_ID);
+      const matrixClient = MatrixClientMock.create();
+      let hasInvited = false;
+
+      targetIntent.ensureJoined = () => {
+        if (hasInvited) {
+          return;
+        }
+        throw { errcode: "M_FORBIDDEN" };
+      };
+      matrixClient.inviteUser = () => {
+        hasInvited = true;
+      };
+
+      await expect(
+        ensureUserIsInRoom(targetIntent, matrixClient, ROOM_ID),
+      ).rejects.toThrow(
+        `Could not ensure that ${SENDER_USER_ID} is in ${ROOM_ID}`,
+      );
+      expect(hasInvited).toBe(false);
     });
   });
 });

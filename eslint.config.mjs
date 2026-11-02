@@ -4,7 +4,7 @@ import react from "eslint-plugin-react";
 
 export default [
     {
-        ignores: ["lib/**/*", "spec-lib/**/*", "contrib/**/*"],
+        ignores: ["lib/**/*", "spec-lib/**/*", "contrib/**/*", "modules/**/lib/**"],
     },
     ...tseslint.config(
         {

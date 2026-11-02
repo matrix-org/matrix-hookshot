@@ -1,0 +1,1 @@
+Configure Renovate to dedupe pnpm dependencies, and dedupe the lockfile.

@@ -902,7 +902,9 @@ export class GitHubRepoConnection
               },
             },
           );
-          await this.sendEvent(`Failed to submit review: ${ex.message}`);
+          await this.sendEvent(
+            `Failed to submit review: ${ex instanceof Error ? ex.message : "undefined"}`,
+          );
         }
         return true;
       }
@@ -1074,7 +1076,7 @@ export class GitHubRepoConnection
       }
     } catch (ex) {
       throw new CommandError(
-        ex.message,
+        ex instanceof Error ? ex.message : "undefined",
         `Could not determine default ref (maybe pass one in)`,
       );
     }
