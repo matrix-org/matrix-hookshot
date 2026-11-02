@@ -1027,6 +1027,53 @@ describe("OpenProjectConnection", () => {
     );
   });
 
+  it("validates a completion status when provisioning a new connection", async () => {
+    const appservice = AppserviceMock.create();
+    const intent = appservice.getIntentForUserId("@hookshot:example.test");
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+    const client = {
+      getProject: vi.fn().mockResolvedValue({}),
+      getStatuses: vi.fn().mockResolvedValue([
+        {
+          id: 7,
+          name: "Resolved",
+          isClosed: true,
+          _links: { self: { href: "/api/v3/statuses/7" } },
+        },
+      ]),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(client),
+    } as unknown as UserTokenStore;
+
+    const result = await OpenProjectConnection.provisionConnection(
+      ROOM_ID,
+      "@alice:example.test",
+      { url: PROJECT_URL, completionStatusOptionId: "7" },
+      {
+        as: appservice,
+        intent,
+        config,
+        tokenStore,
+        commentProcessor: undefined as never,
+        messageClient: undefined as never,
+        storage: {} as InstantiateConnectionOpts["storage"],
+        getAllConnectionsOfType: () => [],
+      },
+    );
+
+    expect(client.getStatuses).toHaveBeenCalledOnce();
+    expect(
+      result.connection.getProvisionerDetails().config.completionStatusOptionId,
+    ).toBe("7");
+  });
+
   it("rejects provisioning when the selected bot is not joined", async () => {
     const appservice = AppserviceMock.create();
     const selectedIntent = appservice.getIntentForUserId(
@@ -1103,6 +1150,22 @@ describe("OpenProjectConnection", () => {
       expect(connection.getProvisionerDetails().config.anchors).toEqual([]);
     });
 
+    it("keeps legacy state without a completion status and preserves a configured ID", () => {
+      const legacyConnection = createConnectionState();
+      const configuredConnection = createConnectionState({
+        completionStatusOptionId: "7",
+      });
+
+      expect(
+        legacyConnection.getProvisionerDetails().config
+          .completionStatusOptionId,
+      ).toBeUndefined();
+      expect(
+        configuredConnection.getProvisionerDetails().config
+          .completionStatusOptionId,
+      ).toBe("7");
+    });
+
     it.each([
       ["a missing URL", { url: undefined }],
       ["a non-string URL", { url: 123 }],
@@ -1130,6 +1193,14 @@ describe("OpenProjectConnection", () => {
       ],
     ])("rejects %s", (_description, state) => {
       expectBadValue(state);
+    });
+
+    it.each([
+      ["a numeric completion status option ID", 7],
+      ["an empty completion status option ID", ""],
+      ["a null completion status option ID", null],
+    ])("rejects %s", (_description, completionStatusOptionId) => {
+      expectBadValue({ completionStatusOptionId });
     });
 
     it("rejects an unsupported event name", () => {
@@ -1166,6 +1237,137 @@ describe("OpenProjectConnection", () => {
     expect(connection.getProvisionerDetails().config.anchors).toEqual([
       "work_package:created",
     ]);
+    sendStateEventSpy.mockRestore();
+  });
+
+  it("validates a newly selected completion status with the editing user's account", async () => {
+    const appservice = AppserviceMock.create();
+    const intent = appservice.getIntentForUserId("@openproject:example.test");
+    const client = {
+      getStatuses: vi.fn().mockResolvedValue([
+        {
+          id: 7,
+          name: "Resolved",
+          isClosed: true,
+          _links: { self: { href: "/api/v3/statuses/7" } },
+        },
+      ]),
+    };
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(client),
+    } as unknown as UserTokenStore;
+    const connection = createConnectionState({}, intent, undefined, tokenStore);
+    const sendStateEventSpy = vi
+      .spyOn(intent.underlyingClient, "sendStateEvent")
+      .mockResolvedValue("$state");
+
+    await connection.provisionerUpdateConfig("@alice:example.test", {
+      completionStatusOptionId: "7",
+    });
+
+    expect(tokenStore.getOpenProjectForUser).toHaveBeenCalledWith(
+      "@alice:example.test",
+    );
+    expect(client.getStatuses).toHaveBeenCalledOnce();
+    expect(sendStateEventSpy).toHaveBeenCalledWith(
+      ROOM_ID,
+      OpenProjectConnection.CanonicalEventType,
+      "state-key",
+      expect.objectContaining({ completionStatusOptionId: "7" }),
+    );
+    expect(
+      connection.getProvisionerDetails().config.completionStatusOptionId,
+    ).toBe("7");
+    sendStateEventSpy.mockRestore();
+  });
+
+  it.each([
+    ["an open status", [{ id: 7, name: "In progress", isClosed: false }]],
+    ["a missing status", [{ id: 8, name: "Resolved", isClosed: true }]],
+  ])(
+    "rejects a new completion target when it is %s",
+    async (_description, statuses) => {
+      const appservice = AppserviceMock.create();
+      const intent = appservice.getIntentForUserId("@openproject:example.test");
+      const client = { getStatuses: vi.fn().mockResolvedValue(statuses) };
+      const tokenStore = {
+        getOpenProjectForUser: vi.fn().mockResolvedValue(client),
+      } as unknown as UserTokenStore;
+      const connection = createConnectionState(
+        {},
+        intent,
+        undefined,
+        tokenStore,
+      );
+      const sendStateEventSpy = vi
+        .spyOn(intent.underlyingClient, "sendStateEvent")
+        .mockResolvedValue("$state");
+
+      await expect(
+        connection.provisionerUpdateConfig("@alice:example.test", {
+          completionStatusOptionId: "7",
+        }),
+      ).rejects.toMatchObject({
+        errcode: ErrCode.BadValue,
+        error:
+          "completionStatusOptionId must identify a closed OpenProject status",
+      });
+      expect(sendStateEventSpy).not.toHaveBeenCalled();
+      expect(
+        connection.getProvisionerDetails().config.completionStatusOptionId,
+      ).toBeUndefined();
+      sendStateEventSpy.mockRestore();
+    },
+  );
+
+  it("rejects setting a completion target when the editing user is disconnected", async () => {
+    const appservice = AppserviceMock.create();
+    const intent = appservice.getIntentForUserId("@openproject:example.test");
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn().mockResolvedValue(null),
+    } as unknown as UserTokenStore;
+    const connection = createConnectionState({}, intent, undefined, tokenStore);
+    const sendStateEventSpy = vi
+      .spyOn(intent.underlyingClient, "sendStateEvent")
+      .mockResolvedValue("$state");
+
+    await expect(
+      connection.provisionerUpdateConfig("@alice:example.test", {
+        completionStatusOptionId: "7",
+      }),
+    ).rejects.toMatchObject({
+      errcode: ErrCode.ForbiddenUser,
+      error: "User is not authenticated with OpenProject",
+    });
+    expect(sendStateEventSpy).not.toHaveBeenCalled();
+    sendStateEventSpy.mockRestore();
+  });
+
+  it("allows unrelated edits when a persisted completion status has become stale", async () => {
+    const appservice = AppserviceMock.create();
+    const intent = appservice.getIntentForUserId("@openproject:example.test");
+    const tokenStore = {
+      getOpenProjectForUser: vi.fn(),
+    } as unknown as UserTokenStore;
+    const connection = createConnectionState(
+      { completionStatusOptionId: "99" },
+      intent,
+      undefined,
+      tokenStore,
+    );
+    const sendStateEventSpy = vi
+      .spyOn(intent.underlyingClient, "sendStateEvent")
+      .mockResolvedValue("$state");
+
+    await connection.provisionerUpdateConfig("@alice:example.test", {
+      anchors: ["work_package:created"],
+    });
+
+    expect(tokenStore.getOpenProjectForUser).not.toHaveBeenCalled();
+    expect(sendStateEventSpy).toHaveBeenCalledOnce();
+    expect(
+      connection.getProvisionerDetails().config.completionStatusOptionId,
+    ).toBe("99");
     sendStateEventSpy.mockRestore();
   });
 });

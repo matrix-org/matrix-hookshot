@@ -9,6 +9,7 @@ import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
 const CLOSED_STATUS = {
+  id: 9,
   name: "Done",
   isClosed: true,
   _links: { self: { href: "/api/v3/statuses/9" } },
@@ -35,12 +36,16 @@ function createHarness() {
     addWorkPackageComment,
   } as unknown as OpenProjectAPIClient;
   const getOpenProjectForUser = vi.fn().mockResolvedValue(client);
+  const getCompletionStatusOptionId = vi.fn(
+    (): string | undefined => undefined,
+  );
   const getWorkPackageIDFromReply = vi.fn((): number | undefined => undefined);
   const context = {
     projectId: WORK_PACKAGE._embedded.project.id,
     interestedInProject: vi.fn(() => true),
     baseURL: BASE_URL,
     tokenStore: { getOpenProjectForUser } as unknown as UserTokenStore,
+    getCompletionStatusOptionId,
     getWorkPackageIDFromReply,
   } as unknown as OpenProjectWorkPackageCommandContext;
   const eligibilityService = {
@@ -56,6 +61,7 @@ function createHarness() {
     context,
     client,
     getOpenProjectForUser,
+    getCompletionStatusOptionId,
     getTypesInProject,
     createWorkPackage,
     getStatuses,
@@ -137,6 +143,50 @@ describe("OpenProjectWorkPackageCommandService", () => {
   });
 
   describe("closeWorkPackage", () => {
+    it("uses the configured status option ID by matching the OpenProject ID", async () => {
+      const {
+        service,
+        getCompletionStatusOptionId,
+        getStatuses,
+        updateWorkPackage,
+      } = createHarness();
+      const otherClosedStatus = {
+        id: 10,
+        name: "Archived",
+        isClosed: true,
+        _links: { self: { href: "/api/v3/statuses/10" } },
+      };
+      getCompletionStatusOptionId.mockReturnValue("9");
+      getStatuses.mockResolvedValue([otherClosedStatus, CLOSED_STATUS]);
+
+      await service.closeWorkPackage(
+        "@alice:example.org",
+        undefined,
+        String(WORK_PACKAGE.id),
+      );
+
+      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+        _links: { status: { href: CLOSED_STATUS._links.self.href } },
+      });
+    });
+
+    it("does not fall back when the configured status option is stale", async () => {
+      const { service, getCompletionStatusOptionId, updateWorkPackage } =
+        createHarness();
+      getCompletionStatusOptionId.mockReturnValue("404");
+
+      await expect(
+        service.closeWorkPackage(
+          "@alice:example.org",
+          undefined,
+          String(WORK_PACKAGE.id),
+        ),
+      ).rejects.toMatchObject({
+        message: "Configured completion status is unavailable",
+      });
+      expect(updateWorkPackage).not.toHaveBeenCalled();
+    });
+
     it("uses a closed status and adds the optional comment after closing", async () => {
       const { service, updateWorkPackage, addWorkPackageComment } =
         createHarness();

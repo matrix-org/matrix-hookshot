@@ -79,6 +79,7 @@ export interface OpenProjectConnectionState extends IConnectionState {
   url: string;
   events: OpenProjectEventsNames[];
   anchors: OpenProjectEventsNames[];
+  completionStatusOptionId?: string;
 }
 
 export type OpenProjectResponseItem =
@@ -104,7 +105,7 @@ function validateOpenProjectConnectionState(
   state: unknown,
   baseUrl: URL,
 ): OpenProjectConnectionState {
-  const { url, commandPrefix, priority } =
+  const { url, commandPrefix, priority, completionStatusOptionId } =
     state as Partial<OpenProjectConnectionState>;
   if (url === undefined || typeof url !== "string") {
     throw new ApiError("Expected 'url' to be a string", ErrCode.BadValue);
@@ -121,6 +122,16 @@ function validateOpenProjectConnectionState(
   }
   // Validate the URL
   OpenProjectConnection.projectIdFromUrl(parsedUrl);
+  if (
+    completionStatusOptionId !== undefined &&
+    (typeof completionStatusOptionId !== "string" ||
+      completionStatusOptionId.length === 0)
+  ) {
+    throw new ApiError(
+      "Expected 'completionStatusOptionId' to be a non-empty string",
+      ErrCode.BadValue,
+    );
+  }
   if (commandPrefix) {
     if (typeof commandPrefix !== "string") {
       throw new ApiError(
@@ -154,7 +165,39 @@ function validateOpenProjectConnectionState(
       ErrCode.BadValue,
     );
   }
-  return { url, commandPrefix, events, anchors, priority };
+  return {
+    url,
+    commandPrefix,
+    events,
+    anchors,
+    priority,
+    completionStatusOptionId,
+  };
+}
+
+async function validateCompletionStatusOption(
+  tokenStore: UserTokenStore,
+  userId: string,
+  completionStatusOptionId: string,
+): Promise<void> {
+  const client = await tokenStore.getOpenProjectForUser(userId);
+  if (!client) {
+    throw new ApiError(
+      "User is not authenticated with OpenProject",
+      ErrCode.ForbiddenUser,
+    );
+  }
+
+  const statuses = await client.getStatuses();
+  const status = statuses.find(
+    (candidate) => String(candidate.id) === completionStatusOptionId,
+  );
+  if (!status || !status.isClosed) {
+    throw new ApiError(
+      "completionStatusOptionId must identify a closed OpenProject status",
+      ErrCode.BadValue,
+    );
+  }
 }
 
 const log = new Logger("OpenProjectConnection");
@@ -320,6 +363,13 @@ export class OpenProjectConnection
       `Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`,
     );
     await this.assertUserHasAccessToProject(tokenStore, userId, validData.url);
+    if (validData.completionStatusOptionId !== undefined) {
+      await validateCompletionStatusOption(
+        tokenStore,
+        userId,
+        validData.completionStatusOptionId,
+      );
+    }
     const connection = new OpenProjectConnection(
       roomId,
       as,
@@ -483,6 +533,7 @@ export class OpenProjectConnection
         projectId: this.projectId,
         baseURL: this.config.baseURL,
         tokenStore: this.tokenStore,
+        getCompletionStatusOptionId: () => this.state.completionStatusOptionId,
         interestedInProject: (projectId) => this.interestedInProject(projectId),
         getWorkPackageIDFromReply: (reply) =>
           this.getWorkPackageIDFromReply(reply),
@@ -841,6 +892,17 @@ export class OpenProjectConnection
       throw new ApiError(
         "Project URL cannot be changed. Create a new connection instead.",
         ErrCode.UnsupportedOperation,
+      );
+    }
+    if (
+      validatedConfig.completionStatusOptionId !== undefined &&
+      validatedConfig.completionStatusOptionId !==
+        this.state.completionStatusOptionId
+    ) {
+      await validateCompletionStatusOption(
+        this.tokenStore,
+        userId,
+        validatedConfig.completionStatusOptionId,
       );
     }
     await this.intent.underlyingClient.sendStateEvent(

@@ -3,6 +3,7 @@ import type { MatrixEvent, MessageEventContent } from "matrix-bot-sdk";
 import { CommandError, NotLoggedInError } from "../Errors";
 import type { UserTokenStore } from "../tokens/UserTokenStore";
 import type { OpenProjectAPIClient } from "./Client";
+import type { OpenProjectStatus } from "./Types";
 import {
   OpenProjectEligibilityService,
   type OpenProjectAssignmentResult,
@@ -15,6 +16,7 @@ import { parseAssignmentCommandArguments } from "./CommandParser";
 export interface OpenProjectWorkPackageCommandContext extends OpenProjectEligibilityConnection {
   readonly baseURL: URL;
   readonly tokenStore: UserTokenStore;
+  getCompletionStatusOptionId(): string | undefined;
   getWorkPackageIDFromReply(reply?: MatrixEvent<unknown>): number | undefined;
 }
 
@@ -116,13 +118,28 @@ export class OpenProjectWorkPackageCommandService {
     }
 
     const validStatuses = await client.getStatuses();
-    const closedStatus =
-      validStatuses.find((status) => status.name.toLowerCase() === "closed") ??
-      validStatuses.find((status) => status.isClosed);
+    const completionStatusOptionId = this.context.getCompletionStatusOptionId();
+    let closedStatus: OpenProjectStatus | undefined;
+    if (completionStatusOptionId !== undefined) {
+      closedStatus = validStatuses.find(
+        (status) =>
+          String(status.id) === completionStatusOptionId && status.isClosed,
+      );
+    } else {
+      // Kept the fallback behaviour for backwards compatibility, but it is not recommended to rely on this.
+      closedStatus = validStatuses.find(
+        (status) => status.name.toLowerCase() === "closed",
+      );
+      closedStatus ??= validStatuses.find((status) => status.isClosed);
+    }
     if (!closedStatus) {
       throw new CommandError(
-        "No closed status on OpenProject",
-        "This instance doesn't have a closed status, so the work package cannot be closed.",
+        completionStatusOptionId === undefined
+          ? "No closed status on OpenProject"
+          : "Configured completion status is unavailable",
+        completionStatusOptionId === undefined
+          ? "This instance doesn't have a closed status, so the work package cannot be closed."
+          : "The selected completion status is missing or no longer closed.",
       );
     }
 
