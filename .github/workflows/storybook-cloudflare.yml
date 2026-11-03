@@ -1,0 +1,57 @@
+name: Upload Storybook to Cloudflare Pages
+
+on:
+  # This workflow can access the Cloudflare deployment credentials. Do not check
+  # out or execute pull-request source code here: only deploy the artifact from
+  # the unprivileged build workflow.
+  # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: ["Build Storybook"]
+    types: [completed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: ${{ github.event.workflow_run.event == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  deploy:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    name: Upload Storybook
+    runs-on: ubuntu-24.04
+    environment: Cloudflare
+    permissions:
+      actions: read
+    steps:
+      - name: Download Storybook artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: storybook
+          path: storybook-static
+
+      - name: Deploy Storybook preview
+        id: deploy
+        uses: cloudflare/wrangler-action@ebbaa1584979971c8614a24965b4405ff95890e0 # v4.0.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy storybook-static
+            --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT }}
+            --branch=storybook-${{ github.event.workflow_run.head_sha }}
+            --commit-hash=${{ github.event.workflow_run.head_sha }}
+
+      - name: Add Storybook preview URL to summary
+        env:
+          DEPLOYMENT_ALIAS_URL: ${{ steps.deploy.outputs.pages-deployment-alias-url }}
+        run: |
+          {
+            echo "## Storybook preview"
+            echo
+            echo "[Open Storybook preview]($DEPLOYMENT_ALIAS_URL)"
+          } >> "$GITHUB_STEP_SUMMARY"
