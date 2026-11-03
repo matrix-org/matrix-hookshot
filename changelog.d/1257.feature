@@ -1,0 +1,1 @@
+Add a `generic.displaynameSuffix` option to configure the suffix appended to the displayname of webhook users. Defaults to ` (Webhook)`, and may be set to an empty string to use the connection name on its own.

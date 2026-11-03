@@ -17,6 +17,7 @@ generic:
   # maxExpiryTime: 30d
   # sendExpiryNotice: false
   # userIdPrefix: webhook_
+  # displaynameSuffix: " (Webhook)"
 ```
 
 Inbound webhooks may also be specified [statically](../usage/static_connections.html#generic-hook-ukhalf-shotmatrix-hookshotgenerichook)
@@ -68,6 +69,10 @@ namespaces:
     - regex: "@webhook_.+:example.com" # Where example.com is your domain name.
       exclusive: true
 ```
+
+`displaynameSuffix` sets the suffix appended to the displayname of those users. By default this is ` (Webhook)`, so a connection named
+`example` is displayed as `example (Webhook)`. Set it to an empty string to use the connection name on its own, which is useful when the
+name already identifies the service sending the webhook.
 
 ### Adding a webhook
 
