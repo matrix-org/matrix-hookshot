@@ -1,3 +1,30 @@
 .checkboxField {
   margin-bottom: 12px;
 }
+
+.completionStatusField {
+  margin-bottom: 12px;
+}
+
+.completionDropdown {
+  position: relative;
+  z-index: 1;
+
+  button[role="combobox"] {
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--cpd-color-bg-subtle-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: normal;
+  }
+
+  ul[role="listbox"] {
+    max-block-size: min(16rem, 40vh);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: var(--cpd-color-border-interactive-secondary) transparent;
+  }
+}
