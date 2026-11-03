@@ -68,6 +68,27 @@ cache:
   redisUri: redis://localhost:6379
 ```
 
+### Completion status and closing work packages
+
+In the room's OpenProject connection settings, an editor can choose a
+**Completion Status**. This is the status that the `close` command will set for
+work packages in that connection's project. Choose a closed status that represents
+completed work for your project; other closed statuses may represent outcomes such
+as rejection. The selection is stored by status ID, so renaming the status in
+OpenProject keeps the connection's selection.
+
+Use the connection's command prefix followed by `close` and a work package ID.
+For example, with the default prefix for `demo-project`:
+
+```text
+!openproject demo-project close 123
+!openproject demo-project close 123 "Finished in release"
+```
+
+If you include a comment, Hookshot adds it only after the status change
+succeeds. If adding the comment then fails, Hookshot reports that the work
+package was closed but the comment was not added.
+
 ## Next steps
 
 If you have followed these steps correctly, OpenProject should now be configured 🥳.
