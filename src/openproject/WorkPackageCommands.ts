@@ -128,7 +128,7 @@ export class OpenProjectWorkPackageCommandService {
     } else {
       // Kept the fallback behaviour for backwards compatibility, but it is not recommended to rely on this.
       closedStatus = validStatuses.find(
-        (status) => status.name.toLowerCase() === "closed",
+        (status) => status.name.toLowerCase() === "closed" && status.isClosed,
       );
       closedStatus ??= validStatuses.find((status) => status.isClosed);
     }

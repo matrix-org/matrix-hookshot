@@ -170,6 +170,48 @@ describe("OpenProjectWorkPackageCommandService", () => {
       });
     });
 
+    it("prefers a closed status named Closed for the compatibility fallback", async () => {
+      const { service, getStatuses, updateWorkPackage } = createHarness();
+      const namedClosedStatus = {
+        id: 10,
+        name: "Closed",
+        isClosed: true,
+        _links: { self: { href: "/api/v3/statuses/10" } },
+      };
+      getStatuses.mockResolvedValue([CLOSED_STATUS, namedClosedStatus]);
+
+      await service.closeWorkPackage(
+        "@alice:example.org",
+        undefined,
+        String(WORK_PACKAGE.id),
+      );
+
+      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+        _links: { status: { href: namedClosedStatus._links.self.href } },
+      });
+    });
+
+    it("skips a status named Closed when it is not marked closed", async () => {
+      const { service, getStatuses, updateWorkPackage } = createHarness();
+      const openClosedNamedStatus = {
+        id: 10,
+        name: "Closed",
+        isClosed: false,
+        _links: { self: { href: "/api/v3/statuses/10" } },
+      };
+      getStatuses.mockResolvedValue([openClosedNamedStatus, CLOSED_STATUS]);
+
+      await service.closeWorkPackage(
+        "@alice:example.org",
+        undefined,
+        String(WORK_PACKAGE.id),
+      );
+
+      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+        _links: { status: { href: CLOSED_STATUS._links.self.href } },
+      });
+    });
+
     it("does not fall back when the configured status option is stale", async () => {
       const { service, getCompletionStatusOptionId, updateWorkPackage } =
         createHarness();
