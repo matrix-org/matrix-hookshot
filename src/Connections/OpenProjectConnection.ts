@@ -105,8 +105,13 @@ function validateOpenProjectConnectionState(
   state: unknown,
   baseUrl: URL,
 ): OpenProjectConnectionState {
-  const { url, commandPrefix, priority, showUrlPreviews, completionStatusOptionId } =
-    state as Partial<OpenProjectConnectionState>;
+  const {
+    url,
+    commandPrefix,
+    priority,
+    showUrlPreviews,
+    completionStatusOptionId,
+  } = state as Partial<OpenProjectConnectionState>;
   if (url === undefined || typeof url !== "string") {
     throw new ApiError("Expected 'url' to be a string", ErrCode.BadValue);
   }

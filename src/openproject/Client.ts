@@ -4,6 +4,7 @@ import {
   OpenProjectAvailableAssigneeCollectionSchema,
   OpenProjectIdentitySchema,
   OpenProjectStatusCollectionSchema,
+  OpenProjectStatusSchema,
   OpenProjectWorkPackageEligibilitySchema,
   OpenProjectWorkPackageFormSchema,
 } from "./Types";
@@ -295,6 +296,47 @@ export class OpenProjectAPIClient {
       `/api/v3/statuses`,
       OpenProjectStatusCollectionSchema,
       "Invalid OpenProject statuses collection response",
+    );
+  }
+
+  /** Fetch one status referenced by a package form's allowed values. */
+  async getStatusByHref(href: string): Promise<OpenProjectStatus> {
+    const path = this.getApiPath(href);
+    const match = /^\/api\/v3\/statuses\/([1-9]\d*)$/.exec(path);
+    if (!match) {
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject returned an invalid allowed status link",
+      );
+    }
+    const status = await this.apiRequest<OpenProjectStatus>(
+      path,
+      "GET",
+      undefined,
+      OpenProjectStatusSchema,
+      "Invalid OpenProject status response",
+    );
+    if (status.id !== Number(match[1])) {
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject status ID does not match its resource link",
+      );
+    }
+    return status;
+  }
+
+  /** Fetch statuses from a package form's allowed-values collection link. */
+  async getStatusesByAllowedValuesHref(
+    href: string,
+  ): Promise<OpenProjectStatus[]> {
+    const path = this.getApiPath(href);
+    if (!path.startsWith("/api/v3/statuses?") && path !== "/api/v3/statuses") {
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject returned an invalid allowed statuses link",
+      );
+    }
+    return this.getCollectionElements<OpenProjectStatus>(
+      path,
+      OpenProjectStatusCollectionSchema,
+      "Invalid OpenProject allowed statuses collection response",
     );
   }
 

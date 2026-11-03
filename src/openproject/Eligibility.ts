@@ -6,6 +6,8 @@ import {
 } from "./Client";
 import type {
   OpenProjectUser,
+  OpenProjectStatus,
+  OpenProjectFormAllowedValue,
   OpenProjectWorkPackage,
   OpenProjectWorkPackageForm,
 } from "./Types";
@@ -15,8 +17,49 @@ const log = new Logger("OpenProjectEligibilityService");
 /** Connection properties needed to evaluate a work package action. */
 export interface OpenProjectEligibilityConnection {
   projectId: number;
+  getCompletionStatusOptionId(): string | undefined;
   interestedInProject(projectId: number): boolean;
 }
+
+/** Result of checking whether the acting user can mark a package as done. */
+export type OpenProjectMarkDoneResult =
+  | {
+      status: "eligible";
+      action: "mark_done";
+      workPackageId: number;
+      lockVersion: number;
+      targetHref: string;
+    }
+  | {
+      status: "ineligible";
+      reason:
+        | "invalid_work_package_id"
+        | "already_closed"
+        | "status_not_writable"
+        | "target_not_allowed"
+        | "status_form_invalid";
+    }
+  | {
+      status: "stale_target";
+      reason:
+        | "configured_status_missing"
+        | "configured_status_open"
+        | "default_status_missing"
+        | "default_status_ambiguous";
+    }
+  | { status: "not_connected" }
+  | { status: "conflict" }
+  | {
+      status: "not_authorized";
+      reason:
+        | "wrong_project"
+        | "work_package_not_found"
+        | "openproject_permission";
+    }
+  | {
+      status: "unavailable";
+      reason: "connection_removed" | "openproject_error" | "malformed_response";
+    };
 
 /** Reasons an assignment can be unavailable or could not be evaluated. */
 export type OpenProjectAssignmentResult =
@@ -187,6 +230,220 @@ export class OpenProjectEligibilityService {
       context,
       "assign_self",
     );
+  }
+
+  /** Evaluate the configured completion transition against the acting user's current form. */
+  public async evaluateMarkDone(
+    matrixUserId: string,
+    connection: OpenProjectEligibilityConnection,
+    workPackageId: number,
+  ): Promise<OpenProjectMarkDoneResult> {
+    if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
+      return { status: "ineligible", reason: "invalid_work_package_id" };
+    }
+    const contextResult = await this.getContext(
+      matrixUserId,
+      connection,
+      workPackageId,
+    );
+    if (!contextResult.ok) {
+      return this.markDoneContextFailure(contextResult.result);
+    }
+
+    const { client, workPackage } = contextResult.context;
+    if (
+      !workPackage._embedded.status ||
+      typeof workPackage._embedded.status.isClosed !== "boolean"
+    ) {
+      return { status: "unavailable", reason: "malformed_response" };
+    }
+    if (workPackage._embedded.status.isClosed) {
+      return { status: "ineligible", reason: "already_closed" };
+    }
+
+    try {
+      const form = await client.getWorkPackageForm(workPackageId, {
+        lockVersion: workPackage.lockVersion,
+      });
+      const statusField = form._embedded.schema.status;
+      if (!statusField || statusField.writable !== true) {
+        return { status: "ineligible", reason: "status_not_writable" };
+      }
+
+      let allowedStatuses: OpenProjectStatus[];
+      try {
+        allowedStatuses = await this.getAllowedStatuses(client, statusField);
+      } catch (error) {
+        if (httpStatus(error) === 404) {
+          return { status: "unavailable", reason: "openproject_error" };
+        }
+        throw error;
+      }
+      let targetStatus: OpenProjectStatus | undefined;
+      const completionStatusOptionId = connection.getCompletionStatusOptionId();
+      if (completionStatusOptionId !== undefined) {
+        const configuredId = Number(completionStatusOptionId);
+        if (!Number.isSafeInteger(configuredId) || configuredId <= 0) {
+          throw new OpenProjectMalformedResponseError(
+            "Configured completion status ID is invalid",
+          );
+        }
+        let configuredStatus: OpenProjectStatus;
+        try {
+          configuredStatus = await client.getStatusByHref(
+            `/api/v3/statuses/${configuredId}`,
+          );
+        } catch (error) {
+          if (httpStatus(error) === 404) {
+            return {
+              status: "stale_target",
+              reason: "configured_status_missing",
+            };
+          }
+          throw error;
+        }
+        if (String(configuredStatus.id) !== completionStatusOptionId) {
+          throw new OpenProjectMalformedResponseError(
+            "OpenProject status ID does not match the requested status",
+          );
+        }
+        if (!configuredStatus.isClosed) {
+          return { status: "stale_target", reason: "configured_status_open" };
+        }
+        targetStatus = allowedStatuses.find(
+          (status) => status.id === configuredStatus.id,
+        );
+        if (!targetStatus) {
+          return { status: "ineligible", reason: "target_not_allowed" };
+        }
+        if (!targetStatus.isClosed) {
+          return { status: "stale_target", reason: "configured_status_open" };
+        }
+      } else {
+        const defaultsById = new Map(
+          allowedStatuses
+            .filter(
+              (status) =>
+                status.isClosed && status.name.toLowerCase() === "closed",
+            )
+            .map((status) => [status.id, status]),
+        );
+        const defaults = [...defaultsById.values()];
+        if (defaults.length === 0) {
+          return { status: "stale_target", reason: "default_status_missing" };
+        }
+        if (defaults.length !== 1) {
+          return { status: "stale_target", reason: "default_status_ambiguous" };
+        }
+        targetStatus = defaults[0];
+      }
+
+      const targetHref = this.normalizeStatusHref(
+        targetStatus._links.self.href,
+        client.getOrigin(),
+        targetStatus.id,
+      );
+      if (!targetHref) {
+        throw new OpenProjectMalformedResponseError(
+          "OpenProject returned an invalid allowed status link",
+        );
+      }
+      const validatedForm = await client.getWorkPackageForm(workPackageId, {
+        lockVersion: workPackage.lockVersion,
+        _links: { status: { href: targetHref } },
+      });
+      if (Object.keys(validatedForm._embedded.validationErrors).length > 0) {
+        return { status: "ineligible", reason: "status_form_invalid" };
+      }
+      return {
+        status: "eligible",
+        action: "mark_done",
+        workPackageId,
+        lockVersion: workPackage.lockVersion,
+        targetHref,
+      };
+    } catch (error) {
+      const result = this.resultForError(error, "assignees_or_form");
+      if (result.status === "ineligible") {
+        return { status: "ineligible", reason: "status_form_invalid" };
+      }
+      return result;
+    }
+  }
+
+  private async getAllowedStatuses(
+    client: OpenProjectAPIClient,
+    field: NonNullable<
+      OpenProjectWorkPackageForm["_embedded"]["schema"]["status"]
+    >,
+  ): Promise<OpenProjectStatus[]> {
+    const embedded = field._embedded?.allowedValues;
+    if (embedded) {
+      return embedded.map((value) => this.statusFromAllowedValue(value));
+    }
+    const linkedValues = field._links?.allowedValues;
+    if (!linkedValues) {
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject status form omitted allowed values",
+      );
+    }
+    if (Array.isArray(linkedValues)) {
+      return Promise.all(
+        linkedValues.map((link) => client.getStatusByHref(link.href)),
+      );
+    }
+    const path = normalizeHref(linkedValues.href, client.getOrigin());
+    if (!path) {
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject returned an invalid allowed statuses link",
+      );
+    }
+    if (/^\/api\/v3\/statuses\/[1-9]\d*$/.test(path)) {
+      return [await client.getStatusByHref(linkedValues.href)];
+    }
+    return client.getStatusesByAllowedValuesHref(linkedValues.href);
+  }
+
+  private statusFromAllowedValue(
+    value: OpenProjectFormAllowedValue,
+  ): OpenProjectStatus {
+    if (
+      !Number.isSafeInteger(value.id) ||
+      value.id! <= 0 ||
+      typeof value.name !== "string" ||
+      typeof value.isClosed !== "boolean" ||
+      !value._links?.self?.href
+    ) {
+      throw new OpenProjectMalformedResponseError(
+        "OpenProject returned an incomplete allowed status",
+      );
+    }
+    return value as unknown as OpenProjectStatus;
+  }
+
+  private normalizeStatusHref(
+    href: string,
+    origin: string,
+    expectedStatusId: number,
+  ): string | undefined {
+    const normalized = normalizeHref(href, origin);
+    const match =
+      normalized && /^\/api\/v3\/statuses\/([1-9]\d*)$/.exec(normalized);
+    return match && Number(match[1]) === expectedStatusId
+      ? normalized
+      : undefined;
+  }
+
+  private markDoneContextFailure(
+    result: ContextFailure,
+  ): Exclude<
+    OpenProjectMarkDoneResult,
+    { status: "eligible" | "stale_target" }
+  > {
+    if (result.status === "ineligible") {
+      return { status: "ineligible", reason: "invalid_work_package_id" };
+    }
+    return result;
   }
 
   /** Recheck eligibility and apply an assignment using the fetched revision. */

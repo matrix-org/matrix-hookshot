@@ -10,6 +10,7 @@ import {
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import type {
   OpenProjectIdentity,
+  OpenProjectStatus,
   OpenProjectWorkPackage,
   OpenProjectWorkPackageForm,
 } from "../../src/openproject/Types";
@@ -55,6 +56,45 @@ function createForm(
   };
 }
 
+function createStatus(
+  id: number,
+  name: string,
+  isClosed: boolean,
+): OpenProjectStatus {
+  return {
+    id,
+    name,
+    isClosed,
+    isDefault: false,
+    isReadonly: false,
+    color: "#000000",
+    _links: { self: { href: `/api/v3/statuses/${id}`, title: name } },
+  };
+}
+
+function createStatusForm(
+  allowedValues: OpenProjectStatus[],
+  options: {
+    writable?: boolean;
+    validationErrors?: Record<string, { message: string }>;
+  } = {},
+): OpenProjectWorkPackageForm {
+  return {
+    _embedded: {
+      payload: {},
+      schema: {
+        status: {
+          writable: options.writable ?? true,
+          _embedded: {
+            allowedValues: allowedValues.map((status) => ({ ...status })),
+          },
+        },
+      },
+      validationErrors: options.validationErrors ?? {},
+    },
+  };
+}
+
 function createHarness() {
   let workPackage = createWorkPackage();
   const getIdentity = vi.fn(async () => createIdentity());
@@ -64,6 +104,13 @@ function createHarness() {
       userId === OPENPROJECT_USER_ID,
   );
   const getWorkPackageForm = vi.fn(async () => createForm());
+  const getStatusByHref = vi.fn(async (href: string) => {
+    const match = /statuses\/(\d+)$/.exec(href);
+    return createStatus(Number(match?.[1]), "Done", true);
+  });
+  const getStatusesByAllowedValuesHref = vi.fn(
+    async () => [] as OpenProjectStatus[],
+  );
   const updateWorkPackage = vi.fn(async () => undefined);
   const client = {
     getOrigin: () => BASE_URL.origin,
@@ -71,6 +118,8 @@ function createHarness() {
     getWorkPackage,
     hasAvailableAssignee,
     getWorkPackageForm,
+    getStatusByHref,
+    getStatusesByAllowedValuesHref,
     updateWorkPackage,
   } as unknown as OpenProjectAPIClient;
   const getOpenProjectForUser = vi.fn(
@@ -82,6 +131,7 @@ function createHarness() {
   const service = new OpenProjectEligibilityService(tokenStore);
   const connection: OpenProjectEligibilityConnection = {
     projectId: WORK_PACKAGE._embedded.project.id,
+    getCompletionStatusOptionId: vi.fn(() => undefined),
     interestedInProject: vi.fn(() => true),
   };
 
@@ -93,6 +143,8 @@ function createHarness() {
     getWorkPackage,
     hasAvailableAssignee,
     getWorkPackageForm,
+    getStatusByHref,
+    getStatusesByAllowedValuesHref,
     updateWorkPackage,
     getOpenProjectForUser,
     setWorkPackage(next: OpenProjectWorkPackage) {
@@ -455,4 +507,222 @@ describe("OpenProjectEligibilityService assignment", () => {
       ).resolves.toEqual(result);
     },
   );
+});
+
+describe("OpenProjectEligibilityService mark done", () => {
+  it("allows the configured closed status when the acting user's form accepts it", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    const form = createStatusForm([createStatus(9, "Resolved", true)]);
+    harness.getWorkPackageForm.mockResolvedValue(form);
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({
+      status: "eligible",
+      action: "mark_done",
+      workPackageId: WORK_PACKAGE.id,
+      lockVersion: 8,
+      targetHref: "/api/v3/statuses/9",
+    });
+    expect(harness.getStatusByHref).toHaveBeenCalledWith("/api/v3/statuses/9");
+    expect(
+      harness.connection.getCompletionStatusOptionId,
+    ).toHaveBeenCalledOnce();
+    expect(harness.getWorkPackageForm).toHaveBeenNthCalledWith(
+      1,
+      WORK_PACKAGE.id,
+      { lockVersion: 8 },
+    );
+    expect(harness.getWorkPackageForm).toHaveBeenNthCalledWith(
+      2,
+      WORK_PACKAGE.id,
+      {
+        lockVersion: 8,
+        _links: { status: { href: "/api/v3/statuses/9" } },
+      },
+    );
+  });
+
+  it("uses only statuses allowed by the acting user's workflow form", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    harness.getWorkPackageForm.mockResolvedValue(
+      createStatusForm([createStatus(10, "Closed", true)]),
+    );
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "ineligible", reason: "target_not_allowed" });
+    expect(harness.getWorkPackageForm).toHaveBeenCalledOnce();
+  });
+
+  it("fetches linked allowed statuses and honors form validation errors", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    const form = createStatusForm([]);
+    form._embedded.schema.status!._embedded = undefined;
+    form._embedded.schema.status!._links = {
+      allowedValues: [{ href: "/api/v3/statuses/9" }],
+    };
+    harness.getWorkPackageForm.mockResolvedValue(form);
+    harness.getWorkPackageForm
+      .mockResolvedValueOnce(form)
+      .mockResolvedValueOnce(
+        createStatusForm([], {
+          validationErrors: {
+            status: { message: "This transition is forbidden" },
+          },
+        }),
+      );
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "ineligible", reason: "status_form_invalid" });
+    expect(harness.getStatusByHref).toHaveBeenCalledWith("/api/v3/statuses/9");
+    expect(harness.getWorkPackageForm).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    [
+      "read-only",
+      createStatusForm([createStatus(9, "Closed", true)], { writable: false }),
+      "ineligible",
+      "status_not_writable",
+    ],
+    [
+      "missing status property",
+      createForm(),
+      "ineligible",
+      "status_not_writable",
+    ],
+  ] as const)("rejects a %s form", async (_name, form, status, reason) => {
+    const harness = createHarness();
+    harness.getWorkPackageForm.mockResolvedValue(form);
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status, reason });
+  });
+
+  it("reports stale configured statuses and already-closed packages", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    harness.getWorkPackageForm.mockResolvedValue(
+      createStatusForm([createStatus(9, "Resolved", true)]),
+    );
+    harness.getStatusByHref.mockResolvedValue(
+      createStatus(9, "Resolved", false),
+    );
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({
+      status: "stale_target",
+      reason: "configured_status_open",
+    });
+
+    harness.setWorkPackage({
+      ...createWorkPackage(),
+      _embedded: {
+        ...createWorkPackage()._embedded,
+        status: createStatus(9, "Resolved", true),
+      },
+    });
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "ineligible", reason: "already_closed" });
+  });
+
+  it("reports a deleted configured status as stale", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    harness.getWorkPackageForm.mockResolvedValue(
+      createStatusForm([createStatus(9, "Resolved", true)]),
+    );
+    harness.getStatusByHref.mockRejectedValue({ response: { status: 404 } });
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({
+      status: "stale_target",
+      reason: "configured_status_missing",
+    });
+  });
+
+  it.each([
+    [[], "default_status_missing"],
+    [[createStatus(9, "Resolved", true)], "default_status_missing"],
+    [
+      [createStatus(9, "Closed", true), createStatus(10, "Closed", true)],
+      "default_status_ambiguous",
+    ],
+  ] as const)(
+    "requires a unique allowed Closed default",
+    async (allowed, reason) => {
+      const harness = createHarness();
+      harness.getWorkPackageForm.mockResolvedValue(
+        createStatusForm([...allowed]),
+      );
+
+      await expect(
+        harness.service.evaluateMarkDone(
+          MATRIX_USER_ID,
+          harness.connection,
+          WORK_PACKAGE.id,
+        ),
+      ).resolves.toEqual({ status: "stale_target", reason });
+    },
+  );
+
+  it("reports form lookup failures as unavailable", async () => {
+    const harness = createHarness();
+    harness.getWorkPackageForm.mockRejectedValue(new Error("offline"));
+
+    await expect(
+      harness.service.evaluateMarkDone(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "unavailable", reason: "openproject_error" });
+  });
 });
