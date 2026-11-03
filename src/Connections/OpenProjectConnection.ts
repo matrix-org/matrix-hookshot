@@ -105,7 +105,7 @@ function validateOpenProjectConnectionState(
   state: unknown,
   baseUrl: URL,
 ): OpenProjectConnectionState {
-  const { url, commandPrefix, priority, completionStatusOptionId } =
+  const { url, commandPrefix, priority, showUrlPreviews, completionStatusOptionId } =
     state as Partial<OpenProjectConnectionState>;
   if (url === undefined || typeof url !== "string") {
     throw new ApiError("Expected 'url' to be a string", ErrCode.BadValue);
@@ -147,6 +147,12 @@ function validateOpenProjectConnectionState(
       );
     }
   }
+  if (showUrlPreviews !== undefined && typeof showUrlPreviews !== "boolean") {
+    throw new ApiError(
+      "Expected 'showUrlPreviews' to be a boolean",
+      ErrCode.BadValue,
+    );
+  }
   let { events, anchors } = state as Partial<OpenProjectConnectionState>;
   events = events ?? ["work_package:created", "work_package:updated"];
   if (events.find((ev) => !JiraAllowedEvents.includes(ev))?.length) {
@@ -171,6 +177,7 @@ function validateOpenProjectConnectionState(
     events,
     anchors,
     priority,
+    showUrlPreviews,
     completionStatusOptionId,
   };
 }

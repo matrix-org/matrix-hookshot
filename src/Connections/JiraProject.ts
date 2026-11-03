@@ -80,6 +80,17 @@ export type JiraProjectResponseItem =
 
 const log = new Logger("JiraProjectConnection");
 
+function getJiraErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  // jira-client rejects HTTP response bodies directly on request failures.
+  if (error !== null && typeof error === "object" && "message" in error) {
+    return String(error.message);
+  }
+  return "undefined";
+}
+
 /**
  * Handles rooms connected to a Jira project.
  */
@@ -101,7 +112,7 @@ export class JiraProjectConnection
   static helpMessage: (cmdPrefix?: string) => MatrixMessageContent;
 
   public static validateState(state: unknown): JiraProjectConnectionState {
-    const { id, url, commandPrefix, priority } =
+    const { id, url, commandPrefix, priority, showUrlPreviews } =
       state as Partial<JiraProjectConnectionState>;
     if (id !== undefined && typeof id !== "string") {
       throw new ApiError("Expected 'id' to be a string", ErrCode.BadValue);
@@ -123,6 +134,12 @@ export class JiraProjectConnection
         );
       }
     }
+    if (showUrlPreviews !== undefined && typeof showUrlPreviews !== "boolean") {
+      throw new ApiError(
+        "Expected 'showUrlPreviews' to be a boolean",
+        ErrCode.BadValue,
+      );
+    }
     let { events } = state as Partial<JiraProjectConnectionState>;
     if (!events || (events[0] as string) == "issue.created") {
       // migration
@@ -133,7 +150,7 @@ export class JiraProjectConnection
         ErrCode.BadValue,
       );
     }
-    return { id, url, commandPrefix, events, priority };
+    return { id, url, commandPrefix, events, priority, showUrlPreviews };
   }
 
   static async assertUserHasAccessToProject(
@@ -623,7 +640,10 @@ export class JiraProjectConnection
       }
     } catch (ex) {
       log.warn("Failed to create JIRA issue:", ex);
-      throw new CommandError(ex.message, "Failed to create JIRA issue");
+      throw new CommandError(
+        getJiraErrorMessage(ex),
+        "Failed to create JIRA issue",
+      );
     }
 
     const link = generateJiraWebLinkFromIssue({
@@ -646,7 +666,10 @@ export class JiraProjectConnection
       result = await api.getProject(keyOrId);
     } catch (ex) {
       log.warn("Failed to get issue types:", ex);
-      throw new CommandError(ex.message, "Failed to get issue types");
+      throw new CommandError(
+        getJiraErrorMessage(ex),
+        "Failed to get issue types",
+      );
     }
 
     const content = `Issue types: ${(result.issueTypes || []).map((t) => t.name).join(", ")}`;
@@ -666,7 +689,7 @@ export class JiraProjectConnection
       await api.getIssue(issueKey);
     } catch (ex) {
       log.warn(`Failed to find issue`, ex);
-      throw new CommandError(ex.message, "Failed to find issue");
+      throw new CommandError(getJiraErrorMessage(ex), "Failed to find issue");
     }
 
     log.info(`Assinging issue on behalf of ${userId}`);
