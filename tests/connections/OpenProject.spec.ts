@@ -247,6 +247,36 @@ describe("OpenProjectConnection", () => {
     );
   });
 
+  it("routes a typed close command with the connection prefix to the shared command service", async () => {
+    const connection = createConnectionState({
+      commandPrefix: "!openproject demo",
+    });
+    const closeWorkPackage = vi
+      .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
+      .mockResolvedValue(undefined);
+    const commandEvent = {
+      content: {
+        body: `!openproject demo close ${WORK_PACKAGE.id} "resolved in release"`,
+        msgtype: "m.text" as const,
+      },
+      event_id: "$close-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    expect(await connection.onMessageEvent(commandEvent, () => true)).toBe(
+      true,
+    );
+    expect(closeWorkPackage).toHaveBeenCalledWith(
+      "@alice:example.test",
+      undefined,
+      String(WORK_PACKAGE.id),
+      "resolved in release",
+    );
+  });
+
   describe("assignment command", () => {
     it("self-assigns from an activity reply with the global prefix", async () => {
       const { connection, senderClient, tokenStore } =

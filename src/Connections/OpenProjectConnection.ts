@@ -701,9 +701,9 @@ export class OpenProjectConnection
   @botCommand("close", {
     help: "Close a work package",
     helpUsages: [
-      { args: ["<workPackageId>", "[description]"] },
+      { args: ["<workPackageId>", "[comment]"] },
       {
-        args: ["[description]"],
+        args: ["[comment]"],
         note: "reply to a work package",
         prefix: "global",
       },

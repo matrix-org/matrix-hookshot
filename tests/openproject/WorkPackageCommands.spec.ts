@@ -4,7 +4,11 @@ import { CommandError } from "../../src/Errors";
 import type { OpenProjectAPIClient } from "../../src/openproject/Client";
 import { OpenProjectWorkPackageCommandService } from "../../src/openproject/WorkPackageCommands";
 import type { OpenProjectWorkPackageCommandContext } from "../../src/openproject/WorkPackageCommands";
-import type { OpenProjectEligibilityService } from "../../src/openproject/Eligibility";
+import type {
+  OpenProjectEligibilityConnection,
+  OpenProjectMarkDoneResult,
+  OpenProjectEligibilityService,
+} from "../../src/openproject/Eligibility";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
@@ -40,6 +44,19 @@ function createHarness() {
     (): string | undefined => undefined,
   );
   const getWorkPackageIDFromReply = vi.fn((): number | undefined => undefined);
+  const evaluateMarkDone = vi.fn(
+    async (
+      _userId: string,
+      _context: OpenProjectEligibilityConnection,
+      workPackageId: number,
+    ): Promise<OpenProjectMarkDoneResult> => ({
+      status: "eligible",
+      action: "mark_done",
+      workPackageId,
+      lockVersion: 8,
+      targetHref: CLOSED_STATUS._links.self.href,
+    }),
+  );
   const context = {
     projectId: WORK_PACKAGE._embedded.project.id,
     interestedInProject: vi.fn(() => true),
@@ -50,6 +67,7 @@ function createHarness() {
   } as unknown as OpenProjectWorkPackageCommandContext;
   const eligibilityService = {
     executeAssignment: vi.fn(),
+    evaluateMarkDone,
   } as unknown as OpenProjectEligibilityService;
   const service = new OpenProjectWorkPackageCommandService(
     context,
@@ -69,6 +87,7 @@ function createHarness() {
     updateWorkPackage,
     addWorkPackageComment,
     getWorkPackageIDFromReply,
+    evaluateMarkDone,
   };
 }
 
@@ -143,21 +162,15 @@ describe("OpenProjectWorkPackageCommandService", () => {
   });
 
   describe("closeWorkPackage", () => {
-    it("uses the configured status option ID by matching the OpenProject ID", async () => {
+    it("uses evaluator target and revision for the status-only PATCH", async () => {
       const {
         service,
-        getCompletionStatusOptionId,
-        getStatuses,
+        context,
+        evaluateMarkDone,
         updateWorkPackage,
+        getStatuses,
+        getWorkPackage,
       } = createHarness();
-      const otherClosedStatus = {
-        id: 10,
-        name: "Archived",
-        isClosed: true,
-        _links: { self: { href: "/api/v3/statuses/10" } },
-      };
-      getCompletionStatusOptionId.mockReturnValue("9");
-      getStatuses.mockResolvedValue([otherClosedStatus, CLOSED_STATUS]);
 
       await service.closeWorkPackage(
         "@alice:example.org",
@@ -165,97 +178,23 @@ describe("OpenProjectWorkPackageCommandService", () => {
         String(WORK_PACKAGE.id),
       );
 
-      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
-        _links: { status: { href: CLOSED_STATUS._links.self.href } },
-      });
-    });
-
-    it("prefers a closed status named Closed for the compatibility fallback", async () => {
-      const { service, getStatuses, updateWorkPackage } = createHarness();
-      const namedClosedStatus = {
-        id: 10,
-        name: "Closed",
-        isClosed: true,
-        _links: { self: { href: "/api/v3/statuses/10" } },
-      };
-      getStatuses.mockResolvedValue([CLOSED_STATUS, namedClosedStatus]);
-
-      await service.closeWorkPackage(
+      expect(evaluateMarkDone).toHaveBeenCalledWith(
         "@alice:example.org",
-        undefined,
-        String(WORK_PACKAGE.id),
-      );
-
-      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
-        _links: { status: { href: namedClosedStatus._links.self.href } },
-      });
-    });
-
-    it("skips a status named Closed when it is not marked closed", async () => {
-      const { service, getStatuses, updateWorkPackage } = createHarness();
-      const openClosedNamedStatus = {
-        id: 10,
-        name: "Closed",
-        isClosed: false,
-        _links: { self: { href: "/api/v3/statuses/10" } },
-      };
-      getStatuses.mockResolvedValue([openClosedNamedStatus, CLOSED_STATUS]);
-
-      await service.closeWorkPackage(
-        "@alice:example.org",
-        undefined,
-        String(WORK_PACKAGE.id),
-      );
-
-      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
-        _links: { status: { href: CLOSED_STATUS._links.self.href } },
-      });
-    });
-
-    it("does not fall back when the configured status option is stale", async () => {
-      const { service, getCompletionStatusOptionId, updateWorkPackage } =
-        createHarness();
-      getCompletionStatusOptionId.mockReturnValue("404");
-
-      await expect(
-        service.closeWorkPackage(
-          "@alice:example.org",
-          undefined,
-          String(WORK_PACKAGE.id),
-        ),
-      ).rejects.toMatchObject({
-        message: "Configured completion status is unavailable",
-      });
-      expect(updateWorkPackage).not.toHaveBeenCalled();
-    });
-
-    it("uses a closed status and adds the optional comment after closing", async () => {
-      const { service, updateWorkPackage, addWorkPackageComment } =
-        createHarness();
-
-      await service.closeWorkPackage(
-        "@alice:example.org",
-        undefined,
-        String(WORK_PACKAGE.id),
-        "Resolved in the release",
-      );
-
-      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
-        _links: { status: { href: CLOSED_STATUS._links.self.href } },
-      });
-      expect(addWorkPackageComment).toHaveBeenCalledWith(
+        context,
         WORK_PACKAGE.id,
-        "Resolved in the release",
       );
-      expect(updateWorkPackage.mock.invocationCallOrder[0]).toBeLessThan(
-        addWorkPackageComment.mock.invocationCallOrder[0],
-      );
+      expect(updateWorkPackage).toHaveBeenCalledOnce();
+      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+        _links: { status: { href: CLOSED_STATUS._links.self.href } },
+      });
+      expect(getStatuses).not.toHaveBeenCalled();
+      expect(getWorkPackage).not.toHaveBeenCalled();
     });
 
     it("uses the work package from a reply and treats the first argument as a comment", async () => {
       const {
         service,
-        getWorkPackage,
+        evaluateMarkDone,
         updateWorkPackage,
         addWorkPackageComment,
         getWorkPackageIDFromReply,
@@ -266,55 +205,86 @@ describe("OpenProjectWorkPackageCommandService", () => {
       await service.closeWorkPackage(
         "@alice:example.org",
         reply,
-        "Closing note",
+        "Closing note added",
       );
 
       expect(getWorkPackageIDFromReply).toHaveBeenCalledWith(reply);
-      expect(getWorkPackage).toHaveBeenCalledWith(73);
+      expect(evaluateMarkDone).toHaveBeenCalledWith(
+        "@alice:example.org",
+        expect.anything(),
+        73,
+      );
       expect(updateWorkPackage).toHaveBeenCalledWith(73, 8, {
         _links: { status: { href: CLOSED_STATUS._links.self.href } },
       });
-      expect(addWorkPackageComment).toHaveBeenCalledWith(73, "Closing note");
+      expect(addWorkPackageComment).toHaveBeenCalledWith(
+        73,
+        "Closing note added",
+      );
     });
 
-    it("rejects when the instance has no closed status", async () => {
-      const {
-        service,
-        getStatuses,
-        getWorkPackage,
-        updateWorkPackage,
-        addWorkPackageComment,
-      } = createHarness();
-      getStatuses.mockResolvedValue([
-        {
-          name: "In progress",
-          isClosed: false,
-          _links: { self: { href: "/api/v3/statuses/2" } },
-        },
-      ]);
+    it.each(["12abc", "1.2", "-2", "0", "9007199254740992"])(
+      "rejects malformed explicit work package ID %s",
+      async (id) => {
+        const { service, evaluateMarkDone, updateWorkPackage } =
+          createHarness();
 
-      await expect(
-        service.closeWorkPackage(
-          "@alice:example.org",
-          undefined,
-          String(WORK_PACKAGE.id),
-        ),
-      ).rejects.toMatchObject({
-        message: "No closed status on OpenProject",
-        humanError: expect.stringContaining("doesn't have a closed status"),
-      });
+        await expect(
+          service.closeWorkPackage("@alice:example.org", undefined, id),
+        ).rejects.toMatchObject({ message: "Invalid work package ID" });
+        expect(evaluateMarkDone).not.toHaveBeenCalled();
+        expect(updateWorkPackage).not.toHaveBeenCalled();
+      },
+    );
 
-      expect(getWorkPackage).not.toHaveBeenCalled();
-      expect(updateWorkPackage).not.toHaveBeenCalled();
-      expect(addWorkPackageComment).not.toHaveBeenCalled();
-    });
+    it.each([
+      [
+        { status: "ineligible", reason: "already_closed" },
+        "Work package already closed",
+      ],
+      [
+        { status: "ineligible", reason: "target_not_allowed" },
+        "Completion status not allowed",
+      ],
+      [
+        { status: "stale_target", reason: "configured_status_open" },
+        "Configured completion status is unavailable",
+      ],
+      [
+        { status: "stale_target", reason: "default_status_ambiguous" },
+        "Completion status must be configured",
+      ],
+      [{ status: "conflict" }, "Work package changed"],
+      [
+        { status: "not_authorized", reason: "wrong_project" },
+        "Work package belongs to another project",
+      ],
+      [
+        { status: "unavailable", reason: "openproject_error" },
+        "OpenProject unavailable",
+      ],
+    ] as const)(
+      "maps evaluator result %j to a safe command error",
+      async (result, message) => {
+        const { service, evaluateMarkDone, updateWorkPackage } =
+          createHarness();
+        evaluateMarkDone.mockResolvedValue(result);
 
-    it("does not add a comment when the status update fails", async () => {
+        await expect(
+          service.closeWorkPackage(
+            "@alice:example.org",
+            undefined,
+            String(WORK_PACKAGE.id),
+          ),
+        ).rejects.toMatchObject({ message });
+        expect(updateWorkPackage).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not retry a revision conflict and does not add a comment", async () => {
       const { service, updateWorkPackage, addWorkPackageComment } =
         createHarness();
-      updateWorkPackage.mockRejectedValueOnce(
-        new Error("status update failed"),
-      );
+      updateWorkPackage.mockRejectedValueOnce({ response: { status: 409 } });
 
       await expect(
         service.closeWorkPackage(
@@ -323,9 +293,74 @@ describe("OpenProjectWorkPackageCommandService", () => {
           String(WORK_PACKAGE.id),
           "Closing note",
         ),
-      ).rejects.toThrow("status update failed");
-
+      ).rejects.toMatchObject({ message: "Work package changed" });
+      expect(updateWorkPackage).toHaveBeenCalledOnce();
       expect(addWorkPackageComment).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      [401, "OpenProject permission denied"],
+      [403, "OpenProject permission denied"],
+      [404, "Work package not found"],
+      [422, "Completion transition rejected"],
+      [500, "OpenProject unavailable"],
+    ] as const)(
+      "maps PATCH status %i without exposing upstream details",
+      async (status, message) => {
+        const { service, updateWorkPackage, addWorkPackageComment } =
+          createHarness();
+        updateWorkPackage.mockRejectedValueOnce({
+          response: { status },
+          secret: "private upstream detail",
+        });
+
+        await expect(
+          service.closeWorkPackage(
+            "@alice:example.org",
+            undefined,
+            String(WORK_PACKAGE.id),
+            "Closing note",
+          ),
+        ).rejects.toMatchObject({ message });
+        expect(addWorkPackageComment).not.toHaveBeenCalled();
+      },
+    );
+
+    it("preserves multiword explicit-ID comments", async () => {
+      const { service, addWorkPackageComment } = createHarness();
+
+      await service.closeWorkPackage(
+        "@alice:example.org",
+        undefined,
+        String(WORK_PACKAGE.id),
+        "Resolved in the release",
+      );
+
+      expect(addWorkPackageComment).toHaveBeenCalledWith(
+        WORK_PACKAGE.id,
+        "Resolved in the release",
+      );
+    });
+
+    it("adds the optional comment only after success and reports partial failure", async () => {
+      const { service, updateWorkPackage, addWorkPackageComment } =
+        createHarness();
+      addWorkPackageComment.mockRejectedValueOnce(new Error("activity failed"));
+
+      await expect(
+        service.closeWorkPackage(
+          "@alice:example.org",
+          undefined,
+          String(WORK_PACKAGE.id),
+          "Closing note",
+        ),
+      ).rejects.toMatchObject({
+        message: "Work package closed but comment failed",
+        humanError: expect.stringContaining("was closed"),
+      });
+      expect(updateWorkPackage.mock.invocationCallOrder[0]).toBeLessThan(
+        addWorkPackageComment.mock.invocationCallOrder[0],
+      );
     });
   });
 });

@@ -3,11 +3,11 @@ import type { MatrixEvent, MessageEventContent } from "matrix-bot-sdk";
 import { CommandError, NotLoggedInError } from "../Errors";
 import type { UserTokenStore } from "../tokens/UserTokenStore";
 import type { OpenProjectAPIClient } from "./Client";
-import type { OpenProjectStatus } from "./Types";
 import {
   OpenProjectEligibilityService,
   type OpenProjectAssignmentResult,
   type OpenProjectEligibilityConnection,
+  type OpenProjectMarkDoneResult,
 } from "./Eligibility";
 import type { AssignmentCommandInput } from "./CommandParser";
 import { parseAssignmentCommandArguments } from "./CommandParser";
@@ -29,6 +29,21 @@ interface UserResolutionOptions {
   missingMatrixUserMessage: string;
   requireSameOpenProjectInstance: boolean;
   fallbackToNameSearchAfterMatrixError: boolean;
+}
+
+function httpStatus(error: unknown): number | undefined {
+  if (typeof error !== "object" || error === null || !("response" in error)) {
+    return undefined;
+  }
+  const response = error.response;
+  if (
+    typeof response !== "object" ||
+    response === null ||
+    !("status" in response)
+  ) {
+    return undefined;
+  }
+  return typeof response.status === "number" ? response.status : undefined;
 }
 
 /** Executes OpenProject work package commands. */
@@ -94,7 +109,6 @@ export class OpenProjectWorkPackageCommandService {
     workPackageIdOrComment?: string,
     comment?: string,
   ): Promise<void> {
-    const client = await this.getClient(userId);
     let finalComment: string | undefined;
     let workPackageId: number;
     const replyWorkPackageId = this.context.getWorkPackageIDFromReply(reply);
@@ -102,7 +116,13 @@ export class OpenProjectWorkPackageCommandService {
       workPackageId = replyWorkPackageId;
       finalComment = workPackageIdOrComment;
     } else if (workPackageIdOrComment) {
-      workPackageId = parseInt(workPackageIdOrComment);
+      if (!/^\d+$/.test(workPackageIdOrComment)) {
+        throw new CommandError(
+          "Invalid work package ID",
+          "Work package ID must be a positive safe integer.",
+        );
+      }
+      workPackageId = Number(workPackageIdOrComment);
       finalComment = comment;
     } else {
       throw new CommandError(
@@ -110,45 +130,39 @@ export class OpenProjectWorkPackageCommandService {
         "You must provide a work package ID",
       );
     }
-    if (isNaN(workPackageId)) {
+    if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
       throw new CommandError(
         "Invalid work package ID",
-        "Work Package ID must be a valid number",
+        "Work package ID must be a positive safe integer.",
       );
     }
 
-    const validStatuses = await client.getStatuses();
-    const completionStatusOptionId = this.context.getCompletionStatusOptionId();
-    let closedStatus: OpenProjectStatus | undefined;
-    if (completionStatusOptionId !== undefined) {
-      closedStatus = validStatuses.find(
-        (status) =>
-          String(status.id) === completionStatusOptionId && status.isClosed,
-      );
-    } else {
-      // Kept the fallback behaviour for backwards compatibility, but it is not recommended to rely on this.
-      closedStatus = validStatuses.find(
-        (status) => status.name.toLowerCase() === "closed" && status.isClosed,
-      );
-      closedStatus ??= validStatuses.find((status) => status.isClosed);
-    }
-    if (!closedStatus) {
-      throw new CommandError(
-        completionStatusOptionId === undefined
-          ? "No closed status on OpenProject"
-          : "Configured completion status is unavailable",
-        completionStatusOptionId === undefined
-          ? "This instance doesn't have a closed status, so the work package cannot be closed."
-          : "The selected completion status is missing or no longer closed.",
-      );
+    const result = await this.eligibilityService.evaluateMarkDone(
+      userId,
+      this.context,
+      workPackageId,
+    );
+    if (result.status !== "eligible") {
+      throw this.markDoneCommandError(result);
     }
 
-    const workPackage = await client.getWorkPackage(workPackageId);
-    await client.updateWorkPackage(workPackageId, workPackage.lockVersion, {
-      _links: { status: { href: closedStatus._links.self.href } },
-    });
+    const client = await this.getClient(userId);
+    try {
+      await client.updateWorkPackage(result.workPackageId, result.lockVersion, {
+        _links: { status: { href: result.targetHref } },
+      });
+    } catch (error) {
+      throw this.markDoneMutationError(error);
+    }
     if (finalComment) {
-      await client.addWorkPackageComment(workPackageId, finalComment);
+      try {
+        await client.addWorkPackageComment(result.workPackageId, finalComment);
+      } catch {
+        throw new CommandError(
+          "Work package closed but comment failed",
+          "The work package was closed, but Hookshot could not add your comment.",
+        );
+      }
     }
   }
 
@@ -366,6 +380,137 @@ export class OpenProjectWorkPackageCommandService {
       );
     }
     return { href: foundUser.href };
+  }
+
+  private markDoneCommandError(
+    result: Exclude<OpenProjectMarkDoneResult, { status: "eligible" }>,
+  ): CommandError {
+    switch (result.status) {
+      case "not_connected":
+        return new NotLoggedInError();
+      case "conflict":
+        return new CommandError(
+          "Work package changed",
+          "The work package changed while its completion workflow was being checked. Please try again.",
+        );
+      case "not_authorized":
+        switch (result.reason) {
+          case "wrong_project":
+            return new CommandError(
+              "Work package belongs to another project",
+              "This work package is not part of the project configured for this connection.",
+            );
+          case "work_package_not_found":
+            return new CommandError(
+              "Work package not found",
+              "The work package could not be found or is not accessible to you.",
+            );
+          case "openproject_permission":
+            return new CommandError(
+              "OpenProject permission denied",
+              "You do not have permission to check or update this work package in OpenProject.",
+            );
+        }
+        break;
+      case "ineligible":
+        switch (result.reason) {
+          case "invalid_work_package_id":
+            return new CommandError(
+              "Invalid work package ID",
+              "Work package ID must be a positive safe integer.",
+            );
+          case "already_closed":
+            return new CommandError(
+              "Work package already closed",
+              "This work package is already in a closed status.",
+            );
+          case "status_not_writable":
+            return new CommandError(
+              "Work package cannot be closed",
+              "OpenProject does not allow you to change this work package's status.",
+            );
+          case "target_not_allowed":
+            return new CommandError(
+              "Completion status not allowed",
+              "The configured completion status is not available for this work package's current workflow.",
+            );
+          case "status_form_invalid":
+            return new CommandError(
+              "Completion transition rejected",
+              "OpenProject rejected this completion transition for the work package.",
+            );
+        }
+        break;
+      case "stale_target":
+        if (
+          result.reason === "default_status_missing" ||
+          result.reason === "default_status_ambiguous"
+        ) {
+          return new CommandError(
+            "Completion status must be configured",
+            "Configure a completion status for this room; the legacy Closed status is missing or ambiguous for this workflow.",
+          );
+        }
+        return new CommandError(
+          "Configured completion status is unavailable",
+          "The selected completion status is missing or no longer closed. Choose a valid completion status in the room configuration.",
+        );
+      case "unavailable":
+        switch (result.reason) {
+          case "connection_removed":
+            return new CommandError(
+              "OpenProject connection removed",
+              "This OpenProject connection is no longer active.",
+            );
+          case "malformed_response":
+            return new CommandError(
+              "Invalid OpenProject response",
+              "OpenProject returned data that Hookshot could not use to check this completion transition.",
+            );
+          case "openproject_error":
+            return new CommandError(
+              "OpenProject unavailable",
+              "Hookshot could not check this completion transition in OpenProject. Please try again later.",
+            );
+        }
+        break;
+    }
+    return new CommandError(
+      "Could not close work package",
+      "Hookshot could not validate this completion transition.",
+    );
+  }
+
+  private markDoneMutationError(error: unknown): CommandError {
+    const status = httpStatus(error);
+    if (status === 409) {
+      return new CommandError(
+        "Work package changed",
+        "The work package changed before it could be closed. No retry was attempted; please run the command again.",
+      );
+    }
+    if (status === 401 || status === 403) {
+      return new CommandError(
+        "OpenProject permission denied",
+        "OpenProject denied permission to close this work package.",
+      );
+    }
+    if (status === 404) {
+      return new CommandError(
+        "Work package not found",
+        "The work package could not be found or is no longer accessible.",
+      );
+    }
+    if (status === 400 || status === 422) {
+      return new CommandError(
+        "Completion transition rejected",
+        "OpenProject rejected this completion transition. The work package may no longer allow it.",
+      );
+    }
+    return new CommandError(
+      "OpenProject unavailable",
+      "Hookshot could not close this work package in OpenProject. Please try again later.",
+    );
   }
 
   private assignmentCommandError(
