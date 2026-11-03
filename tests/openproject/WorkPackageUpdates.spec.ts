@@ -912,15 +912,32 @@ describe("OpenProjectConnection work-package updates", () => {
 
   it("does not send a standalone card when closing a work package", async () => {
     const storage = new RecordingStorage();
-    const openProjectClient = {
-      getWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
-      getStatuses: vi.fn().mockResolvedValue([
-        {
-          name: "Closed",
-          isClosed: true,
-          _links: { self: { href: "/statuses/5" } },
+    const closedStatus = {
+      id: 5,
+      name: "Closed",
+      isClosed: true,
+      _links: { self: { href: "/api/v3/statuses/5" } },
+    };
+    const statusForm = {
+      _embedded: {
+        payload: {},
+        schema: {
+          status: {
+            writable: true,
+            _embedded: { allowedValues: [closedStatus] },
+          },
         },
-      ]),
+        validationErrors: {},
+      },
+    };
+    const openProjectClient = {
+      getOrigin: vi.fn(() => BASE_URL.origin),
+      getIdentity: vi.fn().mockResolvedValue({
+        id: 11,
+        _links: { self: { href: "/api/v3/users/11" } },
+      }),
+      getWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
+      getWorkPackageForm: vi.fn().mockResolvedValue(statusForm),
       updateWorkPackage: vi.fn().mockResolvedValue(WORK_PACKAGE),
       addWorkPackageComment: vi.fn(),
     };
@@ -939,8 +956,9 @@ describe("OpenProjectConnection work-package updates", () => {
     expect(openProjectClient.updateWorkPackage).toHaveBeenCalledWith(
       WORK_PACKAGE.id,
       WORK_PACKAGE.lockVersion,
-      { _links: { status: { href: "/statuses/5" } } },
+      { _links: { status: { href: "/api/v3/statuses/5" } } },
     );
+    expect(openProjectClient.getWorkPackageForm).toHaveBeenCalledTimes(2);
     expect(intent.sentEvents).toHaveLength(0);
   });
 
