@@ -1,5 +1,6 @@
 import { UserTokenStore } from "../tokens/UserTokenStore";
 import { Logger } from "matrix-appservice-bridge";
+import { getAxiosErrorStatus } from "../util/axios";
 import {
   OpenProjectAPIClient,
   OpenProjectMalformedResponseError,
@@ -120,23 +121,6 @@ type ContextResult =
 interface CanonicalAssignmentTarget {
   href: string;
   userId: number;
-}
-
-function httpStatus(error: unknown): number | undefined {
-  if (typeof error !== "object" || error === null || !("response" in error)) {
-    return undefined;
-  }
-
-  const response = error.response;
-  if (
-    typeof response !== "object" ||
-    response === null ||
-    !("status" in response)
-  ) {
-    return undefined;
-  }
-
-  return typeof response.status === "number" ? response.status : undefined;
 }
 
 function normalizeHref(href: string, origin: string): string | undefined {
@@ -274,7 +258,7 @@ export class OpenProjectEligibilityService {
       try {
         allowedStatuses = await this.getAllowedStatuses(client, statusField);
       } catch (error) {
-        if (httpStatus(error) === 404) {
+        if (getAxiosErrorStatus(error) === 404) {
           return { status: "unavailable", reason: "openproject_error" };
         }
         throw error;
@@ -294,7 +278,7 @@ export class OpenProjectEligibilityService {
             `/api/v3/statuses/${configuredId}`,
           );
         } catch (error) {
-          if (httpStatus(error) === 404) {
+          if (getAxiosErrorStatus(error) === 404) {
             return {
               status: "stale_target",
               reason: "configured_status_missing",
@@ -695,7 +679,7 @@ export class OpenProjectEligibilityService {
       );
       return { status: "unavailable", reason: "malformed_response" };
     }
-    const status = httpStatus(error);
+    const status = getAxiosErrorStatus(error);
     if (status === 409) {
       return { status: "conflict" };
     }

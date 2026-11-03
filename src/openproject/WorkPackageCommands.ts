@@ -2,6 +2,7 @@ import { UserID } from "matrix-bot-sdk";
 import type { MatrixEvent, MessageEventContent } from "matrix-bot-sdk";
 import { CommandError, NotLoggedInError } from "../Errors";
 import type { UserTokenStore } from "../tokens/UserTokenStore";
+import { getAxiosErrorStatus } from "../util/axios";
 import type { OpenProjectAPIClient } from "./Client";
 import {
   OpenProjectEligibilityService,
@@ -29,21 +30,6 @@ interface UserResolutionOptions {
   missingMatrixUserMessage: string;
   requireSameOpenProjectInstance: boolean;
   fallbackToNameSearchAfterMatrixError: boolean;
-}
-
-function httpStatus(error: unknown): number | undefined {
-  if (typeof error !== "object" || error === null || !("response" in error)) {
-    return undefined;
-  }
-  const response = error.response;
-  if (
-    typeof response !== "object" ||
-    response === null ||
-    !("status" in response)
-  ) {
-    return undefined;
-  }
-  return typeof response.status === "number" ? response.status : undefined;
 }
 
 /** Executes OpenProject work package commands. */
@@ -482,7 +468,7 @@ export class OpenProjectWorkPackageCommandService {
   }
 
   private markDoneMutationError(error: unknown): CommandError {
-    const status = httpStatus(error);
+    const status = getAxiosErrorStatus(error);
     if (status === 409) {
       return new CommandError(
         "Work package changed",
