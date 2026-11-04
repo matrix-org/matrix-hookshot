@@ -982,13 +982,17 @@ describe("OpenProjectConnection", () => {
       }),
       getOpenProjectConnections: (projectId) =>
         manager.getConnectionsForOpenProject(projectId).map((candidate) => ({
-          connectionId: candidate.connectionId,
-          roomId: candidate.roomId,
-          botUserId: candidate.botUserId,
+          ...candidate.getCapabilityConnection(),
+          evaluateCardActions: vi.fn().mockResolvedValue({
+            status: "evaluated",
+            assignSelf: { status: "ineligible", reason: "already_assigned" },
+            markDone: { status: "ineligible", reason: "already_closed" },
+          }),
         })),
       getOpenProjectAnchorState,
       assertRoomReadAccess: vi.fn().mockResolvedValue(undefined),
-      getOpenProjectForUser: vi.fn().mockResolvedValue({}),
+      canSendRoomMessage: vi.fn().mockResolvedValue(true),
+      hasOpenProjectCommandPermission: vi.fn().mockReturnValue(true),
     });
     const request: HookshotCapabilitiesProbeRequest = {
       v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
@@ -1006,6 +1010,7 @@ describe("OpenProjectConnection", () => {
     await expect(probe(request, context)).resolves.toEqual({
       result: "ok",
       connection: "connected",
+      actions: [],
     });
 
     const pendingPurge = manager.purgeConnection(
@@ -1019,7 +1024,7 @@ describe("OpenProjectConnection", () => {
     await expect(probe(request, context)).resolves.toEqual({
       result: "not_authorized",
     });
-    expect(getOpenProjectAnchorState).toHaveBeenCalledTimes(1);
+    expect(getOpenProjectAnchorState).toHaveBeenCalledTimes(2);
 
     failCleanup(new Error("Redis unavailable"));
     await expect(pendingPurge).rejects.toThrow("Redis unavailable");

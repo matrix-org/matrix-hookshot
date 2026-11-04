@@ -99,6 +99,49 @@ describe("Hookshot Step 0 to-device protocol", () => {
       expect(isHookshotCapabilitiesProbeResponse(validResponse)).toBe(true);
     });
 
+    it("accepts a version-1 response without actions for compatibility", () => {
+      expect(isHookshotCapabilitiesProbeResponse({ ...validResponse })).toBe(
+        true,
+      );
+    });
+
+    it("accepts bounded unique actions only on an ok response", () => {
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          actions: [
+            {
+              id: "assign_self",
+              label: "Assign to me",
+              command: "!openproject project assign 123",
+            },
+            {
+              id: "mark_done",
+              label: "Mark as done",
+              command: "!openproject project close 123",
+            },
+          ],
+        }),
+      ).toBe(true);
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          actions: [
+            { id: "assign_self", label: "Assign", command: "!op assign 1" },
+            { id: "assign_self", label: "Assign", command: "!op assign 2" },
+          ],
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          result: "unavailable",
+          connection: undefined,
+          actions: [],
+        }),
+      ).toBe(false);
+    });
+
     it.each(["not_connected", "not_authorized", "unavailable"])(
       "accepts a safe %s result",
       (result) => {
@@ -136,6 +179,35 @@ describe("Hookshot Step 0 to-device protocol", () => {
         isHookshotCapabilitiesProbeResponse({
           ...validResponse,
           connection: "authorized",
+        }),
+      ).toBe(false);
+    });
+
+    it("requires safe connection and action combinations", () => {
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          result: "not_connected",
+          connection: "connected",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          result: "not_authorized",
+          connection: "connected",
+        }),
+      ).toBe(false);
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          actions: [{ id: "assign_self", label: "Assign", command: "x" }],
+        }),
+      ).toBe(true);
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          actions: [{ id: "a", label: "A", command: "bad\ncommand" }],
         }),
       ).toBe(false);
     });

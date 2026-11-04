@@ -9,6 +9,7 @@ import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
 } from "../src/openproject/Schema";
 import {
+  AuthenticatedOpenProjectConnection,
   AuthenticatedProbeServices,
   createAuthenticatedProbeHandler,
 } from "../src/AuthenticatedProbeHandler";
@@ -52,29 +53,79 @@ const activeAnchorState = {
   lastContent: validAnchor.content,
 } as OpenProjectAnchorState;
 
+type AuthenticatedProbeTestServices = AuthenticatedProbeServices & {
+  evaluateCardActions: AuthenticatedOpenProjectConnection["evaluateCardActions"];
+};
+
 function createServices(
-  overrides: Partial<AuthenticatedProbeServices> = {},
-): AuthenticatedProbeServices {
+  overrides: Partial<AuthenticatedProbeServices> & {
+    evaluateCardActions?: AuthenticatedOpenProjectConnection["evaluateCardActions"];
+  } = {},
+): AuthenticatedProbeTestServices {
+  const evaluateCardActions =
+    overrides.evaluateCardActions ??
+    vi.fn().mockResolvedValue({
+      status: "evaluated",
+      assignSelf: {
+        status: "eligible",
+        action: "assign_self",
+        workPackageId: 17,
+        lockVersion: 1,
+        targetHref: "/api/v3/users/7",
+      },
+      markDone: {
+        status: "eligible",
+        action: "mark_done",
+        workPackageId: 17,
+        lockVersion: 1,
+        targetHref: "/api/v3/statuses/9",
+      },
+    });
+  const defaultConnections = vi.fn().mockReturnValue([
+    {
+      connectionId: "connection-1",
+      roomId,
+      botUserId,
+      projectId: 42,
+      commandPrefix: "!openproject demo",
+      evaluateCardActions,
+    },
+  ]);
   return {
     getAnchorEvent: vi.fn().mockResolvedValue(validAnchor),
     assertRoomReadAccess: vi.fn().mockResolvedValue(undefined),
-    getOpenProjectForUser: vi.fn().mockResolvedValue({}),
-    getOpenProjectConnections: vi
-      .fn()
-      .mockReturnValue([{ connectionId: "connection-1", roomId, botUserId }]),
+    canSendRoomMessage: vi.fn().mockResolvedValue(true),
+    hasOpenProjectCommandPermission: vi.fn().mockReturnValue(true),
+    getOpenProjectConnections: defaultConnections,
     getOpenProjectAnchorState: vi.fn().mockResolvedValue(activeAnchorState),
     ...overrides,
-  };
+    evaluateCardActions,
+  } as AuthenticatedProbeTestServices;
 }
 
 describe("authenticated Hookshot probe", () => {
-  it("returns connected for a room member with an OpenProject connection", async () => {
+  it("returns only eligible actions with the matched connection's command prefix", async () => {
     const services = createServices();
     const handler = createAuthenticatedProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
-    ).resolves.toEqual({ result: "ok", connection: "connected" });
+    ).resolves.toEqual({
+      result: "ok",
+      connection: "connected",
+      actions: [
+        {
+          id: "assign_self",
+          label: "Assign to me",
+          command: "!openproject demo assign 17",
+        },
+        {
+          id: "mark_done",
+          label: "Mark as done",
+          command: "!openproject demo close 17",
+        },
+      ],
+    });
 
     expect(services.getAnchorEvent).toHaveBeenCalledWith(
       roomId,
@@ -86,7 +137,12 @@ describe("authenticated Hookshot probe", () => {
       roomId,
       botUserId,
     );
-    expect(services.getOpenProjectForUser).toHaveBeenCalledWith(sender);
+    expect(services.evaluateCardActions).toHaveBeenCalledWith(sender, 17);
+    expect(services.canSendRoomMessage).toHaveBeenCalledWith(
+      sender,
+      roomId,
+      botUserId,
+    );
     expect(services.getOpenProjectConnections).toHaveBeenCalledWith(42);
     expect(services.getOpenProjectAnchorState).toHaveBeenCalledWith(
       "connection-1",
@@ -96,14 +152,185 @@ describe("authenticated Hookshot probe", () => {
 
   it("reports not_connected without exposing token details", async () => {
     const services = createServices({
-      getOpenProjectForUser: vi.fn().mockResolvedValue(null),
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "not_connected",
+      }),
     });
     const handler = createAuthenticatedProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
-    ).resolves.toEqual({ result: "not_connected" });
+    ).resolves.toEqual({
+      result: "not_connected",
+      connection: "not_connected",
+    });
   });
+
+  it("returns an empty action list when both actions are ineligible", async () => {
+    const services = createServices({
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "evaluated",
+        assignSelf: { status: "ineligible", reason: "already_assigned" },
+        markDone: { status: "stale_target", reason: "configured_status_open" },
+      }),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({
+      result: "ok",
+      connection: "connected",
+      actions: [],
+    });
+  });
+
+  it("does not return partial actions when either eligibility check is unavailable", async () => {
+    const services = createServices({
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "evaluated",
+        assignSelf: {
+          status: "not_authorized",
+          reason: "openproject_permission",
+        },
+        markDone: { status: "unavailable", reason: "openproject_error" },
+      }),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "unavailable" });
+  });
+
+  it("requires OpenProject command permission", async () => {
+    const services = createServices({
+      hasOpenProjectCommandPermission: vi.fn().mockReturnValue(false),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+    expect(services.canSendRoomMessage).not.toHaveBeenCalled();
+    expect(services.evaluateCardActions).not.toHaveBeenCalled();
+  });
+
+  it("requires power to send room messages", async () => {
+    const services = createServices({
+      canSendRoomMessage: vi.fn().mockResolvedValue(false),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+    expect(services.evaluateCardActions).not.toHaveBeenCalled();
+  });
+
+  it("fails closed if the anchor is replaced during evaluation", async () => {
+    const services = createServices({
+      getOpenProjectAnchorState: vi
+        .fn()
+        .mockResolvedValueOnce(activeAnchorState)
+        .mockResolvedValueOnce(null),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+  });
+
+  it("fails closed if the connection is removed during evaluation", async () => {
+    const connections = [
+      {
+        connectionId: "connection-1",
+        roomId,
+        botUserId,
+        projectId: 42,
+        commandPrefix: "!openproject demo",
+        evaluateCardActions: vi.fn().mockResolvedValue({
+          status: "evaluated",
+          assignSelf: { status: "ineligible", reason: "already_assigned" },
+          markDone: { status: "ineligible", reason: "already_closed" },
+        }),
+      },
+    ];
+    const services = createServices({
+      getOpenProjectConnections: vi
+        .fn()
+        .mockReturnValueOnce(connections)
+        .mockReturnValueOnce([]),
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({ result: "not_authorized" });
+  });
+
+  it("uses the current prefix after rechecking the connection", async () => {
+    const evaluateCardActions = vi.fn().mockResolvedValue({
+      status: "evaluated",
+      assignSelf: {
+        status: "eligible",
+        action: "assign_self",
+        workPackageId: 17,
+        lockVersion: 1,
+        targetHref: "/api/v3/users/7",
+      },
+      markDone: { status: "ineligible", reason: "already_closed" },
+    });
+    const connection = {
+      connectionId: "connection-1",
+      roomId,
+      botUserId,
+      projectId: 42,
+      commandPrefix: "!openproject updated-project",
+      evaluateCardActions,
+    };
+    const services = createServices({
+      getOpenProjectConnections: vi
+        .fn()
+        .mockReturnValueOnce([
+          { ...connection, commandPrefix: "!openproject old-project" },
+        ])
+        .mockReturnValueOnce([connection]),
+      evaluateCardActions,
+    });
+    const handler = createAuthenticatedProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({
+      result: "ok",
+      connection: "connected",
+      actions: [
+        {
+          id: "assign_self",
+          label: "Assign to me",
+          command: "!openproject updated-project assign 17",
+        },
+      ],
+    });
+  });
+
+  it.each([403, 404, 500])(
+    "maps anchor lookup HTTP status %i without exposing event details",
+    async (status) => {
+      const services = createServices({
+        getAnchorEvent: vi.fn().mockRejectedValue({ statusCode: status }),
+      });
+      const handler = createAuthenticatedProbeHandler(services);
+
+      await expect(
+        handler(request, { sender, recipientBotUserId: botUserId }),
+      ).resolves.toEqual({
+        result: status === 500 ? "unavailable" : "not_authorized",
+      });
+    },
+  );
 
   type AnchorPatch = {
     room_id?: string;
@@ -150,7 +377,7 @@ describe("authenticated Hookshot probe", () => {
         handler(request, { sender, recipientBotUserId: botUserId }),
       ).resolves.toEqual({ result: "not_authorized" });
       expect(services.assertRoomReadAccess).not.toHaveBeenCalled();
-      expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
+      expect(services.evaluateCardActions).not.toHaveBeenCalled();
     },
   );
 
@@ -163,7 +390,7 @@ describe("authenticated Hookshot probe", () => {
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
     ).resolves.toEqual({ result: "not_authorized" });
-    expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
+    expect(services.evaluateCardActions).not.toHaveBeenCalled();
   });
 
   it("rejects an inactive Matrix anchor even when stored state is stale", async () => {
@@ -200,7 +427,7 @@ describe("authenticated Hookshot probe", () => {
       handler(request, { sender, recipientBotUserId: botUserId }),
     ).resolves.toEqual({ result: "not_authorized" });
     expect(services.assertRoomReadAccess).not.toHaveBeenCalled();
-    expect(services.getOpenProjectForUser).not.toHaveBeenCalled();
+    expect(services.evaluateCardActions).not.toHaveBeenCalled();
   });
 
   const staleAnchorCases: Array<[string, OpenProjectAnchorState | null]> = [

@@ -24,7 +24,7 @@ export interface HookshotProbeContext {
 
 export type HookshotProbeResponseState = Pick<
   HookshotCapabilitiesProbeResponse,
-  "result" | "connection"
+  "result" | "connection" | "actions"
 >;
 
 export type HookshotProbeHandler = (

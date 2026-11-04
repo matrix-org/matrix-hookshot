@@ -30,6 +30,13 @@ export interface HookshotCapabilitiesProbeResponse {
   integration_id: HookshotIntegrationId;
   result: HookshotProbeResult;
   connection?: "connected" | "not_connected";
+  actions?: HookshotCapabilityAction[];
+}
+
+export interface HookshotCapabilityAction {
+  id: string;
+  label: string;
+  command: string;
 }
 
 /** Annotation added by matrix-bot-sdk to events received from a to-device EDU. */
@@ -59,7 +66,10 @@ const RESPONSE_KEYS = [
   "integration_id",
   "result",
   "connection",
+  "actions",
 ] as const;
+
+const ACTION_KEYS = ["id", "label", "command"] as const;
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -146,17 +156,79 @@ export function isHookshotCapabilitiesProbeResponse(
   }
 
   const connection = value.connection;
-  return (
-    value.v === HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
-    isNonEmptyString(value.request_id) &&
-    isIntegrationId(value.integration_id) &&
-    (value.result === "ok" ||
+  if (
+    value.v !== HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION ||
+    !isNonEmptyString(value.request_id) ||
+    !isIntegrationId(value.integration_id) ||
+    !(
+      value.result === "ok" ||
       value.result === "not_connected" ||
       value.result === "not_authorized" ||
-      value.result === "unavailable") &&
-    (connection === undefined ||
+      value.result === "unavailable"
+    ) ||
+    !(
+      connection === undefined ||
       connection === "connected" ||
-      connection === "not_connected")
+      connection === "not_connected"
+    )
+  ) {
+    return false;
+  }
+
+  if (value.actions !== undefined) {
+    if (
+      value.result !== "ok" ||
+      connection !== "connected" ||
+      !Array.isArray(value.actions) ||
+      value.actions.length > 16 ||
+      !value.actions.every(isHookshotCapabilityAction)
+    ) {
+      return false;
+    }
+    const ids = value.actions.map((action) => action.id);
+    if (new Set(ids).size !== ids.length) {
+      return false;
+    }
+  }
+
+  if (value.result === "ok") {
+    return connection === undefined || connection === "connected";
+  }
+  if (value.result === "not_connected") {
+    return (
+      (connection === undefined || connection === "not_connected") &&
+      value.actions === undefined
+    );
+  }
+  return connection === undefined && value.actions === undefined;
+}
+
+function isHookshotCapabilityAction(
+  value: unknown,
+): value is HookshotCapabilityAction {
+  return (
+    isRecord(value) &&
+    hasOnlyKeys(value, ACTION_KEYS) &&
+    isCapabilityActionId(value.id) &&
+    isBoundedText(value.label, 100) &&
+    isBoundedText(value.command, 512)
+  );
+}
+
+function isCapabilityActionId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= 64 &&
+    /^[a-z][a-z0-9_-]*$/u.test(value)
+  );
+}
+
+function isBoundedText(value: unknown, maxLength: number): value is string {
+  return (
+    typeof value === "string" &&
+    value.trim().length > 0 &&
+    value.length <= maxLength &&
+    !/[\p{Cc}]/u.test(value)
   );
 }
 

@@ -649,12 +649,17 @@ export class OpenProjectEligibilityService {
 
       stage = "identity";
       const identity = await client.getIdentity();
-      const normalizedHref = normalizeHref(
+      const canonicalIdentity = canonicalUserHref(
         identity._links.self.href,
+        identity.id,
         client.getOrigin(),
       );
-      if (normalizedHref !== `/api/v3/users/${identity.id}`) {
-        log.warn("OpenProject identity self link does not match its user ID");
+      if (
+        !Number.isSafeInteger(identity.id) ||
+        identity.id <= 0 ||
+        !canonicalIdentity
+      ) {
+        log.warn("OpenProject identity did not have a canonical user link");
         return {
           ok: false,
           result: { status: "unavailable", reason: "malformed_response" },
@@ -674,8 +679,8 @@ export class OpenProjectEligibilityService {
           client,
           identity: {
             id: identity.id,
-            href: identity._links.self.href,
-            normalizedHref,
+            href: canonicalIdentity.href,
+            normalizedHref: canonicalIdentity.href,
           },
           workPackage,
         },

@@ -45,6 +45,13 @@ export interface OpenProjectProbeResponse {
   integration_id: typeof OPENPROJECT_INTEGRATION_ID;
   result: OpenProjectProbeResult;
   connection?: "connected" | "not_connected";
+  actions?: OpenProjectCapabilityAction[];
+}
+
+export interface OpenProjectCapabilityAction {
+  id: "assign_self" | "mark_done";
+  label: "Assign to me" | "Mark as done";
+  command: string;
 }
 
 export interface OpenProjectProbeOptions {
@@ -180,11 +187,24 @@ export function isOpenProjectActivityContent(
 export function isOpenProjectProbeResponse(
   value: unknown,
 ): value is OpenProjectProbeResponse {
-  if (!isRecord(value)) {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some(
+      (key) =>
+        ![
+          "v",
+          "request_id",
+          "integration_id",
+          "result",
+          "connection",
+          "actions",
+        ].includes(key),
+    )
+  ) {
     return false;
   }
 
-  return (
+  if (
     value.v === HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION &&
     typeof value.request_id === "string" &&
     value.integration_id === OPENPROJECT_INTEGRATION_ID &&
@@ -195,6 +215,68 @@ export function isOpenProjectProbeResponse(
     (value.connection === undefined ||
       value.connection === "connected" ||
       value.connection === "not_connected")
+  ) {
+    if (value.actions !== undefined) {
+      if (
+        value.result !== "ok" ||
+        value.connection !== "connected" ||
+        !Array.isArray(value.actions) ||
+        value.actions.length > 2 ||
+        !value.actions.every(isOpenProjectCapabilityAction) ||
+        new Set(value.actions.map((action) => action.id)).size !==
+          value.actions.length
+      ) {
+        return false;
+      }
+    }
+    if (value.result === "ok") {
+      return value.connection === undefined || value.connection === "connected";
+    }
+    if (value.result === "not_connected") {
+      return (
+        (value.connection === undefined ||
+          value.connection === "not_connected") &&
+        value.actions === undefined
+      );
+    }
+    return value.connection === undefined && value.actions === undefined;
+  }
+  return false;
+}
+
+function isOpenProjectCapabilityAction(
+  value: unknown,
+): value is OpenProjectCapabilityAction {
+  if (
+    !isRecord(value) ||
+    Object.keys(value).some((key) => !["id", "label", "command"].includes(key))
+  ) {
+    return false;
+  }
+  if (value.id !== "assign_self" && value.id !== "mark_done") {
+    return false;
+  }
+  const expectedLabel =
+    value.id === "assign_self" ? "Assign to me" : "Mark as done";
+  if (value.label !== expectedLabel || typeof value.command !== "string") {
+    return false;
+  }
+  const command = /^(.{2,48}) (assign|close) ([1-9]\d{0,15})$/u.exec(
+    value.command,
+  );
+  if (
+    !command ||
+    command[1].trim() !== command[1] ||
+    /[\p{Cc}]/u.test(command[1])
+  ) {
+    return false;
+  }
+  const workPackageId = Number(command[3]);
+  return (
+    Number.isSafeInteger(workPackageId) &&
+    workPackageId > 0 &&
+    ((value.id === "assign_self" && command[2] === "assign") ||
+      (value.id === "mark_done" && command[2] === "close"))
   );
 }
 

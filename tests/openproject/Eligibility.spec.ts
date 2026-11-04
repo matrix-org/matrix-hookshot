@@ -200,6 +200,23 @@ describe("OpenProjectEligibilityService card actions", () => {
     expect(harness.updateWorkPackage).not.toHaveBeenCalled();
   });
 
+  it("rejects an invalid OpenProject identity before fetching the package", async () => {
+    const harness = createHarness();
+    harness.getIdentity.mockResolvedValueOnce({
+      ...createIdentity(),
+      id: 0,
+    });
+
+    await expect(
+      harness.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "unavailable", reason: "malformed_response" });
+    expect(harness.getWorkPackage).not.toHaveBeenCalled();
+  });
+
   it("keeps ineligible assignment and stale completion targets distinct", async () => {
     const harness = createHarness();
     vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(

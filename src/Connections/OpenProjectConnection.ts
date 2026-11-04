@@ -34,7 +34,11 @@ import { BridgeConfigMessaging } from "../config/sections";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { TimelineManager } from "../openproject/TimelineManager";
 import { OpenProjectGrantChecker } from "../openproject/GrantChecker";
-import { OpenProjectEligibilityService } from "../openproject/Eligibility";
+import {
+  OpenProjectEligibilityService,
+  type OpenProjectEligibilityConnection,
+} from "../openproject/Eligibility";
+import type { AuthenticatedOpenProjectConnection } from "../AuthenticatedProbeHandler";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
@@ -490,6 +494,23 @@ export class OpenProjectConnection
     return !this.timelineRemoved && this.projectId === project;
   }
 
+  /** Return the narrow, current connection data used for a capability probe. */
+  public getCapabilityConnection(): AuthenticatedOpenProjectConnection {
+    return {
+      connectionId: this.connectionId,
+      roomId: this.roomId,
+      botUserId: this.botUserId,
+      projectId: this.projectId,
+      commandPrefix: this.commandPrefix.trimEnd(),
+      evaluateCardActions: (matrixUserId, workPackageId) =>
+        this.eligibilityService.evaluateCardActions(
+          matrixUserId,
+          this.eligibilityConnection,
+          workPackageId,
+        ),
+    };
+  }
+
   public readonly url: URL;
   public readonly projectId: number;
   /** The bot whose intent handles this connection's Matrix traffic. */
@@ -497,6 +518,8 @@ export class OpenProjectConnection
   private readonly grantChecker: OpenProjectGrantChecker;
   private readonly timelineCommandService: OpenProjectTimelineCommandService;
   private readonly workPackageCommandService: OpenProjectWorkPackageCommandService;
+  private readonly eligibilityService: OpenProjectEligibilityService;
+  private readonly eligibilityConnection: OpenProjectEligibilityConnection;
   private readonly webhookHandler: OpenProjectWebhookHandler;
   private timelineRemoved = false;
 
@@ -529,6 +552,12 @@ export class OpenProjectConnection
     this.grantChecker = new OpenProjectGrantChecker(as, intent, tokenStore);
     this.url = new URL(state.url);
     this.projectId = OpenProjectConnection.projectIdFromUrl(this.url);
+    this.eligibilityService = new OpenProjectEligibilityService(tokenStore);
+    this.eligibilityConnection = {
+      projectId: this.projectId,
+      getCompletionStatusOptionId: () => this.state.completionStatusOptionId,
+      interestedInProject: (projectId) => this.interestedInProject(projectId),
+    };
     this.timelineCommandService = new OpenProjectTimelineCommandService({
       connectionId: this.connectionId,
       projectId: this.projectId,
@@ -542,15 +571,13 @@ export class OpenProjectConnection
     });
     this.workPackageCommandService = new OpenProjectWorkPackageCommandService(
       {
-        projectId: this.projectId,
+        ...this.eligibilityConnection,
         baseURL: this.config.baseURL,
         tokenStore: this.tokenStore,
-        getCompletionStatusOptionId: () => this.state.completionStatusOptionId,
-        interestedInProject: (projectId) => this.interestedInProject(projectId),
         getWorkPackageIDFromReply: (reply) =>
           this.getWorkPackageIDFromReply(reply),
       },
-      new OpenProjectEligibilityService(tokenStore),
+      this.eligibilityService,
     );
     this.webhookHandler = new OpenProjectWebhookHandler({
       connectionId: this.connectionId,

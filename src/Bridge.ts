@@ -2234,17 +2234,34 @@ export class Bridge {
               this.as.getIntentForUserId(recipientBotUserId),
             );
           },
-          getOpenProjectForUser: (userId) =>
-            this.tokenStore.getOpenProjectForUser(userId),
+          canSendRoomMessage: async (userId, roomId, recipientBotUserId) => {
+            const client =
+              this.as.getIntentForUserId(recipientBotUserId).underlyingClient;
+            const powerLevels = new PLManager(
+              await client.getRoomCreateEvent(roomId),
+              await client.getRoomStateEventContent(
+                roomId,
+                "m.room.power_levels",
+                "",
+              ),
+            );
+            const requiredPowerLevel =
+              powerLevels.currentPL.events?.["m.room.message"] ??
+              powerLevels.currentPL.events_default ??
+              0;
+            return powerLevels.getUserPowerLevel(userId) >= requiredPowerLevel;
+          },
+          hasOpenProjectCommandPermission: (userId) =>
+            this.config.checkPermission(
+              userId,
+              "openproject",
+              BridgePermissionLevel.commands,
+            ),
           getOpenProjectConnections: (projectId) =>
             (
               this.connectionManager?.getConnectionsForOpenProject(projectId) ??
               []
-            ).map((connection) => ({
-              connectionId: connection.connectionId,
-              roomId: connection.roomId,
-              botUserId: connection.botUserId,
-            })),
+            ).map((connection) => connection.getCapabilityConnection()),
           getOpenProjectAnchorState: (connectionId, workPackageId) =>
             this.storage.getOpenProjectAnchorState(connectionId, workPackageId),
         }),

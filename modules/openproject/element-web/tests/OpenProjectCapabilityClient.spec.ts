@@ -166,6 +166,53 @@ describe("OpenProjectCapabilityClient", () => {
     ).toBe(false);
   });
 
+  it("validates known capability actions and their explicit commands", () => {
+    const response = {
+      ...createResponse(),
+      connection: "connected" as const,
+      actions: [
+        {
+          id: "assign_self",
+          label: "Assign to me",
+          command: "!openproject project assign 41",
+        },
+        {
+          id: "mark_done",
+          label: "Mark as done",
+          command: "!openproject project close 41",
+        },
+      ],
+    };
+    expect(isOpenProjectProbeResponse(response)).toBe(true);
+    expect(
+      isOpenProjectProbeResponse({
+        ...response,
+        actions: [
+          { id: "archive", label: "Archive", command: "!openproject close 41" },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectProbeResponse({
+        ...response,
+        actions: [
+          {
+            id: "assign_self",
+            label: "Assign to me",
+            command: "!openproject project close 41",
+          },
+        ],
+      }),
+    ).toBe(false);
+    expect(
+      isOpenProjectProbeResponse({
+        ...response,
+        result: "not_authorized",
+        connection: undefined,
+      }),
+    ).toBe(false);
+  });
+
   it("sends an integration-neutral probe with the validated anchor inputs", async () => {
     const response = createResponse();
     const toDeviceClient = new FakeToDeviceClient();

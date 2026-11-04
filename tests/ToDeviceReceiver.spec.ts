@@ -88,6 +88,47 @@ describe("Hookshot to-device receiver", () => {
     );
   });
 
+  it("delivers capability actions to only the requesting device", async () => {
+    const appservice = new FakeAppservice();
+    const receiver = createReceiver(appservice, {
+      probeHandler: vi.fn().mockResolvedValue({
+        result: "ok",
+        connection: "connected",
+        actions: [
+          {
+            id: "assign_self",
+            label: "Assign to me",
+            command: "!openproject project assign 17",
+          },
+        ],
+      }),
+    });
+
+    await receiver.handleEphemeralEvent(makeEvent());
+
+    expect(appservice.sendToDevices).toHaveBeenCalledWith(
+      HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      {
+        [sender]: {
+          ELEMENTDEVICE: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: validRequest.request_id,
+            integration_id: validRequest.integration_id,
+            result: "ok",
+            connection: "connected",
+            actions: [
+              {
+                id: "assign_self",
+                label: "Assign to me",
+                command: "!openproject project assign 17",
+              },
+            ],
+          },
+        },
+      },
+    );
+  });
+
   it("subscribes to and unsubscribes from ephemeral events", async () => {
     const appservice = new FakeAppservice();
     const receiver = createReceiver(appservice);
