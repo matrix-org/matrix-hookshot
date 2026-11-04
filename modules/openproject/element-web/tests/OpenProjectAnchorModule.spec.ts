@@ -1,11 +1,24 @@
 // @vitest-environment happy-dom
 
 import * as React from "react";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import {
+  cleanup,
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { TooltipProvider } from "@vector-im/compound-web";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
-import type { OpenProjectAnchor } from "../src/OpenProjectCapabilityClient";
+import { AnchorView } from "../src/components/workPackage/AnchorView";
+import type {
+  OpenProjectAnchor,
+  OpenProjectCapabilityAction,
+  OpenProjectProbeResponse,
+} from "../src/OpenProjectCapabilityClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
@@ -24,6 +37,8 @@ import { OPENPROJECT_WORK_PACKAGE_CREATED_EVENT } from "./fixtures/OpenProjectEv
 
 const botUserId = "@hookshot_openproject:example.org";
 
+afterEach(cleanup);
+
 const anchor: OpenProjectAnchor = {
   eventId: anchorEventId,
   roomId: "!openproject:example.org",
@@ -39,10 +54,27 @@ function renderAnchor(
   >,
 ) {
   return React.createElement(OpenProjectAnchorRenderer, {
-    anchor,
+    anchor: {
+      ...anchor,
+      snapshotId: data["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+    },
     capabilityClient,
     data,
   });
+}
+
+function createProbeResponse(
+  result: OpenProjectProbeResponse["result"] = "ok",
+  actions?: readonly OpenProjectCapabilityAction[],
+): OpenProjectProbeResponse {
+  return {
+    v: 1,
+    request_id: "request-1",
+    integration_id: "openproject",
+    result,
+    ...(result === "ok" ? { connection: "connected" as const } : {}),
+    ...(actions === undefined ? {} : { actions: [...actions] }),
+  };
 }
 
 function createMarkedAnchorEvent(
@@ -75,6 +107,8 @@ function createMarkedAnchorEvent(
 
 function createModuleRegistration() {
   const registerMessageRenderer = vi.fn();
+  const insertPlaintextIntoComposer = vi.fn();
+  const sendComposerMessage = vi.fn();
   const api = {
     config: {
       get: () => ({
@@ -83,11 +117,14 @@ function createModuleRegistration() {
         },
       }),
     },
+    composer: { insertPlaintextIntoComposer, sendComposerMessage },
     customComponents: { registerMessageRenderer },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
   return {
     registerMessageRenderer,
+    insertPlaintextIntoComposer,
+    sendComposerMessage,
     load: () => new HookshotOpenProjectModule(api).load(),
   };
 }
@@ -102,6 +139,61 @@ describe("OpenProject marked anchor path", () => {
 
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     expect(rendered.props.capabilityClient).toBeDefined();
+    expect(rendered.props.onActionCommand).toEqual(expect.any(Function));
+  });
+
+  it("inserts the exact action command into the room composer without sending", async () => {
+    const {
+      registerMessageRenderer,
+      insertPlaintextIntoComposer,
+      sendComposerMessage,
+      load,
+    } = createModuleRegistration();
+    await load();
+    const [, renderAnchorMessage] = registerMessageRenderer.mock.calls[0];
+    const rendered = renderAnchorMessage({
+      mxEvent: createMarkedAnchorEvent(),
+    });
+    const command = "!openproject project assign 50";
+    const capabilityClient = {
+      getSessionIdentity: () => ({
+        userId: "@alice:example.org",
+        deviceId: "ALICEDEVICE",
+      }),
+      isSessionIdentityCurrent: () => true,
+      probe: vi
+        .fn()
+        .mockResolvedValue(
+          createProbeResponse("ok", [
+            { id: "assign_self", label: "Assign to me", command },
+          ]),
+        ),
+    } as never;
+    const viewModel = new AnchorMessageViewModel({
+      anchor: rendered.props.anchor,
+      capabilityClient,
+      data: rendered.props.data,
+      onActionCommand: rendered.props.onActionCommand,
+    });
+
+    render(
+      React.createElement(
+        TooltipProvider,
+        null,
+        React.createElement(AnchorView, { vm: viewModel }),
+      ),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Assign to me" }),
+    );
+    expect(screen.queryByRole("button", { name: "Mark as done" })).toBeNull();
+
+    await waitFor(() => {
+      expect(insertPlaintextIntoComposer).toHaveBeenCalledWith(command, {
+        view: "room",
+      });
+    });
+    expect(sendComposerMessage).not.toHaveBeenCalled();
   });
 
   it("does not probe a marked card from another sender", async () => {
@@ -279,6 +371,151 @@ describe("OpenProject marked anchor path", () => {
     expect(viewModel.getSnapshot()?.probe).toEqual({ kind: "loading" });
   });
 
+  it.each([
+    ["an ok response without actions", createProbeResponse("ok")],
+    ["an ok response with no actions", createProbeResponse("ok", [])],
+    ["a not-connected response", createProbeResponse("not_connected")],
+    ["a not-authorized response", createProbeResponse("not_authorized")],
+    ["an unavailable response", createProbeResponse("unavailable")],
+  ])("shows no action buttons for %s", async (_description, response) => {
+    const probe = vi.fn().mockResolvedValue(response);
+    const capabilityClient = {
+      probe,
+      getSessionIdentity: () => ({
+        userId: "@alice:example.org",
+        deviceId: "ALICEDEVICE",
+      }),
+      isSessionIdentityCurrent: () => true,
+    } as never;
+    render(renderAnchor(activeAnchorContent, capabilityClient));
+
+    expect(
+      await screen.findByRole("link", { name: "View package" }),
+    ).toBeTruthy();
+    await waitFor(() => expect(probe).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: "Assign to me" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mark as done" })).toBeNull();
+  });
+
+  it("retries an unavailable probe and displays its newly authorized action", async () => {
+    const probe = vi
+      .fn()
+      .mockResolvedValueOnce(createProbeResponse("unavailable"))
+      .mockResolvedValueOnce(
+        createProbeResponse("ok", [
+          {
+            id: "mark_done",
+            label: "Mark as done",
+            command: "!openproject project close 50",
+          },
+        ]),
+      );
+    const capabilityClient = {
+      probe,
+      getSessionIdentity: () => ({
+        userId: "@alice:example.org",
+        deviceId: "ALICEDEVICE",
+      }),
+      isSessionIdentityCurrent: () => true,
+    } as never;
+    render(renderAnchor(activeAnchorContent, capabilityClient));
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "OpenProject connection unavailable. Click to retry.",
+      }),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Mark as done" }),
+    ).toBeTruthy();
+    expect(probe).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a capability result from the previous replacement", async () => {
+    let resolveOriginal!: (response: OpenProjectProbeResponse) => void;
+    let resolveReplacement!: (response: OpenProjectProbeResponse) => void;
+    const originalProbe = new Promise<OpenProjectProbeResponse>((resolve) => {
+      resolveOriginal = resolve;
+    });
+    const replacementProbe = new Promise<OpenProjectProbeResponse>(
+      (resolve) => {
+        resolveReplacement = resolve;
+      },
+    );
+    const probe = vi
+      .fn()
+      .mockReturnValueOnce(originalProbe)
+      .mockReturnValueOnce(replacementProbe);
+    const capabilityClient = {
+      probe,
+      getSessionIdentity: () => ({
+        userId: "@alice:example.org",
+        deviceId: "ALICEDEVICE",
+      }),
+      isSessionIdentityCurrent: () => true,
+    } as never;
+    const { rerender } = render(
+      renderAnchor(activeAnchorContent, capabilityClient),
+    );
+    const replacementContent = activeReplacement[
+      "m.new_content"
+    ] as OpenProjectAnchorContent;
+    rerender(renderAnchor(replacementContent, capabilityClient));
+
+    expect(probe).toHaveBeenCalledTimes(2);
+    expect(probe).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventId: anchorEventId,
+        snapshotId:
+          activeAnchorContent[
+            "org.matrix.matrix-hookshot.openproject.snapshot_id"
+          ],
+      }),
+    );
+    expect(probe).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventId: anchorEventId,
+        snapshotId:
+          replacementContent[
+            "org.matrix.matrix-hookshot.openproject.snapshot_id"
+          ],
+      }),
+    );
+
+    await act(async () => {
+      resolveOriginal(
+        createProbeResponse("ok", [
+          {
+            id: "assign_self",
+            label: "Assign to me",
+            command: "!openproject project assign 50",
+          },
+        ]),
+      );
+      await originalProbe;
+    });
+    expect(screen.queryByRole("button", { name: "Assign to me" })).toBeNull();
+
+    await act(async () => {
+      resolveReplacement(
+        createProbeResponse("ok", [
+          {
+            id: "mark_done",
+            label: "Mark as done",
+            command: "!openproject project close 50",
+          },
+        ]),
+      );
+      await replacementProbe;
+    });
+    expect(
+      await screen.findByRole("button", { name: "Mark as done" }),
+    ).toBeTruthy();
+  });
+
   it("refreshes a mounted card for active and inactive replacement content", () => {
     const originalSnapshotId =
       activeAnchorContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
@@ -308,14 +545,25 @@ describe("OpenProject marked anchor path", () => {
     expect(originalSnapshotId).toBe("00000000-0000-4000-8000-000000000001");
     expect(screen.getByText("Build the bridge")).toBeTruthy();
     expect(screen.getByText("New")).toBeTruthy();
-    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "View package" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Assign to me" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mark as done" })).toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "Checking OpenProject connection...",
+      }),
+    ).toBeTruthy();
     expect(probe).toHaveBeenCalledOnce();
 
     expect(activeSnapshotId).not.toBe(originalSnapshotId);
     rerender(renderAnchor(activeContent, capabilityClient));
     expect(screen.getByText("Build the updated bridge")).toBeTruthy();
     expect(screen.getByText("Closed")).toBeTruthy();
-    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
+    expect(
+      screen.getByRole("button", {
+        name: "Checking OpenProject connection...",
+      }),
+    ).toBeTruthy();
     expect(probe).toHaveBeenCalledTimes(2);
 
     expect(inactiveSnapshotId).not.toBe(activeSnapshotId);
@@ -325,7 +573,11 @@ describe("OpenProject marked anchor path", () => {
       screen.getByRole("link", { name: "Demo project · #50" }),
     ).toBeTruthy();
     expect(screen.queryByText("Build the updated bridge")).toBeNull();
-    expect(screen.queryByText("Checking OpenProject actions…")).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "Checking OpenProject connection...",
+      }),
+    ).toBeNull();
     expect(screen.queryByRole("link", { name: "View package" })).toBeNull();
     expect(probe).toHaveBeenCalledTimes(2);
   });

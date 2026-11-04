@@ -2,18 +2,21 @@
 
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TooltipProvider } from "@vector-im/compound-web";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ActionsView } from "../src/components/workPackage/ActionsView";
 import { LinkView } from "../src/components/workPackage/LinkView";
 import { ActivityView } from "../src/components/workPackage/ActivityView";
 import type { OpenProjectActivityContent } from "../src/models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot } from "../src/viewmodels/workPackage/DetailsSnapshot";
 import { ActivityMessageViewModel } from "../src/viewmodels/workPackage/ActivityMessageViewModel";
+import type { OpenProjectCapabilityAction } from "../src/OpenProjectCapabilityClient";
 import { PROJECT, WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
 type ElementProps = Record<string, unknown>;
+
+afterEach(cleanup);
 
 function collectElementProps(value: unknown): ElementProps[] {
   if (Array.isArray(value)) {
@@ -67,6 +70,33 @@ describe("OpenProject renderer security", () => {
     );
 
     expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
+  });
+
+  it("renders eligible actions as named, keyboard-focusable buttons", () => {
+    const action: OpenProjectCapabilityAction = {
+      id: "assign_self",
+      label: "Assign to me",
+      command: "!openproject project assign 50",
+    };
+    const onAction = vi.fn();
+    render(
+      React.createElement(
+        TooltipProvider,
+        null,
+        React.createElement(ActionsView, {
+          actions: [action],
+          onAction,
+        }),
+      ),
+    );
+
+    const button = screen.getByRole("button", { name: "Assign to me" });
+    expect(button.tagName).toBe("BUTTON");
+    expect(button.tabIndex).toBe(0);
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    fireEvent.click(button);
+    expect(onAction).toHaveBeenCalledWith(action);
   });
 });
 
@@ -143,6 +173,8 @@ describe("OpenProject Activity renderer", () => {
     );
     expect(markup).toContain(`href="${WORK_PACKAGE.url}"`);
     expect(markup).toContain("View timeline card");
+    expect(markup).not.toContain("Assign to me");
+    expect(markup).not.toContain("Mark as done");
 
     render(view);
     fireEvent.click(screen.getByRole("button", { name: "View timeline card" }));

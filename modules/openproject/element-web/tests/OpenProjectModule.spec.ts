@@ -71,10 +71,22 @@ function createUpdateEvent({
   };
 }
 
-function createModuleRegistration() {
+function createModuleRegistration(configureOpenProjectBot = false) {
   const registerMessageRenderer = vi.fn();
   const toMatrixToLink = vi.fn().mockResolvedValue(undefined);
   const api = {
+    config: {
+      get: () =>
+        configureOpenProjectBot
+          ? {
+              "org.matrix.matrix-hookshot": {
+                integrationBots: {
+                  openproject: "@hookshot_openproject:example.org",
+                },
+              },
+            }
+          : undefined,
+    },
     customComponents: { registerMessageRenderer },
     navigation: { toMatrixToLink },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
@@ -160,7 +172,7 @@ describe("OpenProject Element Web module", () => {
 
   it("renders only the event kind selected by each renderer", async () => {
     const { registerMessageRenderer, load, toMatrixToLink } =
-      createModuleRegistration();
+      createModuleRegistration(true);
     await load();
     const [, renderAnchor] = registerMessageRenderer.mock.calls[0];
     const [, renderUpdate] = registerMessageRenderer.mock.calls[1];
@@ -183,11 +195,18 @@ describe("OpenProject Element Web module", () => {
     expect(updateRendered.type).toBe(OpenProjectActivityRenderer);
     expect(updateRendered.props).not.toHaveProperty("capabilityClient");
     expect(updateRendered.props.roomId).toBe("!activity-room:example.test");
+    const originalMatrixClientPeg = window.mxMatrixClientPeg;
+    const safeGet = vi.fn(() => null);
+    window.mxMatrixClientPeg = { safeGet };
     render(updateRendered);
+    expect(safeGet).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Assign to me" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mark as done" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "View timeline card" }));
     expect(toMatrixToLink).toHaveBeenCalledWith(
       "https://matrix.to/#/!activity-room%3Aexample.test/%24original-anchor%3Aexample.test",
     );
+    window.mxMatrixClientPeg = originalMatrixClientPeg;
 
     expect(renderAnchor({ mxEvent: createUpdateEvent() }, fallback)).toBe(
       "fallback",
