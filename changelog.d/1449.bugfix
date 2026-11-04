@@ -1,0 +1,1 @@
+Stop logging generic webhook hook IDs, which act as secrets in the webhook URL.
