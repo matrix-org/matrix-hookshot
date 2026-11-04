@@ -35,6 +35,7 @@ export type OpenProjectProbeResult =
 export interface OpenProjectAnchor {
   readonly roomId: string;
   readonly eventId: string;
+  readonly snapshotId: string;
   readonly workPackageId: number;
   readonly recipientUserId: string;
 }
@@ -52,10 +53,6 @@ export interface OpenProjectCapabilityAction {
   id: "assign_self" | "mark_done";
   label: "Assign to me" | "Mark as done";
   command: string;
-}
-
-export interface OpenProjectProbeOptions {
-  readonly force?: boolean;
 }
 
 interface JsonRecord {
@@ -186,6 +183,7 @@ export function isOpenProjectActivityContent(
 
 export function isOpenProjectProbeResponse(
   value: unknown,
+  expectedWorkPackageId?: number,
 ): value is OpenProjectProbeResponse {
   if (
     !isRecord(value) ||
@@ -222,7 +220,9 @@ export function isOpenProjectProbeResponse(
         value.connection !== "connected" ||
         !Array.isArray(value.actions) ||
         value.actions.length > 2 ||
-        !value.actions.every(isOpenProjectCapabilityAction) ||
+        !value.actions.every((action) =>
+          isOpenProjectCapabilityAction(action, expectedWorkPackageId),
+        ) ||
         new Set(value.actions.map((action) => action.id)).size !==
           value.actions.length
       ) {
@@ -246,6 +246,7 @@ export function isOpenProjectProbeResponse(
 
 function isOpenProjectCapabilityAction(
   value: unknown,
+  expectedWorkPackageId?: number,
 ): value is OpenProjectCapabilityAction {
   if (
     !isRecord(value) ||
@@ -275,6 +276,8 @@ function isOpenProjectCapabilityAction(
   return (
     Number.isSafeInteger(workPackageId) &&
     workPackageId > 0 &&
+    (expectedWorkPackageId === undefined ||
+      workPackageId === expectedWorkPackageId) &&
     ((value.id === "assign_self" && command[2] === "assign") ||
       (value.id === "mark_done" && command[2] === "close"))
   );
@@ -314,15 +317,15 @@ export function isOpenProjectAnchorForBot(
 }
 
 export class OpenProjectCapabilityClient {
-  private readonly probeCache = new Map<string, ProbeCacheEntry>();
+  private readonly inFlightProbes = new Map<
+    string,
+    Promise<OpenProjectProbeResponse>
+  >();
   private lastSessionIdentity: MatrixSessionIdentity | undefined;
 
   public constructor(private readonly toDeviceClient: HookshotToDeviceClient) {}
 
-  public probe(
-    anchor: OpenProjectAnchor,
-    options: OpenProjectProbeOptions = {},
-  ): Promise<OpenProjectProbeResponse> {
+  public probe(anchor: OpenProjectAnchor): Promise<OpenProjectProbeResponse> {
     let sessionIdentity: MatrixSessionIdentity;
     try {
       sessionIdentity = this.toDeviceClient.getSessionIdentity();
@@ -334,6 +337,7 @@ export class OpenProjectCapabilityClient {
     if (
       !isMatrixRoomId(anchor.roomId) ||
       !isMatrixEventId(anchor.eventId) ||
+      !isOpenProjectSnapshotId(anchor.snapshotId) ||
       !Number.isSafeInteger(anchor.workPackageId) ||
       anchor.workPackageId <= 0 ||
       !isMatrixUserId(anchor.recipientUserId)
@@ -342,11 +346,9 @@ export class OpenProjectCapabilityClient {
     }
 
     const cacheKey = this.createCacheKey(sessionIdentity, anchor);
-    if (!options.force) {
-      const cachedEntry = this.probeCache.get(cacheKey);
-      if (cachedEntry) {
-        return cachedEntry.promise;
-      }
+    const inFlight = this.inFlightProbes.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
     }
 
     const request: HookshotToDeviceRequest<OpenProjectProbeResponse> = {
@@ -359,7 +361,8 @@ export class OpenProjectCapabilityClient {
         room_id: anchor.roomId,
         anchor_event_id: anchor.eventId,
       },
-      responseValidator: isOpenProjectProbeResponse,
+      responseValidator: (value): value is OpenProjectProbeResponse =>
+        isOpenProjectProbeResponse(value, anchor.workPackageId),
     };
 
     let requestPromise: Promise<OpenProjectProbeResponse>;
@@ -369,24 +372,16 @@ export class OpenProjectCapabilityClient {
       requestPromise = Promise.reject(error);
     }
 
-    const entry: ProbeCacheEntry = {
-      promise: requestPromise
-        .then((response) => {
-          this.assertSessionUnchanged(sessionIdentity);
-          if (response.result === "unavailable") {
-            this.removeEntry(cacheKey, entry);
-          }
-          return response;
-        })
-        .catch((error) => {
-          // A failed request must not prevent a later explicit retry.
-          this.removeEntry(cacheKey, entry);
-          throw error;
-        }),
-    };
-
-    this.probeCache.set(cacheKey, entry);
-    return entry.promise;
+    const probePromise = requestPromise.then((response) => {
+      this.assertSessionUnchanged(sessionIdentity);
+      return response;
+    });
+    this.inFlightProbes.set(cacheKey, probePromise);
+    void probePromise.then(
+      () => this.removeInFlightProbe(cacheKey, probePromise),
+      () => this.removeInFlightProbe(cacheKey, probePromise),
+    );
+    return probePromise;
   }
 
   private createCacheKey(
@@ -400,6 +395,7 @@ export class OpenProjectCapabilityClient {
       anchor.recipientUserId,
       anchor.roomId,
       anchor.eventId,
+      anchor.snapshotId,
       anchor.workPackageId,
     ]);
   }
@@ -410,7 +406,7 @@ export class OpenProjectCapabilityClient {
       (this.lastSessionIdentity.userId !== sessionIdentity.userId ||
         this.lastSessionIdentity.deviceId !== sessionIdentity.deviceId)
     ) {
-      this.probeCache.clear();
+      this.inFlightProbes.clear();
     }
     this.lastSessionIdentity = sessionIdentity;
   }
@@ -428,13 +424,12 @@ export class OpenProjectCapabilityClient {
     }
   }
 
-  private removeEntry(cacheKey: string, entry: ProbeCacheEntry): void {
-    if (this.probeCache.get(cacheKey) === entry) {
-      this.probeCache.delete(cacheKey);
+  private removeInFlightProbe(
+    key: string,
+    promise: Promise<OpenProjectProbeResponse>,
+  ): void {
+    if (this.inFlightProbes.get(key) === promise) {
+      this.inFlightProbes.delete(key);
     }
   }
-}
-
-interface ProbeCacheEntry {
-  readonly promise: Promise<OpenProjectProbeResponse>;
 }

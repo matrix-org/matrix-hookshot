@@ -27,7 +27,13 @@ const anchor = {
 
 function renderAnchor(data: OpenProjectAnchorContent) {
   return renderToStaticMarkup(
-    React.createElement(OpenProjectAnchorRenderer, { anchor, data }),
+    React.createElement(OpenProjectAnchorRenderer, {
+      anchor: {
+        ...anchor,
+        snapshotId: data["org.matrix.matrix-hookshot.openproject.snapshot_id"],
+      },
+      data,
+    }),
   );
 }
 

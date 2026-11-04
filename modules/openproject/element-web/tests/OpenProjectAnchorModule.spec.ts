@@ -27,6 +27,7 @@ const botUserId = "@hookshot_openproject:example.org";
 const anchor: OpenProjectAnchor = {
   eventId: anchorEventId,
   roomId: "!openproject:example.org",
+  snapshotId: "snapshot-1",
   workPackageId: 50,
   recipientUserId: botUserId,
 };
@@ -221,6 +222,7 @@ describe("OpenProject marked anchor path", () => {
       anchor: {
         eventId: event.eventId,
         roomId: event.roomId,
+        snapshotId: "snapshot-2",
         workPackageId: 50,
         recipientUserId: botUserId,
       },
@@ -244,6 +246,8 @@ describe("OpenProject marked anchor path", () => {
       anchor: {
         eventId: event.eventId,
         roomId: event.roomId,
+        snapshotId:
+          event.content["org.matrix.matrix-hookshot.openproject.snapshot_id"],
         workPackageId: 50,
         recipientUserId: botUserId,
       },

@@ -84,6 +84,8 @@ class HookshotOpenProjectModule implements Module {
             anchor={{
               eventId: mxEvent.eventId,
               roomId: mxEvent.roomId,
+              snapshotId:
+                content["org.matrix.matrix-hookshot.openproject.snapshot_id"],
               workPackageId,
               recipientUserId: mxEvent.sender,
             }}

@@ -10,7 +10,10 @@ import {
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
 } from "../src/OpenProjectCapabilityClient";
-import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
+import type {
+  HookshotToDeviceRequest,
+  MatrixSessionIdentity,
+} from "../src/HookshotToDeviceClient";
 import {
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
@@ -28,6 +31,7 @@ function createAnchor(
   return {
     roomId: "!room:example.org",
     eventId: "$anchor-without-server",
+    snapshotId: "snapshot-1",
     workPackageId: 41,
     recipientUserId: botUserId,
     ...overrides,
@@ -51,7 +55,9 @@ class FakeToDeviceClient {
     deviceId: "ALICEDEVICE",
   };
 
-  public readonly request = vi.fn();
+  public readonly request = vi.fn((_request: HookshotToDeviceRequest) =>
+    Promise.resolve(createResponse()),
+  );
 
   public getSessionIdentity(): MatrixSessionIdentity {
     return Object.freeze({ ...this.identity });
@@ -184,6 +190,22 @@ describe("OpenProjectCapabilityClient", () => {
       ],
     };
     expect(isOpenProjectProbeResponse(response)).toBe(true);
+    expect(isOpenProjectProbeResponse(response, 41)).toBe(true);
+    expect(
+      isOpenProjectProbeResponse(
+        {
+          ...response,
+          actions: [
+            {
+              id: "assign_self",
+              label: "Assign to me",
+              command: "!openproject project assign 42",
+            },
+          ],
+        },
+        41,
+      ),
+    ).toBe(false);
     expect(
       isOpenProjectProbeResponse({
         ...response,
@@ -234,9 +256,23 @@ describe("OpenProjectCapabilityClient", () => {
         responseValidator: expect.any(Function),
       }),
     );
+    const request = toDeviceClient.request.mock.calls[0][0];
+    expect(
+      request.responseValidator?.({
+        ...response,
+        connection: "connected",
+        actions: [
+          {
+            id: "assign_self",
+            label: "Assign to me",
+            command: "!openproject project assign 42",
+          },
+        ],
+      }),
+    ).toBe(false);
   });
 
-  it("coalesces identical in-flight and fulfilled probes", async () => {
+  it("coalesces identical in-flight probes and discards settled responses", async () => {
     const response = createResponse();
     const toDeviceClient = new FakeToDeviceClient();
     toDeviceClient.request.mockResolvedValue(response);
@@ -245,15 +281,16 @@ describe("OpenProjectCapabilityClient", () => {
 
     const first = client.probe(anchor);
     const second = client.probe(anchor);
-    await expect(first).resolves.toEqual(response);
     const third = client.probe(anchor);
 
     expect(second).toBe(first);
     expect(third).toBe(first);
-    expect(toDeviceClient.request).toHaveBeenCalledOnce();
+    await expect(first).resolves.toEqual(response);
+    await expect(client.probe(anchor)).resolves.toEqual(response);
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
   });
 
-  it("does not share entries between work packages or recipient bots", async () => {
+  it("does not share probes between cards, rooms, bots, or replacements", async () => {
     const toDeviceClient = new FakeToDeviceClient();
     toDeviceClient.request.mockResolvedValue(createResponse());
     const client = new OpenProjectCapabilityClient(toDeviceClient as never);
@@ -261,8 +298,35 @@ describe("OpenProjectCapabilityClient", () => {
     await client.probe(createAnchor({ workPackageId: 41 }));
     await client.probe(createAnchor({ workPackageId: 42 }));
     await client.probe(createAnchor({ recipientUserId: secondBotUserId }));
+    await client.probe(createAnchor({ roomId: "!another:example.org" }));
+    await client.probe(createAnchor({ snapshotId: "snapshot-2" }));
 
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(5);
+  });
+
+  it("coalesces a retry only while the matching probe is still pending", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    let resolveRequest!: (response: OpenProjectProbeResponse) => void;
+    toDeviceClient.request.mockImplementation(
+      () =>
+        new Promise<OpenProjectProbeResponse>((resolve) => {
+          resolveRequest = resolve;
+        }),
+    );
+    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const anchor = createAnchor();
+
+    const first = client.probe(anchor);
+    const retryWhilePending = client.probe(anchor);
+    expect(retryWhilePending).toBe(first);
+    resolveRequest(createResponse());
+    await expect(first).resolves.toEqual(createResponse());
+
+    const retryAfterSettlement = client.probe(anchor);
+    expect(retryAfterSettlement).not.toBe(first);
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+    resolveRequest(createResponse());
+    await expect(retryAfterSettlement).resolves.toEqual(createResponse());
   });
 
   it("does not retain rejected or unavailable probes", async () => {
@@ -282,50 +346,42 @@ describe("OpenProjectCapabilityClient", () => {
     expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
   });
 
-  it("replaces an existing entry when force is true", async () => {
+  it("clears in-flight references when the user changes", async () => {
     const toDeviceClient = new FakeToDeviceClient();
     toDeviceClient.request.mockResolvedValue(createResponse());
     const client = new OpenProjectCapabilityClient(toDeviceClient as never);
     const anchor = createAnchor();
 
     const first = client.probe(anchor);
-    const forced = client.probe(anchor, { force: true });
-
-    expect(forced).not.toBe(first);
-    await expect(forced).resolves.toEqual(createResponse());
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
-  });
-
-  it("clears every cached result when the user changes", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(createResponse());
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
-    const anchor = createAnchor();
-
-    await client.probe(anchor);
     toDeviceClient.identity = {
       userId: "@bob:example.org",
       deviceId: "BOBDEVICE",
     };
-    await client.probe(anchor);
+    const second = client.probe(anchor);
 
     expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+    expect(second).not.toBe(first);
+    await expect(first).rejects.toThrow("Matrix account changed");
+    await expect(second).resolves.toEqual(createResponse());
   });
 
-  it("clears every cached result when only the device changes", async () => {
+  it("clears in-flight references when only the device changes", async () => {
     const toDeviceClient = new FakeToDeviceClient();
     toDeviceClient.request.mockResolvedValue(createResponse());
     const client = new OpenProjectCapabilityClient(toDeviceClient as never);
     const anchor = createAnchor();
 
-    await client.probe(anchor);
+    const first = client.probe(anchor);
     toDeviceClient.identity = {
       userId: "@alice:example.org",
       deviceId: "ALICESECONDDEVICE",
     };
-    await client.probe(anchor);
+    const second = client.probe(anchor);
 
     expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+    expect(second).not.toBe(first);
+    await expect(first).rejects.toThrow("Matrix account changed");
+    await expect(second).resolves.toEqual(createResponse());
   });
 
   it("rejects a result that arrives after the session changes", async () => {
@@ -359,9 +415,7 @@ describe("OpenProjectCapabilityClient", () => {
     const anchor = createAnchor();
 
     await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
-    await expect(client.probe(anchor, { force: true })).resolves.toEqual(
-      response,
-    );
+    await expect(client.probe(anchor)).resolves.toEqual(response);
     expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
   });
 });

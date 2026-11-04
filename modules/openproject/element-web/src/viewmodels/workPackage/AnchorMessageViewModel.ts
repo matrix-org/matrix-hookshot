@@ -98,10 +98,10 @@ export class AnchorMessageViewModel
     }
 
     this.snapshot.merge({ probe: { kind: "loading" } });
-    void this.probe(true);
+    void this.probe();
   };
 
-  private async probe(force = false): Promise<void> {
+  private async probe(): Promise<void> {
     if (
       this.getSnapshot()?.anchor.state !== "active" ||
       !this.props.capabilityClient ||
@@ -115,9 +115,7 @@ export class AnchorMessageViewModel
     const attempt = ++this.probeAttempt;
 
     try {
-      const response = await this.props.capabilityClient.probe(anchor, {
-        force,
-      });
+      const response = await this.props.capabilityClient.probe(anchor);
       if (this.isCurrentAttempt(attempt)) {
         this.snapshot.merge({
           probe: { kind: "result", result: response.result },
