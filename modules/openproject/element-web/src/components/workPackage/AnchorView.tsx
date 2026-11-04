@@ -31,6 +31,11 @@ export function AnchorView({ vm }: { vm: AnchorViewModel }) {
     );
   }
 
+  const actions =
+    snapshot.probe.kind === "result" && snapshot.probe.response.result === "ok"
+      ? (snapshot.probe.response.actions ?? [])
+      : [];
+
   return (
     <div className={styles.card}>
       <div className={styles.detailsRow}>
@@ -52,7 +57,11 @@ export function AnchorView({ vm }: { vm: AnchorViewModel }) {
         />
       </div>
       <div className={styles.actionsRow}>
-        <ActionsView url={details.url} />
+        <ActionsView
+          url={details.url}
+          actions={actions}
+          onAction={vm.prepareAction}
+        />
         <ProbeStatusView state={snapshot.probe} onRetry={vm.retry} />
       </div>
     </div>

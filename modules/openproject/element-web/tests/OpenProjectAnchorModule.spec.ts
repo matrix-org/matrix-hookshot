@@ -226,7 +226,14 @@ describe("OpenProject marked anchor path", () => {
         workPackageId: 50,
         recipientUserId: botUserId,
       },
-      capabilityClient: { probe } as never,
+      capabilityClient: {
+        probe,
+        getSessionIdentity: () => ({
+          userId: "@alice:example.org",
+          deviceId: "ALICEDEVICE",
+        }),
+        isSessionIdentityCurrent: () => true,
+      } as never,
       data: inactiveContent,
     });
 
@@ -251,7 +258,14 @@ describe("OpenProject marked anchor path", () => {
         workPackageId: 50,
         recipientUserId: botUserId,
       },
-      capabilityClient: { probe } as never,
+      capabilityClient: {
+        probe,
+        getSessionIdentity: () => ({
+          userId: "@alice:example.org",
+          deviceId: "ALICEDEVICE",
+        }),
+        isSessionIdentityCurrent: () => true,
+      } as never,
       data: event.content,
     });
 
@@ -279,7 +293,14 @@ describe("OpenProject marked anchor path", () => {
     const inactiveSnapshotId =
       inactiveContent["org.matrix.matrix-hookshot.openproject.snapshot_id"];
     const probe = vi.fn(() => new Promise(() => {}));
-    const capabilityClient = { probe } as never;
+    const capabilityClient = {
+      probe,
+      getSessionIdentity: () => ({
+        userId: "@alice:example.org",
+        deviceId: "ALICEDEVICE",
+      }),
+      isSessionIdentityCurrent: () => true,
+    } as never;
     const { rerender } = render(
       renderAnchor(activeAnchorContent, capabilityClient),
     );
@@ -287,22 +308,14 @@ describe("OpenProject marked anchor path", () => {
     expect(originalSnapshotId).toBe("00000000-0000-4000-8000-000000000001");
     expect(screen.getByText("Build the bridge")).toBeTruthy();
     expect(screen.getByText("New")).toBeTruthy();
-    expect(
-      screen.getByRole("button", {
-        name: "Checking OpenProject connection...",
-      }),
-    ).toBeTruthy();
+    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
     expect(probe).toHaveBeenCalledOnce();
 
     expect(activeSnapshotId).not.toBe(originalSnapshotId);
     rerender(renderAnchor(activeContent, capabilityClient));
     expect(screen.getByText("Build the updated bridge")).toBeTruthy();
     expect(screen.getByText("Closed")).toBeTruthy();
-    expect(
-      screen.getByRole("button", {
-        name: "Checking OpenProject connection...",
-      }),
-    ).toBeTruthy();
+    expect(screen.getByText("Checking OpenProject actions…")).toBeTruthy();
     expect(probe).toHaveBeenCalledTimes(2);
 
     expect(inactiveSnapshotId).not.toBe(activeSnapshotId);
@@ -312,11 +325,7 @@ describe("OpenProject marked anchor path", () => {
       screen.getByRole("link", { name: "Demo project · #50" }),
     ).toBeTruthy();
     expect(screen.queryByText("Build the updated bridge")).toBeNull();
-    expect(
-      screen.queryByRole("button", {
-        name: "Checking OpenProject connection...",
-      }),
-    ).toBeNull();
+    expect(screen.queryByText("Checking OpenProject actions…")).toBeNull();
     expect(screen.queryByRole("link", { name: "View package" })).toBeNull();
     expect(probe).toHaveBeenCalledTimes(2);
   });

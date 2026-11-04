@@ -62,7 +62,9 @@ describe("OpenProject renderer security", () => {
   });
 
   it("rejects malformed URLs in work-package actions", () => {
-    const props = collectElementProps(ActionsView({ url: "not a URL" }));
+    const props = collectElementProps(
+      ActionsView({ url: "not a URL", actions: [], onAction: vi.fn() }),
+    );
 
     expect(props.some((elementProps) => "href" in elementProps)).toBe(false);
   });

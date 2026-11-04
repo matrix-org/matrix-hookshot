@@ -12,15 +12,19 @@ import type {
 } from "./models/OpenProjectMatrixEventContent";
 import { AnchorMessageViewModel } from "./viewmodels/workPackage/AnchorMessageViewModel";
 
+interface OpenProjectAnchorRendererProps {
+  readonly anchor: OpenProjectAnchor;
+  readonly capabilityClient?: OpenProjectCapabilityClient;
+  readonly data: OpenProjectAnchorContent;
+  readonly onActionCommand?: (command: string) => void;
+}
+
 export function OpenProjectAnchorRenderer({
   anchor,
   capabilityClient,
   data,
-}: {
-  anchor: OpenProjectAnchor;
-  capabilityClient?: OpenProjectCapabilityClient;
-  data: OpenProjectAnchorContent;
-}) {
+  onActionCommand,
+}: OpenProjectAnchorRendererProps) {
   const snapshotId = data["org.matrix.matrix-hookshot.openproject.snapshot_id"];
 
   return (
@@ -31,6 +35,7 @@ export function OpenProjectAnchorRenderer({
           anchor={anchor}
           capabilityClient={capabilityClient}
           data={data}
+          onActionCommand={onActionCommand}
         />
       </React.Fragment>
     </TooltipProvider>
@@ -41,13 +46,21 @@ function OpenProjectAnchorCard({
   anchor,
   capabilityClient,
   data,
+  onActionCommand,
 }: {
   anchor: OpenProjectAnchor;
   capabilityClient?: OpenProjectCapabilityClient;
   data: OpenProjectContent;
+  onActionCommand?: (command: string) => void;
 }) {
   const vm = useCreateAutoDisposedViewModel(
-    () => new AnchorMessageViewModel({ anchor, capabilityClient, data }),
+    () =>
+      new AnchorMessageViewModel({
+        anchor,
+        capabilityClient,
+        data,
+        onActionCommand,
+      }),
   );
   return <AnchorView vm={vm} />;
 }

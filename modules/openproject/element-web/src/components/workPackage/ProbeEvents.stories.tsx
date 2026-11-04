@@ -12,6 +12,7 @@ import {
   type AnchorViewModel,
   type AnchorViewSnapshot,
 } from "../../viewmodels/workPackage/AnchorMessageViewModel";
+import type { OpenProjectProbeResponse } from "../../OpenProjectCapabilityClient";
 import { minimalWorkPackage, project } from "../../../storybook/fixtures";
 import { AnchorView } from "./AnchorView";
 
@@ -47,6 +48,7 @@ function ProbeEventStory({ probe }: { probe: AnchorProbeState }) {
     getSnapshot: () => probeSnapshot,
     subscribe: () => () => {},
     retry: () => {},
+    prepareAction: () => {},
   };
 
   return <AnchorView vm={vm} />;
@@ -61,23 +63,44 @@ const meta = {
 export default meta;
 type Story = StoryObj;
 
+export const WithActions: Story = {
+  render: () => (
+    <ProbeEventStory
+      probe={resultState(
+        createResponse("ok", [
+          {
+            id: "assign_self",
+            label: "Assign to me",
+            command: "!openproject project assign 50",
+          },
+          {
+            id: "mark_done",
+            label: "Mark as done",
+            command: "!openproject project close 50",
+          },
+        ]),
+      )}
+    />
+  ),
+};
+
 export const Loading: Story = {
   render: () => <ProbeEventStory probe={{ kind: "loading" }} />,
 };
 
 export const Verified: Story = {
-  render: () => <ProbeEventStory probe={{ kind: "result", result: "ok" }} />,
+  render: () => <ProbeEventStory probe={resultState(createResponse("ok"))} />,
 };
 
 export const NotConnected: Story = {
   render: () => (
-    <ProbeEventStory probe={{ kind: "result", result: "not_connected" }} />
+    <ProbeEventStory probe={resultState(createResponse("not_connected"))} />
   ),
 };
 
 export const NotAuthorized: Story = {
   render: () => (
-    <ProbeEventStory probe={{ kind: "result", result: "not_authorized" }} />
+    <ProbeEventStory probe={resultState(createResponse("not_authorized"))} />
   ),
 };
 
@@ -88,3 +111,21 @@ export const Unavailable: Story = {
 export const Disabled: Story = {
   render: () => <ProbeEventStory probe={{ kind: "disabled" }} />,
 };
+
+function createResponse(
+  result: OpenProjectProbeResponse["result"],
+  actions?: OpenProjectProbeResponse["actions"],
+): OpenProjectProbeResponse {
+  return {
+    v: 1,
+    request_id: "storybook-request",
+    integration_id: "openproject",
+    result,
+    ...(result === "ok" ? { connection: "connected" as const } : {}),
+    ...(actions === undefined ? {} : { actions }),
+  };
+}
+
+function resultState(response: OpenProjectProbeResponse): AnchorProbeState {
+  return { kind: "result", result: response.result, response };
+}

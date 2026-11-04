@@ -325,6 +325,27 @@ export class OpenProjectCapabilityClient {
 
   public constructor(private readonly toDeviceClient: HookshotToDeviceClient) {}
 
+  /** Returns the Matrix user and device currently used for capability probes. */
+  public getSessionIdentity(): MatrixSessionIdentity {
+    return this.toDeviceClient.getSessionIdentity();
+  }
+
+  /** Checks whether a capability result still belongs to the active session. */
+  public isSessionIdentityCurrent(
+    sessionIdentity: MatrixSessionIdentity,
+  ): boolean {
+    try {
+      const currentIdentity = this.toDeviceClient.getSessionIdentity();
+      this.observeSession(currentIdentity);
+      return (
+        currentIdentity.userId === sessionIdentity.userId &&
+        currentIdentity.deviceId === sessionIdentity.deviceId
+      );
+    } catch {
+      return false;
+    }
+  }
+
   public probe(anchor: OpenProjectAnchor): Promise<OpenProjectProbeResponse> {
     let sessionIdentity: MatrixSessionIdentity;
     try {

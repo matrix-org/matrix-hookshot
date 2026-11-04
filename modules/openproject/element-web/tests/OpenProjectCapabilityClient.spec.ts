@@ -55,9 +55,10 @@ class FakeToDeviceClient {
     deviceId: "ALICEDEVICE",
   };
 
-  public readonly request = vi.fn((_request: HookshotToDeviceRequest) =>
-    Promise.resolve(createResponse()),
-  );
+  public readonly request =
+    vi.fn<
+      (request: HookshotToDeviceRequest) => Promise<OpenProjectProbeResponse>
+    >();
 
   public getSessionIdentity(): MatrixSessionIdentity {
     return Object.freeze({ ...this.identity });

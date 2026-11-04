@@ -102,6 +102,7 @@ function ActiveAnchorStory({ data }: { data: OpenProjectContent }) {
     getSnapshot: () => snapshot,
     subscribe: () => () => {},
     retry: () => {},
+    prepareAction: () => {},
   };
 
   return <AnchorView vm={vm} />;
