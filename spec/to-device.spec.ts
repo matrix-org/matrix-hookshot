@@ -44,7 +44,13 @@ describe("Appservice to-device delivery", () => {
   beforeEach(async () => {
     testEnv = await E2ETestEnv.createTestEnv({
       matrixLocalparts: ["user"],
-      config: { toDevice: { receiver: { enabled: true } } },
+      config: {
+        openProject: {
+          webhook: { secret: "test-secret" },
+          baseUrl: "http://openproject.example/",
+        },
+        toDevice: { receiver: { enabled: true } },
+      },
     });
     await testEnv.setUp();
   }, E2ESetupTestTimeout);
@@ -59,7 +65,7 @@ describe("Appservice to-device delivery", () => {
         v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
         request_id: "real-appservice-delivery",
         requesting_device_id: testEnv.homeserver.users[0].deviceId,
-        integration_id: "generic",
+        integration_id: "openproject",
         room_id: "!transport-proof:example.com",
         anchor_event_id: "$transport-proof",
       };
@@ -87,7 +93,7 @@ describe("Appservice to-device delivery", () => {
         v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
         request_id: request.request_id,
         integration_id: request.integration_id,
-        result: "unavailable",
+        result: "not_authorized",
       });
     },
     RESPONSE_TIMEOUT_MS + 10_000,
