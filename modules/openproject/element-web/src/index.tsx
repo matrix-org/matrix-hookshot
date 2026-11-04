@@ -91,6 +91,11 @@ class HookshotOpenProjectModule implements Module {
             }}
             capabilityClient={isAnchorForBot ? capabilityClient : undefined}
             data={content}
+            onActionCommand={(command) =>
+              this.api.composer.insertPlaintextIntoComposer(command, {
+                view: "room",
+              })
+            }
           />
         );
       },
