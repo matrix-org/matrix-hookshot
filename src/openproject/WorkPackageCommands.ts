@@ -2,13 +2,12 @@ import { UserID } from "matrix-bot-sdk";
 import type { MatrixEvent, MessageEventContent } from "matrix-bot-sdk";
 import { CommandError, NotLoggedInError } from "../Errors";
 import type { UserTokenStore } from "../tokens/UserTokenStore";
-import { getAxiosErrorStatus } from "../util/axios";
 import type { OpenProjectAPIClient } from "./Client";
 import {
   OpenProjectEligibilityService,
   type OpenProjectAssignmentResult,
   type OpenProjectEligibilityConnection,
-  type OpenProjectMarkDoneResult,
+  type OpenProjectMarkDoneCommandResult,
 } from "./Eligibility";
 import type { AssignmentCommandInput } from "./CommandParser";
 import { parseAssignmentCommandArguments } from "./CommandParser";
@@ -116,39 +115,14 @@ export class OpenProjectWorkPackageCommandService {
         "You must provide a work package ID",
       );
     }
-    if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
-      throw new CommandError(
-        "Invalid work package ID",
-        "Work package ID must be a positive safe integer.",
-      );
-    }
-
-    const result = await this.eligibilityService.evaluateMarkDone(
+    const result = await this.eligibilityService.executeMarkDoneCommand(
       userId,
       this.context,
       workPackageId,
+      finalComment,
     );
     if (result.status !== "eligible") {
       throw this.markDoneCommandError(result);
-    }
-
-    const client = await this.getClient(userId);
-    try {
-      await client.updateWorkPackage(result.workPackageId, result.lockVersion, {
-        _links: { status: { href: result.targetHref } },
-      });
-    } catch (error) {
-      throw this.markDoneMutationError(error);
-    }
-    if (finalComment) {
-      try {
-        await client.addWorkPackageComment(result.workPackageId, finalComment);
-      } catch {
-        throw new CommandError(
-          "Work package closed but comment failed",
-          "The work package was closed, but Hookshot could not add your comment.",
-        );
-      }
     }
   }
 
@@ -369,15 +343,20 @@ export class OpenProjectWorkPackageCommandService {
   }
 
   private markDoneCommandError(
-    result: Exclude<OpenProjectMarkDoneResult, { status: "eligible" }>,
+    result: Exclude<OpenProjectMarkDoneCommandResult, { status: "eligible" }>,
   ): CommandError {
     switch (result.status) {
+      case "comment_failed":
+        return new CommandError(
+          "Work package closed but comment failed",
+          "The work package was closed, but Hookshot could not add your comment.",
+        );
       case "not_connected":
         return new NotLoggedInError();
       case "conflict":
         return new CommandError(
           "Work package changed",
-          "The work package changed while its completion workflow was being checked. Please try again.",
+          "The work package changed while its completion workflow was checked or before the update completed. Please try again.",
         );
       case "not_authorized":
         switch (result.reason) {
@@ -456,7 +435,7 @@ export class OpenProjectWorkPackageCommandService {
           case "openproject_error":
             return new CommandError(
               "OpenProject unavailable",
-              "Hookshot could not check this completion transition in OpenProject. Please try again later.",
+              "Hookshot could not complete this status change in OpenProject. Please try again later.",
             );
         }
         break;
@@ -464,38 +443,6 @@ export class OpenProjectWorkPackageCommandService {
     return new CommandError(
       "Could not close work package",
       "Hookshot could not validate this completion transition.",
-    );
-  }
-
-  private markDoneMutationError(error: unknown): CommandError {
-    const status = getAxiosErrorStatus(error);
-    if (status === 409) {
-      return new CommandError(
-        "Work package changed",
-        "The work package changed before it could be closed. No retry was attempted; please run the command again.",
-      );
-    }
-    if (status === 401 || status === 403) {
-      return new CommandError(
-        "OpenProject permission denied",
-        "OpenProject denied permission to close this work package.",
-      );
-    }
-    if (status === 404) {
-      return new CommandError(
-        "Work package not found",
-        "The work package could not be found or is no longer accessible.",
-      );
-    }
-    if (status === 400 || status === 422) {
-      return new CommandError(
-        "Completion transition rejected",
-        "OpenProject rejected this completion transition. The work package may no longer allow it.",
-      );
-    }
-    return new CommandError(
-      "OpenProject unavailable",
-      "Hookshot could not close this work package in OpenProject. Please try again later.",
     );
   }
 

@@ -22,32 +22,7 @@ export interface OpenProjectEligibilityConnection {
   interestedInProject(projectId: number): boolean;
 }
 
-/** Result of checking whether the acting user can mark a package as done. */
-export type OpenProjectMarkDoneResult =
-  | {
-      status: "eligible";
-      action: "mark_done";
-      workPackageId: number;
-      lockVersion: number;
-      targetHref: string;
-    }
-  | {
-      status: "ineligible";
-      reason:
-        | "invalid_work_package_id"
-        | "already_closed"
-        | "status_not_writable"
-        | "target_not_allowed"
-        | "status_form_invalid";
-    }
-  | {
-      status: "stale_target";
-      reason:
-        | "configured_status_missing"
-        | "configured_status_open"
-        | "default_status_missing"
-        | "default_status_ambiguous";
-    }
+type OpenProjectSharedFailure =
   | { status: "not_connected" }
   | { status: "conflict" }
   | {
@@ -61,6 +36,41 @@ export type OpenProjectMarkDoneResult =
       status: "unavailable";
       reason: "connection_removed" | "openproject_error" | "malformed_response";
     };
+
+type OpenProjectContextFailure =
+  | OpenProjectSharedFailure
+  | { status: "ineligible"; reason: "invalid_work_package_id" };
+
+/** Result of checking whether the acting user can mark a package as done. */
+export type OpenProjectMarkDoneResult =
+  | {
+      status: "eligible";
+      action: "mark_done";
+      workPackageId: number;
+      lockVersion: number;
+      targetHref: string;
+    }
+  | {
+      status: "ineligible";
+      reason:
+        | "already_closed"
+        | "status_not_writable"
+        | "target_not_allowed"
+        | "status_form_invalid";
+    }
+  | {
+      status: "stale_target";
+      reason:
+        | "configured_status_open"
+        | "default_status_missing"
+        | "default_status_ambiguous";
+    }
+  | OpenProjectContextFailure;
+
+/** Result of evaluating and executing a mark-done command. */
+export type OpenProjectMarkDoneCommandResult =
+  | OpenProjectMarkDoneResult
+  | { status: "comment_failed" };
 
 /** Reasons an assignment can be unavailable or could not be evaluated. */
 export type OpenProjectAssignmentResult =
@@ -74,25 +84,21 @@ export type OpenProjectAssignmentResult =
   | {
       status: "ineligible";
       reason:
-        | "invalid_work_package_id"
         | "already_assigned"
         | "target_not_available"
         | "assignee_not_writable"
         | "assignment_invalid";
     }
-  | { status: "not_connected" }
-  | { status: "conflict" }
+  | OpenProjectContextFailure;
+
+/** Results of evaluating both card actions against one live package snapshot. */
+export type OpenProjectCardActionsResult =
   | {
-      status: "not_authorized";
-      reason:
-        | "wrong_project"
-        | "work_package_not_found"
-        | "openproject_permission";
+      status: "evaluated";
+      assignSelf: OpenProjectAssignmentResult;
+      markDone: OpenProjectMarkDoneResult;
     }
-  | {
-      status: "unavailable";
-      reason: "connection_removed" | "openproject_error" | "malformed_response";
-    };
+  | OpenProjectContextFailure;
 
 /** Target selection for command-time assignment. */
 export type OpenProjectAssignmentTarget =
@@ -105,18 +111,18 @@ interface EvaluationContext {
   workPackage: OpenProjectWorkPackage;
 }
 
-type ContextFailure = Exclude<
-  OpenProjectAssignmentResult,
-  { status: "eligible" }
->;
-type IneligibleAssignmentResult = Extract<
-  OpenProjectAssignmentResult,
-  { status: "ineligible" }
->;
-
 type ContextResult =
   | { ok: true; context: EvaluationContext }
-  | { ok: false; result: ContextFailure };
+  | { ok: false; result: OpenProjectContextFailure };
+
+type ErrorStage =
+  | "client"
+  | "identity"
+  | "work_package"
+  | "assignees_or_form"
+  | "status_options"
+  | "assignment_mutation"
+  | "mark_done_mutation";
 
 interface CanonicalAssignmentTarget {
   href: string;
@@ -194,8 +200,37 @@ function matchesUser(
 export class OpenProjectEligibilityService {
   constructor(private readonly tokenStore: UserTokenStore) {}
 
+  /**
+   * Evaluate both card actions from one identity and work-package snapshot.
+   * The checks are read-only and assignment availability is fetched on every call.
+   */
+  public async evaluateCardActions(
+    matrixUserId: string,
+    connection: OpenProjectEligibilityConnection,
+    workPackageId: number,
+  ): Promise<OpenProjectCardActionsResult> {
+    const contextResult = await this.getContext(
+      matrixUserId,
+      connection,
+      workPackageId,
+    );
+    if (!contextResult.ok) return contextResult.result;
+
+    const { context } = contextResult;
+    const completionStatusOptionId = connection.getCompletionStatusOptionId();
+    const [assignSelf, markDone] = await Promise.all([
+      this.evaluateAssignSelfInContext(workPackageId, context),
+      this.evaluateMarkDoneInContext(
+        completionStatusOptionId,
+        workPackageId,
+        context,
+      ),
+    ]);
+    return { status: "evaluated", assignSelf, markDone };
+  }
+
   /** Evaluate whether the sender can assign themself to this work package. */
-  public async evaluateAssignSelf(
+  public async evaluateAssignSelfCommand(
     matrixUserId: string,
     connection: OpenProjectEligibilityConnection,
     workPackageId: number,
@@ -207,34 +242,83 @@ export class OpenProjectEligibilityService {
     );
     if (!contextResult.ok) return contextResult.result;
 
-    const { context } = contextResult;
-    return this.validateTargetInContext(
+    return this.evaluateAssignSelfInContext(
       workPackageId,
-      { href: context.identity.href, userId: context.identity.id },
-      context,
-      "assign_self",
+      contextResult.context,
     );
   }
 
   /** Evaluate the configured completion transition against the acting user's current form. */
-  public async evaluateMarkDone(
+  public async evaluateMarkDoneCommand(
     matrixUserId: string,
     connection: OpenProjectEligibilityConnection,
     workPackageId: number,
   ): Promise<OpenProjectMarkDoneResult> {
-    if (!Number.isSafeInteger(workPackageId) || workPackageId <= 0) {
-      return { status: "ineligible", reason: "invalid_work_package_id" };
-    }
     const contextResult = await this.getContext(
       matrixUserId,
       connection,
       workPackageId,
     );
-    if (!contextResult.ok) {
-      return this.markDoneContextFailure(contextResult.result);
+    if (!contextResult.ok) return contextResult.result;
+
+    return this.evaluateMarkDoneInContext(
+      connection.getCompletionStatusOptionId(),
+      workPackageId,
+      contextResult.context,
+    );
+  }
+
+  /** Evaluate, close, and optionally comment using the same OpenProject context. */
+  public async executeMarkDoneCommand(
+    matrixUserId: string,
+    connection: OpenProjectEligibilityConnection,
+    workPackageId: number,
+    comment?: string,
+  ): Promise<OpenProjectMarkDoneCommandResult> {
+    const contextResult = await this.getContext(
+      matrixUserId,
+      connection,
+      workPackageId,
+    );
+    if (!contextResult.ok) return contextResult.result;
+
+    const { context } = contextResult;
+    const result = await this.evaluateMarkDoneInContext(
+      connection.getCompletionStatusOptionId(),
+      workPackageId,
+      context,
+    );
+    if (result.status !== "eligible") return result;
+
+    try {
+      await context.client.updateWorkPackage(
+        result.workPackageId,
+        result.lockVersion,
+        { _links: { status: { href: result.targetHref } } },
+      );
+    } catch (error) {
+      return this.resultForMarkDoneMutationError(error);
     }
 
-    const { client, workPackage } = contextResult.context;
+    if (comment) {
+      try {
+        await context.client.addWorkPackageComment(
+          result.workPackageId,
+          comment,
+        );
+      } catch {
+        return { status: "comment_failed" };
+      }
+    }
+    return result;
+  }
+
+  private async evaluateMarkDoneInContext(
+    completionStatusOptionId: string | undefined,
+    workPackageId: number,
+    context: EvaluationContext,
+  ): Promise<OpenProjectMarkDoneResult> {
+    const { client, workPackage } = context;
     if (
       !workPackage._embedded.status ||
       typeof workPackage._embedded.status.isClosed !== "boolean"
@@ -245,6 +329,8 @@ export class OpenProjectEligibilityService {
       return { status: "ineligible", reason: "already_closed" };
     }
 
+    let errorStage: "assignees_or_form" | "status_options" =
+      "assignees_or_form";
     try {
       const form = await client.getWorkPackageForm(workPackageId, {
         lockVersion: workPackage.lockVersion,
@@ -254,48 +340,16 @@ export class OpenProjectEligibilityService {
         return { status: "ineligible", reason: "status_not_writable" };
       }
 
-      let allowedStatuses: OpenProjectStatus[];
-      try {
-        allowedStatuses = await this.getAllowedStatuses(client, statusField);
-      } catch (error) {
-        if (getAxiosErrorStatus(error) === 404) {
-          return { status: "unavailable", reason: "openproject_error" };
-        }
-        throw error;
-      }
+      errorStage = "status_options";
+      const allowedStatuses = await this.getAllowedStatuses(
+        client,
+        statusField,
+      );
+      errorStage = "assignees_or_form";
       let targetStatus: OpenProjectStatus | undefined;
-      const completionStatusOptionId = connection.getCompletionStatusOptionId();
       if (completionStatusOptionId !== undefined) {
-        const configuredId = Number(completionStatusOptionId);
-        if (!Number.isSafeInteger(configuredId) || configuredId <= 0) {
-          throw new OpenProjectMalformedResponseError(
-            "Configured completion status ID is invalid",
-          );
-        }
-        let configuredStatus: OpenProjectStatus;
-        try {
-          configuredStatus = await client.getStatusByHref(
-            `/api/v3/statuses/${configuredId}`,
-          );
-        } catch (error) {
-          if (getAxiosErrorStatus(error) === 404) {
-            return {
-              status: "stale_target",
-              reason: "configured_status_missing",
-            };
-          }
-          throw error;
-        }
-        if (String(configuredStatus.id) !== completionStatusOptionId) {
-          throw new OpenProjectMalformedResponseError(
-            "OpenProject status ID does not match the requested status",
-          );
-        }
-        if (!configuredStatus.isClosed) {
-          return { status: "stale_target", reason: "configured_status_open" };
-        }
         targetStatus = allowedStatuses.find(
-          (status) => status.id === configuredStatus.id,
+          (status) => String(status.id) === completionStatusOptionId,
         );
         if (!targetStatus) {
           return { status: "ineligible", reason: "target_not_allowed" };
@@ -304,15 +358,16 @@ export class OpenProjectEligibilityService {
           return { status: "stale_target", reason: "configured_status_open" };
         }
       } else {
-        const defaultsById = new Map(
-          allowedStatuses
-            .filter(
-              (status) =>
-                status.isClosed && status.name.toLowerCase() === "closed",
-            )
-            .map((status) => [status.id, status]),
-        );
-        const defaults = [...defaultsById.values()];
+        const defaults = [
+          ...new Map(
+            allowedStatuses
+              .filter(
+                (status) =>
+                  status.isClosed && status.name.toLowerCase() === "closed",
+              )
+              .map((status) => [status.id, status]),
+          ).values(),
+        ];
         if (defaults.length === 0) {
           return { status: "stale_target", reason: "default_status_missing" };
         }
@@ -347,11 +402,7 @@ export class OpenProjectEligibilityService {
         targetHref,
       };
     } catch (error) {
-      const result = this.resultForError(error, "assignees_or_form");
-      if (result.status === "ineligible") {
-        return { status: "ineligible", reason: "status_form_invalid" };
-      }
-      return result;
+      return this.resultForError(error, errorStage);
     }
   }
 
@@ -418,16 +469,15 @@ export class OpenProjectEligibilityService {
       : undefined;
   }
 
-  private markDoneContextFailure(
-    result: ContextFailure,
-  ): Exclude<
-    OpenProjectMarkDoneResult,
-    { status: "eligible" | "stale_target" }
-  > {
-    if (result.status === "ineligible") {
-      return { status: "ineligible", reason: "invalid_work_package_id" };
-    }
-    return result;
+  private async evaluateAssignSelfInContext(
+    workPackageId: number,
+    context: EvaluationContext,
+  ): Promise<OpenProjectAssignmentResult> {
+    return this.evaluateAssignmentTargetInContext(
+      workPackageId,
+      { kind: "self" },
+      context,
+    );
   }
 
   /** Recheck eligibility and apply an assignment using the fetched revision. */
@@ -444,54 +494,35 @@ export class OpenProjectEligibilityService {
     );
     if (!contextResult.ok) return contextResult.result;
 
-    const { context } = contextResult;
-    if (target.kind === "self") {
-      return this.executeTargetInContext(
-        workPackageId,
-        { href: context.identity.href, userId: context.identity.id },
-        context,
-        "assign_self",
-      );
-    }
-
-    return this.executeTargetInContext(
+    return this.executeAssignmentInContext(
       workPackageId,
-      { href: target.href, userId: target.userId },
-      context,
-      undefined,
+      target,
+      contextResult.context,
     );
   }
 
-  private async validateTargetInContext(
+  private async evaluateAssignmentTargetInContext(
     workPackageId: number,
-    target: { href: string | null; userId?: number },
+    target: OpenProjectAssignmentTarget,
     context: EvaluationContext,
-    action: "assign_self" | undefined,
   ): Promise<OpenProjectAssignmentResult> {
     const { client, workPackage } = context;
-    if (
-      action === "assign_self" &&
-      this.isAlreadyAssigned(context, {
-        href: context.identity.normalizedHref,
-        userId: context.identity.id,
-      })
-    ) {
-      return { status: "ineligible", reason: "already_assigned" };
-    }
-
-    const normalizedTarget = this.normalizeTarget(target, client.getOrigin());
-    if (target.href !== null && normalizedTarget === undefined) {
+    const action = target.kind === "self" ? "assign_self" : undefined;
+    const targetHref =
+      target.kind === "self" ? context.identity.href : target.href;
+    const targetUserId =
+      target.kind === "self" ? context.identity.id : target.userId;
+    const normalizedTarget = this.normalizeTarget(
+      { href: targetHref, userId: targetUserId },
+      client.getOrigin(),
+    );
+    if (targetHref !== null && normalizedTarget === undefined) {
       return { status: "ineligible", reason: "target_not_available" };
     }
-    const targetHref = normalizedTarget?.href ?? null;
-
-    if (
-      action === undefined &&
-      normalizedTarget &&
-      this.isAlreadyAssigned(context, normalizedTarget)
-    ) {
+    if (normalizedTarget && this.isAlreadyAssigned(context, normalizedTarget)) {
       return { status: "ineligible", reason: "already_assigned" };
     }
+    const canonicalTargetHref = normalizedTarget?.href ?? null;
 
     try {
       if (
@@ -503,17 +534,22 @@ export class OpenProjectEligibilityService {
 
       const form = await client.getWorkPackageForm(workPackageId, {
         lockVersion: workPackage.lockVersion,
-        _links: { assignee: { href: targetHref } },
+        _links: { assignee: { href: canonicalTargetHref } },
       });
-      const formFailure = this.validateAssignmentForm(form);
-      if (formFailure) return formFailure;
+      const assigneeField = form._embedded.schema.assignee;
+      if (!assigneeField || assigneeField.writable !== true) {
+        return { status: "ineligible", reason: "assignee_not_writable" };
+      }
+      if (Object.keys(form._embedded.validationErrors).length > 0) {
+        return { status: "ineligible", reason: "assignment_invalid" };
+      }
 
       return {
         status: "eligible",
         ...(action ? { action } : {}),
         workPackageId,
         lockVersion: workPackage.lockVersion,
-        targetHref,
+        targetHref: canonicalTargetHref,
       };
     } catch (error) {
       return this.resultForError(error, "assignees_or_form");
@@ -550,30 +586,15 @@ export class OpenProjectEligibilityService {
     );
   }
 
-  private validateAssignmentForm(
-    form: OpenProjectWorkPackageForm,
-  ): IneligibleAssignmentResult | undefined {
-    const assigneeField = form._embedded.schema.assignee;
-    if (!assigneeField || assigneeField.writable !== true) {
-      return { status: "ineligible", reason: "assignee_not_writable" };
-    }
-    if (Object.keys(form._embedded.validationErrors).length > 0) {
-      return { status: "ineligible", reason: "assignment_invalid" };
-    }
-    return undefined;
-  }
-
-  private async executeTargetInContext(
+  private async executeAssignmentInContext(
     workPackageId: number,
-    target: { href: string | null; userId?: number },
+    target: OpenProjectAssignmentTarget,
     context: EvaluationContext,
-    action: "assign_self" | undefined,
   ): Promise<OpenProjectAssignmentResult> {
-    const result = await this.validateTargetInContext(
+    const result = await this.evaluateAssignmentTargetInContext(
       workPackageId,
       target,
       context,
-      action,
     );
     if (result.status !== "eligible") return result;
 
@@ -587,7 +608,7 @@ export class OpenProjectEligibilityService {
       );
       return result;
     } catch (error) {
-      return this.resultForError(error, "mutation");
+      return this.resultForAssignmentMutationError(error);
     }
   }
 
@@ -666,13 +687,8 @@ export class OpenProjectEligibilityService {
 
   private resultForError(
     error: unknown,
-    stage:
-      | "client"
-      | "identity"
-      | "work_package"
-      | "assignees_or_form"
-      | "mutation",
-  ): ContextFailure {
+    stage: ErrorStage,
+  ): OpenProjectSharedFailure {
     if (error instanceof OpenProjectMalformedResponseError) {
       log.warn(
         `Malformed OpenProject response during ${stage}: ${error.message}`,
@@ -686,17 +702,38 @@ export class OpenProjectEligibilityService {
     if (status === 401 || status === 403) {
       return { status: "not_authorized", reason: "openproject_permission" };
     }
-    if ((status === 400 || status === 422) && stage === "mutation") {
-      return { status: "ineligible", reason: "assignment_invalid" };
+    if (status === 404 && stage === "status_options") {
+      return { status: "unavailable", reason: "openproject_error" };
     }
     if (
       status === 404 &&
       (stage === "work_package" ||
         stage === "assignees_or_form" ||
-        stage === "mutation")
+        stage === "assignment_mutation" ||
+        stage === "mark_done_mutation")
     ) {
       return { status: "not_authorized", reason: "work_package_not_found" };
     }
     return { status: "unavailable", reason: "openproject_error" };
+  }
+
+  private resultForAssignmentMutationError(
+    error: unknown,
+  ): OpenProjectAssignmentResult {
+    const status = getAxiosErrorStatus(error);
+    if (status === 400 || status === 422) {
+      return { status: "ineligible", reason: "assignment_invalid" };
+    }
+    return this.resultForError(error, "assignment_mutation");
+  }
+
+  private resultForMarkDoneMutationError(
+    error: unknown,
+  ): OpenProjectMarkDoneResult {
+    const status = getAxiosErrorStatus(error);
+    if (status === 400 || status === 422) {
+      return { status: "ineligible", reason: "status_form_invalid" };
+    }
+    return this.resultForError(error, "mark_done_mutation");
   }
 }

@@ -12,6 +12,7 @@ import type {
   OpenProjectIdentity,
   OpenProjectStatus,
   OpenProjectWorkPackage,
+  OpenProjectWorkPackageFormPayload,
   OpenProjectWorkPackageForm,
 } from "../../src/openproject/Types";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
@@ -103,7 +104,16 @@ function createHarness() {
     async (_workPackageId: number, userId: number) =>
       userId === OPENPROJECT_USER_ID,
   );
-  const getWorkPackageForm = vi.fn(async () => createForm());
+  const getWorkPackageForm = vi.fn(
+    async (
+      workPackageId: number,
+      payload?: OpenProjectWorkPackageFormPayload,
+    ) => {
+      void workPackageId;
+      void payload;
+      return createForm();
+    },
+  );
   const getStatusByHref = vi.fn(async (href: string) => {
     const match = /statuses\/(\d+)$/.exec(href);
     return createStatus(Number(match?.[1]), "Done", true);
@@ -112,6 +122,7 @@ function createHarness() {
     async () => [] as OpenProjectStatus[],
   );
   const updateWorkPackage = vi.fn(async () => undefined);
+  const addWorkPackageComment = vi.fn(async () => undefined);
   const client = {
     getOrigin: () => BASE_URL.origin,
     getIdentity,
@@ -121,6 +132,7 @@ function createHarness() {
     getStatusByHref,
     getStatusesByAllowedValuesHref,
     updateWorkPackage,
+    addWorkPackageComment,
   } as unknown as OpenProjectAPIClient;
   const getOpenProjectForUser = vi.fn(
     async (): Promise<OpenProjectAPIClient | null> => client,
@@ -146,6 +158,7 @@ function createHarness() {
     getStatusByHref,
     getStatusesByAllowedValuesHref,
     updateWorkPackage,
+    addWorkPackageComment,
     getOpenProjectForUser,
     setWorkPackage(next: OpenProjectWorkPackage) {
       workPackage = next;
@@ -153,12 +166,141 @@ function createHarness() {
   };
 }
 
+describe("OpenProjectEligibilityService card actions", () => {
+  it("evaluates both actions from one live identity and package snapshot", async () => {
+    const harness = createHarness();
+    harness.getWorkPackageForm.mockImplementation(async (_id, payload) => {
+      if (payload?._links?.assignee) return createForm();
+      return createStatusForm([createStatus(9, "Closed", true)]);
+    });
+
+    await expect(
+      harness.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toMatchObject({
+      status: "evaluated",
+      assignSelf: {
+        status: "eligible",
+        action: "assign_self",
+        lockVersion: 8,
+      },
+      markDone: {
+        status: "eligible",
+        action: "mark_done",
+        lockVersion: 8,
+      },
+    });
+    expect(harness.getOpenProjectForUser).toHaveBeenCalledOnce();
+    expect(harness.getIdentity).toHaveBeenCalledOnce();
+    expect(harness.getWorkPackage).toHaveBeenCalledOnce();
+    expect(harness.hasAvailableAssignee).toHaveBeenCalledOnce();
+    expect(harness.updateWorkPackage).not.toHaveBeenCalled();
+  });
+
+  it("keeps ineligible assignment and stale completion targets distinct", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    harness.hasAvailableAssignee.mockResolvedValue(false);
+    harness.getWorkPackageForm.mockImplementation(async (_id, payload) => {
+      if (payload?._links?.assignee) return createForm();
+      return createStatusForm([createStatus(9, "Resolved", false)]);
+    });
+
+    await expect(
+      harness.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toMatchObject({
+      status: "evaluated",
+      assignSelf: { status: "ineligible", reason: "target_not_available" },
+      markDone: { status: "stale_target", reason: "configured_status_open" },
+    });
+  });
+
+  it("returns context failures before evaluating either action", async () => {
+    const wrongProject = createHarness();
+    wrongProject.setWorkPackage({
+      ...createWorkPackage(),
+      _embedded: {
+        ...createWorkPackage()._embedded,
+        project: {
+          ...WORK_PACKAGE._embedded.project,
+          id: WORK_PACKAGE._embedded.project.id + 1,
+        },
+      },
+    });
+    await expect(
+      wrongProject.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        wrongProject.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "not_authorized", reason: "wrong_project" });
+
+    const disconnected = createHarness();
+    disconnected.getOpenProjectForUser.mockResolvedValue(null);
+    await expect(
+      disconnected.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        disconnected.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "not_connected" });
+
+    const unavailable = createHarness();
+    unavailable.getWorkPackage.mockRejectedValue(new Error("offline"));
+    await expect(
+      unavailable.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        unavailable.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "unavailable", reason: "openproject_error" });
+  });
+
+  it("rechecks assignee permission when lockVersion has not changed", async () => {
+    const harness = createHarness();
+    harness.hasAvailableAssignee
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+    harness.getWorkPackageForm.mockImplementation(async (_id, payload) => {
+      if (payload?._links?.assignee) return createForm();
+      return createStatusForm([createStatus(9, "Closed", true)]);
+    });
+    const evaluate = () =>
+      harness.service.evaluateCardActions(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      );
+
+    await expect(evaluate()).resolves.toMatchObject({
+      assignSelf: { status: "eligible", lockVersion: 8 },
+      markDone: { status: "eligible", lockVersion: 8 },
+    });
+    await expect(evaluate()).resolves.toMatchObject({
+      assignSelf: { status: "ineligible", reason: "target_not_available" },
+      markDone: { status: "eligible", lockVersion: 8 },
+    });
+    expect(harness.getWorkPackage).toHaveBeenCalledTimes(2);
+    expect(harness.hasAvailableAssignee).toHaveBeenCalledTimes(2);
+    expect(harness.updateWorkPackage).not.toHaveBeenCalled();
+  });
+});
+
 describe("OpenProjectEligibilityService assignment", () => {
   it("allows self-assignment using the fetched package revision", async () => {
     const harness = createHarness();
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -196,7 +338,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     });
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -214,7 +356,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     harness.hasAvailableAssignee.mockResolvedValue(false);
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -251,7 +393,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     harness.getWorkPackageForm.mockResolvedValue(form);
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -266,7 +408,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     harness.getWorkPackageForm.mockResolvedValue(form);
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -291,7 +433,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     });
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -308,7 +450,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     vi.mocked(harness.connection.interestedInProject).mockReturnValue(false);
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -317,7 +459,11 @@ describe("OpenProjectEligibilityService assignment", () => {
 
     vi.mocked(harness.connection.interestedInProject).mockReturnValue(true);
     await expect(
-      harness.service.evaluateAssignSelf(MATRIX_USER_ID, harness.connection, 0),
+      harness.service.evaluateAssignSelfCommand(
+        MATRIX_USER_ID,
+        harness.connection,
+        0,
+      ),
     ).resolves.toEqual({
       status: "ineligible",
       reason: "invalid_work_package_id",
@@ -330,7 +476,7 @@ describe("OpenProjectEligibilityService assignment", () => {
     harness.getOpenProjectForUser.mockResolvedValueOnce(null);
 
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -341,7 +487,7 @@ describe("OpenProjectEligibilityService assignment", () => {
       new OpenProjectMalformedResponseError("Invalid identity"),
     );
     await expect(
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -441,7 +587,7 @@ describe("OpenProjectEligibilityService assignment", () => {
   it("rechecks target availability for every evaluation", async () => {
     const harness = createHarness();
     const evaluate = () =>
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -474,7 +620,7 @@ describe("OpenProjectEligibilityService assignment", () => {
       new Error("OpenProject unavailable"),
     );
     const evaluate = () =>
-      harness.service.evaluateAssignSelf(
+      harness.service.evaluateAssignSelfCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -499,7 +645,7 @@ describe("OpenProjectEligibilityService assignment", () => {
       harness.hasAvailableAssignee.mockRejectedValue({ response: { status } });
 
       await expect(
-        harness.service.evaluateAssignSelf(
+        harness.service.evaluateAssignSelfCommand(
           MATRIX_USER_ID,
           harness.connection,
           WORK_PACKAGE.id,
@@ -519,7 +665,7 @@ describe("OpenProjectEligibilityService mark done", () => {
     harness.getWorkPackageForm.mockResolvedValue(form);
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -531,7 +677,7 @@ describe("OpenProjectEligibilityService mark done", () => {
       lockVersion: 8,
       targetHref: "/api/v3/statuses/9",
     });
-    expect(harness.getStatusByHref).toHaveBeenCalledWith("/api/v3/statuses/9");
+    expect(harness.getStatusByHref).not.toHaveBeenCalled();
     expect(
       harness.connection.getCompletionStatusOptionId,
     ).toHaveBeenCalledOnce();
@@ -550,6 +696,94 @@ describe("OpenProjectEligibilityService mark done", () => {
     );
   });
 
+  it("executes the transition and optional comment with the evaluated client", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    harness.getWorkPackageForm.mockResolvedValue(
+      createStatusForm([createStatus(9, "Resolved", true)]),
+    );
+
+    await expect(
+      harness.service.executeMarkDoneCommand(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+        "Resolved in the release",
+      ),
+    ).resolves.toMatchObject({ status: "eligible", action: "mark_done" });
+
+    expect(harness.getOpenProjectForUser).toHaveBeenCalledOnce();
+    expect(harness.updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+      _links: { status: { href: "/api/v3/statuses/9" } },
+    });
+    expect(harness.addWorkPackageComment).toHaveBeenCalledWith(
+      WORK_PACKAGE.id,
+      "Resolved in the release",
+    );
+    expect(harness.updateWorkPackage.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.addWorkPackageComment.mock.invocationCallOrder[0],
+    );
+  });
+
+  it.each([
+    [409, { status: "conflict" }],
+    [403, { status: "not_authorized", reason: "openproject_permission" }],
+    [404, { status: "not_authorized", reason: "work_package_not_found" }],
+    [422, { status: "ineligible", reason: "status_form_invalid" }],
+    [500, { status: "unavailable", reason: "openproject_error" }],
+  ] as const)(
+    "maps status update failure %i and skips the optional comment",
+    async (status, result) => {
+      const harness = createHarness();
+      vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+        "9",
+      );
+      harness.getWorkPackageForm.mockResolvedValue(
+        createStatusForm([createStatus(9, "Resolved", true)]),
+      );
+      harness.updateWorkPackage.mockRejectedValueOnce({
+        response: { status },
+        secret: "private upstream detail",
+      });
+
+      await expect(
+        harness.service.executeMarkDoneCommand(
+          MATRIX_USER_ID,
+          harness.connection,
+          WORK_PACKAGE.id,
+          "Closing note",
+        ),
+      ).resolves.toEqual(result);
+      expect(harness.updateWorkPackage).toHaveBeenCalledOnce();
+      expect(harness.addWorkPackageComment).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reports a failed comment after successfully closing the package", async () => {
+    const harness = createHarness();
+    vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
+      "9",
+    );
+    harness.getWorkPackageForm.mockResolvedValue(
+      createStatusForm([createStatus(9, "Resolved", true)]),
+    );
+    harness.addWorkPackageComment.mockRejectedValueOnce(
+      new Error("activity failed"),
+    );
+
+    await expect(
+      harness.service.executeMarkDoneCommand(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+        "Closing note",
+      ),
+    ).resolves.toEqual({ status: "comment_failed" });
+    expect(harness.updateWorkPackage).toHaveBeenCalledOnce();
+  });
+
   it("uses only statuses allowed by the acting user's workflow form", async () => {
     const harness = createHarness();
     vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
@@ -560,7 +794,7 @@ describe("OpenProjectEligibilityService mark done", () => {
     );
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -591,7 +825,7 @@ describe("OpenProjectEligibilityService mark done", () => {
       );
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -599,6 +833,25 @@ describe("OpenProjectEligibilityService mark done", () => {
     ).resolves.toEqual({ status: "ineligible", reason: "status_form_invalid" });
     expect(harness.getStatusByHref).toHaveBeenCalledWith("/api/v3/statuses/9");
     expect(harness.getWorkPackageForm).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats a missing status-options resource as unavailable", async () => {
+    const harness = createHarness();
+    const form = createStatusForm([]);
+    form._embedded.schema.status!._embedded = undefined;
+    form._embedded.schema.status!._links = {
+      allowedValues: [{ href: "/api/v3/statuses/9" }],
+    };
+    harness.getWorkPackageForm.mockResolvedValue(form);
+    harness.getStatusByHref.mockRejectedValue({ response: { status: 404 } });
+
+    await expect(
+      harness.service.evaluateMarkDoneCommand(
+        MATRIX_USER_ID,
+        harness.connection,
+        WORK_PACKAGE.id,
+      ),
+    ).resolves.toEqual({ status: "unavailable", reason: "openproject_error" });
   });
 
   it.each([
@@ -619,7 +872,7 @@ describe("OpenProjectEligibilityService mark done", () => {
     harness.getWorkPackageForm.mockResolvedValue(form);
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -633,14 +886,11 @@ describe("OpenProjectEligibilityService mark done", () => {
       "9",
     );
     harness.getWorkPackageForm.mockResolvedValue(
-      createStatusForm([createStatus(9, "Resolved", true)]),
-    );
-    harness.getStatusByHref.mockResolvedValue(
-      createStatus(9, "Resolved", false),
+      createStatusForm([createStatus(9, "Resolved", false)]),
     );
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -658,7 +908,7 @@ describe("OpenProjectEligibilityService mark done", () => {
       },
     });
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
@@ -666,26 +916,23 @@ describe("OpenProjectEligibilityService mark done", () => {
     ).resolves.toEqual({ status: "ineligible", reason: "already_closed" });
   });
 
-  it("reports a deleted configured status as stale", async () => {
+  it("omits a configured status absent from the current form without fetching it", async () => {
     const harness = createHarness();
     vi.mocked(harness.connection.getCompletionStatusOptionId).mockReturnValue(
       "9",
     );
     harness.getWorkPackageForm.mockResolvedValue(
-      createStatusForm([createStatus(9, "Resolved", true)]),
+      createStatusForm([createStatus(10, "Closed", true)]),
     );
-    harness.getStatusByHref.mockRejectedValue({ response: { status: 404 } });
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
       ),
-    ).resolves.toEqual({
-      status: "stale_target",
-      reason: "configured_status_missing",
-    });
+    ).resolves.toEqual({ status: "ineligible", reason: "target_not_allowed" });
+    expect(harness.getStatusByHref).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -704,7 +951,7 @@ describe("OpenProjectEligibilityService mark done", () => {
       );
 
       await expect(
-        harness.service.evaluateMarkDone(
+        harness.service.evaluateMarkDoneCommand(
           MATRIX_USER_ID,
           harness.connection,
           WORK_PACKAGE.id,
@@ -718,7 +965,7 @@ describe("OpenProjectEligibilityService mark done", () => {
     harness.getWorkPackageForm.mockRejectedValue(new Error("offline"));
 
     await expect(
-      harness.service.evaluateMarkDone(
+      harness.service.evaluateMarkDoneCommand(
         MATRIX_USER_ID,
         harness.connection,
         WORK_PACKAGE.id,
