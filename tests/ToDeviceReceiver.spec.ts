@@ -9,7 +9,10 @@ import {
   MATRIX_BOT_SDK_EDU_ANNOTATION,
   MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION,
 } from "../src/ToDeviceProtocol";
-import { HookshotToDeviceReceiver } from "../src/ToDeviceReceiver";
+import {
+  HookshotCapabilityEndpoint,
+  HookshotToDeviceReceiver,
+} from "../src/ToDeviceReceiver";
 
 const sender = "@alice:example.org";
 const botUserId = "@hookshot:example.org";
@@ -56,10 +59,19 @@ function makeEvent(
 function createReceiver(
   appservice: FakeAppservice,
   options: ConstructorParameters<typeof HookshotToDeviceReceiver>[2] = {},
+  integrations: ReadonlyMap<string, HookshotCapabilityEndpoint> = new Map([
+    [
+      "openproject",
+      {
+        botUserId,
+        probeHandler: vi.fn().mockResolvedValue({ result: "unavailable" }),
+      },
+    ],
+  ]),
 ): HookshotToDeviceReceiver {
   return new HookshotToDeviceReceiver(
     appservice as unknown as Appservice,
-    new Map([["openproject", botUserId]]),
+    integrations,
     options,
   );
 }
@@ -90,19 +102,29 @@ describe("Hookshot to-device receiver", () => {
 
   it("delivers capability actions to only the requesting device", async () => {
     const appservice = new FakeAppservice();
-    const receiver = createReceiver(appservice, {
-      probeHandler: vi.fn().mockResolvedValue({
-        result: "ok",
-        connection: "connected",
-        actions: [
+    const receiver = createReceiver(
+      appservice,
+      {},
+      new Map([
+        [
+          "openproject",
           {
-            id: "assign_self",
-            label: "Assign to me",
-            command: "!openproject project assign 17",
+            botUserId,
+            probeHandler: vi.fn().mockResolvedValue({
+              result: "ok",
+              connection: "connected",
+              actions: [
+                {
+                  id: "assign_self",
+                  label: "Assign to me",
+                  command: "!openproject project assign 17",
+                },
+              ],
+            }),
           },
         ],
-      }),
-    });
+      ]),
+    );
 
     await receiver.handleEphemeralEvent(makeEvent());
 
@@ -127,6 +149,50 @@ describe("Hookshot to-device receiver", () => {
         },
       },
     );
+  });
+
+  it("dispatches only to the registered integration and its selected bot", async () => {
+    const appservice = new FakeAppservice();
+    const openProjectHandler = vi.fn().mockResolvedValue({ result: "ok" });
+    const githubHandler = vi
+      .fn()
+      .mockResolvedValue({ result: "not_connected" });
+    const githubBotUserId = "@github:example.org";
+    const receiver = createReceiver(
+      appservice,
+      {},
+      new Map([
+        ["openproject", { botUserId, probeHandler: openProjectHandler }],
+        ["github", { botUserId: githubBotUserId, probeHandler: githubHandler }],
+      ]),
+    );
+
+    await receiver.handleEphemeralEvent(makeEvent());
+    await receiver.handleEphemeralEvent(
+      makeEvent(
+        {
+          ...validRequest,
+          integration_id: "github",
+          request_id: "github-request",
+        },
+        { to_user_id: githubBotUserId },
+      ),
+    );
+    await receiver.handleEphemeralEvent(
+      makeEvent({
+        ...validRequest,
+        integration_id: "github",
+        request_id: "wrong-bot",
+      }),
+    );
+
+    expect(openProjectHandler).toHaveBeenCalledOnce();
+    expect(githubHandler).toHaveBeenCalledOnce();
+    expect(githubHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ integration_id: "github" }),
+      { sender, recipientBotUserId: githubBotUserId },
+    );
+    expect(appservice.sendToDevices).toHaveBeenCalledTimes(2);
   });
 
   it("subscribes to and unsubscribes from ephemeral events", async () => {

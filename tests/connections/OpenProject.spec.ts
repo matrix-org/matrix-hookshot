@@ -16,7 +16,7 @@ import {
 import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { ConnectionManager } from "../../src/ConnectionManager";
-import { createAuthenticatedProbeHandler } from "../../src/AuthenticatedProbeHandler";
+import { createOpenProjectProbeHandler } from "../../src/openproject/CapabilityProbe";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
@@ -974,7 +974,7 @@ describe("OpenProjectConnection", () => {
       lockVersion: 1,
       lastContent: anchorContent,
     });
-    const probe = createAuthenticatedProbeHandler({
+    const probe = createOpenProjectProbeHandler({
       getAnchorEvent: vi.fn().mockResolvedValue({
         room_id: ROOM_ID,
         sender: connection.botUserId,

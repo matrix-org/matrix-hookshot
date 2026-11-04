@@ -38,7 +38,7 @@ import {
   OpenProjectEligibilityService,
   type OpenProjectEligibilityConnection,
 } from "../openproject/Eligibility";
-import type { AuthenticatedOpenProjectConnection } from "../AuthenticatedProbeHandler";
+import type { OpenProjectCapabilityConnection } from "../openproject/CapabilityProbe";
 import { GetConnectionsResponseItem } from "../widgets/Api";
 import { removeConnectionState } from "./BaseConnection";
 import { ConnectionType } from "./type";
@@ -495,7 +495,7 @@ export class OpenProjectConnection
   }
 
   /** Return the narrow, current connection data used for a capability probe. */
-  public getCapabilityConnection(): AuthenticatedOpenProjectConnection {
+  public getCapabilityConnection(): OpenProjectCapabilityConnection {
     return {
       connectionId: this.connectionId,
       roomId: this.roomId,

@@ -110,11 +110,16 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
-import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
+import {
+  HookshotCapabilityEndpoint,
+  HookshotToDeviceReceiver,
+} from "./ToDeviceReceiver";
 import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
-import { createAuthenticatedProbeHandler } from "./AuthenticatedProbeHandler";
-import { assertUserPermissionsInRoom } from "./widgets/Api";
+import {
+  createOpenProjectCapabilityProbe,
+  OPENPROJECT_INTEGRATION_ID,
+} from "./openproject/CapabilityProbe";
 import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("Bridge");
@@ -2195,78 +2200,30 @@ export class Bridge {
     }
   }
 
-  /**
-   * Service bots are the deployment-owned capability endpoints. Keeps the
-   * first (highest-priority) bot for each service so a dedicated service bot
-   * takes precedence over the default Hookshot bot.
-   */
+  /** Start probes for integrations that have a registered capability handler. */
   private async startToDeviceReceiver() {
-    const integrationBots = new Map<string, string>();
-    const services = new Set(
-      this.botUsersManager.botUsers.flatMap((botUser) => botUser.services),
+    const integrations = new Map<string, HookshotCapabilityEndpoint>();
+    const openProjectBot = this.botUsersManager.getIntegrationBotForService(
+      OPENPROJECT_INTEGRATION_ID,
     );
-    for (const service of services) {
-      const botUser = this.botUsersManager.getIntegrationBotForService(service);
-      if (botUser) {
-        integrationBots.set(service, botUser.userId);
-      }
+    if (openProjectBot) {
+      integrations.set(OPENPROJECT_INTEGRATION_ID, {
+        botUserId: openProjectBot.userId,
+        probeHandler: createOpenProjectCapabilityProbe({
+          appservice: this.as,
+          config: this.config,
+          getConnectionManager: () => this.connectionManager,
+          storage: this.storage,
+        }),
+      });
     }
     await provisionToDeviceReceiverDevices(
       this.as,
-      new Set(integrationBots.values()),
+      new Set(Array.from(integrations.values(), (entry) => entry.botUserId)),
       !!this.config.encryption,
     );
 
-    this.toDeviceReceiver = new HookshotToDeviceReceiver(
-      this.as,
-      integrationBots,
-      {
-        probeHandler: createAuthenticatedProbeHandler({
-          getAnchorEvent: (roomId, eventId, recipientBotUserId) =>
-            this.as
-              .getIntentForUserId(recipientBotUserId)
-              .underlyingClient.getEvent(roomId, eventId),
-          assertRoomReadAccess: async (userId, roomId, recipientBotUserId) => {
-            await assertUserPermissionsInRoom(
-              userId,
-              roomId,
-              "read",
-              this.as.getIntentForUserId(recipientBotUserId),
-            );
-          },
-          canSendRoomMessage: async (userId, roomId, recipientBotUserId) => {
-            const client =
-              this.as.getIntentForUserId(recipientBotUserId).underlyingClient;
-            const powerLevels = new PLManager(
-              await client.getRoomCreateEvent(roomId),
-              await client.getRoomStateEventContent(
-                roomId,
-                "m.room.power_levels",
-                "",
-              ),
-            );
-            const requiredPowerLevel =
-              powerLevels.currentPL.events?.["m.room.message"] ??
-              powerLevels.currentPL.events_default ??
-              0;
-            return powerLevels.getUserPowerLevel(userId) >= requiredPowerLevel;
-          },
-          hasOpenProjectCommandPermission: (userId) =>
-            this.config.checkPermission(
-              userId,
-              "openproject",
-              BridgePermissionLevel.commands,
-            ),
-          getOpenProjectConnections: (projectId) =>
-            (
-              this.connectionManager?.getConnectionsForOpenProject(projectId) ??
-              []
-            ).map((connection) => connection.getCapabilityConnection()),
-          getOpenProjectAnchorState: (connectionId, workPackageId) =>
-            this.storage.getOpenProjectAnchorState(connectionId, workPackageId),
-        }),
-      },
-    );
+    this.toDeviceReceiver = new HookshotToDeviceReceiver(this.as, integrations);
     this.toDeviceReceiver.start();
   }
 }

@@ -32,11 +32,16 @@ export type HookshotProbeHandler = (
   context: HookshotProbeContext,
 ) => Promise<HookshotProbeResponseState>;
 
+/** A deployment-selected bot and the integration that serves its probes. */
+export interface HookshotCapabilityEndpoint {
+  botUserId: string;
+  probeHandler: HookshotProbeHandler;
+}
+
 export interface HookshotToDeviceReceiverOptions {
   deduplicationTtlMs?: number;
   maxDeduplicationEntries?: number;
   now?: () => number;
-  probeHandler?: HookshotProbeHandler;
 }
 
 /**
@@ -44,14 +49,13 @@ export interface HookshotToDeviceReceiverOptions {
  * SDK's ephemeral event stream.
  *
  * This class deliberately does not perform room, anchor, authorization, or
- * integration-connection checks. Those belong to the integration dispatcher.
+ * integration-connection checks. Those belong to the registered handler.
  */
 export class HookshotToDeviceReceiver {
   private readonly deduplication = new Map<string, number>();
   private readonly deduplicationTtlMs: number;
   private readonly maxDeduplicationEntries: number;
   private readonly now: () => number;
-  private readonly probeHandler?: HookshotProbeHandler;
   private started = false;
 
   private readonly onEphemeralEvent = (event: unknown): void => {
@@ -63,9 +67,9 @@ export class HookshotToDeviceReceiver {
 
   constructor(
     private readonly appservice: Appservice,
-    private readonly integrationBots: ReadonlyMap<
+    private readonly integrations: ReadonlyMap<
       HookshotIntegrationId,
-      string
+      HookshotCapabilityEndpoint
     >,
     options: HookshotToDeviceReceiverOptions = {},
   ) {
@@ -74,7 +78,6 @@ export class HookshotToDeviceReceiver {
     this.maxDeduplicationEntries =
       options.maxDeduplicationEntries ?? DEFAULT_MAX_DEDUPLICATION_ENTRIES;
     this.now = options.now ?? Date.now;
-    this.probeHandler = options.probeHandler;
 
     if (this.deduplicationTtlMs <= 0) {
       throw new Error("deduplicationTtlMs must be positive");
@@ -131,10 +134,11 @@ export class HookshotToDeviceReceiver {
       return;
     }
 
-    const expectedBotUserId = this.integrationBots.get(request.integration_id);
-    if (!expectedBotUserId || expectedBotUserId !== event.to_user_id) {
+    const integration = this.integrations.get(request.integration_id);
+    if (!integration || integration.botUserId !== event.to_user_id) {
       return;
     }
+    const expectedBotUserId = integration.botUserId;
 
     this.pruneDeduplication();
     const deduplicationKey = `${event.sender}\u0000${request.integration_id}\u0000${request.request_id}`;
@@ -153,12 +157,10 @@ export class HookshotToDeviceReceiver {
         request.request_id,
     );
 
-    const responseState = this.probeHandler
-      ? await this.probeHandler(request, {
-          sender: event.sender,
-          recipientBotUserId: expectedBotUserId,
-        })
-      : { result: "unavailable" as const };
+    const responseState = await integration.probeHandler(request, {
+      sender: event.sender,
+      recipientBotUserId: expectedBotUserId,
+    });
     const response: HookshotCapabilitiesProbeResponse = {
       v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
       request_id: request.request_id,

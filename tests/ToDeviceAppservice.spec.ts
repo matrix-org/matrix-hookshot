@@ -64,7 +64,15 @@ describe("real appservice to-device delivery", () => {
       .mockResolvedValue();
     const receiver = new HookshotToDeviceReceiver(
       appservice,
-      new Map([["generic", botUserId]]),
+      new Map([
+        [
+          "generic",
+          {
+            botUserId,
+            probeHandler: async () => ({ result: "unavailable" as const }),
+          },
+        ],
+      ]),
     );
     receiver.start();
 

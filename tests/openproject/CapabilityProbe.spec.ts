@@ -3,17 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 import {
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
   HookshotCapabilitiesProbeRequest,
-} from "../src/ToDeviceProtocol";
+} from "../../src/ToDeviceProtocol";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../src/openproject/Schema";
+} from "../../src/openproject/Schema";
 import {
-  AuthenticatedOpenProjectConnection,
-  AuthenticatedProbeServices,
-  createAuthenticatedProbeHandler,
-} from "../src/AuthenticatedProbeHandler";
-import type { OpenProjectAnchorState } from "../src/openproject/State";
+  OpenProjectCapabilityConnection,
+  OpenProjectProbeServices,
+  createOpenProjectProbeHandler,
+} from "../../src/openproject/CapabilityProbe";
+import type { OpenProjectAnchorState } from "../../src/openproject/State";
 
 const sender = "@alice:example.org";
 const botUserId = "@hookshot:example.org";
@@ -53,15 +53,15 @@ const activeAnchorState = {
   lastContent: validAnchor.content,
 } as OpenProjectAnchorState;
 
-type AuthenticatedProbeTestServices = AuthenticatedProbeServices & {
-  evaluateCardActions: AuthenticatedOpenProjectConnection["evaluateCardActions"];
+type OpenProjectProbeTestServices = OpenProjectProbeServices & {
+  evaluateCardActions: OpenProjectCapabilityConnection["evaluateCardActions"];
 };
 
 function createServices(
-  overrides: Partial<AuthenticatedProbeServices> & {
-    evaluateCardActions?: AuthenticatedOpenProjectConnection["evaluateCardActions"];
+  overrides: Partial<OpenProjectProbeServices> & {
+    evaluateCardActions?: OpenProjectCapabilityConnection["evaluateCardActions"];
   } = {},
-): AuthenticatedProbeTestServices {
+): OpenProjectProbeTestServices {
   const evaluateCardActions =
     overrides.evaluateCardActions ??
     vi.fn().mockResolvedValue({
@@ -100,13 +100,13 @@ function createServices(
     getOpenProjectAnchorState: vi.fn().mockResolvedValue(activeAnchorState),
     ...overrides,
     evaluateCardActions,
-  } as AuthenticatedProbeTestServices;
+  } as OpenProjectProbeTestServices;
 }
 
 describe("authenticated Hookshot probe", () => {
   it("returns only eligible actions with the matched connection's command prefix", async () => {
     const services = createServices();
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -156,7 +156,7 @@ describe("authenticated Hookshot probe", () => {
         status: "not_connected",
       }),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -174,7 +174,7 @@ describe("authenticated Hookshot probe", () => {
         markDone: { status: "stale_target", reason: "configured_status_open" },
       }),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -196,7 +196,7 @@ describe("authenticated Hookshot probe", () => {
         markDone: { status: "unavailable", reason: "openproject_error" },
       }),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -207,7 +207,7 @@ describe("authenticated Hookshot probe", () => {
     const services = createServices({
       hasOpenProjectCommandPermission: vi.fn().mockReturnValue(false),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -220,7 +220,7 @@ describe("authenticated Hookshot probe", () => {
     const services = createServices({
       canSendRoomMessage: vi.fn().mockResolvedValue(false),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -235,7 +235,7 @@ describe("authenticated Hookshot probe", () => {
         .mockResolvedValueOnce(activeAnchorState)
         .mockResolvedValueOnce(null),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -263,7 +263,7 @@ describe("authenticated Hookshot probe", () => {
         .mockReturnValueOnce(connections)
         .mockReturnValueOnce([]),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -299,7 +299,7 @@ describe("authenticated Hookshot probe", () => {
         .mockReturnValueOnce([connection]),
       evaluateCardActions,
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -322,7 +322,7 @@ describe("authenticated Hookshot probe", () => {
       const services = createServices({
         getAnchorEvent: vi.fn().mockRejectedValue({ statusCode: status }),
       });
-      const handler = createAuthenticatedProbeHandler(services);
+      const handler = createOpenProjectProbeHandler(services);
 
       await expect(
         handler(request, { sender, recipientBotUserId: botUserId }),
@@ -371,7 +371,7 @@ describe("authenticated Hookshot probe", () => {
             }
           : {}),
       });
-      const handler = createAuthenticatedProbeHandler(services);
+      const handler = createOpenProjectProbeHandler(services);
 
       await expect(
         handler(request, { sender, recipientBotUserId: botUserId }),
@@ -385,7 +385,7 @@ describe("authenticated Hookshot probe", () => {
     const services = createServices({
       assertRoomReadAccess: vi.fn().mockRejectedValue(new Error("not joined")),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -403,7 +403,7 @@ describe("authenticated Hookshot probe", () => {
         },
       }),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -421,7 +421,7 @@ describe("authenticated Hookshot probe", () => {
         },
       ]),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -460,7 +460,7 @@ describe("authenticated Hookshot probe", () => {
     const services = createServices({
       getOpenProjectAnchorState: vi.fn().mockResolvedValue(state),
     });
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(request, { sender, recipientBotUserId: botUserId }),
@@ -470,7 +470,7 @@ describe("authenticated Hookshot probe", () => {
 
   it("does not handle another integration", async () => {
     const services = createServices();
-    const handler = createAuthenticatedProbeHandler(services);
+    const handler = createOpenProjectProbeHandler(services);
 
     await expect(
       handler(

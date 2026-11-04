@@ -1,19 +1,25 @@
 import {
   HookshotCapabilitiesProbeRequest,
   isVersionedHookshotAnchorEventContent,
-} from "./ToDeviceProtocol";
+} from "../ToDeviceProtocol";
 import type {
   HookshotProbeHandler,
   HookshotProbeContext,
-} from "./ToDeviceReceiver";
+} from "../ToDeviceReceiver";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "./openproject/Schema";
-import type { OpenProjectAnchorState } from "./openproject/State";
-import type { OpenProjectCardActionsResult } from "./openproject/Eligibility";
-import type { HookshotCapabilityAction } from "./ToDeviceProtocol";
+} from "./Schema";
+import type { OpenProjectAnchorState } from "./State";
+import type { OpenProjectCardActionsResult } from "./Eligibility";
+import type { HookshotCapabilityAction } from "../ToDeviceProtocol";
+import { createMatrixProbeServices } from "../CapabilityMatrixServices";
+import { BridgePermissionLevel } from "../config/BridgePermissionLevel";
+import type { Appservice } from "matrix-bot-sdk";
+import type { BridgeConfig } from "../config/Config";
+import type { ConnectionManager } from "../ConnectionManager";
+import type { IBridgeStorageProvider } from "../stores/StorageProvider";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 
@@ -24,33 +30,20 @@ interface AnchorEvent {
   content: unknown;
 }
 
-export interface AuthenticatedProbeServices {
-  getAnchorEvent: (
-    roomId: string,
-    eventId: string,
-    recipientBotUserId: string,
-  ) => Promise<AnchorEvent>;
-  assertRoomReadAccess: (
-    userId: string,
-    roomId: string,
-    recipientBotUserId: string,
-  ) => Promise<void>;
-  canSendRoomMessage: (
-    userId: string,
-    roomId: string,
-    recipientBotUserId: string,
-  ) => Promise<boolean>;
+export interface OpenProjectProbeServices extends ReturnType<
+  typeof createMatrixProbeServices
+> {
   hasOpenProjectCommandPermission: (userId: string) => boolean;
   getOpenProjectConnections: (
     projectId: number,
-  ) => ReadonlyArray<AuthenticatedOpenProjectConnection>;
+  ) => ReadonlyArray<OpenProjectCapabilityConnection>;
   getOpenProjectAnchorState: (
     connectionId: string,
     workPackageId: number,
   ) => Promise<OpenProjectAnchorState | null>;
 }
 
-export interface AuthenticatedOpenProjectConnection {
+export interface OpenProjectCapabilityConnection {
   connectionId: string;
   roomId: string;
   botUserId: string;
@@ -158,14 +151,14 @@ function isValidAnchor(
 }
 
 /**
- * Creates the first integration-specific authenticated probe handler.
+ * Creates the OpenProject authenticated card probe handler.
  *
  * The service boundary keeps the receiver independent from connection and
  * token storage. It also makes it explicit that the Matrix to-device sender,
  * rather than request content, supplies the caller identity.
  */
-export function createAuthenticatedProbeHandler(
-  services: AuthenticatedProbeServices,
+export function createOpenProjectProbeHandler(
+  services: OpenProjectProbeServices,
 ): HookshotProbeHandler {
   return async (
     request: HookshotCapabilitiesProbeRequest,
@@ -199,7 +192,7 @@ export function createAuthenticatedProbeHandler(
       return { result: "not_authorized" as const };
     }
 
-    let connections: AuthenticatedOpenProjectConnection[];
+    let connections: OpenProjectCapabilityConnection[];
     try {
       connections = services
         .getOpenProjectConnections(projectId)
@@ -216,7 +209,7 @@ export function createAuthenticatedProbeHandler(
       return { result: "not_authorized" as const };
     }
 
-    const currentConnections: AuthenticatedOpenProjectConnection[] = [];
+    const currentConnections: OpenProjectCapabilityConnection[] = [];
     try {
       for (const connection of connections) {
         const activeAnchor = await services.getOpenProjectAnchorState(
@@ -296,7 +289,7 @@ export function createAuthenticatedProbeHandler(
       return { result: "unavailable" as const };
     }
 
-    let currentConnection: AuthenticatedOpenProjectConnection | undefined;
+    let currentConnection: OpenProjectCapabilityConnection | undefined;
     let isCurrentAnchor = false;
     try {
       currentConnection = services
@@ -352,6 +345,31 @@ export function createAuthenticatedProbeHandler(
       actions,
     };
   };
+}
+
+/** Wire OpenProject dependencies into its probe without exposing them to Bridge. */
+export function createOpenProjectCapabilityProbe(dependencies: {
+  appservice: Appservice;
+  config: BridgeConfig;
+  getConnectionManager: () => ConnectionManager | undefined;
+  storage: IBridgeStorageProvider;
+}): HookshotProbeHandler {
+  const { appservice, config, getConnectionManager, storage } = dependencies;
+  return createOpenProjectProbeHandler({
+    ...createMatrixProbeServices(appservice),
+    hasOpenProjectCommandPermission: (userId) =>
+      config.checkPermission(
+        userId,
+        OPENPROJECT_INTEGRATION_ID,
+        BridgePermissionLevel.commands,
+      ),
+    getOpenProjectConnections: (projectId) =>
+      (
+        getConnectionManager()?.getConnectionsForOpenProject(projectId) ?? []
+      ).map((connection) => connection.getCapabilityConnection()),
+    getOpenProjectAnchorState: (connectionId, workPackageId) =>
+      storage.getOpenProjectAnchorState(connectionId, workPackageId),
+  });
 }
 
 function getEvaluationFailure(
