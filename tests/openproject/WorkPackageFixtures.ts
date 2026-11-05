@@ -14,6 +14,7 @@ export const WORK_PACKAGE: OpenProjectWorkPackage = {
   },
   scheduleManually: true,
   startDate: null,
+  date: null,
   dueDate: null,
   derivedStartDate: null,
   derivedDueDate: null,

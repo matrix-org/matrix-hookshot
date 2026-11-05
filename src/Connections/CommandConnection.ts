@@ -5,12 +5,7 @@ import {
   HelpFunction,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import {
-  IRichReplyMetadata,
-  MatrixClient,
-  MessageEvent,
-  RoomEvent,
-} from "matrix-bot-sdk";
+import { MatrixClient, RoomEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
@@ -19,6 +14,8 @@ import { BridgeConfigMessaging } from "../config/sections";
 import markdownit from "markdown-it";
 const md = markdownit();
 const log = new Logger("CommandConnection");
+
+export const HOOKSHOT_COMMAND_EVENT_TYPE = "org.matrix.matrix-hookshot.command";
 
 /**
  * Connection class that handles commands for a given connection. Should be used
@@ -47,6 +44,10 @@ export abstract class CommandConnection<
 
   protected get commandPrefix() {
     return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
+  }
+
+  protected get helpCommandPrefix(): string {
+    return this.commandPrefix;
   }
 
   public conflictsWithCommandPrefix(commandPrefix: string) {
@@ -95,6 +96,15 @@ export abstract class CommandConnection<
         body: humanError
           ? `Failed to handle command: ${humanError}`
           : "Failed to handle command.",
+        ...(this.serviceName
+          ? {
+              [HOOKSHOT_COMMAND_EVENT_TYPE]: {
+                service: this.serviceName,
+                type: "response",
+                status: "error",
+              },
+            }
+          : {}),
       });
       log.warn(`Failed to handle command:`, error ?? "Unknown error");
       return true;
@@ -111,15 +121,20 @@ export abstract class CommandConnection<
     }
   }
 
-  @botCommand("help", "This help text")
+  @botCommand("help", {
+    help: "This help text",
+    helpUsages: [{ args: [], prefix: "global" }],
+    runOnGlobalPrefix: true,
+  })
   public async helpCommand() {
     return this.botClient.sendEvent(
       this.roomId,
       "m.room.message",
       this.helpMessage(
-        this.commandPrefix,
+        this.helpCommandPrefix,
         this.helpCategories,
         this.includeTitlesInHelp,
+        `${this.defaultCommandPrefix} `,
       ),
     );
   }
