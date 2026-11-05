@@ -54,7 +54,6 @@ export const EventHookList: FunctionComponent<{
       label={label}
       noPadding={true}
     >
-      <p>Choose which event should send a notification to the room</p>
       <ul>
         {Object.entries(eventList).map(([label, list]) => (
           <div key={label}>
