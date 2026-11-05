@@ -39,6 +39,7 @@ import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { GitLabInstance } from "./config/sections";
+import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("ConnectionManager");
 
@@ -57,6 +58,62 @@ export class ConnectionManager extends EventEmitter {
     return this.connections.length;
   }
 
+  private getBotUserForConnection(
+    roomId: string,
+    serviceType: string,
+  ): BotUser | undefined {
+    if (serviceType === OpenProjectConnection.ServiceCategory) {
+      const capabilityBot =
+        this.botUsersManager.getIntegrationBotForService(serviceType);
+      if (
+        capabilityBot &&
+        this.botUsersManager.isBotUserInRoom(roomId, capabilityBot.userId)
+      ) {
+        return capabilityBot;
+      }
+      return undefined;
+    }
+    return this.botUsersManager.getBotUserInRoom(roomId, serviceType);
+  }
+
+  private async inviteIntegrationBotIfNeeded(
+    roomId: string,
+    serviceType: string,
+  ): Promise<void> {
+    if (serviceType !== OpenProjectConnection.ServiceCategory) {
+      return;
+    }
+
+    const capabilityBot =
+      this.botUsersManager.getIntegrationBotForService(serviceType);
+    if (
+      !capabilityBot ||
+      this.botUsersManager.isBotUserInRoom(roomId, capabilityBot.userId)
+    ) {
+      return;
+    }
+
+    const inviter = this.botUsersManager.getBotUsersInRoom(roomId)[0];
+    if (!inviter) {
+      return;
+    }
+
+    try {
+      await inviter.intent.underlyingClient.inviteUser(
+        capabilityBot.userId,
+        roomId,
+      );
+      log.info(
+        `Invited selected OpenProject bot ${capabilityBot.userId} to ${roomId}`,
+      );
+    } catch (ex) {
+      log.warn(
+        `Could not invite selected OpenProject bot ${capabilityBot.userId} to ${roomId}; OpenProject connection will remain disabled until it joins`,
+        ex,
+      );
+    }
+  }
+
   constructor(
     private readonly as: Appservice,
     private readonly config: BridgeConfig,
@@ -65,6 +122,7 @@ export class ConnectionManager extends EventEmitter {
     private readonly messageClient: MessageSenderClient,
     private readonly storage: IBridgeStorageProvider,
     private readonly botUsersManager: BotUsersManager,
+    private readonly timelineManager: TimelineManager,
     private readonly github?: GithubInstance,
   ) {
     super();
@@ -122,20 +180,44 @@ export class ConnectionManager extends EventEmitter {
           ErrCode.ForbiddenUser,
         );
       }
+      let connectionIntent = intent;
+      if (
+        connectionType.ServiceCategory === OpenProjectConnection.ServiceCategory
+      ) {
+        const botUser = this.getBotUserForConnection(
+          roomId,
+          connectionType.ServiceCategory,
+        );
+        if (!botUser) {
+          throw new ApiError(
+            "The selected OpenProject bot is not joined to this room",
+            ErrCode.NotInRoom,
+          );
+        }
+        connectionIntent = botUser.intent;
+      }
       const result = await connectionType.provisionConnection(
         roomId,
         userId,
         data,
         {
           as: this.as,
-          intent: intent,
+          intent: connectionIntent,
           config: this.config,
           tokenStore: this.tokenStore,
           commentProcessor: this.commentProcessor,
           messageClient: this.messageClient,
           storage: this.storage,
+          timelineManager: this.timelineManager,
           github: this.github,
           getAllConnectionsOfType: this.getAllConnectionsOfType.bind(this),
+          getIntegrationBotForService:
+            this.botUsersManager.getIntegrationBotForService.bind(
+              this.botUsersManager,
+            ),
+          isBotUserInRoom: this.botUsersManager.isBotUserInRoom.bind(
+            this.botUsersManager,
+          ),
         },
       );
       this.push(result.connection);
@@ -186,13 +268,13 @@ export class ConnectionManager extends EventEmitter {
   ): boolean {
     const cd: ConnectionDeclaration =
       Object.getPrototypeOf(connection).constructor;
-    const botUser = this.botUsersManager.getBotUserInRoom(
+    const botUser = this.getBotUserForConnection(
       connection.roomId,
       cd.ServiceCategory,
     );
     if (!botUser) {
       log.error(
-        `Failed to find a bot in room '${connection.roomId}' for service type '${cd.ServiceCategory}' when verifying state for connection`,
+        `Selected bot for service type '${cd.ServiceCategory}' is not joined to room '${connection.roomId}' when verifying state for connection`,
       );
       throw Error("Could not find a bot to handle this connection");
     }
@@ -297,13 +379,13 @@ export class ConnectionManager extends EventEmitter {
     }
 
     // Get a bot user for the connection type
-    const botUser = this.botUsersManager.getBotUserInRoom(
+    const botUser = this.getBotUserForConnection(
       roomId,
       connectionType.ServiceCategory,
     );
     if (!botUser) {
       log.error(
-        `Failed to find a bot in room '${roomId}' for service type '${connectionType.ServiceCategory}' when creating connection for state`,
+        `Selected bot for service type '${connectionType.ServiceCategory}' is not joined to room '${roomId}'; skipping connection restoration`,
       );
       throw Error("Could not find a bot to handle this connection");
     }
@@ -334,6 +416,7 @@ export class ConnectionManager extends EventEmitter {
           commentProcessor: this.commentProcessor,
           messageClient: this.messageClient,
           storage: this.storage,
+          timelineManager: this.timelineManager,
           github: this.github,
           isStatic,
         },
@@ -394,6 +477,19 @@ export class ConnectionManager extends EventEmitter {
       retryMatrixErrorFilter,
     );
 
+    if (
+      state.some(
+        (event) =>
+          this.getConnectionTypeForEventType(event.type)?.ServiceCategory ===
+          OpenProjectConnection.ServiceCategory,
+      )
+    ) {
+      await this.inviteIntegrationBotIfNeeded(
+        roomId,
+        OpenProjectConnection.ServiceCategory,
+      );
+    }
+
     for (const event of state) {
       try {
         const conn = await this.createConnectionForState(
@@ -414,6 +510,15 @@ export class ConnectionManager extends EventEmitter {
     for (const staticConfig of this.config.connections.filter(
       (c) => c.roomId === roomId,
     )) {
+      if (
+        this.getConnectionTypeForEventType(staticConfig.connectionType)
+          ?.ServiceCategory === OpenProjectConnection.ServiceCategory
+      ) {
+        await this.inviteIntegrationBotIfNeeded(
+          roomId,
+          OpenProjectConnection.ServiceCategory,
+        );
+      }
       try {
         const conn = await this.createConnectionForState(
           roomId,
@@ -703,7 +808,8 @@ export class ConnectionManager extends EventEmitter {
 
   /**
    * Removes connections for a room from memory. This does NOT remove the state
-   * event from the room.
+   * event from the room or delete durable connection data; callers use this
+   * when rebuilding connections after room membership or state changes.
    * @param roomId
    */
   public async removeConnectionsForRoom(roomId: string) {
