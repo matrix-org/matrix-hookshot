@@ -9,9 +9,7 @@ import { ApiError, ErrCode } from "../../src/api";
 import type { BridgeConfig } from "../../src/config/Config";
 import { BridgeConfigMessaging } from "../../src/config/sections";
 import { BridgeOpenProjectConfig } from "../../src/config/sections/OpenProject";
-import {
-  HOOKSHOT_COMMAND_EVENT_TYPE,
-} from "../../src/Connections/CommandConnection";
+import { HOOKSHOT_COMMAND_EVENT_TYPE } from "../../src/Connections/CommandConnection";
 import {
   OpenProjectConnection,
   type OpenProjectEventsNames,

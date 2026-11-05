@@ -23,6 +23,7 @@ export const OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
 export const OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe_response";
+export const HOOKSHOT_COMMAND_EVENT_TYPE = "org.matrix.matrix-hookshot.command";
 export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
 export const OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH = 255;
 
@@ -105,6 +106,28 @@ function isOpenProjectSnapshotId(value: unknown): value is string {
     value.trim().length > 0 &&
     value.length <= OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH
   );
+}
+
+function isOpenProjectCommandEventType(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value[HOOKSHOT_COMMAND_EVENT_TYPE])) {
+    return false;
+  }
+  const service = value[HOOKSHOT_COMMAND_EVENT_TYPE].service;
+  return service === OPENPROJECT_INTEGRATION_ID;
+}
+
+export function isOpenProjectCommandContent(value: unknown): boolean {
+  return (
+    isOpenProjectCommandRequest(value) || isOpenProjectCommandEventType(value)
+  );
+}
+
+export function isOpenProjectCommandRequest(value: unknown): boolean {
+  if (!isRecord(value) || typeof value.body !== "string") {
+    return false;
+  }
+
+  return value.body.startsWith("!openproject ");
 }
 
 export function isOpenProjectContent(

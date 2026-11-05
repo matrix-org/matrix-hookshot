@@ -108,7 +108,7 @@ describe("OpenProject Element Web module", () => {
 
     await load();
 
-    expect(registerMessageRenderer).toHaveBeenCalledTimes(2);
+    expect(registerMessageRenderer).toHaveBeenCalledTimes(3);
     expect(registerMessageRenderer.mock.calls[0][2]).toEqual({
       allowEditingEvent: false,
       renderSenderProfile: false,
@@ -128,6 +128,7 @@ describe("OpenProject Element Web module", () => {
     await load();
     const [shouldRenderAnchor] = registerMessageRenderer.mock.calls[0];
     const [shouldRenderUpdate] = registerMessageRenderer.mock.calls[1];
+    const [shouldRenderCommand] = registerMessageRenderer.mock.calls[2];
     const anchor = createInactiveAnchorEvent();
     const malformedAnchor = {
       ...anchor,
@@ -168,6 +169,41 @@ describe("OpenProject Element Web module", () => {
     expect(
       shouldRenderUpdate(SYNTHETIC_OPENPROJECT_WORK_PACKAGE_CHANGED_EVENT),
     ).toBe(false);
+    expect(
+      shouldRenderCommand({
+        type: "m.room.message",
+        content: { body: "!openproject close 41" },
+      }),
+    ).toBe(true);
+    expect(
+      shouldRenderCommand({
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.command": {
+            service: "openproject",
+            type: "response",
+            status: "error",
+          },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      shouldRenderCommand({
+        type: "m.room.message",
+        content: { body: "!github issue" },
+      }),
+    ).toBe(false);
+    expect(
+      shouldRenderCommand({
+        type: "m.room.message",
+        content: {
+          "org.matrix.matrix-hookshot.command": { service: "github" },
+        },
+      }),
+    ).toBe(false);
+    expect(shouldRenderCommand({ type: "m.room.encrypted", content: {} })).toBe(
+      false,
+    );
   });
 
   it("renders only the event kind selected by each renderer", async () => {
@@ -238,5 +274,31 @@ describe("OpenProject Element Web module", () => {
     expect(getSummary([missingActorUpdate])).toBe(
       "Someone made 1 change to #41",
     );
+  });
+
+  it("renders OpenProject commands as informational messages", async () => {
+    const { registerMessageRenderer, load } = createModuleRegistration();
+    await load();
+
+    const hints = registerMessageRenderer.mock.calls[2][2];
+    expect(hints).toMatchObject({
+      allowEditingEvent: false,
+      renderAsInfoMessage: true,
+    });
+    expect(hints.renderGroupSummary.getKey()).toBe("OpenProjectCommand");
+    expect(
+      hints.renderGroupSummary.getSummary([
+        { content: { body: "!openproject close 41" } },
+        {
+          content: {
+            "org.matrix.matrix-hookshot.command": {
+              service: "openproject",
+              type: "response",
+              status: "error",
+            },
+          },
+        },
+      ]),
+    ).toBe("1 OpenProject commands");
   });
 });

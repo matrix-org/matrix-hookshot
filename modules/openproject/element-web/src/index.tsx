@@ -13,8 +13,10 @@ import {
   isOpenProjectAnchorForBot,
   isOpenProjectActivityContent,
   isOpenProjectAnchorContent,
+  isOpenProjectCommandContent,
   OpenProjectCapabilityClient,
   isOpenProjectContent,
+  isOpenProjectCommandRequest,
 } from "./OpenProjectCapabilityClient";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "./OpenProjectActivityRenderer";
@@ -165,6 +167,33 @@ class HookshotOpenProjectModule implements Module {
         );
       },
       activityHints,
+    );
+
+    function shouldRenderOpenProjectCommand(
+      mxEvent: CustomMessageComponentProps["mxEvent"],
+    ): boolean {
+      if (mxEvent.type !== "m.room.message") {
+        return false;
+      }
+      return isOpenProjectCommandContent(mxEvent.content);
+    }
+
+    this.api.customComponents.registerMessageRenderer(
+      shouldRenderOpenProjectCommand,
+      (_props, originalComponentFn) => originalComponentFn!(),
+      {
+        allowEditingEvent: false,
+        renderAsInfoMessage: true,
+        renderGroupSummary: {
+          getKey: () => "OpenProjectCommand",
+          getSummary: (events) => {
+            const commandCount = events.filter((event) =>
+              isOpenProjectCommandRequest(event.content),
+            ).length;
+            return `${commandCount} OpenProject commands`;
+          },
+        },
+      },
     );
   }
 }
