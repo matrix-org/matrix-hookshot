@@ -162,6 +162,14 @@ export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
   getAllConnectionsOfType<T extends IConnection>(
     typeT: new (...params: any[]) => T,
   ): T[];
+  /**
+   * Resolve the deployment-selected bot for an integration. This is used by
+   * integrations whose messages and capability traffic must share one bot.
+   */
+  getIntegrationBotForService?: (
+    service: string,
+  ) => { userId: string; intent: Intent } | undefined;
+  isBotUserInRoom?: (roomId: string, userId: string) => boolean;
 }
 
 export function Connection<T extends ConnectionDeclaration>(connectionType: T) {

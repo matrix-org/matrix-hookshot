@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BridgeConfigMessaging } from "../../src/config/sections";
 import { BridgeOpenProjectConfig } from "../../src/config/sections/OpenProject";
@@ -8,6 +8,11 @@ import { workPackageToCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackageCacheState } from "../../src/openproject/State";
 import type { OpenProjectWorkPackage } from "../../src/openproject/Types";
 import type { IBridgeStorageProvider } from "../../src/stores/StorageProvider";
+import {
+  OPENPROJECT_ANCHOR_EVENT_KIND,
+  OPENPROJECT_EVENT_SCHEMA_VERSION,
+} from "../../src/openproject/Schema";
+import { formatWorkPackageFallback } from "../../src/openproject/Format";
 import { BASE_URL, WORK_PACKAGE } from "./WorkPackageFixtures";
 
 const ROOM_ID = "!openproject:example.test";
@@ -32,6 +37,9 @@ class RecordingStorage {
 function createConnection(
   storage: RecordingStorage,
   events: OpenProjectConnectionState["events"] = ["work_package:updated"],
+  tokenStore: ConstructorParameters<
+    typeof OpenProjectConnection
+  >[6] = undefined as never,
 ) {
   const appservice = AppserviceMock.create();
   const intent = appservice.getIntentForUserId("@openproject:example.test");
@@ -49,7 +57,7 @@ function createConnection(
       events,
     },
     "state-key",
-    undefined as never,
+    tokenStore,
     storage as unknown as IBridgeStorageProvider,
     new BridgeConfigMessaging(),
   );
@@ -63,7 +71,94 @@ function updatePayload(workPackage: OpenProjectWorkPackage) {
   };
 }
 
+function createPayload(workPackage: OpenProjectWorkPackage) {
+  return {
+    action: "work_package:created" as const,
+    work_package: workPackage,
+  };
+}
+
 describe("OpenProjectConnection work-package updates", () => {
+  it.each([
+    ["assigned", WORK_PACKAGE],
+    [
+      "unassigned",
+      {
+        ...WORK_PACKAGE,
+        _embedded: { ...WORK_PACKAGE._embedded, assignee: undefined },
+      },
+    ],
+  ] as const)(
+    "sends a complete %s creation fallback as a versioned anchor",
+    async (_label, workPackage) => {
+      const storage = new RecordingStorage();
+      const { connection, intent } = createConnection(storage, [
+        "work_package:created",
+      ]);
+
+      await connection.onWorkPackageCreated(createPayload(workPackage));
+
+      expect(intent.sentEvents).toHaveLength(1);
+      expect(intent.sentEvents[0].content.body).toContain(
+        "added to the timeline",
+      );
+      expect(intent.sentEvents[0].content.body).not.toContain("\n");
+      expect(intent.sentEvents[0].content).toMatchObject({
+        body: formatWorkPackageFallback(workPackage, BASE_URL),
+        "org.matrix.matrix-hookshot.openproject.schema_version":
+          OPENPROJECT_EVENT_SCHEMA_VERSION,
+        "org.matrix.matrix-hookshot.openproject.event_kind":
+          OPENPROJECT_ANCHOR_EVENT_KIND,
+      });
+    },
+  );
+
+  it.each([
+    ["assigned", WORK_PACKAGE],
+    [
+      "unassigned",
+      {
+        ...WORK_PACKAGE,
+        _embedded: { ...WORK_PACKAGE._embedded, assignee: undefined },
+      },
+    ],
+  ] as const)(
+    "sends the complete %s create-command fallback as a versioned anchor",
+    async (_label, workPackage) => {
+      const storage = new RecordingStorage();
+      const openProjectClient = {
+        getTypesInProject: vi
+          .fn()
+          .mockResolvedValue([workPackage._embedded.type]),
+        createWorkPackage: vi.fn().mockResolvedValue(workPackage),
+      };
+      const tokenStore = {
+        getOpenProjectForUser: vi.fn().mockResolvedValue(openProjectClient),
+      } as unknown as ConstructorParameters<typeof OpenProjectConnection>[6];
+      const { connection, intent } = createConnection(storage, [], tokenStore);
+
+      await connection.commandCreateWorkPackage(
+        "@alice:example.test",
+        undefined,
+        workPackage._embedded.type.name,
+        workPackage.subject,
+      );
+
+      expect(intent.sentEvents).toHaveLength(1);
+      expect(intent.sentEvents[0].content.body).toContain(
+        "added to the timeline",
+      );
+      expect(intent.sentEvents[0].content.body).not.toContain("\n");
+      expect(intent.sentEvents[0].content).toMatchObject({
+        body: formatWorkPackageFallback(workPackage, BASE_URL),
+        "org.matrix.matrix-hookshot.openproject.schema_version":
+          OPENPROJECT_EVENT_SCHEMA_VERSION,
+        "org.matrix.matrix-hookshot.openproject.event_kind":
+          OPENPROJECT_ANCHOR_EVENT_KIND,
+      });
+    },
+  );
+
   it("reads the previous state before writing the updated state", async () => {
     const storage = new RecordingStorage();
     storage.cachedState = workPackageToCacheState(WORK_PACKAGE);
@@ -80,6 +175,12 @@ describe("OpenProjectConnection work-package updates", () => {
     expect(storage.operations).toEqual(["get", "set"]);
     expect(intent.sentEvents).toHaveLength(1);
     expect(intent.sentEvents[0].content.body).toContain("updated the subject");
+    expect(intent.sentEvents[0].content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.schema_version",
+    );
+    expect(intent.sentEvents[0].content).not.toHaveProperty(
+      "org.matrix.matrix-hookshot.openproject.event_kind",
+    );
     expect(storage.cachedState).toEqual(
       workPackageToCacheState(updatedWorkPackage),
     );
