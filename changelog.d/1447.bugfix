@@ -1,0 +1,3 @@
+Fix generic webhook connections being lost after restart, when created via `!hookshot webhook` while having
+service bots configured. Connections of any type created via the main bot's commands are now owned by the
+matching service bot from the start, as they already were after a restart.
