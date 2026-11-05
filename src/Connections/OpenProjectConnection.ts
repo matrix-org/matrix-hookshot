@@ -241,6 +241,29 @@ export class OpenProjectConnection
       return super.onMessageEvent(ev, checkPermission, parentEvent);
     }
 
+    if (hasGlobalPrefix && !hasProjectPrefix) {
+      const globalCommand = ev.content.body
+        .slice(this.defaultCommandPrefix.length)
+        .trimStart();
+      const [, ...possibleProjectCommand] = globalCommand.split(/\s+/);
+      const commandAfterProject = possibleProjectCommand
+        .join(" ")
+        .toLowerCase();
+      const isProjectScopedCommand = Object.keys(
+        OpenProjectConnection.botCommands,
+      ).some(
+        (command) =>
+          commandAfterProject === command ||
+          commandAfterProject.startsWith(`${command} `),
+      );
+
+      if (isProjectScopedCommand) {
+        // Let the connection with the matching project prefix handle this
+        // command instead of treating the project identifier as a command.
+        return false;
+      }
+    }
+
     let replyEvent = parentEvent;
     const replyEventId =
       ev.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;

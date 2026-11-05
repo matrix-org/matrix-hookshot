@@ -10,6 +10,9 @@ import type { BridgeConfig } from "../../src/config/Config";
 import { BridgeConfigMessaging } from "../../src/config/sections";
 import { BridgeOpenProjectConfig } from "../../src/config/sections/OpenProject";
 import {
+  HOOKSHOT_COMMAND_EVENT_TYPE,
+} from "../../src/Connections/CommandConnection";
+import {
   OpenProjectConnection,
   type OpenProjectEventsNames,
 } from "../../src/Connections/OpenProjectConnection";
@@ -167,6 +170,37 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  it("tags failed command responses", async () => {
+    const { connection, intent } = createConnection();
+    const commandEvent = {
+      content: {
+        body: "!openproject unknown",
+        msgtype: "m.text" as const,
+      },
+      event_id: "$unknown-command",
+      origin_server_ts: Date.now(),
+      sender: USER_ID,
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    await connection.onMessageEvent(commandEvent, () => true);
+
+    expect(intent.underlyingClient.sendEvent).toHaveBeenCalledWith(
+      ROOM_ID,
+      "m.room.message",
+      expect.objectContaining({
+        msgtype: "m.notice",
+        body: 'Failed to handle command: Unknown command. Try "!openproject help" for available commands.',
+        [HOOKSHOT_COMMAND_EVENT_TYPE]: {
+          service: "openproject",
+          type: "response",
+          status: "error",
+        },
+      }),
+    );
+  });
+
   it("shows project-specific and reply-based help forms with the right prefixes", () => {
     const help = OpenProjectConnection.helpMessage(
       "!openproject <projectId> ",
@@ -274,6 +308,47 @@ describe("OpenProjectConnection", () => {
       undefined,
       String(WORK_PACKAGE.id),
       "resolved in release",
+    );
+  });
+
+  it("routes a project-scoped command past a different OpenProject connection", async () => {
+    const firstConnection = createConnectionState({
+      commandPrefix: "!openproject dev-work-package-sharing",
+    });
+    const matchingConnection = createConnectionState({
+      url: `${BASE_URL}projects/2`,
+      commandPrefix: "!openproject dev-large-child",
+    });
+    const assign = vi
+      .spyOn(
+        matchingConnection["workPackageCommandService"],
+        "changeWorkPackageUser",
+      )
+      .mockResolvedValue(undefined);
+    const commandEvent = {
+      content: {
+        body: "!openproject dev-large-child assign 51",
+        msgtype: "m.text" as const,
+      },
+      event_id: "$assign-project-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    expect(await firstConnection.onMessageEvent(commandEvent, () => true)).toBe(
+      false,
+    );
+    expect(
+      await matchingConnection.onMessageEvent(commandEvent, () => true),
+    ).toBe(true);
+    expect(assign).toHaveBeenCalledWith(
+      "assignee",
+      "@alice:example.test",
+      undefined,
+      "51",
+      undefined,
     );
   });
 
