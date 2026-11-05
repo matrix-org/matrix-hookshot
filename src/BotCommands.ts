@@ -48,6 +48,10 @@ export interface BotCommandOptions {
    */
   optionalArgs?: string[];
   /**
+   * Alternative argument forms for help when syntax depends on context, such as replying to an event.
+   */
+  helpUsages?: BotCommandHelpUsage[];
+  /**
    * Prepend the userId to the command. Always the first argument
    */
   includeUserId?: boolean;
@@ -104,7 +108,14 @@ export type HelpFunction = (
   cmdPrefix?: string,
   categories?: string[],
   includeTitles?: boolean,
+  globalCmdPrefix?: string,
 ) => MatrixMessageContent;
+
+interface BotCommandHelpUsage {
+  args: string[];
+  note?: string;
+  prefix?: "global";
+}
 
 export function compileBotCommands(
   ...prototypes: Record<string, BotCommandFunction>[]
@@ -116,17 +127,24 @@ export function compileBotCommands(
       const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
       if (b) {
         const category = b.category || "default";
-        const requiredArgs =
-          b.requiredArgs?.map((arg: string) => `<${arg}>`).join(" ") || "";
-        const optionalArgs =
-          b.optionalArgs?.map((arg: string) => `[${arg}]`).join(" ") || "";
-        const cmdStr =
-          ` - \`££PREFIX££${b.prefix}` +
-          (requiredArgs ? ` ${requiredArgs}` : "") +
-          (optionalArgs ? ` ${optionalArgs}` : "") +
-          `\` - ${b.help}`;
         cmdStrs[category] = cmdStrs[category] || [];
-        cmdStrs[category].push(cmdStr);
+        const helpUsages: BotCommandHelpUsage[] = b.helpUsages || [
+          {
+            args: [
+              ...(b.requiredArgs || []).map((arg: string) => `<${arg}>`),
+              ...(b.optionalArgs || []).map((arg: string) => `[${arg}]`),
+            ],
+          },
+        ];
+        for (const usage of helpUsages) {
+          const args = usage.args.length ? ` ${usage.args.join(" ")}` : "";
+          const note = usage.note ? ` (${usage.note})` : "";
+          const prefix =
+            usage.prefix === "global" ? "££GLOBAL_PREFIX££" : "££PREFIX££";
+          cmdStrs[category].push(
+            ` - \`${prefix}${b.prefix}${args}\`${note} - ${b.help}`,
+          );
+        }
         if (botCommands[b.prefix as string]) {
           throw Error("Two commands cannot share the same prefix");
         }
@@ -149,6 +167,7 @@ export function compileBotCommands(
       cmdPrefix = "",
       onlyCategories?: string[],
       includeTitles = true,
+      globalCmdPrefix = "",
     ) => {
       let content = "";
       for (const [categoryName, commands] of Object.entries(cmdStrs)) {
@@ -164,10 +183,13 @@ export function compileBotCommands(
         }
         content += commands.join("\n") + "\n";
       }
+      const body = content
+        .replace(/££PREFIX££/g, cmdPrefix)
+        .replace(/££GLOBAL_PREFIX££/g, globalCmdPrefix);
       return {
         msgtype: "m.notice",
-        body: content.replace(/££PREFIX££/g, cmdPrefix),
-        formatted_body: md.render(content).replace(/££PREFIX££/g, cmdPrefix),
+        body,
+        formatted_body: md.render(body),
         format: "org.matrix.custom.html",
       };
     },
@@ -213,11 +235,20 @@ export async function handleCommand(
   | CommandResultErrorHuman
 > {
   let usingGlobalPrefix = false;
+  let matchedPrefix: string | undefined;
+  const normalizedGlobalPrefix = globalPrefix?.trimEnd();
+  const matchesGlobalPrefix =
+    normalizedGlobalPrefix !== undefined &&
+    command.startsWith(normalizedGlobalPrefix) &&
+    (command.length === normalizedGlobalPrefix.length ||
+      /\s/.test(command.charAt(normalizedGlobalPrefix.length)));
   if (prefix && command.startsWith(prefix)) {
+    matchedPrefix = prefix.trimEnd();
     command = command.substring(prefix.length);
-  } else if (globalPrefix && command.startsWith(globalPrefix)) {
+  } else if (matchesGlobalPrefix) {
     usingGlobalPrefix = true;
-    command = command.substring(globalPrefix.length);
+    matchedPrefix = normalizedGlobalPrefix;
+    command = command.substring(normalizedGlobalPrefix.length);
   } else if (prefix || globalPrefix) {
     return { handled: false };
   }
@@ -297,6 +328,12 @@ export async function handleCommand(
         humanError: commandError.humanError,
       };
     }
+  }
+  if (matchedPrefix) {
+    return {
+      handled: true,
+      humanError: `Unknown command. Try "${matchedPrefix} help" for available commands.`,
+    };
   }
   return { handled: false };
 }
