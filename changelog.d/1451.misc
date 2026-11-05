@@ -1,0 +1,1 @@
+Split the Docker `ENTRYPOINT` and `CMD` better so that the application entrypoint doesn't need to be re-specified.
