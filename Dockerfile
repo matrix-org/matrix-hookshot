@@ -56,4 +56,5 @@ VOLUME /data
 EXPOSE 9993
 EXPOSE 7775
 
-CMD ["node", "/bin/matrix-hookshot/App/BridgeApp.js", "/data/config.yml", "/data/registration.yml"]
+ENTRYPOINT ["/usr/local/bin/node", "/bin/matrix-hookshot/App/BridgeApp.js"]
+CMD ["/data/config.yml", "/data/registration.yml"]
