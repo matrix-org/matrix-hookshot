@@ -302,7 +302,6 @@ export class GenericHookConnection
    * Search the account data of other bot users for the hookId of a connection. Older versions
    * of hookshot could store the hookId with a different bot from the one that now owns the
    * connection (e.g. a connection created via the main bot in a room with a service bot).
-   * The data is deliberately not migrated, as the other bot may no longer be in the room.
    * @returns The hookId and the intent of the bot it was found with, or undefined if no other bot has one.
    */
   static async findHookIdFromOtherBots(
@@ -386,7 +385,27 @@ export class GenericHookConnection
         event.sender,
       );
       if (found) {
-        ({ hookId, accountDataIntent } = found);
+        hookId = found.hookId;
+        // Copy the hookId to the owning bot (which is in the room), so we don't need to
+        // fall back next time. The original is left alone, as the other bot may no longer
+        // be in the room and so may not be able to modify its account data.
+        try {
+          await GenericHookConnection.ensureRoomAccountData(
+            roomId,
+            intent,
+            hookId,
+            event.stateKey,
+          );
+          log.info(
+            `Copied hookId for "${event.stateKey}" in ${roomId} from ${found.accountDataIntent.userId} to ${intent.userId}`,
+          );
+        } catch (ex) {
+          log.warn(
+            `Failed to copy hookId for "${event.stateKey}" in ${roomId} to ${intent.userId}`,
+            ex,
+          );
+          accountDataIntent = found.accountDataIntent;
+        }
       }
     }
 
@@ -933,11 +952,14 @@ export class GenericHookConnection
         true,
       );
     } catch (ex) {
+      // If the hookId is held by the bot that owns this connection, failing to remove it is
+      // unexpected, so surface the error as before.
       if (this.accountDataIntent === this.intent) {
         throw ex;
       }
-      // The bot holding the hookId may no longer be in the room. The connection state
-      // is already removed, so a leftover hookId is harmless.
+      // Otherwise the hookId is held by another bot (see findHookIdFromOtherBots), which may
+      // no longer be in the room. The connection state is already removed, so a leftover
+      // hookId is harmless.
       log.warn(
         `Failed to remove hookId for "${this.stateKey}" from account data of ${this.accountDataIntent.userId}`,
         ex,

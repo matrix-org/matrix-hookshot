@@ -347,6 +347,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       JiraProjectConnection.ServiceCategory,
       JiraProjectConnection.CanonicalEventType,
+      this.intent,
     );
     await this.checkJiraLogin(userId, urlStr);
     const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
@@ -378,9 +379,7 @@ export class SetupConnection extends CommandConnection {
       );
     }
 
-    await this.ownerIntent(
-      JiraProjectConnection.ServiceCategory,
-    ).underlyingClient.sendStateEvent(this.roomId, eventType, safeUrl, {});
+    await this.client.sendStateEvent(this.roomId, eventType, safeUrl, {});
     return this.client.sendHtmlNotice(
       this.roomId,
       md.renderInline(`Room no longer bridged to Jira project \`${safeUrl}\`.`),
@@ -513,6 +512,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       GenericHookConnection.ServiceCategory,
       GenericHookConnection.CanonicalEventType,
+      this.intent,
     );
 
     const event = await this.client
@@ -534,9 +534,7 @@ export class SetupConnection extends CommandConnection {
       );
     }
 
-    await this.ownerIntent(
-      GenericHookConnection.ServiceCategory,
-    ).underlyingClient.sendStateEvent(
+    await this.client.sendStateEvent(
       this.roomId,
       GenericHookConnection.CanonicalEventType,
       name,
@@ -769,6 +767,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       FeedConnection.ServiceCategory,
       FeedConnection.CanonicalEventType,
+      this.intent,
     );
 
     const event = await this.client
@@ -786,9 +785,7 @@ export class SetupConnection extends CommandConnection {
       );
     }
 
-    await this.ownerIntent(
-      FeedConnection.ServiceCategory,
-    ).underlyingClient.sendStateEvent(
+    await this.client.sendStateEvent(
       this.roomId,
       FeedConnection.CanonicalEventType,
       url,
@@ -844,6 +841,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       HoundConnection.ServiceCategory,
       HoundConnection.CanonicalEventType,
+      this.intent,
     );
     const id = urlOrId.startsWith("http")
       ? HoundConnection.getIdFromURL(urlOrId)
@@ -863,9 +861,7 @@ export class SetupConnection extends CommandConnection {
       );
     }
 
-    await this.ownerIntent(
-      HoundConnection.ServiceCategory,
-    ).underlyingClient.sendStateEvent(
+    await this.client.sendStateEvent(
       this.roomId,
       FeedConnection.CanonicalEventType,
       id,
@@ -946,6 +942,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       OpenProjectConnection.ServiceCategory,
       OpenProjectConnection.CanonicalEventType,
+      this.intent,
     );
 
     const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
@@ -970,9 +967,7 @@ export class SetupConnection extends CommandConnection {
       );
     }
 
-    await this.ownerIntent(
-      OpenProjectConnection.ServiceCategory,
-    ).underlyingClient.sendStateEvent(
+    await this.client.sendStateEvent(
       this.roomId,
       OpenProjectConnection.CanonicalEventType,
       safeUrl,
@@ -1010,10 +1005,15 @@ export class SetupConnection extends CommandConnection {
     }
   }
 
+  /**
+   * @param botIntent The bot that will send the state event. Defaults to the bot that will own
+   * connections for the service.
+   */
   private async checkUserPermissions(
     userId: string,
     service: string,
     stateEventType: string,
+    botIntent: Intent = this.ownerIntent(service),
   ): Promise<void> {
     if (
       !this.config.checkPermission(
@@ -1037,7 +1037,7 @@ export class SetupConnection extends CommandConnection {
     }
     if (
       !(await this.client.userHasPowerLevelFor(
-        this.ownerIntent(service).userId,
+        botIntent.userId,
         this.roomId,
         stateEventType,
         true,
@@ -1045,7 +1045,9 @@ export class SetupConnection extends CommandConnection {
     ) {
       throw new CommandError(
         "Bot lacks power level to set room state",
-        "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.",
+        botIntent.userId === this.intent.userId
+          ? "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator."
+          : `${botIntent.userId} does not have permission to set up a bridge in this room. Please promote it to an Admin/Moderator.`,
       );
     }
   }
