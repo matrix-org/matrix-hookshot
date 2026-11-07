@@ -4,9 +4,9 @@ schedulerName: "{{ .Values.schedulerName }}"
 {{- end }}
 serviceAccountName: {{ template "hookshot.serviceAccountName" . }}
 automountServiceAccountToken: {{ .Values.serviceAccount.autoMount }}
-{{- if .Values.securityContext }}
+{{- if .Values.podSecurityContext }}
 securityContext:
-{{ toYaml .Values.securityContext | indent 2 }}
+{{ toYaml .Values.podSecurityContext | indent 2 }}
 {{- end }}
 {{- if .Values.hostAliases }}
 hostAliases:
@@ -38,9 +38,9 @@ containers:
       - {{ . }}
     {{- end }}
   {{- end}}
-{{- if .Values.containerSecurityContext }}
+{{- if .Values.securityContext }}
     securityContext:
-{{- toYaml .Values.containerSecurityContext | nindent 6 }}
+{{- toYaml .Values.securityContext | nindent 6 }}
 {{- end }}
     volumeMounts:
 {{- if or (and (not .Values.hookshot.existingConfigMap) (.Values.hookshot.config)) (.Values.hookshot.existingConfigMap) }}
