@@ -38,7 +38,10 @@ import Metrics from "./Metrics";
 import EventEmitter from "events";
 import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
-import { GitLabInstance } from "./config/sections";
+import {
+  BridgeConfigConnectionConfig,
+  GitLabInstance,
+} from "./config/sections";
 
 const log = new Logger("ConnectionManager");
 
@@ -430,6 +433,11 @@ export class ConnectionManager extends EventEmitter {
           log.debug(
             `Room ${roomId} is connected to: ${conn} (via static config)`,
           );
+          // Identify the connection by its config index, as the state key
+          // of a generic hook is its secret webhook ID.
+          log.info(
+            `Static connection connections[${this.config.connections.indexOf(staticConfig)}] is active in ${roomId}`,
+          );
           this.push(conn);
         }
       } catch (ex) {
@@ -438,6 +446,60 @@ export class ConnectionManager extends EventEmitter {
           ex,
         );
       }
+    }
+  }
+
+  /**
+   * Get the static connections that are inactive because no bot for their
+   * service has joined their room. Such a connection activates once a bot joins
+   * the room (see {@link createConnectionsForRoomId}).
+   *
+   * @param roomId Only check the static connections for this room.
+   * @returns The inactive static connections, with their index in the config
+   * and the bot that needs to be invited.
+   */
+  public getInactiveStaticConnections(roomId?: string): {
+    index: number;
+    connection: BridgeConfigConnectionConfig;
+    botUserId: string;
+  }[] {
+    return this.config.connections.flatMap((connection, index) => {
+      if (roomId !== undefined && connection.roomId !== roomId) {
+        return [];
+      }
+      const serviceType = this.getConnectionTypeForEventType(
+        connection.connectionType,
+      )?.ServiceCategory;
+      if (
+        this.botUsersManager.getBotUserInRoom(connection.roomId, serviceType)
+      ) {
+        return [];
+      }
+      const botUserId =
+        (serviceType
+          ? this.botUsersManager.getBotUserForService(serviceType)?.userId
+          : undefined) ?? this.as.botUserId;
+      return [{ index, connection, botUserId }];
+    });
+  }
+
+  /**
+   * Log a warning for each static connection that is inactive because no bot
+   * has joined its room.
+   *
+   * @param roomId Only check the static connections for this room.
+   */
+  public warnInactiveStaticConnections(roomId?: string) {
+    for (const {
+      index,
+      connection,
+      botUserId,
+    } of this.getInactiveStaticConnections(roomId)) {
+      // Identify the connection by its config index, as the state key of a
+      // generic hook is its secret webhook ID.
+      log.warn(
+        `Static connection connections[${index}] for ${connection.roomId} is inactive because ${botUserId} is not in the room. Invite ${botUserId} to the room to activate it.`,
+      );
     }
   }
 

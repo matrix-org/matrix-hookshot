@@ -1156,6 +1156,7 @@ export class Bridge {
       this.listener.bindResource("metrics", Metrics.expressRouter);
     }
     await roomQueue;
+    connManager.warnInactiveStaticConnections();
     log.info(`All connections loaded`);
 
     // Load feeds after connections, to limit the chances of us double
@@ -1342,6 +1343,7 @@ export class Bridge {
       // If there are still bots in the room, recreate connections
       await this.connectionManager.createConnectionsForRoomId(roomId, true);
     }
+    this.connectionManager.warnInactiveStaticConnections(roomId);
   }
 
   private async onRoomMessage(

@@ -54,6 +54,11 @@ interface Opts<ML extends string> {
     string,
     {
       members: string[];
+      /**
+       * Localpart of the user who creates the room. Defaults to the bot.
+       * When set, the bot is not in the room when hookshot starts.
+       */
+      createdBy?: ML;
     }
   >;
   permissionsRoom?: {
@@ -483,7 +488,15 @@ export class E2ETestEnv<ML extends string = string> {
     for (const [roomIdMapper, roomOpts] of Object.entries(
       opts.staticConnectionRooms ?? {},
     )) {
-      connectionRooms[roomIdMapper] = await botClient.createRoom({
+      const creator = roomOpts.createdBy
+        ? homeserver.users.find(
+            (u) => u.userId === `@${roomOpts.createdBy}:${homeserver.domain}`,
+          )?.client
+        : botClient;
+      if (!creator) {
+        throw Error(`Unknown room creator ${roomOpts.createdBy}`);
+      }
+      connectionRooms[roomIdMapper] = await creator.createRoom({
         name: `${roomIdMapper}`,
         invite: roomOpts.members.map(
           (localpart) => `@${localpart}:${homeserver.domain}`,
