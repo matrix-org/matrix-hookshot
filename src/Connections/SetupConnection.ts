@@ -65,6 +65,20 @@ export class SetupConnection extends CommandConnection {
     return this.intent.underlyingClient;
   }
 
+  /**
+   * Get the intent of the bot that should own connections for a service in this room. This is
+   * the same bot that will be chosen when the connection is loaded on startup, which may differ
+   * from the bot handling the command (e.g. when the main bot handles a command for a service that
+   * has a dedicated service bot in the room).
+   */
+  private ownerIntent(serviceType: string): Intent {
+    return this.getServiceBotIntent(serviceType) ?? this.intent;
+  }
+
+  private provisionOptsFor(serviceType: string): ProvisionConnectionOpts {
+    return { ...this.provisionOpts, intent: this.ownerIntent(serviceType) };
+  }
+
   protected validateConnectionState(content: unknown) {
     log.warn("SetupConnection has no state to be validated");
     return content as IConnectionState;
@@ -81,6 +95,9 @@ export class SetupConnection extends CommandConnection {
       userId: string,
     ) => Promise<AdminRoom>,
     private readonly pushConnections: (...connections: IConnection[]) => void,
+    private readonly getServiceBotIntent: (
+      serviceType: string,
+    ) => Intent | undefined = () => undefined,
   ) {
     super(
       roomId,
@@ -140,7 +157,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { org, repo },
-      this.provisionOpts,
+      this.provisionOptsFor(GitHubRepoConnection.ServiceCategory),
     );
     this.pushConnections(connection);
     await this.client.sendNotice(
@@ -200,7 +217,7 @@ export class SetupConnection extends CommandConnection {
         this.roomId,
         userId,
         { path, instance: name },
-        this.provisionOpts,
+        this.provisionOptsFor(GitLabRepoConnection.ServiceCategory),
       );
     this.pushConnections(connection);
     await this.client.sendNotice(
@@ -262,7 +279,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { url: safeUrl },
-      this.provisionOpts,
+      this.provisionOptsFor(JiraProjectConnection.ServiceCategory),
     );
     this.pushConnections(res.connection);
     await this.client.sendNotice(
@@ -330,6 +347,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       JiraProjectConnection.ServiceCategory,
       JiraProjectConnection.CanonicalEventType,
+      this.intent,
     );
     await this.checkJiraLogin(userId, urlStr);
     const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
@@ -413,7 +431,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { name, expirationDate },
-      this.provisionOpts,
+      this.provisionOptsFor(GenericHookConnection.ServiceCategory),
     );
     this.pushConnections(c.connection);
     const adminRoom = await this.getOrCreateAdminRoom(this.intent, userId);
@@ -494,6 +512,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       GenericHookConnection.ServiceCategory,
       GenericHookConnection.CanonicalEventType,
+      this.intent,
     );
 
     const event = await this.client
@@ -554,7 +573,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { name, url },
-      this.provisionOpts,
+      this.provisionOptsFor(OutboundHookConnection.ServiceCategory),
     );
     this.pushConnections(connection);
 
@@ -609,7 +628,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { fileId },
-      this.provisionOpts,
+      this.provisionOptsFor(FigmaFileConnection.ServiceCategory),
     );
     this.pushConnections(connection);
     return this.client.sendHtmlNotice(
@@ -663,7 +682,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { url, label, template },
-      this.provisionOpts,
+      this.provisionOptsFor(FeedConnection.ServiceCategory),
     );
     this.pushConnections(connection);
     return this.client.sendHtmlNotice(
@@ -748,6 +767,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       FeedConnection.ServiceCategory,
       FeedConnection.CanonicalEventType,
+      this.intent,
     );
 
     const event = await this.client
@@ -801,7 +821,7 @@ export class SetupConnection extends CommandConnection {
         this.roomId,
         userId,
         { url },
-        this.provisionOpts,
+        this.provisionOptsFor(HoundConnection.ServiceCategory),
       );
     this.pushConnections(connection);
     return this.client.sendHtmlNotice(
@@ -821,6 +841,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       HoundConnection.ServiceCategory,
       HoundConnection.CanonicalEventType,
+      this.intent,
     );
     const id = urlOrId.startsWith("http")
       ? HoundConnection.getIdFromURL(urlOrId)
@@ -901,7 +922,7 @@ export class SetupConnection extends CommandConnection {
       this.roomId,
       userId,
       { url: safeUrl },
-      this.provisionOpts,
+      this.provisionOptsFor(OpenProjectConnection.ServiceCategory),
     );
     this.pushConnections(connection);
     return this.client.sendHtmlNotice(
@@ -921,6 +942,7 @@ export class SetupConnection extends CommandConnection {
       userId,
       OpenProjectConnection.ServiceCategory,
       OpenProjectConnection.CanonicalEventType,
+      this.intent,
     );
 
     const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
@@ -983,10 +1005,15 @@ export class SetupConnection extends CommandConnection {
     }
   }
 
+  /**
+   * @param botIntent The bot that will send the state event. Defaults to the bot that will own
+   * connections for the service.
+   */
   private async checkUserPermissions(
     userId: string,
     service: string,
     stateEventType: string,
+    botIntent: Intent = this.ownerIntent(service),
   ): Promise<void> {
     if (
       !this.config.checkPermission(
@@ -1010,7 +1037,7 @@ export class SetupConnection extends CommandConnection {
     }
     if (
       !(await this.client.userHasPowerLevelFor(
-        this.intent.userId,
+        botIntent.userId,
         this.roomId,
         stateEventType,
         true,
@@ -1018,7 +1045,9 @@ export class SetupConnection extends CommandConnection {
     ) {
       throw new CommandError(
         "Bot lacks power level to set room state",
-        "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator.",
+        botIntent.userId === this.intent.userId
+          ? "I do not have permission to set up a bridge in this room. Please promote me to an Admin/Moderator."
+          : `${botIntent.userId} does not have permission to set up a bridge in this room. Please promote it to an Admin/Moderator.`,
       );
     }
   }
