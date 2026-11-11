@@ -1,3 +1,10 @@
+# 7.6.2 (2026-11-11)
+
+## Internal Changes
+
+- Update `matrix-bot-sdk` to address `GHSA-pqp6-f7wc-6498`. ([\#1458](https://github.com/matrix-org/matrix-hookshot/issues/1458))
+
+
 # 7.6.1 (2026-11-11)
 
 ## Bugfixes
