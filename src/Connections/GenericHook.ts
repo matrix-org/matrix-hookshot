@@ -791,7 +791,7 @@ export class GenericHookConnection
   public async onGenericHook(
     data: unknown,
   ): Promise<GenericWebhookEventResult> {
-    log.info(`onGenericHook ${this.roomId} ${this.hookId}`);
+    log.info(`onGenericHook ${this.roomId} ${this.state.name}`);
 
     if (this.expiresAt && new Date() >= this.expiresAt) {
       log.warn("Ignoring incoming webhook. This hook has expired");
@@ -1057,6 +1057,6 @@ export class GenericHookConnection
   }
 
   public toString() {
-    return `GenericHookConnection ${this.hookId}`;
+    return `GenericHookConnection ${this.state.name} in ${this.roomId}`;
   }
 }
