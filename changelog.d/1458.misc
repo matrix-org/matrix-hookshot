@@ -1,1 +1,1 @@
-Update `matrix-bot-sdk` dependency.
+Update `matrix-bot-sdk` to address `GHSA-pqp6-f7wc-6498`.
