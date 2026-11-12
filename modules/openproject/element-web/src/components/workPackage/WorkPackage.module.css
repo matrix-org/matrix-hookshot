@@ -55,3 +55,14 @@
 .changedDetailsText {
   color: var(--cpd-color-text-secondary);
 }
+
+.actionsRow {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.probeStatus {
+  display: inline-flex;
+  gap: var(--cpd-space-2x);
+}
