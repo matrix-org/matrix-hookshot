@@ -171,6 +171,10 @@ export interface InstantiateConnectionOpts {
   timelineManager?: TimelineManager;
   github?: GithubInstance;
   isStatic?: boolean;
+  /**
+   * Intents for all configured hookshot bot users, ordered by priority.
+   */
+  botIntents?: Intent[];
 }
 export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
   getAllConnectionsOfType<T extends IConnection>(
