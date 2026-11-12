@@ -3,14 +3,10 @@ import {
   BotCommands,
   handleCommand,
   HelpFunction,
+  type ResolvedCommand,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
-import {
-  IRichReplyMetadata,
-  MatrixClient,
-  MessageEvent,
-  RoomEvent,
-} from "matrix-bot-sdk";
+import { MatrixClient, RoomEvent } from "matrix-bot-sdk";
 import { MatrixMessageContent, MatrixEvent } from "../MatrixEvent";
 import { BaseConnection } from "./BaseConnection";
 import { IConnectionState, PermissionCheckFn } from ".";
@@ -49,6 +45,14 @@ export abstract class CommandConnection<
     return (this.state.commandPrefix || this.defaultCommandPrefix) + " ";
   }
 
+  protected get helpCommandPrefix(): string {
+    return this.commandPrefix;
+  }
+
+  protected get helpShorthandPrefix(): string {
+    return `${this.defaultCommandPrefix} `;
+  }
+
   public conflictsWithCommandPrefix(commandPrefix: string) {
     return this.commandPrefix === commandPrefix + " ";
   }
@@ -65,6 +69,7 @@ export abstract class CommandConnection<
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
     parentEvent?: RoomEvent<IJsonType>,
+    resolvedCommand?: ResolvedCommand,
   ) {
     const commandResult = await handleCommand(
       ev.sender,
@@ -76,6 +81,7 @@ export abstract class CommandConnection<
       this.serviceName,
       this.commandPrefix,
       this.defaultCommandPrefix,
+      resolvedCommand,
     );
     if (commandResult.handled !== true) {
       // Not for us.
@@ -111,22 +117,27 @@ export abstract class CommandConnection<
     }
   }
 
-  @botCommand("help", "This help text")
+  @botCommand("help", {
+    help: "This help text",
+    helpUsages: [{ args: [], prefix: "global" }],
+    runOnGlobalPrefix: true,
+  })
   public async helpCommand() {
     return this.botClient.sendEvent(
       this.roomId,
       "m.room.message",
       this.helpMessage(
-        this.commandPrefix,
+        this.helpCommandPrefix,
         this.helpCategories,
         this.includeTitlesInHelp,
+        this.helpShorthandPrefix,
       ),
     );
   }
 
   protected sendEvent(
     body: string,
-    extraContent: any = {},
+    extraContent: object = {},
     opts = { inline: true },
   ) {
     const content = this.msgConfig.formatMatrixMessage(

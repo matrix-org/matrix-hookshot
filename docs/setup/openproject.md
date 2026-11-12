@@ -37,6 +37,58 @@ openProject:
     redirectUri: https://example.com/oauth/
 ```
 
+### Timeline commands
+
+Use the connection's configured command prefix for timeline commands. The
+project picker sets it to `!openproject <project-identifier>` by default, so a
+connection for `demo-project` uses `!openproject demo-project timeline add <id>`
+and `!openproject demo-project timeline remove <id>`. If the connection prefix
+is configured as `!openproject`, omit the project identifier.
+
+Adding requires the sender to be logged in to OpenProject and the work package
+to belong to the connected project. Removing marks an existing timeline anchor
+inactive, does not change the work package in OpenProject, and does not require
+an OpenProject login. Removing an ID with no active anchor is an idempotent
+no-op. Both commands require the sender to have Hookshot command permission for
+OpenProject.
+
+The room configuration's event choices control which OpenProject changes send
+activity messages to the room. These are display-only `m.notice` messages; the
+separate automatic-anchor choice controls whether a work package gets a
+replaceable timeline card. Activity messages continue when automatic anchors
+are disabled or a card has been removed. When a card is active, an activity
+message links back to its original timeline event.
+
+Active timeline anchors are stored by Hookshot. Without a `cache` configuration,
+Hookshot uses in-memory storage and loses active anchor records when it restarts.
+Configure Redis to preserve anchors across restarts, for example:
+
+```yaml
+cache:
+  redisUri: redis://localhost:6379
+```
+
+### Completion status and closing work packages
+
+In the room's OpenProject connection settings, an editor can choose a
+**Completion Status**. This is the status that the `close` command will set for
+work packages in that connection's project. Choose a closed status that represents
+completed work for your project; other closed statuses may represent outcomes such
+as rejection. The selection is stored by status ID, so renaming the status in
+OpenProject keeps the connection's selection.
+
+Use the connection's command prefix followed by `close` and a work package ID.
+For example, with the default prefix for `demo-project`:
+
+```text
+!openproject demo-project close 123
+!openproject demo-project close 123 "Finished in release"
+```
+
+If you include a comment, Hookshot adds it only after the status change
+succeeds. If adding the comment then fails, Hookshot reports that the work
+package was closed but the comment was not added.
+
 ## Next steps
 
 If you have followed these steps correctly, OpenProject should now be configured 🥳.
