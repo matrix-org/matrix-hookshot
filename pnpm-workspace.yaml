@@ -16,3 +16,7 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   ssh2: true
+
+minimumReleaseAgeExclude:
+  - '@matrix-org/matrix-sdk-crypto-nodejs'
+  - '@vector-im/matrix-bot-sdk'
