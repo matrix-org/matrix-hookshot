@@ -292,8 +292,8 @@ importers:
         specifier: ^12.0.1
         version: 12.0.1
       matrix-bot-sdk:
-        specifier: npm:@vector-im/matrix-bot-sdk@0.10.1-element.0
-        version: '@vector-im/matrix-bot-sdk@0.10.1-element.0'
+        specifier: npm:@vector-im/matrix-bot-sdk@0.11.0-element.0
+        version: '@vector-im/matrix-bot-sdk@0.11.0-element.0'
       matrix-widget-api:
         specifier: ^1.14.0
         version: 1.17.0
@@ -1258,6 +1258,10 @@ packages:
 
   '@matrix-org/matrix-sdk-crypto-nodejs@0.6.6':
     resolution: {integrity: sha512-JlYSjq9Sm/0QoUXfk6C7JppsOG0ESY8BHEIaQgjQ8iQ0GkhvJrhPZbMJmd77/Bgeahd1GENf8896nauf4ximzQ==}
+    engines: {node: '>= 24'}
+
+  '@matrix-org/matrix-sdk-crypto-nodejs@0.7.0':
+    resolution: {integrity: sha512-ANbALKMOsK1ppcX6m6XtBTF7O61BIz9vfKdCTnYX/caqSp7NnNmsR8tyS9BmAbvdtrCuNeCIHiWRUQ+R10Zuzg==}
     engines: {node: '>= 24'}
 
   '@matrix-org/spec@1.16.0':
@@ -3097,6 +3101,10 @@ packages:
 
   '@vector-im/matrix-bot-sdk@0.10.1-element.0':
     resolution: {integrity: sha512-hwYXJh+eTHoiIqzbWXx236FSIOr3qLEAcvGd/hUnqzLY6GaBxO5nKKefXhc3uTPlmfQrgRvdtoUiqH4HfWolgA==}
+    engines: {node: '>=24.0.0'}
+
+  '@vector-im/matrix-bot-sdk@0.11.0-element.0':
+    resolution: {integrity: sha512-FlSbXjpThjHcretiquvfvJlMqnwIKPlQpeuVG8MzkpuxO+vNBvTYKBrL281NgFfjAiaVgOzcOVQeo4/pof/lXQ==}
     engines: {node: '>=24.0.0'}
 
   '@vitejs/plugin-react@5.2.0':
@@ -7018,6 +7026,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@matrix-org/matrix-sdk-crypto-nodejs@0.7.0':
+    dependencies:
+      https-proxy-agent: 7.0.6
+      node-downloader-helper: 2.1.11
+    transitivePeerDependencies:
+      - supports-color
+
   '@matrix-org/spec@1.16.0': {}
 
   '@mdx-js/react@3.1.1(@types/react@19.2.18)(react@19.2.7)':
@@ -8689,6 +8704,26 @@ snapshots:
   '@vector-im/matrix-bot-sdk@0.10.1-element.0':
     dependencies:
       '@matrix-org/matrix-sdk-crypto-nodejs': 0.6.6
+      another-json: 0.2.0
+      async-lock: 1.4.1
+      chalk: 4.1.2
+      express: 4.22.3
+      glob-to-regexp: 0.4.1
+      hash.js: 1.1.7
+      html-to-text: 9.0.5
+      lowdb: 1.0.0
+      lru-cache: 10.4.3
+      mkdirp: 3.0.1
+      morgan: 1.11.0
+      postgres: 3.4.9
+      sanitize-html: 2.17.7
+      undici: 8.12.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@vector-im/matrix-bot-sdk@0.11.0-element.0':
+    dependencies:
+      '@matrix-org/matrix-sdk-crypto-nodejs': 0.7.0
       another-json: 0.2.0
       async-lock: 1.4.1
       chalk: 4.1.2
