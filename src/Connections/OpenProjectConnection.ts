@@ -5,6 +5,7 @@ import {
   InstantiateConnectionOpts,
   PermissionCheckFn,
   ProvisionConnectionOpts,
+  RoomMessageRouter,
 } from "./IConnection";
 import {
   Appservice,
@@ -47,6 +48,15 @@ import {
   getWorkPackageIdFromReply,
   normalizeAssignmentMention,
 } from "../openproject/CommandParser";
+import {
+  resolveOpenProjectCommand,
+  type OpenProjectCommandRoute,
+} from "../openproject/CommandRouting";
+
+// Example: "!op   project" matches the three spaces between the words.
+const COMMAND_PREFIX_WORD_SEPARATOR_REGEX = /\s+/;
+// Example: "/projects/42/" captures "42" as the project ID.
+const PROJECT_ID_FROM_URL_REGEX = /\/projects\/(\d+)\/?/;
 
 export type OpenProjectEventsNames =
   | "work_package:created"
@@ -151,6 +161,21 @@ function validateOpenProjectConnectionState(
         ErrCode.BadValue,
       );
     }
+    const [, firstCommandWord] = commandPrefix
+      .trim()
+      .split(COMMAND_PREFIX_WORD_SEPARATOR_REGEX);
+    if (
+      firstCommandWord &&
+      Object.keys(OpenProjectConnection.botCommands).some(
+        (command) =>
+          command.split(" ", 1)[0] === firstCommandWord.toLowerCase(),
+      )
+    ) {
+      throw new ApiError(
+        `Command prefix '${commandPrefix}' is ambiguous with a reply command`,
+        ErrCode.BadValue,
+      );
+    }
   }
   if (showUrlPreviews !== undefined && typeof showUrlPreviews !== "boolean") {
     throw new ApiError(
@@ -222,25 +247,21 @@ export class OpenProjectConnection
   extends CommandConnection<OpenProjectConnectionState>
   implements IConnection
 {
+  /** Route OpenProject commands once across all project connections in the room. */
+  public get roomMessageRouter(): RoomMessageRouter {
+    return OpenProjectConnection.messageRouter;
+  }
+
   public override async onMessageEvent(
     ev: CommandMatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
     parentEvent?: RoomEvent<IJsonType>,
+    route?: OpenProjectCommandRoute<OpenProjectConnection>,
   ): Promise<boolean> {
-    // A project prefix selects this connection directly. A global prefix may
-    // need the replied-to message to identify which project should handle it.
-    const hasProjectPrefix = ev.content.body.startsWith(this.commandPrefix);
-    const hasGlobalPrefix = ev.content.body.startsWith(
-      `${this.defaultCommandPrefix} `,
-    );
-    if (!hasProjectPrefix && !hasGlobalPrefix) {
-      return super.onMessageEvent(ev, checkPermission, parentEvent);
-    }
-
     let replyEvent = parentEvent;
     const replyEventId =
       ev.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
-    if (!replyEvent && replyEventId) {
+    if (!replyEvent && replyEventId && !route) {
       try {
         // New-style Matrix replies carry only the event ID; resolve the
         // work package message before the command parser reads its metadata.
@@ -253,35 +274,47 @@ export class OpenProjectConnection
       }
     }
 
-    // Anchor and activity messages carry the project ID used to route a
-    // global reply when several OpenProject connections share the room.
-    const replyProjectId = getProjectIdFromReplyContent(replyEvent?.content);
-    if (
-      !hasProjectPrefix &&
-      replyProjectId !== undefined &&
-      replyProjectId !== this.projectId
-    ) {
-      // Let the connection for the replied-to project handle a global command.
+    const selected =
+      route ??
+      resolveOpenProjectCommand(
+        [this],
+        ev.content.body,
+        getProjectIdFromReplyContent(replyEvent?.content),
+      );
+    if (selected?.connection !== this) {
       return false;
     }
-
-    // Keep command parsing and feedback in the base class after resolving the
-    // reply and replacing an Element Web mention label with its Matrix ID.
+    const normalizedBody = normalizeAssignmentMention(ev.content);
     return super.onMessageEvent(
       {
         ...ev,
         content: {
           ...ev.content,
-          body: normalizeAssignmentMention(ev.content),
+          body: normalizedBody,
         },
       },
       checkPermission,
       replyEvent,
+      {
+        ...selected,
+        commandText: normalizedBody.slice(selected.prefix.length).trimStart(),
+      },
     );
   }
 
+  /** The full command prefix configured for this project. */
+  public get routingPrefix(): string {
+    return this.commandPrefix.trimEnd();
+  }
+
   protected override get helpCommandPrefix(): string {
-    return `${this.defaultCommandPrefix} <projectId> `;
+    return this.state.commandPrefix
+      ? this.commandPrefix
+      : `${this.defaultCommandPrefix} <projectId> `;
+  }
+
+  protected override get helpShorthandPrefix(): string {
+    return `${this.routingPrefix.split(COMMAND_PREFIX_WORD_SEPARATOR_REGEX, 1)[0]} `;
   }
 
   static readonly CanonicalEventType =
@@ -292,8 +325,52 @@ export class OpenProjectConnection
   static botCommands: BotCommands;
   static helpMessage: HelpFunction;
 
+  private static readonly messageRouter: RoomMessageRouter = {
+    async getMessageHandler(connections, event, parentEvent) {
+      // All connections in this group expose this same router instance.
+      const projects = connections as OpenProjectConnection[];
+      const firstProject = projects[0];
+      if (!firstProject) return undefined;
+
+      let replyEvent = parentEvent;
+      const replyEventId =
+        event.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
+      if (!replyEvent && replyEventId) {
+        try {
+          replyEvent = (
+            await firstProject.as.botClient.getEvent(
+              firstProject.roomId,
+              replyEventId,
+            )
+          ).raw;
+        } catch (ex) {
+          log.warn(`Could not look up OpenProject reply ${replyEventId}`, ex);
+        }
+      }
+
+      const route = resolveOpenProjectCommand(
+        projects,
+        event.content.body,
+        getProjectIdFromReplyContent(replyEvent?.content),
+      );
+      if (!route) return undefined;
+      return {
+        connection: route.connection,
+        handle: (checkPermission) =>
+          route.connection.onMessageEvent(
+            event,
+            checkPermission,
+            replyEvent,
+            route,
+          ),
+      };
+    },
+  };
+
   static projectIdFromUrl(url: URL): number {
-    const id = parseInt(/\/projects\/(\d+)\/?/.exec(url.pathname)?.[1] ?? "");
+    const id = parseInt(
+      PROJECT_ID_FROM_URL_REGEX.exec(url.pathname)?.[1] ?? "",
+    );
     if (isNaN(id)) {
       throw Error("URL for project doesnt contain a project ID");
     }
