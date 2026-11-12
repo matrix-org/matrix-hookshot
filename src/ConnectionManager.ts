@@ -2,7 +2,13 @@
  * Manages connections between Matrix rooms and the remote side.
  */
 
-import { Appservice, Intent, MatrixError, StateEvent } from "matrix-bot-sdk";
+import {
+  Appservice,
+  Intent,
+  MatrixError,
+  RoomEvent,
+  StateEvent,
+} from "matrix-bot-sdk";
 import { ApiError, ErrCode } from "./api";
 import { BridgeConfig } from "./config/Config";
 import { BridgePermissionLevel } from "./config/BridgePermissionLevel";
@@ -21,6 +27,9 @@ import {
   GitLabRepoConnection,
   IConnection,
   IConnectionState,
+  PermissionCheckFn,
+  RoomMessageHandler,
+  RoomMessageRouter,
   JiraProjectConnection,
 } from "./Connections";
 import { FigmaFileConnection, FeedConnection } from "./Connections";
@@ -40,6 +49,8 @@ import { HoundConnection } from "./Connections/HoundConnection";
 import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { GitLabInstance } from "./config/sections";
 import { TimelineManager } from "./openproject/TimelineManager";
+import { MatrixEvent, MatrixMessageContent } from "./MatrixEvent";
+import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 
 const log = new Logger("ConnectionManager");
 
@@ -419,6 +430,7 @@ export class ConnectionManager extends EventEmitter {
           timelineManager: this.timelineManager,
           github: this.github,
           isStatic,
+          botIntents: this.botUsersManager.botUsers.map((b) => b.intent),
         },
       );
       if (!isStatic) {
@@ -738,6 +750,47 @@ export class ConnectionManager extends EventEmitter {
     return this.connections
       .filter((c) => c.roomId === roomId)
       .sort((a, b) => b.priority - a.priority);
+  }
+
+  /** Let room message routers select a handler, then include ordinary connections. */
+  public async getMessageHandlersForRoom(
+    roomId: string,
+    event: MatrixEvent<MatrixMessageContent>,
+    parentEvent?: RoomEvent<IJsonType>,
+  ): Promise<RoomMessageHandler[]> {
+    const connections = this.getAllConnectionsForRoom(roomId);
+    const routerGroups = new Map<RoomMessageRouter, IConnection[]>();
+    const ordinaryHandlers: RoomMessageHandler[] = [];
+    for (const connection of connections) {
+      if (connection.roomMessageRouter) {
+        const group = routerGroups.get(connection.roomMessageRouter) ?? [];
+        group.push(connection);
+        routerGroups.set(connection.roomMessageRouter, group);
+        continue;
+      }
+      const onMessageEvent = connection.onMessageEvent?.bind(connection);
+      if (onMessageEvent) {
+        ordinaryHandlers.push({
+          connection,
+          handle: (checkPermission: PermissionCheckFn) =>
+            onMessageEvent(event, checkPermission, parentEvent),
+        });
+      }
+    }
+    const routedHandlers: RoomMessageHandler[] = [];
+    for (const [router, group] of routerGroups) {
+      try {
+        const handler = await router.getMessageHandler(
+          group,
+          event,
+          parentEvent,
+        );
+        if (handler) routedHandlers.push(handler);
+      } catch (ex) {
+        log.warn(`Room message router failed for ${roomId}`, ex);
+      }
+    }
+    return [...routedHandlers, ...ordinaryHandlers];
   }
 
   public getInterestedForRoomState(

@@ -221,6 +221,24 @@ describe("OpenProjectWorkPackageCommandService", () => {
       expect(addWorkPackageComment).not.toHaveBeenCalled();
     });
 
+    it("treats a numeric reply argument as a comment", async () => {
+      const {
+        service,
+        getWorkPackageIDFromReply,
+        updateWorkPackage,
+        addWorkPackageComment,
+      } = createHarness();
+      getWorkPackageIDFromReply.mockReturnValue(WORK_PACKAGE.id);
+      const reply = createReply("m.room.message", "Work package card");
+
+      await service.closeWorkPackage("@alice:example.org", reply, "42");
+
+      expect(updateWorkPackage).toHaveBeenCalledWith(WORK_PACKAGE.id, 8, {
+        _links: { status: { href: CLOSED_STATUS._links.self.href } },
+      });
+      expect(addWorkPackageComment).toHaveBeenCalledWith(WORK_PACKAGE.id, "42");
+    });
+
     it.each(["12abc", "1.2", "-2", "0", "9007199254740992"])(
       "rejects invalid explicit work package ID %s",
       async (id) => {

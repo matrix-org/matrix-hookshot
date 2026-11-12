@@ -470,6 +470,10 @@ export class E2ETestEnv<ML extends string = string> {
               regex: `@hookshot:${homeserver.domain}`,
               exclusive: true,
             },
+            ...(providedConfig?.serviceBots ?? []).map((bot) => ({
+              regex: `@${bot.localpart}:${homeserver.domain}`,
+              exclusive: true,
+            })),
           ],
           rooms: [],
           aliases: [],
