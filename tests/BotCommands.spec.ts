@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   botCommand,
   BotCommands,
@@ -350,6 +350,39 @@ describe("BotCommands", () => {
           )
         ).handled,
       ).toBe(false);
+    });
+
+    it("uses a room-resolved shorthand command", async () => {
+      const command = {
+        close: {
+          help: "Close a work package",
+          runOnGlobalPrefix: true,
+          fn: vi.fn(async () => undefined),
+        },
+      };
+      const handle = (body: string, prefix: string) =>
+        handleCommand(
+          USER_ID,
+          body,
+          undefined,
+          command,
+          null,
+          () => true,
+          undefined,
+          "!op dev-large-child ",
+          undefined,
+          {
+            commandText: body.slice(prefix.length).trimStart(),
+            prefix,
+            isShorthand: true,
+          },
+        );
+
+      expect((await handle("!op close", "!op")).handled).toBe(true);
+      expect((await handle("!openproject close", "!openproject")).handled).toBe(
+        true,
+      );
+      expect(command.close.fn).toHaveBeenCalledTimes(2);
     });
 
     it("should reject a command with too few arguments", async () => {

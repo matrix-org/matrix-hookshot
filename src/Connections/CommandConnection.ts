@@ -3,6 +3,7 @@ import {
   BotCommands,
   handleCommand,
   HelpFunction,
+  type ResolvedCommand,
 } from "../BotCommands";
 import { Logger } from "matrix-appservice-bridge";
 import { MatrixClient, RoomEvent } from "matrix-bot-sdk";
@@ -50,6 +51,10 @@ export abstract class CommandConnection<
     return this.commandPrefix;
   }
 
+  protected get helpShorthandPrefix(): string {
+    return `${this.defaultCommandPrefix} `;
+  }
+
   public conflictsWithCommandPrefix(commandPrefix: string) {
     return this.commandPrefix === commandPrefix + " ";
   }
@@ -66,6 +71,7 @@ export abstract class CommandConnection<
     ev: MatrixEvent<MatrixMessageContent>,
     checkPermission: PermissionCheckFn,
     parentEvent?: RoomEvent<IJsonType>,
+    resolvedCommand?: ResolvedCommand,
   ) {
     const commandResult = await handleCommand(
       ev.sender,
@@ -77,6 +83,7 @@ export abstract class CommandConnection<
       this.serviceName,
       this.commandPrefix,
       this.defaultCommandPrefix,
+      resolvedCommand,
     );
     if (commandResult.handled !== true) {
       // Not for us.
@@ -134,14 +141,14 @@ export abstract class CommandConnection<
         this.helpCommandPrefix,
         this.helpCategories,
         this.includeTitlesInHelp,
-        `${this.defaultCommandPrefix} `,
+        this.helpShorthandPrefix,
       ),
     );
   }
 
   protected sendEvent(
     body: string,
-    extraContent: any = {},
+    extraContent: object = {},
     opts = { inline: true },
   ) {
     const content = this.msgConfig.formatMatrixMessage(
