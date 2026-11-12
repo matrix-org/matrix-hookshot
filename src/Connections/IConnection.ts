@@ -18,6 +18,21 @@ export type PermissionCheckFn = (
   level: BridgePermissionLevel,
 ) => boolean;
 
+/** A room message handler selected for a connection. */
+export interface RoomMessageHandler {
+  connection: IConnection;
+  handle: (checkPermission: PermissionCheckFn) => Promise<boolean>;
+}
+
+/** Selects one handler from connections sharing the same router in a room. */
+export interface RoomMessageRouter {
+  getMessageHandler: (
+    connections: readonly IConnection[],
+    event: MatrixEvent<MatrixMessageContent>,
+    parentEvent?: RoomEvent<IJsonType>,
+  ) => Promise<RoomMessageHandler | undefined>;
+}
+
 export interface IConnectionState {
   priority?: number;
   commandPrefix?: string;
@@ -72,6 +87,9 @@ export interface IConnection {
     checkPermission: PermissionCheckFn,
     parentEvent?: RoomEvent<IJsonType>,
   ) => Promise<boolean>;
+
+  /** Shared by connections that need to choose one room message handler together. */
+  roomMessageRouter?: RoomMessageRouter;
 
   onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
 

@@ -1380,8 +1380,6 @@ export class Bridge {
 
     let replyEvent: RoomEvent<IJsonType> | undefined;
     if (event.content["m.relates_to"]?.["m.in_reply_to"]) {
-      const parentEventId =
-        event.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
       if (event.content.formatted_body?.includes("<mx-reply>")) {
         // This is a legacy fallback reply:
         try {
@@ -1397,16 +1395,6 @@ export class Bridge {
             ex,
           );
         }
-      } else if (parentEventId) {
-        try {
-          // This is a new style reply.
-          await this.as.botClient.getEvent(roomId, parentEventId);
-        } catch (ex) {
-          log.warn(
-            `Could not lookup event ${parentEventId} referenced in ${event.event_id}`,
-            ex,
-          );
-        }
       }
     }
 
@@ -1416,9 +1404,12 @@ export class Bridge {
 
     if (!adminRoom) {
       let handled = false;
-      for (const connection of this.connectionManager.getAllConnectionsForRoom(
+      const handlers = await this.connectionManager.getMessageHandlersForRoom(
         roomId,
-      )) {
+        event,
+        replyEvent?.raw,
+      );
+      for (const { connection, handle } of handlers) {
         const scope = new Sentry.Scope();
         scope.setTransactionName("onRoomMessage");
         scope.setTags({
@@ -1431,13 +1422,7 @@ export class Bridge {
           id: connection.connectionId,
         });
         try {
-          if (connection.onMessageEvent) {
-            handled = await connection.onMessageEvent(
-              event,
-              checkPermission,
-              replyEvent?.raw,
-            );
-          }
+          handled = await handle(checkPermission);
         } catch (ex) {
           log.warn(
             `Connection ${connection.toString()} failed to handle message:`,

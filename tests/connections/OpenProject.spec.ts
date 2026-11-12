@@ -14,6 +14,7 @@ import {
   type OpenProjectEventsNames,
 } from "../../src/Connections/OpenProjectConnection";
 import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
+import type { IConnection } from "../../src/Connections/IConnection";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { ConnectionManager } from "../../src/ConnectionManager";
 import { createAuthenticatedProbeHandler } from "../../src/AuthenticatedProbeHandler";
@@ -31,6 +32,7 @@ import {
   formatWorkPackageActivityForMatrix,
   formatWorkPackageAnchorContent,
 } from "../../src/openproject/Format";
+import { resolveOpenProjectCommand } from "../../src/openproject/CommandRouting";
 
 const ROOM_ID = "!openproject:example.test";
 const USER_ID = "@user:example.test";
@@ -245,6 +247,396 @@ describe("OpenProjectConnection", () => {
     expect(removeTimelineWorkPackage).toHaveBeenCalledWith(
       String(WORK_PACKAGE.id),
     );
+  });
+
+  it("routes a custom reply prefix to the replied-to project", async () => {
+    const otherConnection = createConnectionState({
+      url: `${BASE_URL}projects/2`,
+      commandPrefix: "!op other-project",
+    });
+    const connection = createConnectionState({
+      commandPrefix: "!op dev-large-child",
+    });
+    const reply = new RoomEvent({
+      content: formatWorkPackageAnchorContent(WORK_PACKAGE, BASE_URL, {
+        snapshotId: "reply-anchor",
+      }),
+      event_id: "$anchor",
+      room_id: ROOM_ID,
+      origin_server_ts: Date.now(),
+      sender: "@hookshot:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    });
+    const getEvent = vi.fn().mockResolvedValue(reply);
+    otherConnection["as"].botClient.getEvent = getEvent;
+    connection["as"].botClient.getEvent = getEvent;
+    const closeWorkPackage = vi
+      .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
+      .mockResolvedValue(undefined);
+    const event = {
+      content: {
+        body: "!op close 42",
+        "m.relates_to": { "m.in_reply_to": { event_id: "$anchor" } },
+        msgtype: "m.text" as const,
+      },
+      event_id: "$close-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    expect(await otherConnection.onMessageEvent(event, () => true)).toBe(false);
+    expect(await connection.onMessageEvent(event, () => true)).toBe(true);
+    expect(closeWorkPackage).toHaveBeenCalledWith(
+      "@alice:example.test",
+      expect.any(RoomEvent),
+      "42",
+      undefined,
+    );
+
+    expect(
+      await connection.onMessageEvent(
+        { ...event, content: { ...event.content, body: "!op close help" } },
+        () => true,
+      ),
+    ).toBe(true);
+    expect(closeWorkPackage).toHaveBeenLastCalledWith(
+      "@alice:example.test",
+      expect.any(RoomEvent),
+      "help",
+      undefined,
+    );
+  });
+
+  it("dispatches a reply through the matching room project", async () => {
+    const otherConnection = createConnectionState({
+      url: `${BASE_URL}projects/2`,
+      commandPrefix: "!op other-project",
+    });
+    const connection = createConnectionState({
+      commandPrefix: "!op dev-large-child",
+    });
+    const genericHandler = vi.fn().mockResolvedValue(false);
+    const genericConnection = {
+      onMessageEvent: genericHandler,
+    } as unknown as IConnection;
+    const manager = new ConnectionManager(
+      connection["as"],
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+    );
+    vi.spyOn(manager, "getAllConnectionsForRoom").mockReturnValue([
+      genericConnection,
+      otherConnection,
+      connection,
+    ]);
+    const reply = new RoomEvent({
+      content: {
+        "org.matrix.matrix-hookshot.openproject.project": { id: 1 },
+        "org.matrix.matrix-hookshot.openproject.work_package": { id: 42 },
+      },
+      event_id: "$anchor",
+      room_id: ROOM_ID,
+      origin_server_ts: Date.now(),
+      sender: "@hookshot:example.test",
+      type: "m.room.message",
+    });
+    const getEvent = vi.fn().mockResolvedValue(reply);
+    connection["as"].botClient.getEvent = getEvent;
+    otherConnection["as"].botClient.getEvent = getEvent;
+    const closeWorkPackage = vi
+      .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
+      .mockResolvedValue(undefined);
+    const event = {
+      content: {
+        body: "!op close 42",
+        "m.relates_to": { "m.in_reply_to": { event_id: "$anchor" } },
+        msgtype: "m.text" as const,
+      },
+      event_id: "$close-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    const handlers = await manager.getMessageHandlersForRoom(ROOM_ID, event);
+    expect(handlers.map(({ connection }) => connection)).toEqual([
+      connection,
+      genericConnection,
+    ]);
+    expect(await handlers[0].handle(() => true)).toBe(true);
+    expect(getEvent).toHaveBeenCalledOnce();
+    expect(closeWorkPackage).toHaveBeenCalledWith(
+      "@alice:example.test",
+      expect.objectContaining({ content: reply.content }),
+      "42",
+      undefined,
+    );
+    expect(genericHandler).not.toHaveBeenCalled();
+
+    const otherHandlers = await manager.getMessageHandlersForRoom(ROOM_ID, {
+      ...event,
+      content: { body: "!github help", msgtype: "m.text" },
+    });
+    expect(otherHandlers.map(({ connection }) => connection)).toEqual([
+      genericConnection,
+    ]);
+    expect(await otherHandlers[0].handle(() => true)).toBe(false);
+    expect(genericHandler).toHaveBeenCalledOnce();
+  });
+
+  it.each(["!op", "!openproject"])(
+    "routes a reply past a project using the bare %s prefix",
+    async (prefix) => {
+      const bareConnection = createConnectionState({ commandPrefix: prefix });
+      const projectConnection = createConnectionState({
+        url: `${BASE_URL}projects/2`,
+        commandPrefix: `${prefix} dev-large-child`,
+      });
+      const reply = new RoomEvent({
+        content: {
+          "org.matrix.matrix-hookshot.openproject.project": { id: 2 },
+          "org.matrix.matrix-hookshot.openproject.work_package": { id: 42 },
+        },
+        event_id: "$project-two-anchor",
+        room_id: ROOM_ID,
+        origin_server_ts: Date.now(),
+        sender: "@hookshot:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      });
+      const getEvent = vi.fn().mockResolvedValue(reply);
+      bareConnection["as"].botClient.getEvent = getEvent;
+      projectConnection["as"].botClient.getEvent = getEvent;
+      const bareClose = vi.spyOn(
+        bareConnection["workPackageCommandService"],
+        "closeWorkPackage",
+      );
+      const projectClose = vi
+        .spyOn(
+          projectConnection["workPackageCommandService"],
+          "closeWorkPackage",
+        )
+        .mockResolvedValue(undefined);
+      const event = {
+        content: {
+          body: `${prefix} close 42`,
+          "m.relates_to": {
+            "m.in_reply_to": { event_id: "$project-two-anchor" },
+          },
+          msgtype: "m.text" as const,
+        },
+        event_id: "$close-command",
+        origin_server_ts: Date.now(),
+        sender: "@alice:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      };
+
+      expect(await bareConnection.onMessageEvent(event, () => true)).toBe(
+        false,
+      );
+      expect(bareClose).not.toHaveBeenCalled();
+      expect(await projectConnection.onMessageEvent(event, () => true)).toBe(
+        true,
+      );
+      expect(projectClose).toHaveBeenCalledWith(
+        "@alice:example.test",
+        expect.any(RoomEvent),
+        "42",
+        undefined,
+      );
+    },
+  );
+
+  it("does not route a custom reply prefix without project metadata", async () => {
+    const connection = createConnectionState({
+      commandPrefix: "!op dev-large-child",
+    });
+    const reply = new RoomEvent({
+      content: { body: "Unrelated message" },
+      event_id: "$unrelated",
+      room_id: ROOM_ID,
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    });
+    const closeWorkPackage = vi.spyOn(
+      connection["workPackageCommandService"],
+      "closeWorkPackage",
+    );
+    connection["as"].botClient.getEvent = vi.fn().mockResolvedValue(reply);
+    const event = {
+      content: {
+        body: "!op close 42",
+        "m.relates_to": { "m.in_reply_to": { event_id: "$unrelated" } },
+        msgtype: "m.text" as const,
+      },
+      event_id: "$close-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    expect(await connection.onMessageEvent(event, () => true)).toBe(false);
+    expect(closeWorkPackage).not.toHaveBeenCalled();
+    const noReplyEvent = {
+      ...event,
+      content: { body: "!op close 42", msgtype: "m.text" as const },
+    };
+    expect(await connection.onMessageEvent(noReplyEvent, () => true)).toBe(
+      false,
+    );
+    expect(closeWorkPackage).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["!op", "!op dev-large-child"],
+    ["!openproject", "!openproject dev-large-child"],
+    ["!op", "!op team dev-large-child"],
+    ["!op team", "!op team dev-large-child"],
+  ])(
+    "passes %s project prefix %s to its matching connection",
+    async (otherPrefix, projectPrefix) => {
+      const otherConnection = createConnectionState({
+        commandPrefix: otherPrefix,
+      });
+      const connection = createConnectionState({
+        url: `${BASE_URL}projects/2`,
+        commandPrefix: projectPrefix,
+      });
+      const closeWorkPackage = vi
+        .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
+        .mockResolvedValue(undefined);
+      const event = {
+        content: {
+          body: `${projectPrefix} close 42`,
+          msgtype: "m.text" as const,
+        },
+        event_id: "$close-command",
+        origin_server_ts: Date.now(),
+        sender: "@alice:example.test",
+        state_key: undefined,
+        type: "m.room.message",
+      };
+
+      const route = resolveOpenProjectCommand(
+        [otherConnection, connection],
+        event.content.body,
+      );
+      expect(route?.connection).toBe(connection);
+      expect(
+        await connection.onMessageEvent(event, () => true, undefined, route),
+      ).toBe(true);
+      expect(closeWorkPackage).toHaveBeenCalledWith(
+        "@alice:example.test",
+        undefined,
+        "42",
+        undefined,
+      );
+    },
+  );
+
+  it("shows the configured prefix in help", async () => {
+    const { connection, intent } = createConnection({
+      commandPrefix: "!op dev-large-child",
+    });
+    const event = {
+      content: { body: "!op help", msgtype: "m.text" as const },
+      event_id: "$help-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    expect(await connection.onMessageEvent(event, () => true)).toBe(true);
+    expect(intent.underlyingClient.sendEvent).toHaveBeenCalledWith(
+      ROOM_ID,
+      "m.room.message",
+      expect.objectContaining({
+        body: expect.stringContaining("!op dev-large-child close"),
+      }),
+    );
+    expect(intent.underlyingClient.sendEvent).toHaveBeenCalledWith(
+      ROOM_ID,
+      "m.room.message",
+      expect.objectContaining({
+        body: expect.stringContaining("!op close"),
+      }),
+    );
+  });
+
+  it("routes bare custom prefix commands without a reply", async () => {
+    const otherConnection = createConnectionState({
+      commandPrefix: "!openproject dev-work-package-sharing ",
+    });
+    const connection = createConnectionState({
+      url: `${BASE_URL}projects/2`,
+      commandPrefix: "!openproject other-project",
+    });
+    await connection.provisionerUpdateConfig("@alice:example.test", {
+      commandPrefix: "!op_large",
+    });
+    const manager = new ConnectionManager(
+      connection["as"],
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+    );
+    vi.spyOn(manager, "getAllConnectionsForRoom").mockReturnValue([
+      otherConnection,
+      connection,
+    ]);
+    const assign = vi
+      .spyOn(connection["workPackageCommandService"], "changeWorkPackageUser")
+      .mockResolvedValue(undefined);
+    const event = {
+      content: { body: "!op_large assign 51", msgtype: "m.text" as const },
+      event_id: "$assign-command",
+      origin_server_ts: Date.now(),
+      sender: "@alice:example.test",
+      state_key: undefined,
+      type: "m.room.message",
+    };
+
+    const handlers = await manager.getMessageHandlersForRoom(ROOM_ID, event);
+    expect(handlers).toHaveLength(1);
+    expect(handlers[0].connection).toBe(connection);
+    expect(await handlers[0].handle(() => true)).toBe(true);
+    expect(assign).toHaveBeenCalledWith(
+      "assignee",
+      "@alice:example.test",
+      undefined,
+      "51",
+      undefined,
+    );
+
+    const helpEvent = {
+      ...event,
+      content: { body: "!op_large help", msgtype: "m.text" as const },
+    };
+    const helpHandlers = await manager.getMessageHandlersForRoom(
+      ROOM_ID,
+      helpEvent,
+    );
+    expect(helpHandlers).toHaveLength(1);
+    expect(helpHandlers[0].connection).toBe(connection);
+    expect(await helpHandlers[0].handle(() => true)).toBe(true);
   });
 
   describe("assignment command", () => {
@@ -1151,6 +1543,11 @@ describe("OpenProjectConnection", () => {
       [
         "a command prefix that is too long",
         { commandPrefix: "!" + "a".repeat(48) },
+      ],
+      ["an ambiguous reply prefix", { commandPrefix: "!op close" }],
+      [
+        "an ambiguous multiword reply prefix",
+        { commandPrefix: "!op timeline remove" },
       ],
     ])("rejects %s", (_description, state) => {
       expectBadValue(state);
