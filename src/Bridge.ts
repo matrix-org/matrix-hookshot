@@ -110,7 +110,17 @@ import { OpenProjectConnection } from "./Connections/OpenProjectConnection";
 import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
+import {
+  HookshotCapabilityEndpoint,
+  HookshotToDeviceReceiver,
+} from "./ToDeviceReceiver";
+import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
+import {
+  createOpenProjectCapabilityProbe,
+  OPENPROJECT_INTEGRATION_ID,
+} from "./openproject/CapabilityProbe";
+import { TimelineManager } from "./openproject/TimelineManager";
 
 const log = new Logger("Bridge");
 
@@ -124,7 +134,9 @@ export class Bridge {
   private adminRooms: Map<string, AdminRoom> = new Map();
   private feedReader?: FeedReader;
   private houndReader?: HoundReader;
+  private toDeviceReceiver?: HookshotToDeviceReceiver;
   private replyProcessor = new RichRepliesPreprocessor(true);
+  private readonly timelineManager = new TimelineManager();
 
   private ready = false;
 
@@ -157,6 +169,7 @@ export class Bridge {
   public async stop() {
     this.feedReader?.stop();
     this.houndReader?.stop();
+    this.toDeviceReceiver?.stop();
     this.tokenStore.stop();
     this.as.stop();
     await this.queue.stop?.();
@@ -183,6 +196,10 @@ export class Bridge {
 
     await this.botUsersManager.start();
 
+    if (this.config.toDevice.receiver.enabled) {
+      await this.startToDeviceReceiver();
+    }
+
     await this.config.prefillMembershipCache(this.as.botClient);
 
     if (this.config.github) {
@@ -207,6 +224,7 @@ export class Bridge {
       this.messageClient,
       this.storage,
       this.botUsersManager,
+      this.timelineManager,
       this.github,
     ));
 
@@ -1367,8 +1385,6 @@ export class Bridge {
 
     let replyEvent: RoomEvent<IJsonType> | undefined;
     if (event.content["m.relates_to"]?.["m.in_reply_to"]) {
-      const parentEventId =
-        event.content["m.relates_to"]?.["m.in_reply_to"]?.event_id;
       if (event.content.formatted_body?.includes("<mx-reply>")) {
         // This is a legacy fallback reply:
         try {
@@ -1384,16 +1400,6 @@ export class Bridge {
             ex,
           );
         }
-      } else if (parentEventId) {
-        try {
-          // This is a new style reply.
-          await this.as.botClient.getEvent(roomId, parentEventId);
-        } catch (ex) {
-          log.warn(
-            `Could not lookup event ${parentEventId} referenced in ${event.event_id}`,
-            ex,
-          );
-        }
       }
     }
 
@@ -1403,9 +1409,12 @@ export class Bridge {
 
     if (!adminRoom) {
       let handled = false;
-      for (const connection of this.connectionManager.getAllConnectionsForRoom(
+      const handlers = await this.connectionManager.getMessageHandlersForRoom(
         roomId,
-      )) {
+        event,
+        replyEvent?.raw,
+      );
+      for (const { connection, handle } of handlers) {
         const scope = new Sentry.Scope();
         scope.setTransactionName("onRoomMessage");
         scope.setTags({
@@ -1418,13 +1427,7 @@ export class Bridge {
           id: connection.connectionId,
         });
         try {
-          if (connection.onMessageEvent) {
-            handled = await connection.onMessageEvent(
-              event,
-              checkPermission,
-              replyEvent?.raw,
-            );
-          }
+          handled = await handle(checkPermission);
         } catch (ex) {
           log.warn(
             `Connection ${connection.toString()} failed to handle message:`,
@@ -1471,6 +1474,13 @@ export class Bridge {
                   this.connectionManager.getAllConnectionsOfType.bind(
                     this.connectionManager,
                   ),
+                getIntegrationBotForService:
+                  this.botUsersManager.getIntegrationBotForService.bind(
+                    this.botUsersManager,
+                  ),
+                isBotUserInRoom: this.botUsersManager.isBotUserInRoom.bind(
+                  this.botUsersManager,
+                ),
               },
               this.getOrCreateAdminRoom.bind(this),
               this.connectionManager.push.bind(this.connectionManager),
@@ -2176,5 +2186,32 @@ export class Bridge {
           );
       }
     }
+  }
+
+  /** Start probes for integrations that have a registered capability handler. */
+  private async startToDeviceReceiver() {
+    const integrations = new Map<string, HookshotCapabilityEndpoint>();
+    const openProjectBot = this.botUsersManager.getIntegrationBotForService(
+      OPENPROJECT_INTEGRATION_ID,
+    );
+    if (openProjectBot) {
+      integrations.set(OPENPROJECT_INTEGRATION_ID, {
+        botUserId: openProjectBot.userId,
+        probeHandler: createOpenProjectCapabilityProbe({
+          appservice: this.as,
+          config: this.config,
+          getConnectionManager: () => this.connectionManager,
+          storage: this.storage,
+        }),
+      });
+    }
+    await provisionToDeviceReceiverDevices(
+      this.as,
+      new Set(Array.from(integrations.values(), (entry) => entry.botUserId)),
+      !!this.config.encryption,
+    );
+
+    this.toDeviceReceiver = new HookshotToDeviceReceiver(this.as, integrations);
+    this.toDeviceReceiver.start();
   }
 }

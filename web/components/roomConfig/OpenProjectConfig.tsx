@@ -18,11 +18,13 @@ import { InputField, ButtonSet, Button } from "../elements";
 import { EventHookList } from "../elements/EventHookCheckbox";
 import Icon from "../../icons/openproject.png";
 import { GetAuthResponse } from "../../../src/widgets/BridgeWidgetInterface";
+import type { ServiceStatusOption } from "../../../src/widgets/BridgeWidgetInterface";
 import { BridgeContext } from "../../context";
 import { ServiceAuth } from "./Auth";
 import { ProjectSearch } from "../elements/ConnectionSearch";
 import { DropItem } from "../elements/DropdownSearch";
-import { InlineSpinner } from "@vector-im/compound-web";
+import { Dropdown, InlineSpinner } from "@vector-im/compound-web";
+import styles from "./OpenProjectConfig.module.scss";
 
 const EventType = "org.matrix.matrix-hookshot.openproject.project";
 
@@ -73,6 +75,106 @@ type ConfigProps = ConnectionConfigurationProps<
   OpenProjectConnectionState
 >;
 
+const CompletionStatusSelector: FunctionComponent<{
+  canEdit: boolean;
+  selectedOptionId?: string;
+  onChange: (optionId: string | undefined) => void;
+}> = ({ canEdit, selectedOptionId, onChange }) => {
+  const api = useContext(BridgeContext).bridgeApi;
+  const [statusOptions, setStatusOptions] = useState<
+    ServiceStatusOption[] | null
+  >(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .getServiceStatusOptions("openproject")
+      .then(({ statusOptions }) => {
+        if (isMounted) {
+          setStatusOptions(statusOptions);
+        }
+      })
+      .catch((error) => {
+        console.warn("Could not load OpenProject statuses", error);
+        if (isMounted) {
+          setLoadFailed(true);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [api]);
+
+  const selectedStatus = statusOptions?.find(
+    (status) => status.id === selectedOptionId,
+  );
+  const selectedStatusIsInvalid =
+    selectedOptionId !== undefined &&
+    statusOptions !== null &&
+    (!selectedStatus || !selectedStatus.isClosed);
+  const closedStatuses = statusOptions?.filter((status) => status.isClosed);
+  const compatibilityDefaultStatus =
+    statusOptions?.find(
+      (status) => status.name.toLowerCase() === "closed" && status.isClosed,
+    ) ?? statusOptions?.find((status) => status.isClosed);
+  const dropdownPlaceholder = isLoading
+    ? "Loading OpenProject statuses…"
+    : loadFailed
+      ? "OpenProject statuses unavailable"
+      : compatibilityDefaultStatus
+        ? `Use compatibility default: ${compatibilityDefaultStatus.name}`
+        : "Completion status unavailable";
+  const dropdownDisabled =
+    !canEdit || isLoading || loadFailed || !statusOptions?.length;
+  const dropdownValues: [string, string][] =
+    statusOptions?.map((status) => [
+      status.id,
+      `${status.name} ${status.isClosed ? "(closed state)" : ""}`,
+    ]) ?? [];
+  const dropdownError = loadFailed
+    ? "Could not load OpenProject statuses. Please try again."
+    : selectedStatusIsInvalid
+      ? selectedStatus
+        ? `Status “${selectedStatus.name}” is not a closed state and cannot be used.`
+        : `Saved completion status ID ${selectedOptionId} is no longer available.`
+      : undefined;
+  const helpMessages = ["This status is the result of the “Close” action."];
+
+  if (!loadFailed && statusOptions?.length === 0) {
+    helpMessages.push(
+      "No OpenProject statuses are available. Add statuses in OpenProject before selecting a completion status.",
+    );
+  } else if (!loadFailed && statusOptions && !closedStatuses?.length) {
+    helpMessages.push(
+      "No OpenProject statuses are marked as closed states, so no completion status is available.",
+    );
+  }
+
+  return (
+    <div className={styles.completionStatusField}>
+      <Dropdown
+        className={styles.completionDropdown}
+        label="Completion Status"
+        placeholder={dropdownPlaceholder}
+        helpLabel={helpMessages.join(" ")}
+        error={dropdownError}
+        values={dropdownValues}
+        value={selectedOptionId}
+        onValueChange={onChange}
+        {...{ type: "button", disabled: dropdownDisabled }}
+      />
+    </div>
+  );
+};
+
 const ExistingConnectionConfig: FunctionComponent<{
   isUpdating: boolean;
   connection: OpenProjectResponseItem;
@@ -83,8 +185,11 @@ const ExistingConnectionConfig: FunctionComponent<{
   const [allowedEvents, setAllowedEvents] = useState<string[]>(
     connection.config.events,
   );
-  const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
-    connection.config.showUrlPreviews ?? true,
+  const [automaticAnchors, setAutomaticAnchors] = useState<boolean>(
+    (connection.config.anchors ?? []).includes("work_package:created"),
+  );
+  const [completionStatusOptionId, setCompletionStatusOptionId] = useState(
+    connection.config.completionStatusOptionId,
   );
 
   const handleSave = useCallback(
@@ -95,14 +200,22 @@ const ExistingConnectionConfig: FunctionComponent<{
       }
       onSave({
         ...connection.config,
-        events: allowedEvents as any[],
-        showUrlPreviews,
+        events: allowedEvents as OpenProjectConnectionState["events"],
+        anchors: automaticAnchors ? ["work_package:created"] : [],
+        completionStatusOptionId,
         commandPrefix:
           commandPrefixRef.current?.value ||
           commandPrefixRef.current?.placeholder,
       });
     },
-    [connection, allowedEvents, showUrlPreviews, commandPrefixRef, onSave],
+    [
+      connection,
+      allowedEvents,
+      automaticAnchors,
+      completionStatusOptionId,
+      commandPrefixRef,
+      onSave,
+    ],
   );
 
   return (
@@ -115,20 +228,28 @@ const ExistingConnectionConfig: FunctionComponent<{
           placeholder="!openproject"
         />
       </InputField>
-      <InputField
-        label="Show URL previews on messages (requires supporting client)"
-        noPadding={true}
-      >
-        <input
-          disabled={!connection.canEdit}
-          type="checkbox"
-          checked={showUrlPreviews}
-          onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
-        />
-      </InputField>
+      <CompletionStatusSelector
+        canEdit={connection.canEdit ?? false}
+        selectedOptionId={completionStatusOptionId}
+        onChange={setCompletionStatusOptionId}
+      />
+      <div className={styles.checkboxField}>
+        <label>
+          <input
+            disabled={!connection.canEdit}
+            type="checkbox"
+            checked={automaticAnchors}
+            onChange={useCallback(
+              () => setAutomaticAnchors((value) => !value),
+              [],
+            )}
+          />
+          Automatically add new work packages to the timeline
+        </label>
+      </div>
       <EventHookList
         eventList={OPEN_PROJECT_EVENTS}
-        label="Events"
+        label="Choose which events that sends activity messages"
         setAllowedEvents={setAllowedEvents}
         allowedEvents={allowedEvents}
       />
@@ -275,6 +396,7 @@ const ConnectionConfiguration: FunctionComponent<ConfigProps> = ({
         url: newConnectionState.url,
         commandPrefix: newConnectionState.prefix,
         events: ["work_package:created"],
+        anchors: [],
       });
     },
     [newConnectionState, onSave],
