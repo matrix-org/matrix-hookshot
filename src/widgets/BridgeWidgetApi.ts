@@ -7,6 +7,7 @@ import {
   GetAuthPollResponse,
   GetAuthResponse,
   GetConnectionsForServiceResponse,
+  GetServiceStatusOptionsResponse,
 } from "./BridgeWidgetInterface";
 import { ProvisioningApi, ProvisioningRequest } from "matrix-appservice-bridge";
 import { IBridgeStorageProvider } from "../stores/StorageProvider";
@@ -119,6 +120,11 @@ export class BridgeWidgetApi extends ProvisioningApi {
       "post",
       "/v1/service/:service/auth/logout",
       wrapHandler(this.postAuthLogout),
+    );
+    this.addRoute(
+      "get",
+      "/v1/service/:service/statuses",
+      wrapHandler(this.getServiceStatuses),
     );
   }
 
@@ -490,6 +496,24 @@ export class BridgeWidgetApi extends ProvisioningApi {
     } else {
       throw new ApiError("Service not found", ErrCode.NotFound);
     }
+  }
+
+  private async getServiceStatuses(
+    req: ProvisioningRequest,
+    res: Response<GetServiceStatusOptionsResponse>,
+  ) {
+    if (!req.userId) {
+      throw Error("Expected userId on request");
+    }
+    const service = req.params.service;
+    if (!service) {
+      throw Error("Expected service in parameters");
+    }
+
+    if (service === "openproject") {
+      return OpenProjectWidgetAPI.getStatuses(req, res, this.tokenStore);
+    }
+    throw new ApiError("Service not found", ErrCode.NotFound);
   }
 
   private async getAuthPoll(
