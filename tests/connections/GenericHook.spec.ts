@@ -1,5 +1,5 @@
 import { describe, it, beforeAll, expect } from "vitest";
-import { Appservice, Intent, MatrixError } from "matrix-bot-sdk";
+import { Appservice, Intent, MatrixError, StateEvent } from "matrix-bot-sdk";
 import {
   BridgeConfigGenericWebhooks,
   BridgeConfigMessaging,
@@ -656,6 +656,222 @@ describe("GenericHookConnection", () => {
       error: "This hook has expired",
       statusCode: 404,
       successful: false,
+    });
+  });
+
+  describe("hookId account data", () => {
+    const STATE_KEY = "my-hook";
+    const HOOK_ID = "existing-hook-id";
+
+    function createStateEvent(sender: string) {
+      return new StateEvent({
+        event_id: "$foo:bar",
+        room_id: ROOM_ID,
+        type: GenericHookConnection.CanonicalEventType,
+        state_key: STATE_KEY,
+        sender,
+        content: { name: STATE_KEY },
+      });
+    }
+
+    function getHookAccountData(intent: Intent) {
+      return (
+        intent.underlyingClient as unknown as {
+          roomAccountData: Map<string, Record<string, string>>;
+        }
+      ).roomAccountData.get(ROOM_ID + GenericHookConnection.CanonicalEventType);
+    }
+
+    function createOpts(
+      as: Appservice,
+      intent: Intent,
+      botIntents?: Intent[],
+    ): ProvisionConnectionOpts {
+      return {
+        as,
+        intent,
+        config: {
+          generic: new BridgeConfigGenericWebhooks(ConfigDefaults),
+        } as unknown as BridgeConfig,
+        messageClient: new MessageSenderClient(new LocalMQ()),
+        storage: new MemoryStorageProvider(),
+        botIntents,
+      } as unknown as ProvisionConnectionOpts;
+    }
+
+    function createBots() {
+      const as = AppserviceMock.create();
+      const mainBot: Intent = as.botIntent;
+      const serviceBot: Intent = as.getIntentForUserId(
+        "@hookshot_webhooks:example.test",
+      );
+      return { as, mainBot, serviceBot };
+    }
+
+    it("should store the hookId with the bot that provisions the connection", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+
+      const { connection } = await GenericHookConnection.provisionConnection(
+        ROOM_ID,
+        "@alice:example.test",
+        { name: STATE_KEY },
+        createOpts(as, serviceBot),
+      );
+
+      expect(getHookAccountData(serviceBot)).toEqual({
+        [connection.hookId]: STATE_KEY,
+      });
+      expect(getHookAccountData(mainBot)).toBeUndefined();
+    });
+
+    it("should load the hookId from the bot that owns the connection", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+      await GenericHookConnection.ensureRoomAccountData(
+        ROOM_ID,
+        serviceBot,
+        HOOK_ID,
+        STATE_KEY,
+      );
+
+      const connection = await GenericHookConnection.createConnectionForState(
+        ROOM_ID,
+        createStateEvent(serviceBot.userId),
+        createOpts(as, serviceBot, [serviceBot, mainBot]),
+      );
+
+      expect(connection.hookId).toEqual(HOOK_ID);
+    });
+
+    it("should fall back to the hookId stored by the bot that sent the state, and copy it to the owning bot", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+      await GenericHookConnection.ensureRoomAccountData(
+        ROOM_ID,
+        mainBot,
+        HOOK_ID,
+        STATE_KEY,
+      );
+
+      const connection = await GenericHookConnection.createConnectionForState(
+        ROOM_ID,
+        createStateEvent(mainBot.userId),
+        createOpts(as, serviceBot, [serviceBot, mainBot]),
+      );
+
+      expect(connection.hookId).toEqual(HOOK_ID);
+      expect(getHookAccountData(serviceBot)).toEqual({ [HOOK_ID]: STATE_KEY });
+      // The original is left alone.
+      expect(getHookAccountData(mainBot)).toEqual({ [HOOK_ID]: STATE_KEY });
+    });
+
+    it("should fall back to the hookId stored by a bot that did not send the state", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+      const otherBot: Intent = as.getIntentForUserId(
+        "@hookshot_other:example.test",
+      );
+      await GenericHookConnection.ensureRoomAccountData(
+        ROOM_ID,
+        otherBot,
+        HOOK_ID,
+        STATE_KEY,
+      );
+
+      const connection = await GenericHookConnection.createConnectionForState(
+        ROOM_ID,
+        createStateEvent("@alice:example.test"),
+        createOpts(as, serviceBot, [serviceBot, mainBot, otherBot]),
+      );
+
+      expect(connection.hookId).toEqual(HOOK_ID);
+      expect(getHookAccountData(serviceBot)).toEqual({ [HOOK_ID]: STATE_KEY });
+      expect(getHookAccountData(otherBot)).toEqual({ [HOOK_ID]: STATE_KEY });
+    });
+
+    it("should remove a copied hookId from the owning bot", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+      await GenericHookConnection.ensureRoomAccountData(
+        ROOM_ID,
+        mainBot,
+        HOOK_ID,
+        STATE_KEY,
+      );
+      const connection = await GenericHookConnection.createConnectionForState(
+        ROOM_ID,
+        createStateEvent(mainBot.userId),
+        createOpts(as, serviceBot, [serviceBot, mainBot]),
+      );
+      // The connection state exists in the room.
+      Object.assign(serviceBot.underlyingClient, {
+        getRoomStateEventContent: async () => ({ name: STATE_KEY }),
+      });
+
+      await connection.onRemove();
+
+      expect(getHookAccountData(serviceBot)).toEqual({});
+    });
+
+    it("should remove the hookId from the bot it was found with if it could not be copied", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+      await GenericHookConnection.ensureRoomAccountData(
+        ROOM_ID,
+        mainBot,
+        HOOK_ID,
+        STATE_KEY,
+      );
+      const setRoomAccountData =
+        serviceBot.underlyingClient.setRoomAccountData.bind(
+          serviceBot.underlyingClient,
+        );
+      Object.assign(serviceBot.underlyingClient, {
+        setRoomAccountData: async () => {
+          throw new Error("Test error: cannot set account data");
+        },
+      });
+      const connection = await GenericHookConnection.createConnectionForState(
+        ROOM_ID,
+        createStateEvent(mainBot.userId),
+        createOpts(as, serviceBot, [serviceBot, mainBot]),
+      );
+      expect(connection.hookId).toEqual(HOOK_ID);
+      expect(getHookAccountData(serviceBot)).toBeUndefined();
+      // The connection state exists in the room.
+      Object.assign(serviceBot.underlyingClient, {
+        setRoomAccountData,
+        getRoomStateEventContent: async () => ({ name: STATE_KEY }),
+      });
+
+      await connection.onRemove();
+
+      expect(getHookAccountData(mainBot)).toEqual({});
+    });
+
+    it("should refuse to create a connection if no bot has the hookId", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+
+      await expect(
+        GenericHookConnection.createConnectionForState(
+          ROOM_ID,
+          createStateEvent(serviceBot.userId),
+          createOpts(as, serviceBot, [serviceBot, mainBot]),
+        ),
+      ).rejects.toThrow("No hookId found");
+    });
+
+    it("should not check other bots if they are not provided", async () => {
+      const { as, mainBot, serviceBot } = createBots();
+      await GenericHookConnection.ensureRoomAccountData(
+        ROOM_ID,
+        mainBot,
+        HOOK_ID,
+        STATE_KEY,
+      );
+
+      await expect(
+        GenericHookConnection.createConnectionForState(
+          ROOM_ID,
+          createStateEvent(serviceBot.userId),
+          createOpts(as, serviceBot),
+        ),
+      ).rejects.toThrow("No hookId found");
     });
   });
 });
