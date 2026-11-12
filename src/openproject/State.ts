@@ -1,9 +1,11 @@
-import { OpenProjectWorkPackage } from "./Types";
+import type { OpenProjectWorkPackage } from "./Types";
+import type { OpenProjectActiveAnchorMessageContent } from "./Format";
 
 export function workPackageToCacheState(
   pkg: OpenProjectWorkPackage,
 ): OpenProjectWorkPackageCacheState {
   return {
+    lockVersion: pkg.lockVersion,
     subject: pkg.subject,
     description: pkg.description,
     status: pkg._embedded.status,
@@ -12,12 +14,14 @@ export function workPackageToCacheState(
     priority: pkg._embedded.priority,
     type: pkg._embedded.type.id,
     project: pkg._embedded.project.id,
+    date: pkg.date,
     dueDate: pkg.dueDate,
     percentageDone: pkg.percentageDone,
   };
 }
 
 export interface OpenProjectWorkPackageCacheState {
+  lockVersion: number;
   subject: string;
   description: OpenProjectWorkPackage["description"];
   status: OpenProjectWorkPackage["_embedded"]["status"];
@@ -26,6 +30,17 @@ export interface OpenProjectWorkPackageCacheState {
   priority?: OpenProjectWorkPackage["_embedded"]["priority"];
   type: number;
   project: number;
+  date: string | null;
   dueDate: string | null;
   percentageDone: number | null;
+}
+
+/**
+ * The last successfully sent active timeline anchor for one connection and
+ * work package.
+ */
+export interface OpenProjectAnchorState {
+  anchorEventId: string;
+  lockVersion: number;
+  lastContent: OpenProjectActiveAnchorMessageContent;
 }

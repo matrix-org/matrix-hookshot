@@ -1,13 +1,7 @@
 import { MatrixEvent, MatrixMessageContent } from "../MatrixEvent";
 import { IssuesOpenedEvent, IssuesEditedEvent } from "@octokit/webhooks-types";
 import { ConnectionWarning, GetConnectionsResponseItem } from "../widgets/Api";
-import {
-  Appservice,
-  Intent,
-  IRichReplyMetadata,
-  RoomEvent,
-  StateEvent,
-} from "matrix-bot-sdk";
+import { Appservice, Intent, RoomEvent, StateEvent } from "matrix-bot-sdk";
 import { BridgeConfig } from "../config/Config";
 import type { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import { UserTokenStore } from "../tokens/UserTokenStore";
@@ -17,11 +11,27 @@ import { IBridgeStorageProvider } from "../stores/StorageProvider";
 import { GithubInstance } from "../github/GithubInstance";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { ConnectionType } from "./type";
+import type { TimelineManager } from "../openproject/TimelineManager";
 
 export type PermissionCheckFn = (
   service: string,
   level: BridgePermissionLevel,
 ) => boolean;
+
+/** A room message handler selected for a connection. */
+export interface RoomMessageHandler {
+  connection: IConnection;
+  handle: (checkPermission: PermissionCheckFn) => Promise<boolean>;
+}
+
+/** Selects one handler from connections sharing the same router in a room. */
+export interface RoomMessageRouter {
+  getMessageHandler: (
+    connections: readonly IConnection[],
+    event: MatrixEvent<MatrixMessageContent>,
+    parentEvent?: RoomEvent<IJsonType>,
+  ) => Promise<RoomMessageHandler | undefined>;
+}
 
 export interface IConnectionState {
   priority?: number;
@@ -77,6 +87,9 @@ export interface IConnection {
     checkPermission: PermissionCheckFn,
     parentEvent?: RoomEvent<IJsonType>,
   ) => Promise<boolean>;
+
+  /** Shared by connections that need to choose one room message handler together. */
+  roomMessageRouter?: RoomMessageRouter;
 
   onIssueCreated?: (ev: IssuesOpenedEvent) => Promise<void>;
 
@@ -155,6 +168,7 @@ export interface InstantiateConnectionOpts {
   commentProcessor: CommentProcessor;
   messageClient: MessageSenderClient;
   storage: IBridgeStorageProvider;
+  timelineManager?: TimelineManager;
   github?: GithubInstance;
   isStatic?: boolean;
   /**
@@ -166,6 +180,14 @@ export interface ProvisionConnectionOpts extends InstantiateConnectionOpts {
   getAllConnectionsOfType<T extends IConnection>(
     typeT: new (...params: any[]) => T,
   ): T[];
+  /**
+   * Resolve the deployment-selected bot for an integration. This is used by
+   * integrations whose messages and capability traffic must share one bot.
+   */
+  getIntegrationBotForService?: (
+    service: string,
+  ) => { userId: string; intent: Intent } | undefined;
+  isBotUserInRoom?: (roomId: string, userId: string) => boolean;
 }
 
 export function Connection<T extends ConnectionDeclaration>(connectionType: T) {
