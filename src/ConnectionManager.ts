@@ -415,6 +415,7 @@ export class ConnectionManager extends EventEmitter {
           storage: this.storage,
           github: this.github,
           isStatic,
+          botIntents: this.botUsersManager.botUsers.map((b) => b.intent),
         },
       );
       if (!isStatic) {

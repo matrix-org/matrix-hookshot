@@ -1,3 +1,33 @@
+# 7.6.2 (2026-11-11)
+
+## Internal Changes
+
+- Update `matrix-bot-sdk` to address `GHSA-pqp6-f7wc-6498`. ([\#1458](https://github.com/matrix-org/matrix-hookshot/issues/1458))
+
+
+# 7.6.1 (2026-11-11)
+
+## Bugfixes
+
+- Fix the "Show URL previews on messages" setting not being saved for Jira and OpenProject connections. ([\#1445](https://github.com/matrix-org/matrix-hookshot/issues/1445))
+- Fix generic webhook connections being lost after restart, when created via `!hookshot webhook` while having
+  service bots configured. Connections of any type created via the main bot's commands are now owned by the
+  matching service bot from the start, as they already were after a restart. ([\#1447](https://github.com/matrix-org/matrix-hookshot/issues/1447))
+- Stop logging generic webhook hook IDs, which act as secrets in the webhook URL. ([\#1449](https://github.com/matrix-org/matrix-hookshot/issues/1449))
+
+## Improved Documentation
+
+- Improve documentation on release process. ([\#1443](https://github.com/matrix-org/matrix-hookshot/issues/1443))
+
+## Internal Changes
+
+- Activate lint checks throughout the repository and fix issues. ([\#1433](https://github.com/matrix-org/matrix-hookshot/issues/1433))
+- Configure Renovate to dedupe pnpm dependencies, and dedupe the lockfile. ([\#1438](https://github.com/matrix-org/matrix-hookshot/issues/1438))
+- Switch to a Debian 13 based Node image. ([\#1444](https://github.com/matrix-org/matrix-hookshot/issues/1444))
+- Split the Docker `ENTRYPOINT` and `CMD` better so that the application entrypoint doesn't need to be re-specified. ([\#1451](https://github.com/matrix-org/matrix-hookshot/issues/1451))
+- Update various dependencies in lockfiles. ([\#1452](https://github.com/matrix-org/matrix-hookshot/issues/1452))
+
+
 # 7.6.0 (2026-10-26)
 
 ## Features
