@@ -1494,6 +1494,9 @@ export class Bridge {
               },
               this.getOrCreateAdminRoom.bind(this),
               this.connectionManager.push.bind(this.connectionManager),
+              (serviceType) =>
+                this.botUsersManager.getBotUserInRoom(roomId, serviceType)
+                  ?.intent,
             );
             const handled = await setupConnection.onMessageEvent(
               event,

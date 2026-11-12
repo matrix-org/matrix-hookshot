@@ -419,6 +419,7 @@ export class ConnectionManager extends EventEmitter {
           timelineManager: this.timelineManager,
           github: this.github,
           isStatic,
+          botIntents: this.botUsersManager.botUsers.map((b) => b.intent),
         },
       );
       if (!isStatic) {
