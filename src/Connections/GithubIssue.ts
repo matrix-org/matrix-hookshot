@@ -147,8 +147,8 @@ export class GitHubIssueConnection
       throw Error("Could not find issue");
     }
 
-    // URL hack so we don't need to fetch the repo itself.
-    const orgRepoName = issue.repository?.full_name ?? `${owner}/${repoName}`;
+    // The issues API doesn't include the repository, so fall back to the repo fetched above.
+    const orgRepoName = issue.repository?.full_name ?? repo.full_name;
     let avatarUrl = undefined;
     try {
       const profile = await octokit.users.getByUsername({
