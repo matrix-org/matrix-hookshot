@@ -1,0 +1,1 @@
+Fix bridged GitHub and GitLab comments and new GitHub discussion rooms failing with an `emojify` error.
