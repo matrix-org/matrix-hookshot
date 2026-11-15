@@ -148,7 +148,7 @@ export class GitHubIssueConnection
     }
 
     // URL hack so we don't need to fetch the repo itself.
-    const orgRepoName = issue.repository?.full_name;
+    const orgRepoName = issue.repository?.full_name ?? `${owner}/${repoName}`;
     let avatarUrl = undefined;
     try {
       const profile = await octokit.users.getByUsername({
