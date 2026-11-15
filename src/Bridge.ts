@@ -1387,7 +1387,7 @@ export class Bridge {
       } else if (parentEventId) {
         try {
           // This is a new style reply.
-          await this.as.botClient.getEvent(roomId, parentEventId);
+          replyEvent = await this.as.botClient.getEvent(roomId, parentEventId);
         } catch (ex) {
           log.warn(
             `Could not lookup event ${parentEventId} referenced in ${event.event_id}`,
