@@ -1,0 +1,1 @@
+Fix replying ✅ or 🔴 to a pull request message not submitting a review when the client sends replies without a fallback.
