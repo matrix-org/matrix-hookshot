@@ -56,11 +56,11 @@ export async function getIntentForUser(
     `@${prefix ?? ""}${user.login}:${domain}`,
   );
   const displayName = user.login;
+  await intent.ensureRegistered();
   const capabilites = await intent.underlyingClient.getCapabilities();
 
   // Verify up-to-date profile
   let profile;
-  await intent.ensureRegistered();
   if (
     capabilites["m.set_displayname"]?.enabled === false &&
     capabilites["m.set_avatar_url"]?.enabled === false
