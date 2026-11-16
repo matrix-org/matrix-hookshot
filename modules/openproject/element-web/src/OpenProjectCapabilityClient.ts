@@ -1,8 +1,4 @@
 import {
-  HookshotToDeviceClient,
-  type HookshotToDeviceRequest,
-} from "./HookshotToDeviceClient";
-import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
 } from "./OpenProjectSchema";
@@ -38,6 +34,19 @@ export interface OpenProjectProbeResponse {
 
 export interface OpenProjectProbeOptions {
   readonly force?: boolean;
+}
+
+// Matches the pending Element Module API contract. Use its exported types when released.
+interface ToDeviceRequest {
+  readonly recipientUserId: string;
+  readonly requestType: string;
+  readonly responseType: string;
+  readonly content: Record<string, unknown>;
+  readonly timeoutMs?: number;
+}
+
+export interface ToDeviceApi {
+  request(request: ToDeviceRequest): Promise<unknown>;
 }
 
 interface JsonRecord {
@@ -147,7 +156,7 @@ export class OpenProjectCapabilityClient {
   // Completed results cannot be reused safely without a session lifecycle API.
   private readonly pendingProbes = new Map<string, PendingProbeEntry>();
 
-  public constructor(private readonly toDeviceClient: HookshotToDeviceClient) {}
+  public constructor(private readonly toDeviceClient: ToDeviceApi) {}
 
   public probe(
     anchor: OpenProjectAnchor,
@@ -171,7 +180,7 @@ export class OpenProjectCapabilityClient {
       }
     }
 
-    const request: HookshotToDeviceRequest<OpenProjectProbeResponse> = {
+    const request: ToDeviceRequest = {
       recipientUserId: anchor.recipientUserId,
       requestType: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
       responseType: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
@@ -181,10 +190,9 @@ export class OpenProjectCapabilityClient {
         room_id: anchor.roomId,
         anchor_event_id: anchor.eventId,
       },
-      responseValidator: isOpenProjectProbeResponse,
     };
 
-    let requestPromise: Promise<OpenProjectProbeResponse>;
+    let requestPromise: Promise<unknown>;
     try {
       requestPromise = this.toDeviceClient.request(request);
     } catch (error) {
@@ -194,6 +202,9 @@ export class OpenProjectCapabilityClient {
     const entry: PendingProbeEntry = {
       promise: requestPromise
         .then((response) => {
+          if (!isOpenProjectProbeResponse(response)) {
+            throw new Error("Invalid OpenProject capability response");
+          }
           this.removePendingProbe(probeKey, entry);
           return response;
         })

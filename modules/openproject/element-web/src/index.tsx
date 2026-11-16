@@ -6,7 +6,6 @@ import type {
   Module,
   ModuleFactory,
 } from "@element-hq/element-web-module-api";
-import { HookshotToDeviceClient } from "./HookshotToDeviceClient";
 import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
@@ -49,7 +48,7 @@ class HookshotOpenProjectModule implements Module {
       getElementConfig(api),
     );
     this.capabilityClient = this.capabilityBotUserId
-      ? new OpenProjectCapabilityClient(new HookshotToDeviceClient())
+      ? new OpenProjectCapabilityClient(api.client.toDevice)
       : undefined;
   }
 

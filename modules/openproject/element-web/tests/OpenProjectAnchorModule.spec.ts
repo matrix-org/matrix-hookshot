@@ -27,6 +27,7 @@ function createMarkedAnchorEvent(sender = botUserId) {
 
 function createModuleRegistration() {
   const registerMessageRenderer = vi.fn();
+  const toDeviceRequest = vi.fn();
   const api = {
     config: {
       get: () => ({
@@ -35,24 +36,37 @@ function createModuleRegistration() {
         },
       }),
     },
+    client: { toDevice: { request: toDeviceRequest } },
     customComponents: { registerMessageRenderer },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
   return {
     registerMessageRenderer,
+    toDeviceRequest,
     load: () => new HookshotOpenProjectModule(api).load(),
   };
 }
 
 describe("OpenProject marked anchor path", () => {
   it("routes a configured, sender-matched anchor through the probe card", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
+    const { registerMessageRenderer, toDeviceRequest, load } =
+      createModuleRegistration();
     await load();
     const [, render] = registerMessageRenderer.mock.calls[0];
 
     const rendered = render({ mxEvent: createMarkedAnchorEvent() });
 
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
+    toDeviceRequest.mockResolvedValue({
+      v: 1,
+      request_id: "request-1",
+      integration_id: "openproject",
+      result: "ok",
+    });
+    await rendered.props.capabilityClient.probe(rendered.props.anchor);
+    expect(toDeviceRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientUserId: botUserId }),
+    );
   });
 
   it("does not probe a marked card from another sender", async () => {

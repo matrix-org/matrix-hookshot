@@ -112,23 +112,20 @@ describe("OpenProjectCapabilityClient", () => {
     const response = createResponse();
     const toDeviceClient = new FakeToDeviceClient();
     toDeviceClient.request.mockResolvedValue(response);
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
 
     await expect(client.probe(createAnchor())).resolves.toEqual(response);
-    expect(toDeviceClient.request).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recipientUserId: botUserId,
-        requestType: "org.matrix.matrix-hookshot.capabilities.probe",
-        responseType: "org.matrix.matrix-hookshot.capabilities.probe_response",
-        content: {
-          v: 1,
-          integration_id: "openproject",
-          room_id: "!room:example.org",
-          anchor_event_id: "$anchor-without-server",
-        },
-        responseValidator: expect.any(Function),
-      }),
-    );
+    expect(toDeviceClient.request).toHaveBeenCalledWith({
+      recipientUserId: botUserId,
+      requestType: "org.matrix.matrix-hookshot.capabilities.probe",
+      responseType: "org.matrix.matrix-hookshot.capabilities.probe_response",
+      content: {
+        v: 1,
+        integration_id: "openproject",
+        room_id: "!room:example.org",
+        anchor_event_id: "$anchor-without-server",
+      },
+    });
   });
 
   it("coalesces pending probes but sends again after a result", async () => {
@@ -138,7 +135,7 @@ describe("OpenProjectCapabilityClient", () => {
     toDeviceClient.request
       .mockReturnValueOnce(pending.promise)
       .mockResolvedValue(response);
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
     const anchor = createAnchor();
 
     const first = client.probe(anchor);
@@ -159,7 +156,7 @@ describe("OpenProjectCapabilityClient", () => {
     const toDeviceClient = new FakeToDeviceClient();
     const pending = Promise.withResolvers<OpenProjectProbeResponse>();
     toDeviceClient.request.mockReturnValue(pending.promise);
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
 
     const probes = [
       client.probe(createAnchor({ workPackageId: 41 })),
@@ -178,7 +175,7 @@ describe("OpenProjectCapabilityClient", () => {
       .mockRejectedValueOnce(new Error("Hookshot unavailable"))
       .mockResolvedValueOnce(createResponse("unavailable"))
       .mockResolvedValueOnce(createResponse("ok"));
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
     const anchor = createAnchor();
 
     await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
@@ -189,6 +186,21 @@ describe("OpenProjectCapabilityClient", () => {
     expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
   });
 
+  it("rejects a malformed Module API response and allows a new probe", async () => {
+    const toDeviceClient = new FakeToDeviceClient();
+    toDeviceClient.request
+      .mockResolvedValueOnce({ ...createResponse(), integration_id: "other" })
+      .mockResolvedValueOnce(createResponse());
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
+    const anchor = createAnchor();
+
+    await expect(client.probe(anchor)).rejects.toThrow(
+      "Invalid OpenProject capability response",
+    );
+    await expect(client.probe(anchor)).resolves.toEqual(createResponse());
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps a forced request cached when the older request settles", async () => {
     const toDeviceClient = new FakeToDeviceClient();
     const firstRequest = Promise.withResolvers<OpenProjectProbeResponse>();
@@ -197,7 +209,7 @@ describe("OpenProjectCapabilityClient", () => {
       .mockReturnValueOnce(firstRequest.promise)
       .mockReturnValueOnce(forcedRequest.promise)
       .mockResolvedValue(createResponse());
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
     const anchor = createAnchor();
 
     const first = client.probe(anchor);
@@ -219,7 +231,7 @@ describe("OpenProjectCapabilityClient", () => {
     toDeviceClient.request
       .mockRejectedValueOnce(new Error("Hookshot unavailable"))
       .mockResolvedValueOnce(response);
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
+    const client = new OpenProjectCapabilityClient(toDeviceClient);
     const anchor = createAnchor();
 
     await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
