@@ -164,6 +164,12 @@ listeners:
 #    prefix: "!feeds"
 #    service: feeds
 
+#toDevice:
+#  # (Optional) Configure Matrix to-device functionality.
+#  #     receiver.enabled enables to-device request handling for service bots and is disabled by default.
+#  receiver:
+#    enabled: false
+
 #widgets:
 #  # (Optional) EXPERIMENTAL support for complimentary widgets
 #  addToAdminRooms: false
