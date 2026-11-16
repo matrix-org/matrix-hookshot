@@ -8,7 +8,6 @@ import {
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
 } from "../src/OpenProjectCapabilityClient";
-import type { MatrixSessionIdentity } from "../src/HookshotToDeviceClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
@@ -47,16 +46,7 @@ function createResponse(
 }
 
 class FakeToDeviceClient {
-  public identity: MatrixSessionIdentity = {
-    userId: "@alice:example.org",
-    deviceId: "ALICEDEVICE",
-  };
-
   public readonly request = vi.fn();
-
-  public getSessionIdentity(): MatrixSessionIdentity {
-    return Object.freeze({ ...this.identity });
-  }
 }
 
 describe("OpenProjectCapabilityClient", () => {
@@ -141,33 +131,45 @@ describe("OpenProjectCapabilityClient", () => {
     );
   });
 
-  it("coalesces identical in-flight and fulfilled probes", async () => {
+  it("coalesces pending probes but sends again after a result", async () => {
     const response = createResponse();
     const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(response);
+    const pending = Promise.withResolvers<OpenProjectProbeResponse>();
+    toDeviceClient.request
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValue(response);
     const client = new OpenProjectCapabilityClient(toDeviceClient as never);
     const anchor = createAnchor();
 
     const first = client.probe(anchor);
     const second = client.probe(anchor);
+    expect(second).toBe(first);
+    expect(toDeviceClient.request).toHaveBeenCalledOnce();
+
+    pending.resolve(response);
     await expect(first).resolves.toEqual(response);
     const third = client.probe(anchor);
 
-    expect(second).toBe(first);
-    expect(third).toBe(first);
-    expect(toDeviceClient.request).toHaveBeenCalledOnce();
+    expect(third).not.toBe(first);
+    await expect(third).resolves.toEqual(response);
+    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
   });
 
   it("does not share entries between work packages or recipient bots", async () => {
     const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(createResponse());
+    const pending = Promise.withResolvers<OpenProjectProbeResponse>();
+    toDeviceClient.request.mockReturnValue(pending.promise);
     const client = new OpenProjectCapabilityClient(toDeviceClient as never);
 
-    await client.probe(createAnchor({ workPackageId: 41 }));
-    await client.probe(createAnchor({ workPackageId: 42 }));
-    await client.probe(createAnchor({ recipientUserId: secondBotUserId }));
+    const probes = [
+      client.probe(createAnchor({ workPackageId: 41 })),
+      client.probe(createAnchor({ workPackageId: 42 })),
+      client.probe(createAnchor({ recipientUserId: secondBotUserId })),
+    ];
 
     expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
+    pending.resolve(createResponse());
+    await expect(Promise.all(probes)).resolves.toHaveLength(3);
   });
 
   it("does not retain rejected or unavailable probes", async () => {
@@ -187,9 +189,14 @@ describe("OpenProjectCapabilityClient", () => {
     expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
   });
 
-  it("replaces an existing entry when force is true", async () => {
+  it("keeps a forced request cached when the older request settles", async () => {
     const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(createResponse());
+    const firstRequest = Promise.withResolvers<OpenProjectProbeResponse>();
+    const forcedRequest = Promise.withResolvers<OpenProjectProbeResponse>();
+    toDeviceClient.request
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockReturnValueOnce(forcedRequest.promise)
+      .mockResolvedValue(createResponse());
     const client = new OpenProjectCapabilityClient(toDeviceClient as never);
     const anchor = createAnchor();
 
@@ -197,61 +204,13 @@ describe("OpenProjectCapabilityClient", () => {
     const forced = client.probe(anchor, { force: true });
 
     expect(forced).not.toBe(first);
+    firstRequest.resolve(createResponse());
+    await expect(first).resolves.toEqual(createResponse());
+
+    expect(client.probe(anchor)).toBe(forced);
+    forcedRequest.resolve(createResponse());
     await expect(forced).resolves.toEqual(createResponse());
     expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
-  });
-
-  it("clears every cached result when the user changes", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(createResponse());
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
-    const anchor = createAnchor();
-
-    await client.probe(anchor);
-    toDeviceClient.identity = {
-      userId: "@bob:example.org",
-      deviceId: "BOBDEVICE",
-    };
-    await client.probe(anchor);
-
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
-  });
-
-  it("clears every cached result when only the device changes", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(createResponse());
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
-    const anchor = createAnchor();
-
-    await client.probe(anchor);
-    toDeviceClient.identity = {
-      userId: "@alice:example.org",
-      deviceId: "ALICESECONDDEVICE",
-    };
-    await client.probe(anchor);
-
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
-  });
-
-  it("rejects a result that arrives after the session changes", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    let resolveRequest!: (response: OpenProjectProbeResponse) => void;
-    toDeviceClient.request.mockImplementation(
-      () =>
-        new Promise<OpenProjectProbeResponse>((resolve) => {
-          resolveRequest = resolve;
-        }),
-    );
-    const client = new OpenProjectCapabilityClient(toDeviceClient as never);
-    const probe = client.probe(createAnchor());
-
-    toDeviceClient.identity = {
-      userId: "@bob:example.org",
-      deviceId: "BOBDEVICE",
-    };
-    resolveRequest(createResponse());
-
-    await expect(probe).rejects.toThrow("Matrix account changed");
   });
 
   it("allows an explicit retry after a failed probe", async () => {

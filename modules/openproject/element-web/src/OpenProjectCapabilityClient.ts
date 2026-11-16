@@ -1,7 +1,6 @@
 import {
   HookshotToDeviceClient,
   type HookshotToDeviceRequest,
-  type MatrixSessionIdentity,
 } from "./HookshotToDeviceClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
@@ -145,8 +144,8 @@ export function isOpenProjectAnchorForBot(
 }
 
 export class OpenProjectCapabilityClient {
-  private readonly probeCache = new Map<string, ProbeCacheEntry>();
-  private lastSessionIdentity: MatrixSessionIdentity | undefined;
+  // Completed results cannot be reused safely without a session lifecycle API.
+  private readonly pendingProbes = new Map<string, PendingProbeEntry>();
 
   public constructor(private readonly toDeviceClient: HookshotToDeviceClient) {}
 
@@ -154,14 +153,6 @@ export class OpenProjectCapabilityClient {
     anchor: OpenProjectAnchor,
     options: OpenProjectProbeOptions = {},
   ): Promise<OpenProjectProbeResponse> {
-    let sessionIdentity: MatrixSessionIdentity;
-    try {
-      sessionIdentity = this.toDeviceClient.getSessionIdentity();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-    this.observeSession(sessionIdentity);
-
     if (
       !isMatrixRoomId(anchor.roomId) ||
       !isMatrixEventId(anchor.eventId) ||
@@ -172,11 +163,11 @@ export class OpenProjectCapabilityClient {
       return Promise.reject(new Error("Invalid OpenProject anchor"));
     }
 
-    const cacheKey = this.createCacheKey(sessionIdentity, anchor);
+    const probeKey = this.createProbeKey(anchor);
     if (!options.force) {
-      const cachedEntry = this.probeCache.get(cacheKey);
-      if (cachedEntry) {
-        return cachedEntry.promise;
+      const pending = this.pendingProbes.get(probeKey);
+      if (pending) {
+        return pending.promise;
       }
     }
 
@@ -200,33 +191,24 @@ export class OpenProjectCapabilityClient {
       requestPromise = Promise.reject(error);
     }
 
-    const entry: ProbeCacheEntry = {
+    const entry: PendingProbeEntry = {
       promise: requestPromise
         .then((response) => {
-          this.assertSessionUnchanged(sessionIdentity);
-          if (response.result === "unavailable") {
-            this.removeEntry(cacheKey, entry);
-          }
+          this.removePendingProbe(probeKey, entry);
           return response;
         })
         .catch((error) => {
-          // A failed request must not prevent a later explicit retry.
-          this.removeEntry(cacheKey, entry);
+          this.removePendingProbe(probeKey, entry);
           throw error;
         }),
     };
 
-    this.probeCache.set(cacheKey, entry);
+    this.pendingProbes.set(probeKey, entry);
     return entry.promise;
   }
 
-  private createCacheKey(
-    sessionIdentity: MatrixSessionIdentity,
-    anchor: OpenProjectAnchor,
-  ): string {
+  private createProbeKey(anchor: OpenProjectAnchor): string {
     return JSON.stringify([
-      sessionIdentity.userId,
-      sessionIdentity.deviceId,
       OPENPROJECT_INTEGRATION_ID,
       anchor.recipientUserId,
       anchor.roomId,
@@ -235,37 +217,13 @@ export class OpenProjectCapabilityClient {
     ]);
   }
 
-  private observeSession(sessionIdentity: MatrixSessionIdentity): void {
-    if (
-      this.lastSessionIdentity &&
-      (this.lastSessionIdentity.userId !== sessionIdentity.userId ||
-        this.lastSessionIdentity.deviceId !== sessionIdentity.deviceId)
-    ) {
-      this.probeCache.clear();
-    }
-    this.lastSessionIdentity = sessionIdentity;
-  }
-
-  private assertSessionUnchanged(
-    requestSessionIdentity: MatrixSessionIdentity,
-  ): void {
-    const currentSessionIdentity = this.toDeviceClient.getSessionIdentity();
-    if (
-      currentSessionIdentity.userId !== requestSessionIdentity.userId ||
-      currentSessionIdentity.deviceId !== requestSessionIdentity.deviceId
-    ) {
-      this.observeSession(currentSessionIdentity);
-      throw new Error("Matrix account changed");
-    }
-  }
-
-  private removeEntry(cacheKey: string, entry: ProbeCacheEntry): void {
-    if (this.probeCache.get(cacheKey) === entry) {
-      this.probeCache.delete(cacheKey);
+  private removePendingProbe(probeKey: string, entry: PendingProbeEntry): void {
+    if (this.pendingProbes.get(probeKey) === entry) {
+      this.pendingProbes.delete(probeKey);
     }
   }
 }
 
-interface ProbeCacheEntry {
+interface PendingProbeEntry {
   readonly promise: Promise<OpenProjectProbeResponse>;
 }
