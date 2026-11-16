@@ -75,7 +75,7 @@ describe("Appservice to-device delivery", () => {
 
       // This invokes the real Matrix client API. Synapse delivers the EDU to
       // Hookshot's appservice transaction, which the SDK turns into the
-      // ephemeral.event consumed by HookshotToDeviceReceiver.
+      // "to-device" event consumed by HookshotToDeviceReceiver.
       await user.sendToDevices(HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE, {
         [testEnv.botMxid]: {
           "*": request,
