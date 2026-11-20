@@ -2,7 +2,10 @@ import { ProvisioningStore } from "matrix-appservice-bridge";
 import { IAppserviceStorageProvider, IStorageProvider } from "matrix-bot-sdk";
 import { IssuesGetResponseData } from "../github/Types";
 import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
-import { OpenProjectWorkPackageCacheState } from "../openproject/State";
+import type {
+  OpenProjectAnchorState,
+  OpenProjectWorkPackageCacheState,
+} from "../openproject/State";
 
 // Some RSS feeds can return a very small number of items then bounce
 // back to their "normal" size, so we cannot just clobber the recent GUID list per request or else we'll
@@ -96,12 +99,35 @@ export interface IBridgeStorageProvider
     hasWarned: boolean,
   ): Promise<void>;
 
-  getOpenProjectWorkPackageState(
-    projectId: number,
+  /** Read the Activity snapshot stored for this connection and package. */
+  getOpenProjectActivityState(
+    connectionId: string,
     workPackageId: number,
   ): Promise<OpenProjectWorkPackageCacheState | null>;
-  setOpenProjectWorkPackageState(
+  /** Persist the Activity snapshot for this connection and package. */
+  setOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
     state: OpenProjectWorkPackageCacheState,
-    id: number,
   ): Promise<void>;
+  /** Delete every Activity snapshot stored for this connection. */
+  deleteOpenProjectActivityStates(connectionId: string): Promise<void>;
+  /** Read the active anchor stored for this connection and package. */
+  getOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectAnchorState | null>;
+  /** Persist the successfully sent active anchor for this connection. */
+  setOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectAnchorState,
+  ): Promise<void>;
+  /** Delete one package's active anchor for this connection. */
+  deleteOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<void>;
+  /** Delete every active anchor stored for this connection. */
+  deleteOpenProjectAnchorStates(connectionId: string): Promise<void>;
 }

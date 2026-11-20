@@ -3,6 +3,7 @@ import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
+import { TooltipProvider } from "@vector-im/compound-web";
 import React, { useLayoutEffect } from "react";
 import "./app-web-root.css";
 import "./preview.css";
@@ -85,12 +86,18 @@ const withRootCss: Decorator = (Story, context) => (
   </>
 );
 
+const withTooltipProvider: Decorator = (Story) => (
+  <TooltipProvider>
+    <Story />
+  </TooltipProvider>
+);
+
 const preview: Preview = {
   initialGlobals: {
     theme: "light",
     rootCss: "storybook",
   },
-  decorators: [withRootCss, withThemeProvider],
+  decorators: [withRootCss, withThemeProvider, withTooltipProvider],
   parameters: {
     layout: "padded",
     controls: {

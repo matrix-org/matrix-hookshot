@@ -23,6 +23,7 @@ import { ServiceAuth } from "./Auth";
 import { ProjectSearch } from "../elements/ConnectionSearch";
 import { DropItem } from "../elements/DropdownSearch";
 import { InlineSpinner } from "@vector-im/compound-web";
+import styles from "./OpenProjectConfig.module.scss";
 
 const EventType = "org.matrix.matrix-hookshot.openproject.project";
 
@@ -83,8 +84,8 @@ const ExistingConnectionConfig: FunctionComponent<{
   const [allowedEvents, setAllowedEvents] = useState<string[]>(
     connection.config.events,
   );
-  const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
-    connection.config.showUrlPreviews ?? true,
+  const [automaticAnchors, setAutomaticAnchors] = useState<boolean>(
+    (connection.config.anchors ?? []).includes("work_package:created"),
   );
 
   const handleSave = useCallback(
@@ -95,14 +96,14 @@ const ExistingConnectionConfig: FunctionComponent<{
       }
       onSave({
         ...connection.config,
-        events: allowedEvents as any[],
-        showUrlPreviews,
+        events: allowedEvents as OpenProjectConnectionState["events"],
+        anchors: automaticAnchors ? ["work_package:created"] : [],
         commandPrefix:
           commandPrefixRef.current?.value ||
           commandPrefixRef.current?.placeholder,
       });
     },
-    [connection, allowedEvents, showUrlPreviews, commandPrefixRef, onSave],
+    [connection, allowedEvents, automaticAnchors, commandPrefixRef, onSave],
   );
 
   return (
@@ -115,20 +116,23 @@ const ExistingConnectionConfig: FunctionComponent<{
           placeholder="!openproject"
         />
       </InputField>
-      <InputField
-        label="Show URL previews on messages (requires supporting client)"
-        noPadding={true}
-      >
-        <input
-          disabled={!connection.canEdit}
-          type="checkbox"
-          checked={showUrlPreviews}
-          onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
-        />
-      </InputField>
+      <div className={styles.checkboxField}>
+        <label>
+          <input
+            disabled={!connection.canEdit}
+            type="checkbox"
+            checked={automaticAnchors}
+            onChange={useCallback(
+              () => setAutomaticAnchors((value) => !value),
+              [],
+            )}
+          />
+          Automatically add new work packages to the timeline
+        </label>
+      </div>
       <EventHookList
         eventList={OPEN_PROJECT_EVENTS}
-        label="Events"
+        label="Choose which events that sends activity messages"
         setAllowedEvents={setAllowedEvents}
         allowedEvents={allowedEvents}
       />
@@ -275,6 +279,7 @@ const ConnectionConfiguration: FunctionComponent<ConfigProps> = ({
         url: newConnectionState.url,
         commandPrefix: newConnectionState.prefix,
         events: ["work_package:created"],
+        anchors: [],
       });
     },
     [newConnectionState, onSave],

@@ -10,6 +10,7 @@
     "moduleResolution": "bundler",
     "types": ["vite/client"],
     "esModuleInterop": true,
+    "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
