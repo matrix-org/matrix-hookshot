@@ -246,6 +246,7 @@ export async function createContainers(
       aliases: [],
     },
     receive_ephemeral: true,
+    "io.element.msc4190": true,
   };
 
   const container = await new SynapseContainer(name, { crypto })

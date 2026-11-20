@@ -117,6 +117,18 @@ export interface BridgeConfigChallengeHound {
   token?: string;
 }
 
+export interface BridgeConfigToDeviceYAML {
+  receiver?: {
+    enabled?: boolean;
+  };
+}
+
+export interface BridgeConfigToDevice {
+  receiver: {
+    enabled: boolean;
+  };
+}
+
 export interface BridgeConfigRoot {
   bot?: BridgeConfigBot;
   bridge: BridgeConfigBridge;
@@ -141,6 +153,7 @@ export interface BridgeConfigRoot {
   queue?: BridgeConfigQueue;
   sentry?: BridgeConfigSentry;
   serviceBots?: BridgeConfigServiceBot[];
+  toDevice?: BridgeConfigToDeviceYAML;
   webhook?: BridgeConfigWebhook;
   widgets?: BridgeWidgetConfigYAML;
   challengeHound?: BridgeConfigChallengeHound;
@@ -207,6 +220,12 @@ export class BridgeConfig {
   public readonly bot?: BridgeConfigBot;
   @configKey("Define additional bot users for specific services", true)
   public readonly serviceBots?: BridgeConfigServiceBot[];
+  @configKey(
+    `Configure Matrix to-device functionality.
+     receiver.enabled enables to-device request handling for service bots and is disabled by default.`,
+    true,
+  )
+  public readonly toDevice: BridgeConfigToDevice;
   @configKey("EXPERIMENTAL support for complimentary widgets", true)
   public readonly widgets?: BridgeWidgetConfig;
   @configKey("Prometheus metrics support", true)
@@ -260,6 +279,11 @@ export class BridgeConfig {
     this.passFile = configData.passFile ?? "./passkey.pem";
     this.bot = configData.bot;
     this.serviceBots = configData.serviceBots;
+    this.toDevice = {
+      receiver: {
+        enabled: configData.toDevice?.receiver?.enabled ?? false,
+      },
+    };
     this.metrics = configData.metrics;
     this.challengeHound = configData.challengeHound;
 
