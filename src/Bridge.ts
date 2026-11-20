@@ -111,7 +111,6 @@ import { OAuthRequest, OAuthRequestResult } from "./tokens/Oauth";
 import { IJsonType } from "matrix-bot-sdk/lib/helpers/Types";
 import { GitLabInstance } from "./config/sections";
 import { HookshotToDeviceReceiver } from "./ToDeviceReceiver";
-import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 import { createAuthenticatedProbeHandler } from "./AuthenticatedProbeHandler";
 import { assertUserPermissionsInRoom } from "./widgets/Api";
@@ -2199,11 +2198,21 @@ export class Bridge {
         integrationBots.set(service, botUser.userId);
       }
     }
-    await provisionToDeviceReceiverDevices(
-      this.as,
-      new Set(integrationBots.values()),
-      !!this.config.encryption,
-    );
+    for (const botUserId of new Set(integrationBots.values())) {
+      try {
+        const deviceId = await this.as
+          .getIntentForUserId(botUserId)
+          .ensureToDeviceReady();
+        log.info(`bot=${botUserId} device=${deviceId} to-device=ready`);
+      } catch {
+        // SDK errors can contain request details, so keep startup errors scoped
+        // to the bot and outcome.
+        log.error(`bot=${botUserId} to-device=failed`);
+        throw new Error(
+          `Failed to prepare to-device receiver for ${botUserId}`,
+        );
+      }
+    }
 
     this.toDeviceReceiver = new HookshotToDeviceReceiver(
       this.as,

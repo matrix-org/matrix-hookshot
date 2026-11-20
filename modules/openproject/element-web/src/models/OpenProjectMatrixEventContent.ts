@@ -4,7 +4,7 @@ import {
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_ACTIVITY_EVENT_KIND,
-} from "../OpenProjectSchema";
+} from "../schema/OpenProjectSchema";
 
 /**
  * The Matrix event DTOs emitted by Hookshot for OpenProject work packages.

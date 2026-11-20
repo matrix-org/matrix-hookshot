@@ -3,10 +3,7 @@ import {
   type ViewModel,
 } from "@element-hq/web-shared-components";
 import type { OpenProjectActivityContent } from "../../models/OpenProjectMatrixEventContent";
-import {
-  isMatrixEventId,
-  isMatrixRoomId,
-} from "../../OpenProjectCapabilityClient";
+import { isMatrixEventId, isMatrixRoomId } from "../../utils/identifiers";
 
 export type OpenProjectActivityEventContent = OpenProjectActivityContent;
 
