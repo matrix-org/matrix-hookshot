@@ -90,6 +90,81 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  it.each(["http", "https"])(
+    "uses the same %s OpenProject state key for add and remove",
+    async (scheme) => {
+      const appservice = AppserviceMock.create();
+      const baseUrl = `${scheme}://openproject.example/`;
+      const projectUrl = `${baseUrl}projects/1`;
+      const inputUrl = `${projectUrl}/work_packages/42`;
+      const config = {
+        openProject: new BridgeOpenProjectConfig({
+          baseUrl,
+          webhook: { secret: "secret" },
+        }),
+        messaging: new BridgeConfigMessaging(),
+        checkPermission: () => true,
+      } as unknown as BridgeConfig;
+      const client = appservice.botIntent.underlyingClient;
+      const getRoomStateEvent = vi.fn().mockResolvedValue({ url: projectUrl });
+      const sendStateEvent = vi.fn().mockResolvedValue("$removed");
+      Object.assign(client, {
+        userHasPowerLevelFor: vi.fn().mockResolvedValue(true),
+        getRoomStateEvent,
+        sendStateEvent,
+        sendHtmlNotice: vi.fn().mockResolvedValue(undefined),
+      });
+      const provision = vi
+        .spyOn(OpenProjectConnection, "provisionConnection")
+        .mockResolvedValue({ connection: createConnectionState() });
+      const setup = new SetupConnection(
+        ROOM_ID,
+        "!hookshot",
+        ["openproject"],
+        ["openproject"],
+        {
+          as: appservice,
+          intent: appservice.botIntent,
+          config,
+          getIntegrationBotForService: () => ({
+            userId: appservice.botIntent.userId,
+            intent: appservice.botIntent,
+          }),
+          isBotUserInRoom: () => true,
+        } as unknown as ProvisionConnectionOpts,
+        async () => {
+          throw new Error("Unexpected admin room request");
+        },
+        vi.fn(),
+      );
+
+      try {
+        await setup.onOpenProjectAdd(USER_ID, inputUrl);
+        await setup.onOpenProjectRemove(USER_ID, inputUrl);
+
+        expect(provision).toHaveBeenCalledWith(
+          ROOM_ID,
+          USER_ID,
+          { url: projectUrl },
+          expect.anything(),
+        );
+        expect(getRoomStateEvent).toHaveBeenCalledWith(
+          ROOM_ID,
+          OpenProjectConnection.CanonicalEventType,
+          projectUrl,
+        );
+        expect(sendStateEvent).toHaveBeenCalledWith(
+          ROOM_ID,
+          OpenProjectConnection.CanonicalEventType,
+          projectUrl,
+          {},
+        );
+      } finally {
+        provision.mockRestore();
+      }
+    },
+  );
+
   it("rejects provisioning without a selected bot instead of using the requesting bot", async () => {
     const appservice = AppserviceMock.create();
     const requestedIntent = appservice.botIntent;
@@ -218,7 +293,7 @@ describe("OpenProjectConnection", () => {
       expect(provision).toHaveBeenCalledWith(
         ROOM_ID,
         USER_ID,
-        { url: `${BASE_URL.href.replace("https:", "http:")}projects/1` },
+        { url: PROJECT_URL },
         expect.objectContaining({ intent: selectedIntent }),
       );
     } finally {
