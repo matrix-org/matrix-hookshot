@@ -4,7 +4,7 @@ import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../../OpenProjectSchema";
+} from "../../schema/OpenProjectSchema";
 import type { OpenProjectActiveAnchorContent } from "../../models/OpenProjectMatrixEventContent";
 import {
   AnchorMessageViewModel,
@@ -12,7 +12,7 @@ import {
   type AnchorViewModel,
   type AnchorViewSnapshot,
 } from "../../viewmodels/workPackage/AnchorMessageViewModel";
-import type { OpenProjectProbeResponse } from "../../OpenProjectCapabilityClient";
+import type { OpenProjectProbeResponse } from "../../capabilities/OpenProjectCapabilityClient";
 import { minimalWorkPackage, project } from "../../../storybook/fixtures";
 import { AnchorView } from "./AnchorView";
 

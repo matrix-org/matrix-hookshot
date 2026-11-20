@@ -11,7 +11,7 @@ import { ActivityView } from "../src/components/workPackage/ActivityView";
 import type { OpenProjectActivityContent } from "../src/models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot } from "../src/viewmodels/workPackage/DetailsSnapshot";
 import { ActivityMessageViewModel } from "../src/viewmodels/workPackage/ActivityMessageViewModel";
-import type { OpenProjectCapabilityAction } from "../src/OpenProjectCapabilityClient";
+import type { OpenProjectCapabilityAction } from "../src/capabilities/OpenProjectCapabilityClient";
 import { PROJECT, WORK_PACKAGE } from "./fixtures/WorkPackageFixtures";
 
 type ElementProps = Record<string, unknown>;

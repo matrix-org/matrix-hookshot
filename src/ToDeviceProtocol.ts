@@ -39,18 +39,6 @@ export interface HookshotCapabilityAction {
   command: string;
 }
 
-/** Annotation added by matrix-bot-sdk to events received from a to-device EDU. */
-export const MATRIX_BOT_SDK_EDU_ANNOTATION = "io.t2bot.sdk.bot.type";
-export const MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION = "to_device";
-
-export interface HookshotToDeviceEvent {
-  type?: unknown;
-  sender?: unknown;
-  content?: unknown;
-  to_user_id?: unknown;
-  unsigned?: unknown;
-}
-
 const REQUEST_KEYS = [
   "v",
   "request_id",
@@ -91,19 +79,6 @@ function isMatrixEventId(value: unknown): value is string {
 
 function isTargetDeviceId(value: unknown): value is string {
   return isNonEmptyString(value) && value !== "*";
-}
-
-export function isToDeviceEvent(
-  event: unknown,
-): event is HookshotToDeviceEvent {
-  if (!isRecord(event) || !isRecord(event.unsigned)) {
-    return false;
-  }
-
-  return (
-    event.unsigned[MATRIX_BOT_SDK_EDU_ANNOTATION] ===
-    MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION
-  );
 }
 
 function isIntegrationId(value: unknown): value is HookshotIntegrationId {

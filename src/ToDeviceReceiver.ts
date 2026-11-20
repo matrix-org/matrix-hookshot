@@ -1,4 +1,4 @@
-import { Appservice } from "matrix-bot-sdk";
+import { Appservice, type IAppserviceToDeviceEvent } from "matrix-bot-sdk";
 import { Logger } from "matrix-appservice-bridge";
 
 import {
@@ -10,7 +10,6 @@ import {
   HookshotIntegrationId,
   isHookshotCapabilitiesProbeRequest,
   isMatrixUserId,
-  isToDeviceEvent,
 } from "./ToDeviceProtocol";
 
 const DEFAULT_DEDUPLICATION_TTL_MS = 5 * 60 * 1000;
@@ -46,7 +45,7 @@ export interface HookshotToDeviceReceiverOptions {
 
 /**
  * Receives the transport-level Hookshot capability probe over the appservice
- * SDK's ephemeral event stream.
+ * SDK's dedicated appservice to-device event stream.
  *
  * This class deliberately does not perform room, anchor, authorization, or
  * integration-connection checks. Those belong to the registered handler.
@@ -58,8 +57,10 @@ export class HookshotToDeviceReceiver {
   private readonly now: () => number;
   private started = false;
 
-  private readonly onEphemeralEvent = (event: unknown): void => {
-    void this.handleEphemeralEvent(event).catch(() => {
+  private readonly onToDeviceEvent = (
+    event: IAppserviceToDeviceEvent<unknown>,
+  ): void => {
+    void this.handleToDeviceEvent(event).catch(() => {
       // A failed response must not break the appservice event emitter.
       log.error("Failed to send a Hookshot to-device response");
     });
@@ -93,7 +94,7 @@ export class HookshotToDeviceReceiver {
     }
 
     this.started = true;
-    this.appservice.on("ephemeral.event", this.onEphemeralEvent);
+    this.appservice.on("to-device", this.onToDeviceEvent);
   }
 
   public stop(): void {
@@ -102,16 +103,14 @@ export class HookshotToDeviceReceiver {
     }
 
     this.started = false;
-    this.appservice.off("ephemeral.event", this.onEphemeralEvent);
+    this.appservice.off("to-device", this.onToDeviceEvent);
     this.deduplication.clear();
   }
 
   /** Exposed for deterministic unit tests; production delivery uses start(). */
-  public async handleEphemeralEvent(event: unknown): Promise<void> {
-    if (!isToDeviceEvent(event)) {
-      return;
-    }
-
+  public async handleToDeviceEvent(
+    event: IAppserviceToDeviceEvent<unknown>,
+  ): Promise<void> {
     log.debug(
       "Received to-device event type=" +
         String(event.type) +

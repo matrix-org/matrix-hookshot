@@ -5,7 +5,7 @@ import {
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../../OpenProjectSchema";
+} from "../../schema/OpenProjectSchema";
 import { AnchorView } from "./AnchorView";
 import {
   completeWorkPackage,

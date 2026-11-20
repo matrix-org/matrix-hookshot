@@ -14,7 +14,12 @@ import {
   OpenProjectConnection,
   type OpenProjectEventsNames,
 } from "../../src/Connections/OpenProjectConnection";
-import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
+import type {
+  InstantiateConnectionOpts,
+  ProvisionConnectionOpts,
+} from "../../src/Connections/IConnection";
+import { SetupConnection } from "../../src/Connections/SetupConnection";
+import { CommandError } from "../../src/Errors";
 import type { IConnection } from "../../src/Connections/IConnection";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { ConnectionManager } from "../../src/ConnectionManager";
@@ -200,6 +205,141 @@ describe("OpenProjectConnection", () => {
       }),
     );
   });
+  it("rejects provisioning without a selected bot instead of using the requesting bot", async () => {
+    const appservice = AppserviceMock.create();
+    const requestedIntent = appservice.botIntent;
+    const sendStateEvent = vi.spyOn(
+      requestedIntent.underlyingClient,
+      "sendStateEvent",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+
+    await expect(
+      OpenProjectConnection.provisionConnection(
+        ROOM_ID,
+        USER_ID,
+        { url: PROJECT_URL },
+        {
+          as: appservice,
+          intent: requestedIntent,
+          config,
+          tokenStore: {} as UserTokenStore,
+          storage: {} as InstantiateConnectionOpts["storage"],
+        } as ProvisionConnectionOpts,
+      ),
+    ).rejects.toMatchObject({ errcode: ErrCode.NotInRoom });
+    expect(sendStateEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not add a connection when the selected bot is absent from the room", async () => {
+    const appservice = AppserviceMock.create();
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+    const pushConnections = vi.fn();
+    const setup = new SetupConnection(
+      ROOM_ID,
+      "!hookshot",
+      ["openproject"],
+      ["openproject"],
+      {
+        as: appservice,
+        intent: appservice.botIntent,
+        config,
+        getIntegrationBotForService: () => ({
+          userId: selectedIntent.userId,
+          intent: selectedIntent,
+        }),
+        isBotUserInRoom: () => false,
+      } as unknown as ProvisionConnectionOpts,
+      async () => {
+        throw new Error("Unexpected admin room request");
+      },
+      pushConnections,
+    );
+
+    await expect(
+      setup.onOpenProjectAdd(USER_ID, PROJECT_URL),
+    ).rejects.toMatchObject({
+      message: "Selected OpenProject bot is not joined to the room",
+      humanError: `Invite ${selectedIntent.userId} to this room and try again.`,
+    } satisfies Partial<CommandError>);
+    expect(pushConnections).not.toHaveBeenCalled();
+  });
+
+  it("checks OpenProject state permissions for the selected bot", async () => {
+    const appservice = AppserviceMock.create();
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+      checkPermission: () => true,
+    } as unknown as BridgeConfig;
+    const userHasPowerLevelFor = vi.fn().mockResolvedValue(true);
+    Object.assign(appservice.botIntent.underlyingClient, {
+      userHasPowerLevelFor,
+      sendHtmlNotice: vi.fn().mockResolvedValue(undefined),
+    });
+    const provision = vi
+      .spyOn(OpenProjectConnection, "provisionConnection")
+      .mockResolvedValue({ connection: createConnectionState() });
+    const setup = new SetupConnection(
+      ROOM_ID,
+      "!hookshot",
+      ["openproject"],
+      ["openproject"],
+      {
+        as: appservice,
+        intent: appservice.botIntent,
+        config,
+        getIntegrationBotForService: () => ({
+          userId: selectedIntent.userId,
+          intent: selectedIntent,
+        }),
+        isBotUserInRoom: () => true,
+      } as unknown as ProvisionConnectionOpts,
+      async () => {
+        throw new Error("Unexpected admin room request");
+      },
+      vi.fn(),
+    );
+
+    try {
+      await setup.onOpenProjectAdd(USER_ID, PROJECT_URL);
+      expect(userHasPowerLevelFor).toHaveBeenCalledWith(
+        selectedIntent.userId,
+        ROOM_ID,
+        OpenProjectConnection.CanonicalEventType,
+        true,
+      );
+      expect(provision).toHaveBeenCalledWith(
+        ROOM_ID,
+        USER_ID,
+        { url: `${BASE_URL.href.replace("https:", "http:")}projects/1` },
+        expect.objectContaining({ intent: selectedIntent }),
+      );
+    } finally {
+      provision.mockRestore();
+    }
+  });
 
   it("shows project-specific and reply-based help forms with the right prefixes", () => {
     const help = OpenProjectConnection.helpMessage(
@@ -239,7 +379,7 @@ describe("OpenProjectConnection", () => {
     );
   });
 
-  it("removes a timeline anchor when invoked with a global prefix in a reply", async () => {
+  it("uses the connection bot to resolve a timeline reply", async () => {
     const connection = createConnectionState({
       commandPrefix: "!openproject demo-project",
     });
@@ -255,7 +395,11 @@ describe("OpenProjectConnection", () => {
       type: "m.room.message",
     });
     const getEvent = vi.fn().mockResolvedValue(reply);
-    connection["as"].botClient.getEvent = getEvent;
+    connection["intent"].underlyingClient.getEvent = getEvent;
+    const defaultBotGetEvent = vi
+      .fn()
+      .mockRejectedValue(new Error("Default bot is not joined"));
+    connection["as"].botClient.getEvent = defaultBotGetEvent;
     const removeTimelineWorkPackage = vi
       .spyOn(connection["timelineCommandService"], "removeTimelineWorkPackage")
       .mockResolvedValue(undefined);
@@ -276,6 +420,7 @@ describe("OpenProjectConnection", () => {
       true,
     );
     expect(getEvent).toHaveBeenCalledWith(ROOM_ID, "$anchor");
+    expect(defaultBotGetEvent).not.toHaveBeenCalled();
     expect(removeTimelineWorkPackage).toHaveBeenCalledWith(
       String(WORK_PACKAGE.id),
     );
@@ -301,8 +446,8 @@ describe("OpenProjectConnection", () => {
       type: "m.room.message",
     });
     const getEvent = vi.fn().mockResolvedValue(reply);
-    otherConnection["as"].botClient.getEvent = getEvent;
-    connection["as"].botClient.getEvent = getEvent;
+    otherConnection["intent"].underlyingClient.getEvent = getEvent;
+    connection["intent"].underlyingClient.getEvent = getEvent;
     const closeWorkPackage = vi
       .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
       .mockResolvedValue(undefined);
@@ -342,7 +487,7 @@ describe("OpenProjectConnection", () => {
     );
   });
 
-  it("dispatches a reply through the matching room project", async () => {
+  it("routes a reply using the project bot when the default bot is absent", async () => {
     const otherConnection = createConnectionState({
       url: `${BASE_URL}projects/2`,
       commandPrefix: "!op other-project",
@@ -381,8 +526,13 @@ describe("OpenProjectConnection", () => {
       type: "m.room.message",
     });
     const getEvent = vi.fn().mockResolvedValue(reply);
-    connection["as"].botClient.getEvent = getEvent;
-    otherConnection["as"].botClient.getEvent = getEvent;
+    connection["intent"].underlyingClient.getEvent = getEvent;
+    otherConnection["intent"].underlyingClient.getEvent = getEvent;
+    const defaultBotGetEvent = vi
+      .fn()
+      .mockRejectedValue(new Error("Default bot is not joined"));
+    connection["as"].botClient.getEvent = defaultBotGetEvent;
+    otherConnection["as"].botClient.getEvent = defaultBotGetEvent;
     const closeWorkPackage = vi
       .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
       .mockResolvedValue(undefined);
@@ -406,6 +556,7 @@ describe("OpenProjectConnection", () => {
     ]);
     expect(await handlers[0].handle(() => true)).toBe(true);
     expect(getEvent).toHaveBeenCalledOnce();
+    expect(defaultBotGetEvent).not.toHaveBeenCalled();
     expect(closeWorkPackage).toHaveBeenCalledWith(
       "@alice:example.test",
       expect.objectContaining({ content: reply.content }),
@@ -446,8 +597,8 @@ describe("OpenProjectConnection", () => {
         type: "m.room.message",
       });
       const getEvent = vi.fn().mockResolvedValue(reply);
-      bareConnection["as"].botClient.getEvent = getEvent;
-      projectConnection["as"].botClient.getEvent = getEvent;
+      bareConnection["intent"].underlyingClient.getEvent = getEvent;
+      projectConnection["intent"].underlyingClient.getEvent = getEvent;
       const bareClose = vi.spyOn(
         bareConnection["workPackageCommandService"],
         "closeWorkPackage",
@@ -506,7 +657,9 @@ describe("OpenProjectConnection", () => {
       connection["workPackageCommandService"],
       "closeWorkPackage",
     );
-    connection["as"].botClient.getEvent = vi.fn().mockResolvedValue(reply);
+    connection["intent"].underlyingClient.getEvent = vi
+      .fn()
+      .mockResolvedValue(reply);
     const event = {
       content: {
         body: "!op close 42",
@@ -760,7 +913,7 @@ describe("OpenProjectConnection", () => {
         content: activityContent,
       });
       const getEvent = vi.fn().mockResolvedValue(activity);
-      connection["as"].botClient.getEvent = getEvent;
+      connection["intent"].underlyingClient.getEvent = getEvent;
       const otherConnection = createConnectionState(
         {
           url: `${BASE_URL}projects/2`,
@@ -770,7 +923,7 @@ describe("OpenProjectConnection", () => {
         undefined,
         tokenStore,
       );
-      otherConnection["as"].botClient.getEvent = getEvent;
+      otherConnection["intent"].underlyingClient.getEvent = getEvent;
       const event = {
         content: {
           body: "!openproject assign",
@@ -832,7 +985,7 @@ describe("OpenProjectConnection", () => {
         },
       });
       const getEvent = vi.fn().mockResolvedValue(anchor);
-      connection["as"].botClient.getEvent = getEvent;
+      connection["intent"].underlyingClient.getEvent = getEvent;
       const event = {
         content: {
           body: "!openproject assign",
@@ -856,7 +1009,7 @@ describe("OpenProjectConnection", () => {
         undefined,
         tokenStore,
       );
-      otherConnection["as"].botClient.getEvent = getEvent;
+      otherConnection["intent"].underlyingClient.getEvent = getEvent;
       expect(await otherConnection.onMessageEvent(event, () => true)).toBe(
         false,
       );
@@ -1589,6 +1742,8 @@ describe("OpenProjectConnection", () => {
         messageClient: undefined as never,
         storage: {} as InstantiateConnectionOpts["storage"],
         getAllConnectionsOfType: () => [],
+        getIntegrationBotForService: () => ({ userId: intent.userId, intent }),
+        isBotUserInRoom: () => true,
       },
     );
 

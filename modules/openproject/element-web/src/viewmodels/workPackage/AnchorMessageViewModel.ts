@@ -9,8 +9,8 @@ import {
   type OpenProjectCapabilityClient,
   isOpenProjectProbeResponse,
   type OpenProjectProbeResponse,
-} from "../../OpenProjectCapabilityClient";
-import type { MatrixSessionIdentity } from "../../HookshotToDeviceClient";
+} from "../../capabilities/OpenProjectCapabilityClient";
+import type { ProfileIdentity } from "../../capabilities/OpenProjectProfile";
 import type { OpenProjectContent } from "../../models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot, type DetailsSnapshot } from "./DetailsSnapshot";
 
@@ -86,7 +86,7 @@ export class AnchorMessageViewModel
   implements AnchorViewModel
 {
   private probeAttempt = 0;
-  private probeSessionIdentity: MatrixSessionIdentity | undefined;
+  private probeSessionIdentity: ProfileIdentity | undefined;
 
   public constructor(props: AnchorMessageViewModelProps) {
     super(props, createAnchorViewSnapshot(props.data, props.capabilityClient));
@@ -111,7 +111,7 @@ export class AnchorMessageViewModel
 
     this.snapshot.merge({ probe: { kind: "loading" } });
     this.probeSessionIdentity = undefined;
-    void this.probe();
+    void this.probe(true);
   };
 
   public prepareAction = (action: OpenProjectCapabilityAction): void => {
@@ -153,7 +153,7 @@ export class AnchorMessageViewModel
     this.props.onActionCommand?.(action.command);
   };
 
-  private async probe(): Promise<void> {
+  private async probe(force = false): Promise<void> {
     if (
       this.getSnapshot()?.anchor.state !== "active" ||
       !this.props.capabilityClient ||
@@ -164,7 +164,7 @@ export class AnchorMessageViewModel
 
     const anchor = this.props.anchor;
     const attempt = ++this.probeAttempt;
-    let sessionIdentity: MatrixSessionIdentity;
+    let sessionIdentity: ProfileIdentity;
     try {
       sessionIdentity = this.props.capabilityClient.getSessionIdentity();
     } catch {
@@ -174,7 +174,9 @@ export class AnchorMessageViewModel
     this.probeSessionIdentity = undefined;
 
     try {
-      const response = await this.props.capabilityClient.probe(anchor);
+      const response = await this.props.capabilityClient.probe(anchor, {
+        force,
+      });
       if (this.isCurrentAttempt(attempt)) {
         if (!isOpenProjectProbeResponse(response, anchor.workPackageId)) {
           this.snapshot.merge({ probe: { kind: "unavailable" } });

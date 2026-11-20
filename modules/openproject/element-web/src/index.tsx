@@ -7,17 +7,16 @@ import type {
   Module,
   ModuleFactory,
 } from "@element-hq/element-web-module-api";
-import { HookshotToDeviceClient } from "./HookshotToDeviceClient";
 import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
   isOpenProjectActivityContent,
+  isOpenProjectContent,
   isOpenProjectAnchorContent,
   isOpenProjectCommandContent,
   OpenProjectCapabilityClient,
-  isOpenProjectContent,
   isOpenProjectCommandRequest,
-} from "./OpenProjectCapabilityClient";
+} from "./capabilities/OpenProjectCapabilityClient";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "./OpenProjectActivityRenderer";
 
@@ -30,7 +29,7 @@ function getElementConfig(api: Api): unknown {
 }
 
 class HookshotOpenProjectModule implements Module {
-  public static readonly moduleApiVersion = "^2.0.0";
+  public static readonly moduleApiVersion = "^2.6.0";
 
   private readonly capabilityBotUserId: string | undefined;
   private readonly capabilityClient: OpenProjectCapabilityClient | undefined;
@@ -40,7 +39,7 @@ class HookshotOpenProjectModule implements Module {
       getElementConfig(api),
     );
     this.capabilityClient = this.capabilityBotUserId
-      ? new OpenProjectCapabilityClient(new HookshotToDeviceClient())
+      ? new OpenProjectCapabilityClient(api.client.toDevice, api.profile)
       : undefined;
   }
 

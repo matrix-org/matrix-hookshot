@@ -11,6 +11,7 @@ import {
 } from "@testing-library/react";
 import { TooltipProvider } from "@vector-im/compound-web";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
 import { AnchorView } from "../src/components/workPackage/AnchorView";
@@ -18,13 +19,14 @@ import type {
   OpenProjectAnchor,
   OpenProjectCapabilityAction,
   OpenProjectProbeResponse,
-} from "../src/OpenProjectCapabilityClient";
+} from "../src/capabilities/OpenProjectCapabilityClient";
+import { OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE } from "../src/capabilities/OpenProjectCapabilityClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../src/OpenProjectSchema";
+} from "../src/schema/OpenProjectSchema";
 import { AnchorMessageViewModel } from "../src/viewmodels/workPackage/AnchorMessageViewModel";
 import type { OpenProjectAnchorContent } from "../src/models/OpenProjectMatrixEventContent";
 import {
@@ -34,6 +36,7 @@ import {
   inactiveReplacement,
 } from "./fixtures/OpenProjectContractFixtures";
 import { OPENPROJECT_WORK_PACKAGE_CREATED_EVENT } from "./fixtures/OpenProjectEventFixtures";
+import { MockProfile, MockToDeviceApi } from "./helpers/MockToDeviceApi";
 
 const botUserId = "@hookshot_openproject:example.org";
 
@@ -109,6 +112,8 @@ function createModuleRegistration() {
   const registerMessageRenderer = vi.fn();
   const insertPlaintextIntoComposer = vi.fn();
   const sendComposerMessage = vi.fn();
+  const toDevice = new MockToDeviceApi();
+  const profile = new MockProfile();
   const api = {
     config: {
       get: () => ({
@@ -118,6 +123,8 @@ function createModuleRegistration() {
       }),
     },
     composer: { insertPlaintextIntoComposer, sendComposerMessage },
+    client: { toDevice },
+    profile,
     customComponents: { registerMessageRenderer },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
@@ -125,13 +132,16 @@ function createModuleRegistration() {
     registerMessageRenderer,
     insertPlaintextIntoComposer,
     sendComposerMessage,
+    toDevice,
+    profile,
     load: () => new HookshotOpenProjectModule(api).load(),
   };
 }
 
 describe("OpenProject marked anchor path", () => {
-  it("routes a configured, sender-matched anchor through the probe card", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
+  it("renders a marked anchor and sends its probe through the Module API", async () => {
+    const { registerMessageRenderer, toDevice, load } =
+      createModuleRegistration();
     await load();
     const [, render] = registerMessageRenderer.mock.calls[0];
 
@@ -140,6 +150,37 @@ describe("OpenProject marked anchor path", () => {
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     expect(rendered.props.capabilityClient).toBeDefined();
     expect(rendered.props.onActionCommand).toEqual(expect.any(Function));
+    const markup = renderToStaticMarkup(rendered);
+
+    expect(markup).toContain("Demo project · #50");
+    expect(markup).toContain("This is a task");
+    expect(markup).toContain("Checking OpenProject connection...");
+    expect(toDevice.calls.slice(0, 2)).toEqual(["subscribe", "send"]);
+    expect(toDevice.sentMessages).toHaveLength(1);
+    expect(toDevice.sentMessages[0]).toMatchObject({
+      recipientUserId: botUserId,
+      recipientDeviceId: "*",
+      type: "org.matrix.matrix-hookshot.capabilities.probe",
+      content: {
+        v: 1,
+        request_id: expect.any(String),
+        requesting_device_id: "ALICE_DEVICE",
+        integration_id: "openproject",
+        room_id: "!openproject:example.org",
+        anchor_event_id: "$openproject-anchor-50:example.org",
+      },
+    });
+    const requestId = toDevice.sentMessages[0].content.request_id as string;
+    toDevice.deliver(OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
+      type: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      sender: botUserId,
+      content: {
+        v: 1,
+        request_id: requestId,
+        integration_id: "openproject",
+        result: "ok",
+      },
+    });
   });
 
   it("inserts the exact action command into the room composer without sending", async () => {
@@ -195,9 +236,52 @@ describe("OpenProject marked anchor path", () => {
     });
     expect(sendComposerMessage).not.toHaveBeenCalled();
   });
+  it("renders the probe result and an unavailable state with retry", async () => {
+    const { registerMessageRenderer, toDevice, load } =
+      createModuleRegistration();
+    await load();
+    const [, render] = registerMessageRenderer.mock.calls[0];
+    const rendered = render({ mxEvent: createMarkedAnchorEvent() });
+    toDevice.failOnSendCall(2, new Error("Timed out"));
+    const vm = new AnchorMessageViewModel(rendered.props);
+    const markup = () =>
+      renderToStaticMarkup(
+        React.createElement(
+          TooltipProvider,
+          undefined,
+          React.createElement(AnchorView, { vm }),
+        ),
+      );
+
+    expect(markup()).toContain("Checking OpenProject connection...");
+    const requestId = toDevice.sentMessages[0].content.request_id as string;
+    toDevice.deliver(OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
+      type: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      sender: botUserId,
+      content: {
+        v: 1,
+        request_id: requestId,
+        integration_id: "openproject",
+        result: "ok",
+      },
+    });
+    await vi.waitFor(() => {
+      expect(markup()).toContain("OpenProject connection verified.");
+    });
+
+    vm.retry();
+    await vi.waitFor(() => {
+      expect(markup()).toContain(
+        "OpenProject connection unavailable. Click to retry.",
+      );
+    });
+    expect(toDevice.sendMessage).toHaveBeenCalledTimes(2);
+    vm.dispose();
+  });
 
   it("does not probe a marked card from another sender", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
+    const { registerMessageRenderer, toDevice, load } =
+      createModuleRegistration();
     await load();
     const [, render] = registerMessageRenderer.mock.calls[0];
 
@@ -207,6 +291,8 @@ describe("OpenProject marked anchor path", () => {
 
     expect(rendered.type).toBe(OpenProjectAnchorRenderer);
     expect(rendered.props.capabilityClient).toBeUndefined();
+    renderToStaticMarkup(rendered);
+    expect(toDevice.sendMessage).not.toHaveBeenCalled();
     expect(rendered.props.anchor.eventId).toBe(
       "$openproject-anchor-50:example.org",
     );
@@ -473,6 +559,7 @@ describe("OpenProject marked anchor path", () => {
             "org.matrix.matrix-hookshot.openproject.snapshot_id"
           ],
       }),
+      { force: false },
     );
     expect(probe).toHaveBeenNthCalledWith(
       2,
@@ -483,6 +570,7 @@ describe("OpenProject marked anchor path", () => {
             "org.matrix.matrix-hookshot.openproject.snapshot_id"
           ],
       }),
+      { force: false },
     );
 
     await act(async () => {

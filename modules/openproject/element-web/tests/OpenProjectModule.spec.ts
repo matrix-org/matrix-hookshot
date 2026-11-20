@@ -6,10 +6,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "../src/OpenProjectActivityRenderer";
+import { MockProfile, MockToDeviceApi } from "./helpers/MockToDeviceApi";
 import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_ACTIVITY_EVENT_KIND,
-} from "../src/OpenProjectSchema";
+} from "../src/schema/OpenProjectSchema";
 import {
   anchorEventId,
   inactiveReplacement,
@@ -88,6 +89,8 @@ function createModuleRegistration(configureOpenProjectBot = false) {
           : undefined,
     },
     customComponents: { registerMessageRenderer },
+    client: { toDevice: new MockToDeviceApi() },
+    profile: new MockProfile(),
     navigation: { toMatrixToLink },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
@@ -99,8 +102,8 @@ function createModuleRegistration(configureOpenProjectBot = false) {
 }
 
 describe("OpenProject Element Web module", () => {
-  it("advertises compatibility with Element Web module API v2 only", () => {
-    expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.0.0");
+  it("requires Element Web module API 2.6.0 or newer in the v2 line", () => {
+    expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.6.0");
   });
 
   it("registers separate anchor and update renderers with their hints", async () => {

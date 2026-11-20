@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Button } from "@vector-im/compound-web";
 import PopOutIcon from "@vector-im/compound-design-tokens/assets/web/icons/pop-out";
-import type { OpenProjectCapabilityAction } from "../../OpenProjectCapabilityClient";
+import type { OpenProjectCapabilityAction } from "../../capabilities/OpenProjectCapabilityClient";
 import { safeUrl } from "../../utils/validation";
 import styles from "./WorkPackage.module.css";
 
