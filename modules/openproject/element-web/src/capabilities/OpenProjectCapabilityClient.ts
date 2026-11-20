@@ -107,18 +107,26 @@ function isOpenProjectCommandEventType(value: unknown): boolean {
   return service === OPENPROJECT_INTEGRATION_ID;
 }
 
-export function isOpenProjectCommandContent(value: unknown): boolean {
+export function isOpenProjectCommandContent(
+  value: unknown,
+  commandIndicators: readonly string[] = ["!openproject "],
+): boolean {
   return (
-    isOpenProjectCommandRequest(value) || isOpenProjectCommandEventType(value)
+    isOpenProjectCommandRequest(value, commandIndicators) ||
+    isOpenProjectCommandEventType(value)
   );
 }
 
-export function isOpenProjectCommandRequest(value: unknown): boolean {
+export function isOpenProjectCommandRequest(
+  value: unknown,
+  commandIndicators: readonly string[] = ["!openproject "],
+): boolean {
   if (!isRecord(value) || typeof value.body !== "string") {
     return false;
   }
 
-  return value.body.startsWith("!openproject ");
+  const body = value.body;
+  return commandIndicators.some((indicator) => body.startsWith(indicator));
 }
 
 export function isOpenProjectContent(

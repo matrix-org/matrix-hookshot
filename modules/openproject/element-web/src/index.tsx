@@ -6,6 +6,9 @@ import type {
   CustomMessageRenderHints,
   Module,
   ModuleFactory,
+  Room,
+  RoomStateEvent,
+  Watchable,
 } from "@element-hq/element-web-module-api";
 import {
   getOpenProjectCapabilityBot,
@@ -19,6 +22,15 @@ import {
 } from "./capabilities/OpenProjectCapabilityClient";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "./OpenProjectActivityRenderer";
+import {
+  getOpenProjectCommandIndicators,
+  OPENPROJECT_CONNECTION_EVENT_TYPE,
+} from "./OpenProjectRoomState";
+
+interface TrackedRoomState {
+  watchable: Watchable<RoomStateEvent[]>;
+  listener: (value: RoomStateEvent[]) => void;
+}
 
 function getElementConfig(api: Api): unknown {
   try {
@@ -33,6 +45,8 @@ class HookshotOpenProjectModule implements Module {
 
   private readonly capabilityBotUserId: string | undefined;
   private readonly capabilityClient: OpenProjectCapabilityClient | undefined;
+  private readonly roomStates = new Map<string, TrackedRoomState>();
+  private currentRoomIds = new Set<string>();
 
   public constructor(private readonly api: Api) {
     this.capabilityBotUserId = getOpenProjectCapabilityBot(
@@ -44,14 +58,21 @@ class HookshotOpenProjectModule implements Module {
   }
 
   public async load(): Promise<void> {
-    function shouldRenderAnchor(
+    void this.initializeRoomTracking().catch((error: unknown) => {
+      console.error("Failed to initialize OpenProject room tracking", error);
+    });
+
+    const shouldRenderAnchor = (
       mxEvent: CustomMessageComponentProps["mxEvent"],
-    ): boolean {
+    ): boolean => {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      return isOpenProjectAnchorContent(mxEvent.content);
-    }
+      const indicators = this.getCommandIndicators(mxEvent.roomId);
+      return (
+        indicators.length > 0 && isOpenProjectAnchorContent(mxEvent.content)
+      );
+    };
 
     const anchorHints: CustomMessageRenderHints = {
       allowEditingEvent: false,
@@ -103,14 +124,17 @@ class HookshotOpenProjectModule implements Module {
       anchorHints,
     );
 
-    function shouldRenderActivity(
+    const shouldRenderActivity = (
       mxEvent: CustomMessageComponentProps["mxEvent"],
-    ): boolean {
+    ): boolean => {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      return isOpenProjectActivityContent(mxEvent.content);
-    }
+      const indicators = this.getCommandIndicators(mxEvent.roomId);
+      return (
+        indicators.length > 0 && isOpenProjectActivityContent(mxEvent.content)
+      );
+    };
 
     const activityHints: CustomMessageRenderHints = {
       allowEditingEvent: false,
@@ -168,14 +192,18 @@ class HookshotOpenProjectModule implements Module {
       activityHints,
     );
 
-    function shouldRenderOpenProjectCommand(
+    const shouldRenderOpenProjectCommand = (
       mxEvent: CustomMessageComponentProps["mxEvent"],
-    ): boolean {
+    ): boolean => {
       if (mxEvent.type !== "m.room.message") {
         return false;
       }
-      return isOpenProjectCommandContent(mxEvent.content);
-    }
+      const indicators = this.getCommandIndicators(mxEvent.roomId);
+      return (
+        indicators.length > 0 &&
+        isOpenProjectCommandContent(mxEvent.content, indicators)
+      );
+    };
 
     this.api.customComponents.registerMessageRenderer(
       shouldRenderOpenProjectCommand,
@@ -187,7 +215,10 @@ class HookshotOpenProjectModule implements Module {
           getKey: () => "OpenProjectCommand",
           getSummary: (events) => {
             const commandCount = events.filter((event) =>
-              isOpenProjectCommandRequest(event.content),
+              isOpenProjectCommandRequest(
+                event.content,
+                this.getCommandIndicators(event.roomId),
+              ),
             ).length;
             return `${commandCount} OpenProject commands`;
           },
@@ -195,6 +226,42 @@ class HookshotOpenProjectModule implements Module {
       },
     );
   }
+
+  private async initializeRoomTracking(): Promise<void> {
+    const roomListStore = this.api.stores.roomListStore;
+    await roomListStore.waitForReady();
+    const rooms = roomListStore.getRooms();
+    rooms.watch(this.onRoomsChanged);
+    this.onRoomsChanged(rooms.value);
+  }
+
+  private getCommandIndicators(roomId: string): string[] {
+    if (!this.currentRoomIds.has(roomId)) return [];
+
+    let tracked = this.roomStates.get(roomId);
+    if (!tracked) {
+      const room = this.api.client.getRoom(roomId);
+      if (!room) return [];
+
+      const watchable = room.getStateEvents(OPENPROJECT_CONNECTION_EVENT_TYPE);
+      const listener = (): void => {};
+      tracked = { watchable, listener };
+      this.roomStates.set(roomId, tracked);
+      watchable.watch(listener);
+    }
+
+    return getOpenProjectCommandIndicators(tracked.watchable.value);
+  }
+
+  private onRoomsChanged = (rooms: Room[]): void => {
+    const currentRoomIds = new Set(rooms.map((room) => room.id));
+    this.currentRoomIds = currentRoomIds;
+    for (const [roomId, tracked] of this.roomStates) {
+      if (currentRoomIds.has(roomId)) continue;
+      tracked.watchable.unwatch(tracked.listener);
+      this.roomStates.delete(roomId);
+    }
+  };
 }
 
 export default HookshotOpenProjectModule satisfies ModuleFactory;
