@@ -20,3 +20,4 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@matrix-org/matrix-sdk-crypto-nodejs'
   - '@vector-im/matrix-bot-sdk'
+  - '@element-hq/element-web-module-api'

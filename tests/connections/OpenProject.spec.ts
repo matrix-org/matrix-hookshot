@@ -8,7 +8,12 @@ import {
   OpenProjectConnection,
   type OpenProjectEventsNames,
 } from "../../src/Connections/OpenProjectConnection";
-import type { InstantiateConnectionOpts } from "../../src/Connections/IConnection";
+import type {
+  InstantiateConnectionOpts,
+  ProvisionConnectionOpts,
+} from "../../src/Connections/IConnection";
+import { SetupConnection } from "../../src/Connections/SetupConnection";
+import { CommandError } from "../../src/Errors";
 import type { UserTokenStore } from "../../src/tokens/UserTokenStore";
 import { AppserviceMock } from "../utils/AppserviceMock";
 import { BASE_URL, WORK_PACKAGE } from "../openproject/WorkPackageFixtures";
@@ -85,6 +90,300 @@ function expectBadValue(state: Record<string, unknown>): void {
 }
 
 describe("OpenProjectConnection", () => {
+  it.each(["http", "https"])(
+    "uses the same %s OpenProject state key for add and remove",
+    async (scheme) => {
+      const appservice = AppserviceMock.create();
+      const baseUrl = `${scheme}://openproject.example/`;
+      const projectUrl = `${baseUrl}projects/1`;
+      const inputUrl = `${projectUrl}/work_packages/42`;
+      const config = {
+        openProject: new BridgeOpenProjectConfig({
+          baseUrl,
+          webhook: { secret: "secret" },
+        }),
+        messaging: new BridgeConfigMessaging(),
+        checkPermission: () => true,
+      } as unknown as BridgeConfig;
+      const client = appservice.botIntent.underlyingClient;
+      const getRoomStateEvent = vi.fn().mockResolvedValue({ url: projectUrl });
+      const sendStateEvent = vi.fn().mockResolvedValue("$removed");
+      Object.assign(client, {
+        userHasPowerLevelFor: vi.fn().mockResolvedValue(true),
+        getRoomStateEvent,
+        sendStateEvent,
+        sendHtmlNotice: vi.fn().mockResolvedValue(undefined),
+      });
+      const provision = vi
+        .spyOn(OpenProjectConnection, "provisionConnection")
+        .mockResolvedValue({ connection: createConnectionState() });
+      const setup = new SetupConnection(
+        ROOM_ID,
+        "!hookshot",
+        ["openproject"],
+        ["openproject"],
+        {
+          as: appservice,
+          intent: appservice.botIntent,
+          config,
+          getIntegrationBotForService: () => ({
+            userId: appservice.botIntent.userId,
+            intent: appservice.botIntent,
+          }),
+          isBotUserInRoom: () => true,
+        } as unknown as ProvisionConnectionOpts,
+        async () => {
+          throw new Error("Unexpected admin room request");
+        },
+        vi.fn(),
+      );
+
+      try {
+        await setup.onOpenProjectAdd(USER_ID, inputUrl);
+        await setup.onOpenProjectRemove(USER_ID, inputUrl);
+
+        expect(provision).toHaveBeenCalledWith(
+          ROOM_ID,
+          USER_ID,
+          { url: projectUrl },
+          expect.anything(),
+        );
+        expect(getRoomStateEvent).toHaveBeenCalledWith(
+          ROOM_ID,
+          OpenProjectConnection.CanonicalEventType,
+          projectUrl,
+        );
+        expect(sendStateEvent).toHaveBeenCalledWith(
+          ROOM_ID,
+          OpenProjectConnection.CanonicalEventType,
+          projectUrl,
+          {},
+        );
+      } finally {
+        provision.mockRestore();
+      }
+    },
+  );
+
+  it("rejects provisioning without a selected bot instead of using the requesting bot", async () => {
+    const appservice = AppserviceMock.create();
+    const requestedIntent = appservice.botIntent;
+    const sendStateEvent = vi.spyOn(
+      requestedIntent.underlyingClient,
+      "sendStateEvent",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+
+    await expect(
+      OpenProjectConnection.provisionConnection(
+        ROOM_ID,
+        USER_ID,
+        { url: PROJECT_URL },
+        {
+          as: appservice,
+          intent: requestedIntent,
+          config,
+          tokenStore: {} as UserTokenStore,
+          storage: {} as InstantiateConnectionOpts["storage"],
+        } as ProvisionConnectionOpts,
+      ),
+    ).rejects.toMatchObject({ errcode: ErrCode.NotInRoom });
+    expect(sendStateEvent).not.toHaveBeenCalled();
+  });
+
+  it("does not add a connection when the selected bot is absent from the room", async () => {
+    const appservice = AppserviceMock.create();
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+    const pushConnections = vi.fn();
+    const setup = new SetupConnection(
+      ROOM_ID,
+      "!hookshot",
+      ["openproject"],
+      ["openproject"],
+      {
+        as: appservice,
+        intent: appservice.botIntent,
+        config,
+        getIntegrationBotForService: () => ({
+          userId: selectedIntent.userId,
+          intent: selectedIntent,
+        }),
+        isBotUserInRoom: () => false,
+      } as unknown as ProvisionConnectionOpts,
+      async () => {
+        throw new Error("Unexpected admin room request");
+      },
+      pushConnections,
+    );
+
+    await expect(
+      setup.onOpenProjectAdd(USER_ID, PROJECT_URL),
+    ).rejects.toMatchObject({
+      message: "Selected OpenProject bot is not joined to the room",
+      humanError: `Invite ${selectedIntent.userId} to this room and try again.`,
+    } satisfies Partial<CommandError>);
+    expect(pushConnections).not.toHaveBeenCalled();
+  });
+
+  it("checks OpenProject state permissions for the selected bot", async () => {
+    const appservice = AppserviceMock.create();
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+      checkPermission: () => true,
+    } as unknown as BridgeConfig;
+    const userHasPowerLevelFor = vi.fn().mockResolvedValue(true);
+    Object.assign(appservice.botIntent.underlyingClient, {
+      userHasPowerLevelFor,
+      sendHtmlNotice: vi.fn().mockResolvedValue(undefined),
+    });
+    const provision = vi
+      .spyOn(OpenProjectConnection, "provisionConnection")
+      .mockResolvedValue({ connection: createConnectionState() });
+    const setup = new SetupConnection(
+      ROOM_ID,
+      "!hookshot",
+      ["openproject"],
+      ["openproject"],
+      {
+        as: appservice,
+        intent: appservice.botIntent,
+        config,
+        getIntegrationBotForService: () => ({
+          userId: selectedIntent.userId,
+          intent: selectedIntent,
+        }),
+        isBotUserInRoom: () => true,
+      } as unknown as ProvisionConnectionOpts,
+      async () => {
+        throw new Error("Unexpected admin room request");
+      },
+      vi.fn(),
+    );
+
+    try {
+      await setup.onOpenProjectAdd(USER_ID, PROJECT_URL);
+      expect(userHasPowerLevelFor).toHaveBeenCalledWith(
+        selectedIntent.userId,
+        ROOM_ID,
+        OpenProjectConnection.CanonicalEventType,
+        true,
+      );
+      expect(provision).toHaveBeenCalledWith(
+        ROOM_ID,
+        USER_ID,
+        { url: PROJECT_URL },
+        expect.objectContaining({ intent: selectedIntent }),
+      );
+    } finally {
+      provision.mockRestore();
+    }
+  });
+
+  it("uses the deployment-selected bot when provisioning", async () => {
+    const appservice = AppserviceMock.create();
+    const requestedIntent = appservice.getIntentForUserId(
+      "@hookshot:example.test",
+    );
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+    const tokenStore = {
+      getOpenProjectForUser: async () => ({
+        getProject: async () => ({}),
+      }),
+    } as unknown as UserTokenStore;
+
+    const result = await OpenProjectConnection.provisionConnection(
+      ROOM_ID,
+      "@alice:example.test",
+      { url: PROJECT_URL },
+      {
+        as: appservice,
+        intent: requestedIntent,
+        config,
+        tokenStore,
+        commentProcessor: undefined as never,
+        messageClient: undefined as never,
+        storage: {} as InstantiateConnectionOpts["storage"],
+        getAllConnectionsOfType: () => [],
+        getIntegrationBotForService: () => ({
+          userId: selectedIntent.userId,
+          intent: selectedIntent,
+        }),
+        isBotUserInRoom: () => true,
+      },
+    );
+
+    expect(result.connection.botUserId).toBe(selectedIntent.userId);
+    expect(requestedIntent.sentEvents).toHaveLength(0);
+  });
+
+  it("rejects provisioning when the selected bot is not joined", async () => {
+    const appservice = AppserviceMock.create();
+    const selectedIntent = appservice.getIntentForUserId(
+      "@hookshot_openproject:example.test",
+    );
+    const config = {
+      openProject: new BridgeOpenProjectConfig({
+        baseUrl: BASE_URL.href,
+        webhook: { secret: "secret" },
+      }),
+      messaging: new BridgeConfigMessaging(),
+    } as unknown as BridgeConfig;
+
+    await expect(
+      OpenProjectConnection.provisionConnection(
+        ROOM_ID,
+        "@alice:example.test",
+        { url: PROJECT_URL },
+        {
+          as: appservice,
+          intent: selectedIntent,
+          config,
+          tokenStore: {} as UserTokenStore,
+          commentProcessor: undefined as never,
+          messageClient: undefined as never,
+          storage: {} as InstantiateConnectionOpts["storage"],
+          getAllConnectionsOfType: () => [],
+          getIntegrationBotForService: () => ({
+            userId: selectedIntent.userId,
+            intent: selectedIntent,
+          }),
+          isBotUserInRoom: () => false,
+        },
+      ),
+    ).rejects.toMatchObject({ errcode: ErrCode.NotInRoom });
+  });
+
   describe("state validation", () => {
     it("accepts a complete state config", () => {
       const connection = createConnectionState({
