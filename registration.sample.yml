@@ -24,5 +24,5 @@ sender_localpart: hookshot
 url: "http://localhost:9993" # This should match the bridge.port in your config file
 rate_limited: false
 
-receive_ephemeral: true # Receive ephemeral events including presence, typing, receipts, and to-device messages.
-io.element.msc4190: true # Allow Hookshot to provision its persistent capability receiver device.
+receive_ephemeral: true # Receive ephemeral events, including to-device messages for capability probes.
+io.element.msc4190: true # Allow the SDK to create a stable unkeyed device for each capability bot.

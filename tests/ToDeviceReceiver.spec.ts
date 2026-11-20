@@ -1,13 +1,15 @@
 import { EventEmitter } from "events";
-import { Appservice, Intent } from "matrix-bot-sdk";
+import {
+  Appservice,
+  type IAppserviceToDeviceEvent,
+  Intent,
+} from "matrix-bot-sdk";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
-  MATRIX_BOT_SDK_EDU_ANNOTATION,
-  MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION,
 } from "../src/ToDeviceProtocol";
 import { HookshotToDeviceReceiver } from "../src/ToDeviceReceiver";
 
@@ -39,16 +41,13 @@ class FakeAppservice extends EventEmitter {
 
 function makeEvent(
   content: unknown = validRequest,
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+  overrides: Partial<IAppserviceToDeviceEvent<unknown>> = {},
+): IAppserviceToDeviceEvent<unknown> {
   return {
     type: HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
     sender,
     to_user_id: botUserId,
     content,
-    unsigned: {
-      [MATRIX_BOT_SDK_EDU_ANNOTATION]: MATRIX_BOT_SDK_TO_DEVICE_ANNOTATION,
-    },
     ...overrides,
   };
 }
@@ -69,7 +68,7 @@ describe("Hookshot to-device receiver", () => {
     const appservice = new FakeAppservice();
     const receiver = createReceiver(appservice);
 
-    await receiver.handleEphemeralEvent(makeEvent());
+    await receiver.handleToDeviceEvent(makeEvent());
 
     expect(appservice.intentUserIds).toEqual([botUserId]);
     expect(appservice.sendToDevices).toHaveBeenCalledOnce();
@@ -88,18 +87,22 @@ describe("Hookshot to-device receiver", () => {
     );
   });
 
-  it("subscribes to and unsubscribes from ephemeral events", async () => {
+  it("subscribes only to appservice to-device events and unsubscribes", async () => {
     const appservice = new FakeAppservice();
     const receiver = createReceiver(appservice);
 
     receiver.start();
     appservice.emit("ephemeral.event", makeEvent());
+    await Promise.resolve();
+    expect(appservice.sendToDevices).not.toHaveBeenCalled();
+
+    appservice.emit("to-device", makeEvent());
     await vi.waitFor(() => expect(appservice.sendToDevices).toHaveBeenCalled());
 
     receiver.stop();
     appservice.sendToDevices.mockClear();
     appservice.emit(
-      "ephemeral.event",
+      "to-device",
       makeEvent({ ...validRequest, request_id: "request-456" }),
     );
     await Promise.resolve();
@@ -107,7 +110,6 @@ describe("Hookshot to-device receiver", () => {
   });
 
   it.each([
-    ["a room event", { unsigned: {} }],
     [
       "a response event",
       { type: HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE },
@@ -126,7 +128,7 @@ describe("Hookshot to-device receiver", () => {
     const appservice = new FakeAppservice();
     const receiver = createReceiver(appservice);
 
-    await receiver.handleEphemeralEvent(makeEvent(undefined, overrides));
+    await receiver.handleToDeviceEvent(makeEvent(undefined, overrides));
 
     expect(appservice.sendToDevices).not.toHaveBeenCalled();
   });
@@ -139,12 +141,12 @@ describe("Hookshot to-device receiver", () => {
       now: () => now,
     });
 
-    await receiver.handleEphemeralEvent(makeEvent());
-    await receiver.handleEphemeralEvent(makeEvent());
+    await receiver.handleToDeviceEvent(makeEvent());
+    await receiver.handleToDeviceEvent(makeEvent());
     expect(appservice.sendToDevices).toHaveBeenCalledOnce();
 
     now = 1100;
-    await receiver.handleEphemeralEvent(makeEvent());
+    await receiver.handleToDeviceEvent(makeEvent());
     expect(appservice.sendToDevices).toHaveBeenCalledTimes(2);
   });
 
@@ -154,11 +156,11 @@ describe("Hookshot to-device receiver", () => {
       maxDeduplicationEntries: 1,
     });
 
-    await receiver.handleEphemeralEvent(makeEvent(validRequest));
-    await receiver.handleEphemeralEvent(
+    await receiver.handleToDeviceEvent(makeEvent(validRequest));
+    await receiver.handleToDeviceEvent(
       makeEvent({ ...validRequest, request_id: "request-456" }),
     );
-    await receiver.handleEphemeralEvent(makeEvent(validRequest));
+    await receiver.handleToDeviceEvent(makeEvent(validRequest));
 
     expect(appservice.sendToDevices).toHaveBeenCalledTimes(3);
   });
