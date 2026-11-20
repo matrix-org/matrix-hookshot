@@ -6,7 +6,7 @@ import type {
   OpenProjectAnchor,
   OpenProjectCapabilityClient,
   OpenProjectProbeResult,
-} from "../../OpenProjectCapabilityClient";
+} from "../../capabilities/OpenProjectCapabilityClient";
 import type { OpenProjectAnchorContent } from "../../models/OpenProjectMatrixEventContent";
 import { createDetailsSnapshot, type DetailsSnapshot } from "./DetailsSnapshot";
 

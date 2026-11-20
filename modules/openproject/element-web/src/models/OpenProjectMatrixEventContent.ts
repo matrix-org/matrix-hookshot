@@ -1,7 +1,7 @@
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../OpenProjectSchema";
+} from "../schema/OpenProjectSchema";
 
 /**
  * The Matrix event DTOs emitted by Hookshot for OpenProject work packages.

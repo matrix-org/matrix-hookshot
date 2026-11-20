@@ -3,7 +3,7 @@ import { useCreateAutoDisposedViewModel } from "@element-hq/web-shared-component
 import type {
   OpenProjectAnchor,
   OpenProjectCapabilityClient,
-} from "./OpenProjectCapabilityClient";
+} from "./capabilities/OpenProjectCapabilityClient";
 import { AnchorView } from "./components/workPackage/AnchorView";
 import type { OpenProjectAnchorContent } from "./models/OpenProjectMatrixEventContent";
 import { AnchorMessageViewModel } from "./viewmodels/workPackage/AnchorMessageViewModel";

@@ -6,17 +6,13 @@ import type {
   Module,
   ModuleFactory,
 } from "@element-hq/element-web-module-api";
-import { HookshotToDeviceClient } from "./HookshotToDeviceClient";
 import {
   getOpenProjectCapabilityBot,
   isOpenProjectAnchorForBot,
   OpenProjectCapabilityClient,
-} from "./OpenProjectCapabilityClient";
+} from "./capabilities/OpenProjectCapabilityClient";
 import { OpenProjectMessageRenderer } from "./OpenProjectMessageRenderer";
-import type {
-  OpenProjectAnchorContent,
-  OpenProjectContent,
-} from "./models/OpenProjectMatrixEventContent";
+import type { OpenProjectContent } from "./models/OpenProjectMatrixEventContent";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 
 function getElementConfig(api: Api): unknown {
@@ -39,7 +35,7 @@ function getWorkPackageId(value: unknown): number | undefined {
 }
 
 class HookshotOpenProjectModule implements Module {
-  public static readonly moduleApiVersion = "^2.0.0";
+  public static readonly moduleApiVersion = "^2.6.0";
 
   private readonly capabilityBotUserId: string | undefined;
   private readonly capabilityClient: OpenProjectCapabilityClient | undefined;
@@ -49,7 +45,7 @@ class HookshotOpenProjectModule implements Module {
       getElementConfig(api),
     );
     this.capabilityClient = this.capabilityBotUserId
-      ? new OpenProjectCapabilityClient(new HookshotToDeviceClient())
+      ? new OpenProjectCapabilityClient(api.client.toDevice, api.profile)
       : undefined;
   }
 
@@ -69,18 +65,23 @@ class HookshotOpenProjectModule implements Module {
       (props) => {
         const mxEvent = props.mxEvent;
         const content = mxEvent.content;
-        const isAnchor = isOpenProjectAnchorForBot(
+        const anchorContent = isOpenProjectAnchorForBot(
           content,
           mxEvent.sender,
           this.capabilityBotUserId,
-        );
+        )
+          ? content
+          : undefined;
         const capabilityClient = this.capabilityClient;
-        const renderAnchor = capabilityClient !== undefined && isAnchor;
         const workPackageId = getWorkPackageId(
           content["org.matrix.matrix-hookshot.openproject.work_package"],
         );
 
-        if (renderAnchor && workPackageId !== undefined) {
+        if (
+          capabilityClient !== undefined &&
+          anchorContent !== undefined &&
+          workPackageId !== undefined
+        ) {
           return (
             <OpenProjectAnchorRenderer
               anchor={{
@@ -90,7 +91,7 @@ class HookshotOpenProjectModule implements Module {
                 recipientUserId: mxEvent.sender,
               }}
               capabilityClient={capabilityClient}
-              data={content as OpenProjectAnchorContent}
+              data={anchorContent}
             />
           );
         }
