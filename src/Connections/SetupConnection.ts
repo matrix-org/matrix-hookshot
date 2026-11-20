@@ -895,7 +895,7 @@ export class SetupConnection extends CommandConnection {
         `The project url you entered was not valid. It should be part of ${expectedOrigin}`,
       );
     }
-    return `http://${url.host}/projects/${projectId}`;
+    return `${url.origin}/projects/${projectId}`;
   }
 
   @botCommand("openproject add", {
@@ -963,7 +963,7 @@ export class SetupConnection extends CommandConnection {
       this.intent,
     );
 
-    const safeUrl = await this.getJiraProjectSafeUrl(urlStr);
+    const safeUrl = this.getOpenProjectSafeUrl(urlStr);
 
     let event;
     try {
