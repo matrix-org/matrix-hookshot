@@ -3,6 +3,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { fireEvent, render, screen } from "@testing-library/react";
+import type {
+  RoomStateEvent,
+  Watchable,
+} from "@element-hq/element-web-module-api";
 import HookshotOpenProjectModule from "../src";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "../src/OpenProjectActivityRenderer";
@@ -28,6 +32,13 @@ function createInactiveAnchorEvent() {
     roomId: "!openproject:example.org",
     content: inactiveReplacement["m.new_content"],
   };
+}
+
+function createConnectionState(
+  stateKey: string,
+  content: Record<string, unknown>,
+): RoomStateEvent {
+  return { stateKey, content };
 }
 
 function createUpdateEvent({
@@ -72,9 +83,68 @@ function createUpdateEvent({
   };
 }
 
-function createModuleRegistration(configureOpenProjectBot = false) {
+function createStateWatchable(initialValue: RoomStateEvent[]) {
+  let value = initialValue;
+  const listeners = new Set<(nextValue: RoomStateEvent[]) => void>();
+  const watchable = {
+    get value() {
+      return value;
+    },
+    set value(nextValue: RoomStateEvent[]) {
+      value = nextValue;
+      for (const listener of listeners) listener(value);
+    },
+    watch(listener: (nextValue: RoomStateEvent[]) => void) {
+      listeners.add(listener);
+    },
+    unwatch(listener: (nextValue: RoomStateEvent[]) => void) {
+      listeners.delete(listener);
+    },
+  };
+
+  return watchable as Watchable<RoomStateEvent[]>;
+}
+
+function createRoomListWatchable(initialRoomIds: string[]) {
+  let value = initialRoomIds.map((id) => ({ id }));
+  const listeners = new Set<(rooms: { id: string }[]) => void>();
+  return {
+    get value() {
+      return value;
+    },
+    watch(listener: (rooms: { id: string }[]) => void) {
+      listeners.add(listener);
+    },
+    unwatch(listener: (rooms: { id: string }[]) => void) {
+      listeners.delete(listener);
+    },
+    setRoomIds(roomIds: string[]) {
+      value = roomIds.map((id) => ({ id }));
+      for (const listener of listeners) listener(value);
+    },
+  };
+}
+
+function createModuleRegistration(
+  configureOpenProjectBot = false,
+  options: {
+    roomIds?: string[];
+    roomStates?: Map<string, Watchable<RoomStateEvent[]>>;
+    roomListReady?: Promise<void>;
+  } = {},
+) {
   const registerMessageRenderer = vi.fn();
   const toMatrixToLink = vi.fn().mockResolvedValue(undefined);
+  const roomListWatchable = createRoomListWatchable(options.roomIds ?? []);
+  const getRoom = vi.fn((roomId: string) => {
+    const roomState = options.roomStates?.get(roomId);
+    return roomState
+      ? {
+          id: roomId,
+          getStateEvents: vi.fn(() => roomState),
+        }
+      : null;
+  });
   const api = {
     config: {
       get: () =>
@@ -89,20 +159,28 @@ function createModuleRegistration(configureOpenProjectBot = false) {
           : undefined,
     },
     customComponents: { registerMessageRenderer },
-    client: { toDevice: new MockToDeviceApi() },
     profile: new MockProfile(),
     navigation: { toMatrixToLink },
+    client: { toDevice: new MockToDeviceApi(), getRoom },
+    stores: {
+      roomListStore: {
+        waitForReady: vi.fn(() => options.roomListReady ?? Promise.resolve()),
+        getRooms: () => roomListWatchable,
+      },
+    },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
   return {
     registerMessageRenderer,
     toMatrixToLink,
+    getRoom,
+    roomListWatchable,
     load: () => new HookshotOpenProjectModule(api).load(),
   };
 }
 
 describe("OpenProject Element Web module", () => {
-  it("requires Element Web module API 2.6.0 or newer in the v2 line", () => {
+  it("requires Element Web module API 2.6.0 or newer for room state and to-device", () => {
     expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.6.0");
   });
 
@@ -126,8 +204,37 @@ describe("OpenProject Element Web module", () => {
     });
   });
 
+  it("does not block module startup while the room list is loading", async () => {
+    let resolveRoomListReady!: () => void;
+    const roomListReady = new Promise<void>((resolve) => {
+      resolveRoomListReady = resolve;
+    });
+    const { registerMessageRenderer, load } = createModuleRegistration(false, {
+      roomListReady,
+    });
+
+    await load();
+
+    expect(registerMessageRenderer).toHaveBeenCalledTimes(3);
+    resolveRoomListReady();
+  });
+
   it("selects only validated, versioned anchors and updates", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
+    const anchorRoomId = "!openproject:example.org";
+    const activityRoomId = "!activity-room:example.test";
+    const stateForRoom = () =>
+      createStateWatchable([
+        createConnectionState("project", {
+          url: "https://openproject.example/projects/one",
+        }),
+      ]);
+    const { registerMessageRenderer, load } = createModuleRegistration(false, {
+      roomIds: [anchorRoomId, activityRoomId],
+      roomStates: new Map([
+        [anchorRoomId, stateForRoom()],
+        [activityRoomId, stateForRoom()],
+      ]),
+    });
     await load();
     const [shouldRenderAnchor] = registerMessageRenderer.mock.calls[0];
     const [shouldRenderUpdate] = registerMessageRenderer.mock.calls[1];
@@ -175,12 +282,14 @@ describe("OpenProject Element Web module", () => {
     expect(
       shouldRenderCommand({
         type: "m.room.message",
+        roomId: anchorRoomId,
         content: { body: "!openproject close 41" },
       }),
     ).toBe(true);
     expect(
       shouldRenderCommand({
         type: "m.room.message",
+        roomId: anchorRoomId,
         content: {
           "org.matrix.matrix-hookshot.command": {
             service: "openproject",
@@ -193,12 +302,14 @@ describe("OpenProject Element Web module", () => {
     expect(
       shouldRenderCommand({
         type: "m.room.message",
+        roomId: anchorRoomId,
         content: { body: "!github issue" },
       }),
     ).toBe(false);
     expect(
       shouldRenderCommand({
         type: "m.room.message",
+        roomId: anchorRoomId,
         content: {
           "org.matrix.matrix-hookshot.command": { service: "github" },
         },
@@ -207,6 +318,104 @@ describe("OpenProject Element Web module", () => {
     expect(shouldRenderCommand({ type: "m.room.encrypted", content: {} })).toBe(
       false,
     );
+  });
+
+  it("disables all renderers when the room has no enabled OpenProject state", async () => {
+    const roomId = "!openproject:example.org";
+    const { registerMessageRenderer, load } = createModuleRegistration(false, {
+      roomIds: [roomId],
+      roomStates: new Map([[roomId, createStateWatchable([])]]),
+    });
+    await load();
+    const [shouldRenderAnchor] = registerMessageRenderer.mock.calls[0];
+    const [shouldRenderActivity] = registerMessageRenderer.mock.calls[1];
+    const [shouldRenderCommand] = registerMessageRenderer.mock.calls[2];
+
+    expect(shouldRenderAnchor(createInactiveAnchorEvent())).toBe(false);
+    expect(shouldRenderActivity(createUpdateEvent())).toBe(false);
+    expect(
+      shouldRenderCommand({
+        type: "m.room.message",
+        roomId,
+        content: {
+          "org.matrix.matrix-hookshot.command": {
+            service: "openproject",
+            type: "response",
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("matches command indicators from room state and uses updates on the next filter call", async () => {
+    const roomId = "!openproject:example.org";
+    const roomState = createStateWatchable([
+      createConnectionState("project-one", {
+        url: "https://openproject.example/projects/one",
+        commandPrefix: "!openproject dev-work-package-sharing",
+      }),
+      createConnectionState("project-two", {
+        url: "https://openproject.example/projects/two",
+      }),
+      createConnectionState("disabled", {
+        url: "https://openproject.example/projects/disabled",
+        commandPrefix: "!openproject disabled-project",
+        disabled: true,
+      }),
+    ]);
+    const { registerMessageRenderer, getRoom, load, roomListWatchable } =
+      createModuleRegistration(false, {
+        roomIds: [roomId],
+        roomStates: new Map([[roomId, roomState]]),
+      });
+
+    await load();
+    const [shouldRenderCommand] = registerMessageRenderer.mock.calls[2];
+    const event = (body: string) => ({
+      type: "m.room.message",
+      roomId,
+      content: { body },
+    });
+
+    expect(shouldRenderCommand(event("!openproject close 41"))).toBe(true);
+    expect(
+      shouldRenderCommand(event("!openproject dev-large-child close 42")),
+    ).toBe(true);
+    expect(shouldRenderCommand(event("!other close 44"))).toBe(false);
+    expect(getRoom).toHaveBeenCalledTimes(1);
+
+    const commandHints = registerMessageRenderer.mock.calls[2][2];
+    expect(
+      commandHints.renderGroupSummary?.getSummary?.([
+        event("!openproject close 41"),
+        event("!openproject dev-large-child close 42"),
+        {
+          type: "m.room.message",
+          roomId,
+          content: {
+            "org.matrix.matrix-hookshot.command": {
+              service: "openproject",
+              type: "response",
+            },
+          },
+        },
+      ]),
+    ).toBe("2 OpenProject commands");
+
+    roomState.value = [
+      createConnectionState("project-one", {
+        url: "https://openproject.example/projects/one",
+        commandPrefix: "!updated project",
+      }),
+    ];
+    expect(shouldRenderCommand(event("!openproject close 41"))).toBe(false);
+    expect(shouldRenderCommand(event("!updated close 41"))).toBe(true);
+    expect(getRoom).toHaveBeenCalledTimes(1);
+
+    const unwatch = vi.spyOn(roomState, "unwatch");
+    roomListWatchable.setRoomIds([]);
+    expect(unwatch).toHaveBeenCalledTimes(1);
+    expect(shouldRenderCommand(event("!updated close 41"))).toBe(false);
   });
 
   it("renders only the event kind selected by each renderer", async () => {
@@ -280,7 +489,16 @@ describe("OpenProject Element Web module", () => {
   });
 
   it("renders OpenProject commands as informational messages", async () => {
-    const { registerMessageRenderer, load } = createModuleRegistration();
+    const roomId = "!commands:example.org";
+    const roomState = createStateWatchable([
+      createConnectionState("project", {
+        url: "https://openproject.example/projects/one",
+      }),
+    ]);
+    const { registerMessageRenderer, load } = createModuleRegistration(false, {
+      roomIds: [roomId],
+      roomStates: new Map([[roomId, roomState]]),
+    });
     await load();
 
     const hints = registerMessageRenderer.mock.calls[2][2];
@@ -291,8 +509,9 @@ describe("OpenProject Element Web module", () => {
     expect(hints.renderGroupSummary.getKey()).toBe("OpenProjectCommand");
     expect(
       hints.renderGroupSummary.getSummary([
-        { content: { body: "!openproject close 41" } },
+        { roomId, content: { body: "!openproject close 41" } },
         {
+          roomId,
           content: {
             "org.matrix.matrix-hookshot.command": {
               service: "openproject",

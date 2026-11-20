@@ -114,6 +114,20 @@ function createModuleRegistration() {
   const sendComposerMessage = vi.fn();
   const toDevice = new MockToDeviceApi();
   const profile = new MockProfile();
+  const roomState = {
+    value: [
+      {
+        stateKey: "project",
+        content: { url: "https://openproject.example/projects/one" },
+      },
+    ],
+    watch: vi.fn(),
+    unwatch: vi.fn(),
+  };
+  const rooms = {
+    value: [{ id: anchor.roomId }],
+    watch: vi.fn(),
+  };
   const api = {
     config: {
       get: () => ({
@@ -123,9 +137,21 @@ function createModuleRegistration() {
       }),
     },
     composer: { insertPlaintextIntoComposer, sendComposerMessage },
-    client: { toDevice },
     profile,
     customComponents: { registerMessageRenderer },
+    client: {
+      toDevice,
+      getRoom: vi.fn(() => ({
+        id: anchor.roomId,
+        getStateEvents: vi.fn(() => roomState),
+      })),
+    },
+    stores: {
+      roomListStore: {
+        waitForReady: vi.fn().mockResolvedValue(undefined),
+        getRooms: () => rooms,
+      },
+    },
   } as unknown as ConstructorParameters<typeof HookshotOpenProjectModule>[0];
 
   return {
