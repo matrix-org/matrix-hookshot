@@ -4,14 +4,17 @@ import {
   isOpenProjectAnchorContent,
   isOpenProjectAnchorForBot,
   isOpenProjectProbeResponse,
+  OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+  OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
   OpenProjectCapabilityClient,
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
-} from "../src/OpenProjectCapabilityClient";
+} from "../src/capabilities/OpenProjectCapabilityClient";
 import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
-} from "../src/OpenProjectSchema";
+} from "../src/schema/OpenProjectSchema";
+import { MockProfile, MockToDeviceApi } from "./helpers/MockToDeviceApi";
 
 const botUserId = "@hookshot_openproject:example.org";
 const secondBotUserId = "@hookshot:example.org";
@@ -35,18 +38,37 @@ function createAnchor(
 }
 
 function createResponse(
+  requestId: string,
   result: OpenProjectProbeResponse["result"] = "ok",
 ): OpenProjectProbeResponse {
   return {
     v: 1,
-    request_id: "request-1",
+    request_id: requestId,
     integration_id: "openproject",
     result,
   };
 }
 
-class FakeToDeviceClient {
-  public readonly request = vi.fn();
+function getRequestId(toDevice: MockToDeviceApi, index = 0): string {
+  const requestId = toDevice.sentMessages[index]?.content.request_id;
+  if (typeof requestId !== "string") {
+    throw new Error("Probe did not include a request ID");
+  }
+  return requestId;
+}
+
+function deliverResponse(
+  toDevice: MockToDeviceApi,
+  requestId: string,
+  sender = botUserId,
+  content: unknown = createResponse(requestId),
+  type = OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+): void {
+  toDevice.deliver(OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
+    type,
+    sender,
+    content,
+  });
 }
 
 describe("OpenProjectCapabilityClient", () => {
@@ -102,142 +124,237 @@ describe("OpenProjectCapabilityClient", () => {
 
     expect(
       isOpenProjectProbeResponse({
-        ...createResponse(),
+        ...createResponse("request-1"),
         v: 2,
       }),
     ).toBe(false);
   });
 
-  it("sends an integration-neutral probe with the validated anchor inputs", async () => {
-    const response = createResponse();
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request.mockResolvedValue(response);
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
+  it("subscribes before sending the version 1 probe to the wildcard device", async () => {
+    const toDevice = new MockToDeviceApi();
+    const profile = new MockProfile();
+    const client = new OpenProjectCapabilityClient(toDevice, profile);
+    const probe = client.probe(createAnchor());
 
-    await expect(client.probe(createAnchor())).resolves.toEqual(response);
-    expect(toDeviceClient.request).toHaveBeenCalledWith({
-      recipientUserId: botUserId,
-      requestType: "org.matrix.matrix-hookshot.capabilities.probe",
-      responseType: "org.matrix.matrix-hookshot.capabilities.probe_response",
-      content: {
-        v: 1,
-        integration_id: "openproject",
-        room_id: "!room:example.org",
-        anchor_event_id: "$anchor-without-server",
+    expect(toDevice.calls.slice(0, 2)).toEqual(["subscribe", "send"]);
+    expect(toDevice.onMessage).toHaveBeenCalledWith(
+      OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      expect.any(Function),
+    );
+    expect(toDevice.sentMessages).toEqual([
+      {
+        recipientUserId: botUserId,
+        recipientDeviceId: "*",
+        type: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+        content: {
+          v: 1,
+          request_id: expect.any(String),
+          requesting_device_id: "ALICE_DEVICE",
+          integration_id: "openproject",
+          room_id: "!room:example.org",
+          anchor_event_id: "$anchor-without-server",
+        },
       },
-    });
+    ]);
+
+    const requestId = getRequestId(toDevice);
+    deliverResponse(toDevice, requestId);
+    await expect(probe).resolves.toEqual(createResponse(requestId));
+    expect(toDevice.listenerCount).toBe(0);
+    expect(profile.listenerCount).toBe(0);
   });
 
-  it("coalesces pending probes but sends again after a result", async () => {
-    const response = createResponse();
-    const toDeviceClient = new FakeToDeviceClient();
-    const pending = Promise.withResolvers<OpenProjectProbeResponse>();
-    toDeviceClient.request
-      .mockReturnValueOnce(pending.promise)
-      .mockResolvedValue(response);
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
+  it("waits for a response after send succeeds and clears its timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const toDevice = new MockToDeviceApi();
+      const client = new OpenProjectCapabilityClient(
+        toDevice,
+        new MockProfile(),
+      );
+      let settled = false;
+      const probe = client.probe(createAnchor()).finally(() => {
+        settled = true;
+      });
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(toDevice.sendMessage).toHaveBeenCalledOnce();
+      expect(settled).toBe(false);
+      expect(vi.getTimerCount()).toBe(1);
+
+      const requestId = getRequestId(toDevice);
+      deliverResponse(toDevice, requestId);
+      await expect(probe).resolves.toEqual(createResponse(requestId));
+      expect(settled).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores responses with a wrong type, sender, request ID, or shape", async () => {
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
+    const probe = client.probe(createAnchor());
+    const requestId = getRequestId(toDevice);
+
+    deliverResponse(toDevice, requestId, "@spoofed:example.org");
+    deliverResponse(
+      toDevice,
+      requestId,
+      botUserId,
+      createResponse("different-request"),
+    );
+    deliverResponse(toDevice, requestId, botUserId, {
+      ...createResponse(requestId),
+      result: "unexpected",
+    });
+    deliverResponse(
+      toDevice,
+      requestId,
+      botUserId,
+      createResponse(requestId),
+      OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+    );
+
+    expect(toDevice.listenerCount).toBe(1);
+    deliverResponse(toDevice, requestId);
+    await expect(probe).resolves.toEqual(createResponse(requestId));
+  });
+
+  it("coalesces pending probes but sends again after a response", async () => {
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
     const anchor = createAnchor();
 
     const first = client.probe(anchor);
     const second = client.probe(anchor);
     expect(second).toBe(first);
-    expect(toDeviceClient.request).toHaveBeenCalledOnce();
+    expect(toDevice.sendMessage).toHaveBeenCalledOnce();
+    expect(toDevice.listenerCount).toBe(1);
 
-    pending.resolve(response);
-    await expect(first).resolves.toEqual(response);
+    const firstRequestId = getRequestId(toDevice);
+    deliverResponse(toDevice, firstRequestId);
+    await expect(first).resolves.toEqual(createResponse(firstRequestId));
+
     const third = client.probe(anchor);
-
     expect(third).not.toBe(first);
-    await expect(third).resolves.toEqual(response);
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+    const secondRequestId = getRequestId(toDevice, 1);
+    deliverResponse(toDevice, secondRequestId);
+    await expect(third).resolves.toEqual(createResponse(secondRequestId));
+    expect(toDevice.sendMessage).toHaveBeenCalledTimes(2);
   });
 
-  it("does not share entries between work packages or recipient bots", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    const pending = Promise.withResolvers<OpenProjectProbeResponse>();
-    toDeviceClient.request.mockReturnValue(pending.promise);
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
-
-    const probes = [
-      client.probe(createAnchor({ workPackageId: 41 })),
-      client.probe(createAnchor({ workPackageId: 42 })),
-      client.probe(createAnchor({ recipientUserId: secondBotUserId })),
+  it("keeps probes separate for different anchors and recipient bots", async () => {
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
+    const anchors = [
+      createAnchor({ workPackageId: 41 }),
+      createAnchor({ workPackageId: 42 }),
+      createAnchor({ recipientUserId: secondBotUserId }),
     ];
+    const probes = anchors.map((anchor) => client.probe(anchor));
 
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
-    pending.resolve(createResponse());
+    expect(toDevice.sendMessage).toHaveBeenCalledTimes(3);
+    for (const [index, anchor] of anchors.entries()) {
+      const requestId = getRequestId(toDevice, index);
+      deliverResponse(toDevice, requestId, anchor.recipientUserId);
+    }
     await expect(Promise.all(probes)).resolves.toHaveLength(3);
   });
 
-  it("does not retain rejected or unavailable probes", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request
-      .mockRejectedValueOnce(new Error("Hookshot unavailable"))
-      .mockResolvedValueOnce(createResponse("unavailable"))
-      .mockResolvedValueOnce(createResponse("ok"));
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
-    const anchor = createAnchor();
-
-    await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
-    await expect(client.probe(anchor)).resolves.toMatchObject({
-      result: "unavailable",
-    });
-    await expect(client.probe(anchor)).resolves.toMatchObject({ result: "ok" });
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(3);
-  });
-
-  it("rejects a malformed Module API response and allows a new probe", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request
-      .mockResolvedValueOnce({ ...createResponse(), integration_id: "other" })
-      .mockResolvedValueOnce(createResponse());
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
-    const anchor = createAnchor();
-
-    await expect(client.probe(anchor)).rejects.toThrow(
-      "Invalid OpenProject capability response",
-    );
-    await expect(client.probe(anchor)).resolves.toEqual(createResponse());
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
-  });
-
   it("keeps a forced request cached when the older request settles", async () => {
-    const toDeviceClient = new FakeToDeviceClient();
-    const firstRequest = Promise.withResolvers<OpenProjectProbeResponse>();
-    const forcedRequest = Promise.withResolvers<OpenProjectProbeResponse>();
-    toDeviceClient.request
-      .mockReturnValueOnce(firstRequest.promise)
-      .mockReturnValueOnce(forcedRequest.promise)
-      .mockResolvedValue(createResponse());
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
     const anchor = createAnchor();
 
     const first = client.probe(anchor);
     const forced = client.probe(anchor, { force: true });
-
     expect(forced).not.toBe(first);
-    firstRequest.resolve(createResponse());
-    await expect(first).resolves.toEqual(createResponse());
+
+    const firstRequestId = getRequestId(toDevice, 0);
+    deliverResponse(toDevice, firstRequestId);
+    await expect(first).resolves.toEqual(createResponse(firstRequestId));
 
     expect(client.probe(anchor)).toBe(forced);
-    forcedRequest.resolve(createResponse());
-    await expect(forced).resolves.toEqual(createResponse());
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+    const forcedRequestId = getRequestId(toDevice, 1);
+    deliverResponse(toDevice, forcedRequestId);
+    await expect(forced).resolves.toEqual(createResponse(forcedRequestId));
+    expect(toDevice.sendMessage).toHaveBeenCalledTimes(2);
   });
 
-  it("allows an explicit retry after a failed probe", async () => {
-    const response = createResponse();
-    const toDeviceClient = new FakeToDeviceClient();
-    toDeviceClient.request
-      .mockRejectedValueOnce(new Error("Hookshot unavailable"))
-      .mockResolvedValueOnce(response);
-    const client = new OpenProjectCapabilityClient(toDeviceClient);
+  it("cleans up after send failure and permits a retry", async () => {
+    const toDevice = new MockToDeviceApi();
+    toDevice.failOnSendCall(1, new Error("Hookshot unavailable"));
+    const profile = new MockProfile();
+    const client = new OpenProjectCapabilityClient(toDevice, profile);
     const anchor = createAnchor();
 
     await expect(client.probe(anchor)).rejects.toThrow("Hookshot unavailable");
-    await expect(client.probe(anchor, { force: true })).resolves.toEqual(
-      response,
+    expect(toDevice.listenerCount).toBe(0);
+    expect(profile.listenerCount).toBe(0);
+
+    const retry = client.probe(anchor);
+    const requestId = getRequestId(toDevice, 1);
+    deliverResponse(
+      toDevice,
+      requestId,
+      botUserId,
+      createResponse(requestId, "unavailable"),
     );
-    expect(toDeviceClient.request).toHaveBeenCalledTimes(2);
+    await expect(retry).resolves.toEqual(
+      createResponse(requestId, "unavailable"),
+    );
+    expect(toDevice.sendMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects and cleans up when the profile changes", async () => {
+    const toDevice = new MockToDeviceApi();
+    const profile = new MockProfile();
+    const client = new OpenProjectCapabilityClient(toDevice, profile);
+    const probe = client.probe(createAnchor());
+    const oldRequestId = getRequestId(toDevice);
+
+    profile.update({ userId: "@bob:example.org", deviceId: "BOB_DEVICE" });
+    await expect(probe).rejects.toThrow("Matrix account or device changed");
+    expect(toDevice.listenerCount).toBe(0);
+    expect(profile.listenerCount).toBe(0);
+
+    deliverResponse(toDevice, oldRequestId);
+    expect(toDevice.sendMessage).toHaveBeenCalledOnce();
+  });
+
+  it("requires an active user and device before starting a probe", async () => {
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(
+      toDevice,
+      new MockProfile({ userId: "@alice:example.org" }),
+    );
+
+    await expect(client.probe(createAnchor())).rejects.toThrow(
+      "No active Matrix user and device",
+    );
+    expect(toDevice.onMessage).not.toHaveBeenCalled();
+    expect(toDevice.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it("times out and removes the response and profile listeners", async () => {
+    vi.useFakeTimers();
+    try {
+      const toDevice = new MockToDeviceApi();
+      const profile = new MockProfile();
+      const client = new OpenProjectCapabilityClient(toDevice, profile);
+      const probe = client.probe(createAnchor());
+      const rejection = expect(probe).rejects.toThrow(
+        "OpenProject capability probe timed out",
+      );
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await rejection;
+      expect(toDevice.listenerCount).toBe(0);
+      expect(profile.listenerCount).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
