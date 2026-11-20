@@ -56,6 +56,18 @@ export type GetAuthResponse =
   | GetAuthResponseAuthenticated
   | GetAuthResponseUnauthenticated;
 
+/** A selectable status option exposed by an integration to a widget. */
+export interface ServiceStatusOption {
+  id: string;
+  name: string;
+  isClosed: boolean;
+}
+
+/** Common response shape for integration status-list widget endpoints. */
+export interface GetServiceStatusOptionsResponse {
+  statusOptions: ServiceStatusOption[];
+}
+
 export interface GetAuthPollResponse {
   state: "complete" | "waiting";
 }

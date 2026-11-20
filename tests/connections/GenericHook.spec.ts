@@ -664,7 +664,7 @@ describe("GenericHookConnection", () => {
     const HOOK_ID = "existing-hook-id";
 
     function createStateEvent(sender: string) {
-      return new StateEvent({
+      return new StateEvent<Record<string, unknown>>({
         event_id: "$foo:bar",
         room_id: ROOM_ID,
         type: GenericHookConnection.CanonicalEventType,
