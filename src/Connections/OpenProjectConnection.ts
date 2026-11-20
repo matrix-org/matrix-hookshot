@@ -216,7 +216,7 @@ export class OpenProjectConnection
       try {
         // New-style Matrix replies carry only the event ID; resolve the
         // work package message before the command parser reads its metadata.
-        replyEvent = await this.as.botClient.getEvent(
+        replyEvent = await this.intent.underlyingClient.getEvent(
           this.roomId,
           replyEventId,
         );
@@ -289,7 +289,7 @@ export class OpenProjectConnection
       if (!replyEvent && replyEventId) {
         try {
           replyEvent = (
-            await firstProject.as.botClient.getEvent(
+            await firstProject.intent.underlyingClient.getEvent(
               firstProject.roomId,
               replyEventId,
             )

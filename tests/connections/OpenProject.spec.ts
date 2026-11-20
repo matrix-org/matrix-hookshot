@@ -348,7 +348,7 @@ describe("OpenProjectConnection", () => {
     );
   });
 
-  it("removes a timeline anchor when invoked with a global prefix in a reply", async () => {
+  it("uses the connection bot to resolve a timeline reply", async () => {
     const connection = createConnectionState({
       commandPrefix: "!openproject demo-project",
     });
@@ -364,7 +364,11 @@ describe("OpenProjectConnection", () => {
       type: "m.room.message",
     });
     const getEvent = vi.fn().mockResolvedValue(reply);
-    connection["as"].botClient.getEvent = getEvent;
+    connection["intent"].underlyingClient.getEvent = getEvent;
+    const defaultBotGetEvent = vi
+      .fn()
+      .mockRejectedValue(new Error("Default bot is not joined"));
+    connection["as"].botClient.getEvent = defaultBotGetEvent;
     const removeTimelineWorkPackage = vi
       .spyOn(connection["timelineCommandService"], "removeTimelineWorkPackage")
       .mockResolvedValue(undefined);
@@ -385,6 +389,7 @@ describe("OpenProjectConnection", () => {
       true,
     );
     expect(getEvent).toHaveBeenCalledWith(ROOM_ID, "$anchor");
+    expect(defaultBotGetEvent).not.toHaveBeenCalled();
     expect(removeTimelineWorkPackage).toHaveBeenCalledWith(
       String(WORK_PACKAGE.id),
     );
@@ -410,8 +415,8 @@ describe("OpenProjectConnection", () => {
       type: "m.room.message",
     });
     const getEvent = vi.fn().mockResolvedValue(reply);
-    otherConnection["as"].botClient.getEvent = getEvent;
-    connection["as"].botClient.getEvent = getEvent;
+    otherConnection["intent"].underlyingClient.getEvent = getEvent;
+    connection["intent"].underlyingClient.getEvent = getEvent;
     const closeWorkPackage = vi
       .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
       .mockResolvedValue(undefined);
@@ -451,7 +456,7 @@ describe("OpenProjectConnection", () => {
     );
   });
 
-  it("dispatches a reply through the matching room project", async () => {
+  it("routes a reply using the project bot when the default bot is absent", async () => {
     const otherConnection = createConnectionState({
       url: `${BASE_URL}projects/2`,
       commandPrefix: "!op other-project",
@@ -490,8 +495,13 @@ describe("OpenProjectConnection", () => {
       type: "m.room.message",
     });
     const getEvent = vi.fn().mockResolvedValue(reply);
-    connection["as"].botClient.getEvent = getEvent;
-    otherConnection["as"].botClient.getEvent = getEvent;
+    connection["intent"].underlyingClient.getEvent = getEvent;
+    otherConnection["intent"].underlyingClient.getEvent = getEvent;
+    const defaultBotGetEvent = vi
+      .fn()
+      .mockRejectedValue(new Error("Default bot is not joined"));
+    connection["as"].botClient.getEvent = defaultBotGetEvent;
+    otherConnection["as"].botClient.getEvent = defaultBotGetEvent;
     const closeWorkPackage = vi
       .spyOn(connection["workPackageCommandService"], "closeWorkPackage")
       .mockResolvedValue(undefined);
@@ -515,6 +525,7 @@ describe("OpenProjectConnection", () => {
     ]);
     expect(await handlers[0].handle(() => true)).toBe(true);
     expect(getEvent).toHaveBeenCalledOnce();
+    expect(defaultBotGetEvent).not.toHaveBeenCalled();
     expect(closeWorkPackage).toHaveBeenCalledWith(
       "@alice:example.test",
       expect.objectContaining({ content: reply.content }),
@@ -555,8 +566,8 @@ describe("OpenProjectConnection", () => {
         type: "m.room.message",
       });
       const getEvent = vi.fn().mockResolvedValue(reply);
-      bareConnection["as"].botClient.getEvent = getEvent;
-      projectConnection["as"].botClient.getEvent = getEvent;
+      bareConnection["intent"].underlyingClient.getEvent = getEvent;
+      projectConnection["intent"].underlyingClient.getEvent = getEvent;
       const bareClose = vi.spyOn(
         bareConnection["workPackageCommandService"],
         "closeWorkPackage",
@@ -615,7 +626,9 @@ describe("OpenProjectConnection", () => {
       connection["workPackageCommandService"],
       "closeWorkPackage",
     );
-    connection["as"].botClient.getEvent = vi.fn().mockResolvedValue(reply);
+    connection["intent"].underlyingClient.getEvent = vi
+      .fn()
+      .mockResolvedValue(reply);
     const event = {
       content: {
         body: "!op close 42",
@@ -798,7 +811,7 @@ describe("OpenProjectConnection", () => {
         content: activityContent,
       });
       const getEvent = vi.fn().mockResolvedValue(activity);
-      connection["as"].botClient.getEvent = getEvent;
+      connection["intent"].underlyingClient.getEvent = getEvent;
       const otherConnection = createConnectionState(
         {
           url: `${BASE_URL}projects/2`,
@@ -808,7 +821,7 @@ describe("OpenProjectConnection", () => {
         undefined,
         tokenStore,
       );
-      otherConnection["as"].botClient.getEvent = getEvent;
+      otherConnection["intent"].underlyingClient.getEvent = getEvent;
       const event = {
         content: {
           body: "!openproject assign",
@@ -870,7 +883,7 @@ describe("OpenProjectConnection", () => {
         },
       });
       const getEvent = vi.fn().mockResolvedValue(anchor);
-      connection["as"].botClient.getEvent = getEvent;
+      connection["intent"].underlyingClient.getEvent = getEvent;
       const event = {
         content: {
           body: "!openproject assign",
@@ -894,7 +907,7 @@ describe("OpenProjectConnection", () => {
         undefined,
         tokenStore,
       );
-      otherConnection["as"].botClient.getEvent = getEvent;
+      otherConnection["intent"].underlyingClient.getEvent = getEvent;
       expect(await otherConnection.onMessageEvent(event, () => true)).toBe(
         false,
       );
