@@ -4,7 +4,10 @@ import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
 import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
-import { OpenProjectWorkPackageCacheState } from "../openproject/State";
+import type {
+  OpenProjectAnchorState,
+  OpenProjectWorkPackageCacheState,
+} from "../openproject/State";
 
 export class MemoryStorageProvider
   extends MSP
@@ -24,7 +27,11 @@ export class MemoryStorageProvider
   private houndActivityIds = new Map<string, Array<string>>();
   private houndActivityIdToEvent = new Map<string, string>();
   private hasGenericHookWarnedExpiry = new Set<string>();
-  private readonly openProjectWorkPackageState = new Map<
+  private readonly openProjectAnchorStates = new Map<
+    string,
+    OpenProjectAnchorState
+  >();
+  private readonly openProjectActivityStates = new Map<
     string,
     OpenProjectWorkPackageCacheState
   >();
@@ -217,20 +224,95 @@ export class MemoryStorageProvider
     this.hasGenericHookWarnedExpiry[hasWarned ? "add" : "delete"](hookId);
   }
 
-  public async getOpenProjectWorkPackageState(
-    projectId: number,
+  private static openProjectActivityKey(
+    connectionId: string,
+    workPackageId: number,
+  ): string {
+    return `openproject.activity.v1:${connectionId}:${workPackageId}`;
+  }
+
+  public async getOpenProjectActivityState(
+    connectionId: string,
     workPackageId: number,
   ): Promise<OpenProjectWorkPackageCacheState | null> {
     return (
-      this.openProjectWorkPackageState.get(`${projectId}:${workPackageId}`) ??
-      null
+      this.openProjectActivityStates.get(
+        MemoryStorageProvider.openProjectActivityKey(
+          connectionId,
+          workPackageId,
+        ),
+      ) ?? null
     );
   }
 
-  public async setOpenProjectWorkPackageState(
+  public async setOpenProjectActivityState(
+    connectionId: string,
+    workPackageId: number,
     state: OpenProjectWorkPackageCacheState,
-    id: number,
-  ) {
-    this.openProjectWorkPackageState.set(`${state.project}:${id}`, state);
+  ): Promise<void> {
+    this.openProjectActivityStates.set(
+      MemoryStorageProvider.openProjectActivityKey(connectionId, workPackageId),
+      state,
+    );
+  }
+
+  public async deleteOpenProjectActivityStates(
+    connectionId: string,
+  ): Promise<void> {
+    const prefix = `openproject.activity.v1:${connectionId}:`;
+    for (const key of this.openProjectActivityStates.keys()) {
+      if (key.startsWith(prefix)) {
+        this.openProjectActivityStates.delete(key);
+      }
+    }
+  }
+
+  private static openProjectAnchorKey(
+    connectionId: string,
+    workPackageId: number,
+  ): string {
+    return `${connectionId}:${workPackageId}`;
+  }
+
+  public async getOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectAnchorState | null> {
+    return (
+      this.openProjectAnchorStates.get(
+        MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+      ) ?? null
+    );
+  }
+
+  public async setOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectAnchorState,
+  ): Promise<void> {
+    this.openProjectAnchorStates.set(
+      MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+      state,
+    );
+  }
+
+  public async deleteOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<void> {
+    this.openProjectAnchorStates.delete(
+      MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+    );
+  }
+
+  public async deleteOpenProjectAnchorStates(
+    connectionId: string,
+  ): Promise<void> {
+    const prefix = `${connectionId}:`;
+    for (const key of this.openProjectAnchorStates.keys()) {
+      if (key.startsWith(prefix)) {
+        this.openProjectAnchorStates.delete(key);
+      }
+    }
   }
 }

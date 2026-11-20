@@ -1,6 +1,6 @@
 import { Appservice, UserID } from "matrix-bot-sdk";
 import markdown from "markdown-it";
-import emoji from "node-emoji";
+import { emojify } from "node-emoji";
 import { MatrixMessageContent, MatrixEvent } from "./MatrixEvent";
 import { Logger } from "matrix-appservice-bridge";
 import axios from "axios";
@@ -91,7 +91,7 @@ export class CommentProcessor {
     let body = comment.body;
     body = this.replaceMentions(body);
     body = await this.replaceImages(body, true);
-    body = emoji.emojify(body);
+    body = emojify(body);
     const htmlBody = md.render(body);
     return {
       body,
@@ -108,7 +108,7 @@ export class CommentProcessor {
     let body = comment.object_attributes.note;
     body = this.replaceMentions(body);
     body = await this.replaceImages(body, true);
-    body = emoji.emojify(body);
+    body = emojify(body);
     const htmlBody = md.render(body);
     return {
       body,
