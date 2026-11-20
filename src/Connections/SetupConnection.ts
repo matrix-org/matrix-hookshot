@@ -912,17 +912,35 @@ export class SetupConnection extends CommandConnection {
       );
     }
     const safeUrl = this.getOpenProjectSafeUrl(url);
+    const integrationBot = this.provisionOpts.getIntegrationBotForService?.(
+      OpenProjectConnection.ServiceCategory,
+    );
+    if (!integrationBot) {
+      throw new CommandError(
+        "No OpenProject bot is configured",
+        "No bot is configured to handle OpenProject connections.",
+      );
+    }
+    if (
+      !this.provisionOpts.isBotUserInRoom?.(this.roomId, integrationBot.userId)
+    ) {
+      throw new CommandError(
+        "Selected OpenProject bot is not joined to the room",
+        `Invite ${integrationBot.userId} to this room and try again.`,
+      );
+    }
 
     await this.checkUserPermissions(
       userId,
       OpenProjectConnection.ServiceCategory,
-      HoundConnection.CanonicalEventType,
+      OpenProjectConnection.CanonicalEventType,
+      integrationBot.intent,
     );
     const { connection } = await OpenProjectConnection.provisionConnection(
       this.roomId,
       userId,
       { url: safeUrl },
-      this.provisionOptsFor(OpenProjectConnection.ServiceCategory),
+      { ...this.provisionOpts, intent: integrationBot.intent },
     );
     this.pushConnections(connection);
     return this.client.sendHtmlNotice(

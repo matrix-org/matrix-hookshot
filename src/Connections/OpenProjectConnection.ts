@@ -287,7 +287,6 @@ export class OpenProjectConnection
     data: Record<string, unknown>,
     {
       as,
-      intent: requestedIntent,
       tokenStore,
       config,
       storage,
@@ -309,17 +308,19 @@ export class OpenProjectConnection
     const integrationBot = getIntegrationBotForService?.(
       OpenProjectConnection.ServiceCategory,
     );
-    const intent = integrationBot?.intent ?? requestedIntent;
-    if (
-      integrationBot &&
-      isBotUserInRoom &&
-      !isBotUserInRoom(roomId, integrationBot.userId)
-    ) {
+    if (!integrationBot || !isBotUserInRoom) {
+      throw new ApiError(
+        "No selected OpenProject bot is available for this room",
+        ErrCode.NotInRoom,
+      );
+    }
+    if (!isBotUserInRoom(roomId, integrationBot.userId)) {
       throw new ApiError(
         `The selected OpenProject bot ${integrationBot.userId} is not joined to this room`,
         ErrCode.NotInRoom,
       );
     }
+    const intent = integrationBot.intent;
     log.info(
       `Attempting to provisionConnection for ${roomId} ${validData.url} on behalf of ${userId}`,
     );

@@ -37,6 +37,6 @@ describe("Element Web modules", () => {
     expect(response.headers.get("content-type")).toContain(
       "application/javascript",
     );
-    expect(await response.text()).toContain('moduleApiVersion = "^2.0.0"');
+    expect(await response.text()).toContain('moduleApiVersion = "^2.6.0"');
   });
 });

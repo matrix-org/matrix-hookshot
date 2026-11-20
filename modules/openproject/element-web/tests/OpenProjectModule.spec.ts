@@ -6,7 +6,7 @@ import { OpenProjectUpdateRenderer } from "../src/OpenProjectUpdateRenderer";
 import {
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_UPDATE_EVENT_KIND,
-} from "../src/OpenProjectSchema";
+} from "../src/schema/OpenProjectSchema";
 import {
   anchorEventId,
   inactiveReplacement,
@@ -77,8 +77,8 @@ function createModuleRegistration() {
 }
 
 describe("OpenProject Element Web module", () => {
-  it("advertises compatibility with Element Web module API v2 only", () => {
-    expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.0.0");
+  it("requires Element Web module API 2.6.0 or newer in the v2 line", () => {
+    expect(HookshotOpenProjectModule.moduleApiVersion).toBe("^2.6.0");
   });
 
   it("registers separate anchor and update renderers with their hints", async () => {

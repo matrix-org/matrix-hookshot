@@ -4,6 +4,8 @@ hs_token: ao5oogiesah9NoHoh2ohgaiteitualai # ..as can this
 namespaces:
   rooms: []
   users: # In the following, foobar is your homeserver's domain
+    - regex: "@hookshot:foobar"
+      exclusive: true
     - regex: "@_github_.*:foobar"
       exclusive: true
     - regex: "@_gitlab_.*:foobar"
@@ -21,6 +23,9 @@ namespaces:
 sender_localpart: hookshot
 url: "http://app:9993" # This should match the bridge.port in your config file
 rate_limited: false
+
+receive_ephemeral: true # Receive to-device messages for capability probes.
+io.element.msc4190: true # Allow SDK device creation for unencrypted capability bots.
 
 # If enabling encryption
 de.sorunome.msc2409.push_ephemeral: true
