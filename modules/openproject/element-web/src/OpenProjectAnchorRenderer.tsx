@@ -1,10 +1,10 @@
 import * as React from "react";
 import { TooltipProvider } from "@vector-im/compound-web";
 import { useCreateAutoDisposedViewModel } from "@element-hq/web-shared-components";
-import {
-  type OpenProjectAnchor,
-  type OpenProjectCapabilityClient,
-} from "./OpenProjectCapabilityClient";
+import type {
+  OpenProjectAnchor,
+  OpenProjectCapabilityClient,
+} from "./capabilities/OpenProjectCapabilityClient";
 import { AnchorView } from "./components/workPackage/AnchorView";
 import type {
   OpenProjectAnchorContent,

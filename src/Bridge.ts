@@ -114,7 +114,6 @@ import {
   HookshotCapabilityEndpoint,
   HookshotToDeviceReceiver,
 } from "./ToDeviceReceiver";
-import { provisionToDeviceReceiverDevices } from "./ToDeviceDeviceProvisioner";
 import { elementWebModuleRouter } from "./modules/ElementWebModuleApi";
 import {
   createOpenProjectCapabilityProbe,
@@ -2188,28 +2187,47 @@ export class Bridge {
     }
   }
 
-  /** Start probes for integrations that have a registered capability handler. */
+  /** Start probes for deployment-selected integration bots. */
   private async startToDeviceReceiver() {
     const integrations = new Map<string, HookshotCapabilityEndpoint>();
-    const openProjectBot = this.botUsersManager.getIntegrationBotForService(
-      OPENPROJECT_INTEGRATION_ID,
+    const services = new Set(
+      this.botUsersManager.botUsers.flatMap((botUser) => botUser.services),
     );
-    if (openProjectBot) {
-      integrations.set(OPENPROJECT_INTEGRATION_ID, {
-        botUserId: openProjectBot.userId,
-        probeHandler: createOpenProjectCapabilityProbe({
-          appservice: this.as,
-          config: this.config,
-          getConnectionManager: () => this.connectionManager,
-          storage: this.storage,
-        }),
+    for (const service of services) {
+      const botUser = this.botUsersManager.getIntegrationBotForService(service);
+      if (!botUser) {
+        continue;
+      }
+      integrations.set(service, {
+        botUserId: botUser.userId,
+        probeHandler:
+          service === OPENPROJECT_INTEGRATION_ID
+            ? createOpenProjectCapabilityProbe({
+                appservice: this.as,
+                config: this.config,
+                getConnectionManager: () => this.connectionManager,
+                storage: this.storage,
+              })
+            : async () => ({ result: "unavailable" }),
       });
     }
-    await provisionToDeviceReceiverDevices(
-      this.as,
-      new Set(Array.from(integrations.values(), (entry) => entry.botUserId)),
-      !!this.config.encryption,
-    );
+    for (const botUserId of new Set(
+      Array.from(integrations.values(), (entry) => entry.botUserId),
+    )) {
+      try {
+        const deviceId = await this.as
+          .getIntentForUserId(botUserId)
+          .ensureToDeviceReady();
+        log.info(`bot=${botUserId} device=${deviceId} to-device=ready`);
+      } catch {
+        // SDK errors can contain request details, so keep startup errors scoped
+        // to the bot and outcome.
+        log.error(`bot=${botUserId} to-device=failed`);
+        throw new Error(
+          `Failed to prepare to-device receiver for ${botUserId}`,
+        );
+      }
+    }
 
     this.toDeviceReceiver = new HookshotToDeviceReceiver(this.as, integrations);
     this.toDeviceReceiver.start();

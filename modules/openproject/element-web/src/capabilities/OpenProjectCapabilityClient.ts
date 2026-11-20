@@ -1,22 +1,30 @@
 import {
-  HookshotToDeviceClient,
-  type HookshotToDeviceRequest,
-  type MatrixSessionIdentity,
-} from "./HookshotToDeviceClient";
-import {
   OPENPROJECT_ANCHOR_EVENT_KIND,
   OPENPROJECT_ANCHOR_STATE_ACTIVE,
   OPENPROJECT_ANCHOR_STATE_INACTIVE,
   OPENPROJECT_EVENT_SCHEMA_VERSION,
   OPENPROJECT_ACTIVITY_EVENT_KIND,
-} from "./OpenProjectSchema";
+} from "../schema/OpenProjectSchema";
 import type {
   OpenProjectActiveAnchorContent,
   OpenProjectAnchorContent,
   OpenProjectContent,
   OpenProjectInactiveAnchorContent,
   OpenProjectActivityContent,
-} from "./models/OpenProjectMatrixEventContent";
+} from "../models/OpenProjectMatrixEventContent";
+import {
+  isMatrixEventId,
+  isMatrixRoomId,
+  isMatrixUserId,
+} from "../utils/identifiers";
+import type { ToDeviceApi } from "@element-hq/element-web-module-api";
+import { OpenProjectProfileMonitor } from "./OpenProjectProfile";
+import type {
+  OpenProjectProfileWatchable,
+  ProfileIdentity,
+} from "./OpenProjectProfile";
+
+const PROBE_TIMEOUT_MS = 10_000;
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 export const OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE =
@@ -58,6 +66,13 @@ export interface OpenProjectProbeOptions {
   readonly force?: boolean;
 }
 
+function createRequestId(): string {
+  if (!globalThis.crypto?.randomUUID) {
+    throw new Error("Secure request ID generation is unavailable");
+  }
+  return globalThis.crypto.randomUUID();
+}
+
 interface JsonRecord {
   [key: string]: unknown;
 }
@@ -74,37 +89,9 @@ function hasValidWorkPackageId(value: unknown): boolean {
   return typeof id === "number" && Number.isSafeInteger(id) && id > 0;
 }
 
-function isMatrixUserId(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    /^@[^\s:]+:[^\s:]+$/u.test(value) &&
-    value.length <= 255
-  );
-}
-
-export function isMatrixRoomId(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    /^![^\s:]+:[^\s]+$/u.test(value) &&
-    value.length <= 255
-  );
-}
-
-export function isMatrixEventId(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.startsWith("$") &&
-    value.length > 1 &&
-    value.length <= 255 &&
-    !/[\p{Cc}\p{White_Space}]/u.test(value)
-  );
-}
-
 function isOpenProjectSnapshotId(value: unknown): value is string {
-  if (typeof value !== "string") {
-    return false;
-  }
   return (
+    typeof value === "string" &&
     value.trim().length > 0 &&
     value.length <= OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH
   );
@@ -113,12 +100,11 @@ function isOpenProjectSnapshotId(value: unknown): value is string {
 export function isOpenProjectContent(
   value: unknown,
 ): value is OpenProjectContent {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  return hasValidWorkPackageId(
-    value["org.matrix.matrix-hookshot.openproject.work_package"],
+  return (
+    isRecord(value) &&
+    hasValidWorkPackageId(
+      value["org.matrix.matrix-hookshot.openproject.work_package"],
+    )
   );
 }
 
@@ -128,6 +114,7 @@ export function isOpenProjectAnchorContent(
   if (!isRecord(value)) {
     return false;
   }
+
   return (
     value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
       OPENPROJECT_EVENT_SCHEMA_VERSION &&
@@ -169,11 +156,8 @@ export function isOpenProjectActiveAnchorContent(
 export function isOpenProjectActivityContent(
   value: unknown,
 ): value is OpenProjectActivityContent {
-  if (!isRecord(value)) {
-    return false;
-  }
-
   return (
+    isRecord(value) &&
     value["org.matrix.matrix-hookshot.openproject.schema_version"] ===
       OPENPROJECT_EVENT_SCHEMA_VERSION &&
     value["org.matrix.matrix-hookshot.openproject.event_kind"] ===
@@ -314,88 +298,229 @@ export function isOpenProjectAnchorForBot(
 }
 
 export class OpenProjectCapabilityClient {
-  private readonly probeCache = new Map<string, ProbeCacheEntry>();
-  private lastSessionIdentity: MatrixSessionIdentity | undefined;
+  // Completed results cannot be reused safely without a session lifecycle API.
+  private readonly pendingProbes = new Map<string, PendingProbeEntry>();
+  private readonly profile: OpenProjectProfileMonitor;
 
-  public constructor(private readonly toDeviceClient: HookshotToDeviceClient) {}
+  public constructor(
+    private readonly toDeviceClient: ToDeviceApi,
+    profile: OpenProjectProfileWatchable,
+  ) {
+    this.profile = new OpenProjectProfileMonitor(profile);
+  }
 
   public probe(
     anchor: OpenProjectAnchor,
     options: OpenProjectProbeOptions = {},
   ): Promise<OpenProjectProbeResponse> {
-    let sessionIdentity: MatrixSessionIdentity;
-    try {
-      sessionIdentity = this.toDeviceClient.getSessionIdentity();
-    } catch (error) {
-      return Promise.reject(error);
-    }
-    this.observeSession(sessionIdentity);
-
-    if (
-      !isMatrixRoomId(anchor.roomId) ||
-      !isMatrixEventId(anchor.eventId) ||
-      !Number.isSafeInteger(anchor.workPackageId) ||
-      anchor.workPackageId <= 0 ||
-      !isMatrixUserId(anchor.recipientUserId)
-    ) {
+    if (!this.isValidAnchor(anchor)) {
       return Promise.reject(new Error("Invalid OpenProject anchor"));
     }
 
-    const cacheKey = this.createCacheKey(sessionIdentity, anchor);
+    const identity = this.profile.capture();
+    if (!identity) {
+      return Promise.reject(new Error("No active Matrix user and device"));
+    }
+
+    const probeKey = this.createProbeKey(anchor, identity);
     if (!options.force) {
-      const cachedEntry = this.probeCache.get(cacheKey);
-      if (cachedEntry) {
-        return cachedEntry.promise;
+      const pending = this.pendingProbes.get(probeKey);
+      if (pending) {
+        return pending.promise;
       }
     }
 
-    const request: HookshotToDeviceRequest<OpenProjectProbeResponse> = {
-      recipientUserId: anchor.recipientUserId,
-      requestType: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
-      responseType: OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
-      content: {
-        v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
-        integration_id: OPENPROJECT_INTEGRATION_ID,
-        room_id: anchor.roomId,
-        anchor_event_id: anchor.eventId,
-      },
-      responseValidator: isOpenProjectProbeResponse,
-    };
-
-    let requestPromise: Promise<OpenProjectProbeResponse>;
-    try {
-      requestPromise = this.toDeviceClient.request(request);
-    } catch (error) {
-      requestPromise = Promise.reject(error);
-    }
-
-    const entry: ProbeCacheEntry = {
-      promise: requestPromise
-        .then((response) => {
-          this.assertSessionUnchanged(sessionIdentity);
-          if (response.result === "unavailable") {
-            this.removeEntry(cacheKey, entry);
-          }
-          return response;
-        })
-        .catch((error) => {
-          // A failed request must not prevent a later explicit retry.
-          this.removeEntry(cacheKey, entry);
-          throw error;
-        }),
-    };
-
-    this.probeCache.set(cacheKey, entry);
-    return entry.promise;
+    return this.startProbe(anchor, identity, probeKey);
   }
 
-  private createCacheKey(
-    sessionIdentity: MatrixSessionIdentity,
+  private startProbe(
     anchor: OpenProjectAnchor,
+    identity: ProfileIdentity,
+    probeKey: string,
+  ): Promise<OpenProjectProbeResponse> {
+    let requestId: string;
+    try {
+      requestId = createRequestId();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    let resolveProbe!: (response: OpenProjectProbeResponse) => void;
+    let rejectProbe!: (error: Error) => void;
+    const promise = new Promise<OpenProjectProbeResponse>((resolve, reject) => {
+      resolveProbe = resolve;
+      rejectProbe = reject;
+    });
+    const entry: PendingProbeEntry = { promise };
+    this.pendingProbes.set(probeKey, entry);
+
+    void this.sendAndWaitForResponse(anchor, identity, requestId).then(
+      (response) => {
+        this.removePendingProbe(probeKey, entry);
+        resolveProbe(response);
+      },
+      (error: unknown) => {
+        this.removePendingProbe(probeKey, entry);
+        rejectProbe(
+          error instanceof Error
+            ? error
+            : new Error("OpenProject capability probe failed"),
+        );
+      },
+    );
+    return promise;
+  }
+
+  private async sendAndWaitForResponse(
+    anchor: OpenProjectAnchor,
+    identity: ProfileIdentity,
+    requestId: string,
+  ): Promise<OpenProjectProbeResponse> {
+    const waiter = this.createResponseWaiter(anchor, identity, requestId);
+
+    try {
+      if (!waiter.isPending()) {
+        return await waiter.promise;
+      }
+      if (!this.profile.isCurrent(identity)) {
+        throw new Error("Matrix account or device changed");
+      }
+
+      const send = this.toDeviceClient
+        .sendMessage({
+          recipientUserId: anchor.recipientUserId,
+          recipientDeviceId: "*",
+          type: OPENPROJECT_CAPABILITIES_PROBE_EVENT_TYPE,
+          content: {
+            v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+            request_id: requestId,
+            requesting_device_id: identity.deviceId,
+            integration_id: OPENPROJECT_INTEGRATION_ID,
+            room_id: anchor.roomId,
+            anchor_event_id: anchor.eventId,
+          },
+        })
+        .catch((error: unknown) => {
+          throw error instanceof Error
+            ? error
+            : new Error("To-device send failed");
+        });
+      const [, response] = await Promise.all([send, waiter.promise]);
+      if (!this.profile.isCurrent(identity)) {
+        throw new Error("Matrix account or device changed");
+      }
+      return response;
+    } catch (error) {
+      const probeError =
+        error instanceof Error
+          ? error
+          : new Error("OpenProject capability probe failed");
+      waiter.cancel(probeError);
+      throw probeError;
+    }
+  }
+
+  private createResponseWaiter(
+    anchor: OpenProjectAnchor,
+    identity: ProfileIdentity,
+    requestId: string,
+  ): ProbeResponseWaiter {
+    let resolveResponse!: (response: OpenProjectProbeResponse) => void;
+    let rejectResponse!: (error: Error) => void;
+    const promise = new Promise<OpenProjectProbeResponse>((resolve, reject) => {
+      resolveResponse = resolve;
+      rejectResponse = reject;
+    });
+    let settled = false;
+    let unsubscribeMessage = (): void => {};
+    let unsubscribeProfile = (): void => {};
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = (
+      error: Error | undefined,
+      response?: OpenProjectProbeResponse,
+    ): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+      unsubscribeMessage();
+      unsubscribeProfile();
+      if (error) {
+        rejectResponse(error);
+      } else if (response) {
+        resolveResponse(response);
+      }
+    };
+
+    const waiter: ProbeResponseWaiter = {
+      promise,
+      cancel: (error) => finish(error),
+      isPending: () => !settled,
+    };
+
+    try {
+      unsubscribeProfile = this.profile.watchForChange(identity, () =>
+        finish(new Error("Matrix account or device changed")),
+      );
+      if (settled) {
+        unsubscribeProfile();
+        return waiter;
+      }
+      if (!this.profile.isCurrent(identity)) {
+        finish(new Error("Matrix account or device changed"));
+        return waiter;
+      }
+
+      unsubscribeMessage = this.toDeviceClient.onMessage(
+        OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+        (message) => {
+          if (!this.profile.isCurrent(identity)) {
+            finish(new Error("Matrix account or device changed"));
+            return;
+          }
+          if (
+            message.type !==
+              OPENPROJECT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE ||
+            message.sender !== anchor.recipientUserId ||
+            !isOpenProjectProbeResponse(message.content) ||
+            message.content.request_id !== requestId
+          ) {
+            return;
+          }
+          finish(undefined, message.content);
+        },
+      );
+      if (settled) {
+        unsubscribeMessage();
+        return waiter;
+      }
+
+      timeout = setTimeout(
+        () => finish(new Error("OpenProject capability probe timed out")),
+        PROBE_TIMEOUT_MS,
+      );
+      if (!this.profile.isCurrent(identity)) {
+        finish(new Error("Matrix account or device changed"));
+      }
+    } catch (error) {
+      finish(
+        error instanceof Error ? error : new Error("To-device probe failed"),
+      );
+    }
+
+    return waiter;
+  }
+
+  private createProbeKey(
+    anchor: OpenProjectAnchor,
+    identity: ProfileIdentity,
   ): string {
     return JSON.stringify([
-      sessionIdentity.userId,
-      sessionIdentity.deviceId,
+      identity.userId,
+      identity.deviceId,
       OPENPROJECT_INTEGRATION_ID,
       anchor.recipientUserId,
       anchor.roomId,
@@ -404,37 +529,29 @@ export class OpenProjectCapabilityClient {
     ]);
   }
 
-  private observeSession(sessionIdentity: MatrixSessionIdentity): void {
-    if (
-      this.lastSessionIdentity &&
-      (this.lastSessionIdentity.userId !== sessionIdentity.userId ||
-        this.lastSessionIdentity.deviceId !== sessionIdentity.deviceId)
-    ) {
-      this.probeCache.clear();
-    }
-    this.lastSessionIdentity = sessionIdentity;
-  }
-
-  private assertSessionUnchanged(
-    requestSessionIdentity: MatrixSessionIdentity,
-  ): void {
-    const currentSessionIdentity = this.toDeviceClient.getSessionIdentity();
-    if (
-      currentSessionIdentity.userId !== requestSessionIdentity.userId ||
-      currentSessionIdentity.deviceId !== requestSessionIdentity.deviceId
-    ) {
-      this.observeSession(currentSessionIdentity);
-      throw new Error("Matrix account changed");
+  private removePendingProbe(probeKey: string, entry: PendingProbeEntry): void {
+    if (this.pendingProbes.get(probeKey) === entry) {
+      this.pendingProbes.delete(probeKey);
     }
   }
 
-  private removeEntry(cacheKey: string, entry: ProbeCacheEntry): void {
-    if (this.probeCache.get(cacheKey) === entry) {
-      this.probeCache.delete(cacheKey);
-    }
+  private isValidAnchor(anchor: OpenProjectAnchor): boolean {
+    return (
+      isMatrixRoomId(anchor.roomId) &&
+      isMatrixEventId(anchor.eventId) &&
+      Number.isSafeInteger(anchor.workPackageId) &&
+      anchor.workPackageId > 0 &&
+      isMatrixUserId(anchor.recipientUserId)
+    );
   }
 }
 
-interface ProbeCacheEntry {
+interface PendingProbeEntry {
   readonly promise: Promise<OpenProjectProbeResponse>;
+}
+
+interface ProbeResponseWaiter {
+  readonly promise: Promise<OpenProjectProbeResponse>;
+  readonly cancel: (error: Error) => void;
+  readonly isPending: () => boolean;
 }
