@@ -108,6 +108,13 @@ export class OpenProjectAPIClient {
     );
   }
 
+  /** Fetch a work package without changing it. */
+  async getWorkPackage(workPackageId: number): Promise<OpenProjectWorkPackage> {
+    return this.apiRequest<OpenProjectWorkPackage>(
+      `/api/v3/work_packages/${encodeURIComponent(workPackageId)}`,
+    );
+  }
+
   async getTypesInProject(projectId: number): Promise<OpenProjectType[]> {
     // TODO: Paginate?
     return (

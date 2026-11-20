@@ -39,7 +39,7 @@
     "lint": "pnpm run lint:js && pnpm run lint:types && pnpm run lint:rs",
     "lint:js": "prettier -c src tests spec web scripts docs modules && eslint",
     "lint:js:apply": "prettier -w src tests spec web scripts docs modules && eslint --fix",
-    "lint:types": "pnpm run lint:types:app && pnpm run lint:types:web && pnpm run lint:types:spec && pnpm run lint:types:tests && pnpm -r --workspace-concurrency=1 lint:types && pnpm run lint:storybook",
+    "lint:types": "pnpm run build:app:rs && pnpm run lint:types:app && pnpm run lint:types:web && pnpm run lint:types:spec && pnpm run lint:types:tests && pnpm -r --workspace-concurrency=1 lint:types && pnpm run lint:storybook",
     "lint:types:app": "tsc --project tsconfig.json --noEmit",
     "lint:types:web": "tsc --project web/tsconfig.json --noEmit",
     "lint:types:spec": "tsc --project tsconfig.spec.json --noEmit",
