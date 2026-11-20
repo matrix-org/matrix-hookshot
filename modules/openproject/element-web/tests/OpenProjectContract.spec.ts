@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   isOpenProjectAnchorContent,
   isOpenProjectUpdateContent,
-} from "../src/OpenProjectCapabilityClient";
+} from "../src/capabilities/OpenProjectCapabilityClient";
 import { OpenProjectAnchorRenderer } from "../src/OpenProjectAnchorRenderer";
 import { OpenProjectUpdateRenderer } from "../src/OpenProjectUpdateRenderer";
 import type { OpenProjectAnchorContent } from "../src/models/OpenProjectMatrixEventContent";
