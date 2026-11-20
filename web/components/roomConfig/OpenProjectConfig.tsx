@@ -83,6 +83,9 @@ const ExistingConnectionConfig: FunctionComponent<{
   const [allowedEvents, setAllowedEvents] = useState<string[]>(
     connection.config.events,
   );
+  const [automaticAnchors, setAutomaticAnchors] = useState<boolean>(
+    (connection.config.anchors ?? []).includes("work_package:created"),
+  );
   const [showUrlPreviews, setShowUrlPreviews] = useState<boolean>(
     connection.config.showUrlPreviews ?? true,
   );
@@ -95,14 +98,22 @@ const ExistingConnectionConfig: FunctionComponent<{
       }
       onSave({
         ...connection.config,
-        events: allowedEvents as any[],
+        events: allowedEvents as OpenProjectConnectionState["events"],
+        anchors: automaticAnchors ? ["work_package:created"] : [],
         showUrlPreviews,
         commandPrefix:
           commandPrefixRef.current?.value ||
           commandPrefixRef.current?.placeholder,
       });
     },
-    [connection, allowedEvents, showUrlPreviews, commandPrefixRef, onSave],
+    [
+      connection,
+      allowedEvents,
+      automaticAnchors,
+      showUrlPreviews,
+      commandPrefixRef,
+      onSave,
+    ],
   );
 
   return (
@@ -126,9 +137,23 @@ const ExistingConnectionConfig: FunctionComponent<{
           onChange={useCallback(() => setShowUrlPreviews((v) => !v), [])}
         />
       </InputField>
+      <InputField
+        label="Automatically add new work packages to the timeline"
+        noPadding={true}
+      >
+        <input
+          disabled={!connection.canEdit}
+          type="checkbox"
+          checked={automaticAnchors}
+          onChange={useCallback(
+            () => setAutomaticAnchors((value) => !value),
+            [],
+          )}
+        />
+      </InputField>
       <EventHookList
         eventList={OPEN_PROJECT_EVENTS}
-        label="Events"
+        label="Choose which event should send a notification to the room"
         setAllowedEvents={setAllowedEvents}
         allowedEvents={allowedEvents}
       />
@@ -275,6 +300,7 @@ const ConnectionConfiguration: FunctionComponent<ConfigProps> = ({
         url: newConnectionState.url,
         commandPrefix: newConnectionState.prefix,
         events: ["work_package:created"],
+        anchors: [],
       });
     },
     [newConnectionState, onSave],

@@ -37,6 +37,30 @@ openProject:
     redirectUri: https://example.com/oauth/
 ```
 
+### Timeline commands
+
+Use the connection's configured command prefix for timeline commands. The
+project picker sets it to `!openproject <project-identifier>` by default, so a
+connection for `demo-project` uses `!openproject demo-project timeline add <id>`
+and `!openproject demo-project timeline remove <id>`. If the connection prefix
+is configured as `!openproject`, omit the project identifier.
+
+Adding requires the sender to be logged in to OpenProject and the work package
+to belong to the connected project. Removing marks an existing timeline anchor
+inactive, does not change the work package in OpenProject, and does not require
+an OpenProject login. Removing an ID with no active anchor is an idempotent
+no-op. Both commands require the sender to have Hookshot command permission for
+OpenProject.
+
+Active timeline anchors are stored by Hookshot. Without a `cache` configuration,
+Hookshot uses in-memory storage and loses active anchor records when it restarts.
+Configure Redis to preserve anchors across restarts, for example:
+
+```yaml
+cache:
+  redisUri: redis://localhost:6379
+```
+
 ## Next steps
 
 If you have followed these steps correctly, OpenProject should now be configured 🥳.

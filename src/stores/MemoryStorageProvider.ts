@@ -4,7 +4,10 @@ import { IssuesGetResponseData } from "../github/Types";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import QuickLRU from "@alloc/quick-lru";
 import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
-import { OpenProjectWorkPackageCacheState } from "../openproject/State";
+import type {
+  OpenProjectAnchorState,
+  OpenProjectWorkPackageCacheState,
+} from "../openproject/State";
 
 export class MemoryStorageProvider
   extends MSP
@@ -27,6 +30,10 @@ export class MemoryStorageProvider
   private readonly openProjectWorkPackageState = new Map<
     string,
     OpenProjectWorkPackageCacheState
+  >();
+  private readonly openProjectAnchorStates = new Map<
+    string,
+    OpenProjectAnchorState
   >();
 
   constructor() {
@@ -232,5 +239,54 @@ export class MemoryStorageProvider
     id: number,
   ) {
     this.openProjectWorkPackageState.set(`${state.project}:${id}`, state);
+  }
+
+  private static openProjectAnchorKey(
+    connectionId: string,
+    workPackageId: number,
+  ): string {
+    return `${connectionId}:${workPackageId}`;
+  }
+
+  public async getOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectAnchorState | null> {
+    return (
+      this.openProjectAnchorStates.get(
+        MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+      ) ?? null
+    );
+  }
+
+  public async setOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectAnchorState,
+  ): Promise<void> {
+    this.openProjectAnchorStates.set(
+      MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+      state,
+    );
+  }
+
+  public async deleteOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<void> {
+    this.openProjectAnchorStates.delete(
+      MemoryStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+    );
+  }
+
+  public async deleteOpenProjectAnchorStates(
+    connectionId: string,
+  ): Promise<void> {
+    const prefix = `${connectionId}:`;
+    for (const key of this.openProjectAnchorStates.keys()) {
+      if (key.startsWith(prefix)) {
+        this.openProjectAnchorStates.delete(key);
+      }
+    }
   }
 }

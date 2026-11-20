@@ -93,6 +93,7 @@ export interface OpenProjectWorkPackage {
   description: { format: "markdown"; raw: string; html?: string };
   scheduleManually: boolean;
   startDate: null;
+  date: string | null;
   dueDate: string | null;
   derivedStartDate: null;
   derivedDueDate: null;
@@ -137,9 +138,28 @@ export interface OpenProjectMembership {
   };
 }
 
+/**
+ * The actor included at the top level of an OpenProject webhook.
+ *
+ * This is deliberately separate from the work package author. The webhook
+ * actor identifies the user who caused the event, while `_embedded.author`
+ * identifies who originally created the work package.
+ */
+export interface OpenProjectWebhookActor {
+  id: number;
+  name: string;
+  _links?: {
+    self?: {
+      href: string;
+      title?: string;
+    };
+  };
+}
+
 export interface OpenProjectWebhookPayloadWorkPackage {
   action: "work_package:created" | "work_package:updated";
   work_package: OpenProjectWorkPackage;
+  actor?: OpenProjectWebhookActor;
 }
 
 export type OpenProjectWebhookPayload = OpenProjectWebhookPayloadWorkPackage;

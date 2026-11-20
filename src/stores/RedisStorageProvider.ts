@@ -1,5 +1,5 @@
 import { IssuesGetResponseData } from "../github/Types";
-import { Redis, default as redis } from "ioredis";
+import { Redis, default as redis, type ChainableCommander } from "ioredis";
 import { Logger } from "matrix-appservice-bridge";
 
 import { IBridgeStorageProvider, MAX_FEED_ITEMS } from "./StorageProvider";
@@ -7,7 +7,10 @@ import { IFilterInfo, IStorageProvider } from "matrix-bot-sdk";
 import { ProvisionSession } from "matrix-appservice-bridge";
 import { SerializedGitlabDiscussionThreads } from "../gitlab/Types";
 import { BridgeConfigCache } from "../config/sections";
-import { OpenProjectWorkPackageCacheState } from "../openproject/State";
+import type {
+  OpenProjectAnchorState,
+  OpenProjectWorkPackageCacheState,
+} from "../openproject/State";
 
 const BOT_SYNC_TOKEN_KEY = "bot.sync_token.";
 const BOT_FILTER_KEY = "bot.filter.";
@@ -36,6 +39,7 @@ const HOUND_EVENTS = "hound.events.";
 const GENERIC_HOOK_HAS_WARNED = "generichook.haswarned";
 
 const OPENPROJECT_WORKPACKAGE_KEY = "openproject.workpackagecache.";
+const OPENPROJECT_ANCHOR_KEY = "openproject.anchor.v1:";
 
 const log = new Logger("RedisASProvider");
 
@@ -394,5 +398,92 @@ export class RedisStorageProvider
   ) {
     const key = `${OPENPROJECT_WORKPACKAGE_KEY}:${state.project}.${id}`;
     await this.redis.set(key, JSON.stringify(state));
+  }
+
+  private static openProjectAnchorKey(
+    connectionId: string,
+    workPackageId: number,
+  ): string {
+    return `${OPENPROJECT_ANCHOR_KEY}${connectionId}:${workPackageId}`;
+  }
+
+  private static openProjectAnchorIndexKey(connectionId: string): string {
+    return `${OPENPROJECT_ANCHOR_KEY}${connectionId}:work_packages`;
+  }
+
+  private static async execOpenProjectAnchorTransaction(
+    transaction: ChainableCommander,
+  ): Promise<void> {
+    // Redis EXEC may resolve with errors for individual commands.
+    const results = await transaction.exec();
+    if (results === null) {
+      throw new Error("OpenProject anchor transaction was aborted");
+    }
+    for (const [error] of results) {
+      if (error) {
+        throw error;
+      }
+    }
+  }
+
+  public async getOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<OpenProjectAnchorState | null> {
+    const jsonStr = await this.redis.get(
+      RedisStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+    );
+    return jsonStr ? JSON.parse(jsonStr) : null;
+  }
+
+  public async setOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+    state: OpenProjectAnchorState,
+  ): Promise<void> {
+    const key = RedisStorageProvider.openProjectAnchorKey(
+      connectionId,
+      workPackageId,
+    );
+    const indexKey =
+      RedisStorageProvider.openProjectAnchorIndexKey(connectionId);
+    const transaction = this.redis.multi();
+    transaction.set(key, JSON.stringify(state));
+    transaction.sadd(indexKey, String(workPackageId));
+    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
+  }
+
+  public async deleteOpenProjectAnchorState(
+    connectionId: string,
+    workPackageId: number,
+  ): Promise<void> {
+    const transaction = this.redis.multi();
+    transaction.del(
+      RedisStorageProvider.openProjectAnchorKey(connectionId, workPackageId),
+    );
+    transaction.srem(
+      RedisStorageProvider.openProjectAnchorIndexKey(connectionId),
+      String(workPackageId),
+    );
+    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
+  }
+
+  public async deleteOpenProjectAnchorStates(
+    connectionId: string,
+  ): Promise<void> {
+    const indexKey =
+      RedisStorageProvider.openProjectAnchorIndexKey(connectionId);
+    const workPackageIds = await this.redis.smembers(indexKey);
+    const transaction = this.redis.multi();
+    for (const workPackageId of workPackageIds) {
+      transaction.del(
+        RedisStorageProvider.openProjectAnchorKey(
+          connectionId,
+          Number(workPackageId),
+        ),
+      );
+    }
+    transaction.del(indexKey);
+    await RedisStorageProvider.execOpenProjectAnchorTransaction(transaction);
   }
 }

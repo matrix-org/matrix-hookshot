@@ -5,10 +5,10 @@ Element Web runtime modules.
 
 ## Element Web compatibility
 
-The module supports Element Web module API v2:
+The module requires Element Web module API v2.6.0 or newer:
 
 ```text
-^2.0.0
+^2.6.0
 ```
 
 It is configured in
