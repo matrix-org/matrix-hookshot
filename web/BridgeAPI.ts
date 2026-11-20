@@ -3,6 +3,7 @@ import {
   GetAuthPollResponse,
   GetAuthResponse,
   GetConnectionsForServiceResponse,
+  GetServiceStatusOptionsResponse,
 } from "../src/widgets/BridgeWidgetInterface";
 import { GetConnectionsResponseItem } from "../src/widgets/Api";
 import {
@@ -217,6 +218,15 @@ export class BridgeAPI {
 
   async getAuth(service: string): Promise<GetAuthResponse> {
     return this.request("GET", `/widgetapi/v1/service/${service}/auth`);
+  }
+
+  async getServiceStatusOptions(
+    service: string,
+  ): Promise<GetServiceStatusOptionsResponse> {
+    return this.request(
+      "GET",
+      `/widgetapi/v1/service/${encodeURIComponent(service)}/statuses`,
+    );
   }
 
   async getAuthPoll(

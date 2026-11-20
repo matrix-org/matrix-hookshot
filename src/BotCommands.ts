@@ -11,6 +11,12 @@ import { ConnectionType } from "./Connections/type";
 
 const stringArgv = import("string-argv");
 const md = new markdown();
+// With prefix "!opdev project ", the help template "££PREFIX££close" renders as "!opdev project close".
+const HELP_COMMAND_PREFIX_REGEX = /££PREFIX££/g;
+// With shorthand "!opdev ", the help template "££GLOBAL_PREFIX££close" renders as "!opdev close".
+const HELP_SHORTHAND_PREFIX_REGEX = /££GLOBAL_PREFIX££/g;
+// Example: "!op close" has a matching space immediately after "!op".
+const COMMAND_PREFIX_BOUNDARY_REGEX = /\s/;
 
 export const botCommandSymbol = Symbol("botCommandMetadata");
 export function botCommand(
@@ -47,6 +53,10 @@ export interface BotCommandOptions {
    * Optional ordered set of arguments. No checks are made, these are passed in after requiredArgs.
    */
   optionalArgs?: string[];
+  /**
+   * Alternative argument forms for help when syntax depends on context, such as replying to an event.
+   */
+  helpUsages?: BotCommandHelpUsage[];
   /**
    * Prepend the userId to the command. Always the first argument
    */
@@ -104,7 +114,14 @@ export type HelpFunction = (
   cmdPrefix?: string,
   categories?: string[],
   includeTitles?: boolean,
+  globalCmdPrefix?: string,
 ) => MatrixMessageContent;
+
+interface BotCommandHelpUsage {
+  args: string[];
+  note?: string;
+  prefix?: "global";
+}
 
 export function compileBotCommands(
   ...prototypes: Record<string, BotCommandFunction>[]
@@ -116,17 +133,24 @@ export function compileBotCommands(
       const b = Reflect.getMetadata(botCommandSymbol, prototype, propertyKey);
       if (b) {
         const category = b.category || "default";
-        const requiredArgs =
-          b.requiredArgs?.map((arg: string) => `<${arg}>`).join(" ") || "";
-        const optionalArgs =
-          b.optionalArgs?.map((arg: string) => `[${arg}]`).join(" ") || "";
-        const cmdStr =
-          ` - \`££PREFIX££${b.prefix}` +
-          (requiredArgs ? ` ${requiredArgs}` : "") +
-          (optionalArgs ? ` ${optionalArgs}` : "") +
-          `\` - ${b.help}`;
         cmdStrs[category] = cmdStrs[category] || [];
-        cmdStrs[category].push(cmdStr);
+        const helpUsages: BotCommandHelpUsage[] = b.helpUsages || [
+          {
+            args: [
+              ...(b.requiredArgs || []).map((arg: string) => `<${arg}>`),
+              ...(b.optionalArgs || []).map((arg: string) => `[${arg}]`),
+            ],
+          },
+        ];
+        for (const usage of helpUsages) {
+          const args = usage.args.length ? ` ${usage.args.join(" ")}` : "";
+          const note = usage.note ? ` (${usage.note})` : "";
+          const prefix =
+            usage.prefix === "global" ? "££GLOBAL_PREFIX££" : "££PREFIX££";
+          cmdStrs[category].push(
+            ` - \`${prefix}${b.prefix}${args}\`${note} - ${b.help}`,
+          );
+        }
         if (botCommands[b.prefix as string]) {
           throw Error("Two commands cannot share the same prefix");
         }
@@ -149,6 +173,7 @@ export function compileBotCommands(
       cmdPrefix = "",
       onlyCategories?: string[],
       includeTitles = true,
+      globalCmdPrefix = "",
     ) => {
       let content = "";
       for (const [categoryName, commands] of Object.entries(cmdStrs)) {
@@ -164,10 +189,13 @@ export function compileBotCommands(
         }
         content += commands.join("\n") + "\n";
       }
+      const body = content
+        .replace(HELP_COMMAND_PREFIX_REGEX, cmdPrefix)
+        .replace(HELP_SHORTHAND_PREFIX_REGEX, globalCmdPrefix);
       return {
         msgtype: "m.notice",
-        body: content.replace(/££PREFIX££/g, cmdPrefix),
-        formatted_body: md.render(content).replace(/££PREFIX££/g, cmdPrefix),
+        body,
+        formatted_body: md.render(body),
         format: "org.matrix.custom.html",
       };
     },
@@ -196,6 +224,13 @@ interface CommandResultErrorHuman {
   error?: Error;
 }
 
+/** A command whose prefix has already been resolved by room-level routing. */
+export interface ResolvedCommand {
+  commandText: string;
+  prefix: string;
+  isShorthand: boolean;
+}
+
 export async function handleCommand(
   userId: string,
   command: string,
@@ -206,25 +241,43 @@ export async function handleCommand(
   defaultPermissionService?: string,
   prefix?: string,
   globalPrefix?: string,
+  resolvedCommand?: ResolvedCommand,
 ): Promise<
   | CommandResultNotHandled
   | CommandResultSuccess
   | CommandResultErrorUnknown
   | CommandResultErrorHuman
 > {
-  let usingGlobalPrefix = false;
-  if (prefix && command.startsWith(prefix)) {
+  // Room-level routing may have already chosen a connection and removed its prefix.
+  // Other callers still need their configured prefix matched here.
+  let usingGlobalPrefix = resolvedCommand?.isShorthand ?? false;
+  let matchedPrefix: string | undefined = resolvedCommand?.prefix;
+  // Trim the configured shorthand, then require whitespace or the end of the
+  // message so "!op" does not consume "!openproject".
+  const normalizedGlobalPrefix = globalPrefix?.trimEnd();
+  if (resolvedCommand) {
+    command = resolvedCommand.commandText;
+  } else if (prefix && command.startsWith(prefix)) {
+    matchedPrefix = prefix.trimEnd();
     command = command.substring(prefix.length);
-  } else if (globalPrefix && command.startsWith(globalPrefix)) {
+  } else if (
+    normalizedGlobalPrefix &&
+    command.startsWith(normalizedGlobalPrefix) &&
+    (command.length === normalizedGlobalPrefix.length ||
+      COMMAND_PREFIX_BOUNDARY_REGEX.test(
+        command.charAt(normalizedGlobalPrefix.length),
+      ))
+  ) {
     usingGlobalPrefix = true;
-    command = command.substring(globalPrefix.length);
+    matchedPrefix = normalizedGlobalPrefix;
+    command = command.substring(normalizedGlobalPrefix.length);
   } else if (prefix || globalPrefix) {
     return { handled: false };
   }
   const parts = (await stringArgv).parseArgsStringToArgv(command);
+  // Command names can contain spaces, so try the longest name before shorter ones.
   for (let i = parts.length; i > 0; i--) {
     const prefix = parts.slice(0, i).join(" ").toLowerCase();
-    // We have a match!
     const command = botCommands[prefix];
     if (!command) {
       continue;
@@ -244,13 +297,13 @@ export async function handleCommand(
       };
     }
     if (!command.includeReply && parentEvent) {
-      // Ignore replies if we aren't expecting one.
+      // A reply only reaches commands that explicitly accept the replied-to event.
       return {
         handled: false,
       };
     }
     if (!command.runOnGlobalPrefix && usingGlobalPrefix) {
-      // Ignore global prefix commands.
+      // A shorthand cannot invoke commands that require a connection prefix.
       return {
         handled: false,
       };
@@ -268,6 +321,7 @@ export async function handleCommand(
     const args: string[] = parts.slice(i);
     try {
       let result: BotCommandResult;
+      // Command metadata determines which context arguments precede the text arguments.
       if (command.includeUserId && command.includeReply) {
         result = await (
           botCommands[prefix].fn as BotCommandFunctionWithUserIdAndReply
@@ -297,6 +351,13 @@ export async function handleCommand(
         humanError: commandError.humanError,
       };
     }
+  }
+  // Once a prefix matched, unknown text belongs to this command handler.
+  if (matchedPrefix) {
+    return {
+      handled: true,
+      humanError: `Unknown command. Try "${matchedPrefix} help" for available commands.`,
+    };
   }
   return { handled: false };
 }
