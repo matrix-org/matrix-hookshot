@@ -1740,6 +1740,8 @@ describe("OpenProjectConnection", () => {
         messageClient: undefined as never,
         storage: {} as InstantiateConnectionOpts["storage"],
         getAllConnectionsOfType: () => [],
+        getIntegrationBotForService: () => ({ userId: intent.userId, intent }),
+        isBotUserInRoom: () => true,
       },
     );
 
