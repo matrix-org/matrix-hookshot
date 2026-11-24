@@ -895,7 +895,7 @@ export class SetupConnection extends CommandConnection {
         `The project url you entered was not valid. It should be part of ${expectedOrigin}`,
       );
     }
-    return `http://${url.host}/projects/${projectId}`;
+    return new URL(`/projects/${projectId}`, url).toString();
   }
 
   @botCommand("openproject add", {
