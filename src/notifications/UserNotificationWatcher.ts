@@ -131,12 +131,10 @@ Check your token is still valid, and then turn notifications back on.`,
       data.instanceUrl,
     );
     const existing = this.userIntervals.get(key);
-    const since = data.since || existing?.since;
-    if (since === undefined) {
-      throw Error(
-        "`since` value missing from data payload, and no previous since value exists",
-      );
-    }
+    // Use the latest known position. The running task's value advances on
+    // every poll, but the stored value is only updated when new events arrive,
+    // so either may be stale.
+    const since = Math.max(existing?.since ?? 0, data.since ?? 0);
     if (data.type === "github") {
       if (!this.config.github) {
         throw Error("GitHub is not configured");
