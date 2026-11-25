@@ -34,6 +34,11 @@ export type HookshotLoginStatusResult =
   | "not_connected"
   | "unavailable";
 
+export type HookshotLoginCapability =
+  | "available"
+  | "not_authorized"
+  | "unavailable";
+
 export interface HookshotCapabilitiesProbeRequest {
   v: typeof HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION;
   request_id: string;
@@ -90,6 +95,7 @@ export interface HookshotCapabilitiesProbeResponse {
   result: HookshotProbeResult;
   connection?: "connected" | "not_connected";
   actions?: HookshotCapabilityAction[];
+  login?: HookshotLoginCapability;
 }
 
 export interface HookshotCapabilityAction {

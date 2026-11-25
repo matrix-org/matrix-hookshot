@@ -13,13 +13,17 @@ import {
 } from "./Schema";
 import type { OpenProjectAnchorState } from "./State";
 import type { OpenProjectCardActionsResult } from "./Eligibility";
-import type { HookshotCapabilityAction } from "../ToDeviceProtocol";
+import type {
+  HookshotCapabilityAction,
+  HookshotLoginCapability,
+} from "../ToDeviceProtocol";
 import { createMatrixProbeServices } from "../CapabilityMatrixServices";
 import { BridgePermissionLevel } from "../config/BridgePermissionLevel";
 import type { Appservice } from "matrix-bot-sdk";
 import type { BridgeConfig } from "../config/Config";
 import type { ConnectionManager } from "../ConnectionManager";
 import type { IBridgeStorageProvider } from "../stores/StorageProvider";
+import type { UserTokenStore } from "../tokens/UserTokenStore";
 
 export const OPENPROJECT_INTEGRATION_ID = "openproject";
 
@@ -34,6 +38,8 @@ export interface OpenProjectProbeServices extends ReturnType<
   typeof createMatrixProbeServices
 > {
   hasOpenProjectCommandPermission: (userId: string) => boolean;
+  hasOpenProjectLoginPermission: (userId: string) => boolean;
+  isLoginServiceConfigured: () => boolean;
   getOpenProjectConnections: (
     projectId: number,
   ) => ReadonlyArray<OpenProjectCapabilityConnection>;
@@ -282,6 +288,7 @@ export function createOpenProjectProbeHandler(
         ? {
             result: "not_connected" as const,
             connection: "not_connected" as const,
+            login: getLoginCapability(services, context.sender),
           }
         : { result: evaluationFailure };
     }
@@ -353,8 +360,10 @@ export function createOpenProjectCapabilityProbe(dependencies: {
   config: BridgeConfig;
   getConnectionManager: () => ConnectionManager | undefined;
   storage: IBridgeStorageProvider;
+  tokenStore: Pick<UserTokenStore, "openProjectOAuth">;
 }): HookshotProbeHandler {
-  const { appservice, config, getConnectionManager, storage } = dependencies;
+  const { appservice, config, getConnectionManager, storage, tokenStore } =
+    dependencies;
   return createOpenProjectProbeHandler({
     ...createMatrixProbeServices(appservice),
     hasOpenProjectCommandPermission: (userId) =>
@@ -363,6 +372,13 @@ export function createOpenProjectCapabilityProbe(dependencies: {
         OPENPROJECT_INTEGRATION_ID,
         BridgePermissionLevel.commands,
       ),
+    hasOpenProjectLoginPermission: (userId) =>
+      config.checkPermission(
+        userId,
+        OPENPROJECT_INTEGRATION_ID,
+        BridgePermissionLevel.login,
+      ),
+    isLoginServiceConfigured: () => tokenStore.openProjectOAuth !== undefined,
     getOpenProjectConnections: (projectId) =>
       (
         getConnectionManager()?.getConnectionsForOpenProject(projectId) ?? []
@@ -370,6 +386,25 @@ export function createOpenProjectCapabilityProbe(dependencies: {
     getOpenProjectAnchorState: (connectionId, workPackageId) =>
       storage.getOpenProjectAnchorState(connectionId, workPackageId),
   });
+}
+
+function getLoginCapability(
+  services: OpenProjectProbeServices,
+  sender: string,
+): HookshotLoginCapability {
+  try {
+    if (!services.hasOpenProjectLoginPermission(sender)) {
+      return "not_authorized";
+    }
+  } catch {
+    return "not_authorized";
+  }
+
+  try {
+    return services.isLoginServiceConfigured() ? "available" : "unavailable";
+  } catch {
+    return "unavailable";
+  }
 }
 
 function getEvaluationFailure(

@@ -2207,6 +2207,7 @@ export class Bridge {
                 config: this.config,
                 getConnectionManager: () => this.connectionManager,
                 storage: this.storage,
+                tokenStore: this.tokenStore,
               })
             : async () => ({ result: "unavailable" }),
       });

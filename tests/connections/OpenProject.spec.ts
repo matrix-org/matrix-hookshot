@@ -1686,6 +1686,8 @@ describe("OpenProjectConnection", () => {
       assertRoomReadAccess: vi.fn().mockResolvedValue(undefined),
       canSendRoomMessage: vi.fn().mockResolvedValue(true),
       hasOpenProjectCommandPermission: vi.fn().mockReturnValue(true),
+      hasOpenProjectLoginPermission: vi.fn().mockReturnValue(true),
+      isLoginServiceConfigured: vi.fn().mockReturnValue(true),
     });
     const request: HookshotCapabilitiesProbeRequest = {
       v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,

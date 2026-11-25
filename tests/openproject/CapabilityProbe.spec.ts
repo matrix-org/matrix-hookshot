@@ -96,6 +96,8 @@ function createServices(
     assertRoomReadAccess: vi.fn().mockResolvedValue(undefined),
     canSendRoomMessage: vi.fn().mockResolvedValue(true),
     hasOpenProjectCommandPermission: vi.fn().mockReturnValue(true),
+    hasOpenProjectLoginPermission: vi.fn().mockReturnValue(true),
+    isLoginServiceConfigured: vi.fn().mockReturnValue(true),
     getOpenProjectConnections: defaultConnections,
     getOpenProjectAnchorState: vi.fn().mockResolvedValue(activeAnchorState),
     ...overrides,
@@ -126,6 +128,8 @@ describe("authenticated Hookshot probe", () => {
         },
       ],
     });
+    expect(services.hasOpenProjectLoginPermission).not.toHaveBeenCalled();
+    expect(services.isLoginServiceConfigured).not.toHaveBeenCalled();
 
     expect(services.getAnchorEvent).toHaveBeenCalledWith(
       roomId,
@@ -150,7 +154,7 @@ describe("authenticated Hookshot probe", () => {
     );
   });
 
-  it("reports not_connected without exposing token details", async () => {
+  it("reports not_connected and advertises configured login", async () => {
     const services = createServices({
       evaluateCardActions: vi.fn().mockResolvedValue({
         status: "not_connected",
@@ -163,6 +167,46 @@ describe("authenticated Hookshot probe", () => {
     ).resolves.toEqual({
       result: "not_connected",
       connection: "not_connected",
+      login: "available",
+    });
+    expect(services.hasOpenProjectLoginPermission).toHaveBeenCalledWith(sender);
+    expect(services.isLoginServiceConfigured).toHaveBeenCalledOnce();
+  });
+
+  it("reports denied login capability when the sender lacks login permission", async () => {
+    const services = createServices({
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "not_connected",
+      }),
+      hasOpenProjectLoginPermission: vi.fn().mockReturnValue(false),
+    });
+    const handler = createOpenProjectProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({
+      result: "not_connected",
+      connection: "not_connected",
+      login: "not_authorized",
+    });
+    expect(services.isLoginServiceConfigured).not.toHaveBeenCalled();
+  });
+
+  it("reports unavailable login capability when OpenProject OAuth is disabled", async () => {
+    const services = createServices({
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "not_connected",
+      }),
+      isLoginServiceConfigured: vi.fn().mockReturnValue(false),
+    });
+    const handler = createOpenProjectProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({
+      result: "not_connected",
+      connection: "not_connected",
+      login: "unavailable",
     });
   });
 

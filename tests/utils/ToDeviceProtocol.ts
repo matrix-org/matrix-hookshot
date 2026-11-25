@@ -14,6 +14,7 @@ const CAPABILITIES_RESPONSE_KEYS = [
   "result",
   "connection",
   "actions",
+  "login",
 ] as const;
 const LOGIN_START_RESPONSE_KEYS = [
   "v",
@@ -73,8 +74,21 @@ export function isHookshotCapabilitiesProbeResponse(
     }
   }
 
+  if (
+    value.login !== undefined &&
+    (value.result !== "not_connected" ||
+      (value.login !== "available" &&
+        value.login !== "not_authorized" &&
+        value.login !== "unavailable"))
+  ) {
+    return false;
+  }
+
   if (value.result === "ok") {
-    return connection === undefined || connection === "connected";
+    return (
+      (connection === undefined || connection === "connected") &&
+      value.login === undefined
+    );
   }
   if (value.result === "not_connected") {
     return (
@@ -82,7 +96,11 @@ export function isHookshotCapabilitiesProbeResponse(
       value.actions === undefined
     );
   }
-  return connection === undefined && value.actions === undefined;
+  return (
+    connection === undefined &&
+    value.actions === undefined &&
+    value.login === undefined
+  );
 }
 
 export function isHookshotLoginStartResponse(

@@ -359,6 +359,37 @@ describe("Hookshot Step 0 to-device protocol", () => {
       },
     );
 
+    it.each(["available", "not_authorized", "unavailable"])(
+      "accepts the %s login capability only on not_connected",
+      (login) => {
+        expect(
+          isHookshotCapabilitiesProbeResponse({
+            ...validResponse,
+            result: "not_connected",
+            connection: "not_connected",
+            login,
+          }),
+        ).toBe(true);
+        expect(
+          isHookshotCapabilitiesProbeResponse({
+            ...validResponse,
+            login,
+          }),
+        ).toBe(false);
+      },
+    );
+
+    it("rejects an unknown login capability value", () => {
+      expect(
+        isHookshotCapabilitiesProbeResponse({
+          ...validResponse,
+          result: "not_connected",
+          connection: "not_connected",
+          login: "login_now",
+        }),
+      ).toBe(false);
+    });
+
     it.each([
       ["credentials", { oauth_token: "secret" }],
       ["work-package data", { work_package: { id: 123 } }],
