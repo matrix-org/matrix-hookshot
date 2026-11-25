@@ -53,11 +53,20 @@ export function ProbeStatusView({
   }
 
   if (state.kind === "result" && state.result === "not_connected") {
+    const loginState = state.response.login;
+    const statusLabel =
+      loginState === "available"
+        ? "OpenProject account not connected. Account linking is available."
+        : loginState === "not_authorized"
+          ? "OpenProject account not connected. Account linking is not authorized."
+          : loginState === "unavailable"
+            ? "OpenProject account not connected. Account linking is unavailable."
+            : "OpenProject account not connected.";
     return (
       <div aria-live="polite">
         <IconButton
-          aria-label="OpenProject account not connected."
-          tooltip="OpenProject account not connected."
+          aria-label={statusLabel}
+          tooltip={statusLabel}
           className={styles.statusIconButton}
           disabled
           noBackground

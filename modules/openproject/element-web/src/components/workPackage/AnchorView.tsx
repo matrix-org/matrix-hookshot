@@ -61,6 +61,8 @@ export function AnchorView({ vm }: { vm: AnchorViewModel }) {
           url={details.url}
           actions={actions}
           onAction={vm.prepareAction}
+          canConnect={snapshot.canConnect}
+          onConnect={vm.connectAccount}
         />
         <ProbeStatusView state={snapshot.probe} onRetry={vm.retry} />
       </div>

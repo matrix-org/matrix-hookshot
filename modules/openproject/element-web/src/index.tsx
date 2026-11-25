@@ -19,7 +19,12 @@ import {
   OpenProjectCapabilityClient,
   isOpenProjectCommandRequest,
 } from "./capabilities/OpenProjectCapabilityClient";
-import { getOpenProjectCapabilityBot } from "./utils/config";
+import {
+  getOpenProjectBaseUrl,
+  getOpenProjectCapabilityBot,
+} from "./utils/config";
+import { OpenProjectConnectionNotifier } from "./OpenProjectConnectionNotifier";
+import { openOpenProjectAccountConnectionDialog } from "./components/account/OpenProjectAccountConnectionDialog";
 import { OpenProjectAnchorRenderer } from "./OpenProjectAnchorRenderer";
 import { OpenProjectActivityRenderer } from "./OpenProjectActivityRenderer";
 import {
@@ -45,13 +50,15 @@ class HookshotOpenProjectModule implements Module {
 
   private readonly capabilityBotUserId: string | undefined;
   private readonly capabilityClient: OpenProjectCapabilityClient | undefined;
+  private readonly baseUrl: URL | undefined;
+  private readonly connectionNotifier = new OpenProjectConnectionNotifier();
   private readonly roomStates = new Map<string, TrackedRoomState>();
   private currentRoomIds = new Set<string>();
 
   public constructor(private readonly api: Api) {
-    this.capabilityBotUserId = getOpenProjectCapabilityBot(
-      getElementConfig(api),
-    );
+    const config = getElementConfig(api);
+    this.capabilityBotUserId = getOpenProjectCapabilityBot(config);
+    this.baseUrl = getOpenProjectBaseUrl(config);
     this.capabilityClient = this.capabilityBotUserId
       ? new OpenProjectCapabilityClient(api.client.toDevice, api.profile)
       : undefined;
@@ -113,6 +120,22 @@ class HookshotOpenProjectModule implements Module {
             }}
             capabilityClient={isAnchorForBot ? capabilityClient : undefined}
             data={content}
+            isTrustedAnchor={isAnchorForBot}
+            baseUrl={this.baseUrl}
+            connectionNotifier={this.connectionNotifier}
+            onConnectAccount={(anchor) => {
+              if (!this.capabilityClient || !this.baseUrl) return;
+              const handle = openOpenProjectAccountConnectionDialog(this.api, {
+                client: this.capabilityClient,
+                anchor,
+                baseUrl: this.baseUrl,
+              });
+              void handle.finished.then(({ ok, model }) => {
+                if (ok && model) {
+                  this.connectionNotifier.notify(model.sessionIdentity);
+                }
+              });
+            }}
             onActionCommand={(command) =>
               this.api.composer.insertPlaintextIntoComposer(command, {
                 view: "room",

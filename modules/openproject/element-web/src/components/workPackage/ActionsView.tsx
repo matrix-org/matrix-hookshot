@@ -9,12 +9,20 @@ interface ActionsViewProps {
   readonly url?: string;
   readonly actions: readonly OpenProjectCapabilityAction[];
   readonly onAction: (action: OpenProjectCapabilityAction) => void;
+  readonly canConnect?: boolean;
+  readonly onConnect?: () => void;
 }
 
-export function ActionsView({ url, actions, onAction }: ActionsViewProps) {
+export function ActionsView({
+  url,
+  actions,
+  onAction,
+  canConnect = false,
+  onConnect,
+}: ActionsViewProps) {
   // `url` originates in untrusted event content and is sanitised here
   const sanitizedUrl = safeUrl(url);
-  if (!sanitizedUrl && actions.length === 0) {
+  if (!sanitizedUrl && actions.length === 0 && !canConnect) {
     return null;
   }
 
@@ -31,6 +39,11 @@ export function ActionsView({ url, actions, onAction }: ActionsViewProps) {
           rel="noopener noreferrer"
         >
           View package
+        </Button>
+      )}
+      {canConnect && (
+        <Button size="md" kind="secondary" onClick={onConnect}>
+          Connect my account
         </Button>
       )}
       {actions.map((action) => (

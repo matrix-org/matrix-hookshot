@@ -5,6 +5,7 @@ import type {
   OpenProjectAnchor,
   OpenProjectCapabilityClient,
 } from "./capabilities/OpenProjectCapabilityClient";
+import type { OpenProjectConnectionNotifier } from "./OpenProjectConnectionNotifier";
 import { AnchorView } from "./components/workPackage/AnchorView";
 import type {
   OpenProjectAnchorContent,
@@ -17,6 +18,10 @@ interface OpenProjectAnchorRendererProps {
   readonly capabilityClient?: OpenProjectCapabilityClient;
   readonly data: OpenProjectAnchorContent;
   readonly onActionCommand?: (command: string) => void;
+  readonly isTrustedAnchor?: boolean;
+  readonly baseUrl?: URL;
+  readonly connectionNotifier?: OpenProjectConnectionNotifier;
+  readonly onConnectAccount?: (anchor: OpenProjectAnchor) => void;
 }
 
 export function OpenProjectAnchorRenderer({
@@ -24,6 +29,10 @@ export function OpenProjectAnchorRenderer({
   capabilityClient,
   data,
   onActionCommand,
+  isTrustedAnchor,
+  baseUrl,
+  connectionNotifier,
+  onConnectAccount,
 }: OpenProjectAnchorRendererProps) {
   const snapshotId = data["org.matrix.matrix-hookshot.openproject.snapshot_id"];
 
@@ -36,6 +45,10 @@ export function OpenProjectAnchorRenderer({
           capabilityClient={capabilityClient}
           data={data}
           onActionCommand={onActionCommand}
+          isTrustedAnchor={isTrustedAnchor}
+          baseUrl={baseUrl}
+          connectionNotifier={connectionNotifier}
+          onConnectAccount={onConnectAccount}
         />
       </React.Fragment>
     </TooltipProvider>
@@ -47,11 +60,19 @@ function OpenProjectAnchorCard({
   capabilityClient,
   data,
   onActionCommand,
+  isTrustedAnchor,
+  baseUrl,
+  connectionNotifier,
+  onConnectAccount,
 }: {
   anchor: OpenProjectAnchor;
   capabilityClient?: OpenProjectCapabilityClient;
   data: OpenProjectContent;
   onActionCommand?: (command: string) => void;
+  isTrustedAnchor?: boolean;
+  baseUrl?: URL;
+  connectionNotifier?: OpenProjectConnectionNotifier;
+  onConnectAccount?: (anchor: OpenProjectAnchor) => void;
 }) {
   const vm = useCreateAutoDisposedViewModel(
     () =>
@@ -60,6 +81,10 @@ function OpenProjectAnchorCard({
         capabilityClient,
         data,
         onActionCommand,
+        isTrustedAnchor,
+        baseUrl,
+        connectionNotifier,
+        onConnectAccount,
       }),
   );
   return <AnchorView vm={vm} />;

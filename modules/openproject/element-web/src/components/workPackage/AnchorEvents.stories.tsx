@@ -103,6 +103,7 @@ function ActiveAnchorStory({ data }: { data: OpenProjectContent }) {
     subscribe: () => () => {},
     retry: () => {},
     prepareAction: () => {},
+    connectAccount: () => {},
   };
 
   return <AnchorView vm={vm} />;

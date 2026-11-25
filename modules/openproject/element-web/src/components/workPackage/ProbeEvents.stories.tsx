@@ -35,7 +35,13 @@ const minimalAnchorContent = {
     "storybook-probe-minimal",
 } satisfies OpenProjectActiveAnchorContent;
 
-function ProbeEventStory({ probe }: { probe: AnchorProbeState }) {
+function ProbeEventStory({
+  probe,
+  canConnect = false,
+}: {
+  probe: AnchorProbeState;
+  canConnect?: boolean;
+}) {
   const snapshot = new AnchorMessageViewModel({
     data: minimalAnchorContent,
   }).getSnapshot();
@@ -43,12 +49,13 @@ function ProbeEventStory({ probe }: { probe: AnchorProbeState }) {
     return null;
   }
 
-  const probeSnapshot: AnchorViewSnapshot = { ...snapshot, probe };
+  const probeSnapshot: AnchorViewSnapshot = { ...snapshot, probe, canConnect };
   const vm: AnchorViewModel = {
     getSnapshot: () => probeSnapshot,
     subscribe: () => () => {},
     retry: () => {},
     prepareAction: () => {},
+    connectAccount: () => {},
   };
 
   return <AnchorView vm={vm} />;
@@ -98,6 +105,17 @@ export const NotConnected: Story = {
   ),
 };
 
+export const NotConnectedWithLoginAvailable: Story = {
+  render: () => (
+    <ProbeEventStory
+      probe={resultState(
+        createResponse("not_connected", undefined, "available"),
+      )}
+      canConnect
+    />
+  ),
+};
+
 export const NotAuthorized: Story = {
   render: () => (
     <ProbeEventStory probe={resultState(createResponse("not_authorized"))} />
@@ -115,6 +133,7 @@ export const Disabled: Story = {
 function createResponse(
   result: OpenProjectProbeResponse["result"],
   actions?: OpenProjectProbeResponse["actions"],
+  login?: NonNullable<OpenProjectProbeResponse["login"]>,
 ): OpenProjectProbeResponse {
   return {
     v: 1,
@@ -123,6 +142,7 @@ function createResponse(
     result,
     ...(result === "ok" ? { connection: "connected" as const } : {}),
     ...(actions === undefined ? {} : { actions }),
+    ...(login === undefined ? {} : { login }),
   };
 }
 
