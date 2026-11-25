@@ -1,5 +1,7 @@
 import {
   HookshotCapabilitiesProbeRequest,
+  HookshotLoginStartRequest,
+  HookshotLoginStatusRequest,
   isVersionedHookshotAnchorEventContent,
 } from "../ToDeviceProtocol";
 import type {
@@ -138,7 +140,7 @@ function isCurrentActiveAnchor(
 
 function isValidAnchor(
   event: AnchorEvent,
-  request: HookshotCapabilitiesProbeRequest,
+  request: OpenProjectAnchorRequest,
   context: HookshotProbeContext,
 ): boolean {
   return (
@@ -156,6 +158,139 @@ function isValidAnchor(
   );
 }
 
+export type OpenProjectAnchorRequest = Pick<
+  | HookshotCapabilitiesProbeRequest
+  | HookshotLoginStartRequest
+  | HookshotLoginStatusRequest,
+  "integration_id" | "room_id" | "anchor_event_id"
+>;
+
+export type OpenProjectAuthorizationResult =
+  | {
+      status: "authorized";
+      connection: OpenProjectCapabilityConnection;
+      projectId: number;
+      workPackageId: number;
+    }
+  | { status: "not_authorized" | "unavailable" };
+
+/** Revalidate the original anchor and the sender's current room permissions. */
+export async function authorizeOpenProjectRequest(
+  services: OpenProjectProbeServices,
+  request: OpenProjectAnchorRequest,
+  context: HookshotProbeContext,
+): Promise<OpenProjectAuthorizationResult> {
+  if (request.integration_id !== OPENPROJECT_INTEGRATION_ID) {
+    return { status: "unavailable" };
+  }
+
+  let anchor: AnchorEvent;
+  try {
+    anchor = await services.getAnchorEvent(
+      request.room_id,
+      request.anchor_event_id,
+      context.recipientBotUserId,
+    );
+  } catch (error) {
+    const status = getHttpStatus(error);
+    return {
+      status:
+        status === 403 || status === 404 ? "not_authorized" : "unavailable",
+    };
+  }
+
+  if (!isValidAnchor(anchor, request, context)) {
+    return { status: "not_authorized" };
+  }
+
+  const projectId = getOpenProjectProjectId(anchor.content);
+  const workPackageId = getOpenProjectWorkPackageId(anchor.content);
+  if (projectId === undefined || workPackageId === undefined) {
+    return { status: "not_authorized" };
+  }
+
+  let connections: OpenProjectCapabilityConnection[];
+  try {
+    connections = services
+      .getOpenProjectConnections(projectId)
+      .filter(
+        (candidate) =>
+          candidate.roomId === request.room_id &&
+          candidate.botUserId === context.recipientBotUserId &&
+          candidate.projectId === projectId,
+      );
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (connections.length === 0) {
+    return { status: "not_authorized" };
+  }
+
+  const currentConnections: OpenProjectCapabilityConnection[] = [];
+  try {
+    for (const connection of connections) {
+      const activeAnchor = await services.getOpenProjectAnchorState(
+        connection.connectionId,
+        workPackageId,
+      );
+      if (
+        isCurrentActiveAnchor(
+          activeAnchor,
+          request.anchor_event_id,
+          projectId,
+          workPackageId,
+        )
+      ) {
+        currentConnections.push(connection);
+      }
+    }
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (currentConnections.length !== 1) {
+    return { status: "not_authorized" };
+  }
+
+  try {
+    await services.assertRoomReadAccess(
+      context.sender,
+      request.room_id,
+      context.recipientBotUserId,
+    );
+  } catch {
+    return { status: "not_authorized" };
+  }
+
+  try {
+    if (!services.hasOpenProjectCommandPermission(context.sender)) {
+      return { status: "not_authorized" };
+    }
+  } catch {
+    return { status: "not_authorized" };
+  }
+
+  let canSendMessage: boolean;
+  try {
+    canSendMessage = await services.canSendRoomMessage(
+      context.sender,
+      request.room_id,
+      context.recipientBotUserId,
+    );
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (!canSendMessage) {
+    return { status: "not_authorized" };
+  }
+
+  return {
+    status: "authorized",
+    connection: currentConnections[0],
+    projectId,
+    workPackageId,
+  };
+}
+
 /**
  * Creates the OpenProject authenticated card probe handler.
  *
@@ -170,107 +305,15 @@ export function createOpenProjectProbeHandler(
     request: HookshotCapabilitiesProbeRequest,
     context: HookshotProbeContext,
   ) => {
-    if (request.integration_id !== OPENPROJECT_INTEGRATION_ID) {
-      return { result: "unavailable" as const };
+    const authorization = await authorizeOpenProjectRequest(
+      services,
+      request,
+      context,
+    );
+    if (authorization.status !== "authorized") {
+      return { result: authorization.status };
     }
-
-    let anchor: AnchorEvent;
-    try {
-      anchor = await services.getAnchorEvent(
-        request.room_id,
-        request.anchor_event_id,
-        context.recipientBotUserId,
-      );
-    } catch (error) {
-      const status = getHttpStatus(error);
-      return status === 403 || status === 404
-        ? { result: "not_authorized" as const }
-        : { result: "unavailable" as const };
-    }
-
-    if (!isValidAnchor(anchor, request, context)) {
-      return { result: "not_authorized" as const };
-    }
-
-    const projectId = getOpenProjectProjectId(anchor.content);
-    const workPackageId = getOpenProjectWorkPackageId(anchor.content);
-    if (projectId === undefined || workPackageId === undefined) {
-      return { result: "not_authorized" as const };
-    }
-
-    let connections: OpenProjectCapabilityConnection[];
-    try {
-      connections = services
-        .getOpenProjectConnections(projectId)
-        .filter(
-          (candidate) =>
-            candidate.roomId === request.room_id &&
-            candidate.botUserId === context.recipientBotUserId &&
-            candidate.projectId === projectId,
-        );
-    } catch {
-      return { result: "unavailable" as const };
-    }
-    if (connections.length === 0) {
-      return { result: "not_authorized" as const };
-    }
-
-    const currentConnections: OpenProjectCapabilityConnection[] = [];
-    try {
-      for (const connection of connections) {
-        const activeAnchor = await services.getOpenProjectAnchorState(
-          connection.connectionId,
-          workPackageId,
-        );
-        if (
-          isCurrentActiveAnchor(
-            activeAnchor,
-            request.anchor_event_id,
-            projectId,
-            workPackageId,
-          )
-        ) {
-          currentConnections.push(connection);
-        }
-      }
-    } catch {
-      return { result: "unavailable" as const };
-    }
-    if (currentConnections.length !== 1) {
-      return { result: "not_authorized" as const };
-    }
-    const connection = currentConnections[0];
-
-    try {
-      await services.assertRoomReadAccess(
-        context.sender,
-        request.room_id,
-        context.recipientBotUserId,
-      );
-    } catch {
-      return { result: "not_authorized" as const };
-    }
-
-    try {
-      if (!services.hasOpenProjectCommandPermission(context.sender)) {
-        return { result: "not_authorized" as const };
-      }
-    } catch {
-      return { result: "not_authorized" as const };
-    }
-    let canSendMessage: boolean;
-    try {
-      canSendMessage = await services.canSendRoomMessage(
-        context.sender,
-        request.room_id,
-        context.recipientBotUserId,
-      );
-    } catch {
-      return { result: "unavailable" as const };
-    }
-    if (!canSendMessage) {
-      return { result: "not_authorized" as const };
-    }
+    const { connection, projectId, workPackageId } = authorization;
 
     let evaluation: OpenProjectCardActionsResult;
     try {
