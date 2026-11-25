@@ -28,7 +28,7 @@ import type {
   ProfileIdentity,
 } from "./OpenProjectProfile";
 
-const PROBE_TIMEOUT_MS = 10_000;
+const TO_DEVICE_REQUEST_TIMEOUT_MS = 10_000;
 
 export { OPENPROJECT_INTEGRATION_ID } from "../utils/config";
 export const OPENPROJECT_SNAPSHOT_ID_MAX_LENGTH = 255;
@@ -36,6 +36,18 @@ export const HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe";
 export const HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE =
   "org.matrix.matrix-hookshot.capabilities.probe_response";
+/** Hookshot to-device event used to begin OpenProject login. */
+export const HOOKSHOT_LOGIN_START_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.start";
+/** Hookshot to-device response for a login-start request. */
+export const HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.start_response";
+/** Hookshot to-device event used to check stored OpenProject login state. */
+export const HOOKSHOT_LOGIN_STATUS_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.status";
+/** Hookshot to-device response for a login-status request. */
+export const HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE =
+  "org.matrix.matrix-hookshot.login.status_response";
 export const HOOKSHOT_COMMAND_EVENT_TYPE = "org.matrix.matrix-hookshot.command";
 export const HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION = 1;
 
@@ -473,6 +485,61 @@ export class OpenProjectCapabilityClient {
     return this.startProbe(anchor, identity, probeKey);
   }
 
+  /** Requests a fresh OpenProject authorization URL for the selected anchor. */
+  public loginStart(
+    anchor: OpenProjectAnchor,
+  ): Promise<OpenProjectLoginStartResponse> {
+    return this.requestLoginResponse(
+      anchor,
+      HOOKSHOT_LOGIN_START_EVENT_TYPE,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      isOpenProjectLoginStartResponse,
+    );
+  }
+
+  /** Checks whether the selected anchor's Matrix user has a stored token. */
+  public loginStatus(
+    anchor: OpenProjectAnchor,
+  ): Promise<OpenProjectLoginStatusResponse> {
+    return this.requestLoginResponse(
+      anchor,
+      HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+      isOpenProjectLoginStatusResponse,
+    );
+  }
+
+  private requestLoginResponse<T extends CorrelatedResponse>(
+    anchor: OpenProjectAnchor,
+    requestType: string,
+    responseType: string,
+    isResponse: ResponseValidator<T>,
+  ): Promise<T> {
+    if (!this.isValidAnchor(anchor)) {
+      return Promise.reject(new Error("Invalid OpenProject anchor"));
+    }
+
+    const identity = this.profile.capture();
+    if (!identity) {
+      return Promise.reject(new Error("No active Matrix user and device"));
+    }
+
+    let requestId: string;
+    try {
+      requestId = createRequestId();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return this.sendAndWaitForResponse(
+      anchor,
+      identity,
+      requestId,
+      requestType,
+      responseType,
+      isResponse,
+    );
+  }
+
   private startProbe(
     anchor: OpenProjectAnchor,
     identity: ProfileIdentity,
@@ -493,7 +560,15 @@ export class OpenProjectCapabilityClient {
     const entry: PendingProbeEntry = { promise };
     this.pendingProbes.set(probeKey, entry);
 
-    void this.sendAndWaitForResponse(anchor, identity, requestId).then(
+    void this.sendAndWaitForResponse(
+      anchor,
+      identity,
+      requestId,
+      HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
+      HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+      (value): value is OpenProjectProbeResponse =>
+        isOpenProjectProbeResponse(value, anchor.workPackageId),
+    ).then(
       (response) => {
         this.removePendingProbe(probeKey, entry);
         resolveProbe(response);
@@ -510,12 +585,21 @@ export class OpenProjectCapabilityClient {
     return promise;
   }
 
-  private async sendAndWaitForResponse(
+  private async sendAndWaitForResponse<T extends CorrelatedResponse>(
     anchor: OpenProjectAnchor,
     identity: ProfileIdentity,
     requestId: string,
-  ): Promise<OpenProjectProbeResponse> {
-    const waiter = this.createResponseWaiter(anchor, identity, requestId);
+    requestType: string,
+    responseType: string,
+    isResponse: ResponseValidator<T>,
+  ): Promise<T> {
+    const waiter = this.createResponseWaiter(
+      anchor,
+      identity,
+      requestId,
+      responseType,
+      isResponse,
+    );
 
     try {
       if (!waiter.isPending()) {
@@ -529,7 +613,7 @@ export class OpenProjectCapabilityClient {
         .sendMessage({
           recipientUserId: anchor.recipientUserId,
           recipientDeviceId: "*",
-          type: HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
+          type: requestType,
           content: {
             v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
             request_id: requestId,
@@ -550,23 +634,25 @@ export class OpenProjectCapabilityClient {
       }
       return response;
     } catch (error) {
-      const probeError =
+      const requestError =
         error instanceof Error
           ? error
-          : new Error("OpenProject capability probe failed");
-      waiter.cancel(probeError);
-      throw probeError;
+          : new Error("OpenProject to-device request failed");
+      waiter.cancel(requestError);
+      throw requestError;
     }
   }
 
-  private createResponseWaiter(
+  private createResponseWaiter<T extends CorrelatedResponse>(
     anchor: OpenProjectAnchor,
     identity: ProfileIdentity,
     requestId: string,
-  ): ProbeResponseWaiter {
-    let resolveResponse!: (response: OpenProjectProbeResponse) => void;
+    responseType: string,
+    isResponse: ResponseValidator<T>,
+  ): ResponseWaiter<T> {
+    let resolveResponse!: (response: T) => void;
     let rejectResponse!: (error: Error) => void;
-    const promise = new Promise<OpenProjectProbeResponse>((resolve, reject) => {
+    const promise = new Promise<T>((resolve, reject) => {
       resolveResponse = resolve;
       rejectResponse = reject;
     });
@@ -575,10 +661,7 @@ export class OpenProjectCapabilityClient {
     let unsubscribeProfile = (): void => {};
     let timeout: ReturnType<typeof setTimeout> | undefined;
 
-    const finish = (
-      error: Error | undefined,
-      response?: OpenProjectProbeResponse,
-    ): void => {
+    const finish = (error: Error | undefined, response?: T): void => {
       if (settled) {
         return;
       }
@@ -595,7 +678,7 @@ export class OpenProjectCapabilityClient {
       }
     };
 
-    const waiter: ProbeResponseWaiter = {
+    const waiter: ResponseWaiter<T> = {
       promise,
       cancel: (error) => finish(error),
       isPending: () => !settled,
@@ -615,19 +698,16 @@ export class OpenProjectCapabilityClient {
       }
 
       unsubscribeMessage = this.toDeviceClient.onMessage(
-        HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+        responseType,
         (message) => {
           if (!this.profile.isCurrent(identity)) {
             finish(new Error("Matrix account or device changed"));
             return;
           }
           if (
-            message.type !== HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE ||
+            message.type !== responseType ||
             message.sender !== anchor.recipientUserId ||
-            !isOpenProjectProbeResponse(
-              message.content,
-              anchor.workPackageId,
-            ) ||
+            !isResponse(message.content) ||
             message.content.request_id !== requestId
           ) {
             return;
@@ -641,15 +721,17 @@ export class OpenProjectCapabilityClient {
       }
 
       timeout = setTimeout(
-        () => finish(new Error("OpenProject capability probe timed out")),
-        PROBE_TIMEOUT_MS,
+        () => finish(new Error("OpenProject to-device request timed out")),
+        TO_DEVICE_REQUEST_TIMEOUT_MS,
       );
       if (!this.profile.isCurrent(identity)) {
         finish(new Error("Matrix account or device changed"));
       }
     } catch (error) {
       finish(
-        error instanceof Error ? error : new Error("To-device probe failed"),
+        error instanceof Error
+          ? error
+          : new Error("OpenProject to-device request failed"),
       );
     }
 
@@ -694,8 +776,16 @@ interface PendingProbeEntry {
   readonly promise: Promise<OpenProjectProbeResponse>;
 }
 
-interface ProbeResponseWaiter {
-  readonly promise: Promise<OpenProjectProbeResponse>;
+interface CorrelatedResponse {
+  readonly request_id: string;
+}
+
+type ResponseValidator<T extends CorrelatedResponse> = (
+  value: unknown,
+) => value is T;
+
+interface ResponseWaiter<T extends CorrelatedResponse> {
+  readonly promise: Promise<T>;
   readonly cancel: (error: Error) => void;
   readonly isPending: () => boolean;
 }

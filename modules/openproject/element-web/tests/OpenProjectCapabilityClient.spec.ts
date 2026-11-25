@@ -9,6 +9,10 @@ import {
   isOpenProjectActivityContent,
   HOOKSHOT_CAPABILITIES_PROBE_EVENT_TYPE,
   HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
   OpenProjectCapabilityClient,
   type OpenProjectAnchor,
   type OpenProjectProbeResponse,
@@ -72,6 +76,20 @@ function deliverResponse(
 ): void {
   toDevice.deliver(HOOKSHOT_CAPABILITIES_PROBE_RESPONSE_EVENT_TYPE, {
     type,
+    sender,
+    content,
+  });
+}
+
+function deliverLoginResponse(
+  toDevice: MockToDeviceApi,
+  responseType: string,
+  content: unknown,
+  sender = botUserId,
+  messageType = responseType,
+): void {
+  toDevice.deliver(responseType, {
+    type: messageType,
     sender,
     content,
   });
@@ -508,6 +526,213 @@ describe("OpenProjectCapabilityClient", () => {
     expect(profile.listenerCount).toBe(0);
   });
 
+  it("sends fresh correlated login-start and status requests to the bot", async () => {
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
+    const anchor = createAnchor();
+
+    const firstStart = client.loginStart(anchor);
+    const secondStart = client.loginStart(anchor);
+    const status = client.loginStatus(anchor);
+
+    expect(toDevice.calls.slice(0, 6)).toEqual([
+      "subscribe",
+      "send",
+      "subscribe",
+      "send",
+      "subscribe",
+      "send",
+    ]);
+    expect(toDevice.sentMessages).toEqual([
+      {
+        recipientUserId: botUserId,
+        recipientDeviceId: "*",
+        type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+        content: {
+          v: 1,
+          request_id: expect.any(String),
+          requesting_device_id: "ALICE_DEVICE",
+          integration_id: "openproject",
+          room_id: "!room:example.org",
+          anchor_event_id: "$anchor-without-server",
+        },
+      },
+      {
+        recipientUserId: botUserId,
+        recipientDeviceId: "*",
+        type: HOOKSHOT_LOGIN_START_EVENT_TYPE,
+        content: {
+          v: 1,
+          request_id: expect.any(String),
+          requesting_device_id: "ALICE_DEVICE",
+          integration_id: "openproject",
+          room_id: "!room:example.org",
+          anchor_event_id: "$anchor-without-server",
+        },
+      },
+      {
+        recipientUserId: botUserId,
+        recipientDeviceId: "*",
+        type: HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+        content: {
+          v: 1,
+          request_id: expect.any(String),
+          requesting_device_id: "ALICE_DEVICE",
+          integration_id: "openproject",
+          room_id: "!room:example.org",
+          anchor_event_id: "$anchor-without-server",
+        },
+      },
+    ]);
+    const requestIds = toDevice.sentMessages.map((message) =>
+      String(message.content.request_id),
+    );
+    expect(new Set(requestIds).size).toBe(3);
+
+    const ready = {
+      v: 1,
+      request_id: requestIds[0],
+      integration_id: "openproject",
+      result: "ready",
+      auth_url: "https://projects.example.org/oauth/authorize?state=safe-test",
+    };
+    const alreadyConnected = {
+      v: 1,
+      request_id: requestIds[1],
+      integration_id: "openproject",
+      result: "already_connected",
+    };
+    const connected = {
+      v: 1,
+      request_id: requestIds[2],
+      integration_id: "openproject",
+      result: "connected",
+    };
+    deliverLoginResponse(
+      toDevice,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      ready,
+    );
+    deliverLoginResponse(
+      toDevice,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      alreadyConnected,
+    );
+    deliverLoginResponse(
+      toDevice,
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+      connected,
+    );
+
+    await expect(firstStart).resolves.toEqual(ready);
+    await expect(secondStart).resolves.toEqual(alreadyConnected);
+    await expect(status).resolves.toEqual(connected);
+    expect(toDevice.listenerCount).toBe(0);
+  });
+
+  it("accepts each login-start and login-status result variant", async () => {
+    const toDevice = new MockToDeviceApi();
+    const profile = new MockProfile();
+    const client = new OpenProjectCapabilityClient(toDevice, profile);
+    const startResults = [
+      {
+        result: "ready",
+        auth_url: "https://projects.example.org/oauth/authorize?state=x",
+      },
+      { result: "already_connected" },
+      { result: "not_authorized" },
+      { result: "unavailable" },
+    ];
+    const statusResults = [
+      { result: "connected" },
+      { result: "not_connected" },
+      { result: "unavailable" },
+    ];
+    const startPromises = startResults.map(() =>
+      client.loginStart(createAnchor()),
+    );
+    const statusPromises = statusResults.map(() =>
+      client.loginStatus(createAnchor()),
+    );
+
+    let requestIndex = 0;
+    for (const result of startResults) {
+      const requestId = getRequestId(toDevice, requestIndex++);
+      deliverLoginResponse(toDevice, HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE, {
+        v: 1,
+        request_id: requestId,
+        integration_id: "openproject",
+        ...result,
+      });
+    }
+    for (const result of statusResults) {
+      const requestId = getRequestId(toDevice, requestIndex++);
+      deliverLoginResponse(
+        toDevice,
+        HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+        {
+          v: 1,
+          request_id: requestId,
+          integration_id: "openproject",
+          ...result,
+        },
+      );
+    }
+
+    await expect(Promise.all(startPromises)).resolves.toHaveLength(4);
+    await expect(Promise.all(statusPromises)).resolves.toHaveLength(3);
+    expect(toDevice.listenerCount).toBe(0);
+    expect(profile.listenerCount).toBe(0);
+  });
+
+  it("ignores unsolicited and mismatched login-start responses", async () => {
+    const toDevice = new MockToDeviceApi();
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
+    const start = client.loginStart(createAnchor());
+    const requestId = getRequestId(toDevice);
+    const response = {
+      v: 1,
+      request_id: requestId,
+      integration_id: "openproject",
+      result: "already_connected",
+    };
+
+    deliverLoginResponse(
+      toDevice,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      response,
+      "@spoofed:example.org",
+    );
+    deliverLoginResponse(
+      toDevice,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      response,
+      botUserId,
+      HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+    );
+    deliverLoginResponse(toDevice, HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE, {
+      ...response,
+      request_id: "different-request",
+    });
+    deliverLoginResponse(toDevice, HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE, {
+      ...response,
+      integration_id: "github",
+    });
+    deliverLoginResponse(toDevice, HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE, {
+      ...response,
+      auth_url: undefined,
+    });
+    expect(toDevice.listenerCount).toBe(1);
+
+    deliverLoginResponse(
+      toDevice,
+      HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+      response,
+    );
+    await expect(start).resolves.toEqual(response);
+    expect(toDevice.listenerCount).toBe(0);
+  });
+
   it("waits for a response after send succeeds and clears its timeout", async () => {
     vi.useFakeTimers();
     try {
@@ -735,7 +960,7 @@ describe("OpenProjectCapabilityClient", () => {
     expect(toDevice.sendMessage).not.toHaveBeenCalled();
   });
 
-  it("times out and removes the response and profile listeners", async () => {
+  it("times out a probe and removes the response and profile listeners", async () => {
     vi.useFakeTimers();
     try {
       const toDevice = new MockToDeviceApi();
@@ -743,7 +968,7 @@ describe("OpenProjectCapabilityClient", () => {
       const client = new OpenProjectCapabilityClient(toDevice, profile);
       const probe = client.probe(createAnchor());
       const rejection = expect(probe).rejects.toThrow(
-        "OpenProject capability probe timed out",
+        "OpenProject to-device request timed out",
       );
 
       await vi.advanceTimersByTimeAsync(10_000);
@@ -753,5 +978,141 @@ describe("OpenProjectCapabilityClient", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("times out login-status and ignores a late response", async () => {
+    vi.useFakeTimers();
+    try {
+      const toDevice = new MockToDeviceApi();
+      const profile = new MockProfile();
+      const client = new OpenProjectCapabilityClient(toDevice, profile);
+      const status = client.loginStatus(createAnchor());
+      const requestId = getRequestId(toDevice);
+      const rejection = expect(status).rejects.toThrow(
+        "OpenProject to-device request timed out",
+      );
+
+      await vi.advanceTimersByTimeAsync(10_000);
+      await rejection;
+      expect(toDevice.listenerCount).toBe(0);
+      expect(profile.listenerCount).toBe(0);
+      deliverLoginResponse(
+        toDevice,
+        HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+        {
+          v: 1,
+          request_id: requestId,
+          integration_id: "openproject",
+          result: "connected",
+        },
+      );
+      expect(toDevice.sendMessage).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cleans up login-start listeners after send failure", async () => {
+    const toDevice = new MockToDeviceApi();
+    toDevice.failOnSendCall(1, new Error("Hookshot unavailable"));
+    const profile = new MockProfile();
+    const client = new OpenProjectCapabilityClient(toDevice, profile);
+
+    await expect(client.loginStart(createAnchor())).rejects.toThrow(
+      "Hookshot unavailable",
+    );
+    expect(toDevice.listenerCount).toBe(0);
+    expect(profile.listenerCount).toBe(0);
+  });
+
+  it.each([
+    {
+      operation: "login-start",
+      session: "account",
+      identity: { userId: "@bob:example.org", deviceId: "BOB_DEVICE" },
+      invoke: (
+        client: OpenProjectCapabilityClient,
+        anchor: OpenProjectAnchor,
+      ) => client.loginStart(anchor),
+    },
+    {
+      operation: "login-start",
+      session: "device",
+      identity: {
+        userId: "@alice:example.org",
+        deviceId: "ALICE_SECOND_DEVICE",
+      },
+      invoke: (
+        client: OpenProjectCapabilityClient,
+        anchor: OpenProjectAnchor,
+      ) => client.loginStart(anchor),
+    },
+    {
+      operation: "login-status",
+      session: "account",
+      identity: { userId: "@bob:example.org", deviceId: "BOB_DEVICE" },
+      invoke: (
+        client: OpenProjectCapabilityClient,
+        anchor: OpenProjectAnchor,
+      ) => client.loginStatus(anchor),
+    },
+    {
+      operation: "login-status",
+      session: "device",
+      identity: {
+        userId: "@alice:example.org",
+        deviceId: "ALICE_SECOND_DEVICE",
+      },
+      invoke: (
+        client: OpenProjectCapabilityClient,
+        anchor: OpenProjectAnchor,
+      ) => client.loginStatus(anchor),
+    },
+  ])(
+    "rejects $operation and cleans up after a $session change",
+    async ({ invoke, identity }) => {
+      const toDevice = new MockToDeviceApi();
+      const profile = new MockProfile();
+      const client = new OpenProjectCapabilityClient(toDevice, profile);
+      const request = invoke(client, createAnchor());
+      const requestId = getRequestId(toDevice);
+
+      profile.update(identity);
+      await expect(request).rejects.toThrow("Matrix account or device changed");
+      expect(toDevice.listenerCount).toBe(0);
+      expect(profile.listenerCount).toBe(0);
+
+      deliverLoginResponse(
+        toDevice,
+        toDevice.sentMessages[0].type === HOOKSHOT_LOGIN_START_EVENT_TYPE
+          ? HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE
+          : HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+        {
+          v: 1,
+          request_id: requestId,
+          integration_id: "openproject",
+          result: "connected",
+        },
+      );
+      expect(toDevice.sendMessage).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("rejects login requests without a valid anchor or active session", async () => {
+    const toDevice = new MockToDeviceApi();
+    const invalidSessionClient = new OpenProjectCapabilityClient(
+      toDevice,
+      new MockProfile({ userId: "@alice:example.org" }),
+    );
+    await expect(
+      invalidSessionClient.loginStart(createAnchor()),
+    ).rejects.toThrow("No active Matrix user and device");
+
+    const client = new OpenProjectCapabilityClient(toDevice, new MockProfile());
+    await expect(
+      client.loginStatus(createAnchor({ eventId: "invalid-event" })),
+    ).rejects.toThrow("Invalid OpenProject anchor");
+    expect(toDevice.onMessage).not.toHaveBeenCalled();
+    expect(toDevice.sendMessage).not.toHaveBeenCalled();
   });
 });
