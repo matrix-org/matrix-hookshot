@@ -475,7 +475,8 @@ function getEvaluationFailure(
   ];
   if (failures.includes("unavailable")) return "unavailable";
   if (failures.includes("not_connected")) return "not_connected";
-  if (failures.includes("not_authorized")) return "not_authorized";
+  // Authorization failures here belong to individual OpenProject actions.
+  // Keep the probe connected and omit those actions from the response.
   return undefined;
 }
 

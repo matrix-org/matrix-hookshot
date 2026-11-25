@@ -229,6 +229,65 @@ describe("authenticated Hookshot probe", () => {
     });
   });
 
+  it("keeps a connected read-only account successful with no mutation actions", async () => {
+    const services = createServices({
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "evaluated",
+        assignSelf: {
+          status: "not_authorized",
+          reason: "openproject_permission",
+        },
+        markDone: {
+          status: "not_authorized",
+          reason: "openproject_permission",
+        },
+      }),
+    });
+    const handler = createOpenProjectProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({
+      result: "ok",
+      connection: "connected",
+      actions: [],
+    });
+  });
+
+  it("includes only the actions authorized for the connected account", async () => {
+    const services = createServices({
+      evaluateCardActions: vi.fn().mockResolvedValue({
+        status: "evaluated",
+        assignSelf: {
+          status: "eligible",
+          action: "assign_self",
+          workPackageId: 17,
+          lockVersion: 1,
+          targetHref: "/api/v3/users/7",
+        },
+        markDone: {
+          status: "not_authorized",
+          reason: "openproject_permission",
+        },
+      }),
+    });
+    const handler = createOpenProjectProbeHandler(services);
+
+    await expect(
+      handler(request, { sender, recipientBotUserId: botUserId }),
+    ).resolves.toEqual({
+      result: "ok",
+      connection: "connected",
+      actions: [
+        {
+          id: "assign_self",
+          label: "Assign to me",
+          command: "!openproject demo assign 17",
+        },
+      ],
+    });
+  });
+
   it("does not return partial actions when either eligibility check is unavailable", async () => {
     const services = createServices({
       evaluateCardActions: vi.fn().mockResolvedValue({
