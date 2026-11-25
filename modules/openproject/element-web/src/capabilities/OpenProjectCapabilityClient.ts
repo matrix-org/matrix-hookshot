@@ -461,6 +461,14 @@ export class OpenProjectCapabilityClient {
     return this.profile.isCurrent(sessionIdentity);
   }
 
+  /** Calls back when the active Matrix user or device stops matching an identity. */
+  public watchSessionIdentity(
+    sessionIdentity: ProfileIdentity,
+    onChange: () => void,
+  ): () => void {
+    return this.profile.watchForChange(sessionIdentity, onChange);
+  }
+
   public probe(
     anchor: OpenProjectAnchor,
     options: OpenProjectProbeOptions = {},
