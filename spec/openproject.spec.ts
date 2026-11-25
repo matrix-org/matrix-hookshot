@@ -1,7 +1,12 @@
 import { E2ESetupTestTimeout, E2ETestEnv } from "./util/e2e-test";
-import { describe, expect, beforeAll, afterAll, test } from "vitest";
+import { describe, expect, beforeAll, afterAll, test, vi } from "vitest";
 import { createHmac, randomUUID } from "crypto";
-import { MessageEventContent } from "matrix-bot-sdk";
+import {
+  IToDeviceMessage,
+  MatrixClient,
+  MessageEventContent,
+} from "matrix-bot-sdk";
+import { Logger } from "matrix-appservice-bridge";
 import { getBridgeApi } from "./util/bridge-api";
 import { waitFor } from "./util/helpers";
 import {
@@ -12,6 +17,38 @@ import {
   OPENPROJECT_ACTIVITY_EVENT_KIND,
   OPENPROJECT_ANCHOR_EVENT_KIND,
 } from "../src/openproject/Schema";
+import {
+  HOOKSHOT_LOGIN_START_EVENT_TYPE,
+  HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_EVENT_TYPE,
+  HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE,
+  HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+} from "../src/ToDeviceProtocol";
+
+const TO_DEVICE_RESPONSE_TIMEOUT_MS = 20_000;
+
+function waitForToDevice(
+  client: MatrixClient,
+  predicate: (message: IToDeviceMessage) => boolean,
+): Promise<IToDeviceMessage> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      client.off("to-device", onMessage);
+      reject(new Error("Timed out waiting for a to-device response"));
+    }, TO_DEVICE_RESPONSE_TIMEOUT_MS);
+
+    const onMessage = (message: IToDeviceMessage): void => {
+      if (!predicate(message)) {
+        return;
+      }
+      clearTimeout(timer);
+      client.off("to-device", onMessage);
+      resolve(message);
+    };
+
+    client.on("to-device", onMessage);
+  });
+}
 
 const OPEN_PROJECT_PAYLOAD = {
   action: "work_package:created",
@@ -343,7 +380,10 @@ describe("OpenProject", () => {
       matrixLocalparts: ["user", "denied_user"],
       permissionsRoom: {
         members: ["user"],
-        permissions: [{ service: "openproject", level: "login" }],
+        permissions: [
+          { service: "openproject", level: "commands" },
+          { service: "openproject", level: "login" },
+        ],
       },
       e2eClientOpts: { autoAcceptInvite: true },
       config: {
@@ -352,6 +392,11 @@ describe("OpenProject", () => {
             secret: randomUUID(),
           },
           baseUrl: "http://mytestproject.com/",
+          oauth: {
+            clientId: "test-client",
+            clientSecret: "test-client-secret",
+            redirectUri: `http://localhost:${webhooksPort}/openproject/oauth`,
+          },
         },
         widgets: {
           publicUrl: `http://localhost:${webhooksPort}`,
@@ -434,6 +479,284 @@ describe("OpenProject", () => {
       OPENPROJECT_ANCHOR_EVENT_KIND,
     );
   });
+
+  test(
+    "starts OpenProject login over to-device and completes the OAuth callback privately",
+    async () => {
+      const user = testEnv.getUser("user");
+      const deniedUser = testEnv.getUser("denied_user");
+      const bridgeApi = await getBridgeApi(
+        testEnv.opts.config?.widgets?.publicUrl!,
+        user,
+      );
+      const roomId = await user.createRoom({ name: "OpenProject login room" });
+      const botJoin = user.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId,
+      });
+      await user.inviteUser(testEnv.botMxid, roomId);
+      await user.setUserPowerLevel(testEnv.botMxid, roomId, 50);
+      await botJoin;
+
+      const projectId = OPEN_PROJECT_PAYLOAD.work_package._embedded.project.id;
+      const connectionUrl = `http://mytestproject.com/projects/${projectId}`;
+      await testEnv.app.appservice.botClient.sendStateEvent(
+        roomId,
+        OpenProjectConnection.CanonicalEventType,
+        connectionUrl,
+        {
+          url: connectionUrl,
+          events: ["work_package:created", "work_package:updated"],
+          anchors: ["work_package:created"],
+        } satisfies OpenProjectConnectionState,
+      );
+      await waitFor(
+        async () =>
+          (await bridgeApi.getConnectionsForRoom(roomId)).length === 1,
+      );
+
+      const anchorBody =
+        'Work package [50](http://mytestproject.com/projects/demo-project/work_packages/50): "test 133" — added to the timeline';
+      const anchorPromise = user.waitForRoomEvent<MessageEventContent>({
+        eventType: "m.room.message",
+        sender: testEnv.botMxid,
+        roomId,
+        body: anchorBody,
+      });
+      await sendOpenProjectWebhook(
+        OPEN_PROJECT_PAYLOAD,
+        testEnv.opts.config?.openProject?.webhook.secret!,
+        webhooksPort,
+      );
+      const anchor = await anchorPromise;
+
+      const deniedJoin = deniedUser.waitForRoomJoin({
+        sender: testEnv.botMxid,
+        roomId,
+      });
+      await user.inviteUser(
+        `@denied_user:${testEnv.homeserver.domain}`,
+        roomId,
+      );
+      await deniedJoin;
+
+      const userDeviceId = (await user.getWhoAmI()).device_id;
+      const deniedDeviceId = (await deniedUser.getWhoAmI()).device_id;
+      if (!userDeviceId || !deniedDeviceId) {
+        throw new Error("Expected test Matrix clients to have device IDs");
+      }
+
+      const originalFetch = globalThis.fetch;
+      const exchangeBodies: URLSearchParams[] = [];
+      globalThis.fetch = vi.fn(
+        async (
+          input: Parameters<typeof fetch>[0],
+          init?: Parameters<typeof fetch>[1],
+        ) => {
+          expect(String(input)).toBe("http://mytestproject.com/oauth/token");
+          const form = new URLSearchParams(String(init?.body));
+          exchangeBodies.push(form);
+          if (form.get("code") === "oauth-failure") {
+            return new Response(JSON.stringify({ error: "invalid_grant" }), {
+              status: 400,
+            });
+          }
+          return new Response(
+            JSON.stringify({
+              access_token: "test-access-token",
+              token_type: "Bearer",
+              expires_in: 3600,
+              refresh_token: "test-refresh-token",
+              scope: "api_v3",
+              created_at: Date.now(),
+            }),
+            { status: 200 },
+          );
+        },
+      );
+
+      const logSpies = [
+        vi.spyOn(Logger.prototype, "debug"),
+        vi.spyOn(Logger.prototype, "info"),
+        vi.spyOn(Logger.prototype, "warn"),
+        vi.spyOn(Logger.prototype, "error"),
+      ];
+      const roomEvents: unknown[] = [];
+      const onRoomEvent = (eventRoomId: string, event: unknown): void => {
+        if (eventRoomId === roomId) {
+          roomEvents.push(event);
+        }
+      };
+      user.on("room.event", onRoomEvent);
+
+      const sendLoginStart = async (
+        client: typeof user,
+        deviceId: string,
+        requestId: string,
+      ) => {
+        const responsePromise = waitForToDevice(
+          client,
+          (message) =>
+            message.type === HOOKSHOT_LOGIN_START_RESPONSE_EVENT_TYPE &&
+            message.sender === testEnv.botMxid &&
+            (message.content as Record<string, unknown>).request_id ===
+              requestId,
+        );
+        await client.sendToDevices(HOOKSHOT_LOGIN_START_EVENT_TYPE, {
+          [testEnv.botMxid]: {
+            "*": {
+              v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+              request_id: requestId,
+              requesting_device_id: deviceId,
+              integration_id: "openproject",
+              room_id: roomId,
+              anchor_event_id: anchor.data.event_id,
+            },
+          },
+        });
+        return responsePromise;
+      };
+
+      const sendLoginStatus = async (requestId: string) => {
+        const responsePromise = waitForToDevice(
+          user,
+          (message) =>
+            message.type === HOOKSHOT_LOGIN_STATUS_RESPONSE_EVENT_TYPE &&
+            message.sender === testEnv.botMxid &&
+            (message.content as Record<string, unknown>).request_id ===
+              requestId,
+        );
+        await user.sendToDevices(HOOKSHOT_LOGIN_STATUS_EVENT_TYPE, {
+          [testEnv.botMxid]: {
+            "*": {
+              v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+              request_id: requestId,
+              requesting_device_id: userDeviceId,
+              integration_id: "openproject",
+              room_id: roomId,
+              anchor_event_id: anchor.data.event_id,
+            },
+          },
+        });
+        return responsePromise;
+      };
+
+      const completeOAuth = async (code: string, state: string) => {
+        const callback = new URL(
+          "/openproject/oauth",
+          `http://localhost:${webhooksPort}`,
+        );
+        callback.searchParams.set("code", code);
+        callback.searchParams.set("state", state);
+        return originalFetch(callback);
+      };
+
+      try {
+        const deniedResponse = await sendLoginStart(
+          deniedUser,
+          deniedDeviceId,
+          "openproject-login-denied",
+        );
+        expect(deniedResponse.content).toMatchObject({
+          request_id: "openproject-login-denied",
+          integration_id: "openproject",
+          result: "not_authorized",
+        });
+
+        const firstStart = await sendLoginStart(
+          user,
+          userDeviceId,
+          "openproject-login-failure-flow",
+        );
+        expect(firstStart.content).toMatchObject({
+          result: "ready",
+          integration_id: "openproject",
+        });
+        const firstAuthUrl = new URL(
+          (firstStart.content as Record<string, string>).auth_url,
+        );
+        const firstState = firstAuthUrl.searchParams.get("state");
+        expect(firstState).toBeTruthy();
+
+        const failedCallback = await completeOAuth(
+          "oauth-failure",
+          firstState!,
+        );
+        expect(failedCallback.status).toBe(404);
+        const notConnected = await sendLoginStatus(
+          "openproject-status-after-failure",
+        );
+        expect(notConnected.content).toEqual({
+          v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+          request_id: "openproject-status-after-failure",
+          integration_id: "openproject",
+          result: "not_connected",
+        });
+
+        const secondStart = await sendLoginStart(
+          user,
+          userDeviceId,
+          "openproject-login-success-flow",
+        );
+        expect(secondStart.content).toMatchObject({ result: "ready" });
+        const authUrl = (secondStart.content as Record<string, string>)
+          .auth_url;
+        const state = new URL(authUrl).searchParams.get("state");
+        expect(state).toBeTruthy();
+        expect(state).not.toBe(firstState);
+
+        const successfulCallback = await completeOAuth("oauth-success", state!);
+        expect(successfulCallback.status).toBe(200);
+        expect(await successfulCallback.text()).toContain(
+          "Your account has been bridged",
+        );
+        const connected = await sendLoginStatus(
+          "openproject-status-after-success",
+        );
+        expect(connected.content).toEqual({
+          v: HOOKSHOT_TO_DEVICE_PROTOCOL_VERSION,
+          request_id: "openproject-status-after-success",
+          integration_id: "openproject",
+          result: "connected",
+        });
+
+        expect(exchangeBodies).toHaveLength(2);
+        expect(exchangeBodies[0].get("code")).toBe("oauth-failure");
+        expect(exchangeBodies[1].get("code")).toBe("oauth-success");
+        for (const body of exchangeBodies) {
+          expect(body.has("state")).toBe(false);
+        }
+
+        const serializedRoomEvents = JSON.stringify(roomEvents);
+        for (const sensitiveValue of [
+          firstAuthUrl.toString(),
+          authUrl,
+          firstState!,
+          state!,
+        ]) {
+          expect(serializedRoomEvents).not.toContain(sensitiveValue);
+        }
+        const serializedLogs = logSpies
+          .flatMap((spy) => spy.mock.calls.flatMap((call) => call.map(String)))
+          .join("\n");
+        for (const sensitiveValue of [
+          firstAuthUrl.toString(),
+          authUrl,
+          firstState!,
+          firstState!.slice(0, 8),
+          state!,
+          state!.slice(0, 8),
+        ]) {
+          expect(serializedLogs).not.toContain(sensitiveValue);
+        }
+      } finally {
+        user.off("room.event", onRoomEvent);
+        logSpies.forEach((spy) => spy.mockRestore());
+        globalThis.fetch = originalFetch;
+      }
+    },
+    8 * TO_DEVICE_RESPONSE_TIMEOUT_MS + 30_000,
+  );
 
   test("should be able to handle a representative OpenProject update", async () => {
     const user = testEnv.getUser("user");
